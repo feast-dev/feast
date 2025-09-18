@@ -64,3 +64,19 @@ class RayComputeEngineConfig(FeastConfigBaseModel):
         else:
             # Default to 1 hour
             return timedelta(hours=1)
+
+    # KubeRay/CodeFlare SDK configurations (new additions)
+    use_kuberay: Optional[bool] = None
+    """Whether to use KubeRay/CodeFlare SDK for Ray cluster management (auto-detect if None)"""
+
+    cluster_name: Optional[str] = None
+    """Name of the KubeRay cluster to connect to (required for KubeRay mode)"""
+
+    auth_token: Optional[str] = None
+    """Authentication token for Ray cluster connection (for secure clusters)"""
+
+    kuberay_conf: Optional[Dict[str, Any]] = None
+    """KubeRay/CodeFlare configuration parameters (passed to CodeFlare SDK)"""
+
+    enable_ray_logging: bool = False
+    """Enable Ray progress bars and verbose logging"""

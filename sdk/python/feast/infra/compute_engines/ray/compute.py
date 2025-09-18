@@ -11,6 +11,10 @@ from feast import (
     OnDemandFeatureView,
     StreamFeatureView,
 )
+from feast.infra.codeflare_ray_wrapper import (
+    get_ray_wrapper,
+    initialize_ray_wrapper_from_config,
+)
 from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationJobStatus,
@@ -55,6 +59,8 @@ class RayComputeEngine(ComputeEngine):
         self.config = repo_config.batch_engine
         assert isinstance(self.config, RayComputeEngineConfig)
         self._ensure_ray_initialized()
+
+        initialize_ray_wrapper_from_config(self.config)
 
     def _ensure_ray_initialized(self):
         """Ensure Ray is initialized with proper configuration."""
@@ -230,7 +236,8 @@ class RayComputeEngine(ComputeEngine):
 
                 # Write to sink_source using Ray data
                 try:
-                    ray_dataset = ray.data.from_arrow(arrow_table)
+                    ray_wrapper = get_ray_wrapper()
+                    ray_dataset = ray_wrapper.from_arrow(arrow_table)
                     ray_dataset.write_parquet(sink_source.path)
                 except Exception as e:
                     logger.error(

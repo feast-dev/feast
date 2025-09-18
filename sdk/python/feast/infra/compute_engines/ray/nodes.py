@@ -12,6 +12,7 @@ from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
 from feast.feature_view_utils import get_transformation_function, has_transformation
+from feast.infra.codeflare_ray_wrapper import get_ray_wrapper
 from feast.infra.common.serde import SerializedArtifacts
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
@@ -72,10 +73,12 @@ class RayReadNode(DAGNode):
             else:
                 try:
                     arrow_table = retrieval_job.to_arrow()
-                    ray_dataset = ray.data.from_arrow(arrow_table)
+                    ray_wrapper = get_ray_wrapper()
+                    ray_dataset = ray_wrapper.from_arrow(arrow_table)
                 except Exception:
                     df = retrieval_job.to_df()
-                    ray_dataset = ray.data.from_pandas(df)
+                    ray_wrapper = get_ray_wrapper()
+                    ray_dataset = ray_wrapper.from_pandas(df)
 
             field_mapping = getattr(self.source, "field_mapping", None)
             if field_mapping:
@@ -130,7 +133,8 @@ class RayJoinNode(DAGNode):
 
         entity_df = context.entity_df
         if isinstance(entity_df, pd.DataFrame):
-            entity_dataset = ray.data.from_pandas(entity_df)
+            ray_wrapper = get_ray_wrapper()
+            entity_dataset = ray_wrapper.from_pandas(entity_df)
         else:
             entity_dataset = entity_df
 
@@ -423,7 +427,8 @@ class RayAggregationNode(DAGNode):
                 result_df = result_df.reset_index()
 
             # Convert back to Ray Dataset
-            return ray.data.from_pandas(result_df)
+            ray_wrapper = get_ray_wrapper()
+            return ray_wrapper.from_pandas(result_df)
         else:
             return dataset
 

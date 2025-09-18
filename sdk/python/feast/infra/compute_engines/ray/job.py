@@ -5,12 +5,12 @@ from typing import List, Optional
 
 import pandas as pd
 import pyarrow as pa
-import ray
 from ray.data import Dataset
 
 from feast import OnDemandFeatureView
 from feast.dqm.errors import ValidationFailed
 from feast.errors import SavedDatasetLocationAlreadyExists
+from feast.infra.codeflare_ray_wrapper import get_ray_wrapper
 from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationJobStatus,
@@ -69,10 +69,11 @@ class RayDAGRetrievalJob(RetrievalJob):
                     self._result_dataset = result.data
                 else:
                     # If result is not a Ray Dataset, convert it
+                    ray_wrapper = get_ray_wrapper()
                     if isinstance(result.data, pd.DataFrame):
-                        self._result_dataset = ray.data.from_pandas(result.data)
+                        self._result_dataset = ray_wrapper.from_pandas(result.data)
                     elif isinstance(result.data, pa.Table):
-                        self._result_dataset = ray.data.from_arrow(result.data)
+                        self._result_dataset = ray_wrapper.from_arrow(result.data)
                     else:
                         raise ValueError(
                             f"Unsupported result type: {type(result.data)}"

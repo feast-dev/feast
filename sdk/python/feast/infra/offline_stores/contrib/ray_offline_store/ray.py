@@ -24,6 +24,10 @@ from feast.errors import (
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.feature_view_utils import resolve_feature_view_source_with_fallback
+from feast.infra.codeflare_ray_wrapper import (
+    get_ray_wrapper,
+    initialize_ray_wrapper_from_config,
+)
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
     FileSource,
@@ -334,6 +338,22 @@ class RayOfflineStoreConfig(FeastConfigBaseModel):
     # Ray configuration for resource management (memory, CPU limits)
     ray_conf: Optional[Dict[str, Any]] = None
 
+    # KubeRay/CodeFlare SDK configurations (new additions)
+    use_kuberay: Optional[bool] = None
+    """Whether to use KubeRay/CodeFlare SDK for Ray cluster management (auto-detect if None)"""
+
+    cluster_name: Optional[str] = None
+    """Name of the KubeRay cluster to connect to (required for KubeRay mode)"""
+
+    auth_token: Optional[str] = None
+    """Authentication token for Ray cluster connection (for secure clusters)"""
+
+    kuberay_conf: Optional[Dict[str, Any]] = None
+    """KubeRay/CodeFlare configuration parameters (passed to CodeFlare SDK)"""
+
+    execution_timeout_seconds: Optional[int] = None
+    """Timeout for Ray operations in seconds (None for no timeout)"""
+
 
 class RayResourceManager:
     """
@@ -364,21 +384,17 @@ class RayResourceManager:
             ctx.target_shuffle_buffer_size = 512 * 1024**2
             ctx.target_max_block_size = 128 * 1024**2
         ctx.min_parallelism = self.available_cpus
-        multiplier = (
-            self.config.max_parallelism_multiplier
-            if self.config.max_parallelism_multiplier is not None
-            else 2
-        )
+        multiplier = self.config.max_parallelism_multiplier or 2
         ctx.max_parallelism = self.available_cpus * multiplier
         ctx.shuffle_strategy = "sort"  # type: ignore
         ctx.enable_tensor_extension_casting = False
 
-        if not getattr(self.config, "enable_ray_logging", False):
+        if not self.config.enable_ray_logging:
             ctx.enable_progress_bars = False
             if hasattr(ctx, "verbose_progress"):
                 ctx.verbose_progress = False
 
-        if getattr(self.config, "enable_ray_logging", False):
+        if self.config.enable_ray_logging:
             logger.info(
                 f"Configured Ray context: {self.available_cpus} CPUs, "
                 f"{self.available_memory // 1024**3}GB memory, {self.num_nodes} nodes"
@@ -401,11 +417,10 @@ class RayResourceManager:
         """
         Determine if dataset is small enough for broadcast join.
         """
-        threshold = (
-            threshold_mb
-            if threshold_mb is not None
-            else (self.config.broadcast_join_threshold_mb or 100)
-        )
+        if threshold_mb is not None:
+            threshold = threshold_mb
+        else:
+            threshold = self.config.broadcast_join_threshold_mb or 100
         return dataset_size_bytes <= threshold * 1024**2
 
     def estimate_processing_requirements(
@@ -574,9 +589,8 @@ class RayDataProcessor:
             """Join a batch with broadcast feature data."""
             features = ray.get(feature_ref)
 
-            enable_logging = getattr(
-                self.resource_manager.config, "enable_ray_logging", False
-            )
+            ray_conf = self.resource_manager.config.ray_conf or {}
+            enable_logging = ray_conf.get("enable_ray_logging", False)
             if enable_logging:
                 logger.info(
                     f"Processing feature view {feature_view_name} with join keys {join_keys}"
@@ -771,9 +785,8 @@ class RayDataProcessor:
     ) -> Dataset:
         """Perform windowed temporal join for large datasets."""
 
-        window_size = window_size or (
-            self.resource_manager.config.window_size_for_joins or "1H"
-        )
+        if window_size is None:
+            window_size = self.resource_manager.config.window_size_for_joins or "1H"
         entity_optimized = self.optimize_dataset_for_join(entity_ds, join_keys)
         feature_optimized = self.optimize_dataset_for_join(feature_ds, join_keys)
         entity_windowed = self._add_time_windows_and_source_marker(
@@ -964,7 +977,8 @@ class RayRetrievalJob(RetrievalJob):
             self._cached_dataset = result
             return result
         elif isinstance(result, pd.DataFrame):
-            self._cached_dataset = ray.data.from_pandas(result)
+            ray_wrapper = get_ray_wrapper()
+            self._cached_dataset = ray_wrapper.from_pandas(result)
             return self._cached_dataset
         else:
             raise ValueError(f"Unsupported result type: {type(result)}")
@@ -1152,7 +1166,8 @@ class RayRetrievalJob(RetrievalJob):
             materialized_ds = ray_ds.materialize()
             self._cached_dataset = materialized_ds
 
-            if getattr(self._config, "enable_ray_logging", False):
+            ray_conf = self._config.ray_conf or {}
+            if ray_conf.get("enable_ray_logging", False):
                 logger.info("Ray dataset materialized successfully")
         except Exception as e:
             logger.warning(f"Failed to materialize Ray dataset: {e}")
@@ -1225,7 +1240,8 @@ class RayOfflineStore(OfflineStore):
         if config and hasattr(config, "offline_store"):
             ray_config = config.offline_store
             if isinstance(ray_config, RayOfflineStoreConfig):
-                if not ray_config.enable_ray_logging:
+                ray_conf = ray_config.ray_conf or {}
+                if not ray_conf.get("enable_ray_logging", False):
                     RayOfflineStore._suppress_ray_logging()
 
         if not ray.is_initialized():
@@ -1295,8 +1311,11 @@ class RayOfflineStore(OfflineStore):
         assert isinstance(ray_config, RayOfflineStoreConfig)
         RayOfflineStore._ensure_ray_initialized(config)
 
-        if not ray_config.enable_ray_logging:
+        ray_conf = ray_config.ray_conf or {}
+        if not ray_conf.get("enable_ray_logging", False):
             RayOfflineStore._suppress_ray_logging()
+
+        initialize_ray_wrapper_from_config(ray_config)
 
         if self._resource_manager is None:
             self._resource_manager = RayResourceManager(ray_config)
@@ -1328,7 +1347,9 @@ class RayOfflineStore(OfflineStore):
         current_partitions = ds.num_blocks()
 
         if current_partitions != optimal_partitions:
-            if getattr(self._resource_manager.config, "enable_ray_logging", False):
+            if (self._resource_manager.config.ray_conf or {}).get(
+                "enable_ray_logging", False
+            ):
                 logger.debug(
                     f"Repartitioning dataset from {current_partitions} to {optimal_partitions} blocks"
                 )
@@ -1354,7 +1375,8 @@ class RayOfflineStore(OfflineStore):
         ray_config = config.offline_store
         assert isinstance(ray_config, RayOfflineStoreConfig)
 
-        if not ray_config.enable_ray_logging:
+        ray_conf = ray_config.ray_conf or {}
+        if not ray_conf.get("enable_ray_logging", False):
             RayOfflineStore._suppress_ray_logging()
         assert isinstance(feature_view.batch_source, FileSource)
 
@@ -1367,19 +1389,20 @@ class RayOfflineStore(OfflineStore):
             if expected_columns != table.column_names and set(expected_columns) == set(
                 table.column_names
             ):
-                if getattr(ray_config, "enable_ray_logging", False):
+                if ray_config.enable_ray_logging:
                     logger.info("Reordering table columns to match expected schema")
                 table = table.select(expected_columns)
 
         batch_source_path = feature_view.batch_source.file_options.uri
         feature_path = FileSource.get_uri_for_file_path(repo_path, batch_source_path)
 
-        ds = ray.data.from_arrow(table)
+        ray_wrapper = get_ray_wrapper()
+        ds = ray_wrapper.from_arrow(table)
 
         try:
             if feature_path.endswith(".parquet"):
                 if os.path.exists(feature_path):
-                    existing_ds = ray.data.read_parquet(feature_path)
+                    existing_ds = ray_wrapper.read_parquet(feature_path)
                     combined_ds = existing_ds.union(ds)
                     combined_ds.write_parquet(feature_path)
                 else:
@@ -1392,7 +1415,7 @@ class RayOfflineStore(OfflineStore):
                 progress(table.num_rows)
 
         except Exception:
-            if getattr(ray_config, "enable_ray_logging", False):
+            if ray_config.enable_ray_logging:
                 logger.info("Falling back to pandas-based writing")
             df = table.to_pandas()
             if feature_path.endswith(".parquet"):
@@ -1404,14 +1427,14 @@ class RayOfflineStore(OfflineStore):
                     df.to_parquet(feature_path, index=False)
             else:
                 os.makedirs(feature_path, exist_ok=True)
-                ds_fallback = ray.data.from_pandas(df)
+                ds_fallback = ray_wrapper.from_pandas(df)
                 ds_fallback.write_parquet(feature_path)
 
             if progress:
                 progress(table.num_rows)
 
         duration = time.time() - start_time
-        if getattr(ray_config, "enable_ray_logging", False):
+        if ray_config.enable_ray_logging:
             logger.info(
                 f"Ray offline_write_batch performance: {table.num_rows} rows in {duration:.2f}s "
                 f"({table.num_rows / duration:.0f} rows/s)"
@@ -1554,6 +1577,7 @@ class RayOfflineStore(OfflineStore):
                 ),
                 batch_format="pandas",
             )
+
             timestamp_columns_existing = [
                 col for col in timestamp_columns if col in ds.schema().names
             ]
@@ -1772,10 +1796,11 @@ class RayOfflineStore(OfflineStore):
         absolute_path = FileSource.get_uri_for_file_path(repo_path, destination.path)
 
         try:
+            ray_wrapper = get_ray_wrapper()
             if isinstance(data, Path):
-                ds = ray.data.read_parquet(str(data))
+                ds = ray_wrapper.read_parquet(str(data))
             else:
-                ds = ray.data.from_arrow(data)
+                ds = ray_wrapper.from_arrow(data)
 
                 # Normalize feature timestamp precision to seconds to match test expectations during write
                 # Note: Don't normalize __log_timestamp as it's used for time range filtering
@@ -1827,7 +1852,8 @@ class RayOfflineStore(OfflineStore):
         end_date: Optional[datetime] = None,
     ) -> Dataset:
         """Helper method to create a filtered dataset based on timestamp range."""
-        ds = ray.data.read_parquet(source_path)
+        ray_wrapper = get_ray_wrapper()
+        ds = ray_wrapper.read_parquet(source_path)
 
         try:
             col_names = ds.schema().names
@@ -1884,11 +1910,12 @@ class RayOfflineStore(OfflineStore):
         store._init_ray(config)
 
         # Load entity_df as Ray dataset for distributed processing
+        ray_wrapper = get_ray_wrapper()
         if isinstance(entity_df, str):
-            entity_ds = ray.data.read_csv(entity_df)
+            entity_ds = ray_wrapper.read_csv(entity_df)
             entity_df_sample = entity_ds.limit(1000).to_pandas()
         else:
-            entity_ds = ray.data.from_pandas(entity_df)
+            entity_ds = ray_wrapper.from_pandas(entity_df)
             entity_df_sample = entity_df.copy()
 
         entity_ds = ensure_timestamp_compatibility(entity_ds, ["event_timestamp"])
@@ -1966,7 +1993,7 @@ class RayOfflineStore(OfflineStore):
 
             # Read from the resolved data source
             source_path = store._get_source_path(source_info.data_source, config)
-            feature_ds = ray.data.read_parquet(source_path)
+            feature_ds = ray_wrapper.read_parquet(source_path)
             logger.info(
                 f"Reading feature view {fv.name}: {source_info.source_description}"
             )
@@ -2037,7 +2064,9 @@ class RayOfflineStore(OfflineStore):
 
             if requirements["should_broadcast"]:
                 # Use broadcast join for small feature datasets
-                if getattr(store._resource_manager.config, "enable_ray_logging", False):
+                if (store._resource_manager.config.ray_conf or {}).get(
+                    "enable_ray_logging", False
+                ):
                     logger.info(
                         f"Using broadcast join for {fv.name} (size: {feature_size // 1024**2}MB)"
                     )
@@ -2060,7 +2089,9 @@ class RayOfflineStore(OfflineStore):
                 )
             else:
                 # Use distributed windowed join for large feature datasets
-                if getattr(store._resource_manager.config, "enable_ray_logging", False):
+                if (store._resource_manager.config.ray_conf or {}).get(
+                    "enable_ray_logging", False
+                ):
                     logger.info(
                         f"Using distributed join for {fv.name} (size: {feature_size // 1024**2}MB)"
                     )

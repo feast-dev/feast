@@ -30,10 +30,15 @@ class RayDataSourceCreator(DataSourceCreator):
             type="ray",
             storage_path="/tmp/ray-storage",
             ray_address=None,
+            # Optimization settings
             broadcast_join_threshold_mb=25,
+            enable_distributed_joins=True,
             max_parallelism_multiplier=1,
             target_partition_size_mb=16,
+            window_size_for_joins="1H",
+            # Logging settings
             enable_ray_logging=False,
+            # Ray configuration for resource management (memory, CPU limits)
             ray_conf={
                 "num_cpus": 1,
                 "object_store_memory": 80 * 1024 * 1024,
