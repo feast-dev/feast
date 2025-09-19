@@ -28,13 +28,15 @@ class KubernetesTokenParser(TokenParser):
         config.load_incluster_config()
         self.v1 = client.CoreV1Api()
         self.rbac_v1 = client.RbacAuthorizationV1Api()
+        self.auth_v1 = client.AuthenticationV1Api()
 
     async def user_details_from_access_token(self, access_token: str) -> User:
         """
         Extract the service account from the token and search the roles associated with it.
+        Also extract groups and namespaces using Token Access Review.
 
         Returns:
-            User: Current user, with associated roles. The `username` is the `:` separated concatenation of `namespace` and `service account name`.
+            User: Current user, with associated roles, groups, and namespaces. The `username` is the `:` separated concatenation of `namespace` and `service account name`.
 
         Raises:
             AuthenticationError if any error happens.
@@ -47,12 +49,14 @@ class KubernetesTokenParser(TokenParser):
 
         intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
         if sa_name is not None and sa_name == intra_communication_base64:
-            return User(username=sa_name, roles=[])
+            return User(username=sa_name, roles=[], groups=[], namespaces=[])
         else:
             current_namespace = self._read_namespace_from_file()
             logger.info(
                 f"Looking for ServiceAccount roles of {sa_namespace}:{sa_name} in {current_namespace}"
             )
+
+            # Get roles using existing method
             roles = self.get_roles(
                 current_namespace=current_namespace,
                 service_account_namespace=sa_namespace,
@@ -60,7 +64,15 @@ class KubernetesTokenParser(TokenParser):
             )
             logger.info(f"Roles: {roles}")
 
-            return User(username=current_user, roles=roles)
+            # Extract groups and namespaces using Token Access Review
+            groups, namespaces = self._extract_groups_and_namespaces_from_token(
+                access_token
+            )
+            logger.info(f"Groups: {groups}, Namespaces: {namespaces}")
+
+            return User(
+                username=current_user, roles=roles, groups=groups, namespaces=namespaces
+            )
 
     def _read_namespace_from_file(self):
         try:
@@ -98,6 +110,170 @@ class KubernetesTokenParser(TokenParser):
                         roles.add(binding.role_ref.name)
 
         return list(roles)
+
+    def _extract_groups_and_namespaces_from_token(
+        self, access_token: str
+    ) -> tuple[list[str], list[str]]:
+        """
+        Extract groups and namespaces from the token using Kubernetes Token Access Review.
+
+        Args:
+            access_token: The JWT token to analyze
+
+        Returns:
+            tuple[list[str], list[str]]: A tuple containing (groups, namespaces)
+        """
+        try:
+            # Create TokenReview object
+            token_review = client.V1TokenReview(
+                spec=client.V1TokenReviewSpec(token=access_token)
+            )
+            groups: list[str] = []
+            namespaces: list[str] = []
+
+            # Call Token Access Review API
+            response = self.auth_v1.create_token_review(token_review)
+
+            if response.status.authenticated:
+                # Extract groups and namespaces from the response
+                # Groups are in response.status.user.groups, not response.status.groups
+                if response.status.user and hasattr(response.status.user, "groups"):
+                    groups = response.status.user.groups or []
+                else:
+                    groups = []
+
+                # Extract namespaces from the user info
+                if response.status.user:
+                    # For service accounts, the namespace is typically in the username
+                    # For regular users, we might need to extract from groups or other fields
+                    username = getattr(response.status.user, "username", "") or ""
+                    if ":" in username and username.startswith(
+                        "system:serviceaccount:"
+                    ):
+                        # Extract namespace from service account username
+                        parts = username.split(":")
+                        if len(parts) >= 4:
+                            service_account_namespace = parts[
+                                2
+                            ]  # namespace is the 3rd part
+                            namespaces.append(service_account_namespace)
+
+                            # For service accounts, also extract groups that have access to this namespace
+                            namespace_groups = self._extract_namespace_access_groups(
+                                service_account_namespace
+                            )
+                            groups.extend(namespace_groups)
+
+                    # Also check if there are namespace-specific groups
+                    for group in groups:
+                        if group.startswith("system:serviceaccounts:"):
+                            # Extract namespace from service account group
+                            parts = group.split(":")
+                            if len(parts) >= 3:
+                                namespaces.append(parts[2])
+
+                logger.debug(
+                    f"Token Access Review successful. Groups: {groups}, Namespaces: {namespaces}"
+                )
+            else:
+                logger.warning(f"Token Access Review failed: {response.status.error}")
+
+        except Exception as e:
+            logger.error(f"Failed to perform Token Access Review: {e}")
+            # We dont need to extract groups and namespaces from jwt decoding, not ideal for kubernetes auth
+        return groups, namespaces
+
+    def _extract_namespace_access_groups(self, namespace: str) -> list[str]:
+        """
+        Extract groups that have access to a specific namespace by querying RoleBindings and ClusterRoleBindings.
+
+        Args:
+            namespace: The namespace to check for group access
+
+        Returns:
+            list[str]: List of groups that have access to the namespace
+        """
+        groups = []
+        try:
+            # Get RoleBindings in the namespace
+            role_bindings = self.rbac_v1.list_namespaced_role_binding(
+                namespace=namespace
+            )
+            for rb in role_bindings.items:
+                for subject in rb.subjects or []:
+                    if subject.kind == "Group":
+                        groups.append(subject.name)
+                        logger.debug(
+                            f"Found group {subject.name} in RoleBinding {rb.metadata.name}"
+                        )
+
+            # Get ClusterRoleBindings that might grant access to this namespace
+            cluster_role_bindings = self.rbac_v1.list_cluster_role_binding()
+            for crb in cluster_role_bindings.items:
+                # Check if this ClusterRoleBinding grants access to the namespace
+                if self._cluster_role_binding_grants_namespace_access(crb, namespace):
+                    for subject in crb.subjects or []:
+                        if subject.kind == "Group":
+                            groups.append(subject.name)
+                            logger.debug(
+                                f"Found group {subject.name} in ClusterRoleBinding {crb.metadata.name}"
+                            )
+
+            # Remove duplicates and sort
+            groups = sorted(list(set(groups)))
+            logger.info(
+                f"Found {len(groups)} groups with access to namespace {namespace}: {groups}"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to extract namespace access groups for {namespace}: {e}"
+            )
+
+        return groups
+
+    def _cluster_role_binding_grants_namespace_access(
+        self, cluster_role_binding, namespace: str
+    ) -> bool:
+        """
+        Check if a ClusterRoleBinding grants access to a specific namespace.
+        This is a simplified check - in practice, you might need more sophisticated logic.
+
+        Args:
+            cluster_role_binding: The ClusterRoleBinding to check
+            namespace: The namespace to check access for
+
+        Returns:
+            bool: True if the ClusterRoleBinding likely grants access to the namespace
+        """
+        try:
+            # Get the ClusterRole referenced by this binding
+            cluster_role_name = cluster_role_binding.role_ref.name
+            cluster_role = self.rbac_v1.read_cluster_role(name=cluster_role_name)
+
+            # Check if the ClusterRole has rules that could grant access to the namespace
+            for rule in cluster_role.rules or []:
+                # Check if the rule applies to namespaces or has wildcard access
+                if (
+                    rule.resources
+                    and ("namespaces" in rule.resources or "*" in rule.resources)
+                    and rule.verbs
+                    and (
+                        "get" in rule.verbs or "list" in rule.verbs or "*" in rule.verbs
+                    )
+                ):
+                    return True
+
+                # Check if the rule has resourceNames that include our namespace
+                if rule.resource_names and namespace in rule.resource_names:
+                    return True
+
+        except Exception as e:
+            logger.debug(
+                f"Error checking ClusterRoleBinding {cluster_role_binding.metadata.name}: {e}"
+            )
+
+        return False
 
 
 def _decode_token(access_token: str) -> tuple[str, str]:
