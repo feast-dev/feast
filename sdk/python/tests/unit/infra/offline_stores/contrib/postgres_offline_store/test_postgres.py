@@ -184,7 +184,7 @@ def test_pull_all_from_table_or_query(mock_get_conn):
     actual_query = retrieval_job.to_sql().strip()
     logger.debug("Actual query:\n%s", actual_query)
 
-    expected_query = """SELECT key1, key2, feature1, feature2, event_published_datetime_utc
+    expected_query = """SELECT paftoq_alias."key1", paftoq_alias."key2", paftoq_alias."feature1", paftoq_alias."feature2", paftoq_alias."event_published_datetime_utc"
             FROM offline_store_database_name.offline_store_table_name AS paftoq_alias
             WHERE "event_published_datetime_utc" BETWEEN '2021-01-01 00:00:00+00:00'::timestamptz AND '2021-01-02 00:00:00+00:00'::timestamptz"""  # noqa: W293
 
