@@ -88,7 +88,7 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 
 	keys := make([]string, 0, len(m))
 	keys = append(keys, entityKey.JoinKeys...)
-	sort.Strings(keys)  // Sort the keys
+	sort.Strings(keys) // Sort the keys
 
 	// Build the key
 	length := 7 * len(keys)
@@ -100,7 +100,7 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 	if entityKeySerializationVersion >= 3 {
 		byteBuffer := make([]byte, 4)
 		binary.LittleEndian.PutUint32(byteBuffer, uint32(len(keys)))
-		bufferList[offset] = byteBuffer  // First buffer is always the length of the keys
+		bufferList[offset] = byteBuffer // First buffer is always the length of the keys
 		offset++
 	}
 
@@ -154,7 +154,6 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 
 	return &entityKeyBuffer, nil
 }
-
 
 func serializeValue(value interface{}, entityKeySerializationVersion int64) (*[]byte, types.ValueType_Enum, error) {
 	// TODO: Implement support for other types (at least the major types like ints, strings, bytes)

@@ -1,10 +1,10 @@
 package onlinestore
 
 import (
-	"testing"
-	"reflect"
-	"github.com/stretchr/testify/assert"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/stretchr/testify/assert"
+	"reflect"
+	"testing"
 )
 
 func Test_serializeEntityKey(t *testing.T) {
