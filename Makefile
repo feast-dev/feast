@@ -713,20 +713,25 @@ compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
 			--go-grpc_out=$(ROOT_DIR)/go/protos \
 			--go-grpc_opt=module=github.com/feast-dev/feast/go/protos $(ROOT_DIR)/protos/feast/$(folder)/*.proto; ) true
 
-#install-go-ci-dependencies:
-	# go install golang.org/x/tools/cmd/goimports
-	# python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+install-go-ci-dependencies:
+	go install golang.org/x/tools/cmd/goimports
+	uv pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
 
 .PHONY: build-go
 build-go: compile-protos-go ## Build Go code
 	go build -o feast ./go/main.go
 
-.PHONY: install-feast-ci-locally
-install-feast-ci-locally: ## Install Feast CI dependencies locally
-	uv pip install -e ".[ci]"
+
+## Assume the uv will create an .venv folder for itself.
+## The unit test funcions will call the Python "feast" command to initialze a feast repo.
+.PHONY: install-feast-locally
+install-feast-locally: ## Install Feast locally
+	uv pip install -e "."
+	@export PATH=$(ROOT_DIR)/.venv/bin:$$PATH
+	@echo $$PATH
 
 .PHONY: test-go
-test-go: compile-protos-go install-feast-ci-locally compile-protos-python ## Run Go tests
+test-go: compile-protos-python compile-protos-go install-go-ci-dependencies install-feast-locally  ## Run Go tests
 	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 
 .PHONY: format-go
