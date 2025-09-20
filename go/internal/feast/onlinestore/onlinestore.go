@@ -88,7 +88,7 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 
 	keys := make([]string, 0, len(m))
 	keys = append(keys, entityKey.JoinKeys...)
-	sort.Strings(keys)  // Sort the keysgiut
+	sort.Strings(keys)  // Sort the keys
 
 	// Build the key
 	length := 7 * len(keys)
