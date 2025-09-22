@@ -174,7 +174,7 @@ feast materialize -v driver_hourly_stats 2020-01-01T00:00:00 2022-01-01T00:00:00
 feast materialize --disable-event-timestamp -v driver_hourly_stats
 ```
 
-The `--disable-event-timestamp` flag is useful for quick testing or when you want to materialize all available data up to the current time.
+The `--disable-event-timestamp` flag is useful when your source data lacks event timestamp columns, allowing you to materialize all available data using the current datetime as the event timestamp.
 
 ```text
 Materializing 1 feature views from 2020-01-01 to 2022-01-01

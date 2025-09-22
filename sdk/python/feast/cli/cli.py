@@ -13,7 +13,7 @@
 # limitations under the License.
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
@@ -314,7 +314,7 @@ def registry_dump_command(ctx: click.Context):
 @click.option(
     "--disable-event-timestamp",
     is_flag=True,
-    help="Use current datetime for materialization instead of requiring timestamps",
+    help="Materialize all available data using current datetime as event timestamp (useful when source data lacks event timestamps)",
 )
 @click.pass_context
 def materialize_command(
@@ -332,7 +332,7 @@ def materialize_command(
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
 
-    If --disable-event-timestamp is used, timestamps are not required and datetime.now() will be used.
+    If --disable-event-timestamp is used, timestamps are not required and all available data will be materialized using the current datetime as the event timestamp.
     """
     store = create_feature_store(ctx)
 
@@ -342,7 +342,8 @@ def materialize_command(
                 "Cannot specify START_TS or END_TS when --disable-event-timestamp is used"
             )
         now = datetime.now()
-        start_date = now
+        # Query all available data and use current datetime as event timestamp
+        start_date = datetime(1970, 1, 1)  # Beginning of time to capture all historical data
         end_date = now
     else:
         if not start_ts or not end_ts:

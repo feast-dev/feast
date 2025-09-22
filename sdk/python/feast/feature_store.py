@@ -1556,7 +1556,7 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
-            disable_event_timestamp (bool): If True, uses current datetime for materialization instead of event timestamps
+            disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
 
         Examples:
             Materialize all features into the online store over the interval

@@ -508,7 +508,7 @@ feast materialize-incremental $CURRENT_TIME
 {% endtab %}
 {% tab title="Bash (simple)" %}
 ```bash
-# Alternative: Use current datetime without specifying timestamps
+# Alternative: Materialize all data using current timestamp (for data without event timestamps)
 feast materialize --disable-event-timestamp
 ```
 {% endtab %}
