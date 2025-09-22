@@ -13,7 +13,7 @@
 # limitations under the License.
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
@@ -343,7 +343,9 @@ def materialize_command(
             )
         now = datetime.now()
         # Query all available data and use current datetime as event timestamp
-        start_date = datetime(1970, 1, 1)  # Beginning of time to capture all historical data
+        start_date = datetime(
+            1970, 1, 1
+        )  # Beginning of time to capture all historical data
         end_date = now
     else:
         if not start_ts or not end_ts:
