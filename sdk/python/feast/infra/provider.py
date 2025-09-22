@@ -228,6 +228,7 @@ class Provider(ABC):
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
     ) -> None:
         """
         Writes latest feature values in the specified time range to the online store.
@@ -240,6 +241,7 @@ class Provider(ABC):
             registry: The registry for the current feature store.
             project: Feast project to which the objects belong.
             tqdm_builder: A function to monitor the progress of materialization.
+            disable_event_timestamp: If True, uses current datetime for materialization instead of event timestamps.
         """
         pass
 

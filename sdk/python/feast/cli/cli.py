@@ -303,17 +303,26 @@ def registry_dump_command(ctx: click.Context):
 
 
 @cli.command("materialize")
-@click.argument("start_ts")
-@click.argument("end_ts")
+@click.argument("start_ts", required=False)
+@click.argument("end_ts", required=False)
 @click.option(
     "--views",
     "-v",
     help="Feature views to materialize",
     multiple=True,
 )
+@click.option(
+    "--disable-event-timestamp",
+    is_flag=True,
+    help="Use current datetime for materialization instead of requiring timestamps",
+)
 @click.pass_context
 def materialize_command(
-    ctx: click.Context, start_ts: str, end_ts: str, views: List[str]
+    ctx: click.Context,
+    start_ts: Optional[str],
+    end_ts: Optional[str],
+    views: List[str],
+    disable_event_timestamp: bool,
 ):
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
@@ -322,13 +331,32 @@ def materialize_command(
     Views will be materialized.
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
+
+    If --disable-event-timestamp is used, timestamps are not required and datetime.now() will be used.
     """
     store = create_feature_store(ctx)
 
+    if disable_event_timestamp:
+        if start_ts or end_ts:
+            raise click.UsageError(
+                "Cannot specify START_TS or END_TS when --disable-event-timestamp is used"
+            )
+        now = datetime.now()
+        start_date = now
+        end_date = now
+    else:
+        if not start_ts or not end_ts:
+            raise click.UsageError(
+                "START_TS and END_TS are required unless --disable-event-timestamp is used"
+            )
+        start_date = utils.make_tzaware(parser.parse(start_ts))
+        end_date = utils.make_tzaware(parser.parse(end_ts))
+
     store.materialize(
         feature_views=None if not views else views,
-        start_date=utils.make_tzaware(parser.parse(start_ts)),
-        end_date=utils.make_tzaware(parser.parse(end_ts)),
+        start_date=start_date,
+        end_date=end_date,
+        disable_event_timestamp=disable_event_timestamp,
     )
 
 

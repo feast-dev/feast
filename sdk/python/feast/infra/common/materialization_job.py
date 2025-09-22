@@ -22,6 +22,7 @@ class MaterializationTask:
     end_time: datetime
     only_latest: bool = True
     tqdm_builder: Union[None, Callable[[int], tqdm]] = None
+    disable_event_timestamp: bool = False
 
 
 class MaterializationJobStatus(enum.Enum):

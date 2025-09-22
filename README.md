@@ -109,10 +109,25 @@ print(training_df.head())
 ```
 
 ### 6. Load feature values into your online store
+
+**Option 1: Incremental materialization (recommended)**
 ```commandline
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
 ```
+
+**Option 2: Full materialization with timestamps**
+```commandline
+CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
+feast materialize 2021-04-12T00:00:00 $CURRENT_TIME
+```
+
+**Option 3: Simple materialization without timestamps**
+```commandline
+feast materialize --disable-event-timestamp
+```
+
+The `--disable-event-timestamp` flag allows you to materialize features using the current datetime without needing to specify start and end timestamps. This is useful for quick testing or when you want to materialize all available data up to now.
 
 ```commandline
 Materializing feature view driver_hourly_stats from 2021-04-14 to 2021-04-15 done!

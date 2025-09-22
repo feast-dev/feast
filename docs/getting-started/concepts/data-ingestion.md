@@ -64,9 +64,15 @@ materialize_python = PythonOperator(
 
 #### How to run this in the CLI
 
+**With timestamps:**
 ```bash
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
+```
+
+**Simple materialization (uses current datetime):**
+```bash
+feast materialize --disable-event-timestamp
 ```
 
 #### How to run this on Airflow
