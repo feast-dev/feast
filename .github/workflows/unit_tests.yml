@@ -39,9 +39,9 @@ jobs:
           make install-go-ci-dependencies
           COMPILE_GO=true python setup.py develop
           CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
-#      - name: Test EG tests
-#        if: matrix.os == 'ubuntu-latest'
-#        run: python -m pytest -n 1 --color=yes sdk/python/tests/expediagroup/
+      - name: Test EG tests
+        if: matrix.os == 'ubuntu-latest'
+        run: python -m pytest -n 1 --color=yes sdk/python/tests/expediagroup/
       - name: Test Python
         if: matrix.os == 'ubuntu-latest'
         run: make test-python-unit

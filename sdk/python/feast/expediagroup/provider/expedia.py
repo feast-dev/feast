@@ -26,6 +26,8 @@ class ExpediaProvider(PassthroughProvider):
 
         super().__init__(config)
 
+    # TODO: this temporarily overrides the passthrough materialization to use the legacy materialization
+    # we need to evaluate the new spark materialization and see if it will work better for us
     def materialize_single_feature_view(
         self,
         config: RepoConfig,
@@ -41,5 +43,12 @@ class ExpediaProvider(PassthroughProvider):
             f"Materializing feature view {feature_view.name} from offline store"
         )
         super().materialize_single_feature_view(
-            config, feature_view, start_date, end_date, registry, project, tqdm_builder
+            config,
+            feature_view,
+            start_date,
+            end_date,
+            registry,
+            project,
+            tqdm_builder,
+            from_offline_store=True,
         )
