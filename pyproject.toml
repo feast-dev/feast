@@ -180,7 +180,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "eg-feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, eg_valkey, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, eg_milvus, mssql, mysql, opentelemetry, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
+    "eg-feast[aws, azure, clickhouse, couchbase, delta, docling, duckdb, eg_valkey, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, eg_milvus, mssql, mysql, opentelemetry, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["eg-feast[docling, milvus, pytorch, rag]"]
 dev = ["eg-feast[ci]"]

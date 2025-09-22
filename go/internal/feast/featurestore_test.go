@@ -47,6 +47,7 @@ func TestMain(m *testing.M) {
 		log.Print("Could not initialize test repo: ", err)
 		os.Exit(1)
 	}
+	time.Sleep(5 * time.Second) // wait for 5 seconds to ensure materialization is complete
 	os.Exit(m.Run())
 }
 
