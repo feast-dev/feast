@@ -65,7 +65,7 @@ delta = ["deltalake<1.0.0"]
 docling = ["docling==2.27.0"]
 duckdb = ["ibis-framework[duckdb]>=9.0.0,<=9.5.0"]
 eg_valkey = ["valkey[libvalkey]>=6.1.0"]
-elasticsearch = ["elasticsearch>=8.13.0"]
+elasticsearch = ["elasticsearch>=8.13.0,<9.0.0"]
 faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
 gcp = [
     "google-api-core>=1.23.0,<3",
