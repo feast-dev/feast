@@ -150,12 +150,9 @@ def test_push_source_does_not_exist(test_client):
 
 def test_materialize_endpoint_logic():
     """Test the materialization endpoint logic without HTTP requests"""
-    from unittest.mock import Mock
     from datetime import datetime
-    from feast.feature_server import MaterializeRequest
 
-    # Test our request handling logic directly
-    mock_store = Mock()
+    from feast.feature_server import MaterializeRequest
 
     # Test 1: Standard request with timestamps
     request = MaterializeRequest(
