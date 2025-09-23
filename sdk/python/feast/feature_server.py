@@ -74,8 +74,8 @@ class PushFeaturesRequest(BaseModel):
 
 
 class MaterializeRequest(BaseModel):
-    start_ts: str
-    end_ts: str
+    start_ts: Optional[str] = None
+    end_ts: Optional[str] = None
     feature_views: Optional[List[str]] = None
     disable_event_timestamp: bool = False
 
@@ -441,6 +441,8 @@ def get_app(
             start_date = datetime(1970, 1, 1)  # Beginning of time to capture all historical data
             end_date = now
         else:
+            if not request.start_ts or not request.end_ts:
+                raise ValueError("start_ts and end_ts are required when disable_event_timestamp is False")
             start_date = utils.make_tzaware(parser.parse(request.start_ts))
             end_date = utils.make_tzaware(parser.parse(request.end_ts))
 

@@ -146,3 +146,63 @@ def test_push_source_does_not_exist(test_client):
                 },
             },
         )
+
+
+def test_materialize_with_timestamps(test_client):
+    """Test standard materialization with timestamps"""
+    response = test_client.post(
+        "/materialize",
+        json={
+            "start_ts": "2021-01-01T00:00:00",
+            "end_ts": "2021-01-02T00:00:00",
+            "feature_views": ["driver_hourly_stats"]
+        }
+    )
+    assert response.status_code == 200
+
+
+def test_materialize_disable_event_timestamp(test_client):
+    """Test materialization with disable_event_timestamp flag"""
+    response = test_client.post(
+        "/materialize",
+        json={
+            "feature_views": ["driver_hourly_stats"],
+            "disable_event_timestamp": True
+        }
+    )
+    assert response.status_code == 200
+
+
+def test_materialize_missing_timestamps_fails(test_client):
+    """Test that missing timestamps without disable_event_timestamp fails"""
+    response = test_client.post(
+        "/materialize",
+        json={
+            "feature_views": ["driver_hourly_stats"]
+        }
+    )
+    assert response.status_code == 422  # Validation error for missing required fields
+
+
+def test_materialize_request_model():
+    """Test MaterializeRequest model validation"""
+    from feast.feature_server import MaterializeRequest
+
+    # Test with disable_event_timestamp=True (no timestamps needed)
+    req1 = MaterializeRequest(
+        feature_views=["test"],
+        disable_event_timestamp=True
+    )
+    assert req1.disable_event_timestamp is True
+    assert req1.start_ts is None
+    assert req1.end_ts is None
+
+    # Test with disable_event_timestamp=False (timestamps provided)
+    req2 = MaterializeRequest(
+        start_ts="2021-01-01T00:00:00",
+        end_ts="2021-01-02T00:00:00",
+        feature_views=["test"]
+    )
+    assert req2.disable_event_timestamp is False
+    assert req2.start_ts == "2021-01-01T00:00:00"
+    assert req2.end_ts == "2021-01-02T00:00:00"
