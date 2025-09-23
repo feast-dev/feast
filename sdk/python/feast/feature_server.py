@@ -438,11 +438,15 @@ def get_app(
         if request.disable_event_timestamp:
             # Query all available data and use current datetime as event timestamp
             now = datetime.now()
-            start_date = datetime(1970, 1, 1)  # Beginning of time to capture all historical data
+            start_date = datetime(
+                1970, 1, 1
+            )  # Beginning of time to capture all historical data
             end_date = now
         else:
             if not request.start_ts or not request.end_ts:
-                raise ValueError("start_ts and end_ts are required when disable_event_timestamp is False")
+                raise ValueError(
+                    "start_ts and end_ts are required when disable_event_timestamp is False"
+                )
             start_date = utils.make_tzaware(parser.parse(request.start_ts))
             end_date = utils.make_tzaware(parser.parse(request.end_ts))
 

@@ -208,13 +208,22 @@ def test_cli_materialize_disable_event_timestamp():
 
         # Test that providing timestamps with --disable-event-timestamp fails
         return_code, output = runner.run_with_output(
-            ["materialize", "--disable-event-timestamp", "2021-01-01T00:00:00", "2021-01-02T00:00:00"],
-            cwd=repo_path
+            [
+                "materialize",
+                "--disable-event-timestamp",
+                "2021-01-01T00:00:00",
+                "2021-01-02T00:00:00",
+            ],
+            cwd=repo_path,
         )
         assertpy.assert_that(return_code).is_equal_to(2)  # Click usage error
-        assertpy.assert_that(output).contains(b"Cannot specify START_TS or END_TS when --disable-event-timestamp is used")
+        assertpy.assert_that(output).contains(
+            b"Cannot specify START_TS or END_TS when --disable-event-timestamp is used"
+        )
 
         # Test that missing timestamps without flag fails
         return_code, output = runner.run_with_output(["materialize"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(2)  # Click usage error
-        assertpy.assert_that(output).contains(b"START_TS and END_TS are required unless --disable-event-timestamp is used")
+        assertpy.assert_that(output).contains(
+            b"START_TS and END_TS are required unless --disable-event-timestamp is used"
+        )
