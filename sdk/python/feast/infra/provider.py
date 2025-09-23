@@ -241,7 +241,7 @@ class Provider(ABC):
             registry: The registry for the current feature store.
             project: Feast project to which the objects belong.
             tqdm_builder: A function to monitor the progress of materialization.
-            disable_event_timestamp: If True, uses current datetime for materialization instead of event timestamps.
+            disable_event_timestamp: If True, materializes all available data using current datetime as event timestamp instead of source event timestamps.
         """
         pass
 

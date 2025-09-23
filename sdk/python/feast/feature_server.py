@@ -5,6 +5,7 @@ import threading
 import time
 import traceback
 from contextlib import asynccontextmanager
+from datetime import datetime
 from importlib import resources as importlib_resources
 from typing import Any, Dict, List, Optional, Union
 
@@ -76,6 +77,7 @@ class MaterializeRequest(BaseModel):
     start_ts: str
     end_ts: str
     feature_views: Optional[List[str]] = None
+    disable_event_timestamp: bool = False
 
 
 class MaterializeIncrementalRequest(BaseModel):
@@ -432,10 +434,21 @@ def get_app(
                 resource=_get_feast_object(feature_view, True),
                 actions=[AuthzedAction.WRITE_ONLINE],
             )
+
+        if request.disable_event_timestamp:
+            # Query all available data and use current datetime as event timestamp
+            now = datetime.now()
+            start_date = datetime(1970, 1, 1)  # Beginning of time to capture all historical data
+            end_date = now
+        else:
+            start_date = utils.make_tzaware(parser.parse(request.start_ts))
+            end_date = utils.make_tzaware(parser.parse(request.end_ts))
+
         store.materialize(
-            utils.make_tzaware(parser.parse(request.start_ts)),
-            utils.make_tzaware(parser.parse(request.end_ts)),
+            start_date,
+            end_date,
             request.feature_views,
+            disable_event_timestamp=request.disable_event_timestamp,
         )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
