@@ -158,7 +158,7 @@ def test_materialize_endpoint_logic():
     request = MaterializeRequest(
         start_ts="2021-01-01T00:00:00",
         end_ts="2021-01-02T00:00:00",
-        feature_views=["test_view"]
+        feature_views=["test_view"],
     )
     assert request.disable_event_timestamp is False
     assert request.start_ts is not None
@@ -166,8 +166,7 @@ def test_materialize_endpoint_logic():
 
     # Test 2: Request with disable_event_timestamp
     request_no_ts = MaterializeRequest(
-        feature_views=["test_view"],
-        disable_event_timestamp=True
+        feature_views=["test_view"], disable_event_timestamp=True
     )
     assert request_no_ts.disable_event_timestamp is True
     assert request_no_ts.start_ts is None
