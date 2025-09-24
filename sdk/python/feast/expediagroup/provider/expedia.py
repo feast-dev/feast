@@ -37,6 +37,7 @@ class ExpediaProvider(PassthroughProvider):
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
         **kwargs,
     ) -> None:
         logger.info(
@@ -50,5 +51,6 @@ class ExpediaProvider(PassthroughProvider):
             registry,
             project,
             tqdm_builder,
+            disable_event_timestamp,
             from_offline_store=True,
         )
