@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.core.DataSource_pb2
@@ -38,6 +39,7 @@ else:
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class SortedFeatureView(google.protobuf.message.Message):
     """Represents a SortedFeatureView, used for range queries on features"""
 
@@ -48,23 +50,27 @@ class SortedFeatureView(google.protobuf.message.Message):
     @property
     def spec(self) -> global___SortedFeatureViewSpec:
         """User-specified specifications of the sorted feature view."""
+
     @property
     def meta(self) -> feast.core.FeatureView_pb2.FeatureViewMeta:
         """System-populated metadata for this feature view."""
+
     def __init__(
         self,
         *,
         spec: global___SortedFeatureViewSpec | None = ...,
         meta: feast.core.FeatureView_pb2.FeatureViewMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
 
 global___SortedFeatureView = SortedFeatureView
 
+@typing.final
 class SortedFeatureViewSpec(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -78,7 +84,7 @@ class SortedFeatureViewSpec(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
@@ -99,15 +105,26 @@ class SortedFeatureViewSpec(google.protobuf.message.Message):
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
     """Name of Feast project that this feature view belongs to."""
+    online: builtins.bool
+    """Whether these features should be served online or not"""
+    description: builtins.str
+    """Description of the feature view."""
+    owner: builtins.str
+    """Owner of the feature view."""
+    use_write_time_for_ttl: builtins.bool
+    """Whether to use the write time or event time for TTL calculations."""
     @property
     def entities(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
         """List of names of entities associated with this feature view."""
+
     @property
     def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each feature defined as part of this feature view."""
+
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
+
     @property
     def ttl(self) -> google.protobuf.duration_pb2.Duration:
         """Features in this feature view can only be retrieved from online serving
@@ -115,32 +132,30 @@ class SortedFeatureViewSpec(google.protobuf.message.Message):
         the feature's event timestamp and when the feature is retrieved
         Feature values outside ttl will be returned as unset values and indicated to end user
         """
+
     @property
     def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Batch/Offline DataSource where this view can retrieve offline feature data."""
-    online: builtins.bool
-    """Whether these features should be served online or not"""
+
     @property
     def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Streaming DataSource from where this view can consume "online" feature data."""
-    description: builtins.str
-    """Description of the feature view."""
-    owner: builtins.str
-    """Owner of the feature view."""
+
     @property
     def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each entity defined as part of this feature view."""
+
     @property
     def sort_keys(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___SortKey]:
         """List of sort keys for this feature view."""
-    use_write_time_for_ttl: builtins.bool
-    """Whether to use the write time or event time for TTL calculations."""
+
     @property
     def original_entities(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Entity_pb2.Entity]:
         """User-specified specifications of this entity.
         Adding higher index to avoid conflicts in future 
         if Feast adds more fields
         """
+
     def __init__(
         self,
         *,
@@ -160,16 +175,18 @@ class SortedFeatureViewSpec(google.protobuf.message.Message):
         use_write_time_for_ttl: builtins.bool = ...,
         original_entities: collections.abc.Iterable[feast.core.Entity_pb2.Entity] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "online", b"online", "original_entities", b"original_entities", "owner", b"owner", "project", b"project", "sort_keys", b"sort_keys", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "use_write_time_for_ttl", b"use_write_time_for_ttl"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["batch_source", b"batch_source", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "online", b"online", "original_entities", b"original_entities", "owner", b"owner", "project", b"project", "sort_keys", b"sort_keys", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "use_write_time_for_ttl", b"use_write_time_for_ttl"]) -> None: ...
 
 global___SortedFeatureViewSpec = SortedFeatureViewSpec
 
+@typing.final
 class SortKey(google.protobuf.message.Message):
     """Defines the sorting criteria for range-based feature queries."""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -183,7 +200,7 @@ class SortKey(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     VALUE_TYPE_FIELD_NUMBER: builtins.int
@@ -196,11 +213,12 @@ class SortKey(google.protobuf.message.Message):
     """The value type of the sorting key (e.g., INT64, FLOAT, STRING)."""
     default_sort_order: global___SortOrder.Enum.ValueType
     """The default sorting order for this key."""
+    description: builtins.str
+    """Description of the feature."""
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """Tags for user defined metadata on a feature"""
-    description: builtins.str
-    """Description of the feature."""
+
     def __init__(
         self,
         *,
@@ -210,10 +228,11 @@ class SortKey(google.protobuf.message.Message):
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         description: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["default_sort_order", b"default_sort_order", "description", b"description", "name", b"name", "tags", b"tags", "value_type", b"value_type"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["default_sort_order", b"default_sort_order", "description", b"description", "name", b"name", "tags", b"tags", "value_type", b"value_type"]) -> None: ...
 
 global___SortKey = SortKey
 
+@typing.final
 class SortOrder(google.protobuf.message.Message):
     """Specifies the possible sorting orders for a feature view."""
 
@@ -223,7 +242,7 @@ class SortOrder(google.protobuf.message.Message):
         ValueType = typing.NewType("ValueType", builtins.int)
         V: typing_extensions.TypeAlias = ValueType
 
-    class _EnumEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[SortOrder._Enum.ValueType], builtins.type):  # noqa: F821
+    class _EnumEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[SortOrder._Enum.ValueType], builtins.type):
         DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
         INVALID: SortOrder._Enum.ValueType  # 0
         """Invalid sorting order (default value)."""
@@ -246,6 +265,7 @@ class SortOrder(google.protobuf.message.Message):
 
 global___SortOrder = SortOrder
 
+@typing.final
 class SortedFeatureViewList(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -257,6 +277,6 @@ class SortedFeatureViewList(google.protobuf.message.Message):
         *,
         sorted_feature_views: collections.abc.Iterable[global___SortedFeatureView] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["sorted_feature_views", b"sorted_feature_views"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["sorted_feature_views", b"sorted_feature_views"]) -> None: ...
 
 global___SortedFeatureViewList = SortedFeatureViewList

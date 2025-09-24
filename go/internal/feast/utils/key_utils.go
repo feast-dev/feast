@@ -51,7 +51,7 @@ func SerializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 	}
 	bufferList := make([][]byte, length)
 
-	if entityKeySerializationVersion > 2 {
+	if entityKeySerializationVersion >= 3 {
 		// First byte is the number of entity keys
 		numKeysBuffer := make([]byte, 4)
 		binary.LittleEndian.PutUint32(numKeysBuffer, uint32(len(keys)))
@@ -63,7 +63,7 @@ func SerializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 		byteBuffer := make([]byte, 4)
 		binary.LittleEndian.PutUint32(byteBuffer, uint32(types.ValueType_Enum_value["STRING"]))
 		bufferList[offset] = byteBuffer
-		if entityKeySerializationVersion > 2 {
+		if entityKeySerializationVersion >= 3 {
 			keyLength := make([]byte, 4)
 			binary.LittleEndian.PutUint32(keyLength, uint32(len(keys[i])))
 			bufferList[offset+1] = keyLength

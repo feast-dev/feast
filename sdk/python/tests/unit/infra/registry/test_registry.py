@@ -6,6 +6,7 @@ import pytest
 
 from feast import SortedFeatureView
 from feast.infra.registry.caching_registry import CachingRegistry
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 
 
 class TestCachingRegistry(CachingRegistry):
@@ -196,6 +197,63 @@ def test_cache_expiry_triggers_refresh(registry):
     ) as mock_refresh:
         registry._refresh_cached_registry_if_necessary()
         mock_refresh.assert_called_once()
+
+
+def test_empty_cache_refresh_with_ttl(registry):
+    """Test that empty cache is refreshed when TTL > 0"""
+    # Set up empty cache with TTL > 0
+    registry.cached_registry_proto = RegistryProto()
+    registry.cached_registry_proto_created = datetime.now(timezone.utc)
+    registry.cached_registry_proto_ttl = timedelta(seconds=10)  # TTL > 0
+
+    # Mock refresh to check if it's called
+    with patch.object(
+        CachingRegistry, "refresh", wraps=registry.refresh
+    ) as mock_refresh:
+        registry._refresh_cached_registry_if_necessary()
+        # Should refresh because cache is empty and TTL > 0
+        mock_refresh.assert_called_once()
+
+
+def test_concurrent_cache_refresh_race_condition(registry):
+    """Test that concurrent requests don't skip cache refresh when cache is expired"""
+    import threading
+    import time
+
+    # Set up expired cache
+    registry.cached_registry_proto = RegistryProto()
+    registry.cached_registry_proto_created = datetime.now(timezone.utc) - timedelta(
+        seconds=5
+    )
+    registry.cached_registry_proto_ttl = timedelta(
+        seconds=2
+    )  # TTL = 2 seconds, cache is expired
+
+    refresh_calls = []
+
+    def mock_refresh():
+        refresh_calls.append(threading.current_thread().ident)
+        time.sleep(0.1)  # Simulate refresh work
+
+    # Mock the refresh method to track calls
+    with patch.object(registry, "refresh", side_effect=mock_refresh):
+        # Simulate concurrent requests
+        threads = []
+        for i in range(3):
+            thread = threading.Thread(
+                target=registry._refresh_cached_registry_if_necessary
+            )
+            threads.append(thread)
+            thread.start()
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+
+    # At least one thread should have called refresh (the first one to acquire the lock)
+    assert len(refresh_calls) >= 1, (
+        "At least one thread should have refreshed the cache"
+    )
 
 
 def test_skip_refresh_if_lock_held(registry):

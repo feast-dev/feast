@@ -90,6 +90,7 @@ class FooProvider(Provider):
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
         **kwargs,
     ) -> None:
         pass

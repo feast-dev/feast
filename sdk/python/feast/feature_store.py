@@ -1661,6 +1661,7 @@ class FeatureStore:
         start_date: datetime,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
+        disable_event_timestamp: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -1674,6 +1675,7 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
+            disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
 
         Examples:
             Materialize all features into the online store over the interval
@@ -1732,6 +1734,7 @@ class FeatureStore:
                 registry=self._registry,
                 project=self.project,
                 tqdm_builder=tqdm_builder,
+                disable_event_timestamp=disable_event_timestamp,
             )
 
             self._registry.apply_materialization(
@@ -2372,6 +2375,12 @@ class FeatureStore:
         query: Optional[List[float]] = None,
         query_string: Optional[str] = None,
         distance_metric: Optional[str] = "L2",
+        query_image_bytes: Optional[bytes] = None,
+        query_image_model: Optional[str] = "resnet34",
+        combine_with_text: bool = False,
+        text_weight: float = 0.5,
+        image_weight: float = 0.5,
+        combine_strategy: str = "weighted_sum",
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -2380,13 +2389,105 @@ class FeatureStore:
             features: The list of features that should be retrieved from the online document store. These features can be
                 specified either as a list of string document feature references or as a feature service. String feature
                 references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
-            query: The embeded query to retrieve the closest document features for (optional)
             top_k: The number of closest document features to retrieve.
+            query_string: Text query for hybrid search (alternative to query parameter)
             distance_metric: The distance metric to use for retrieval.
-            query_string: The query string to retrieve the closest document features using keyword search (bm25).
+            query_image_bytes: Query image as bytes (for image similarity search)
+            query_image_model: Model name for image embedding generation
+            combine_with_text: Whether to combine text and image embeddings for multi-modal search
+            text_weight: Weight for text embedding in combined search (0.0 to 1.0)
+            image_weight: Weight for image embedding in combined search (0.0 to 1.0)
+            combine_strategy: Strategy for combining embeddings ("weighted_sum", "concatenate", "average")
+
+        Returns:
+            OnlineResponse with similar documents and metadata
+
+        Examples:
+            Text search only::
+
+                results = store.retrieve_online_documents_v2(
+                    features=["documents:embedding", "documents:title"],
+                    query=[0.1, 0.2, 0.3],  # text embedding vector
+                    top_k=5
+                )
+
+            Image search only::
+
+                results = store.retrieve_online_documents_v2(
+                    features=["images:embedding", "images:filename"],
+                    query_image_bytes=b"image_data",  # image bytes
+                    top_k=5
+                )
+
+            Combined text + image search::
+
+                results = store.retrieve_online_documents_v2(
+                    features=["documents:embedding", "documents:title"],
+                    query=[0.1, 0.2, 0.3],  # text embedding vector
+                    query_image_bytes=b"image_data",  # image bytes
+                    combine_with_text=True,
+                    text_weight=0.3,
+                    image_weight=0.7,
+                    top_k=5
+                )
         """
-        assert query is not None or query_string is not None, (
-            "Either query or query_string must be provided."
+        if query is None and not query_image_bytes and not query_string:
+            raise ValueError(
+                "Must provide either query (text embedding), "
+                "query_image_bytes, or query_string"
+            )
+
+        if combine_with_text and not (query is not None and query_image_bytes):
+            raise ValueError(
+                "combine_with_text=True requires both query (text embedding) "
+                "and query_image_bytes"
+            )
+
+        if combine_with_text and abs(text_weight + image_weight - 1.0) > 1e-6:
+            raise ValueError("text_weight + image_weight must equal 1.0 when combining")
+
+        image_embedding = None
+        if query_image_bytes is not None:
+            try:
+                from feast.image_utils import ImageFeatureExtractor
+
+                model_name = query_image_model or "resnet34"
+                extractor = ImageFeatureExtractor(model_name)
+                image_embedding = extractor.extract_embedding(query_image_bytes)
+            except ImportError:
+                raise ImportError(
+                    "Image processing dependencies are not installed. "
+                    "Please install with: pip install feast[image]"
+                )
+
+        text_embedding = query
+
+        if (
+            combine_with_text
+            and text_embedding is not None
+            and image_embedding is not None
+        ):
+            # Combine text and image embeddings
+            from feast.image_utils import combine_embeddings
+
+            final_query = combine_embeddings(
+                text_embedding=text_embedding,
+                image_embedding=image_embedding,
+                strategy=combine_strategy,
+                text_weight=text_weight,
+                image_weight=image_weight,
+            )
+        elif image_embedding is not None:
+            final_query = image_embedding
+        elif text_embedding is not None:
+            final_query = text_embedding
+        else:
+            final_query = None
+
+        effective_query = final_query
+
+        assert effective_query is not None or query_string is not None, (
+            "Either query embedding or query_string must be provided."
         )
 
         (
@@ -2428,7 +2529,7 @@ class FeatureStore:
             provider,
             requested_feature_view,
             requested_features,
-            query,
+            effective_query,
             top_k,
             distance_metric,
             query_string,

@@ -2,7 +2,7 @@ module github.com/feast-dev/feast
 
 go 1.23.0
 
-toolchain go1.23.8
+toolchain go1.23.12
 
 require (
 	github.com/DataDog/dd-trace-go/contrib/gocql/gocql/v2 v2.2.3
@@ -17,7 +17,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.43.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.79.3
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-python/gopy v0.4.4
 	github.com/gocql/gocql v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0

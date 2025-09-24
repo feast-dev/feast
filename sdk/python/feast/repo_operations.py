@@ -247,7 +247,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
 def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     os.chdir(repo_path)
-    repo = _get_repo_contents(repo_path, repo_config.project)
+    repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
     for project in repo.projects:
         repo_config.project = project.name
         store, registry = _get_store_and_registry(repo_config)
@@ -264,7 +264,11 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         click.echo(infra_diff.to_string())
 
 
-def _get_repo_contents(repo_path, project_name: Optional[str] = None):
+def _get_repo_contents(
+    repo_path,
+    project_name: Optional[str] = None,
+    repo_config: Optional[RepoConfig] = None,
+):
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
 
@@ -273,7 +277,12 @@ def _get_repo_contents(repo_path, project_name: Optional[str] = None):
             print(
                 f"No project found in the repository. Using project name {project_name} defined in feature_store.yaml"
             )
-            repo.projects.append(Project(name=project_name))
+            project_description = (
+                repo_config.project_description if repo_config else None
+            )
+            repo.projects.append(
+                Project(name=project_name, description=project_description or "")
+            )
         else:
             print(
                 "No project found in the repository. Either define Project in repository or define a project in feature_store.yaml"
@@ -471,7 +480,7 @@ def create_feature_store(
 
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     os.chdir(repo_path)
-    repo = _get_repo_contents(repo_path, repo_config.project)
+    repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
     for project in repo.projects:
         repo_config.project = project.name
         store, registry = _get_store_and_registry(repo_config)

@@ -34,6 +34,7 @@ from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.data.data_creator import (
     create_basic_driver_dataset,  # noqa: E402
     create_document_dataset,
+    create_image_dataset,
 )
 from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
     IntegrationTestRepoConfig,
@@ -442,6 +443,16 @@ def fake_ingest_data():
 @pytest.fixture
 def fake_document_data(environment: Environment) -> Tuple[pd.DataFrame, DataSource]:
     df = create_document_dataset()
+    data_source = environment.data_source_creator.create_data_source(
+        df,
+        environment.feature_store.project,
+    )
+    return df, data_source
+
+
+@pytest.fixture
+def fake_image_data(environment: Environment) -> Tuple[pd.DataFrame, DataSource]:
+    df = create_image_dataset()
     data_source = environment.data_source_creator.create_data_source(
         df,
         environment.feature_store.project,

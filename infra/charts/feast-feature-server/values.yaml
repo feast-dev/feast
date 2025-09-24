@@ -9,7 +9,7 @@ image:
   repository: quay.io/feastdev/feature-server
   pullPolicy: IfNotPresent
   # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
-  tag: 0.52.0
+  tag: 0.53.0
 
 logLevel: "WARNING"  # Set log level DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive)
 

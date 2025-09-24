@@ -8,7 +8,9 @@ from fastapi.testclient import TestClient
 
 from feast import Entity, FeatureService, FeatureStore, FeatureView, Field, FileSource
 from feast.api.registry.rest.rest_registry_server import RestRegistryServer
+from feast.data_source import RequestSource
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.types import Float64, Int64
@@ -107,6 +109,24 @@ def fastapi_test_app():
         storage=saved_dataset_storage,
         tags={"environment": "test", "version": "1.0"},
     )
+    input_request = RequestSource(
+        name="input_request_source",
+        schema=[
+            Field(name="request_feature", dtype=Float64),
+        ],
+    )
+
+    @on_demand_feature_view(
+        sources=[user_profile_feature_view, input_request],
+        schema=[
+            Field(name="combined_feature", dtype=Float64),
+        ],
+        description="On-demand feature view with request source for testing",
+    )
+    def test_on_demand_feature_view(features_df: pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame()
+        df["combined_feature"] = features_df["age"] + features_df["request_feature"]
+        return df
 
     # Apply objects
     store.apply(
@@ -116,6 +136,7 @@ def fastapi_test_app():
             user_behavior_feature_view,
             user_preferences_feature_view,
             user_feature_service,
+            test_on_demand_feature_view,
         ]
     )
     store._registry.apply_saved_dataset(test_saved_dataset, "demo_project")
@@ -181,7 +202,7 @@ def test_feature_views_type_field_via_rest(fastapi_test_app):
     for fv in data["featureViews"]:
         assert "type" in fv
         assert fv["type"] is not None
-        assert fv["type"] == "featureView"
+        assert fv["type"] in ["featureView", "onDemandFeatureView"]
 
     # Test single endpoint
     response = fastapi_test_app.get("/feature_views/user_profile?project=demo_project")
@@ -244,6 +265,26 @@ def test_feature_views_comprehensive_filtering_via_rest(fastapi_test_app):
     assert "featureViews" in data
     data_source_filtered_views = data["featureViews"]
     assert len(data_source_filtered_views) <= len(all_feature_views)
+
+    # Test filtering on-demand feature views by request source data source
+    response = fastapi_test_app.get(
+        "/feature_views?project=demo_project&data_source=input_request_source"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "featureViews" in data
+    odfv_data_source_filtered_views = data["featureViews"]
+
+    # Should find the on-demand feature view that uses the request source
+    assert len(odfv_data_source_filtered_views) > 0
+    odfv_found = False
+    for fv in odfv_data_source_filtered_views:
+        if fv["type"] == "onDemandFeatureView":
+            odfv_found = True
+            break
+    assert odfv_found, (
+        "On-demand feature view should be found when filtering by request source data source"
+    )
 
     response = fastapi_test_app.get(
         "/feature_views?project=demo_project&feature_service=user_service"
@@ -527,11 +568,11 @@ def test_saved_datasets_via_rest(fastapi_test_app):
     response = fastapi_test_app.get("/saved_datasets?project=demo_project")
     assert response.status_code == 200
     response_data = response.json()
-    assert "saved_datasets" in response_data
-    assert isinstance(response_data["saved_datasets"], list)
-    assert len(response_data["saved_datasets"]) == 1
+    assert "savedDatasets" in response_data
+    assert isinstance(response_data["savedDatasets"], list)
+    assert len(response_data["savedDatasets"]) == 1
 
-    saved_dataset = response_data["saved_datasets"][0]
+    saved_dataset = response_data["savedDatasets"][0]
     assert saved_dataset["spec"]["name"] == "test_saved_dataset"
     assert "user_profile:age" in saved_dataset["spec"]["features"]
     assert "user_profile:income" in saved_dataset["spec"]["features"]
@@ -561,21 +602,21 @@ def test_saved_datasets_via_rest(fastapi_test_app):
         "/saved_datasets?project=demo_project&tags=environment:test"
     )
     assert response.status_code == 200
-    assert len(response.json()["saved_datasets"]) == 1
+    assert len(response.json()["savedDatasets"]) == 1
 
     # Test with non-matching tags filter
     response = fastapi_test_app.get(
         "/saved_datasets?project=demo_project&tags=environment:production"
     )
     assert response.status_code == 200
-    assert len(response.json()["saved_datasets"]) == 0
+    assert len(response.json()["savedDatasets"]) == 0
 
     # Test with multiple tags filter
     response = fastapi_test_app.get(
         "/saved_datasets?project=demo_project&tags=environment:test&tags=version:1.0"
     )
     assert response.status_code == 200
-    assert len(response.json()["saved_datasets"]) == 1
+    assert len(response.json()["savedDatasets"]) == 1
 
     # Test non-existent saved dataset
     response = fastapi_test_app.get("/saved_datasets/non_existent?project=demo_project")
@@ -932,9 +973,9 @@ def test_saved_datasets_pagination_via_rest(fastapi_test_app_with_multiple_objec
     response = client.get("/saved_datasets?project=demo_project&page=1&limit=2")
     assert response.status_code == 200
     data = response.json()
-    assert "saved_datasets" in data
+    assert "savedDatasets" in data
     assert "pagination" in data
-    assert len(data["saved_datasets"]) == 2
+    assert len(data["savedDatasets"]) == 2
     assert data["pagination"]["page"] == 1
     assert data["pagination"]["limit"] == 2
     assert data["pagination"]["totalCount"] == 3
@@ -951,7 +992,7 @@ def test_saved_datasets_sorting_via_rest(fastapi_test_app_with_multiple_objects)
     )
     assert response.status_code == 200
     data = response.json()
-    sd_names = [sd["spec"]["name"] for sd in data["saved_datasets"]]
+    sd_names = [sd["spec"]["name"] for sd in data["savedDatasets"]]
     assert sd_names == sorted(sd_names)
 
     # Test sorting by name descending
@@ -960,7 +1001,7 @@ def test_saved_datasets_sorting_via_rest(fastapi_test_app_with_multiple_objects)
     )
     assert response.status_code == 200
     data = response.json()
-    sd_names = [sd["spec"]["name"] for sd in data["saved_datasets"]]
+    sd_names = [sd["spec"]["name"] for sd in data["savedDatasets"]]
     assert sd_names == sorted(sd_names, reverse=True)
 
 

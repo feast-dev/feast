@@ -503,6 +503,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                     ):
                         if feature_view_obj.stream_source.name == request.data_source:
                             data_source_match = True
+                    if (
+                        hasattr(feature_view_obj, "source_request_sources")
+                        and feature_view_obj.source_request_sources
+                    ):
+                        for (
+                            request_source
+                        ) in feature_view_obj.source_request_sources.values():
+                            if request_source.name == request.data_source:
+                                data_source_match = True
+                                break
                     if not data_source_match:
                         include_feature_view = False
 

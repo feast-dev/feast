@@ -277,6 +277,8 @@ def sqlite_registry():
     registry_config = SqlRegistryConfig(
         registry_type="sql",
         path="sqlite://",
+        cache_ttl_seconds=2,
+        cache_mode="sync",
     )
 
     yield SqlRegistry(registry_config, "project", None)
@@ -1209,11 +1211,10 @@ def test_registry_cache(test_registry):
     registry_data_sources_cached = test_registry.list_data_sources(
         project, allow_cache=True
     )
-    # Not refreshed cache, so cache miss
-    assert len(registry_feature_views_cached) == 0
-    assert len(registry_data_sources_cached) == 0
+    assert len(registry_feature_views_cached) == 1
+    assert len(registry_data_sources_cached) == 1
+
     test_registry.refresh(project)
-    # Now objects exist
     registry_feature_views_cached = test_registry.list_feature_views(
         project, allow_cache=True, tags=fv1.tags
     )

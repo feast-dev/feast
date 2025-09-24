@@ -141,6 +141,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployClient(); err != nil {
 		return err
 	}
+	if err := feast.deployNamespaceRegistry(); err != nil {
+		return err
+	}
 	if err := feast.deployCronJob(); err != nil {
 		return err
 	}
@@ -665,7 +668,33 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 		if len(svc.Annotations) == 0 {
 			svc.Annotations = map[string]string{}
 		}
-		svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+
+		// For registry services, we need special handling based on which services are enabled
+		if feastType == RegistryFeastType && feast.isRegistryServer() {
+			grpcEnabled := feast.isRegistryGrpcEnabled()
+			restEnabled := feast.isRegistryRestEnabled()
+
+			if grpcEnabled && restEnabled {
+				// Both services enabled: Use gRPC service name as primary, add REST as SAN
+				grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
+				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+
+				// Add Subject Alternative Names (SANs) for both services
+				grpcHostname := grpcSvcName + "." + svc.Namespace + ".svc.cluster.local"
+				restHostname := feast.GetFeastRestServiceName(RegistryFeastType) + "." + svc.Namespace + ".svc.cluster.local"
+				svc.Annotations["service.beta.openshift.io/serving-cert-sans"] = grpcHostname + "," + restHostname
+			} else if grpcEnabled && !restEnabled {
+				// Only gRPC enabled: Use gRPC service name
+				grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
+				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+			} else if !grpcEnabled && restEnabled {
+				// Only REST enabled: Use REST service name
+				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+			}
+		} else {
+			// Standard behavior for non-registry services
+			svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+		}
 	}
 
 	var port int32 = HttpPort

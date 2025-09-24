@@ -11,6 +11,7 @@ import (
 	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/rs/zerolog/log"
@@ -100,7 +101,7 @@ func (d *DynamodbOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 	entityIndexMap := make(map[string]int)
 	entityIds := make([]string, 0, len(entityKeys))
 	for i, entityKey := range entityKeys {
-		serKey, err := serializeEntityKey(entityKey, d.config.EntityKeySerializationVersion)
+		serKey, err := utils.SerializeEntityKey(entityKey, d.config.EntityKeySerializationVersion)
 		if err != nil {
 			return nil, err
 		}

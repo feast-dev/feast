@@ -2,7 +2,7 @@
 
 <p align="center">
     <a href="https://feast.dev/">
-      <img src="docs/assets/feast_logo.png" width="550">
+      <img src="https://raw.githubusercontent.com/feast-dev/feast/master/docs/assets/feast_logo.png" width="550">
     </a>
 </p>
 <br />
@@ -38,7 +38,7 @@ Feast allows ML platform teams to:
 Please see our [documentation](https://docs.feast.dev/) for more information about the project.
 
 ## 📐 Architecture
-![](docs/assets/feast_marchitecture.png)
+![](https://raw.githubusercontent.com/feast-dev/feast/master/docs/assets/feast_marchitecture.png)
 
 The above architecture is the minimal Feast deployment. Want to run the full Feast on Snowflake/GCP/AWS? Click [here](https://docs.feast.dev/how-to-guides/feast-snowflake-gcp-aws).
 
@@ -62,7 +62,7 @@ feast apply
 
 ### 4. Explore your data in the web UI (experimental)
 
-![Web UI](ui/sample.png)
+![Web UI](https://raw.githubusercontent.com/feast-dev/feast/master/ui/sample.png)
 ```commandline
 feast ui
 ```
@@ -109,10 +109,25 @@ print(training_df.head())
 ```
 
 ### 6. Load feature values into your online store
+
+**Option 1: Incremental materialization (recommended)**
 ```commandline
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
 ```
+
+**Option 2: Full materialization with timestamps**
+```commandline
+CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
+feast materialize 2021-04-12T00:00:00 $CURRENT_TIME
+```
+
+**Option 3: Simple materialization without timestamps**
+```commandline
+feast materialize --disable-event-timestamp
+```
+
+The `--disable-event-timestamp` flag allows you to materialize all available feature data using the current datetime as the event timestamp, without needing to specify start and end timestamps. This is useful when your source data lacks proper event timestamp columns.
 
 ```commandline
 Materializing feature view driver_hourly_stats from 2021-04-14 to 2021-04-15 done!

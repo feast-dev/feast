@@ -229,6 +229,7 @@ class Provider(ABC):
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -242,6 +243,7 @@ class Provider(ABC):
             registry: The registry for the current feature store.
             project: Feast project to which the objects belong.
             tqdm_builder: A function to monitor the progress of materialization.
+            disable_event_timestamp: If True, materializes all available data using current datetime as event timestamp instead of source event timestamps.
             **kwargs: Miscellaneous parameters
         """
         pass

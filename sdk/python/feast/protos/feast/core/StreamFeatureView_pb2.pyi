@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.core.Aggregation_pb2
@@ -28,15 +29,11 @@ import google.protobuf.descriptor
 import google.protobuf.duration_pb2
 import google.protobuf.internal.containers
 import google.protobuf.message
-import sys
-
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
-else:
-    import typing_extensions
+import typing
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class StreamFeatureView(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -45,6 +42,7 @@ class StreamFeatureView(google.protobuf.message.Message):
     @property
     def spec(self) -> global___StreamFeatureViewSpec:
         """User-specified specifications of this feature view."""
+
     @property
     def meta(self) -> feast.core.FeatureView_pb2.FeatureViewMeta: ...
     def __init__(
@@ -53,16 +51,18 @@ class StreamFeatureView(google.protobuf.message.Message):
         spec: global___StreamFeatureViewSpec | None = ...,
         meta: feast.core.FeatureView_pb2.FeatureViewMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
 
 global___StreamFeatureView = StreamFeatureView
 
+@typing.final
 class StreamFeatureViewSpec(google.protobuf.message.Message):
     """Next available id: 17"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -76,7 +76,7 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
@@ -99,22 +99,32 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
     """Name of Feast project that this feature view belongs to."""
+    description: builtins.str
+    """Description of the feature view."""
+    owner: builtins.str
+    """Owner of the feature view."""
+    online: builtins.bool
+    """Whether these features should be served online or not"""
+    mode: builtins.str
+    """Mode of execution"""
+    timestamp_field: builtins.str
+    """Timestamp field for aggregation"""
     @property
     def entities(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
         """List of names of entities associated with this feature view."""
+
     @property
     def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each feature defined as part of this feature view."""
+
     @property
     def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each entity defined as part of this feature view."""
-    description: builtins.str
-    """Description of the feature view."""
+
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
-    owner: builtins.str
-    """Owner of the feature view."""
+
     @property
     def ttl(self) -> google.protobuf.duration_pb2.Duration:
         """Features in this feature view can only be retrieved from online serving
@@ -122,27 +132,27 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
         the feature's event timestamp and when the feature is retrieved
         Feature values outside ttl will be returned as unset values and indicated to end user
         """
+
     @property
     def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Batch/Offline DataSource where this view can retrieve offline feature data."""
+
     @property
     def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Streaming DataSource from where this view can consume "online" feature data."""
-    online: builtins.bool
-    """Whether these features should be served online or not"""
+
     @property
     def user_defined_function(self) -> feast.core.OnDemandFeatureView_pb2.UserDefinedFunction:
         """Serialized function that is encoded in the streamfeatureview"""
-    mode: builtins.str
-    """Mode of execution"""
+
     @property
     def aggregations(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Aggregation_pb2.Aggregation]:
         """Aggregation definitions"""
-    timestamp_field: builtins.str
-    """Timestamp field for aggregation"""
+
     @property
     def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
         """Oneof with {user_defined_function, on_demand_substrait_transformation}"""
+
     def __init__(
         self,
         *,
@@ -164,7 +174,7 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
         timestamp_field: builtins.str = ...,
         feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "timestamp_field", b"timestamp_field", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["aggregations", b"aggregations", "batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "timestamp_field", b"timestamp_field", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> None: ...
 
 global___StreamFeatureViewSpec = StreamFeatureViewSpec

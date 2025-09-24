@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.core.DataFormat_pb2
@@ -37,6 +38,7 @@ else:
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class DataSource(google.protobuf.message.Message):
     """Defines a Data Source that can be used source Feature data
     Next available id: 28
@@ -48,7 +50,7 @@ class DataSource(google.protobuf.message.Message):
         ValueType = typing.NewType("ValueType", builtins.int)
         V: typing_extensions.TypeAlias = ValueType
 
-    class _SourceTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[DataSource._SourceType.ValueType], builtins.type):  # noqa: F821
+    class _SourceTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[DataSource._SourceType.ValueType], builtins.type):
         DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
         INVALID: DataSource._SourceType.ValueType  # 0
         BATCH_FILE: DataSource._SourceType.ValueType  # 1
@@ -83,6 +85,7 @@ class DataSource(google.protobuf.message.Message):
     BATCH_SPARK: DataSource.SourceType.ValueType  # 11
     BATCH_ATHENA: DataSource.SourceType.ValueType  # 12
 
+    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -96,8 +99,9 @@ class DataSource(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
+    @typing.final
     class FieldMappingEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -111,8 +115,9 @@ class DataSource(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
+    @typing.final
     class SourceMeta(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -136,9 +141,10 @@ class DataSource(google.protobuf.message.Message):
             created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
             last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> None: ...
+        def HasField(self, field_name: typing.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> None: ...
 
+    @typing.final
     class FileOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a file"""
 
@@ -147,8 +153,6 @@ class DataSource(google.protobuf.message.Message):
         FILE_FORMAT_FIELD_NUMBER: builtins.int
         URI_FIELD_NUMBER: builtins.int
         S3_ENDPOINT_OVERRIDE_FIELD_NUMBER: builtins.int
-        @property
-        def file_format(self) -> feast.core.DataFormat_pb2.FileFormat: ...
         uri: builtins.str
         """Target URL of file to retrieve and source features from.
         s3://path/to/file for AWS S3 storage
@@ -157,6 +161,8 @@ class DataSource(google.protobuf.message.Message):
         """
         s3_endpoint_override: builtins.str
         """override AWS S3 storage endpoint with custom S3 endpoint"""
+        @property
+        def file_format(self) -> feast.core.DataFormat_pb2.FileFormat: ...
         def __init__(
             self,
             *,
@@ -164,9 +170,10 @@ class DataSource(google.protobuf.message.Message):
             uri: builtins.str = ...,
             s3_endpoint_override: builtins.str = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["file_format", b"file_format"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["file_format", b"file_format", "s3_endpoint_override", b"s3_endpoint_override", "uri", b"uri"]) -> None: ...
+        def HasField(self, field_name: typing.Literal["file_format", b"file_format"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing.Literal["file_format", b"file_format", "s3_endpoint_override", b"s3_endpoint_override", "uri", b"uri"]) -> None: ...
 
+    @typing.final
     class BigQueryOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a BigQuery Query"""
 
@@ -186,8 +193,9 @@ class DataSource(google.protobuf.message.Message):
             table: builtins.str = ...,
             query: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["query", b"query", "table", b"table"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["query", b"query", "table", b"table"]) -> None: ...
 
+    @typing.final
     class TrinoOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a Trino Query"""
 
@@ -207,8 +215,9 @@ class DataSource(google.protobuf.message.Message):
             table: builtins.str = ...,
             query: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["query", b"query", "table", b"table"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["query", b"query", "table", b"table"]) -> None: ...
 
+    @typing.final
     class KafkaOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from Kafka messages.
         Each message should be a Protobuf that can be decoded with the generated
@@ -228,9 +237,11 @@ class DataSource(google.protobuf.message.Message):
         @property
         def message_format(self) -> feast.core.DataFormat_pb2.StreamFormat:
             """Defines the stream data format encoding feature/entity data in Kafka messages."""
+
         @property
         def watermark_delay_threshold(self) -> google.protobuf.duration_pb2.Duration:
             """Watermark delay threshold for stream data"""
+
         def __init__(
             self,
             *,
@@ -239,9 +250,10 @@ class DataSource(google.protobuf.message.Message):
             message_format: feast.core.DataFormat_pb2.StreamFormat | None = ...,
             watermark_delay_threshold: google.protobuf.duration_pb2.Duration | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["message_format", b"message_format", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["kafka_bootstrap_servers", b"kafka_bootstrap_servers", "message_format", b"message_format", "topic", b"topic", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> None: ...
+        def HasField(self, field_name: typing.Literal["message_format", b"message_format", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing.Literal["kafka_bootstrap_servers", b"kafka_bootstrap_servers", "message_format", b"message_format", "topic", b"topic", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> None: ...
 
+    @typing.final
     class KinesisOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from Kinesis records.
         Each record should be a Protobuf that can be decoded with the generated
@@ -262,6 +274,7 @@ class DataSource(google.protobuf.message.Message):
             """Defines the data format encoding the feature/entity data in Kinesis records.
             Kinesis Data Sources support Avro and Proto as data formats.
             """
+
         def __init__(
             self,
             *,
@@ -269,9 +282,10 @@ class DataSource(google.protobuf.message.Message):
             stream_name: builtins.str = ...,
             record_format: feast.core.DataFormat_pb2.StreamFormat | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["record_format", b"record_format"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["record_format", b"record_format", "region", b"region", "stream_name", b"stream_name"]) -> None: ...
+        def HasField(self, field_name: typing.Literal["record_format", b"record_format"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing.Literal["record_format", b"record_format", "region", b"region", "stream_name", b"stream_name"]) -> None: ...
 
+    @typing.final
     class RedshiftOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a Redshift Query"""
 
@@ -299,8 +313,9 @@ class DataSource(google.protobuf.message.Message):
             schema: builtins.str = ...,
             database: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["database", b"database", "query", b"query", "schema", b"schema", "table", b"table"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["database", b"database", "query", b"query", "schema", b"schema", "table", b"table"]) -> None: ...
 
+    @typing.final
     class AthenaOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a Athena Query"""
 
@@ -328,8 +343,9 @@ class DataSource(google.protobuf.message.Message):
             database: builtins.str = ...,
             data_source: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["data_source", b"data_source", "database", b"database", "query", b"query", "table", b"table"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["data_source", b"data_source", "database", b"database", "query", b"query", "table", b"table"]) -> None: ...
 
+    @typing.final
     class SnowflakeOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a Snowflake Query"""
 
@@ -357,8 +373,9 @@ class DataSource(google.protobuf.message.Message):
             schema: builtins.str = ...,
             database: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["database", b"database", "query", b"query", "schema", b"schema", "table", b"table"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["database", b"database", "query", b"query", "schema", b"schema", "table", b"table"]) -> None: ...
 
+    @typing.final
     class SparkOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a spark table/query"""
 
@@ -388,8 +405,9 @@ class DataSource(google.protobuf.message.Message):
             file_format: builtins.str = ...,
             date_partition_column_format: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table"]) -> None: ...
 
+    @typing.final
     class CustomSourceOptions(google.protobuf.message.Message):
         """Defines configuration for custom third-party data sources."""
 
@@ -405,13 +423,15 @@ class DataSource(google.protobuf.message.Message):
             *,
             configuration: builtins.bytes = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["configuration", b"configuration"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["configuration", b"configuration"]) -> None: ...
 
+    @typing.final
     class RequestDataOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from request data"""
 
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+        @typing.final
         class DeprecatedSchemaEntry(google.protobuf.message.Message):
             DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -425,13 +445,14 @@ class DataSource(google.protobuf.message.Message):
                 key: builtins.str = ...,
                 value: feast.types.Value_pb2.ValueType.Enum.ValueType = ...,
             ) -> None: ...
-            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+            def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
         DEPRECATED_SCHEMA_FIELD_NUMBER: builtins.int
         SCHEMA_FIELD_NUMBER: builtins.int
         @property
         def deprecated_schema(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, feast.types.Value_pb2.ValueType.Enum.ValueType]:
             """Mapping of feature name to type"""
+
         @property
         def schema(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]: ...
         def __init__(
@@ -440,8 +461,9 @@ class DataSource(google.protobuf.message.Message):
             deprecated_schema: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.ValueType.Enum.ValueType] | None = ...,
             schema: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["deprecated_schema", b"deprecated_schema", "schema", b"schema"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["deprecated_schema", b"deprecated_schema", "schema", b"schema"]) -> None: ...
 
+    @typing.final
     class PushOptions(google.protobuf.message.Message):
         """Defines options for DataSource that supports pushing data to it. This allows data to be pushed to
         the online store on-demand, such as by stream consumers.
@@ -483,15 +505,8 @@ class DataSource(google.protobuf.message.Message):
     project: builtins.str
     """Name of Feast project that this data source belongs to."""
     description: builtins.str
-    @property
-    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
     owner: builtins.str
     type: global___DataSource.SourceType.ValueType
-    @property
-    def field_mapping(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
-        """Defines mapping between fields in the sourced data
-        and fields in parent FeatureTable.
-        """
     timestamp_field: builtins.str
     """Must specify event timestamp column name"""
     date_partition_column: builtins.str
@@ -507,8 +522,17 @@ class DataSource(google.protobuf.message.Message):
     first party sources as well.
     """
     @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def field_mapping(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+        """Defines mapping between fields in the sourced data
+        and fields in parent FeatureTable.
+        """
+
+    @property
     def batch_source(self) -> global___DataSource:
         """Optional batch source for streaming sources for historical features and materialization."""
+
     @property
     def meta(self) -> global___DataSource.SourceMeta: ...
     @property
@@ -564,12 +588,13 @@ class DataSource(google.protobuf.message.Message):
         trino_options: global___DataSource.TrinoOptions | None = ...,
         athena_options: global___DataSource.AthenaOptions | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "custom_options", b"custom_options", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "options", b"options", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "trino_options", b"trino_options"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "trino_options", b"trino_options", "type", b"type"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["options", b"options"]) -> typing_extensions.Literal["file_options", "bigquery_options", "kafka_options", "kinesis_options", "redshift_options", "request_data_options", "custom_options", "snowflake_options", "push_options", "spark_options", "trino_options", "athena_options"] | None: ...
+    def HasField(self, field_name: typing.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "custom_options", b"custom_options", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "options", b"options", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "trino_options", b"trino_options"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "trino_options", b"trino_options", "type", b"type"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["options", b"options"]) -> typing.Literal["file_options", "bigquery_options", "kafka_options", "kinesis_options", "redshift_options", "request_data_options", "custom_options", "snowflake_options", "push_options", "spark_options", "trino_options", "athena_options"] | None: ...
 
 global___DataSource = DataSource
 
+@typing.final
 class DataSourceList(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -581,6 +606,6 @@ class DataSourceList(google.protobuf.message.Message):
         *,
         datasources: collections.abc.Iterable[global___DataSource] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["datasources", b"datasources"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["datasources", b"datasources"]) -> None: ...
 
 global___DataSourceList = DataSourceList

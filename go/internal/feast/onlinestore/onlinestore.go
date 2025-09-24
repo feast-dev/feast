@@ -105,25 +105,42 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 	}
 
 	keys := make([]string, 0, len(m))
-	for k := range entityKey.JoinKeys {
-		keys = append(keys, entityKey.JoinKeys[k])
-	}
-	sort.Strings(keys)
+	keys = append(keys, entityKey.JoinKeys...)
+	sort.Strings(keys) // Sort the keys
 
 	// Build the key
-	length := 5 * len(keys)
+	length := 7 * len(keys)
 	bufferList := make([][]byte, length)
+	offset := 0
+
+	// For entityKeySerializationVersion 3 and above, we add the number of join keys
+	// as the first 4 bytes of the serialized key.
+	if entityKeySerializationVersion >= 3 {
+		byteBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(byteBuffer, uint32(len(keys)))
+		bufferList[offset] = byteBuffer // First buffer is always the length of the keys
+		offset++
+	}
 
 	for i := 0; i < len(keys); i++ {
-		offset := i * 2
+		// Add the key type STRING info
 		byteBuffer := make([]byte, 4)
 		binary.LittleEndian.PutUint32(byteBuffer, uint32(types.ValueType_Enum_value["STRING"]))
 		bufferList[offset] = byteBuffer
-		bufferList[offset+1] = []byte(keys[i])
+		offset++
+
+		// Add the size of current "key" string
+		keyLenByteBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(keyLenByteBuffer, uint32(len(keys[i])))
+		bufferList[offset] = keyLenByteBuffer
+		offset++
+
+		// Add value
+		bufferList[offset] = []byte(keys[i])
+		offset++
 	}
 
 	for i := 0; i < len(keys); i++ {
-		offset := (2 * len(keys)) + (i * 3)
 		value := m[keys[i]].GetVal()
 
 		valueBytes, valueTypeBytes, err := serializeValue(value, entityKeySerializationVersion)
@@ -131,15 +148,20 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 			return valueBytes, err
 		}
 
+		// Add value type info
 		typeBuffer := make([]byte, 4)
 		binary.LittleEndian.PutUint32(typeBuffer, uint32(valueTypeBytes))
+		bufferList[offset] = typeBuffer
+		offset++
 
+		// Add length info
 		lenBuffer := make([]byte, 4)
 		binary.LittleEndian.PutUint32(lenBuffer, uint32(len(*valueBytes)))
+		bufferList[offset] = lenBuffer
+		offset++
 
-		bufferList[offset+0] = typeBuffer
-		bufferList[offset+1] = lenBuffer
-		bufferList[offset+2] = *valueBytes
+		bufferList[offset] = *valueBytes
+		offset++
 	}
 
 	// Convert from an array of byte arrays to a single byte array
@@ -149,4 +171,27 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 	}
 
 	return &entityKeyBuffer, nil
+}
+
+func serializeValue(value interface{}, entityKeySerializationVersion int64) (*[]byte, types.ValueType_Enum, error) {
+	// TODO: Implement support for other types (at least the major types like ints, strings, bytes)
+	switch x := (value).(type) {
+	case *types.Value_StringVal:
+		valueString := []byte(x.StringVal)
+		return &valueString, types.ValueType_STRING, nil
+	case *types.Value_BytesVal:
+		return &x.BytesVal, types.ValueType_BYTES, nil
+	case *types.Value_Int32Val:
+		valueBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int32Val))
+		return &valueBuffer, types.ValueType_INT32, nil
+	case *types.Value_Int64Val:
+		valueBuffer := make([]byte, 8)
+		binary.LittleEndian.PutUint64(valueBuffer, uint64(x.Int64Val))
+		return &valueBuffer, types.ValueType_INT64, nil
+	case nil:
+		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
+	default:
+		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
+	}
 }

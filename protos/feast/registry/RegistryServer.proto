@@ -588,4 +588,5 @@ message GetFeatureRequest {
   string project = 1;
   string feature_view = 2;
   string name = 3;
+  bool allow_cache = 4;
 }

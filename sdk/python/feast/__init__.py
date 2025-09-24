@@ -14,6 +14,7 @@ from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
 from .batch_feature_view import BatchFeatureView
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
+from .dataframe import DataFrameEngine, FeastDataFrame
 from .entity import Entity
 from .feature import Feature
 from .feature_service import FeatureService
@@ -36,9 +37,11 @@ except PackageNotFoundError:
 
 __all__ = [
     "BatchFeatureView",
+    "DataFrameEngine",
     "Entity",
     "KafkaSource",
     "KinesisSource",
+    "FeastDataFrame",
     "Feature",
     "Field",
     "FeatureService",

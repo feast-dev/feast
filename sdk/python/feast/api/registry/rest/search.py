@@ -167,6 +167,7 @@ def get_search_router(grpc_handler) -> APIRouter:
                             "name": feature.get("name", ""),
                             "description": feature.get("description", ""),
                             "project": current_project,
+                            "featureView": feature.get("featureView", ""),
                             "tags": feature.get("tags", {}),
                         }
                     )
