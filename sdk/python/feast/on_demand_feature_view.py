@@ -8,6 +8,7 @@ import dill
 import pyarrow
 from typeguard import typechecked
 
+from feast.aggregation import Aggregation
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestSource
 from feast.entity import Entity
@@ -76,6 +77,7 @@ class OnDemandFeatureView(BaseFeatureView):
     singleton: bool
     udf: Optional[FunctionType]
     udf_string: Optional[str]
+    aggregations: List[Aggregation]
 
     def __init__(  # noqa: C901
         self,
@@ -93,6 +95,7 @@ class OnDemandFeatureView(BaseFeatureView):
         owner: str = "",
         write_to_online_store: bool = False,
         singleton: bool = False,
+        aggregations: Optional[List[Aggregation]] = None,
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -118,6 +121,7 @@ class OnDemandFeatureView(BaseFeatureView):
             the online store for faster retrieval.
             singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
                 (only applicable when mode="python").
+            aggregations (optional): List of aggregations to apply before transformation.
         """
         super().__init__(
             name=name,
@@ -187,6 +191,7 @@ class OnDemandFeatureView(BaseFeatureView):
         self.singleton = singleton
         if self.singleton and self.mode != "python":
             raise ValueError("Singleton is only supported for Python mode.")
+        self.aggregations = aggregations or []
 
     def get_feature_transformation(self) -> Transformation:
         if not self.udf:
@@ -251,6 +256,7 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.write_to_online_store != other.write_to_online_store
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.singleton != other.singleton
+            or self.aggregations != other.aggregations
         ):
             return False
 
