@@ -669,14 +669,17 @@ compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
 .PHONY: install-feast-ci-locally
 install-feast-ci-locally: ## Install Feast CI dependencies locally
 	uv pip install -e ".[ci]"
+	echo "Installed $(feast version)"
 
 .PHONY: install-feast-ci-system
 install-feast-ci-system: ## Install Feast CI dependencies on the system
 	uv pip install --system -e ".[ci]"
+	echo "Installed $(feast version)"
 
 .PHONY: install-feast-ci-locally-pip
 install-feast-ci-locally-pip: ## Install Feast CI dependencies locally
 	pip install -e ".[ci]"
+	echo "Installed $(feast version)"
 
 .PHONY: test-go
 test-go: compile-protos-go install-feast-ci-locally compile-protos-python ## Run Go tests

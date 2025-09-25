@@ -97,7 +97,7 @@ ikv = [
 ]
 k8s = ["kubernetes>=20.13.0,<=23.3.0"]
 image = [
-    "feast[pytorch]",
+    "eg-feast[pytorch]",
     "timm>=0.6.0",
     "Pillow>=8.0.0",
     "scikit-learn>=1.0.0",
