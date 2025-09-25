@@ -144,13 +144,12 @@ class KubernetesTokenParser(TokenParser):
 
                 # Extract namespaces from the user info
                 if response.status.user:
-                    # For service accounts, the namespace is typically in the username
-                    # For regular users, we might need to extract from groups or other fields
                     username = getattr(response.status.user, "username", "") or ""
+
                     if ":" in username and username.startswith(
                         "system:serviceaccount:"
                     ):
-                        # Extract namespace from service account username
+                        # Service account logic - extract namespace from username
                         parts = username.split(":")
                         if len(parts) >= 4:
                             service_account_namespace = parts[
@@ -163,6 +162,15 @@ class KubernetesTokenParser(TokenParser):
                                 service_account_namespace
                             )
                             groups.extend(namespace_groups)
+                    else:
+                        # Regular user logic - extract namespaces from dashboard-permissions RoleBindings
+                        user_namespaces = self._extract_user_data_science_projects(
+                            username
+                        )
+                        namespaces.extend(user_namespaces)
+                        logger.info(
+                            f"Found {len(user_namespaces)} data science projects for user {username}: {user_namespaces}"
+                        )
 
                     # Also check if there are namespace-specific groups
                     for group in groups:
@@ -181,6 +189,10 @@ class KubernetesTokenParser(TokenParser):
         except Exception as e:
             logger.error(f"Failed to perform Token Access Review: {e}")
             # We dont need to extract groups and namespaces from jwt decoding, not ideal for kubernetes auth
+
+        # Remove duplicates
+        groups = sorted(list(set(groups)))
+        namespaces = sorted(list(set(namespaces)))
         return groups, namespaces
 
     def _extract_namespace_access_groups(self, namespace: str) -> list[str]:
@@ -231,6 +243,56 @@ class KubernetesTokenParser(TokenParser):
             )
 
         return groups
+
+    def _extract_user_data_science_projects(self, username: str) -> list[str]:
+        """
+        Extract data science project namespaces where a user has been added via dashboard-permissions RoleBindings.
+
+        This method queries all RoleBindings where the user is a subject and filters for
+        'dashboard-permissions-*' RoleBindings, which indicate the user has been added to that data science project.
+
+        Args:
+            username: The username to search for in RoleBindings
+
+        Returns:
+            list[str]: List of namespace names where the user has dashboard permissions
+        """
+        user_namespaces = []
+        try:
+            # Query all RoleBindings where the user is a subject
+            # This is much more efficient than scanning all namespaces
+            all_role_bindings = self.rbac_v1.list_role_binding_for_all_namespaces()
+
+            for rb in all_role_bindings.items:
+                # Check if this is a dashboard-permissions RoleBinding
+                if (
+                    rb.metadata.name.startswith("dashboard-permissions-")
+                    and rb.metadata.labels
+                    and rb.metadata.labels.get("opendatahub.io/dashboard") == "true"
+                ):
+                    # Check if the user is a subject in this RoleBinding
+                    for subject in rb.subjects or []:
+                        if subject.kind == "User" and subject.name == username:
+                            namespace_name = rb.metadata.namespace
+                            user_namespaces.append(namespace_name)
+                            logger.debug(
+                                f"Found user {username} in dashboard-permissions RoleBinding "
+                                f"{rb.metadata.name} in namespace {namespace_name}"
+                            )
+                            break  # Found the user in this RoleBinding, no need to check other subjects
+
+            # Remove duplicates and sort
+            user_namespaces = sorted(list(set(user_namespaces)))
+            logger.info(
+                f"User {username} has dashboard permissions in {len(user_namespaces)} namespaces: {user_namespaces}"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to extract user data science projects for {username}: {e}"
+            )
+
+        return user_namespaces
 
     def _cluster_role_binding_grants_namespace_access(
         self, cluster_role_binding, namespace: str
