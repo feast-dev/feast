@@ -129,6 +129,38 @@ snowflake = [
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
 
+client = [
+    "click>=7.0.0,<9.0.0",
+    "colorama>=0.3.9,<1",
+    "dill~=0.3.0",
+    "protobuf>=4.24.0",
+    "Jinja2>=2,<4",
+    "jsonschema",
+    "mmh3",
+    "numpy>=2.0.0,<3",
+    "pandas>=1.4.3,<3",
+    "pyarrow<=17.0.0",
+    "pydantic==2.10.6",
+    "pygments>=2.12.0,<3",
+    "PyYAML>=5.4.0,<7",
+    "requests",
+    "SQLAlchemy[mypy]>1",
+    "tabulate>=0.8.0,<1",
+    "tenacity>=7,<9",
+    "toml>=0.10.0,<1",
+    "tqdm>=4,<5",
+    "typeguard>=4.0.0",
+    "fastapi>=0.68.0",
+    "uvicorn[standard]>=0.30.6,<=0.34.0",
+    "uvicorn-worker",
+    "gunicorn; platform_system != 'Windows'",
+    "dask[dataframe]>=2024.2.1",
+    "prometheus_client",
+    "psutil",
+    "bigtree>=0.19.2",
+    "pyjwt",
+]
+
 ci = [
     "build",
     "virtualenv==20.23.0",
