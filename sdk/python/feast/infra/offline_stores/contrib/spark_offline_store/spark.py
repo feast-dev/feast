@@ -442,7 +442,6 @@ class SparkRetrievalJob(RetrievalJob):
                 self.to_spark_df().write.format(file_format).saveAsTable(table_name)
         else:
             self.to_spark_df().createOrReplaceTempView(table_name)
-            
 
     def _has_remote_warehouse_in_config(self) -> bool:
         """
@@ -506,7 +505,7 @@ class SparkRetrievalJob(RetrievalJob):
                 spark_session = get_spark_session_or_start_new_with_repoconfig(
                     store_config=self._config.offline_store
                 )
-                return self._list_hdfs_files(spark_session, output_uri)
+                return _list_hdfs_files(spark_session, output_uri)
             else:
                 raise NotImplementedError(
                     "to_remote_storage is only implemented for file://, s3:// and hdfs:// uri schemes"
@@ -514,18 +513,6 @@ class SparkRetrievalJob(RetrievalJob):
 
         else:
             raise NotImplementedError()
-
-    def _list_hdfs_files(self, spark_session: SparkSession, uri: str) -> List[str]:
-        jvm = spark_session._jvm
-        conf = spark_session._jsc.hadoopConfiguration()
-        path = jvm.org.apache.hadoop.fs.Path(uri)
-        fs = jvm.org.apache.hadoop.fs.FileSystem.get(path.toUri(), conf)
-        statuses = fs.listStatus(path)
-        files = []
-        for f in statuses:
-            if f.isFile():
-                files.append(f.getPath().toString())
-        return files
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
@@ -647,6 +634,22 @@ def _list_files_in_folder(folder):
         if os.path.isfile(filename):
             files.append(filename)
 
+    return files
+
+
+def _list_hdfs_files(spark_session: SparkSession, uri: str) -> List[str]:
+    jvm = spark_session._jvm
+    jsc = spark_session._jsc
+    if jvm is None or jsc is None:
+        raise RuntimeError("Spark JVM or JavaSparkContext is not available")
+    conf = jsc.hadoopConfiguration()
+    path = jvm.org.apache.hadoop.fs.Path(uri)
+    fs = jvm.org.apache.hadoop.fs.FileSystem.get(path.toUri(), conf)
+    statuses = fs.listStatus(path)
+    files = []
+    for f in statuses:
+        if f.isFile():
+            files.append(f.getPath().toString())
     return files
 
 
