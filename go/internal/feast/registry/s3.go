@@ -3,7 +3,7 @@ package registry
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"strings"
 	"time"
 
@@ -65,7 +65,7 @@ func (r *S3RegistryStore) GetRegistryProto() (*core.Registry, error) {
 	}
 	defer output.Body.Close()
 
-	data, err := ioutil.ReadAll(output.Body)
+	data, err := io.ReadAll(output.Body)
 	if err != nil {
 		return nil, err
 	}
