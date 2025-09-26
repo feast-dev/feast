@@ -1,7 +1,7 @@
 # Online store
 
 Feast uses online stores to serve features at low latency.
-Feature values are loaded from data sources into the online store through _materialization_, which can be triggered through the `materialize` command.
+Feature values are loaded from data sources into the online store through _materialization_, which can be triggered through the `materialize` command (either with specific timestamps or using `--disable-event-timestamp` to materialize all data with current timestamps).
 
 The storage schema of features within the online store mirrors that of the original data source.
 One key difference is that for each [entity key](../concepts/entity.md), only the latest feature values are stored.
@@ -11,7 +11,7 @@ Here is an example batch data source:
 
 ![](../../.gitbook/assets/image%20%286%29.png)
 
-Once the above data source is materialized into Feast (using `feast materialize`), the feature values will be stored as follows:
+Once the above data source is materialized into Feast (using `feast materialize` with timestamps or `feast materialize --disable-event-timestamp`), the feature values will be stored as follows:
 
 ![](../../.gitbook/assets/image%20%285%29.png)
 
