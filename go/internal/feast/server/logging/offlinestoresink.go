@@ -3,7 +3,6 @@ package logging
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -33,7 +32,7 @@ func (s *OfflineStoreSink) getOrCreateDatasetDir() (string, error) {
 	if s.datasetDir != "" {
 		return s.datasetDir, nil
 	}
-	dir, err := ioutil.TempDir("", "*")
+	dir, err := os.MkdirTemp("", "*")
 	if err != nil {
 		return "", err
 	}
