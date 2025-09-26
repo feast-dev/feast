@@ -348,7 +348,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton if self.singleton else False,
-            aggregations=self.aggregations
+            aggregations=self.aggregations,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
@@ -484,7 +484,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=on_demand_feature_view_proto.spec.owner,
             write_to_online_store=write_to_online_store,
             singleton=singleton,
-            aggregations=aggregations
+            aggregations=aggregations,
         )
 
         on_demand_feature_view_obj.entities = entities
