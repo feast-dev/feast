@@ -1,0 +1,11 @@
+metadata:
+  version: "1.0"
+artifacts:
+  - download_url: "https://github.com/duckdb/duckdb/archive/refs/tags/v1.1.3.tar.gz"
+    checksum: "sha256:2aea0af898ad753fee82b776fea1bf78ccbc9648986e7f7a87372df5e74cdb98"
+    filename: "duckdb-v1.1.3.tar.gz"
+ 
+  - download_url: "https://github.com/apache/arrow/archive/refs/tags/apache-arrow-17.0.0.tar.gz"
+    checksum: "sha256:8379554d89f19f2c8db63620721cabade62541f47a4e706dfb0a401f05a713ef"
+    filename: "apache-arrow-17.0.0.tar.gz"
+
