@@ -90,7 +90,7 @@ ibis = [
 ikv = [
     "ikvpy>=0.0.36",
 ]
-k8s = ["kubernetes>=20.13.0,<=23.3.0"]
+k8s = ["kubernetes"]
 image = [
     "feast[pytorch]",
     "timm>=0.6.0",
@@ -117,7 +117,10 @@ rag = [
     "transformers>=4.36.0",
     "datasets>=3.6.0",
 ]
-ray = ["ray>=2.47.0"]
+ray = [
+'ray>=2.47.0; python_version == "3.10"',
+'codeflare-sdk>=0.31.1; python_version != "3.10"'
+]
 redis = [
     "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",
