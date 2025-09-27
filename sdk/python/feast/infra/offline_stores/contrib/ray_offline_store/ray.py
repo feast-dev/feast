@@ -43,6 +43,7 @@ from feast.infra.ray_shared_utils import (
     _build_required_columns,
     apply_field_mapping,
     ensure_timestamp_compatibility,
+    is_ray_data,
     normalize_timestamp_columns,
 )
 from feast.infra.registry.base_registry import BaseRegistry
@@ -61,7 +62,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_data_schema_info(
-    data: Union[pd.DataFrame, Dataset],
+    data: Union[pd.DataFrame, Dataset, Any],
 ) -> Tuple[Dict[str, Any], List[str]]:
     """
     Extract schema information from DataFrame or Dataset.
@@ -70,7 +71,7 @@ def _get_data_schema_info(
     Returns:
         Tuple of (dtypes_dict, column_names)
     """
-    if isinstance(data, Dataset):
+    if is_ray_data(data):
         schema = data.schema()
         dtypes = {}
         for i, col in enumerate(schema.names):
@@ -84,16 +85,17 @@ def _get_data_schema_info(
                 dtypes[col] = pd.api.types.pandas_dtype("object")
         columns = schema.names
     else:
+        assert isinstance(data, pd.DataFrame)
         dtypes = data.dtypes.to_dict()
         columns = list(data.columns)
     return dtypes, columns
 
 
 def _apply_to_data(
-    data: Union[pd.DataFrame, Dataset],
+    data: Union[pd.DataFrame, Dataset, Any],
     process_func: Callable[[pd.DataFrame], pd.DataFrame],
     inplace: bool = False,
-) -> Union[pd.DataFrame, Dataset]:
+) -> Union[pd.DataFrame, Dataset, Any]:
     """
     Apply a processing function to DataFrame or Dataset.
     Args:
@@ -103,9 +105,10 @@ def _apply_to_data(
     Returns:
         Processed DataFrame or Dataset
     """
-    if isinstance(data, Dataset):
+    if is_ray_data(data):
         return data.map_batches(process_func, batch_format="pandas")
     else:
+        assert isinstance(data, pd.DataFrame)
         if not inplace:
             data = data.copy()
         return process_func(data)
@@ -158,7 +161,7 @@ def _safe_infer_event_timestamp_column(
 
 
 def _safe_get_entity_timestamp_bounds(
-    data: Union[pd.DataFrame, Dataset], timestamp_column: str
+    data: Union[pd.DataFrame, Dataset, Any], timestamp_column: str
 ) -> Tuple[Optional[datetime], Optional[datetime]]:
     """
     Safely get entity timestamp bounds.
@@ -170,7 +173,7 @@ def _safe_get_entity_timestamp_bounds(
         Tuple of (min_timestamp, max_timestamp) or (None, None) if failed
     """
     try:
-        if isinstance(data, Dataset):
+        if is_ray_data(data):
             min_ts = data.min(timestamp_column)
             max_ts = data.max(timestamp_column)
         else:
@@ -192,7 +195,7 @@ def _safe_get_entity_timestamp_bounds(
             f"Timestamp bounds extraction failed: {e}, falling back to manual calculation"
         )
         try:
-            if isinstance(data, Dataset):
+            if is_ray_data(data):
 
                 def extract_bounds(batch: pd.DataFrame) -> pd.DataFrame:
                     if timestamp_column in batch.columns and not batch.empty:
@@ -212,6 +215,7 @@ def _safe_get_entity_timestamp_bounds(
                     if pd.notna(min_ts) and pd.notna(max_ts):
                         return min_ts.to_pydatetime(), max_ts.to_pydatetime()
             else:
+                assert isinstance(data, pd.DataFrame)
                 if timestamp_column in data.columns:
                     timestamps = pd.to_datetime(data[timestamp_column], utc=True)
                     return (
