@@ -1,10 +1,18 @@
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, Field
 
 from feast.api.registry.rest.feature_views import _extract_feature_view_from_any
+from feast.api.registry.rest.response_models import (
+    AllResourceCountsResponse,
+    FeatureViewInfo,
+    PopularTagInfo,
+    PopularTagsMetadata,
+    PopularTagsResponse,
+    ProjectResourceCountsResponse,
+    RecentlyVisitedResponse,
+)
 from feast.api.registry.rest.rest_utils import (
     get_pagination_params,
     get_sorting_params,
@@ -13,52 +21,55 @@ from feast.api.registry.rest.rest_utils import (
 )
 from feast.protos.feast.registry import RegistryServer_pb2
 
+# class FeatureViewInfo(BaseModel):
+#     """Feature view information in popular tags response."""
 
-class FeatureViewInfo(BaseModel):
-    """Feature view information in popular tags response."""
-
-    name: str = Field(..., description="Name of the feature view")
-    project: str = Field(..., description="Project name of the feature view")
-
-
-class PopularTagInfo(BaseModel):
-    """Popular tag information with associated feature views."""
-
-    tag_key: str = Field(..., description="Tag key")
-    tag_value: str = Field(..., description="Tag value")
-    feature_views: List[FeatureViewInfo] = Field(
-        ..., description="List of feature views with this tag"
-    )
-    total_feature_views: int = Field(
-        ..., description="Total number of feature views with this tag"
-    )
+#     name: str = Field(..., description="Name of the feature view")
+#     project: str = Field(..., description="Project name of the feature view")
 
 
-class PopularTagsMetadata(BaseModel):
-    """Metadata for popular tags response."""
+# class PopularTagInfo(BaseModel):
+#     """Popular tag information with associated feature views."""
 
-    totalFeatureViews: int = Field(
-        ..., description="Total number of feature views processed"
-    )
-    totalTags: int = Field(..., description="Total number of unique tags found")
-    limit: int = Field(..., description="Number of popular tags requested")
+#     tag_key: str = Field(..., description="Tag key")
+#     tag_value: str = Field(..., description="Tag value")
+#     feature_views: List[FeatureViewInfo] = Field(
+#         ..., description="List of feature views with this tag"
+#     )
+#     total_feature_views: int = Field(
+#         ..., description="Total number of feature views with this tag"
+#     )
 
 
-class PopularTagsResponse(BaseModel):
-    """Response model for popular tags endpoint."""
+# class PopularTagsMetadata(BaseModel):
+#     """Metadata for popular tags response."""
 
-    popular_tags: List[PopularTagInfo] = Field(
-        ..., description="List of popular tags with their associated feature views"
-    )
-    metadata: PopularTagsMetadata = Field(
-        ..., description="Metadata about the response"
-    )
+#     totalFeatureViews: int = Field(
+#         ..., description="Total number of feature views processed"
+#     )
+#     totalTags: int = Field(..., description="Total number of unique tags found")
+#     limit: int = Field(..., description="Number of popular tags requested")
+
+
+# class PopularTagsResponse(BaseModel):
+#     """Response model for popular tags endpoint."""
+
+#     popular_tags: List[PopularTagInfo] = Field(
+#         ..., description="List of popular tags with their associated feature views"
+#     )
+#     metadata: PopularTagsMetadata = Field(
+#         ..., description="Metadata about the response"
+#     )
 
 
 def get_metrics_router(grpc_handler, server=None) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/metrics/resource_counts", tags=["Metrics"])
+    @router.get(
+        "/metrics/resource_counts",
+        tags=["Metrics"],
+        response_model=Union[ProjectResourceCountsResponse, AllResourceCountsResponse],
+    )
     async def resource_counts(
         project: Optional[str] = Query(
             None, description="Project name to filter resource counts"
@@ -300,7 +311,11 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 detail=f"Failed to generate popular tags: {str(e)}",
             )
 
-    @router.get("/metrics/recently_visited", tags=["Metrics"])
+    @router.get(
+        "/metrics/recently_visited",
+        tags=["Metrics"],
+        response_model=RecentlyVisitedResponse,
+    )
     async def recently_visited(
         request: Request,
         project: Optional[str] = Query(

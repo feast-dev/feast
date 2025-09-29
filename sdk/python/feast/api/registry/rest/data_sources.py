@@ -8,6 +8,11 @@ from feast.api.registry.rest.codegen_utils import (
     render_push_source_code,
     render_request_source_code,
 )
+from feast.api.registry.rest.response_models import (
+    DataSourceResponse,
+    ListDataSourcesAllResponse,
+    ListDataSourcesResponse,
+)
 from feast.api.registry.rest.rest_utils import (
     aggregate_across_projects,
     create_grpc_pagination_params,
@@ -29,7 +34,7 @@ logger = logging.getLogger(__name__)
 def get_data_source_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/data_sources")
+    @router.get("/data_sources", response_model=ListDataSourcesResponse)
     def list_data_sources(
         project: str = Query(...),
         include_relationships: bool = Query(
@@ -63,7 +68,7 @@ def get_data_source_router(grpc_handler) -> APIRouter:
 
         return result
 
-    @router.get("/data_sources/all")
+    @router.get("/data_sources/all", response_model=ListDataSourcesAllResponse)
     def list_data_sources_all(
         allow_cache: bool = Query(default=True),
         page: int = Query(1, ge=1),
@@ -88,7 +93,7 @@ def get_data_source_router(grpc_handler) -> APIRouter:
             include_relationships=include_relationships,
         )
 
-    @router.get("/data_sources/{name}")
+    @router.get("/data_sources/{name}", response_model=DataSourceResponse)
     def get_data_source(
         name: str,
         project: str = Query(...),

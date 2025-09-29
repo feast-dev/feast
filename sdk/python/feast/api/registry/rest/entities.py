@@ -3,6 +3,11 @@ import logging
 from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.codegen_utils import render_entity_code
+from feast.api.registry.rest.response_models import (
+    EntityResponse,
+    ListAllEntitiesResponse,
+    ListEntitiesResponse,
+)
 from feast.api.registry.rest.rest_utils import (
     aggregate_across_projects,
     create_grpc_pagination_params,
@@ -21,7 +26,7 @@ logger = logging.getLogger(__name__)
 def get_entity_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/entities")
+    @router.get("/entities", response_model=ListEntitiesResponse)
     def list_entities(
         project: str = Query(...),
         allow_cache: bool = Query(default=True),
@@ -53,7 +58,7 @@ def get_entity_router(grpc_handler) -> APIRouter:
 
         return result
 
-    @router.get("/entities/all")
+    @router.get("/entities/all", response_model=ListAllEntitiesResponse)
     def list_all_entities(
         allow_cache: bool = Query(default=True),
         page: int = Query(1, ge=1),
@@ -78,7 +83,7 @@ def get_entity_router(grpc_handler) -> APIRouter:
             include_relationships=include_relationships,
         )
 
-    @router.get("/entities/{name}")
+    @router.get("/entities/{name}", response_model=EntityResponse)
     def get_entity(
         name: str,
         project: str = Query(...),

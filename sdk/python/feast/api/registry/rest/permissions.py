@@ -1,5 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 
+from feast.api.registry.rest.response_models import (
+    ListPermissionsResponse,
+    PermissionResponse,
+)
 from feast.api.registry.rest.rest_utils import (
     create_grpc_pagination_params,
     create_grpc_sorting_params,
@@ -15,7 +19,7 @@ from feast.registry_server import RegistryServer_pb2
 def get_permission_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/permissions/{name}")
+    @router.get("/permissions/{name}", response_model=PermissionResponse)
     def get_permission(
         name: str,
         project: str = Query(...),
@@ -43,7 +47,7 @@ def get_permission_router(grpc_handler) -> APIRouter:
 
         return result
 
-    @router.get("/permissions")
+    @router.get("/permissions", response_model=ListPermissionsResponse)
     def list_permissions(
         project: str = Query(...),
         allow_cache: bool = Query(default=True),
