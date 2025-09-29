@@ -3,6 +3,11 @@ from typing import Dict
 from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.codegen_utils import render_saved_dataset_code
+from feast.api.registry.rest.response_models import (
+    ListSavedDatasetsAllResponse,
+    ListSavedDatasetsResponse,
+    SavedDatasetResponse,
+)
 from feast.api.registry.rest.rest_utils import (
     aggregate_across_projects,
     create_grpc_pagination_params,
@@ -20,7 +25,7 @@ from feast.protos.feast.registry import RegistryServer_pb2
 def get_saved_dataset_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/saved_datasets/all")
+    @router.get("/saved_datasets/all", response_model=ListSavedDatasetsAllResponse)
     def list_saved_datasets_all(
         allow_cache: bool = Query(default=True),
         page: int = Query(1, ge=1),
@@ -45,7 +50,7 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
             include_relationships=include_relationships,
         )
 
-    @router.get("/saved_datasets/{name}")
+    @router.get("/saved_datasets/{name}", response_model=SavedDatasetResponse)
     def get_saved_dataset(
         name: str,
         project: str = Query(...),
@@ -97,7 +102,7 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
 
         return result
 
-    @router.get("/saved_datasets")
+    @router.get("/saved_datasets", response_model=ListSavedDatasetsResponse)
     def list_saved_datasets(
         project: str = Query(...),
         allow_cache: bool = Query(default=True),
