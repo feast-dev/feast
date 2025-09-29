@@ -130,12 +130,20 @@ Examples include:
 
 ```python
 from feast.transformation import tiled_transformation
+from feast import Field
+from feast.types import Float64, Int64
 from datetime import timedelta
 
 @tiled_transformation(
-    tile_size=timedelta(hours=1),  # Process data in 1-hour tiles
-    mode="pandas",                 # Use pandas processing mode
-    overlap=timedelta(minutes=5),  # 5-minute overlap between tiles
+    sources=["transaction_source_fv"],    # Source feature views or data sources
+    schema=[                              # Output feature schema
+        Field(name="rolling_avg", dtype=Float64),
+        Field(name="cumulative_amount", dtype=Float64),
+        Field(name="transaction_count", dtype=Int64),
+    ],
+    tile_size=timedelta(hours=1),         # Process data in 1-hour tiles
+    mode="pandas",                        # Use pandas processing mode
+    overlap=timedelta(minutes=5),         # 5-minute overlap between tiles
     aggregation_functions=[
         lambda df: df.groupby('entity_id').agg({
             'transaction_amount': ['sum', 'mean', 'count']
@@ -146,7 +154,8 @@ def hourly_transaction_features(df: pd.DataFrame) -> pd.DataFrame:
     """Transform transaction data within each hour tile."""
     return df.assign(
         rolling_avg=df['transaction_amount'].rolling(window=10).mean(),
-        cumulative_amount=df['transaction_amount'].cumsum()
+        cumulative_amount=df['transaction_amount'].cumsum(),
+        transaction_count=df.groupby('entity_id').cumcount() + 1
     )
 
 # Usage in StreamFeatureView
@@ -161,6 +170,11 @@ stream_fv = StreamFeatureView(
 **Chaining Features Example:**
 ```python
 @tiled_transformation(
+    sources=["transaction_hourly_fv"],       # Source feature views
+    schema=[                                 # Output feature schema
+        Field(name="local_cumsum", dtype=Float64),
+        Field(name="global_cumsum", dtype=Float64),
+    ],
     tile_size=timedelta(hours=1),
     mode="pandas",
     chaining_functions=[
@@ -177,6 +191,8 @@ def chained_cumulative_features(df: pd.DataFrame) -> pd.DataFrame:
 ```
 
 **Configuration Options:**
+- `sources`: List of source feature views or data sources that this transformation depends on
+- `schema`: List of Field definitions specifying output feature names and data types
 - `tile_size`: Duration of each time tile (e.g., `timedelta(hours=1)`)
 - `mode`: Processing mode - currently supports `"pandas"`
 - `overlap`: Optional overlap between tiles for continuity

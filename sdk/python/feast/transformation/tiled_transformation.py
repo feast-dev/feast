@@ -1,8 +1,13 @@
 from datetime import timedelta
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union, TYPE_CHECKING
 
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
+
+if TYPE_CHECKING:
+    from feast.feature_view import FeatureView
+    from feast.data_source import DataSource
+    from feast.field import Field
 
 
 class TileConfiguration:
@@ -54,6 +59,8 @@ class TiledTransformation(Transformation):
         udf: Callable[[Any], Any],
         udf_string: str,
         tile_config: TileConfiguration,
+        sources: Optional[List[Union[str, "FeatureView", "DataSource"]]] = None,
+        schema: Optional[List["Field"]] = None,
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
@@ -71,6 +78,8 @@ class TiledTransformation(Transformation):
             owner=owner,
         )
         self.tile_config = tile_config
+        self.sources = sources or []
+        self.schema = schema or []
         self.aggregation_functions = aggregation_functions or []
         self.chaining_functions = chaining_functions or []
         
@@ -177,6 +186,8 @@ class TiledTransformation(Transformation):
 def tiled_transformation(
     tile_size: timedelta,
     mode: str = "pandas",
+    sources: Optional[List[Union[str, "FeatureView", "DataSource"]]] = None,
+    schema: Optional[List["Field"]] = None,
     overlap: Optional[timedelta] = None,
     max_tiles_in_memory: int = 10,
     enable_late_data_handling: bool = True,
@@ -193,6 +204,8 @@ def tiled_transformation(
     Args:
         tile_size: The size of each time tile (e.g., timedelta(hours=1))
         mode: The transformation mode - currently supports "pandas"
+        sources: List of source feature views or data sources that this transformation depends on
+        schema: List of Field definitions specifying output feature names and data types
         overlap: Optional overlap between tiles for continuity
         max_tiles_in_memory: Maximum number of tiles to keep in memory
         enable_late_data_handling: Whether to handle late-arriving data
@@ -207,11 +220,19 @@ def tiled_transformation(
         @tiled_transformation(
             tile_size=timedelta(hours=1),
             mode="pandas",
+            sources=["transaction_source_fv"],
+            schema=[
+                Field(name="rolling_avg", dtype=Float64),
+                Field(name="cumulative_amount", dtype=Float64),
+            ],
             overlap=timedelta(minutes=5),
             aggregation_functions=[lambda df: df.groupby('entity_id').sum()]
         )
         def my_tiled_feature(df):
-            return df.assign(derived_feature=df['value'] * 2)
+            return df.assign(
+                rolling_avg=df['value'].rolling(window=10).mean(),
+                cumulative_amount=df['value'].cumsum()
+            )
     """
     def decorator(user_function):
         import dill
@@ -238,6 +259,8 @@ def tiled_transformation(
                 udf=user_function,
                 udf_string=udf_string,
                 tile_config=tile_config,
+                sources=sources,
+                schema=schema,
                 name=name or user_function.__name__,
                 tags=tags,
                 description=description,
@@ -251,6 +274,8 @@ def tiled_transformation(
                 udf=user_function,
                 udf_string=udf_string,
                 tile_config=tile_config,
+                sources=sources,
+                schema=schema,
                 name=name or user_function.__name__,
                 tags=tags,
                 description=description,
