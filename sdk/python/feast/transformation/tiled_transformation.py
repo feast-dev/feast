@@ -1,0 +1,224 @@
+from datetime import timedelta
+from typing import Any, Callable, Dict, List, Optional, Union
+
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
+
+
+class TileConfiguration:
+    """
+    Configuration for tiling in streaming transformations.
+    
+    Attributes:
+        tile_size: The size of each time tile (e.g., 1 hour)
+        overlap: Optional overlap between tiles for continuity
+        max_tiles_in_memory: Maximum number of tiles to keep in memory
+        enable_late_data_handling: Whether to handle late-arriving data
+    """
+    
+    def __init__(
+        self,
+        tile_size: timedelta,
+        overlap: Optional[timedelta] = None,
+        max_tiles_in_memory: int = 10,
+        enable_late_data_handling: bool = True,
+    ):
+        self.tile_size = tile_size
+        self.overlap = overlap or timedelta(seconds=0)
+        self.max_tiles_in_memory = max_tiles_in_memory
+        self.enable_late_data_handling = enable_late_data_handling
+
+
+class TiledTransformation(Transformation):
+    """
+    A transformation that operates on tiled data for efficient streaming processing.
+    
+    Based on Chronon's tiled architecture approach, this transformation divides time
+    into manageable chunks (tiles) for processing streaming aggregations and derived
+    features efficiently.
+    
+    This is particularly useful for:
+    - Temporal aggregations over sliding windows
+    - Chaining features across different time horizons
+    - Handling late-arriving data in streaming scenarios
+    - Memory-efficient processing of large time-series data
+    
+    Attributes:
+        tile_config: Configuration for tiling behavior
+        aggregation_functions: Functions to apply within each tile
+        chaining_functions: Functions for chaining results across tiles
+    """
+    
+    def __init__(
+        self,
+        udf: Callable[[Any], Any],
+        udf_string: str,
+        tile_config: TileConfiguration,
+        name: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        aggregation_functions: Optional[List[Callable]] = None,
+        chaining_functions: Optional[List[Callable]] = None,
+    ):
+        super().__init__(
+            mode=TransformationMode.TILING,
+            udf=udf,
+            udf_string=udf_string,
+            name=name,
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
+        self.tile_config = tile_config
+        self.aggregation_functions = aggregation_functions or []
+        self.chaining_functions = chaining_functions or []
+        
+        # State for tracking tiles in memory
+        self._tile_cache: Dict[str, Any] = {}
+        self._tile_timestamps: List[str] = []
+    
+    def transform(self, data: Any, timestamp_column: str = "timestamp") -> Any:
+        """
+        Apply tiled transformation to streaming data.
+        
+        Args:
+            data: Input streaming data (DataFrame, etc.)
+            timestamp_column: Name of the timestamp column for tiling
+            
+        Returns:
+            Transformed data with tiled processing applied
+        """
+        return self._apply_tiled_processing(data, timestamp_column)
+    
+    def _apply_tiled_processing(self, data: Any, timestamp_column: str) -> Any:
+        """
+        Core tiling logic that divides data into time-based tiles and processes them.
+        """
+        # This is a framework - specific implementations would be in subclasses
+        # for different data processing engines (Spark, Pandas, etc.)
+        
+        # 1. Partition data into tiles based on timestamp
+        tiles = self._partition_into_tiles(data, timestamp_column)
+        
+        # 2. Process each tile
+        processed_tiles = []
+        for tile_key, tile_data in tiles.items():
+            processed_tile = self._process_single_tile(tile_data, tile_key)
+            processed_tiles.append(processed_tile)
+        
+        # 3. Chain results across tiles if needed
+        if self.chaining_functions:
+            return self._chain_tile_results(processed_tiles)
+        
+        # 4. Combine tiles into final result
+        return self._combine_tiles(processed_tiles)
+    
+    def _partition_into_tiles(self, data: Any, timestamp_column: str) -> Dict[str, Any]:
+        """
+        Partition input data into time-based tiles.
+        This is a placeholder - specific implementations depend on the data format.
+        """
+        # Implementation would depend on the specific data processing engine
+        # For now, return the data as a single tile
+        return {"tile_0": data}
+    
+    def _process_single_tile(self, tile_data: Any, tile_key: str) -> Any:
+        """
+        Process a single tile of data.
+        """
+        # Apply the main UDF to the tile
+        result = self.udf(tile_data)
+        
+        # Apply any tile-specific aggregations
+        for agg_func in self.aggregation_functions:
+            result = agg_func(result)
+        
+        # Cache the result if needed
+        if len(self._tile_cache) >= self.tile_config.max_tiles_in_memory:
+            # Remove oldest tile
+            oldest_key = self._tile_timestamps.pop(0)
+            del self._tile_cache[oldest_key]
+        
+        self._tile_cache[tile_key] = result
+        self._tile_timestamps.append(tile_key)
+        
+        return result
+    
+    def _chain_tile_results(self, processed_tiles: List[Any]) -> Any:
+        """
+        Chain results across tiles for derived features.
+        """
+        result = processed_tiles[0] if processed_tiles else None
+        
+        for chain_func in self.chaining_functions:
+            for i in range(1, len(processed_tiles)):
+                result = chain_func(result, processed_tiles[i])
+        
+        return result
+    
+    def _combine_tiles(self, processed_tiles: List[Any]) -> Any:
+        """
+        Combine processed tiles into final result.
+        This is a placeholder - specific implementations depend on the data format.
+        """
+        # For now, return the last tile (most recent)
+        return processed_tiles[-1] if processed_tiles else None
+    
+    def infer_features(self, *args, **kwargs) -> Any:
+        """
+        Infer feature schema from tiled transformation.
+        """
+        # Delegate to parent implementation for now
+        return super().infer_features(*args, **kwargs)
+
+
+# Factory function for creating tiled transformations
+def tiled_transformation(
+    tile_size: timedelta,
+    overlap: Optional[timedelta] = None,
+    max_tiles_in_memory: int = 10,
+    enable_late_data_handling: bool = True,
+    aggregation_functions: Optional[List[Callable]] = None,
+    chaining_functions: Optional[List[Callable]] = None,
+    name: Optional[str] = None,
+    tags: Optional[Dict[str, str]] = None,
+    description: str = "",
+    owner: str = "",
+):
+    """
+    Decorator for creating tiled transformations.
+    
+    Example:
+        @tiled_transformation(
+            tile_size=timedelta(hours=1),
+            overlap=timedelta(minutes=5),
+            aggregation_functions=[lambda df: df.groupby('entity_id').sum()]
+        )
+        def my_tiled_feature(df):
+            return df.assign(derived_feature=df['value'] * 2)
+    """
+    def decorator(user_function):
+        import dill
+        
+        udf_string = dill.source.getsource(user_function)
+        tile_config = TileConfiguration(
+            tile_size=tile_size,
+            overlap=overlap,
+            max_tiles_in_memory=max_tiles_in_memory,
+            enable_late_data_handling=enable_late_data_handling,
+        )
+        
+        return TiledTransformation(
+            udf=user_function,
+            udf_string=udf_string,
+            tile_config=tile_config,
+            name=name or user_function.__name__,
+            tags=tags,
+            description=description,
+            owner=owner,
+            aggregation_functions=aggregation_functions,
+            chaining_functions=chaining_functions,
+        )
+    
+    return decorator

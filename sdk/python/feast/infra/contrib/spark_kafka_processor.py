@@ -129,7 +129,47 @@ class SparkKafkaProcessor(StreamProcessor):
         return stream_df
 
     def _construct_transformation_plan(self, df: StreamTable) -> StreamTable:
+        # Check if we have a tiled transformation
+        if hasattr(self.sfv, 'feature_transformation') and self.sfv.feature_transformation:
+            from feast.transformation.tiled_transformation import TiledTransformation
+            if isinstance(self.sfv.feature_transformation, TiledTransformation):
+                # Apply tiled transformation logic for streaming
+                return self._apply_tiled_transformation(df, self.sfv.feature_transformation)
+        
+        # Fallback to existing UDF approach
         return self.sfv.udf.__call__(df) if self.sfv.udf else df
+    
+    def _apply_tiled_transformation(self, df: StreamTable, tiled_transform: "TiledTransformation") -> StreamTable:
+        """
+        Apply tiled transformation to streaming DataFrame.
+        
+        For streaming data, we need to implement windowing logic that works with Spark Streaming.
+        """
+        from pyspark.sql import functions as F
+        from pyspark.sql.window import Window
+        
+        # Get tile configuration
+        tile_config = tiled_transform.tile_config
+        
+        # Convert timedelta to seconds for Spark
+        window_duration = f"{int(tile_config.tile_size.total_seconds())} seconds"
+        slide_duration = f"{int(tile_config.slide_interval.total_seconds())} seconds" if tile_config.slide_interval else window_duration
+        
+        # Add watermark for late data handling if enabled
+        if tile_config.enable_late_data_handling:
+            df = df.withWatermark("timestamp", "30 seconds")  # Allow 30 seconds for late data
+        
+        # Create time-based windows for tiling
+        df_windowed = df.withColumn(
+            "tile_window",
+            F.window(F.col("timestamp"), window_duration, slide_duration)
+        )
+        
+        # Apply the transformation within each window/tile
+        # For now, we'll use the UDF directly - more sophisticated tiling logic can be added
+        result_df = tiled_transform.udf(df_windowed)
+        
+        return result_df
 
     def _write_stream_data(self, df: StreamTable, to: PushMode) -> StreamingQuery:
         # Validation occurs at the fs.write_to_online_store() phase against the stream feature view schema.
