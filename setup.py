@@ -37,7 +37,7 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<2",
+    "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
     "pyarrow<18.1.0",
     "pydantic>=2.0.0",
@@ -51,7 +51,7 @@ REQUIRED = [
     "tqdm>=4,<5",
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
-    "uvicorn[standard]>=0.14.0,<1",
+    "uvicorn[standard]>=0.30.6,<=0.34.0",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
@@ -77,16 +77,16 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
+AWS_REQUIRED = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 
-KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
+KUBERNETES_REQUIRED = ["kubernetes>=20.13.0,<=23.3.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3.7,<4",
 ]
 
 SPARK_REQUIRED = [
-    "pyspark>=3.0.0,<4",
+    "pyspark>=4.0.0",
 ]
 
 SQLITE_VEC_REQUIRED = [
@@ -144,7 +144,7 @@ GRPCIO_REQUIRED = [
 
 DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
-DELTA_REQUIRED = ["deltalake"]
+DELTA_REQUIRED = ["deltalake<1.0.0"]
 
 DOCLING_REQUIRED = ["docling>=2.23.0"]
 
@@ -167,11 +167,26 @@ GO_REQUIRED = ["cffi>=1.15.0"]
 MILVUS_REQUIRED = ["pymilvus"]
 
 TORCH_REQUIRED = [
-    "torch==2.2.2",
-    "torchvision>=0.17.2",
+    "torch>=2.7.0",
+    "torchvision>=0.22.1",
 ]
 
 CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
+
+MCP_REQUIRED = ["fastapi_mcp"]
+
+RAG_REQUIRED = [
+    "transformers>=4.36.0",
+    "datasets>=3.6.0",
+]
+
+IMAGE_REQUIRED = [
+    "timm>=0.6.0",
+    "Pillow>=8.0.0",
+    "scikit-learn>=1.0.0",
+] + TORCH_REQUIRED
+
+RAY_REQUIRED = ["ray>=2.47.0"]
 
 CI_REQUIRED = (
     [
@@ -186,7 +201,7 @@ CI_REQUIRED = (
         "httpx==0.27.2",
         "minio==7.2.11",
         "mock==2.0.0",
-        "moto<5",
+        "moto==4.2.14",
         "mypy>=1.4.1,<1.11.3",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
@@ -247,6 +262,10 @@ CI_REQUIRED = (
     + DOCLING_REQUIRED
     + TORCH_REQUIRED
     + CLICKHOUSE_REQUIRED
+    + MCP_REQUIRED
+    + RAG_REQUIRED
+    + IMAGE_REQUIRED
+    + RAY_REQUIRED
 )
 MINIMAL_REQUIRED = (
     GCP_REQUIRED
@@ -266,6 +285,8 @@ NLP_REQUIRED = (
     DOCLING_REQUIRED
     + MILVUS_REQUIRED
     + TORCH_REQUIRED
+    + RAG_REQUIRED
+    + IMAGE_REQUIRED
 )
 DOCS_REQUIRED = CI_REQUIRED
 DEV_REQUIRED = CI_REQUIRED
@@ -346,6 +367,10 @@ setup(
         "pytorch": TORCH_REQUIRED,
         "nlp": NLP_REQUIRED,
         "clickhouse": CLICKHOUSE_REQUIRED,
+        "mcp": MCP_REQUIRED,
+        "rag": RAG_REQUIRED,
+        "image": IMAGE_REQUIRED,
+        "ray": RAY_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

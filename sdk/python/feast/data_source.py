@@ -14,7 +14,7 @@
 import enum
 import warnings
 from abc import ABC, abstractmethod
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from google.protobuf.duration_pb2 import Duration
@@ -27,6 +27,7 @@ from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
 from feast.types import from_value_type
+from feast.utils import _utc_now
 from feast.value_type import ValueType
 
 
@@ -162,6 +163,16 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
 }
 
+_DATA_SOURCE_FOR_OFFLINE_STORE = {
+    DataSourceProto.SourceType.BATCH_FILE: "feast.infra.offline_stores.dask.DaskOfflineStore",
+    DataSourceProto.SourceType.BATCH_BIGQUERY: "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
+    DataSourceProto.SourceType.BATCH_REDSHIFT: "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
+    DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake.SnowflakeOfflineStore",
+    DataSourceProto.SourceType.BATCH_TRINO: "feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore",
+    DataSourceProto.SourceType.BATCH_SPARK: "feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStore",
+    DataSourceProto.SourceType.BATCH_ATHENA: "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
+}
+
 
 @typechecked
 class DataSource(ABC):
@@ -182,6 +193,8 @@ class DataSource(ABC):
         owner (optional): The owner of the data source, typically the email of the primary
             maintainer.
         date_partition_column (optional): Timestamp column used for partitioning. Not supported by all offline stores.
+        created_timestamp: The time when the data source was created.
+        last_updated_timestamp: The time when the data source was last updated.
     """
 
     name: str
@@ -192,6 +205,8 @@ class DataSource(ABC):
     tags: Dict[str, str]
     owner: str
     date_partition_column: str
+    created_timestamp: Optional[datetime]
+    last_updated_timestamp: Optional[datetime]
 
     def __init__(
         self,
@@ -242,6 +257,9 @@ class DataSource(ABC):
         self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
+        now = _utc_now()
+        self.created_timestamp = now
+        self.last_updated_timestamp = now
 
     def __hash__(self):
         return hash((self.name, self.timestamp_field))
@@ -295,14 +313,31 @@ class DataSource(ABC):
 
         if data_source_type == DataSourceProto.SourceType.CUSTOM_SOURCE:
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
-            return cls.from_proto(data_source)
-        cls = get_data_source_class_from_type(_DATA_SOURCE_OPTIONS[data_source_type])
-        return cls.from_proto(data_source)
+            data_source_instance = cls.from_proto(data_source)
+        else:
+            cls = get_data_source_class_from_type(
+                _DATA_SOURCE_OPTIONS[data_source_type]
+            )
+            data_source_instance = cls.from_proto(data_source)
 
-    @abstractmethod
+        data_source_instance._extract_timestamps_from_proto(data_source)
+
+        return data_source_instance
+
     def to_proto(self) -> DataSourceProto:
         """
         Converts a DataSourceProto object to its protobuf representation.
+        """
+        proto = self._to_proto_impl()
+        self._set_timestamps_in_proto(proto)
+
+        return proto
+
+    @abstractmethod
+    def _to_proto_impl(self) -> DataSourceProto:
+        """
+        Subclass implementation of protobuf conversion.
+        This should be implemented by each DataSource subclass.
         """
         raise NotImplementedError
 
@@ -339,6 +374,45 @@ class DataSource(ABC):
         Returns a string that can directly be used to reference this table in SQL.
         """
         raise NotImplementedError
+
+    def _extract_timestamps_from_proto(self, data_source_proto: DataSourceProto):
+        """
+        Internal method to extract created_timestamp and last_updated_timestamp from protobuf.
+        Called automatically by the base from_proto method.
+        """
+        if data_source_proto.HasField("meta"):
+            if data_source_proto.meta.HasField("created_timestamp"):
+                self.created_timestamp = (
+                    data_source_proto.meta.created_timestamp.ToDatetime().replace(
+                        tzinfo=timezone.utc
+                    )
+                )
+            if data_source_proto.meta.HasField("last_updated_timestamp"):
+                self.last_updated_timestamp = (
+                    data_source_proto.meta.last_updated_timestamp.ToDatetime().replace(
+                        tzinfo=timezone.utc
+                    )
+                )
+
+    def _set_timestamps_in_proto(self, data_source_proto: DataSourceProto):
+        """
+        Internal method to set created_timestamp and last_updated_timestamp in protobuf.
+        Called automatically by the base to_proto method.
+        """
+        if not data_source_proto.HasField("meta"):
+            data_source_proto.meta.CopyFrom(DataSourceProto.SourceMeta())
+
+        if self.created_timestamp:
+            data_source_proto.meta.created_timestamp.FromDatetime(
+                self.created_timestamp
+            )
+        if self.last_updated_timestamp:
+            data_source_proto.meta.last_updated_timestamp.FromDatetime(
+                self.last_updated_timestamp
+            )
+
+    @abstractmethod
+    def source_type(self) -> DataSourceProto.SourceType.ValueType: ...
 
 
 @typechecked
@@ -470,7 +544,7 @@ class KafkaSource(DataSource):
             ),
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.STREAM_KAFKA,
@@ -485,6 +559,7 @@ class KafkaSource(DataSource):
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         if self.batch_source:
             data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
+
         return data_source_proto
 
     def validate(self, config: RepoConfig):
@@ -501,6 +576,9 @@ class KafkaSource(DataSource):
 
     def get_table_query_string(self) -> str:
         raise NotImplementedError
+
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.STREAM_KAFKA
 
 
 @typechecked
@@ -587,7 +665,7 @@ class RequestSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         schema_pb = []
 
         if isinstance(self.schema, Dict):
@@ -616,6 +694,9 @@ class RequestSource(DataSource):
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         raise NotImplementedError
+
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.REQUEST_SOURCE
 
 
 @typechecked
@@ -731,7 +812,7 @@ class KinesisSource(DataSource):
     def __hash__(self):
         return super().__hash__()
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.STREAM_KINESIS,
@@ -749,6 +830,9 @@ class KinesisSource(DataSource):
 
         return data_source_proto
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.STREAM_KINESIS
+
 
 class PushMode(enum.Enum):
     ONLINE = 1
@@ -764,13 +848,13 @@ class PushSource(DataSource):
 
     # TODO(adchia): consider adding schema here in case where Feast manages pushing events to the offline store
     # TODO(adchia): consider a "mode" to support pushing raw vs transformed events
-    batch_source: DataSource
+    batch_source: Optional[DataSource] = None
 
     def __init__(
         self,
         *,
         name: str,
-        batch_source: DataSource,
+        batch_source: Optional[DataSource] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -815,8 +899,11 @@ class PushSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        assert data_source.HasField("batch_source")
-        batch_source = DataSource.from_proto(data_source.batch_source)
+        batch_source = (
+            DataSource.from_proto(data_source.batch_source)
+            if data_source.HasField("batch_source")
+            else None
+        )
 
         return PushSource(
             name=data_source.name,
@@ -826,19 +913,30 @@ class PushSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
-        batch_source_proto = None
-        if self.batch_source:
-            batch_source_proto = self.batch_source.to_proto()
-
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.PUSH_SOURCE,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
-            batch_source=batch_source_proto,
         )
+
+        # Only set timestamp fields if we have a batch source and this PushSource doesn't have its own fields
+        if self.batch_source and not (
+            self.timestamp_field or self.created_timestamp_column or self.field_mapping
+        ):
+            data_source_proto.timestamp_field = self.batch_source.timestamp_field
+            data_source_proto.created_timestamp_column = (
+                self.batch_source.created_timestamp_column
+            )
+            data_source_proto.field_mapping.update(self.batch_source.field_mapping)
+            data_source_proto.date_partition_column = (
+                self.batch_source.date_partition_column
+            )
+
+        if self.batch_source:
+            data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
 
         return data_source_proto
 
@@ -848,3 +946,6 @@ class PushSource(DataSource):
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         raise NotImplementedError
+
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.PUSH_SOURCE

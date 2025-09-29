@@ -79,6 +79,8 @@ message FeatureViewSpec {
 
     // Whether these features should be written to the offline store
     bool offline = 13;
+
+    repeated FeatureViewSpec source_views = 14;
 }
 
 message FeatureViewMeta {

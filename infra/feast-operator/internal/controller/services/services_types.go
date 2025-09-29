@@ -35,6 +35,11 @@ const (
 	DefaultOnlineStorePath    = "online_store.db"
 	svcDomain                 = ".svc.cluster.local"
 
+	// Namespace registry ConfigMap constants
+	NamespaceRegistryConfigMapName = "feast-configs-registry"
+	NamespaceRegistryDataKey       = "namespaces"
+	DefaultKubernetesNamespace     = "feast-operator-system"
+
 	HttpPort              = 80
 	HttpsPort             = 443
 	HttpScheme            = "http"
@@ -108,9 +113,11 @@ var (
 			TargetHttpsPort: 6567,
 		},
 		RegistryFeastType: {
-			Args:            []string{"serve_registry"},
-			TargetHttpPort:  6570,
-			TargetHttpsPort: 6571,
+			Args:                []string{"serve_registry"},
+			TargetHttpPort:      6570,
+			TargetHttpsPort:     6571,
+			TargetRestHttpPort:  6572,
+			TargetRestHttpsPort: 6573,
 		},
 		UIFeastType: {
 			Args:            []string{"ui", "-h", "0.0.0.0"},
@@ -283,9 +290,11 @@ type AuthzConfig struct {
 }
 
 type deploymentSettings struct {
-	Args            []string
-	TargetHttpPort  int32
-	TargetHttpsPort int32
+	Args                []string
+	TargetHttpPort      int32
+	TargetHttpsPort     int32
+	TargetRestHttpPort  int32
+	TargetRestHttpsPort int32
 }
 
 // CustomCertificatesBundle represents a custom CA bundle configuration

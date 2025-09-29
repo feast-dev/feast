@@ -273,6 +273,8 @@ def sqlite_registry():
     registry_config = SqlRegistryConfig(
         registry_type="sql",
         path="sqlite://",
+        cache_ttl_seconds=2,
+        cache_mode="sync",
     )
 
     yield SqlRegistry(registry_config, "project", None)
@@ -706,6 +708,57 @@ def test_apply_data_source(test_registry):
     "test_registry",
     all_fixtures,
 )
+def test_apply_data_source_with_timestamps(test_registry):
+    """Test that data source timestamps are properly stored and updated in registry."""
+    project = "project"
+    file_source = FileSource(
+        name="test_file_source",
+        file_format=ParquetFormat(),
+        path="file://feast/test.parquet",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    # Apply the data source for the first time
+    test_registry.apply_data_source(file_source, project, commit=True)
+    retrieved_source = test_registry.get_data_source("test_file_source", project)
+
+    proto = retrieved_source.to_proto()
+    assert proto.HasField("meta")
+    assert proto.meta.HasField("created_timestamp")
+    assert proto.meta.HasField("last_updated_timestamp")
+
+    # Test that last_updated_timestamp changes when we update the data source
+    time.sleep(0.01)  # Ensure timestamp difference
+    original_created = retrieved_source.created_timestamp
+    original_updated = retrieved_source.last_updated_timestamp
+
+    # Modify the data source
+    retrieved_source.description = "Updated description for timestamp test"
+
+    # Apply the updated source - registry will automatically update last_updated_timestamp
+    test_registry.apply_data_source(retrieved_source, project, commit=True)
+
+    updated_source = test_registry.get_data_source("test_file_source", project)
+
+    # The created_timestamp should be preserved from the previous apply
+    assert updated_source.created_timestamp == original_created
+    assert updated_source.last_updated_timestamp != original_updated, (
+        f"updated_source.last_updated_timestamp: {updated_source.last_updated_timestamp}, original_updated: {original_updated}"
+    )
+    assert updated_source.last_updated_timestamp > original_updated, (
+        f"updated_source.last_updated_timestamp: {updated_source.last_updated_timestamp}, original_updated: {original_updated}"
+    )
+    assert updated_source.description == "Updated description for timestamp test"
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
 def test_modify_feature_views_success(test_registry):
     # Create Feature Views
     batch_source = FileSource(
@@ -1105,11 +1158,10 @@ def test_registry_cache(test_registry):
     registry_data_sources_cached = test_registry.list_data_sources(
         project, allow_cache=True
     )
-    # Not refreshed cache, so cache miss
-    assert len(registry_feature_views_cached) == 0
-    assert len(registry_data_sources_cached) == 0
+    assert len(registry_feature_views_cached) == 1
+    assert len(registry_data_sources_cached) == 1
+
     test_registry.refresh(project)
-    # Now objects exist
     registry_feature_views_cached = test_registry.list_feature_views(
         project, allow_cache=True, tags=fv1.tags
     )

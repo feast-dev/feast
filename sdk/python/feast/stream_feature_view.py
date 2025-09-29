@@ -3,7 +3,7 @@ import functools
 import warnings
 from datetime import datetime, timedelta
 from types import FunctionType
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import dill
 from google.protobuf.message import Message
@@ -47,6 +47,7 @@ class StreamFeatureView(FeatureView):
 
     Attributes:
         name: The unique name of the stream feature view.
+        mode: The transformation mode to use for the stream feature view. This can be one of TransformationMode.
         entities: List of entities or entity join keys.
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
@@ -63,12 +64,18 @@ class StreamFeatureView(FeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the stream feature view, typically the email of the primary maintainer.
         udf: The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
+        udf_string: The string representation of the user defined transformation function.
+        feature_transformation: The transformation to apply to the features.
+                Note, feature_transformation has precedence over udf and udf_string.
+        stream_engine: Optional dictionary containing stream engine specific configurations.
+                Note, it will override the repo-level default stream engine config defined in the yaml file.
     """
 
     name: str
     entities: List[str]
     ttl: Optional[timedelta]
     source: DataSource
+    sink_source: Optional[DataSource] = None
     schema: List[Field]
     entity_columns: List[Field]
     features: List[Field]
@@ -84,13 +91,14 @@ class StreamFeatureView(FeatureView):
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     feature_transformation: Optional[Transformation]
-    stream_engine: Optional[Field]
+    stream_engine: Optional[Dict[str, Any]] = None
 
     def __init__(
         self,
         *,
         name: str,
-        source: DataSource,
+        source: Union[DataSource, "StreamFeatureView", List["StreamFeatureView"]],
+        sink_source: Optional[DataSource] = None,
         entities: Optional[List[Entity]] = None,
         ttl: timedelta = timedelta(days=0),
         tags: Optional[Dict[str, str]] = None,
@@ -105,7 +113,7 @@ class StreamFeatureView(FeatureView):
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
-        stream_engine: Optional[Field] = None,
+        stream_engine: Optional[Dict[str, Any]] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -114,7 +122,7 @@ class StreamFeatureView(FeatureView):
                 RuntimeWarning,
             )
 
-        if (
+        if isinstance(source, DataSource) and (
             type(source).__name__ not in SUPPORTED_STREAM_SOURCES
             and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
         ):
@@ -148,7 +156,8 @@ class StreamFeatureView(FeatureView):
             description=description,
             owner=owner,
             schema=schema,
-            source=source,
+            source=source,  # type: ignore[arg-type]
+            sink_source=sink_source,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:

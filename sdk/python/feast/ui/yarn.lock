@@ -1272,6 +1272,11 @@
   dependencies:
     tslib "^1.9.3"
 
+"@elastic/eui-theme-borealis@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@elastic/eui-theme-borealis/-/eui-theme-borealis-1.0.0.tgz#f85679d2d72dfc43a620241cbf4161d4e4e81841"
+  integrity sha512-Zf3ZX5siUhF+TNOdP0FZ3PNEpVmfe3DDXFm5biAKFlGp4e5yrR1FKPYOzkOdJtPWlOoNaedawnALXNVjp1UH8w==
+
 "@elastic/eui@^72.0.0":
   version "72.2.0"
   resolved "https://registry.yarnpkg.com/@elastic/eui/-/eui-72.2.0.tgz#0d89ec4c6d8a677ba41d086abd509c5a5ea09180"
@@ -1570,16 +1575,18 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
-"@feast-dev/feast-ui@0.49.0":
-  version "0.49.0"
-  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.49.0.tgz#83139c439ddfcc3aa0425eceda90ac6ba550d0c6"
-  integrity sha512-uWXsoXTDPtRs9Kb2NkWUAMaxJHQJb/SIzynA1S6zMOgOGGTbuu4qf8Ql3ly1ucjYJbFnlXZj0OplCFBvRB4x6w==
+"@feast-dev/feast-ui@0.52.0":
+  version "0.52.0"
+  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.52.0.tgz#9abbfb2f15fceff8f1d44c3f5afb019241e58fba"
+  integrity sha512-z3FSNBMOH5WHrmqxjjeifR+/tEIve7OI4ozau/AvdmbhG1Q/ZRurW207LSIdkSLmu+b/ky/sivow1Yj2Tla3LA==
   dependencies:
     "@elastic/datemath" "^5.0.3"
     "@elastic/eui" "^95.12.0"
+    "@elastic/eui-theme-borealis" "1.0.0"
     "@emotion/css" "^11.13.0"
     "@emotion/react" "^11.13.3"
     "@types/dagre" "^0.7.52"
+    "@types/styled-components" "^5.1.34"
     dagre "^0.8.5"
     inter-ui "^3.19.3"
     long "^5.2.3"
@@ -2764,6 +2771,13 @@
   dependencies:
     "@types/unist" "*"
 
+"@types/hoist-non-react-statics@*":
+  version "3.3.7"
+  resolved "https://registry.yarnpkg.com/@types/hoist-non-react-statics/-/hoist-non-react-statics-3.3.7.tgz#306e3a3a73828522efa1341159da4846e7573a6c"
+  integrity sha512-PQTyIulDkIDro8P+IHbKCsw7U2xxBYflVzW/FgWdCAePD9xGSidgA76/GeJ6lBKoblyhf9pBY763gbrN+1dI8g==
+  dependencies:
+    hoist-non-react-statics "^3.3.0"
+
 "@types/hoist-non-react-statics@^3.3.0":
   version "3.3.1"
   resolved "https://registry.yarnpkg.com/@types/hoist-non-react-statics/-/hoist-non-react-statics-3.3.1.tgz#1124aafe5118cb591977aeb1ceaaed1070eb039f"
@@ -3034,6 +3048,15 @@
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/@types/stack-utils/-/stack-utils-2.0.1.tgz#20f18294f797f2209b5f65c8e3b5c8e8261d127c"
   integrity sha512-Hl219/BT5fLAaz6NDkSuhzasy49dwQS/DSdu4MdggFB8zcXv7vflBI3xp7FEmkmdDkBUI2bPUNeMttp2knYdxw==
+
+"@types/styled-components@^5.1.34":
+  version "5.1.34"
+  resolved "https://registry.yarnpkg.com/@types/styled-components/-/styled-components-5.1.34.tgz#4107df8ef8a7eaba4fa6b05f78f93fba4daf0300"
+  integrity sha512-mmiVvwpYklFIv9E8qfxuPyIt/OuyIrn6gMOAMOFUO3WJfSrSE+sGUoa4PiZj77Ut7bKZpaa6o1fBKS/4TOEvnA==
+  dependencies:
+    "@types/hoist-non-react-statics" "*"
+    "@types/react" "*"
+    csstype "^3.0.2"
 
 "@types/stylis@4.2.5":
   version "4.2.5"

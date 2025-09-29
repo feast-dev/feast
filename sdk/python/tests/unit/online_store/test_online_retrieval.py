@@ -18,6 +18,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
+from feast.torch_wrapper import get_torch
 from feast.types import ValueType
 from feast.utils import _utc_now
 from tests.integration.feature_repos.universal.feature_views import TAGS
@@ -129,6 +130,38 @@ def test_get_online_features() -> None:
         assert result["name"] == ["John", "John"]
         assert result["trips"] == [7, 7]
 
+        tensor_result = store.get_online_features(
+            features=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[
+                {"driver_id": 1, "customer_id": "5"},
+                {"driver_id": 1, "customer_id": 5},
+            ],
+            full_feature_names=False,
+        ).to_tensor()
+
+        assert "lon" in tensor_result
+        assert "avg_orders_day" in tensor_result
+        assert "name" in tensor_result
+        assert "trips" in tensor_result
+        # Entity values
+        torch = get_torch()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        assert torch.equal(
+            tensor_result["driver_id"], torch.tensor([1, 1], device=device)
+        )
+        assert tensor_result["customer_id"] == ["5", "5"]
+
+        # Feature values
+        assert tensor_result["lon"] == ["1.0", "1.0"]  # String -> not tensor
+        assert torch.equal(tensor_result["avg_orders_day"], torch.tensor([1.0, 1.0]))
+        assert tensor_result["name"] == ["John", "John"]
+        assert torch.equal(tensor_result["trips"], torch.tensor([7, 7], device=device))
+
         # Ensure features are still in result when keys not found
         result = store.get_online_features(
             features=["customer_driver_combined:trips"],
@@ -137,6 +170,15 @@ def test_get_online_features() -> None:
         ).to_dict()
 
         assert "trips" in result
+
+        result = store.get_online_features(
+            features=["customer_driver_combined:trips"],
+            entity_rows=[{"driver_id": 0, "customer_id": 0}],
+            full_feature_names=False,
+        ).to_tensor()
+
+        assert "trips" in result
+        assert isinstance(result["trips"], torch.Tensor)
 
         with pytest.raises(KeyError) as excinfo:
             _ = store.get_online_features(
@@ -182,7 +224,7 @@ def test_get_online_features() -> None:
                 online_store=store.config.online_store,
                 project=store.project,
                 provider=store.config.provider,
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
             )
         )
 
@@ -245,7 +287,7 @@ def test_get_online_features() -> None:
                 online_store=store.config.online_store,
                 project=store.project,
                 provider=store.config.provider,
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
             )
         )
 
@@ -1225,6 +1267,21 @@ def test_milvus_lite_retrieve_online_documents_v2() -> None:
         for k in ["vector", "item_id", "author_id", "sentence_chunks", "distance"]:
             assert k in result, f"Missing {k} in retrieve_online_documents response"
         assert len(result["distance"]) == len(results[0])
+
+        # validate vector embeddings maintain their exact dimensions through online_write_batch
+        stored_embeddings = result.get("vector", [])
+        assert len(stored_embeddings) > 0, "Should have retrieved some embeddings"
+
+        for i, embedding in enumerate(stored_embeddings):
+            assert isinstance(embedding, list), (
+                f"Embedding {i} should be a list, got {type(embedding)}"
+            )
+            assert len(embedding) == vector_length, (
+                f"Embedding {i} dimension mismatch: got {len(embedding)}, expected {vector_length} dimensions"
+            )
+            assert all(isinstance(x, (int, float)) for x in embedding), (
+                f"Embedding {i} contains non-numeric values: {[type(x) for x in embedding[:5]]}"
+            )
 
 
 def test_milvus_stored_writes_with_explode() -> None:

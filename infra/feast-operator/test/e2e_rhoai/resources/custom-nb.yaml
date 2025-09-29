@@ -1,0 +1,157 @@
+# This template maybe used to spin up a custom notebook image
+# i.e.: sed s/{{.IngressDomain}}/$(oc get ingresses.config/cluster -o jsonpath={.spec.domain})/g tests/resources/custom-nb.template | oc apply -f -
+# resources generated:
+# pod/jupyter-nb-kube-3aadmin-0
+# service/jupyter-nb-kube-3aadmin
+# route.route.openshift.io/jupyter-nb-kube-3aadmin (jupyter-nb-kube-3aadmin-opendatahub.apps.tedbig412.cp.fyre.ibm.com)
+# service/jupyter-nb-kube-3aadmin-tls
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  annotations:
+    notebooks.opendatahub.io/inject-oauth: "true"
+    notebooks.opendatahub.io/last-size-selection: Small
+    notebooks.opendatahub.io/oauth-logout-url: https://odh-dashboard-{{.OpenDataHubNamespace}}.{{.IngressDomain}}/notebookController/kube-3aadmin/home
+    opendatahub.io/link: https://jupyter-nb-kube-3aadmin-{{.Namespace}}.{{.IngressDomain}}/notebook/{{.Namespace}}/jupyter-nb-kube-3aadmin
+    opendatahub.io/username: {{.Username}}
+  generation: 1
+  labels:
+    app: jupyter-nb-kube-3aadmin
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/odh-managed: "true"
+    opendatahub.io/user: {{.Username}}
+  name: jupyter-nb-kube-3aadmin
+  namespace: {{.Namespace}}
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: nvidia.com/gpu.present
+                operator: NotIn
+                values:
+                - "true"
+            weight: 1
+      containers:
+      - env:
+        - name: NOTEBOOK_ARGS
+          value: |-
+            --ServerApp.port=8888
+                              --ServerApp.token=''
+                              --ServerApp.password=''
+                              --ServerApp.base_url=/notebook/test-feast-wb/jupyter-nb-kube-3aadmin
+                              --ServerApp.quit_button=False
+                              --ServerApp.tornado_settings={"user":"{{.Username}}","hub_host":"https://odh-dashboard-{{.OpenDataHubNamespace}}.{{.IngressDomain}}","hub_prefix":"/notebookController/{{.Username}}"}
+        - name: JUPYTER_IMAGE
+          value: {{.NotebookImage}}
+        - name: JUPYTER_NOTEBOOK_PORT
+          value: "8888"
+        - name: PIP_INDEX_URL
+          value: {{.PipIndexUrl}}
+        - name: PIP_TRUSTED_HOST
+          value: {{.PipTrustedHost}}
+        - name: FEAST_VERSION
+          value: {{.FeastVerison}}
+        - name: OPENAI_API_KEY
+          value: {{.OpenAIAPIKey}}
+        image: {{.NotebookImage}}
+        command: {{.Command}}
+        imagePullPolicy: Always
+        name: jupyter-nb-kube-3aadmin
+        ports:
+        - containerPort: 8888
+          name: notebook-port
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "2"
+            memory: 3Gi
+          requests:
+            cpu: "1"
+            memory: 3Gi
+        volumeMounts:
+        - mountPath: /opt/app-root/src
+          name: jupyterhub-nb-kube-3aadmin-pvc
+        - mountPath: /opt/app-root/notebooks
+          name: {{.NotebookConfigMapName}}
+        workingDir: /opt/app-root/src
+      - args:
+        - --provider=openshift
+        - --https-address=:8443
+        - --http-address=
+        - --openshift-service-account=jupyter-nb-kube-3aadmin
+        - --cookie-secret-file=/etc/oauth/config/cookie_secret
+        - --cookie-expire=24h0m0s
+        - --tls-cert=/etc/tls/private/tls.crt
+        - --tls-key=/etc/tls/private/tls.key
+        - --upstream=http://localhost:8888
+        - --upstream-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        - --skip-auth-regex=^(?:/notebook/test-feast-wb/jupyter-nb-kube-3aadmin)?/api$
+        - --email-domain=*
+        - --skip-provider-button
+        - --openshift-sar={"verb":"get","resource":"notebooks","resourceAPIGroup":"kubeflow.org","resourceName":"jupyter-nb-kube-3aadmin","namespace":$(NAMESPACE)}
+        - --logout-url=https://odh-dashboard-{{.OpenDataHubNamespace}}.{{.IngressDomain}}/notebookController/kube-3aadmin/home
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: registry.redhat.io/openshift4/ose-oauth-proxy:v4.10
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /oauth/healthz
+            port: oauth-proxy
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: oauth-proxy
+        ports:
+        - containerPort: 8443
+          name: oauth-proxy
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /oauth/healthz
+            port: oauth-proxy
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /etc/oauth/config
+          name: oauth-config
+        - mountPath: /etc/tls/private
+          name: tls-certificates
+      enableServiceLinks: false
+      serviceAccountName: jupyter-nb-kube-3aadmin
+      volumes:
+      - name: jupyterhub-nb-kube-3aadmin-pvc
+        persistentVolumeClaim:
+          claimName: {{.NotebookPVC}}
+      - name: oauth-config
+        secret:
+          defaultMode: 420
+          secretName: jupyter-nb-kube-3aadmin-oauth-config
+      - name: tls-certificates
+        secret:
+          defaultMode: 420
+          secretName: jupyter-nb-kube-3aadmin-tls
+      - name: {{.NotebookConfigMapName}}
+        configMap:
+          name: {{.NotebookConfigMapName}}

@@ -1,0 +1,7 @@
+from feast import SavedDataset
+
+{{ name }} = SavedDataset(
+    name="{{ name }}",
+    features=[{{ features }}],
+    {% if tags %}tags={{ tags }},{% endif %}
+) 

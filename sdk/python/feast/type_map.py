@@ -253,6 +253,7 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "INT64": ValueType.INT64,
         "DOUBLE": ValueType.DOUBLE,
         "FLOAT": ValueType.FLOAT,
+        "FLOAT32": ValueType.FLOAT,
         "BOOL": ValueType.BOOL,
         "NULL": ValueType.NULL,
         "UNIX_TIMESTAMP": ValueType.UNIX_TIMESTAMP,
@@ -265,7 +266,7 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "BOOL_LIST": ValueType.BOOL_LIST,
         "UNIX_TIMESTAMP_LIST": ValueType.UNIX_TIMESTAMP_LIST,
     }
-    return type_map[type_str]
+    return type_map.get(type_str, ValueType.STRING)
 
 
 def _type_err(item, dtype):
@@ -318,6 +319,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
+    ValueType.IMAGE_BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
 }
 
@@ -1118,3 +1120,50 @@ def cb_columnar_type_to_feast_value_type(type_str: str) -> ValueType:
     if value == ValueType.UNKNOWN:
         print("unknown type:", type_str)
     return value
+
+
+def convert_scalar_column(
+    series: pd.Series, value_type: ValueType, target_pandas_type: str
+) -> pd.Series:
+    """Convert a scalar feature column to the appropriate pandas type."""
+    if value_type == ValueType.INT32:
+        return pd.to_numeric(series, errors="coerce").astype("Int32")
+    elif value_type == ValueType.INT64:
+        return pd.to_numeric(series, errors="coerce").astype("Int64")
+    elif value_type in [ValueType.FLOAT, ValueType.DOUBLE]:
+        return pd.to_numeric(series, errors="coerce").astype("float64")
+    elif value_type == ValueType.BOOL:
+        return series.astype("boolean")
+    elif value_type == ValueType.STRING:
+        return series.astype("string")
+    elif value_type == ValueType.UNIX_TIMESTAMP:
+        return pd.to_datetime(series, unit="s", errors="coerce")
+    else:
+        return series.astype(target_pandas_type)
+
+
+def convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series:
+    """Convert an array feature column to the appropriate type with proper empty array handling."""
+    base_type_map = {
+        ValueType.INT32_LIST: np.int32,
+        ValueType.INT64_LIST: np.int64,
+        ValueType.FLOAT_LIST: np.float32,
+        ValueType.DOUBLE_LIST: np.float64,
+        ValueType.BOOL_LIST: np.bool_,
+        ValueType.STRING_LIST: object,
+        ValueType.BYTES_LIST: object,
+        ValueType.UNIX_TIMESTAMP_LIST: "datetime64[s]",
+    }
+
+    target_dtype = base_type_map.get(value_type, object)
+
+    def convert_array_item(item) -> Union[np.ndarray, Any]:
+        if item is None or (isinstance(item, list) and len(item) == 0):
+            if target_dtype == object:
+                return np.empty(0, dtype=object)
+            else:
+                return np.empty(0, dtype=target_dtype)  # type: ignore
+        else:
+            return item
+
+    return series.apply(convert_array_item)

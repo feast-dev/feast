@@ -1,6 +1,6 @@
 import contextlib
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import (
     Any,
@@ -46,6 +46,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
+from feast.utils import _utc_now, make_tzaware
 
 from .postgres_source import PostgreSQLSource
 
@@ -119,14 +120,52 @@ class PostgreSQLOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, PostgreSQLSource)
+        start_date: Optional[datetime] = kwargs.get("start_date", None)
+        end_date: Optional[datetime] = kwargs.get("end_date", None)
+
+        # Handle non-entity retrieval mode
+        if entity_df is None:
+            # Default to current time if end_date not provided
+            if end_date is None:
+                end_date = _utc_now()
+            else:
+                end_date = make_tzaware(end_date)
+
+            # Calculate start_date from TTL if not provided
+
+            if start_date is None:
+                # Find the maximum TTL across all feature views to ensure we capture enough data
+                max_ttl_seconds = 0
+                for fv in feature_views:
+                    if fv.ttl and isinstance(fv.ttl, timedelta):
+                        ttl_seconds = int(fv.ttl.total_seconds())
+                        max_ttl_seconds = max(max_ttl_seconds, ttl_seconds)
+
+                if max_ttl_seconds > 0:
+                    # Start from (end_date - max_ttl) to ensure we capture all relevant features
+                    start_date = end_date - timedelta(seconds=max_ttl_seconds)
+                else:
+                    # If no TTL is set, default to 30 days before end_date
+                    start_date = end_date - timedelta(days=30)
+            else:
+                start_date = make_tzaware(start_date)
+
+            entity_df = pd.DataFrame(
+                {
+                    "event_timestamp": pd.date_range(
+                        start=start_date, end=end_date, freq="1s", tz=timezone.utc
+                    )[:1]  # Just one row
+                }
+            )
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -189,6 +228,8 @@ class PostgreSQLOfflineStore(OfflineStore):
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
                     use_cte=use_cte,
+                    start_date=start_date,
+                    end_date=end_date,
                 )
             finally:
                 # Only cleanup if we created a table
@@ -239,7 +280,10 @@ class PostgreSQLOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + timestamp_fields
+            _append_alias(
+                join_key_columns + feature_name_columns + timestamp_fields,
+                "paftoq_alias",
+            )
         )
 
         timestamp_filter = get_timestamp_filter_sql(
@@ -398,6 +442,8 @@ def build_point_in_time_query(
     query_template: str,
     full_feature_names: bool = False,
     use_cte: bool = False,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -426,6 +472,8 @@ def build_point_in_time_query(
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
         "use_cte": use_cte,
+        "start_date": start_date,
+        "end_date": end_date,
     }
 
     query = template.render(template_context)
@@ -466,6 +514,113 @@ def _get_entity_schema(
 # https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/redshift.py
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
+{% if start_date and end_date %}
+/*
+ Non-entity timestamp range query - use JOINs to combine features into single rows
+*/
+{% if featureviews | length == 1 %}
+SELECT
+    "{{ featureviews[0].timestamp_field }}" AS event_timestamp,
+    {% if featureviews[0].created_timestamp_column %}
+    "{{ featureviews[0].created_timestamp_column }}" AS created_timestamp,
+    {% endif %}
+    {% for entity in featureviews[0].entities %}
+    "{{ entity }}",
+    {% endfor %}
+    {% for feature in featureviews[0].features %}
+    "{{ feature }}" AS {% if full_feature_names %}"{{ featureviews[0].name }}__{{ featureviews[0].field_mapping.get(feature, feature) }}"{% else %}"{{ featureviews[0].field_mapping.get(feature, feature) }}"{% endif %}{% if not loop.last %},{% endif %}
+    {% endfor %}
+    FROM {{ featureviews[0].table_subquery }} as fv_alias
+WHERE "{{ featureviews[0].timestamp_field }}" BETWEEN '{{ start_date }}' AND '{{ end_date }}'
+{% if featureviews[0].ttl != 0 and featureviews[0].min_event_timestamp %}
+AND "{{ featureviews[0].timestamp_field }}" >= '{{ featureviews[0].min_event_timestamp }}'
+{% endif %}
+{% else %}
+WITH
+{% for featureview in featureviews %}
+"{{ featureview.name }}__data" AS (
+    SELECT
+        "{{ featureview.timestamp_field }}" AS event_timestamp,
+        {% if featureview.created_timestamp_column %}
+        "{{ featureview.created_timestamp_column }}" AS created_timestamp,
+        {% endif %}
+        {% for entity in featureview.entities %}
+        "{{ entity }}",
+        {% endfor %}
+        {% for feature in featureview.features %}
+        "{{ feature }}" AS {% if full_feature_names %}"{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}"{% else %}"{{ featureview.field_mapping.get(feature, feature) }}"{% endif %}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    FROM {{ featureview.table_subquery }} AS sub
+    WHERE "{{ featureview.timestamp_field }}" BETWEEN '{{ start_date }}' AND '{{ end_date }}'
+    {% if featureview.ttl != 0 and featureview.min_event_timestamp %}
+    AND "{{ featureview.timestamp_field }}" >= '{{ featureview.min_event_timestamp }}'
+    {% endif %}
+),
+{% endfor %}
+
+-- Create a base query with all unique entity + timestamp combinations
+base_entities AS (
+    {% for featureview in featureviews %}
+    SELECT DISTINCT
+        event_timestamp,
+        {% for entity in featureview.entities %}
+        "{{ entity }}"{% if not loop.last %},{% endif %}
+        {% endfor %}
+    FROM "{{ featureview.name }}__data"
+    {% if not loop.last %}
+    UNION
+    {% endif %}
+    {% endfor %}
+)
+
+SELECT
+    base.event_timestamp,
+    {% set all_entities = [] %}
+    {% for featureview in featureviews %}
+        {% for entity in featureview.entities %}
+            {% if entity not in all_entities %}
+                {% set _ = all_entities.append(entity) %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    {% for entity in all_entities %}
+    base."{{ entity }}",
+    {% endfor %}
+    {% set total_features = featureviews|map(attribute='features')|map('length')|sum %}
+    {% set feature_counter = namespace(count=0) %}
+    {% for featureview in featureviews %}
+        {% set outer_loop_index = loop.index0 %}
+        {% for feature in featureview.features %}
+        {% set feature_counter.count = feature_counter.count + 1 %}
+        fv_{{ outer_loop_index }}."{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if feature_counter.count < total_features %},{% endif %}
+        {% endfor %}
+    {% endfor %}
+FROM base_entities base
+{% for featureview in featureviews %}
+{% set outer_loop_index = loop.index0 %}
+LEFT JOIN LATERAL (
+    SELECT DISTINCT ON ({% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %})
+        event_timestamp,
+        {% for entity in featureview.entities %}
+        "{{ entity }}",
+        {% endfor %}
+        {% for feature in featureview.features %}
+        "{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if not loop.last %},{% endif %}
+        {% endfor %}
+    FROM "{{ featureview.name }}__data" fv_sub_{{ outer_loop_index }}
+    WHERE fv_sub_{{ outer_loop_index }}.event_timestamp <= base.event_timestamp
+    {% if featureview.ttl != 0 %}
+    AND fv_sub_{{ outer_loop_index }}.event_timestamp >= base.event_timestamp - {{ featureview.ttl }} * interval '1' second
+    {% endif %}
+    {% for entity in featureview.entities %}
+    AND fv_sub_{{ outer_loop_index }}."{{ entity }}" = base."{{ entity }}"
+    {% endfor %}
+    ORDER BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, event_timestamp DESC
+) AS fv_{{ outer_loop_index }} ON true
+{% endfor %}
+ORDER BY base.event_timestamp
+{% endif %}
+{% else %}
 WITH
 {% if use_cte %}
     entity_query AS ({{ left_table_query_string }}),
@@ -644,4 +799,5 @@ LEFT JOIN (
     FROM "{{ featureview.name }}__cleaned"
 ) AS "{{featureview.name}}" USING ("{{featureview.name}}__entity_row_unique_id")
 {% endfor %}
+{% endif %}
 """

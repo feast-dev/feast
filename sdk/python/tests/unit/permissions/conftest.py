@@ -1,8 +1,9 @@
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
 from feast import FeatureView
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.permissions.decorator import require_permissions
@@ -17,9 +18,14 @@ from feast.permissions.user import User
 
 class SecuredFeatureView(FeatureView):
     def __init__(self, name, tags):
+        mock_source = MagicMock(spec=DataSource)
+        mock_source.created_timestamp_column = None
+        mock_source.timestamp_field = None
+        mock_source.date_partition_column = None
+
         super().__init__(
             name=name,
-            source=Mock(),
+            source=mock_source,
             tags=tags,
         )
 

@@ -19,6 +19,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Iterable,
     List,
     Optional,
@@ -31,6 +32,7 @@ import pyarrow
 
 from feast import flags_helper
 from feast.data_source import DataSource
+from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.dqm.errors import ValidationFailed
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
@@ -38,6 +40,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.torch_wrapper import get_torch
 
 if TYPE_CHECKING:
     from feast.saved_dataset import ValidationReference
@@ -91,6 +94,49 @@ class RetrievalJob(ABC):
             .reset_index(drop=True)
         )
 
+    def to_feast_df(
+        self,
+        validation_reference: Optional["ValidationReference"] = None,
+        timeout: Optional[int] = None,
+    ) -> FeastDataFrame:
+        """
+        Synchronously executes the underlying query and returns the result as a FeastDataFrame.
+
+        This is the new primary method that returns FeastDataFrame with proper engine detection.
+        On demand transformations will be executed. If a validation reference is provided, the dataframe
+        will be validated.
+
+        Args:
+            validation_reference (optional): The validation to apply against the retrieved dataframe.
+            timeout (optional): The query timeout if applicable.
+        """
+        # Get Arrow table as before
+        arrow_table = self.to_arrow(
+            validation_reference=validation_reference, timeout=timeout
+        )
+
+        # Prepare metadata
+        metadata = {}
+
+        # Add features to metadata if available
+        if hasattr(self, "features"):
+            metadata["features"] = self.features
+        else:
+            metadata["features"] = []
+
+        # Add on-demand feature views to metadata
+        if hasattr(self, "on_demand_feature_views") and self.on_demand_feature_views:
+            metadata["on_demand_feature_views"] = [
+                odfv.name for odfv in self.on_demand_feature_views
+            ]
+        else:
+            metadata["on_demand_feature_views"] = []
+
+        # Wrap in FeastDataFrame with Arrow engine and metadata
+        return FeastDataFrame(
+            data=arrow_table, engine=DataFrameEngine.ARROW, metadata=metadata
+        )
+
     def to_arrow(
         self,
         validation_reference: Optional["ValidationReference"] = None,
@@ -136,6 +182,40 @@ class RetrievalJob(ABC):
                 raise ValidationFailed(validation_result)
 
         return features_table
+
+    def to_tensor(
+        self,
+        kind: str = "torch",
+        default_value: Any = float("nan"),
+        timeout: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Converts historical features into a dictionary of 1D torch tensors or lists (for non-numeric types).
+
+        Args:
+            kind: "torch" (default and only supported kind).
+            default_value: Value to replace missing (None or NaN) entries.
+            timeout: Optional timeout for query execution.
+
+        Returns:
+            Dict[str, Union[torch.Tensor, List]]: Feature column name -> tensor or list.
+        """
+        if kind != "torch":
+            raise ValueError(
+                f"Unsupported tensor kind: {kind}. Only 'torch' is supported."
+            )
+        torch = get_torch()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        df = self.to_df(timeout=timeout)
+        tensor_dict = {}
+        for column in df.columns:
+            values = df[column].fillna(default_value).tolist()
+            first_non_null = next((v for v in values if v is not None), None)
+            if isinstance(first_non_null, (int, float, bool)):
+                tensor_dict[column] = torch.tensor(values, device=device)
+            else:
+                tensor_dict[column] = values
+        return tensor_dict
 
     def to_sql(self) -> str:
         """
@@ -261,7 +341,7 @@ class OfflineStore(ABC):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
@@ -275,12 +355,16 @@ class OfflineStore(ABC):
             feature_refs: The features to be retrieved.
             entity_df: A collection of rows containing all entity columns on which features need to be joined,
                 as well as the timestamp column used for point-in-time joins. Either a pandas dataframe can be
-                provided or a SQL query.
+                provided or a SQL query. If None, features will be retrieved for the specified timestamp range.
             registry: The registry for the current feature store.
             project: Feast project to which the feature views belong.
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+
+        Keyword Args:
+            start_date: Start date for the timestamp range when retrieving features without entity_df.
+            end_date: End date for the timestamp range when retrieving features without entity_df. By default, the current time is used.
 
         Returns:
             A RetrievalJob that can be executed to get the features.

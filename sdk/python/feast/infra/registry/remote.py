@@ -1,7 +1,9 @@
+import json
 import os
+import weakref
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
@@ -78,6 +80,7 @@ class RemoteRegistry(BaseRegistry):
         self.auth_config = auth_config
         assert isinstance(registry_config, RemoteRegistryConfig)
         self.channel = self._create_grpc_channel(registry_config)
+        weakref.finalize(self, self.channel.close)
 
         auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
@@ -106,9 +109,6 @@ class RemoteRegistry(BaseRegistry):
     def close(self):
         if self.channel:
             self.channel.close()
-
-    def __del__(self):
-        self.close()
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         request = RegistryServer_pb2.ApplyEntityRequest(
@@ -356,7 +356,7 @@ class RemoteRegistry(BaseRegistry):
 
     def apply_materialization(
         self,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         project: str,
         start_date: datetime,
         end_date: datetime,
@@ -580,6 +580,20 @@ class RemoteRegistry(BaseRegistry):
         response = self.stub.ListProjects(request)
         return [Project.from_proto(project) for project in response.projects]
 
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        request = RegistryServer_pb2.ListProjectMetadataRequest(project=project)
+        response = self.stub.ListProjectMetadata(request)
+        for pm in response.project_metadata:
+            if hasattr(pm, "custom_metadata") and key in pm.custom_metadata:
+                return pm.custom_metadata[key]
+            try:
+                meta = json.loads(pm.project_uuid) if pm.project_uuid else {}
+            except Exception:
+                meta = {}
+            if isinstance(meta, dict) and key in meta:
+                return meta[key]
+        return None
+
     def proto(self) -> RegistryProto:
         return self.stub.Proto(Empty())
 
@@ -589,6 +603,98 @@ class RemoteRegistry(BaseRegistry):
     def refresh(self, project: Optional[str] = None):
         request = RegistryServer_pb2.RefreshRequest(project=str(project))
         self.stub.Refresh(request)
+
+    # Lineage operations
+    def get_registry_lineage(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        filter_object_type: Optional[str] = None,
+        filter_object_name: Optional[str] = None,
+    ) -> tuple[List[Any], List[Any]]:
+        """Get complete registry lineage via remote registry server."""
+        request = RegistryServer_pb2.GetRegistryLineageRequest(
+            project=project,
+            allow_cache=allow_cache,
+            filter_object_type=filter_object_type or "",
+            filter_object_name=filter_object_name or "",
+        )
+        response = self.stub.GetRegistryLineage(request)
+
+        # Convert protobuf responses back to lineage objects
+        from feast.lineage.registry_lineage import (
+            EntityReference,
+            EntityRelation,
+            FeastObjectType,
+        )
+
+        relationships = []
+        for rel_proto in response.relationships:
+            relationships.append(
+                EntityRelation(
+                    source=EntityReference(
+                        FeastObjectType(rel_proto.source.type), rel_proto.source.name
+                    ),
+                    target=EntityReference(
+                        FeastObjectType(rel_proto.target.type), rel_proto.target.name
+                    ),
+                )
+            )
+
+        indirect_relationships = []
+        for rel_proto in response.indirect_relationships:
+            indirect_relationships.append(
+                EntityRelation(
+                    source=EntityReference(
+                        FeastObjectType(rel_proto.source.type), rel_proto.source.name
+                    ),
+                    target=EntityReference(
+                        FeastObjectType(rel_proto.target.type), rel_proto.target.name
+                    ),
+                )
+            )
+
+        return relationships, indirect_relationships
+
+    def get_object_relationships(
+        self,
+        project: str,
+        object_type: str,
+        object_name: str,
+        include_indirect: bool = False,
+        allow_cache: bool = False,
+    ) -> List[Any]:
+        """Get relationships for a specific object via remote registry server."""
+        request = RegistryServer_pb2.GetObjectRelationshipsRequest(
+            project=project,
+            object_type=object_type,
+            object_name=object_name,
+            include_indirect=include_indirect,
+            allow_cache=allow_cache,
+        )
+        response = self.stub.GetObjectRelationships(request)
+
+        # Convert protobuf responses back to lineage objects
+        from feast.lineage.registry_lineage import (
+            EntityReference,
+            EntityRelation,
+            FeastObjectType,
+        )
+
+        relationships = []
+        for rel_proto in response.relationships:
+            relationships.append(
+                EntityRelation(
+                    source=EntityReference(
+                        FeastObjectType(rel_proto.source.type), rel_proto.source.name
+                    ),
+                    target=EntityReference(
+                        FeastObjectType(rel_proto.target.type), rel_proto.target.name
+                    ),
+                )
+            )
+
+        return relationships
 
     def teardown(self):
         pass

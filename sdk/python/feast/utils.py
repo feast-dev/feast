@@ -257,7 +257,11 @@ def _convert_arrow_to_proto(
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
-    if getattr(feature_view, "source_request_sources", None):
+    # Check for source_request_sources or source_feature_view_projections attributes to identify ODFVs
+    if (
+        getattr(feature_view, "source_request_sources", None) is not None
+        or getattr(feature_view, "source_feature_view_projections", None) is not None
+    ):
         return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
     else:
         return _convert_arrow_fv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
@@ -693,8 +697,13 @@ def _get_entity_maps(
                 entity.join_key, entity.join_key
             )
             entity_name_to_join_key_map[entity_name] = join_key
+
         for entity_column in feature_view.entity_columns:
-            entity_type_map[entity_column.name] = entity_column.dtype.to_value_type()
+            dtype = entity_column.dtype.to_value_type()
+            entity_join_key_column_name = feature_view.projection.join_key_map.get(
+                entity_column.name, entity_column.name
+            )
+            entity_type_map[entity_join_key_column_name] = dtype
 
     return (
         entity_name_to_join_key_map,
@@ -1044,7 +1053,7 @@ def _list_feature_views(
 def _get_feature_views_to_use(
     registry: "BaseRegistry",
     project,
-    features: Optional[Union[List[str], "FeatureService"]],
+    features: Union[List[str], "FeatureService"],
     allow_cache=False,
     hide_dummy_entity: bool = True,
 ) -> Tuple[List["FeatureView"], List["OnDemandFeatureView"]]:

@@ -16,7 +16,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
 from google.protobuf.message import Message
@@ -31,6 +31,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
 from feast.project_metadata import ProjectMetadata
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -432,7 +433,7 @@ class BaseRegistry(ABC):
     @abstractmethod
     def apply_materialization(
         self,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         project: str,
         start_date: datetime,
         end_date: datetime,
@@ -598,6 +599,20 @@ class BaseRegistry(ABC):
 
         Returns:
             List of project metadata
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """
+        Retrieves a custom project metadata value by key.
+
+        Args:
+            project: Feast project name
+            key: Metadata key
+
+        Returns:
+            The metadata value as a string, or None if not found.
         """
         raise NotImplementedError
 
@@ -788,16 +803,152 @@ class BaseRegistry(ABC):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         raise NotImplementedError
 
+    # Lineage operations
+    def get_registry_lineage(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        filter_object_type: Optional[str] = None,
+        filter_object_name: Optional[str] = None,
+    ) -> tuple[List[Any], List[Any]]:
+        """
+        Get complete registry lineage with relationships and indirect relationships.
+        Args:
+            project: Feast project name
+            allow_cache: Whether to allow returning data from a cached registry
+            filter_object_type: Optional filter by object type (dataSource, entity, featureView, featureService)
+            filter_object_name: Optional filter by object name
+        Returns:
+            Tuple of (direct_relationships, indirect_relationships)
+        """
+        from feast.lineage.registry_lineage import RegistryLineageGenerator
+
+        # Create a registry proto with all objects
+        registry_proto = self._build_registry_proto(project, allow_cache)
+
+        # Generate lineage
+        lineage_generator = RegistryLineageGenerator()
+        relationships, indirect_relationships = lineage_generator.generate_lineage(
+            registry_proto
+        )
+
+        # Apply filtering if specified
+        if filter_object_type and filter_object_name:
+            relationships = [
+                rel
+                for rel in relationships
+                if (
+                    (
+                        rel.source.type.value == filter_object_type
+                        and rel.source.name == filter_object_name
+                    )
+                    or (
+                        rel.target.type.value == filter_object_type
+                        and rel.target.name == filter_object_name
+                    )
+                )
+            ]
+            indirect_relationships = [
+                rel
+                for rel in indirect_relationships
+                if (
+                    (
+                        rel.source.type.value == filter_object_type
+                        and rel.source.name == filter_object_name
+                    )
+                    or (
+                        rel.target.type.value == filter_object_type
+                        and rel.target.name == filter_object_name
+                    )
+                )
+            ]
+
+        return relationships, indirect_relationships
+
+    def get_object_relationships(
+        self,
+        project: str,
+        object_type: str,
+        object_name: str,
+        include_indirect: bool = False,
+        allow_cache: bool = False,
+    ) -> List[Any]:
+        """
+        Get relationships for a specific object.
+        Args:
+            project: Feast project name
+            object_type: Type of object (dataSource, entity, featureView, featureService, feature)
+            object_name: Name of the object
+            include_indirect: Whether to include indirect relationships
+            allow_cache: Whether to allow returning data from a cached registry
+        Returns:
+            List of relationships involving the specified object
+        """
+        from feast.lineage.registry_lineage import (
+            RegistryLineageGenerator,
+        )
+
+        registry_proto = self._build_registry_proto(project, allow_cache)
+        lineage_generator = RegistryLineageGenerator()
+        relationships = lineage_generator.get_object_relationships(
+            registry_proto, object_type, object_name, include_indirect=include_indirect
+        )
+        return relationships
+
+    def _build_registry_proto(
+        self, project: str, allow_cache: bool = False
+    ) -> RegistryProto:
+        """Helper method to build a registry proto with all objects."""
+        registry = RegistryProto()
+
+        # Add all entities
+        entities = self.list_entities(project=project, allow_cache=allow_cache)
+        for entity in entities:
+            registry.entities.append(entity.to_proto())
+
+        # Add all data sources
+        data_sources = self.list_data_sources(project=project, allow_cache=allow_cache)
+        for data_source in data_sources:
+            registry.data_sources.append(data_source.to_proto())
+
+        # Add all feature views
+        feature_views = self.list_feature_views(
+            project=project, allow_cache=allow_cache
+        )
+        for feature_view in feature_views:
+            registry.feature_views.append(feature_view.to_proto())
+
+        # Add all stream feature views
+        stream_feature_views = self.list_stream_feature_views(
+            project=project, allow_cache=allow_cache
+        )
+        for stream_feature_view in stream_feature_views:
+            registry.stream_feature_views.append(stream_feature_view.to_proto())
+
+        # Add all on-demand feature views
+        on_demand_feature_views = self.list_on_demand_feature_views(
+            project=project, allow_cache=allow_cache
+        )
+        for on_demand_feature_view in on_demand_feature_views:
+            registry.on_demand_feature_views.append(on_demand_feature_view.to_proto())
+
+        # Add all feature services
+        feature_services = self.list_feature_services(
+            project=project, allow_cache=allow_cache
+        )
+        for feature_service in feature_services:
+            registry.feature_services.append(feature_service.to_proto())
+
+        return registry
+
     @staticmethod
     def _message_to_sorted_dict(message: Message) -> Dict[str, Any]:
         return json.loads(MessageToJson(message, sort_keys=True))
 
     def to_dict(self, project: str) -> Dict[str, List[Any]]:
         """Returns a dictionary representation of the registry contents for the specified project.
-
         For each list in the dictionary, the elements are sorted by name, so this
         method can be used to compare two registries.
-
         Args:
             project: Feast project to convert to a dict
         """
@@ -921,4 +1072,6 @@ class BaseRegistry(ABC):
             return PermissionProto.FromString(serialized_proto)
         if feast_obj_type == Project:
             return ProjectProto.FromString(serialized_proto)
+        if issubclass(feast_obj_type, DataSource):
+            return DataSourceProto.FromString(serialized_proto)
         return None

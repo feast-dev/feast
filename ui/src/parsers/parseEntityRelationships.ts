@@ -57,6 +57,21 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
   });
 
   objects.onDemandFeatureViews?.forEach((fv) => {
+    // Entity relationships
+    fv.spec?.entities?.forEach((ent) => {
+      links.push({
+        source: {
+          type: FEAST_FCO_TYPES["entity"],
+          name: ent,
+        },
+        target: {
+          type: FEAST_FCO_TYPES["featureView"],
+          name: fv.spec?.name!,
+        },
+      });
+    });
+
+    // Data source relationships
     Object.values(fv.spec?.sources!).forEach(
       (input: { [key: string]: any }) => {
         if (input.requestDataSource) {
