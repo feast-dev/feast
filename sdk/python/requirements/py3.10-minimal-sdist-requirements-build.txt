@@ -520,6 +520,7 @@ poetry-core==1.9.1 \
     #   ibis-substrait
     #   pkgconfig
     #   poetry-dynamic-versioning
+    #   protobuf-to-pydantic
     #   rich
     #   rsa
     #   tomlkit
@@ -530,7 +531,9 @@ poetry-core==2.2.1 \
 poetry-dynamic-versioning==1.9.1 \
     --hash=sha256:65a0c814e6d30d4807734a3c34edf261fd7cc3b340dbd23b6a33ee41f7d0b547 \
     --hash=sha256:d6e7b9df817aa2ca4946cd695c6c89e1379d2e6c640f008a9b6170d081a9da48
-    # via ibis-framework
+    # via
+    #   ibis-framework
+    #   protobuf-to-pydantic
 pybind11==3.0.1 \
     --hash=sha256:9c0f40056a016da59bab516efb523089139fcc6f2ba7e4930854c61efb932051 \
     --hash=sha256:aa8f0aa6e0a94d3b64adfc38f560f33f15e589be2175e103c0a33c6bce55ee89

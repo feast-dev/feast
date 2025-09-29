@@ -3454,10 +3454,15 @@ protobuf==4.25.8 \
     #   ikvpy
     #   mypy-protobuf
     #   proto-plus
+    #   protobuf-to-pydantic
     #   pymilvus
     #   qdrant-client
     #   ray
     #   substrait
+protobuf-to-pydantic==0.3.3.1 \
+    --hash=sha256:7861e229c1de4de9ae9f7df9f2e72d330448319ca137a2a4362833704ca75c11 \
+    --hash=sha256:a719921d14534f8e303ea13df77715fad604cb1b388c4a743af9d58813fd8995
+    # via feast (setup.py)
 psutil==5.9.0 \
     --hash=sha256:072664401ae6e7c1bfb878c65d7282d4b4391f1bc9a56d5e03b5a490403271b5 \
     --hash=sha256:1070a9b287846a21a5d572d6dddd369517510b68710fca56b0e9e02fd24bed9a \
@@ -3769,6 +3774,7 @@ pydantic==2.10.6 \
     #   fastapi-mcp
     #   great-expectations
     #   mcp
+    #   protobuf-to-pydantic
     #   pydantic-settings
     #   qdrant-client
 pydantic-core==2.27.2 \

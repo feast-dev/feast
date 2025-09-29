@@ -671,6 +671,12 @@ protobuf==6.32.1 \
     --hash=sha256:d0975d0b2f3e6957111aa3935d08a0eb7e006b1505d825f862a1fffc8348e122 \
     --hash=sha256:d8c7e6eb619ffdf105ee4ab76af5a68b60a9d0f66da3ea12d1640e6d8dab7281 \
     --hash=sha256:ee2469e4a021474ab9baafea6cd070e5bf27c7d29433504ddea1a4ee5850f68d
+    # via
+    #   feast (setup.py)
+    #   protobuf-to-pydantic
+protobuf-to-pydantic==0.3.3.1 \
+    --hash=sha256:7861e229c1de4de9ae9f7df9f2e72d330448319ca137a2a4362833704ca75c11 \
+    --hash=sha256:a719921d14534f8e303ea13df77715fad604cb1b388c4a743af9d58813fd8995
     # via feast (setup.py)
 psutil==7.1.0 \
     --hash=sha256:09ad740870c8d219ed8daae0ad3b726d3bf9a028a198e7f3080f6a1888b99bca \
@@ -736,6 +742,7 @@ pydantic==2.10.6 \
     # via
     #   feast (setup.py)
     #   fastapi
+    #   protobuf-to-pydantic
 pydantic-core==2.27.2 \
     --hash=sha256:00bad2484fa6bda1e216e7345a798bd37c68fb2d97558edd584942aa41b7d278 \
     --hash=sha256:0296abcb83a797db256b773f45773da397da75a08f5fcaef41f2044adec05f50 \

@@ -1918,7 +1918,12 @@ protobuf==6.32.1 \
     #   grpcio-reflection
     #   grpcio-status
     #   proto-plus
+    #   protobuf-to-pydantic
     #   pymilvus
+protobuf-to-pydantic==0.3.3.1 \
+    --hash=sha256:7861e229c1de4de9ae9f7df9f2e72d330448319ca137a2a4362833704ca75c11 \
+    --hash=sha256:a719921d14534f8e303ea13df77715fad604cb1b388c4a743af9d58813fd8995
+    # via feast (setup.py)
 psutil==7.1.0 \
     --hash=sha256:09ad740870c8d219ed8daae0ad3b726d3bf9a028a198e7f3080f6a1888b99bca \
     --hash=sha256:22e4454970b32472ce7deaa45d045b34d3648ce478e26a04c7e858a0a6e75ff3 \
@@ -2012,6 +2017,7 @@ pydantic==2.10.6 \
     #   fastapi
     #   fastapi-mcp
     #   mcp
+    #   protobuf-to-pydantic
     #   pydantic-settings
 pydantic-core==2.27.2 \
     --hash=sha256:00bad2484fa6bda1e216e7345a798bd37c68fb2d97558edd584942aa41b7d278 \

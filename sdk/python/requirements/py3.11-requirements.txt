@@ -162,9 +162,21 @@ dill==0.3.9 \
     --hash=sha256:468dff3b89520b474c0397703366b7b95eebe6303f108adf9b19da1f702be87a \
     --hash=sha256:81aa267dddf68cbfe8029c42ca9ec6a4ab3b22371d1c450abc54422577b4512c
     # via feast (setup.py)
+<<<<<<< HEAD
 fastapi==0.119.0 \
     --hash=sha256:451082403a2c1f0b99c6bd57c09110ed5463856804c8078d38e5a1f1035dbbb7 \
     --hash=sha256:90a2e49ed19515320abb864df570dd766be0662c5d577688f1600170f7f73cf2
+=======
+<<<<<<< HEAD
+fastapi==0.117.1 \
+    --hash=sha256:33c51a0d21cab2b9722d4e56dbb9316f3687155be6b276191790d8da03507552 \
+    --hash=sha256:fb2d42082d22b185f904ca0ecad2e195b851030bd6c5e4c032d1c981240c631a
+=======
+fastapi==0.118.0 \
+    --hash=sha256:5e81654d98c4d2f53790a7d32d25a7353b30c81441be7d0958a26b5d761fa1c8 \
+    --hash=sha256:705137a61e2ef71019d2445b123aa8845bd97273c395b744d5a7dfe559056855
+>>>>>>> 658471fa (Updated requirements with protobuf_to_pydantic lib)
+>>>>>>> 42aa7a23 (Updated requirements with protobuf_to_pydantic lib)
     # via feast (setup.py)
 fsspec==2025.9.0 \
     --hash=sha256:19fd429483d25d28b65ec68f9f4adc16c17ea2c7c7bf54ec61360d478fb19c19 \
@@ -675,6 +687,15 @@ protobuf==6.32.1 \
     --hash=sha256:d0975d0b2f3e6957111aa3935d08a0eb7e006b1505d825f862a1fffc8348e122 \
     --hash=sha256:d8c7e6eb619ffdf105ee4ab76af5a68b60a9d0f66da3ea12d1640e6d8dab7281 \
     --hash=sha256:ee2469e4a021474ab9baafea6cd070e5bf27c7d29433504ddea1a4ee5850f68d
+<<<<<<< HEAD
+=======
+    # via
+    #   feast (setup.py)
+    #   protobuf-to-pydantic
+protobuf-to-pydantic==0.3.3.1 \
+    --hash=sha256:7861e229c1de4de9ae9f7df9f2e72d330448319ca137a2a4362833704ca75c11 \
+    --hash=sha256:a719921d14534f8e303ea13df77715fad604cb1b388c4a743af9d58813fd8995
+>>>>>>> 658471fa (Updated requirements with protobuf_to_pydantic lib)
     # via feast (setup.py)
 psutil==7.1.0 \
     --hash=sha256:09ad740870c8d219ed8daae0ad3b726d3bf9a028a198e7f3080f6a1888b99bca \
@@ -740,6 +761,7 @@ pydantic==2.10.6 \
     # via
     #   feast (setup.py)
     #   fastapi
+    #   protobuf-to-pydantic
 pydantic-core==2.27.2 \
     --hash=sha256:00bad2484fa6bda1e216e7345a798bd37c68fb2d97558edd584942aa41b7d278 \
     --hash=sha256:0296abcb83a797db256b773f45773da397da75a08f5fcaef41f2044adec05f50 \
