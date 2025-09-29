@@ -31,6 +31,9 @@ class SparkSourceFormat(Enum):
 class SparkSource(DataSource):
     """A SparkSource object defines a data source that a Spark offline store can use"""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.BATCH_SPARK
+
     def __init__(
         self,
         *,
@@ -157,7 +160,7 @@ class SparkSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.BATCH_SPARK,

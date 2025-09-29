@@ -36,6 +36,7 @@ ContainerConfigs k8s container settings for the server
 
 _Appears in:_
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
 | Field | Description |
@@ -76,6 +77,7 @@ DefaultCtrConfigs k8s container settings that are applied by default
 _Appears in:_
 - [ContainerConfigs](#containerconfigs)
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
 | Field | Description |
@@ -216,7 +218,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `feastProject` _string_ | FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required. |
+| `feastProject` _string_ | FeastProject is the Feast project id. This can be any alphanumeric string with underscores and hyphens, but it cannot start with an underscore or hyphen. Required. |
 | `feastProjectDir` _[FeastProjectDir](#feastprojectdir)_ |  |
 | `services` _[FeatureStoreServices](#featurestoreservices)_ |  |
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
@@ -405,7 +407,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `server` _[ServerConfigs](#serverconfigs)_ | Creates a registry server container |
+| `server` _[RegistryServerConfigs](#registryserverconfigs)_ | Creates a registry server container |
 | `persistence` _[RegistryPersistence](#registrypersistence)_ |  |
 
 
@@ -555,6 +557,7 @@ OptionalCtrConfigs k8s container settings that are optional
 _Appears in:_
 - [ContainerConfigs](#containerconfigs)
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
 | Field | Description |
@@ -669,6 +672,33 @@ _Appears in:_
 | `store` _[RegistryDBStorePersistence](#registrydbstorepersistence)_ |  |
 
 
+#### RegistryServerConfigs
+
+
+
+RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
+
+_Appears in:_
+- [LocalRegistryConfig](#localregistryconfig)
+
+| Field | Description |
+| --- | --- |
+| `image` _string_ |  |
+| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
+| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
+| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
+| `tls` _[TlsConfigs](#tlsconfigs)_ |  |
+| `logLevel` _string_ | LogLevel sets the logging level for the server
+Allowed values: "debug", "info", "warning", "error", "critical". |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the feast container.
+This allows attaching persistent storage, config files, secrets, or other resources
+required by the Feast components. Ensure that each volume mount has a corresponding
+volume definition in the Volumes field. |
+| `restAPI` _boolean_ | Enable REST API registry server. |
+| `grpc` _boolean_ | Enable gRPC registry server. Defaults to true if unset. |
+
+
 #### RemoteRegistryConfig
 
 
@@ -709,9 +739,9 @@ ServerConfigs creates a server for the feast service, with specified container c
 
 _Appears in:_
 - [FeatureStoreServices](#featurestoreservices)
-- [LocalRegistryConfig](#localregistryconfig)
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
+- [RegistryServerConfigs](#registryserverconfigs)
 
 | Field | Description |
 | --- | --- |
@@ -743,6 +773,7 @@ _Appears in:_
 | `offlineStore` _string_ |  |
 | `onlineStore` _string_ |  |
 | `registry` _string_ |  |
+| `registryRest` _string_ |  |
 | `ui` _string_ |  |
 
 
@@ -753,6 +784,7 @@ _Appears in:_
 TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.
 
 _Appears in:_
+- [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
 | Field | Description |

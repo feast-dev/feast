@@ -57,8 +57,8 @@ To keep your online store up to date, you need to run a job that loads feature d
 Out of the box, Feast's materialization process uses an in-process materialization engine. This engine loads all the data being materialized into memory from the offline store, and writes it into the online store. 
 
 This approach may not scale to large amounts of data, which users of Feast may be dealing with in production.
-In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
-Users may also need to [write a custom materialization engine](../how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md) to work on their existing infrastructure.  
+In this case, we recommend using one of the more [scalable compute engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Compute Engine](../reference/compute-engine/snowflake.md).
+Users may also need to [write a custom compute engine](../how-to-guides/customizing-feast/creating-a-custom-compute-engine.md) to work on their existing infrastructure.  
 
 
 ### 2.2 Scheduled materialization with Airflow
@@ -88,7 +88,7 @@ def materialize(data_interval_start=None, data_interval_end=None):
     provider="aws",
     offline_store="file",
     online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
-    entity_key_serialization_version=2
+    entity_key_serialization_version=3
   )
   store = FeatureStore(config=repo_config)
   # Option 1: materialize just one feature view
@@ -207,23 +207,30 @@ feature_vector = fs.get_online_features(
 
 To deploy a Feast feature server on Kubernetes, you should use the included [feast-operator](../../infra/feast-operator).
 
+{% embed url="https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX" %}
+
 **Basic steps**
 1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 2. Install the Operator
 
-```sh
-### Install the latest release -
-$ kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
 
-### OR, install a specific version -
-# kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
+Install the latest release
+```sh
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+```
+
+OR, install a specific version -
+```
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
 ```
 
 3. Deploy a Feature Store
 
 ```sh
-$ kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1alpha1_featurestore.yaml
-
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1alpha1_featurestore.yaml
+```
+Verify the status
+```
 $ kubectl get feast
 NAME     STATUS   AGE
 sample   Ready    2m21s

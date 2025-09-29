@@ -81,6 +81,9 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 # Used in github actions/ci
 # formerly install-python-ci-dependencies-uv
 install-python-dependencies-ci: ## Install Python CI dependencies in system environment using uv
+	# Install CPU-only torch first to prevent CUDA dependency issues
+	pip uninstall torch torchvision -y || true
+	pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
 	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
 
@@ -298,6 +301,29 @@ test-python-universal-postgres-offline: ## Run Python Postgres integration tests
 				not test_snowflake and \
  				not test_spark" \
  			sdk/python/tests
+
+test-python-universal-ray-offline: ## Run Python Ray offline store integration tests
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.ray_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.ray_offline_store.tests \
+		python -m pytest -n 8 --integration \
+			-m "not universal_online_stores and not benchmark" \
+			-k "not test_historical_retrieval_with_validation and \
+				not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not gcs_registry and \
+				not s3_registry and \
+				not test_snowflake and \
+				not test_spark" \
+			sdk/python/tests
+
+test-python-ray-compute-engine: ## Run Python Ray compute engine tests
+	PYTHONPATH='.' \
+		python -m pytest -v --integration \
+			sdk/python/tests/integration/compute_engines/ray_compute/
 
 test-python-universal-postgres-online: ## Run Python Postgres integration tests
 	PYTHONPATH='.' \
@@ -687,20 +713,25 @@ compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
 			--go-grpc_out=$(ROOT_DIR)/go/protos \
 			--go-grpc_opt=module=github.com/feast-dev/feast/go/protos $(ROOT_DIR)/protos/feast/$(folder)/*.proto; ) true
 
-#install-go-ci-dependencies:
-	# go install golang.org/x/tools/cmd/goimports
-	# python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+install-go-ci-dependencies:
+	go install golang.org/x/tools/cmd/goimports
+	uv pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
 
 .PHONY: build-go
 build-go: compile-protos-go ## Build Go code
 	go build -o feast ./go/main.go
 
-.PHONY: install-feast-ci-locally
-install-feast-ci-locally: ## Install Feast CI dependencies locally
-	uv pip install -e ".[ci]"
+
+## Assume the uv will create an .venv folder for itself.
+## The unit test funcions will call the Python "feast" command to initialze a feast repo.
+.PHONY: install-feast-locally
+install-feast-locally: ## Install Feast locally
+	uv pip install -e "."
+	@export PATH=$(ROOT_DIR)/.venv/bin:$$PATH
+	@echo $$PATH
 
 .PHONY: test-go
-test-go: compile-protos-go install-feast-ci-locally compile-protos-python ## Run Go tests
+test-go: compile-protos-python compile-protos-go install-go-ci-dependencies install-feast-locally  ## Run Go tests
 	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 
 .PHONY: format-go

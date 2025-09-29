@@ -4,7 +4,20 @@ import uuid
 import warnings
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
+
+if TYPE_CHECKING:
+    from feast.saved_dataset import ValidationReference
 
 import numpy as np
 import pandas
@@ -18,6 +31,7 @@ from pyspark.sql import SparkSession
 
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
+from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
@@ -47,7 +61,6 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
     spark_conf: Optional[Dict[str, str]] = None
     """ Configuration overlay for the spark session """
-    # sparksession is not serializable and we dont want to pass it around as an argument
 
     staging_location: Optional[StrictStr] = None
     """ Remote path for batch materialization jobs"""
@@ -390,6 +403,23 @@ class SparkRetrievalJob(RetrievalJob):
         """Return dataset as pyarrow Table synchronously"""
         return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
 
+    def to_feast_df(
+        self,
+        validation_reference: Optional["ValidationReference"] = None,
+        timeout: Optional[int] = None,
+    ) -> FeastDataFrame:
+        """
+        Return the result as a FeastDataFrame with Spark engine.
+
+        This preserves Spark's lazy execution by wrapping the Spark DataFrame directly.
+        """
+        # Get the Spark DataFrame directly (maintains lazy execution)
+        spark_df = self.to_spark_df()
+        return FeastDataFrame(
+            data=spark_df,
+            engine=DataFrameEngine.SPARK,
+        )
+
     def persist(
         self,
         storage: SavedDatasetStorage,
@@ -467,10 +497,18 @@ class SparkRetrievalJob(RetrievalJob):
                 return aws_utils.list_s3_files(
                     self._config.offline_store.region, output_uri
                 )
-
+            elif self._config.offline_store.staging_location.startswith("hdfs://"):
+                output_uri = os.path.join(
+                    self._config.offline_store.staging_location, str(uuid.uuid4())
+                )
+                sdf.write.parquet(output_uri)
+                spark_session = get_spark_session_or_start_new_with_repoconfig(
+                    store_config=self._config.offline_store
+                )
+                return _list_hdfs_files(spark_session, output_uri)
             else:
                 raise NotImplementedError(
-                    "to_remote_storage is only implemented for file:// and s3:// uri schemes"
+                    "to_remote_storage is only implemented for file://, s3:// and hdfs:// uri schemes"
                 )
 
         else:
@@ -596,6 +634,22 @@ def _list_files_in_folder(folder):
         if os.path.isfile(filename):
             files.append(filename)
 
+    return files
+
+
+def _list_hdfs_files(spark_session: SparkSession, uri: str) -> List[str]:
+    jvm = spark_session._jvm
+    jsc = spark_session._jsc
+    if jvm is None or jsc is None:
+        raise RuntimeError("Spark JVM or JavaSparkContext is not available")
+    conf = jsc.hadoopConfiguration()
+    path = jvm.org.apache.hadoop.fs.Path(uri)
+    fs = jvm.org.apache.hadoop.fs.FileSystem.get(path.toUri(), conf)
+    statuses = fs.listStatus(path)
+    files = []
+    for f in statuses:
+        if f.isFile():
+            files.append(f.getPath().toString())
     return files
 
 

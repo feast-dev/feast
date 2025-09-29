@@ -14,7 +14,7 @@
 import copy
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message
@@ -90,6 +90,7 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
+    source_views: Optional[List["FeatureView"]]
     entity_columns: List[Field]
     features: List[Field]
     online: bool
@@ -103,7 +104,8 @@ class FeatureView(BaseFeatureView):
         self,
         *,
         name: str,
-        source: DataSource,
+        source: Union[DataSource, "FeatureView", List["FeatureView"]],
+        sink_source: Optional[DataSource] = None,
         schema: Optional[List[Field]] = None,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
@@ -144,22 +146,45 @@ class FeatureView(BaseFeatureView):
         self.ttl = ttl
         schema = schema or []
 
-        # Initialize data sources.
-        if (
-            isinstance(source, PushSource)
-            or isinstance(source, KafkaSource)
-            or isinstance(source, KinesisSource)
+        # Normalize source
+        self.stream_source = None
+        self.data_source: Optional[DataSource] = None
+        self.source_views: List[FeatureView] = []
+
+        if isinstance(source, DataSource):
+            self.data_source = source
+        elif isinstance(source, FeatureView):
+            self.source_views = [source]
+        elif isinstance(source, list) and all(
+            isinstance(sv, FeatureView) for sv in source
         ):
-            self.stream_source = source
-            if not source.batch_source:
-                raise ValueError(
-                    f"A batch_source needs to be specified for stream source `{source.name}`"
-                )
-            else:
-                self.batch_source = source.batch_source
+            self.source_views = source
         else:
-            self.stream_source = None
-            self.batch_source = source
+            raise TypeError(
+                "source must be a DataSource, a FeatureView, or a list of FeatureView."
+            )
+
+        # Set up stream, batch and derived view sources
+        if (
+            isinstance(self.data_source, PushSource)
+            or isinstance(self.data_source, KafkaSource)
+            or isinstance(self.data_source, KinesisSource)
+        ):
+            # Stream source definition
+            self.stream_source = self.data_source
+            if not self.data_source.batch_source:
+                raise ValueError(
+                    f"A batch_source needs to be specified for stream source `{self.data_source.name}`"
+                )
+            self.batch_source = self.data_source.batch_source
+        elif self.data_source:
+            # Batch source definition
+            self.batch_source = self.data_source
+        else:
+            # Derived view source definition
+            if not sink_source:
+                raise ValueError("Derived FeatureView must specify `sink_source`.")
+            self.batch_source = sink_source
 
         # Initialize features and entity columns.
         features: List[Field] = []
@@ -201,17 +226,18 @@ class FeatureView(BaseFeatureView):
         )
 
         # TODO(felixwang9817): Add more robust validation of features.
-        cols = [field.name for field in schema]
-        for col in cols:
-            if (
-                self.batch_source.field_mapping is not None
-                and col in self.batch_source.field_mapping.keys()
-            ):
-                raise ValueError(
-                    f"The field {col} is mapped to {self.batch_source.field_mapping[col]} for this data source. "
-                    f"Please either remove this field mapping or use {self.batch_source.field_mapping[col]} as the "
-                    f"Entity or Feature name."
-                )
+        if self.batch_source is not None:
+            cols = [field.name for field in schema]
+            for col in cols:
+                if (
+                    self.batch_source.field_mapping is not None
+                    and col in self.batch_source.field_mapping.keys()
+                ):
+                    raise ValueError(
+                        f"The field {col} is mapped to {self.batch_source.field_mapping[col]} for this data source. "
+                        f"Please either remove this field mapping or use {self.batch_source.field_mapping[col]} as the "
+                        f"Entity or Feature name."
+                    )
 
         super().__init__(
             name=name,
@@ -219,7 +245,7 @@ class FeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
-            source=source,
+            source=self.batch_source,
         )
         self.online = online
         self.offline = offline
@@ -232,11 +258,14 @@ class FeatureView(BaseFeatureView):
         fv = FeatureView(
             name=self.name,
             ttl=self.ttl,
-            source=self.stream_source if self.stream_source else self.batch_source,
+            source=self.source_views
+            if self.source_views
+            else (self.stream_source if self.stream_source else self.batch_source),
             schema=self.schema,
             tags=self.tags,
             online=self.online,
             offline=self.offline,
+            sink_source=self.batch_source if self.source_views else None,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -263,6 +292,8 @@ class FeatureView(BaseFeatureView):
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
             or sorted(self.entity_columns) != sorted(other.entity_columns)
+            or self.source_views != other.source_views
+            or self.materialization_intervals != other.materialization_intervals
         ):
             return False
 
@@ -345,17 +376,46 @@ class FeatureView(BaseFeatureView):
         Returns:
             A FeatureViewProto protobuf.
         """
+        return self._to_proto_internal(seen={})
+
+    def _to_proto_internal(
+        self, seen: Dict[str, Union[None, FeatureViewProto]]
+    ) -> FeatureViewProto:
+        if self.name in seen:
+            if seen[self.name] is None:
+                raise ValueError(
+                    f"Cycle detected during serialization of FeatureView: {self.name}"
+                )
+            return seen[self.name]  # type: ignore[return-value]
+
+        seen[self.name] = None
+
+        spec = self.to_proto_spec(seen)
         meta = self.to_proto_meta()
+        proto = FeatureViewProto(spec=spec, meta=meta)
+        seen[self.name] = proto
+        return proto
+
+    def to_proto_spec(
+        self, seen: Dict[str, Union[None, FeatureViewProto]]
+    ) -> FeatureViewSpecProto:
         ttl_duration = self.get_ttl_duration()
 
-        batch_source_proto = self.batch_source.to_proto()
-        batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
+        batch_source_proto = None
+        if self.batch_source:
+            batch_source_proto = self.batch_source.to_proto()
+            batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
 
         stream_source_proto = None
         if self.stream_source:
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
-        spec = FeatureViewSpecProto(
+        source_view_protos = None
+        if self.source_views:
+            source_view_protos = [
+                view._to_proto_internal(seen).spec for view in self.source_views
+            ]
+        return FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
             entity_columns=[field.to_proto() for field in self.entity_columns],
@@ -368,9 +428,8 @@ class FeatureView(BaseFeatureView):
             offline=self.offline,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
+            source_views=source_view_protos,
         )
-
-        return FeatureViewProto(spec=spec, meta=meta)
 
     def to_proto_meta(self):
         meta = FeatureViewMetaProto(materialization_intervals=[])
@@ -393,22 +452,52 @@ class FeatureView(BaseFeatureView):
         return ttl_duration
 
     @classmethod
-    def from_proto(cls, feature_view_proto: FeatureViewProto):
+    def from_proto(cls, feature_view_proto: FeatureViewProto) -> "FeatureView":
+        return cls._from_proto_internal(feature_view_proto, seen={})
+
+    @classmethod
+    def _from_proto_internal(
+        cls,
+        feature_view_proto: FeatureViewProto,
+        seen: Dict[str, Union[None, "FeatureView"]],
+    ) -> "FeatureView":
         """
         Creates a feature view from a protobuf representation of a feature view.
 
         Args:
             feature_view_proto: A protobuf representation of a feature view.
+            seen: A dictionary to keep track of already seen feature views to avoid recursion.
 
         Returns:
             A FeatureViewProto object based on the feature view protobuf.
         """
-        batch_source = DataSource.from_proto(feature_view_proto.spec.batch_source)
+        feature_view_name = feature_view_proto.spec.name
+
+        if feature_view_name in seen:
+            if seen[feature_view_name] is None:
+                raise ValueError(
+                    f"Cycle detected while deserializing FeatureView: {feature_view_name}"
+                )
+            return seen[feature_view_name]  # type: ignore[return-value]
+        seen[feature_view_name] = None
+
+        batch_source = (
+            DataSource.from_proto(feature_view_proto.spec.batch_source)
+            if feature_view_proto.spec.HasField("batch_source")
+            else None
+        )
         stream_source = (
             DataSource.from_proto(feature_view_proto.spec.stream_source)
             if feature_view_proto.spec.HasField("stream_source")
             else None
         )
+        source_views = [
+            FeatureView._from_proto_internal(
+                FeatureViewProto(spec=view_spec, meta=None), seen
+            )
+            for view_spec in feature_view_proto.spec.source_views
+        ]
+
         feature_view = cls(
             name=feature_view_proto.spec.name,
             description=feature_view_proto.spec.description,
@@ -421,7 +510,8 @@ class FeatureView(BaseFeatureView):
                 if feature_view_proto.spec.ttl.ToNanoseconds() == 0
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
-            source=batch_source,
+            source=source_views if source_views else batch_source,
+            sink_source=batch_source if source_views else None,
         )
         if stream_source:
             feature_view.stream_source = stream_source
@@ -468,6 +558,7 @@ class FeatureView(BaseFeatureView):
                 )
             )
 
+        seen[feature_view_name] = feature_view
         return feature_view
 
     @property

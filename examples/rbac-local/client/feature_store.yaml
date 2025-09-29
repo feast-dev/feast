@@ -1,4 +1,3 @@
-entity_key_serialization_version: 2
 offline_store:
   host: localhost
   port: 8815
@@ -10,3 +9,4 @@ project: rbac
 registry:
   path: localhost:6570
   registry_type: remote
+entity_key_serialization_version: 3

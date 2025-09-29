@@ -56,7 +56,6 @@ The transformation workflow typically involves:
 3. **Chunking**: Split documents into smaller, semantically meaningful chunks
 4. **Embedding Generation**: Convert text chunks into vector embeddings
 5. **Storage**: Store embeddings and metadata in Feast's feature store
-
 ### Feature Transformation for LLMs
 
 Feast supports transformations that can be used to:
@@ -105,13 +104,62 @@ This integration enables:
 - Efficiently materializing features to vector databases
 - Scaling RAG applications to enterprise-level document repositories
 
+## Model Context Protocol (MCP) Support
+
+Feast supports the Model Context Protocol (MCP), which enables AI agents and applications to interact with your feature store through standardized MCP interfaces. This allows seamless integration with LLMs and AI agents for GenAI applications.
+
+### Key Benefits of MCP Support
+
+* **Standardized AI Integration**: Enable AI agents to discover and use features dynamically without hardcoded definitions
+* **Easy Setup**: Add MCP support with a simple configuration change and `pip install feast[mcp]`
+* **Agent-Friendly APIs**: Expose feature store capabilities through MCP tools that AI agents can understand and use
+* **Production Ready**: Built on top of Feast's proven feature serving infrastructure
+
+### Getting Started with MCP
+
+1. **Install MCP support**:
+   ```bash
+   pip install feast[mcp]
+   ```
+
+2. **Configure your feature store** to use MCP:
+   ```yaml
+   feature_server:
+     type: mcp
+     enabled: true
+     mcp_enabled: true
+     mcp_server_name: "feast-feature-store"
+     mcp_server_version: "1.0.0"
+   ```
+
+### How It Works
+
+The MCP integration uses the `fastapi_mcp` library to automatically transform your Feast feature server's FastAPI endpoints into MCP-compatible tools. When you enable MCP support:
+
+1. **Automatic Discovery**: The integration scans your FastAPI application and discovers all available endpoints
+2. **Tool Generation**: Each endpoint becomes an MCP tool with auto-generated schemas and descriptions
+3. **Dynamic Access**: AI agents can discover and call these tools dynamically without hardcoded definitions
+4. **Standard Protocol**: Uses the Model Context Protocol for standardized AI-to-API communication
+
+### Available MCP Tools
+
+The fastapi_mcp integration automatically exposes your Feast feature server's FastAPI endpoints as MCP tools. This means AI assistants can:
+
+* **Call `/get-online-features`** to retrieve features from the feature store
+* **Use `/health`** to check server status  
+
+For a complete example, see the [MCP Feature Store Example](../../examples/mcp_feature_store/).
+
 ## Learn More
 
 For more detailed information and examples:
 
 * [Vector Database Reference](../reference/alpha-vector-database.md)
 * [RAG Tutorial with Docling](../tutorials/rag-with-docling.md)
+* [RAG Fine Tuning with Feast and Milvus](../../examples/rag-retriever/README.md)
 * [Milvus Quickstart Example](https://github.com/feast-dev/feast/tree/master/examples/rag/milvus-quickstart.ipynb)
+* [MCP Feature Store Example](../../examples/mcp_feature_store/)
+* [MCP Feature Server Reference](../reference/feature-servers/mcp-feature-server.md)
 * [Spark Data Source](../reference/data-sources/spark.md)
 * [Spark Offline Store](../reference/offline-stores/spark.md)
-* [Spark Batch Materialization](../reference/batch-materialization/spark.md)
+* [Spark Compute Engine](../reference/compute-engine/spark.md)

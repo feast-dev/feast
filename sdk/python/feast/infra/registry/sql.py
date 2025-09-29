@@ -15,6 +15,7 @@ from sqlalchemy import (  # type: ignore
     MetaData,
     String,
     Table,
+    Text,
     create_engine,
     delete,
     insert,
@@ -209,7 +210,7 @@ feast_metadata = Table(
     metadata,
     Column("project_id", String(255), primary_key=True),
     Column("metadata_key", String(50), primary_key=True),
-    Column("metadata_value", String(50), nullable=False),
+    Column("metadata_value", Text, nullable=False),
     Column("last_updated_timestamp", BigInteger, nullable=False),
 )
 
@@ -268,17 +269,17 @@ class SqlRegistry(CachingRegistry):
             registry_config.thread_pool_executor_worker_count
         )
         self.purge_feast_metadata = registry_config.purge_feast_metadata
+        super().__init__(
+            project=project,
+            cache_ttl_seconds=registry_config.cache_ttl_seconds,
+            cache_mode=registry_config.cache_mode,
+        )
         # Sync feast_metadata to projects table
         # when purge_feast_metadata is set to True, Delete data from
         # feast_metadata table and list_project_metadata will not return any data
         self._sync_feast_metadata_to_projects_table()
         if not self.purge_feast_metadata:
             self._maybe_init_project_metadata(project)
-        super().__init__(
-            project=project,
-            cache_ttl_seconds=registry_config.cache_ttl_seconds,
-            cache_mode=registry_config.cache_mode,
-        )
 
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: dict = {}
@@ -326,6 +327,7 @@ class SqlRegistry(CachingRegistry):
             entities,
             data_sources,
             feature_views,
+            stream_feature_views,
             feature_services,
             on_demand_feature_views,
             saved_datasets,
@@ -702,7 +704,7 @@ class SqlRegistry(CachingRegistry):
 
     def apply_materialization(
         self,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         project: str,
         start_date: datetime,
         end_date: datetime,
@@ -845,18 +847,6 @@ class SqlRegistry(CachingRegistry):
             project_name = project.name
             last_updated_timestamp = project.last_updated_timestamp
 
-            try:
-                cached_project = self.get_project(project_name, True)
-            except ProjectObjectNotFoundException:
-                cached_project = None
-
-            allow_cache = False
-
-            if cached_project is not None:
-                allow_cache = (
-                    last_updated_timestamp <= cached_project.last_updated_timestamp
-                )
-
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
 
@@ -871,7 +861,7 @@ class SqlRegistry(CachingRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project_name, allow_cache)  # type: ignore
+                objs: List[Any] = lister(project_name, allow_cache=False)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
@@ -939,8 +929,6 @@ class SqlRegistry(CachingRegistry):
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
             )
             row = conn.execute(stmt).first()
-            if hasattr(obj, "last_updated_timestamp"):
-                obj.last_updated_timestamp = update_datetime
 
             if row:
                 if proto_field_name in [
@@ -950,21 +938,30 @@ class SqlRegistry(CachingRegistry):
                     "feature_service_proto",
                     "permission_proto",
                     "project_proto",
+                    "data_source_proto",
                 ]:
                     deserialized_proto = self.deserialize_registry_values(
                         row._mapping[proto_field_name], type(obj)
                     )
-                    obj.created_timestamp = (
-                        deserialized_proto.meta.created_timestamp.ToDatetime().replace(
+                    if deserialized_proto is not None:
+                        # Check if the object has actually changed (same as feature views)
+                        existing_obj = type(obj).from_proto(deserialized_proto)
+                        if existing_obj == obj:
+                            return  # No changes, exit early
+
+                        # Object has changed, preserve created_timestamp, update last_updated_timestamp
+                        obj.created_timestamp = deserialized_proto.meta.created_timestamp.ToDatetime().replace(
                             tzinfo=timezone.utc
                         )
-                    )
-                    if isinstance(obj, (FeatureView, StreamFeatureView)):
-                        obj.update_materialization_intervals(
-                            type(obj)
-                            .from_proto(deserialized_proto)
-                            .materialization_intervals
-                        )
+                        if hasattr(obj, "last_updated_timestamp"):
+                            obj.last_updated_timestamp = update_datetime
+                        if isinstance(obj, (FeatureView, StreamFeatureView)):
+                            obj.update_materialization_intervals(
+                                type(obj)
+                                .from_proto(deserialized_proto)
+                                .materialization_intervals
+                            )
+
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),
                     "last_updated_timestamp": update_time,
@@ -981,6 +978,12 @@ class SqlRegistry(CachingRegistry):
                 )
                 conn.execute(update_stmt)
             else:
+                # Creating new object - set timestamps consistently for all objects
+                if hasattr(obj, "created_timestamp"):
+                    obj.created_timestamp = update_datetime
+                if hasattr(obj, "last_updated_timestamp"):
+                    obj.last_updated_timestamp = update_datetime
+
                 obj_proto = obj.to_proto()
 
                 if hasattr(obj_proto, "meta") and hasattr(
@@ -1005,7 +1008,10 @@ class SqlRegistry(CachingRegistry):
                     self.get_project(name=project, allow_cache=False), commit=True
                 )
             if not self.purge_feast_metadata:
-                self._set_last_updated_metadata(update_datetime, project)
+                self._set_last_updated_metadata(update_datetime, project, conn)
+
+        if self.cache_mode == "sync":
+            self.refresh()
 
     def _maybe_init_project_metadata(self, project):
         # Initialize project metadata if needed
@@ -1047,8 +1053,10 @@ class SqlRegistry(CachingRegistry):
                 self.get_project(name=project, allow_cache=False), commit=True
             )
             if not self.purge_feast_metadata:
-                self._set_last_updated_metadata(_utc_now(), project)
+                self._set_last_updated_metadata(_utc_now(), project, conn)
 
+            if self.cache_mode == "sync":
+                self.refresh()
             return rows.rowcount
 
     def _get_object(
@@ -1098,39 +1106,45 @@ class SqlRegistry(CachingRegistry):
                 return objects
         return []
 
-    def _set_last_updated_metadata(self, last_updated: datetime, project: str):
-        with self.write_engine.begin() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key
-                == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                feast_metadata.c.project_id == project,
+    def _set_last_updated_metadata(
+        self, last_updated: datetime, project: str, conn=None
+    ):
+        if conn is None:
+            with self.write_engine.begin() as conn:
+                self._set_last_updated_metadata(last_updated, project, conn)
+            return
+
+        stmt = select(feast_metadata).where(
+            feast_metadata.c.metadata_key
+            == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
+            feast_metadata.c.project_id == project,
+        )
+        row = conn.execute(stmt).first()
+
+        update_time = int(last_updated.timestamp())
+
+        values = {
+            "metadata_key": FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
+            "metadata_value": f"{update_time}",
+            "last_updated_timestamp": update_time,
+            "project_id": project,
+        }
+        if row:
+            update_stmt = (
+                update(feast_metadata)
+                .where(
+                    feast_metadata.c.metadata_key
+                    == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
+                    feast_metadata.c.project_id == project,
+                )
+                .values(values)
             )
-            row = conn.execute(stmt).first()
-
-            update_time = int(last_updated.timestamp())
-
-            values = {
-                "metadata_key": FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                "metadata_value": f"{update_time}",
-                "last_updated_timestamp": update_time,
-                "project_id": project,
-            }
-            if row:
-                update_stmt = (
-                    update(feast_metadata)
-                    .where(
-                        feast_metadata.c.metadata_key
-                        == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                        feast_metadata.c.project_id == project,
-                    )
-                    .values(values)
-                )
-                conn.execute(update_stmt)
-            else:
-                insert_stmt = insert(feast_metadata).values(
-                    values,
-                )
-                conn.execute(insert_stmt)
+            conn.execute(update_stmt)
+        else:
+            insert_stmt = insert(feast_metadata).values(
+                values,
+            )
+            conn.execute(insert_stmt)
 
     def _get_last_updated_metadata(self, project: str):
         with self.read_engine.begin() as conn:
@@ -1256,3 +1270,51 @@ class SqlRegistry(CachingRegistry):
             return
 
         raise ProjectNotFoundException(name)
+
+    def set_project_metadata(self, project: str, key: str, value: str, conn=None):
+        """Set a custom project metadata key-value pair in the feast_metadata table."""
+        from feast.utils import _utc_now
+
+        update_time = int(_utc_now().timestamp())
+
+        if conn is None:
+            with self.write_engine.begin() as conn:
+                self.set_project_metadata(project, key, value, conn)
+            return
+
+        stmt = select(feast_metadata).where(
+            feast_metadata.c.project_id == project,
+            feast_metadata.c.metadata_key == key,
+        )
+        row = conn.execute(stmt).first()
+        values = {
+            "metadata_key": key,
+            "metadata_value": value,
+            "last_updated_timestamp": update_time,
+            "project_id": project,
+        }
+        if row:
+            update_stmt = (
+                update(feast_metadata)
+                .where(
+                    feast_metadata.c.project_id == project,
+                    feast_metadata.c.metadata_key == key,
+                )
+                .values(values)
+            )
+            conn.execute(update_stmt)
+        else:
+            insert_stmt = insert(feast_metadata).values(values)
+            conn.execute(insert_stmt)
+
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """Get a custom project metadata value by key from the feast_metadata table."""
+        with self.read_engine.begin() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.project_id == project,
+                feast_metadata.c.metadata_key == key,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                return row._mapping["metadata_value"]
+            return None

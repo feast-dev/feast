@@ -125,6 +125,12 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 
 			if services.Registry.Local.Server != nil {
 				setDefaultCtrConfigs(&services.Registry.Local.Server.ContainerConfigs.DefaultCtrConfigs)
+				// Set default for GRPC: true if nil
+				if services.Registry.Local.Server.GRPC == nil {
+					defaultGRPC := true
+					services.Registry.Local.Server.GRPC = &defaultGRPC
+				}
+
 			}
 		} else if services.Registry.Remote.FeastRef != nil && len(services.Registry.Remote.FeastRef.Namespace) == 0 {
 			services.Registry.Remote.FeastRef.Namespace = cr.Namespace

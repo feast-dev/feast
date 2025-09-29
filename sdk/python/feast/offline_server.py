@@ -5,7 +5,7 @@ import os
 import sys
 import traceback
 from datetime import datetime
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, List, Optional, cast
 
 import click
 import pyarrow as pa
@@ -358,6 +358,7 @@ class OfflineServer(fl.FlightServerBase):
             data_source=data_source,
             join_key_columns=command["join_key_columns"],
             feature_name_columns=command["feature_name_columns"],
+            created_timestamp_column=command["created_timestamp_column"],
             timestamp_field=command["timestamp_field"],
             start_date=utils.make_tzaware(
                 datetime.fromisoformat(command["start_date"])
@@ -412,20 +413,24 @@ class OfflineServer(fl.FlightServerBase):
             ),
         ]
 
-    def _validate_get_historical_features_parameters(self, command: dict, key: str):
-        assert key in self.flights, f"missing key={key}"
+    def _validate_get_historical_features_parameters(
+        self, command: dict, key: Optional[str] = None
+    ):
+        if key:
+            assert key in self.flights, f"missing key={key}"
         assert "feature_view_names" in command, "feature_view_names is mandatory"
         assert "name_aliases" in command, "name_aliases is mandatory"
         assert "feature_refs" in command, "feature_refs is mandatory"
         assert "project" in command, "project is mandatory"
         assert "full_feature_names" in command, "full_feature_names is mandatory"
 
-    def get_historical_features(self, command: dict, key: str):
+    def get_historical_features(self, command: dict, key: Optional[str] = None):
         self._validate_get_historical_features_parameters(command, key)
-
-        # Extract parameters from the internal flights dictionary
-        entity_df_value = self.flights[key]
-        entity_df = pa.Table.to_pandas(entity_df_value)
+        entity_df = None
+        if key:
+            # Extract parameters from the internal flights dictionary
+            entity_df_value = self.flights[key]
+            entity_df = pa.Table.to_pandas(entity_df_value)
 
         feature_view_names = command["feature_view_names"]
         name_aliases = command["name_aliases"]

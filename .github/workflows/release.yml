@@ -112,40 +112,10 @@ jobs:
       - name: Build & version operator-specific release files
         run: make -C infra/feast-operator build-installer bundle
 
-  publish-web-ui-npm:
-    needs: [ validate_version_bumps, get_dry_release_versions ]
-    runs-on: ubuntu-latest
-    env:
-      # This publish is working using an NPM automation token to bypass 2FA
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
-      NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: './ui/.nvmrc'
-      - name: Bump file versions (temporarily for Web UI publish)
-        run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
-      - name: Install yarn dependencies
-        working-directory: ./ui
-        run: yarn install
-      - name: Build yarn rollup
-        working-directory: ./ui
-        run: yarn build:lib
-      - name: Publish UI package
-        working-directory: ./ui
-        if: github.event.inputs.dry_run == 'false' && github.event.inputs.publish_ui == 'true'
-        run: npm publish
-        env:
-          # This publish is working using an NPM automation token to bypass 2FA
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
   release:
     name: release
     runs-on: ubuntu-latest
-    needs: publish-web-ui-npm
+    needs: validate_version_bumps
     env:
       GITHUB_TOKEN: ${{ github.event.inputs.token }}
       GIT_AUTHOR_NAME: feast-ci-bot

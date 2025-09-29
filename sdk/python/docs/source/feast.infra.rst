@@ -11,7 +11,7 @@ Subpackages
    feast.infra.compute_engines
    feast.infra.contrib
    feast.infra.feature_servers
-   feast.infra.materialization
+   feast.infra.mcp_servers
    feast.infra.offline_stores
    feast.infra.online_stores
    feast.infra.registry

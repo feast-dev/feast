@@ -8,6 +8,7 @@ import dill
 import pyarrow
 from typeguard import typechecked
 
+from feast.aggregation import Aggregation
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestSource
 from feast.entity import Entity
@@ -38,6 +39,7 @@ from feast.utils import _utc_now
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
+OnDemandSourceType = Union[FeatureView, FeatureViewProjection, RequestSource]
 
 
 @typechecked
@@ -75,6 +77,7 @@ class OnDemandFeatureView(BaseFeatureView):
     singleton: bool
     udf: Optional[FunctionType]
     udf_string: Optional[str]
+    aggregations: List[Aggregation]
 
     def __init__(  # noqa: C901
         self,
@@ -82,13 +85,7 @@ class OnDemandFeatureView(BaseFeatureView):
         name: str,
         entities: Optional[List[Entity]] = None,
         schema: Optional[List[Field]] = None,
-        sources: List[
-            Union[
-                FeatureView,
-                RequestSource,
-                FeatureViewProjection,
-            ]
-        ],
+        sources: List[OnDemandSourceType],
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
@@ -98,6 +95,7 @@ class OnDemandFeatureView(BaseFeatureView):
         owner: str = "",
         write_to_online_store: bool = False,
         singleton: bool = False,
+        aggregations: Optional[List[Aggregation]] = None,
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -123,6 +121,7 @@ class OnDemandFeatureView(BaseFeatureView):
             the online store for faster retrieval.
             singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
                 (only applicable when mode="python").
+            aggregations (optional): List of aggregations to apply before transformation.
         """
         super().__init__(
             name=name,
@@ -192,6 +191,7 @@ class OnDemandFeatureView(BaseFeatureView):
         self.singleton = singleton
         if self.singleton and self.mode != "python":
             raise ValueError("Singleton is only supported for Python mode.")
+        self.aggregations = aggregations or []
 
     def get_feature_transformation(self) -> Transformation:
         if not self.udf:
@@ -256,6 +256,7 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.write_to_online_store != other.write_to_online_store
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.singleton != other.singleton
+            or self.aggregations != other.aggregations
         ):
             return False
 
@@ -347,6 +348,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton if self.singleton else False,
+            aggregations=self.aggregations,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
@@ -456,6 +458,12 @@ class OnDemandFeatureView(BaseFeatureView):
         if hasattr(on_demand_feature_view_proto.spec, "singleton"):
             singleton = on_demand_feature_view_proto.spec.singleton
 
+        aggregations = []
+        if hasattr(on_demand_feature_view_proto.spec, "aggregations"):
+            aggregations = [
+                Aggregation.from_proto(aggregation_proto)
+                for aggregation_proto in on_demand_feature_view_proto.spec.aggregations
+            ]
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
             schema=[
@@ -468,7 +476,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
                 for feature in on_demand_feature_view_proto.spec.features
             ],
-            sources=sources,
+            sources=cast(List[OnDemandSourceType], sources),
             feature_transformation=transformation,
             mode=on_demand_feature_view_proto.spec.mode or "pandas",
             description=on_demand_feature_view_proto.spec.description,
@@ -476,6 +484,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=on_demand_feature_view_proto.spec.owner,
             write_to_online_store=write_to_online_store,
             singleton=singleton,
+            aggregations=aggregations,
         )
 
         on_demand_feature_view_obj.entities = entities
@@ -690,6 +699,9 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.BYTES: [str.encode("hello world")],
             ValueType.PDF_BYTES: [
                 b"%PDF-1.3\n3 0 obj\n<</Type /Page\n/Parent 1 0 R\n/Resources 2 0 R\n/Contents 4 0 R>>\nendobj\n4 0 obj\n<</Filter /FlateDecode /Length 115>>\nstream\nx\x9c\x15\xcc1\x0e\x820\x18@\xe1\x9dS\xbcM]jk$\xd5\xd5(\x83!\x86\xa1\x17\xf8\xa3\xa5`LIh+\xd7W\xc6\xf7\r\xef\xc0\xbd\xd2\xaa\xb6,\xd5\xc5\xb1o\x0c\xa6VZ\xe3znn%\xf3o\xab\xb1\xe7\xa3:Y\xdc\x8bm\xeb\xf3&1\xc8\xd7\xd3\x97\xc82\xe6\x81\x87\xe42\xcb\x87Vb(\x12<\xdd<=}Jc\x0cL\x91\xee\xda$\xb5\xc3\xbd\xd7\xe9\x0f\x8d\x97 $\nendstream\nendobj\n1 0 obj\n<</Type /Pages\n/Kids [3 0 R ]\n/Count 1\n/MediaBox [0 0 595.28 841.89]\n>>\nendobj\n5 0 obj\n<</Type /Font\n/BaseFont /Helvetica\n/Subtype /Type1\n/Encoding /WinAnsiEncoding\n>>\nendobj\n2 0 obj\n<<\n/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]\n/Font <<\n/F1 5 0 R\n>>\n/XObject <<\n>>\n>>\nendobj\n6 0 obj\n<<\n/Producer (PyFPDF 1.7.2 http://pyfpdf.googlecode.com/)\n/Title (This is a sample title.)\n/Author (Francisco Javier Arceo)\n/CreationDate (D:20250312165548)\n>>\nendobj\n7 0 obj\n<<\n/Type /Catalog\n/Pages 1 0 R\n/OpenAction [3 0 R /FitH null]\n/PageLayout /OneColumn\n>>\nendobj\nxref\n0 8\n0000000000 65535 f \n0000000272 00000 n \n0000000455 00000 n \n0000000009 00000 n \n0000000087 00000 n \n0000000359 00000 n \n0000000559 00000 n \n0000000734 00000 n \ntrailer\n<<\n/Size 8\n/Root 7 0 R\n/Info 6 0 R\n>>\nstartxref\n837\n%%EOF\n"
+            ],
+            ValueType.IMAGE_BYTES: [
+                b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00\x3f\x00\xaa\xff\xd9"
             ],
             ValueType.STRING: ["hello world"],
             ValueType.INT32: [1],

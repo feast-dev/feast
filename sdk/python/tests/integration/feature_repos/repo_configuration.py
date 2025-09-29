@@ -27,6 +27,9 @@ from feast.infra.feature_servers.base_config import (
     FeatureLoggingConfig,
 )
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
+from feast.infra.offline_stores.contrib.ray_repo_configuration import (
+    RayDataSourceCreator,
+)
 from feast.permissions.action import AuthzedAction
 from feast.permissions.auth_model import OidcClientAuthConfig
 from feast.permissions.permission import Permission
@@ -137,6 +140,7 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", RemoteOfflineStoreDataSourceCreator),
     ("local", RemoteOfflineOidcAuthStoreDataSourceCreator),
     ("local", RemoteOfflineTlsStoreDataSourceCreator),
+    ("local", RayDataSourceCreator),
 ]
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
@@ -528,7 +532,7 @@ def construct_test_environment(
     fixture_request: Optional[pytest.FixtureRequest],
     test_suite_name: str = "integration_test",
     worker_id: str = "worker_id",
-    entity_key_serialization_version: int = 2,
+    entity_key_serialization_version: int = 3,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
@@ -564,14 +568,6 @@ def construct_test_environment(
             path=str(Path(repo_dir_name) / "registry.db"),
             cache_ttl_seconds=1,
         )
-
-    online_store = (
-        test_repo_config.online_store.get("type")
-        if isinstance(test_repo_config.online_store, dict)
-        else test_repo_config.online_store
-    )
-    if online_store in ["milvus", "pgvector", "qdrant", "elasticsearch"]:
-        entity_key_serialization_version = 3
 
     environment_params = {
         "name": project,

@@ -12,14 +12,6 @@ feast.infra.compute\_engines.spark.compute module
    :undoc-members:
    :show-inheritance:
 
-feast.infra.compute\_engines.spark.config module
-------------------------------------------------
-
-.. automodule:: feast.infra.compute_engines.spark.config
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.infra.compute\_engines.spark.feature\_builder module
 ----------------------------------------------------------
 

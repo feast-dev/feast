@@ -1,5 +1,7 @@
+import json
 import uuid
 from pathlib import Path
+from typing import Optional
 
 from feast.infra.registry.registry_store import RegistryStore
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -42,3 +44,51 @@ class FileRegistryStore(RegistryStore):
         file_dir.mkdir(exist_ok=True)
         with open(self._filepath, mode="wb", buffering=0) as f:
             f.write(registry_proto.SerializeToString())
+
+    def set_project_metadata(self, project: str, key: str, value: str):
+        """Set a custom project metadata key-value pair in the registry proto (file backend)."""
+        registry_proto = self.get_registry_proto()
+        found = False
+        for pm in registry_proto.project_metadata:
+            if pm.project == project:
+                # Use a special key for custom metadata
+                if hasattr(pm, "custom_metadata"):
+                    # If custom_metadata is a map<string, string>
+                    pm.custom_metadata[key] = value
+                else:
+                    # Fallback: store as JSON in a special key
+                    try:
+                        meta = json.loads(pm.project_uuid) if pm.project_uuid else {}
+                    except Exception:
+                        meta = {}
+                    if not isinstance(meta, dict):
+                        meta = {}
+                    meta[key] = value
+                    pm.project_uuid = json.dumps(meta)
+                found = True
+                break
+        if not found:
+            from feast.project_metadata import ProjectMetadata
+
+            pm = ProjectMetadata(project_name=project)
+            # Fallback: store as JSON in project_uuid
+            pm.project_uuid = json.dumps({key: value})
+            registry_proto.project_metadata.append(pm.to_proto())
+        self.update_registry_proto(registry_proto)
+
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """Get a custom project metadata value by key from the registry proto (file backend)."""
+        registry_proto = self.get_registry_proto()
+        for pm in registry_proto.project_metadata:
+            if pm.project == project:
+                if hasattr(pm, "custom_metadata"):
+                    return pm.custom_metadata.get(key, None)
+                else:
+                    try:
+                        meta = json.loads(pm.project_uuid) if pm.project_uuid else {}
+                    except Exception:
+                        meta = {}
+                    if not isinstance(meta, dict):
+                        return None
+                    return meta.get(key, None)
+        return None

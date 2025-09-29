@@ -28,10 +28,10 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
-from feast.infra.infra_object import Infra, InfraObject
-from feast.infra.materialization.batch_materialization_engine import (
-    BatchMaterializationEngine,
+from feast.infra.compute_engines.base import (
+    ComputeEngine,
 )
+from feast.infra.infra_object import Infra, InfraObject
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
@@ -64,7 +64,7 @@ class PassthroughProvider(Provider):
         self.repo_config = config
         self._offline_store = None
         self._online_store = None
-        self._batch_engine: Optional[BatchMaterializationEngine] = None
+        self._batch_engine: Optional[ComputeEngine] = None
 
     @property
     def online_store(self):
@@ -89,7 +89,7 @@ class PassthroughProvider(Provider):
         )
 
     @property
-    def batch_engine(self) -> BatchMaterializationEngine:
+    def batch_engine(self) -> ComputeEngine:
         if self._batch_engine:
             return self._batch_engine
         else:
@@ -420,17 +420,25 @@ class PassthroughProvider(Provider):
     def materialize_single_feature_view(
         self,
         config: RepoConfig,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         start_date: datetime,
         end_date: datetime,
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
     ) -> None:
+        if isinstance(feature_view, OnDemandFeatureView):
+            if not feature_view.write_to_online_store:
+                raise ValueError(
+                    f"OnDemandFeatureView {feature_view.name} does not have write_to_online_store enabled"
+                )
+            return
         assert (
             isinstance(feature_view, BatchFeatureView)
             or isinstance(feature_view, StreamFeatureView)
             or isinstance(feature_view, FeatureView)
+            or isinstance(feature_view, OnDemandFeatureView)
         ), f"Unexpected type for {feature_view.name}: {type(feature_view)}"
         task = MaterializationTask(
             project=project,
@@ -438,8 +446,9 @@ class PassthroughProvider(Provider):
             start_time=start_date,
             end_time=end_date,
             tqdm_builder=tqdm_builder,
+            disable_event_timestamp=disable_event_timestamp,
         )
-        jobs = self.batch_engine.materialize(registry, [task])
+        jobs = self.batch_engine.materialize(registry, task)
         assert len(jobs) == 1
         if jobs[0].status() == MaterializationJobStatus.ERROR and jobs[0].error():
             e = jobs[0].error()
@@ -451,10 +460,11 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         feature_views: List[Union[FeatureView, OnDemandFeatureView]],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
+        **kwargs,
     ) -> RetrievalJob:
         job = self.offline_store.get_historical_features(
             config=config,
@@ -464,6 +474,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            **kwargs,
         )
 
         return job

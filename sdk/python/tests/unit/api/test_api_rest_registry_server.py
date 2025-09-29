@@ -40,7 +40,9 @@ def test_rest_registry_server_initializes_correctly(
     assert server.grpc_handler == mock_grpc_handler
 
     # Validate route registration and auth init
-    mock_register_all_routes.assert_called_once_with(server.app, mock_grpc_handler)
+    mock_register_all_routes.assert_called_once_with(
+        server.app, mock_grpc_handler, server
+    )
     mock_init_security_manager.assert_called_once()
     mock_init_auth_manager.assert_called_once()
     mock_get_auth_manager.assert_called_once()
@@ -67,3 +69,18 @@ def test_routes_registered_in_app(mock_store_and_registry):
     assert "/data_sources" in route_paths
     assert "/saved_datasets" in route_paths
     assert "/permissions" in route_paths
+    assert "/lineage/registry" in route_paths
+    assert "/lineage/objects/{object_type}/{object_name}" in route_paths
+    assert "/lineage/complete" in route_paths
+    assert "/entities/all" in route_paths
+    assert "/feature_views/all" in route_paths
+    assert "/data_sources/all" in route_paths
+    assert "/feature_services/all" in route_paths
+    assert "/saved_datasets/all" in route_paths
+    assert "/lineage/registry/all" in route_paths
+    assert "/lineage/complete/all" in route_paths
+    assert "/features" in route_paths
+    assert "/features/all" in route_paths
+    assert "/features/{feature_view}/{name}" in route_paths
+    assert "/metrics/resource_counts" in route_paths
+    assert "/metrics/recently_visited" in route_paths

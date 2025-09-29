@@ -113,6 +113,10 @@ class MsSqlServerOptions:
 class MsSqlServerSource(DataSource):
     """A MsSqlServerSource object defines a data source that a MsSqlServerOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        # TODO: Add MsSqlServerSource to DataSourceProto.SourceType
+        return DataSourceProto.CUSTOM_SOURCE
+
     def __init__(
         self,
         name: str,
@@ -220,7 +224,7 @@ class MsSqlServerSource(DataSource):
             date_partition_column=data_source.date_partition_column,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.CUSTOM_SOURCE,
             data_source_class_type="feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source.MsSqlServerSource",

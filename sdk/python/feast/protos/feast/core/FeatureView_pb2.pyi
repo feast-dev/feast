@@ -91,6 +91,7 @@ class FeatureViewSpec(google.protobuf.message.Message):
     STREAM_SOURCE_FIELD_NUMBER: builtins.int
     ONLINE_FIELD_NUMBER: builtins.int
     OFFLINE_FIELD_NUMBER: builtins.int
+    SOURCE_VIEWS_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -130,6 +131,8 @@ class FeatureViewSpec(google.protobuf.message.Message):
     """
     offline: builtins.bool
     """Whether these features should be written to the offline store"""
+    @property
+    def source_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureViewSpec]: ...
     def __init__(
         self,
         *,
@@ -146,9 +149,10 @@ class FeatureViewSpec(google.protobuf.message.Message):
         stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
         online: builtins.bool = ...,
         offline: builtins.bool = ...,
+        source_views: collections.abc.Iterable[global___FeatureViewSpec] | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 
