@@ -1,18 +1,17 @@
 # This is an automatically generated file, please do not change
 # gen by protobuf_to_pydantic[v0.3.3.1](https://github.com/so1n/protobuf_to_pydantic)
-# Protobuf Version: 4.25.8 
-# Pydantic Version: 2.10.6 
-from enum import IntEnum
-from google.protobuf.message import Message  # type: ignore
-from protobuf_to_pydantic.customer_validator import check_one_of
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import Field
-from pydantic import model_validator
+# Protobuf Version: 4.25.8
+# Pydantic Version: 2.10.6
 import typing
+from enum import IntEnum
+
+from protobuf_to_pydantic.customer_validator import check_one_of
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 
 class Null(IntEnum):
     NULL = 0
+
 
 class ValueType(BaseModel):
     class Enum(IntEnum):
@@ -35,29 +34,59 @@ class ValueType(BaseModel):
         UNIX_TIMESTAMP_LIST = 18
         NULL = 19
 
+
 class BytesList(BaseModel):
     val: typing.List[bytes] = Field(default_factory=list)
+
 
 class StringList(BaseModel):
     val: typing.List[str] = Field(default_factory=list)
 
+
 class Int32List(BaseModel):
     val: typing.List[int] = Field(default_factory=list)
+
 
 class Int64List(BaseModel):
     val: typing.List[int] = Field(default_factory=list)
 
+
 class DoubleList(BaseModel):
     val: typing.List[float] = Field(default_factory=list)
+
 
 class FloatList(BaseModel):
     val: typing.List[float] = Field(default_factory=list)
 
+
 class BoolList(BaseModel):
     val: typing.List[bool] = Field(default_factory=list)
 
+
 class Value(BaseModel):
-    _one_of_dict = {"Value.val": {"fields": {"bool_list_val", "bool_val", "bytes_list_val", "bytes_val", "double_list_val", "double_val", "float_list_val", "float_val", "int32_list_val", "int32_val", "int64_list_val", "int64_val", "null_val", "string_list_val", "string_val", "unix_timestamp_list_val", "unix_timestamp_val"}}}
+    _one_of_dict = {
+        "Value.val": {
+            "fields": {
+                "bool_list_val",
+                "bool_val",
+                "bytes_list_val",
+                "bytes_val",
+                "double_list_val",
+                "double_val",
+                "float_list_val",
+                "float_val",
+                "int32_list_val",
+                "int32_val",
+                "int64_list_val",
+                "int64_val",
+                "null_val",
+                "string_list_val",
+                "string_val",
+                "unix_timestamp_list_val",
+                "unix_timestamp_val",
+            }
+        }
+    }
     one_of_validator = model_validator(mode="before")(check_one_of)
     model_config = ConfigDict(validate_default=True)
     bytes_val: bytes = Field(default=b"")
@@ -78,10 +107,11 @@ class Value(BaseModel):
     unix_timestamp_list_val: Int64List = Field(default_factory=Int64List)
     null_val: Null = Field(default=0)
 
+
 class RepeatedValue(BaseModel):
     """
-     This is to avoid an issue of being unable to specify `repeated value` in oneofs or maps
- In JSON "val" field can be omitted
+        This is to avoid an issue of being unable to specify `repeated value` in oneofs or maps
+    In JSON "val" field can be omitted
     """
 
     val: typing.List[Value] = Field(default_factory=list)

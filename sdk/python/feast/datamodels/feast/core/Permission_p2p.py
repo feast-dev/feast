@@ -1,15 +1,14 @@
 # This is an automatically generated file, please do not change
 # gen by protobuf_to_pydantic[v0.3.3.1](https://github.com/so1n/protobuf_to_pydantic)
-# Protobuf Version: 4.25.8 
-# Pydantic Version: 2.10.6 
-from .Policy_p2p import Policy
+# Protobuf Version: 4.25.8
+# Pydantic Version: 2.10.6
+import typing
 from datetime import datetime
 from enum import IntEnum
-from google.protobuf.message import Message  # type: ignore
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import Field
-import typing
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from .Policy_p2p import Policy
 
 
 class PermissionSpec(BaseModel):
@@ -37,26 +36,28 @@ class PermissionSpec(BaseModel):
         PROJECT = 10
 
     model_config = ConfigDict(validate_default=True)
-# Name of the permission. Must be unique. Not updated.
+    # Name of the permission. Must be unique. Not updated.
     name: str = Field(default="")
-# Name of Feast project.
+    # Name of Feast project.
     project: str = Field(default="")
     types: typing.List[Type] = Field(default_factory=list)
     name_patterns: typing.List[str] = Field(default_factory=list)
     required_tags: "typing.Dict[str, str]" = Field(default_factory=dict)
-# List of actions.
+    # List of actions.
     actions: typing.List[AuthzedAction] = Field(default_factory=list)
-# the policy.
+    # the policy.
     policy: Policy = Field(default_factory=Policy)
-# User defined metadata
+    # User defined metadata
     tags: "typing.Dict[str, str]" = Field(default_factory=dict)
+
 
 class PermissionMeta(BaseModel):
     created_timestamp: datetime = Field(default_factory=datetime.now)
     last_updated_timestamp: datetime = Field(default_factory=datetime.now)
 
+
 class Permission(BaseModel):
-# User-specified specifications of this permission.
+    # User-specified specifications of this permission.
     spec: PermissionSpec = Field(default_factory=PermissionSpec)
-# System-populated metadata for this permission.
+    # System-populated metadata for this permission.
     meta: PermissionMeta = Field(default_factory=PermissionMeta)
