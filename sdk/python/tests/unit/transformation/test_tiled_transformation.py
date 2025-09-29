@@ -3,11 +3,11 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pytest
 
-from feast.transformation.pandas_tiled_transformation import (
-    PandasTiledTransformation,
-    pandas_tiled_transformation,
+from feast.transformation.tiled_transformation import (
+    TiledTransformation,
+    TileConfiguration,
+    tiled_transformation,
 )
-from feast.transformation.tiled_transformation import TileConfiguration
 
 
 def test_tile_configuration():
@@ -33,6 +33,8 @@ def test_pandas_tiled_transformation_basic():
     
     config = TileConfiguration(tile_size=timedelta(hours=1))
     
+    # Import here to avoid circular imports
+    from feast.transformation.pandas_tiled_transformation import PandasTiledTransformation
     transformation = PandasTiledTransformation(
         udf=simple_transform,
         udf_string="lambda df: df.assign(doubled_value=df['value'] * 2)",
@@ -68,6 +70,7 @@ def test_pandas_tiled_transformation_with_aggregation():
     
     config = TileConfiguration(tile_size=timedelta(hours=1))
     
+    from feast.transformation.pandas_tiled_transformation import PandasTiledTransformation
     transformation = PandasTiledTransformation(
         udf=base_transform,
         udf_string="lambda df: df.assign(processed=df['value'] + 1)",
@@ -109,6 +112,7 @@ def test_pandas_tiled_transformation_with_chaining():
         overlap=timedelta(minutes=10)
     )
     
+    from feast.transformation.pandas_tiled_transformation import PandasTiledTransformation
     transformation = PandasTiledTransformation(
         udf=base_transform,
         udf_string="lambda df: df.assign(running_sum=df['value'].cumsum())",
@@ -130,11 +134,12 @@ def test_pandas_tiled_transformation_with_chaining():
     assert 'running_sum' in result.columns
 
 
-def test_pandas_tiled_transformation_decorator():
-    """Test the decorator syntax for pandas tiled transformations."""
+def test_tiled_transformation_decorator():
+    """Test the decorator syntax for tiled transformations."""
     
-    @pandas_tiled_transformation(
+    @tiled_transformation(
         tile_size=timedelta(hours=1),
+        mode="pandas",
         overlap=timedelta(minutes=5),
         aggregation_functions=[
             lambda df: df.groupby('entity_id').agg({'value': 'mean'}).reset_index()
@@ -164,6 +169,7 @@ def test_pandas_tiled_transformation_empty_data():
     
     config = TileConfiguration(tile_size=timedelta(hours=1))
     
+    from feast.transformation.pandas_tiled_transformation import PandasTiledTransformation
     transformation = PandasTiledTransformation(
         udf=simple_transform,
         udf_string="lambda df: df.assign(new_col=1) if not df.empty else df",
@@ -188,6 +194,7 @@ def test_pandas_tiled_transformation_missing_timestamp():
     
     config = TileConfiguration(tile_size=timedelta(hours=1))
     
+    from feast.transformation.pandas_tiled_transformation import PandasTiledTransformation
     transformation = PandasTiledTransformation(
         udf=simple_transform,
         udf_string="lambda df: df",

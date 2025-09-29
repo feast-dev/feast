@@ -176,6 +176,7 @@ class TiledTransformation(Transformation):
 # Factory function for creating tiled transformations
 def tiled_transformation(
     tile_size: timedelta,
+    mode: str = "pandas",
     overlap: Optional[timedelta] = None,
     max_tiles_in_memory: int = 10,
     enable_late_data_handling: bool = True,
@@ -189,9 +190,23 @@ def tiled_transformation(
     """
     Decorator for creating tiled transformations.
     
+    Args:
+        tile_size: The size of each time tile (e.g., timedelta(hours=1))
+        mode: The transformation mode - currently supports "pandas"
+        overlap: Optional overlap between tiles for continuity
+        max_tiles_in_memory: Maximum number of tiles to keep in memory
+        enable_late_data_handling: Whether to handle late-arriving data
+        aggregation_functions: Functions to apply within each tile
+        chaining_functions: Functions for chaining results across tiles
+        name: Optional name for the transformation
+        tags: Optional metadata tags
+        description: Optional description
+        owner: Optional owner
+    
     Example:
         @tiled_transformation(
             tile_size=timedelta(hours=1),
+            mode="pandas",
             overlap=timedelta(minutes=5),
             aggregation_functions=[lambda df: df.groupby('entity_id').sum()]
         )
@@ -201,6 +216,12 @@ def tiled_transformation(
     def decorator(user_function):
         import dill
         
+        def mainify(obj):
+            # Needed to allow dill to properly serialize the udf
+            if obj.__module__ != "__main__":
+                obj.__module__ = "__main__"
+        
+        mainify(user_function)
         udf_string = dill.source.getsource(user_function)
         tile_config = TileConfiguration(
             tile_size=tile_size,
@@ -209,16 +230,33 @@ def tiled_transformation(
             enable_late_data_handling=enable_late_data_handling,
         )
         
-        return TiledTransformation(
-            udf=user_function,
-            udf_string=udf_string,
-            tile_config=tile_config,
-            name=name or user_function.__name__,
-            tags=tags,
-            description=description,
-            owner=owner,
-            aggregation_functions=aggregation_functions,
-            chaining_functions=chaining_functions,
-        )
+        # Create the appropriate transformation based on mode
+        if mode.lower() == "pandas":
+            # Import here to avoid circular imports
+            from feast.transformation.pandas_tiled_transformation import PandasTiledTransformation
+            return PandasTiledTransformation(
+                udf=user_function,
+                udf_string=udf_string,
+                tile_config=tile_config,
+                name=name or user_function.__name__,
+                tags=tags,
+                description=description,
+                owner=owner,
+                aggregation_functions=aggregation_functions,
+                chaining_functions=chaining_functions,
+            )
+        else:
+            # Fallback to base TiledTransformation
+            return TiledTransformation(
+                udf=user_function,
+                udf_string=udf_string,
+                tile_config=tile_config,
+                name=name or user_function.__name__,
+                tags=tags,
+                description=description,
+                owner=owner,
+                aggregation_functions=aggregation_functions,
+                chaining_functions=chaining_functions,
+            )
     
     return decorator

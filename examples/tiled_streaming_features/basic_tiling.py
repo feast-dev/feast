@@ -9,13 +9,14 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # Note: In a real Feast installation, you would import like this:
-# from feast.transformation import pandas_tiled_transformation
+# from feast.transformation import tiled_transformation
 
 # For this example, we'll define a simplified version
-def pandas_tiled_transformation(tile_size, overlap=None, max_tiles_in_memory=10, aggregation_functions=None):
+def tiled_transformation(tile_size, mode="pandas", overlap=None, max_tiles_in_memory=10, aggregation_functions=None):
     """Simplified decorator for demonstration purposes."""
     def decorator(func):
         func.tile_size = tile_size  
+        func.mode = mode
         func.overlap = overlap or timedelta(seconds=0)
         func.aggregation_functions = aggregation_functions or []
         
@@ -38,10 +39,11 @@ def pandas_tiled_transformation(tile_size, overlap=None, max_tiles_in_memory=10,
 
 
 # Define a tiled transformation for transaction features
-@pandas_tiled_transformation(
+@tiled_transformation(
     tile_size=timedelta(hours=1),  # Process data in 1-hour tiles
+    mode="pandas",                 # Use pandas processing mode
     overlap=timedelta(minutes=5),  # 5-minute overlap for continuity
-    max_tiles_in_memory=5,  # Keep max 5 tiles in memory
+    max_tiles_in_memory=5,        # Keep max 5 tiles in memory
     aggregation_functions=[
         # Aggregate by customer within each tile
         lambda df: df.groupby('customer_id').agg({
@@ -109,6 +111,7 @@ def main():
     # Show the effect of tiling configuration
     print(f"\nTile configuration:")
     print(f"- Tile size: {hourly_transaction_features.tile_size}")
+    print(f"- Mode: {hourly_transaction_features.mode}")
     print(f"- Overlap: {hourly_transaction_features.overlap}")
     print(f"- Aggregation functions: {len(hourly_transaction_features.aggregation_functions)}")
 

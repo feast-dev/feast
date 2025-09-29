@@ -129,11 +129,12 @@ Tiling is a transformation pattern designed for efficient streaming feature engi
 Examples include:
 
 ```python
-from feast.transformation import pandas_tiled_transformation
+from feast.transformation import tiled_transformation
 from datetime import timedelta
 
-@pandas_tiled_transformation(
+@tiled_transformation(
     tile_size=timedelta(hours=1),  # Process data in 1-hour tiles
+    mode="pandas",                 # Use pandas processing mode
     overlap=timedelta(minutes=5),  # 5-minute overlap between tiles
     aggregation_functions=[
         lambda df: df.groupby('entity_id').agg({
@@ -159,8 +160,9 @@ stream_fv = StreamFeatureView(
 
 **Chaining Features Example:**
 ```python
-@pandas_tiled_transformation(
+@tiled_transformation(
     tile_size=timedelta(hours=1),
+    mode="pandas",
     chaining_functions=[
         # Chain cumulative sums across tiles for continuity
         lambda prev_df, curr_df: curr_df.assign(
@@ -176,6 +178,7 @@ def chained_cumulative_features(df: pd.DataFrame) -> pd.DataFrame:
 
 **Configuration Options:**
 - `tile_size`: Duration of each time tile (e.g., `timedelta(hours=1)`)
+- `mode`: Processing mode - currently supports `"pandas"`
 - `overlap`: Optional overlap between tiles for continuity
 - `max_tiles_in_memory`: Maximum number of tiles to keep in memory (default: 10)
 - `enable_late_data_handling`: Whether to handle late-arriving data (default: True)

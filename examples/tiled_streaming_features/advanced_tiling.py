@@ -13,11 +13,12 @@ from datetime import datetime, timedelta
 import random
 
 
-def pandas_tiled_transformation(tile_size, overlap=None, max_tiles_in_memory=10, 
-                              aggregation_functions=None, chaining_functions=None):
+def tiled_transformation(tile_size, mode="pandas", overlap=None, max_tiles_in_memory=10, 
+                       aggregation_functions=None, chaining_functions=None):
     """Simplified decorator for demonstration purposes."""
     def decorator(func):
         func.tile_size = tile_size  
+        func.mode = mode
         func.overlap = overlap or timedelta(seconds=0)
         func.aggregation_functions = aggregation_functions or []
         func.chaining_functions = chaining_functions or []
@@ -68,8 +69,9 @@ def pandas_tiled_transformation(tile_size, overlap=None, max_tiles_in_memory=10,
 
 
 # Advanced tiled transformation with chaining
-@pandas_tiled_transformation(
+@tiled_transformation(
     tile_size=timedelta(hours=1),
+    mode="pandas",
     overlap=timedelta(minutes=10),
     max_tiles_in_memory=3,
     aggregation_functions=[
@@ -241,6 +243,7 @@ def main():
     # Show tiling configuration
     print(f"\nAdvanced tiling configuration:")
     print(f"- Tile size: {advanced_customer_features.tile_size}")
+    print(f"- Mode: {advanced_customer_features.mode}")
     print(f"- Overlap: {advanced_customer_features.overlap}")
     print(f"- Aggregation functions: {len(advanced_customer_features.aggregation_functions)}")
     print(f"- Chaining functions: {len(advanced_customer_features.chaining_functions)}")

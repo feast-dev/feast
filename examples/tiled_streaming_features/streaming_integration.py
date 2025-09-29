@@ -37,18 +37,20 @@ class MockKafkaSource:
         return f"KafkaSource(topic='{self.topic}')"
 
 
-def pandas_tiled_transformation(tile_size, overlap=None, **kwargs):
+def tiled_transformation(tile_size, mode="pandas", overlap=None, **kwargs):
     """Mock tiled transformation decorator."""
     def decorator(func):
         func.tile_size = tile_size
+        func.mode = mode  
         func.overlap = overlap or timedelta(seconds=0)
         return func
     return decorator
 
 
 # Define tiled transformation for customer transaction features
-@pandas_tiled_transformation(
+@tiled_transformation(
     tile_size=timedelta(minutes=30),  # 30-minute tiles for real-time processing
+    mode="pandas",                    # Use pandas processing mode
     overlap=timedelta(minutes=2),     # 2-minute overlap for continuity
     max_tiles_in_memory=8,           # Keep 4 hours of tiles in memory
     aggregation_functions=[
@@ -151,8 +153,9 @@ def create_streaming_feature_views():
     )
     
     # Customer behavior aggregations with different tile size
-    @pandas_tiled_transformation(
+    @tiled_transformation(
         tile_size=timedelta(hours=1),  # Larger tiles for behavior patterns
+        mode="pandas",
         aggregation_functions=[
             lambda df: df.groupby('customer_id').agg({
                 'transaction_amount': ['sum', 'count', 'mean'],
@@ -195,6 +198,7 @@ def demonstrate_streaming_pipeline():
         print(f"  - {fv}")
         if hasattr(fv.feature_transformation, 'tile_size'):
             print(f"    Tile size: {fv.feature_transformation.tile_size}")
+            print(f"    Mode: {fv.feature_transformation.mode}")
             print(f"    Overlap: {fv.feature_transformation.overlap}")
     
     print(f"\n=== Key Benefits of Tiled Architecture ===")
@@ -213,8 +217,9 @@ def demonstrate_streaming_pipeline():
     print(f"\n=== Example Usage in Production ===")
     print("""
 # Define tiled transformation
-@pandas_tiled_transformation(
+@tiled_transformation(
     tile_size=timedelta(minutes=30),
+    mode="pandas",
     overlap=timedelta(minutes=2)
 )
 def fraud_features(df):

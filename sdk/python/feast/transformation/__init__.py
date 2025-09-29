@@ -1,7 +1,6 @@
 from .base import Transformation, transformation
 from .mode import TransformationMode
 from .pandas_transformation import PandasTransformation
-from .pandas_tiled_transformation import PandasTiledTransformation, pandas_tiled_transformation
 from .python_transformation import PythonTransformation
 from .spark_transformation import SparkTransformation
 from .sql_transformation import SQLTransformation
@@ -13,9 +12,7 @@ __all__ = [
     "transformation",
     "TransformationMode",
     "PandasTransformation",
-    "PandasTiledTransformation",
-    "pandas_tiled_transformation",
-    "PythonTransformation", 
+    "PythonTransformation",
     "SparkTransformation",
     "SQLTransformation",
     "SubstraitTransformation",
