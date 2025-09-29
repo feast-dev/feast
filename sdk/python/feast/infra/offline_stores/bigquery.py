@@ -114,7 +114,7 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
     @field_validator("billing_project_id")
     def project_id_exists(cls, v, values, **kwargs):
-        if v and not values["project_id"]:
+        if v and not (values.data and values.data["project_id"]):
             raise ValueError(
                 "please specify project_id if billing_project_id is specified"
             )
