@@ -3,6 +3,11 @@ from typing import Dict
 from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.codegen_utils import render_feature_view_code
+from feast.api.registry.rest.response_models import (
+    AnyFeatureViewResponse,
+    ListAllFeatureViewsResponse,
+    ListFeatureViewsAllResponse,
+)
 from feast.api.registry.rest.rest_utils import (
     create_grpc_pagination_params,
     create_grpc_sorting_params,
@@ -52,7 +57,7 @@ def extract_feast_types_from_fields(fields):
 def get_feature_view_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/feature_views/all")
+    @router.get("/feature_views/all", response_model=ListFeatureViewsAllResponse)
     def list_feature_views_all(
         allow_cache: bool = Query(default=True),
         page: int = Query(1, ge=1),
@@ -108,7 +113,7 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             result["relationships"] = relationships_map
         return result
 
-    @router.get("/feature_views/{name}")
+    @router.get("/feature_views/{name}", response_model=AnyFeatureViewResponse)
     def get_any_feature_view(
         name: str,
         project: str = Query(...),
@@ -222,7 +227,7 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
 
         return result
 
-    @router.get("/feature_views")
+    @router.get("/feature_views", response_model=ListAllFeatureViewsResponse)
     def list_all_feature_views(
         project: str = Query(...),
         allow_cache: bool = Query(default=True),

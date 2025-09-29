@@ -5,6 +5,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
+from feast.api.registry.rest.response_models import (
+    CompleteRegistryDataAllResponse,
+    CompleteRegistryDataResponse,
+    RegistryLineageAllResponse,
+)
 from feast.api.registry.rest.rest_utils import (
     create_grpc_pagination_params,
     create_grpc_sorting_params,
@@ -12,6 +17,10 @@ from feast.api.registry.rest.rest_utils import (
     get_pagination_params,
     get_sorting_params,
     grpc_call,
+)
+from feast.datamodels.feast.registry.RegistryServer_p2p import (
+    GetObjectRelationshipsResponse,
+    GetRegistryLineageResponse,
 )
 from feast.protos.feast.registry import RegistryServer_pb2
 
@@ -21,7 +30,7 @@ logger = logging.getLogger(__name__)
 def get_lineage_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/lineage/registry")
+    @router.get("/lineage/registry", response_model=GetRegistryLineageResponse)
     def get_registry_lineage(
         project: str = Query(...),
         allow_cache: bool = Query(True),
@@ -59,7 +68,10 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             ),
         }
 
-    @router.get("/lineage/objects/{object_type}/{object_name}")
+    @router.get(
+        "/lineage/objects/{object_type}/{object_name}",
+        response_model=GetObjectRelationshipsResponse,
+    )
     def get_object_relationships_path(
         object_type: str,
         object_name: str,
@@ -104,7 +116,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
 
         return grpc_call(grpc_handler.GetObjectRelationships, req)
 
-    @router.get("/lineage/complete")
+    @router.get("/lineage/complete", response_model=CompleteRegistryDataResponse)
     def get_complete_registry_data(
         project: str = Query(...),
         allow_cache: bool = Query(True),
@@ -190,7 +202,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             },
         }
 
-    @router.get("/lineage/registry/all")
+    @router.get("/lineage/registry/all", response_model=RegistryLineageAllResponse)
     def get_registry_lineage_all(
         allow_cache: bool = Query(True),
         filter_object_type: Optional[str] = Query(None),
@@ -226,7 +238,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             "indirect_relationships": all_indirect_relationships,
         }
 
-    @router.get("/lineage/complete/all")
+    @router.get("/lineage/complete/all", response_model=CompleteRegistryDataAllResponse)
     def get_complete_registry_data_all(
         allow_cache: bool = Query(True),
     ):
