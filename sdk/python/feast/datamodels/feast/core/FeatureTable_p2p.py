@@ -35,11 +35,11 @@ class FeatureTableSpec(BaseModel):
 # Batch/Offline DataSource to source batch/offline feature data.
 # Only batch DataSource can be specified 
 # (ie source type should start with 'BATCH_')
-    batch_source: DataSource = Field(default_factory=DataSource)
+    batch_source: typing.Optional[DataSource] = Field(default=None)
 # Stream/Online DataSource to source stream/online feature data.
 # Only stream DataSource can be specified 
 # (ie source type should start with 'STREAM_')
-    stream_source: DataSource = Field(default_factory=DataSource)
+    stream_source: typing.Optional[DataSource] = Field(default=None)
 
 class FeatureTableMeta(BaseModel):
 # Time where this Feature Table is created

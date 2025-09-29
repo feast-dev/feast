@@ -28,6 +28,6 @@ class FeatureViewProjection(BaseModel):
     date_partition_column: str = Field(default="")
     created_timestamp_column: str = Field(default="")
 # Batch/Offline DataSource where this view can retrieve offline feature data.
-    batch_source: DataSource = Field(default_factory=DataSource)
+    batch_source: typing.Optional[DataSource] = Field(default=None)
 # Streaming DataSource from where this view can consume "online" feature data.
-    stream_source: DataSource = Field(default_factory=DataSource)
+    stream_source: typing.Optional[DataSource] = Field(default=None)
