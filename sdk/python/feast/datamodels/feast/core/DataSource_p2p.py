@@ -2,13 +2,14 @@
 # gen by protobuf_to_pydantic[v0.3.3.1](https://github.com/so1n/protobuf_to_pydantic)
 # Protobuf Version: 4.25.8 
 # Pydantic Version: 2.10.6 
-from ..types.Value_p2p import Enum
+from ..types.Value_p2p import ValueType
 from .DataFormat_p2p import FileFormat
 from .DataFormat_p2p import StreamFormat
 from .Feature_p2p import FeatureSpecV2
 from datetime import datetime
 from datetime import timedelta
 from enum import IntEnum
+from pydantic import field_validator
 from google.protobuf.message import Message  # type: ignore
 from protobuf_to_pydantic.customer_validator import check_one_of
 from protobuf_to_pydantic.util import Timedelta
@@ -175,7 +176,7 @@ class DataSource(BaseModel):
         """
 
 # Mapping of feature name to type
-        deprecated_schema: "typing.Dict[str, Enum]" = Field(default_factory=dict)
+        deprecated_schema: "typing.Dict[str, ValueType.Enum]" = Field(default_factory=dict)
         schema: typing.List[FeatureSpecV2] = Field(default_factory=list)
 
     class PushOptions(BaseModel):
@@ -214,6 +215,29 @@ class DataSource(BaseModel):
     tags: "typing.Dict[str, str]" = Field(default_factory=dict)
     owner: str = Field(default="")
     type: "DataSource.SourceType" = Field(default=0)
+    
+    @field_validator('type', mode='before')
+    @classmethod
+    def validate_type(cls, v):
+        if isinstance(v, str):
+            # Convert string enum names to integer values
+            type_mapping = {
+                'INVALID': 0,
+                'BATCH_FILE': 1,
+                'BATCH_BIGQUERY': 2,
+                'STREAM_KAFKA': 3,
+                'STREAM_KINESIS': 4,
+                'BATCH_REDSHIFT': 5,
+                'CUSTOM_SOURCE': 6,
+                'REQUEST_SOURCE': 7,
+                'BATCH_SNOWFLAKE': 8,
+                'PUSH_SOURCE': 9,
+                'BATCH_TRINO': 10,
+                'BATCH_SPARK': 11,
+                'BATCH_ATHENA': 12,
+            }
+            return type_mapping.get(v, 0)
+        return v
 # Defines mapping between fields in the sourced data
 # and fields in parent FeatureTable.
     field_mapping: "typing.Dict[str, str]" = Field(default_factory=dict)
@@ -230,7 +254,7 @@ class DataSource(BaseModel):
 # first party sources as well.
     data_source_class_type: str = Field(default="")
 # Optional batch source for streaming sources for historical features and materialization.
-    batch_source: "DataSource" = Field(default_factory=lambda : DataSource())
+    batch_source: typing.Optional["DataSource"] = Field(default=None)
     meta: "DataSource.SourceMeta" = Field(default_factory=lambda : DataSource.SourceMeta())
     file_options: "DataSource.FileOptions" = Field(default_factory=lambda : DataSource.FileOptions())
     bigquery_options: "DataSource.BigQueryOptions" = Field(default_factory=lambda : DataSource.BigQueryOptions())

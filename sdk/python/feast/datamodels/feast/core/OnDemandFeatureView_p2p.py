@@ -2,7 +2,6 @@
 # gen by protobuf_to_pydantic[v0.3.3.1](https://github.com/so1n/protobuf_to_pydantic)
 # Protobuf Version: 4.25.8 
 # Pydantic Version: 2.10.6 
-from .Aggregation_p2p import Aggregation
 from .DataSource_p2p import DataSource
 from .FeatureViewProjection_p2p import FeatureViewProjection
 from .FeatureView_p2p import FeatureView
@@ -58,8 +57,6 @@ class OnDemandFeatureViewSpec(BaseModel):
 # List of specifications for each entity defined as part of this feature view.
     entity_columns: typing.List[FeatureSpecV2] = Field(default_factory=list)
     singleton: bool = Field(default=False)
-# Aggregation definitions
-    aggregations: typing.List[Aggregation] = Field(default_factory=list)
 
 class OnDemandFeatureViewMeta(BaseModel):
 # Time where this Feature View is created

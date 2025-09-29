@@ -2,7 +2,7 @@
 # gen by protobuf_to_pydantic[v0.3.3.1](https://github.com/so1n/protobuf_to_pydantic)
 # Protobuf Version: 4.25.8 
 # Pydantic Version: 2.10.6 
-from ..types.Value_p2p import Enum
+from ..types.Value_p2p import ValueType
 from datetime import datetime
 from google.protobuf.message import Message  # type: ignore
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ class EntitySpecV2(BaseModel):
 # Name of Feast project that this feature table belongs to.
     project: str = Field(default="")
 # Type of the entity.
-    value_type: Enum = Field(default=0)
+    value_type: ValueType.Enum = Field(default=0)
 # Description of the entity.
     description: str = Field(default="")
 # Join key for the entity (i.e. name of the column the entity maps to).

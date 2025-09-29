@@ -43,9 +43,9 @@ class FeatureViewSpec(BaseModel):
 # Feature values outside ttl will be returned as unset values and indicated to end user
     ttl: Annotated[timedelta, BeforeValidator(Timedelta.validate)] = Field(default_factory=timedelta)
 # Batch/Offline DataSource where this view can retrieve offline feature data.
-    batch_source: DataSource = Field(default_factory=DataSource)
+    batch_source: typing.Optional[DataSource] = Field(default=None)
 # Streaming DataSource from where this view can consume "online" feature data.
-    stream_source: DataSource = Field(default_factory=DataSource)
+    stream_source: typing.Optional[DataSource] = Field(default=None)
 # Whether these features should be served online or not
 # This is also used to determine whether the features should be written to the online store
     online: bool = Field(default=False)

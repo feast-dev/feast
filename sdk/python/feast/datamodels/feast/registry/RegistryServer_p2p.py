@@ -113,7 +113,7 @@ class ListDataSourcesRequest(BaseModel):
     sorting: SortingParams = Field(default_factory=SortingParams)
 
 class ListDataSourcesResponse(BaseModel):
-    data_sources: typing.List[DataSource] = Field(default_factory=list)
+    data_sources: typing.List[DataSource] = Field(default_factory=list, alias="dataSources")
     pagination: PaginationMetadata = Field(default_factory=PaginationMetadata)
 
 class DeleteDataSourceRequest(BaseModel):
@@ -143,7 +143,7 @@ class ListFeatureViewsRequest(BaseModel):
     sorting: SortingParams = Field(default_factory=SortingParams)
 
 class ListFeatureViewsResponse(BaseModel):
-    feature_views: typing.List[FeatureView] = Field(default_factory=list)
+    feature_views: typing.List[FeatureView] = Field(default_factory=list, alias="featureViews")
     pagination: PaginationMetadata = Field(default_factory=PaginationMetadata)
 
 class DeleteFeatureViewRequest(BaseModel):
@@ -178,7 +178,7 @@ class ListAllFeatureViewsRequest(BaseModel):
     sorting: SortingParams = Field(default_factory=SortingParams)
 
 class ListAllFeatureViewsResponse(BaseModel):
-    feature_views: typing.List[AnyFeatureView] = Field(default_factory=list)
+    feature_views: typing.List[AnyFeatureView] = Field(default_factory=list, alias="featureViews")
     pagination: PaginationMetadata = Field(default_factory=PaginationMetadata)
 
 class GetStreamFeatureViewRequest(BaseModel):
@@ -232,7 +232,7 @@ class ListFeatureServicesRequest(BaseModel):
     sorting: SortingParams = Field(default_factory=SortingParams)
 
 class ListFeatureServicesResponse(BaseModel):
-    feature_services: typing.List[FeatureService] = Field(default_factory=list)
+    feature_services: typing.List[FeatureService] = Field(default_factory=list, alias="featureServices")
     pagination: PaginationMetadata = Field(default_factory=PaginationMetadata)
 
 class DeleteFeatureServiceRequest(BaseModel):
@@ -258,7 +258,7 @@ class ListSavedDatasetsRequest(BaseModel):
     sorting: SortingParams = Field(default_factory=SortingParams)
 
 class ListSavedDatasetsResponse(BaseModel):
-    saved_datasets: typing.List[SavedDataset] = Field(default_factory=list)
+    saved_datasets: typing.List[SavedDataset] = Field(default_factory=list, alias="savedDatasets")
     pagination: PaginationMetadata = Field(default_factory=PaginationMetadata)
 
 class DeleteSavedDatasetRequest(BaseModel):
