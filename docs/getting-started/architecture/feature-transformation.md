@@ -116,3 +116,68 @@ feature_view = FeatureView(
 )
 ```
 The underlying implementation of the join is an inner join by default, and join key is the entity id.
+
+### Tiling
+
+Tiling is a transformation pattern designed for efficient streaming feature engineering, inspired by Chronon's tiled architecture. It divides time-series data into manageable chunks (tiles) for processing temporal aggregations and derived features efficiently. This is particularly useful for:
+
+- Temporal aggregations over sliding windows
+- Chaining features across different time horizons  
+- Handling late-arriving data in streaming scenarios
+- Memory-efficient processing of large time-series data
+
+Examples include:
+
+```python
+from feast.transformation import pandas_tiled_transformation
+from datetime import timedelta
+
+@pandas_tiled_transformation(
+    tile_size=timedelta(hours=1),  # Process data in 1-hour tiles
+    overlap=timedelta(minutes=5),  # 5-minute overlap between tiles
+    aggregation_functions=[
+        lambda df: df.groupby('entity_id').agg({
+            'transaction_amount': ['sum', 'mean', 'count']
+        }).reset_index()
+    ]
+)
+def hourly_transaction_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Transform transaction data within each hour tile."""
+    return df.assign(
+        rolling_avg=df['transaction_amount'].rolling(window=10).mean(),
+        cumulative_amount=df['transaction_amount'].cumsum()
+    )
+
+# Usage in StreamFeatureView
+stream_fv = StreamFeatureView(
+    name="transaction_features",
+    feature_transformation=hourly_transaction_features,
+    source=kafka_source,
+    ...
+)
+```
+
+**Chaining Features Example:**
+```python
+@pandas_tiled_transformation(
+    tile_size=timedelta(hours=1),
+    chaining_functions=[
+        # Chain cumulative sums across tiles for continuity
+        lambda prev_df, curr_df: curr_df.assign(
+            global_cumsum=curr_df['amount'] + (prev_df['global_cumsum'].max() if not prev_df.empty else 0)
+        )
+    ]
+)
+def chained_cumulative_features(df: pd.DataFrame) -> pd.DataFrame:
+    return df.assign(
+        local_cumsum=df['amount'].cumsum()
+    )
+```
+
+**Configuration Options:**
+- `tile_size`: Duration of each time tile (e.g., `timedelta(hours=1)`)
+- `overlap`: Optional overlap between tiles for continuity
+- `max_tiles_in_memory`: Maximum number of tiles to keep in memory (default: 10)
+- `enable_late_data_handling`: Whether to handle late-arriving data (default: True)
+- `aggregation_functions`: Functions to apply within each tile
+- `chaining_functions`: Functions to chain results across tiles for derived features
