@@ -130,7 +130,7 @@ Examples include:
 
 ```python
 from feast.transformation import tiled_transformation
-from feast import Field
+from feast import Field, Aggregation
 from feast.types import Float64, Int64
 from datetime import timedelta
 
@@ -142,11 +142,15 @@ from datetime import timedelta
         Field(name="transaction_count", dtype=Int64),
     ],
     tile_size=timedelta(hours=1),         # Process data in 1-hour tiles
-    mode="pandas",                        # Use pandas processing mode
+    window_size=timedelta(minutes=30),    # Window size for aggregations within tiles
     overlap=timedelta(minutes=5),         # 5-minute overlap between tiles
-    aggregation_functions=[
+    aggregations=[                        # Feast Aggregation objects
+        Aggregation(column="transaction_amount", function="sum", time_window=timedelta(minutes=30)),
+        Aggregation(column="transaction_amount", function="mean", time_window=timedelta(minutes=30)),
+    ],
+    aggregation_functions=[               # Custom aggregation functions
         lambda df: df.groupby('entity_id').agg({
-            'transaction_amount': ['sum', 'mean', 'count']
+            'transaction_amount': ['count']
         }).reset_index()
     ]
 )
@@ -158,12 +162,13 @@ def hourly_transaction_features(df: pd.DataFrame) -> pd.DataFrame:
         transaction_count=df.groupby('entity_id').cumcount() + 1
     )
 
-# Usage in StreamFeatureView
+# Usage in StreamFeatureView - mode specified here, not in transformation
 stream_fv = StreamFeatureView(
     name="transaction_features",
     feature_transformation=hourly_transaction_features,
     source=kafka_source,
-    ...
+    mode="spark",  # Transformation mode specified at StreamFeatureView level
+    entities=["customer_id"]
 )
 ```
 
@@ -176,7 +181,7 @@ stream_fv = StreamFeatureView(
         Field(name="global_cumsum", dtype=Float64),
     ],
     tile_size=timedelta(hours=1),
-    mode="pandas",
+    window_size=timedelta(minutes=30),       # Window size for aggregations
     chaining_functions=[
         # Chain cumulative sums across tiles for continuity
         lambda prev_df, curr_df: curr_df.assign(
@@ -188,15 +193,26 @@ def chained_cumulative_features(df: pd.DataFrame) -> pd.DataFrame:
     return df.assign(
         local_cumsum=df['amount'].cumsum()
     )
+
+# Use with StreamFeatureView (mode specified at view level)
+stream_fv = StreamFeatureView(
+    name="chained_features",
+    feature_transformation=chained_cumulative_features,
+    source=kafka_source,
+    mode="spark"  # ComputeEngine mode specified here
+)
 ```
 
 **Configuration Options:**
 - `sources`: List of source feature views or data sources that this transformation depends on
 - `schema`: List of Field definitions specifying output feature names and data types
+- `aggregations`: List of Feast Aggregation objects for window-based aggregations
 - `tile_size`: Duration of each time tile (e.g., `timedelta(hours=1)`)
-- `mode`: Processing mode - currently supports `"pandas"`
+- `window_size`: Window size for aggregations within tiles (defaults to tile_size)
 - `overlap`: Optional overlap between tiles for continuity
 - `max_tiles_in_memory`: Maximum number of tiles to keep in memory (default: 10)
 - `enable_late_data_handling`: Whether to handle late-arriving data (default: True)
-- `aggregation_functions`: Functions to apply within each tile
+- `aggregation_functions`: Custom functions to apply within each tile
 - `chaining_functions`: Functions to chain results across tiles for derived features
+
+**Note**: The transformation mode (e.g., "spark", "pandas") is specified at the StreamFeatureView level, not within the transformation itself. This allows the same tiled transformation to work with different ComputeEngines.
