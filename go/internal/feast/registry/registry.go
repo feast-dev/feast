@@ -116,7 +116,11 @@ func (m *cacheMap[T]) expireCachedModels(getModel func(string, string) (T, error
 			if cacheItem.IsExpired() {
 				newModel, err := getModel(modelName, project)
 				if err != nil {
-					delete(cache, modelName)
+                    if errors.IsGrpcNotFoundError(err) {
+                            delete(cache, modelName)
+                        } else {
+                            log.Error().Err(err).Msgf("Failed to refresh model %s in project %s", modelName, project)
+                        }
 				} else {
 					cache[modelName] = model.NewModelTTLWithExpiration(newModel, m.ttl)
 				}
