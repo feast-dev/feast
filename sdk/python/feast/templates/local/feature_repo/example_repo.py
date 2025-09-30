@@ -142,6 +142,65 @@ def transformed_conv_rate_fresh(inputs: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# Example of tiled transformation for streaming feature engineering
+# This demonstrates Chronon-style tiling for efficient temporal processing
+try:
+    from feast.transformation import tiled_transformation
+    from feast.aggregation import Aggregation
+    
+    @tiled_transformation(
+        sources=[driver_stats_fv],                    # Source feature views for DAG construction
+        schema=[                                      # Output schema for UI rendering
+            Field(name="rolling_avg_trips", dtype=Float64),
+            Field(name="cumulative_trips", dtype=Int64),
+            Field(name="trip_velocity", dtype=Float64),
+        ],
+        tile_size=timedelta(hours=1),                 # Process data in 1-hour tiles
+        window_size=timedelta(minutes=30),            # Window size for aggregations within tiles
+        overlap=timedelta(minutes=5),                 # 5-minute overlap between tiles
+        aggregations=[                                # Feast Aggregation objects
+            Aggregation(column="avg_daily_trips", function="sum", time_window=timedelta(minutes=30)),
+            Aggregation(column="avg_daily_trips", function="mean", time_window=timedelta(minutes=30)),
+        ],
+        max_tiles_in_memory=10,                      # Memory management
+        enable_late_data_handling=True,              # Handle late-arriving data
+    )
+    def driver_tiled_features(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Tiled transformation for efficient streaming driver feature processing.
+        
+        This transformation processes driver statistics in temporal tiles,
+        enabling efficient computation of rolling averages and cumulative metrics
+        for streaming scenarios.
+        """
+        # Calculate rolling features within each tile
+        df = df.sort_values('event_timestamp')
+        df['rolling_avg_trips'] = df['avg_daily_trips'].rolling(window=3, min_periods=1).mean()
+        
+        # Calculate cumulative features within tile
+        df['cumulative_trips'] = df['avg_daily_trips'].cumsum()
+        
+        # Calculate trip velocity (trips per time unit)
+        time_diff = df['event_timestamp'].diff().dt.total_seconds() / 3600  # hours
+        df['trip_velocity'] = df['avg_daily_trips'] / (time_diff.fillna(1) + 0.1)  # avoid division by zero
+        
+        return df
+
+    # Note: In a streaming scenario, this would be used with StreamFeatureView:
+    # stream_fv = StreamFeatureView(
+    #     name="driver_tiled_features",
+    #     feature_transformation=driver_tiled_features,
+    #     source=stream_source,                     # Kafka or other streaming source
+    #     mode="spark",                             # ComputeEngine mode specified here
+    #     entities=[driver],
+    #     aggregations=driver_tiled_features.aggregations  # Can reuse aggregations
+    # )
+    
+except ImportError:
+    # Tiled transformation not available - skip this example
+    driver_tiled_features = None
+
+
 driver_activity_v3 = FeatureService(
     name="driver_activity_v3",
     features=[driver_stats_fresh_fv, transformed_conv_rate_fresh],
