@@ -28,6 +28,7 @@ import "feast/core/FeatureViewProjection.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Transformation.proto";
+import "feast/core/Aggregation.proto";
 
 message OnDemandFeatureView {
     // User-specified specifications of this feature view.
@@ -70,6 +71,10 @@ message OnDemandFeatureViewSpec {
     // List of specifications for each entity defined as part of this feature view.
     repeated FeatureSpecV2 entity_columns = 14;
     bool singleton = 15;
+
+    // Aggregation definitions
+    repeated Aggregation aggregations = 16;
+
 }
 
 message OnDemandFeatureViewMeta {

@@ -1,5 +1,4 @@
 import json
-import logging
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -57,7 +56,6 @@ class PopularTagsResponse(BaseModel):
 
 
 def get_metrics_router(grpc_handler, server=None) -> APIRouter:
-    logger = logging.getLogger(__name__)
     router = APIRouter()
 
     @router.get("/metrics/resource_counts", tags=["Metrics"])
@@ -321,20 +319,43 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
             user = getattr(request.state, "user", None)
         if not user:
             user = "anonymous"
-        project_val = project or (server.store.project if server else None)
         key = f"recently_visited_{user}"
-        logger.info(
-            f"[/metrics/recently_visited] Project: {project_val}, Key: {key}, Object: {object_type}"
-        )
-        try:
-            visits_json = (
-                server.registry.get_project_metadata(project_val, key)
-                if server
-                else None
-            )
-            visits = json.loads(visits_json) if visits_json else []
-        except Exception:
-            visits = []
+        visits = []
+        if project:
+            try:
+                visits_json = (
+                    server.registry.get_project_metadata(project, key)
+                    if server
+                    else None
+                )
+                visits = json.loads(visits_json) if visits_json else []
+            except Exception:
+                visits = []
+        else:
+            try:
+                if server:
+                    projects_resp = grpc_call(
+                        grpc_handler.ListProjects,
+                        RegistryServer_pb2.ListProjectsRequest(allow_cache=True),
+                    )
+                    all_projects = [
+                        p["spec"]["name"] for p in projects_resp.get("projects", [])
+                    ]
+                    for project_name in all_projects:
+                        try:
+                            visits_json = server.registry.get_project_metadata(
+                                project_name, key
+                            )
+                            if visits_json:
+                                project_visits = json.loads(visits_json)
+                                visits.extend(project_visits)
+                        except Exception:
+                            continue
+                    visits = sorted(
+                        visits, key=lambda x: x.get("timestamp", ""), reverse=True
+                    )
+            except Exception:
+                visits = []
         if object_type:
             visits = [v for v in visits if v.get("object") == object_type]
 

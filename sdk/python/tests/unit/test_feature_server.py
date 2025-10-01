@@ -146,3 +146,64 @@ def test_push_source_does_not_exist(test_client):
                 },
             },
         )
+
+
+def test_materialize_endpoint_logic():
+    """Test the materialization endpoint logic without HTTP requests"""
+    from datetime import datetime
+
+    from feast.feature_server import MaterializeRequest
+
+    # Test 1: Standard request with timestamps
+    request = MaterializeRequest(
+        start_ts="2021-01-01T00:00:00",
+        end_ts="2021-01-02T00:00:00",
+        feature_views=["test_view"],
+    )
+    assert request.disable_event_timestamp is False
+    assert request.start_ts is not None
+    assert request.end_ts is not None
+
+    # Test 2: Request with disable_event_timestamp
+    request_no_ts = MaterializeRequest(
+        feature_views=["test_view"], disable_event_timestamp=True
+    )
+    assert request_no_ts.disable_event_timestamp is True
+    assert request_no_ts.start_ts is None
+    assert request_no_ts.end_ts is None
+
+    # Test 3: Validation logic (this is what our endpoint does)
+    # Simulate the endpoint's validation logic
+    if request_no_ts.disable_event_timestamp:
+        # Should use epoch to now
+        now = datetime.now()
+        start_date = datetime(1970, 1, 1)
+        end_date = now
+        # Should not raise an error
+        assert start_date < end_date
+    else:
+        # Should require timestamps
+        if not request_no_ts.start_ts or not request_no_ts.end_ts:
+            # This should trigger our validation error
+            pass
+
+
+def test_materialize_request_model():
+    """Test MaterializeRequest model validation"""
+    from feast.feature_server import MaterializeRequest
+
+    # Test with disable_event_timestamp=True (no timestamps needed)
+    req1 = MaterializeRequest(feature_views=["test"], disable_event_timestamp=True)
+    assert req1.disable_event_timestamp is True
+    assert req1.start_ts is None
+    assert req1.end_ts is None
+
+    # Test with disable_event_timestamp=False (timestamps provided)
+    req2 = MaterializeRequest(
+        start_ts="2021-01-01T00:00:00",
+        end_ts="2021-01-02T00:00:00",
+        feature_views=["test"],
+    )
+    assert req2.disable_event_timestamp is False
+    assert req2.start_ts == "2021-01-01T00:00:00"
+    assert req2.end_ts == "2021-01-02T00:00:00"

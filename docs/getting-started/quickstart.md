@@ -499,11 +499,17 @@ print(training_df.head())
 We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in [feature_repo/feature_repo/example_repo.py](feature_repo/feature_repo/example_repo.py)).
 
 {% tabs %}
-{% tab title="Bash" %}
+{% tab title="Bash (with timestamp)" %}
 ```bash
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 
 feast materialize-incremental $CURRENT_TIME
+```
+{% endtab %}
+{% tab title="Bash (simple)" %}
+```bash
+# Alternative: Materialize all data using current timestamp (for data without event timestamps)
+feast materialize --disable-event-timestamp
 ```
 {% endtab %}
 {% endtabs %}

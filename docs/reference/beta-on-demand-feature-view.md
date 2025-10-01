@@ -55,7 +55,8 @@ When defining an ODFV, you can control when the transformation is applied using 
 #### Example 1: On Demand Transformation on Read Using Pandas Mode
 
 ```python
-from feast import Field, RequestSource, on_demand_feature_view
+from feast import Field, RequestSource
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float64, Int64
 import pandas as pd
 

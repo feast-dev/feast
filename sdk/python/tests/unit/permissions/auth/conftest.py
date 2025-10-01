@@ -38,7 +38,7 @@ def rolebindings(my_namespace, sa_name, sa_namespace) -> dict:
             client.V1RoleBinding(
                 metadata=client.V1ObjectMeta(name=r, namespace=my_namespace),
                 subjects=[
-                    client.V1Subject(
+                    client.RbacV1Subject(
                         kind="ServiceAccount",
                         name=sa_name,
                         namespace=sa_namespace,

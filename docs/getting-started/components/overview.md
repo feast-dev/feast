@@ -7,7 +7,7 @@
 * **Create Batch Features:** ELT/ETL systems like Spark and SQL are used to transform data in the batch store.
 * **Create Stream Features:** Stream features are created from streaming services such as Kafka or Kinesis, and can be pushed directly into Feast via the [Push API](../../reference/data-sources/push.md).
 * **Feast Apply:** The user (or CI) publishes versioned controlled feature definitions using `feast apply`. This CLI command updates infrastructure and persists definitions in the object store registry.
-* **Feast Materialize:** The user (or scheduler) executes `feast materialize` which loads features from the offline store into the online store.
+* **Feast Materialize:** The user (or scheduler) executes `feast materialize` (with timestamps or `--disable-event-timestamp` to materialize all data with current timestamps) which loads features from the offline store into the online store.
 * **Model Training:** A model training pipeline is launched. It uses the Feast Python SDK to retrieve a training dataset that can be used for training models.
 * **Get Historical Features:** Feast exports a point-in-time correct training dataset based on the list of features and entity dataframe provided by the model training pipeline.
 * **Deploy Model:** The trained model binary (and list of features) are deployed into a model serving system. This step is not executed by Feast.

@@ -802,6 +802,15 @@ class TestSearchAPI:
             "Expected individual features to appear in search results, but found none"
         )
 
+        for feature_result in feature_results:
+            assert "featureView" in feature_result
+            assert feature_result["featureView"] in [
+                "user_features",
+                "product_features",
+                "transaction_features",
+                "user_on_demand_features",
+            ]
+
         # Verify we have features that likely come from different feature views
         feature_names = {f["name"] for f in feature_results}
 
