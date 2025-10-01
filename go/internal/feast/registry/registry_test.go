@@ -4,6 +4,7 @@ package registry
 
 import (
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/errors"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -36,6 +37,32 @@ func mockRegistryWithResponse(responseProto proto.Message, ttlSeconds int) (*Reg
 	}
 
 	registryTtl := time.Duration(ttlSeconds) * time.Second
+
+	registry := &Registry{
+		project:                    PROJECT,
+		registryStore:              store,
+		cachedFeatureServices:      newCacheMap[*model.FeatureService](registryTtl),
+		cachedEntities:             newCacheMap[*model.Entity](registryTtl),
+		cachedFeatureViews:         newCacheMap[*model.FeatureView](registryTtl),
+		cachedSortedFeatureViews:   newCacheMap[*model.SortedFeatureView](registryTtl),
+		cachedOnDemandFeatureViews: newCacheMap[*model.OnDemandFeatureView](registryTtl),
+		cachedRegistryProtoTtl:     registryTtl,
+	}
+
+	return registry, server
+}
+
+func mockRegistryWithInternalServerError() (*Registry, *httptest.Server) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}))
+
+	store := &HttpRegistryStore{
+		endpoint: server.URL,
+		project:  PROJECT,
+	}
+
+	registryTtl := 5 * time.Second
 
 	registry := &Registry{
 		project:                    PROJECT,
@@ -100,6 +127,17 @@ func TestRegistry_GetFeatureService_Error(t *testing.T) {
 	assert.Nil(t, result, "Expected a nil feature service")
 }
 
+func TestRegistry_GetFeatureService_InternalServerError(t *testing.T) {
+	registry, server := mockRegistryWithInternalServerError()
+	defer server.Close()
+
+	result, err := registry.GetFeatureService(PROJECT, "any_feature_service")
+
+	assert.Error(t, err, "Expected an internal server error")
+	assert.Contains(t, err.Error(), "500 Internal Server Error")
+	assert.Nil(t, result, "Expected a nil feature service")
+}
+
 func TestRegistry_GetEntity_FromCache(t *testing.T) {
 	// Set up a mock entity
 	entity := &model.Entity{
@@ -148,6 +186,17 @@ func TestRegistry_GetEntity_Error(t *testing.T) {
 	assert.Nil(t, result, "Expected a nil entity")
 }
 
+func TestRegistry_GetEntity_InternalServerError(t *testing.T) {
+	registry, server := mockRegistryWithInternalServerError()
+	defer server.Close()
+
+	result, err := registry.GetEntity(PROJECT, "any_entity")
+
+	assert.Error(t, err, "Expected an internal server error")
+	assert.Contains(t, err.Error(), "500 Internal Server Error")
+	assert.Nil(t, result, "Expected a nil entity")
+}
+
 func TestRegistry_GetFeatureView_FromCache(t *testing.T) {
 	// Set up a mock feature view
 	featureView := &model.FeatureView{
@@ -193,6 +242,17 @@ func TestRegistry_GetFeatureView_Error(t *testing.T) {
 	result, err := registry.GetFeatureView(PROJECT, "invalid_feature_view")
 	assert.Error(t, err, "Expected an error")
 	assert.Equal(t, "rpc error: code = NotFound desc = no feature view invalid_feature_view found in project test_project", err.Error(), "Expected a specific error message")
+	assert.Nil(t, result, "Expected a nil feature view")
+}
+
+func TestRegistry_GetFeatureView_InternalServerError(t *testing.T) {
+	registry, server := mockRegistryWithInternalServerError()
+	defer server.Close()
+
+	result, err := registry.GetFeatureView(PROJECT, "any_feature_view")
+
+	assert.Error(t, err, "Expected an internal server error")
+	assert.Contains(t, err.Error(), "500 Internal Server Error")
 	assert.Nil(t, result, "Expected a nil feature view")
 }
 
@@ -246,6 +306,17 @@ func TestRegistry_GetSortedFeatureView_Error(t *testing.T) {
 	assert.Nil(t, result, "Expected a nil sorted feature view")
 }
 
+func TestRegistry_GetSortedFeatureView_InternalServerError(t *testing.T) {
+	registry, server := mockRegistryWithInternalServerError()
+	defer server.Close()
+
+	result, err := registry.GetSortedFeatureView(PROJECT, "any_sorted_feature_view")
+
+	assert.Error(t, err, "Expected an internal server error")
+	assert.Contains(t, err.Error(), "500 Internal Server Error")
+	assert.Nil(t, result, "Expected a nil feature view")
+}
+
 func TestRegistry_GetOnDemandFeatureView_FromCache(t *testing.T) {
 	// Set up a mock on-demand feature view
 	onDemandFeatureView := &model.OnDemandFeatureView{
@@ -292,6 +363,17 @@ func TestRegistry_GetOnDemandFeatureView_Error(t *testing.T) {
 	assert.Error(t, err, "Expected an error")
 	assert.Equal(t, "rpc error: code = NotFound desc = no on demand feature view invalid_on_demand_feature_view found in project test_project", err.Error(), "Expected a specific error message")
 	assert.Nil(t, result, "Expected a nil on-demand feature view")
+}
+
+func TestRegistry_GetOnDemandFeatureView_InternalServerError(t *testing.T) {
+	registry, server := mockRegistryWithInternalServerError()
+	defer server.Close()
+
+	result, err := registry.GetOnDemandFeatureView(PROJECT, "any_on_demand_feature_view")
+
+	assert.Error(t, err, "Expected an internal server error")
+	assert.Contains(t, err.Error(), "500 Internal Server Error")
+	assert.Nil(t, result, "Expected a nil feature view")
 }
 
 func compareFeaturesToFields(t *testing.T, expectedFeatures []*core.FeatureSpecV2, actualFields []*model.Field) {
@@ -487,4 +569,44 @@ func TestRefresh(t *testing.T) {
 			assert.Equal(t, 0, count, "Expected no calls to %s", path)
 		}
 	}
+}
+
+func TestExpireCachedModels_DeletesCacheOnNotFoundError(t *testing.T) {
+	type testModel struct{ Name string }
+	cache := newCacheMap[*testModel](time.Millisecond)
+	project := "test_project"
+	modelName := "test_model"
+	model := &testModel{Name: modelName}
+	cache.set(project, modelName, model)
+
+	time.Sleep(2 * time.Millisecond)
+
+	getModel := func(name, proj string) (*testModel, error) {
+		return nil, errors.GrpcNotFoundErrorf("not found")
+	}
+
+	cache.expireCachedModels(getModel)
+
+	_, ok := cache.get(project, modelName)
+	assert.False(t, ok, "Expected model to be deleted from cache on not found error")
+}
+
+func TestExpireCachedModels_DoesNotDeleteCacheOnOtherError(t *testing.T) {
+	type testModel struct{ Name string }
+	cache := newCacheMap[*testModel](time.Millisecond)
+	project := "test_project"
+	modelName := "test_model"
+	model := &testModel{Name: modelName}
+	cache.set(project, modelName, model)
+
+	time.Sleep(2 * time.Millisecond)
+
+	getModel := func(name, proj string) (*testModel, error) {
+		return nil, assert.AnError
+	}
+
+	cache.expireCachedModels(getModel)
+
+	_, ok := cache.get(project, modelName)
+	assert.True(t, ok, "Expected model to remain in cache on non-not found error")
 }

@@ -116,7 +116,12 @@ func (m *cacheMap[T]) expireCachedModels(getModel func(string, string) (T, error
 			if cacheItem.IsExpired() {
 				newModel, err := getModel(modelName, project)
 				if err != nil {
-					delete(cache, modelName)
+				    // If we can't find the model in the registry, remove it from the cache
+				    if errors.IsGrpcNotFoundError(err) {
+                        delete(cache, modelName)
+                    } else {
+                        log.Error().Err(err).Msgf("error refreshing model %s in project %s", modelName, project)
+                    }
 				} else {
 					cache[modelName] = model.NewModelTTLWithExpiration(newModel, m.ttl)
 				}
@@ -269,8 +274,13 @@ func (r *Registry) GetEntity(project string, entityName string) (*model.Entity, 
 func (r *Registry) GetEntityFromRegistry(entityName string, project string) (*model.Entity, error) {
 	entityProto, err := r.registryStore.(*HttpRegistryStore).getEntity(entityName, true)
 	if err != nil {
+	    if errors.IsHTTPNotFoundError(err) {
+	        log.Error().Err(err).Msgf("no entity %s found in project %s", entityName, project)
+            return nil, errors.GrpcNotFoundErrorf("no entity %s found in project %s", entityName, project)
+        }
+
 		log.Error().Err(err).Msgf("no entity %s found in project %s", entityName, project)
-		return nil, errors.GrpcNotFoundErrorf("no entity %s found in project %s", entityName, project)
+		return nil, errors.GrpcInternalErrorf("error retrieving entity %s in project %s: %v", entityName, project, err)
 	}
 
 	return model.NewEntityFromProto(entityProto), nil
@@ -291,8 +301,13 @@ func (r *Registry) GetFeatureView(project string, featureViewName string) (*mode
 func (r *Registry) GetFeatureViewFromRegistry(featureViewName string, project string) (*model.FeatureView, error) {
 	featureViewProto, err := r.registryStore.(*HttpRegistryStore).getFeatureView(featureViewName, true)
 	if err != nil {
-		log.Error().Err(err).Msgf("no feature view %s found in project %s", featureViewName, project)
-		return nil, errors.GrpcNotFoundErrorf("no feature view %s found in project %s", featureViewName, project)
+		if errors.IsHTTPNotFoundError(err) {
+		    log.Error().Err(err).Msgf("no feature view %s found in project %s", featureViewName, project)
+            return nil, errors.GrpcNotFoundErrorf("no feature view %s found in project %s", featureViewName, project)
+        }
+
+        log.Error().Err(err).Msgf("error retrieving feature view %s in project %s", featureViewName, project)
+        return nil, errors.GrpcInternalErrorf("error retrieving feature view %s in project %s: %v", featureViewName, project, err)
 	}
 
 	return model.NewFeatureViewFromProto(featureViewProto), nil
@@ -313,8 +328,13 @@ func (r *Registry) GetSortedFeatureView(project string, sortedFeatureViewName st
 func (r *Registry) GetSortedFeatureViewFromRegistry(sortedFeatureViewName string, project string) (*model.SortedFeatureView, error) {
 	sortedFeatureViewProto, err := r.registryStore.(*HttpRegistryStore).getSortedFeatureView(sortedFeatureViewName, true)
 	if err != nil {
-		log.Error().Err(err).Msgf("no sorted feature view %s found in project %s", sortedFeatureViewName, project)
-		return nil, errors.GrpcNotFoundErrorf("no sorted feature view %s found in project %s", sortedFeatureViewName, project)
+		if errors.IsHTTPNotFoundError(err) {
+		    log.Error().Err(err).Msgf("no sorted feature view %s found in project %s", sortedFeatureViewName, project)
+            return nil, errors.GrpcNotFoundErrorf("no sorted feature view %s found in project %s", sortedFeatureViewName, project)
+        }
+
+        log.Error().Err(err).Msgf("error retrieving sorted feature view %s in project %s", sortedFeatureViewName, project)
+        return nil, errors.GrpcInternalErrorf("error retrieving sorted feature view %s in project %s: %v", sortedFeatureViewName, project, err)
 	}
 
 	return model.NewSortedFeatureViewFromProto(sortedFeatureViewProto), nil
@@ -335,8 +355,13 @@ func (r *Registry) GetFeatureService(project string, featureServiceName string) 
 func (r *Registry) GetFeatureServiceFromRegistry(featureServiceName string, project string) (*model.FeatureService, error) {
 	featureServiceProto, err := r.registryStore.(*HttpRegistryStore).getFeatureService(featureServiceName, true)
 	if err != nil {
-		log.Error().Err(err).Msgf("no feature service %s found in project %s", featureServiceName, project)
-		return nil, errors.GrpcNotFoundErrorf("no feature service %s found in project %s", featureServiceName, project)
+		if errors.IsHTTPNotFoundError(err) {
+		    log.Error().Err(err).Msgf("no feature service %s found in project %s", featureServiceName, project)
+            return nil, errors.GrpcNotFoundErrorf("no feature service %s found in project %s", featureServiceName, project)
+        }
+
+        log.Error().Err(err).Msgf("error retrieving feature service %s in project %s", featureServiceName, project)
+        return nil, errors.GrpcInternalErrorf("error retrieving feature service %s in project %s: %v", featureServiceName, project, err)
 	}
 
 	return model.NewFeatureServiceFromProto(featureServiceProto), nil
@@ -357,8 +382,13 @@ func (r *Registry) GetOnDemandFeatureView(project string, onDemandFeatureViewNam
 func (r *Registry) GetOnDemandFeatureViewFromRegistry(onDemandFeatureViewName string, project string) (*model.OnDemandFeatureView, error) {
 	onDemandFeatureViewProto, err := r.registryStore.(*HttpRegistryStore).getOnDemandFeatureView(onDemandFeatureViewName, true)
 	if err != nil {
-		log.Error().Err(err).Msgf("no on demand feature view %s found in project %s", onDemandFeatureViewName, project)
-		return nil, errors.GrpcNotFoundErrorf("no on demand feature view %s found in project %s", onDemandFeatureViewName, project)
+		if errors.IsHTTPNotFoundError(err) {
+            log.Error().Err(err).Msgf("no on demand feature view %s found in project %s", onDemandFeatureViewName, project)
+            return nil, errors.GrpcNotFoundErrorf("no on demand feature view %s found in project %s", onDemandFeatureViewName, project)
+        }
+
+        log.Error().Err(err).Msgf("error retrieving on demand feature view %s in project %s", onDemandFeatureViewName, project)
+        return nil, errors.GrpcInternalErrorf("error retrieving on demand feature view %s in project %s: %v", onDemandFeatureViewName, project, err)
 	}
 
 	return model.NewOnDemandFeatureViewFromProto(onDemandFeatureViewProto), nil
