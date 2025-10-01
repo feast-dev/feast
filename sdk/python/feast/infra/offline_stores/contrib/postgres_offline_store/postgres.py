@@ -280,7 +280,10 @@ class PostgreSQLOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + timestamp_fields
+            _append_alias(
+                join_key_columns + feature_name_columns + timestamp_fields,
+                "paftoq_alias",
+            )
         )
 
         timestamp_filter = get_timestamp_filter_sql(

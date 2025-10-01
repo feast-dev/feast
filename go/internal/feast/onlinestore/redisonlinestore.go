@@ -338,26 +338,3 @@ func buildRedisKey(project string, entityKey *types.EntityKey, entityKeySerializ
 	fullKey := append(*serKey, []byte(project)...)
 	return &fullKey, nil
 }
-
-func serializeValue(value interface{}, entityKeySerializationVersion int64) (*[]byte, types.ValueType_Enum, error) {
-	// TODO: Implement support for other types (at least the major types like ints, strings, bytes)
-	switch x := (value).(type) {
-	case *types.Value_StringVal:
-		valueString := []byte(x.StringVal)
-		return &valueString, types.ValueType_STRING, nil
-	case *types.Value_BytesVal:
-		return &x.BytesVal, types.ValueType_BYTES, nil
-	case *types.Value_Int32Val:
-		valueBuffer := make([]byte, 4)
-		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int32Val))
-		return &valueBuffer, types.ValueType_INT32, nil
-	case *types.Value_Int64Val:
-		valueBuffer := make([]byte, 8)
-		binary.LittleEndian.PutUint64(valueBuffer, uint64(x.Int64Val))
-		return &valueBuffer, types.ValueType_INT64, nil
-	case nil:
-		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
-	default:
-		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
-	}
-}

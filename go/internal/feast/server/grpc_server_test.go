@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -21,6 +20,7 @@ import (
 	"github.com/apache/arrow/go/v17/parquet/pqarrow"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -84,9 +84,9 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, lo
 		}
 	}()
 
-	conn, _ := grpc.DialContext(ctx, "", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+	conn, _ := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 		return listener.Dial()
-	}), grpc.WithInsecure())
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	closer := func() {
 		listener.Close()
@@ -216,7 +216,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 
 	// Wait for logger to flush.
 	require.Eventually(t, func() bool {
-		files, err := ioutil.ReadDir(logPath)
+		files, err := os.ReadDir(logPath)
 		if err != nil || len(files) == 0 {
 			return false
 		}
@@ -224,7 +224,8 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		return err == nil && stat.Size() > 0
 	}, 1*time.Second, 100*time.Millisecond)
 
-	files, err := ioutil.ReadDir(logPath)
+	files, err := os.ReadDir(logPath)
+	assert.Nil(t, err)
 	logFile := filepath.Join(logPath, files[0].Name())
 	pf, err := file.OpenParquetFile(logFile, false)
 	assert.Nil(t, err)

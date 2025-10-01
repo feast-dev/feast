@@ -426,6 +426,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
     ) -> None:
         if isinstance(feature_view, OnDemandFeatureView):
             if not feature_view.write_to_online_store:
@@ -445,6 +446,7 @@ class PassthroughProvider(Provider):
             start_time=start_date,
             end_time=end_date,
             tqdm_builder=tqdm_builder,
+            disable_event_timestamp=disable_event_timestamp,
         )
         jobs = self.batch_engine.materialize(registry, task)
         assert len(jobs) == 1

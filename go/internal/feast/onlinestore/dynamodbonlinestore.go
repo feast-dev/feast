@@ -278,7 +278,7 @@ func (d *DynamodbOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 
 		// process null imputation for entity ids that don't exist in dynamodb
 		currentTime := timestamppb.Now() // TODO: should use a different timestamp?
-		for entityId, _ := range unprocessedEntityIdsFeatureView {
+		for entityId := range unprocessedEntityIdsFeatureView {
 			entityIndex := entityIndexMap[entityId]
 			for _, featureName := range featureNames {
 				featureIndex := featureNamesIndex[featureName]
