@@ -16,7 +16,7 @@ message UserDefinedFunctionV2 {
     // The string representation of the udf
     string body_text = 3;
 
-    // The transformation mode (e.g., "python", "pandas", "spark", "sql")
+    // The transformation mode (e.g., "python", "pandas", "ray", "spark", "sql")
     string mode = 4;
 }
 

@@ -411,6 +411,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "couchbase",
             "milvus",
             "ray",
+            "ray_rag",
         ],
         case_sensitive=False,
     ),

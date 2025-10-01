@@ -30,7 +30,7 @@ class UserDefinedFunctionV2(google.protobuf.message.Message):
     body_text: builtins.str
     """The string representation of the udf"""
     mode: builtins.str
-    """The transformation mode (e.g., "python", "pandas", "spark", "sql")"""
+    """The transformation mode (e.g., "python", "pandas", "ray", "spark", "sql")"""
     def __init__(
         self,
         *,
