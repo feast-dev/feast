@@ -145,7 +145,8 @@ class BatchFeatureView(FeatureView):
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
             TransformationMode.SQL,
-        ) or self.mode in ("pandas", "python", "sql"):
+            TransformationMode.RAY,
+        ) or self.mode in ("pandas", "python", "sql", "ray"):
             return Transformation(
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )

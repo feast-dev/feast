@@ -39,6 +39,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2 as FeatureTransformationProto,
 )
+from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
@@ -527,6 +528,7 @@ class FeatureView(BaseFeatureView):
 
         if has_transformation and cls == FeatureView:
             from feast.batch_feature_view import BatchFeatureView
+            from feast.transformation.factory import get_transformation_class_from_type
             from feast.transformation.python_transformation import PythonTransformation
             from feast.transformation.substrait_transformation import (
                 SubstraitTransformation,
@@ -538,13 +540,27 @@ class FeatureView(BaseFeatureView):
             transformation = None
 
             if feature_transformation_proto.HasField("user_defined_function"):
-                transformation = PythonTransformation.from_proto(
-                    feature_transformation_proto.user_defined_function
-                )
+                udf_proto = feature_transformation_proto.user_defined_function
+                if udf_proto.mode:
+                    try:
+                        transformation_class = get_transformation_class_from_type(
+                            udf_proto.mode
+                        )
+                        transformation = transformation_class.from_proto(udf_proto)
+                    except (ValueError, KeyError):
+                        transformation = PythonTransformation.from_proto(udf_proto)
+                else:
+                    transformation = PythonTransformation.from_proto(udf_proto)
             elif feature_transformation_proto.HasField("substrait_transformation"):
                 transformation = SubstraitTransformation.from_proto(
                     feature_transformation_proto.substrait_transformation
                 )
+
+            mode = (
+                transformation.mode
+                if transformation and hasattr(transformation, "mode")
+                else None
+            )
 
             feature_view: FeatureView = BatchFeatureView(  # type: ignore[assignment]
                 name=feature_view_proto.spec.name,
@@ -560,6 +576,7 @@ class FeatureView(BaseFeatureView):
                 ),
                 source=source_views if source_views else batch_source,  # type: ignore[arg-type]
                 sink_source=batch_source if source_views else None,
+                mode=mode if mode else TransformationMode.PYTHON,
                 feature_transformation=transformation,
             )
         else:

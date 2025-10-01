@@ -161,6 +161,7 @@ class RayFeatureBuilder(FeatureBuilder):
             name="output",
             feature_view=view,
             inputs=[final_node],
+            config=self.config,
         )
 
         self.nodes.append(node)
@@ -275,6 +276,7 @@ class RayFeatureBuilder(FeatureBuilder):
                 name=f"{view.name}:write",
                 feature_view=view,
                 inputs=[processing_node],
+                config=self.config,
             )
 
             view_to_write_node[view.name] = write_node
