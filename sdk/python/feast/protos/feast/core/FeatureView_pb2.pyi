@@ -140,7 +140,7 @@ class FeatureViewSpec(google.protobuf.message.Message):
     def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
         """Feature transformation for batch feature views"""
     mode: builtins.str
-    """The transformation mode (e.g., "python", "pandas", "spark", "sql", "ray")"""
+    """The transformation mode (e.g., "python", "pandas", "ray", "spark", "sql")"""
     def __init__(
         self,
         *,
