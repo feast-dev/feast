@@ -172,7 +172,8 @@ def permitted_resources(
     """
     A utility function to invoke the `assert_permissions` method on the global security manager.
 
-    If no global `SecurityManager` is defined, the execution is permitted.
+    If no global `SecurityManager` is defined (NoAuthConfig), all resources are permitted.
+    If a SecurityManager exists but no user context, access is denied for security.
 
     Args:
         resources: The resources for which we need to enforce authorized permission.
@@ -183,7 +184,17 @@ def permitted_resources(
 
     sm = get_security_manager()
     if not is_auth_necessary(sm):
-        return resources
+        # Check if this is NoAuthConfig (no security manager) vs missing user context
+        if sm is None:
+            # NoAuthConfig: allow all resources
+            logger.debug("NoAuthConfig enabled - allowing access to all resources")
+            return resources
+        else:
+            # Security manager exists but no user context - deny access for security
+            logger.warning(
+                "Security manager exists but no user context - denying access to all resources"
+            )
+            return []
     return sm.assert_permissions(resources=resources, actions=actions, filter_only=True)  # type: ignore[union-attr]
 
 
