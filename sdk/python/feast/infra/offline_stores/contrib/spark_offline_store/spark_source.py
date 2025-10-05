@@ -377,7 +377,7 @@ class SparkOptions:
             date_partition_column_format=spark_options_proto.date_partition_column_format,
             table_format=table_format_from_dict(
                 json.loads(spark_options_proto.table_format)
-            )
+            ),
         )
 
         return spark_options
@@ -394,7 +394,9 @@ class SparkOptions:
             path=self.path,
             file_format=self.file_format,
             date_partition_column_format=self.date_partition_column_format,
-            table_format=json.dumps(self.table_format.to_dict()) if self.table_format else "",
+            table_format=json.dumps(self.table_format.to_dict())
+            if self.table_format
+            else "",
         )
 
         return spark_options_proto

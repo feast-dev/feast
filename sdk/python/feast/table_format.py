@@ -20,6 +20,7 @@ from typing import Dict, Optional
 
 class TableFormatType(Enum):
     """Enum for supported table formats"""
+
     DELTA = "delta"
     ICEBERG = "iceberg"
     HUDI = "hudi"
@@ -32,9 +33,9 @@ class TableFormat(ABC):
     table storage formats like Iceberg, Delta Lake, Hudi, etc.
     """
 
-    def __init__(self,
-                 format_type: TableFormatType,
-                 properties: Optional[Dict[str, str]] = None):
+    def __init__(
+        self, format_type: TableFormatType, properties: Optional[Dict[str, str]] = None
+    ):
         self.format_type = format_type
         self.properties = properties or {}
 
@@ -45,20 +46,15 @@ class TableFormat(ABC):
 
     @classmethod
     @abstractmethod
-    def from_dict(cls,
-                  data: Dict) -> "TableFormat":
+    def from_dict(cls, data: Dict) -> "TableFormat":
         """Create table format from dictionary representation"""
         pass
 
-    def get_property(self,
-                     key: str,
-                     default: Optional[str] = None) -> Optional[str]:
+    def get_property(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """Get a table format property"""
         return self.properties.get(key, default)
 
-    def set_property(self,
-                     key: str,
-                     value: str) -> None:
+    def set_property(self, key: str, value: str) -> None:
         """Set a table format property"""
         self.properties[key] = value
 
@@ -71,11 +67,11 @@ class IcebergTableFormat(TableFormat):
     """
 
     def __init__(
-            self,
-            catalog: Optional[str] = None,
-            namespace: Optional[str] = None,
-            catalog_properties: Optional[Dict[str, str]] = None,
-            table_properties: Optional[Dict[str, str]] = None,
+        self,
+        catalog: Optional[str] = None,
+        namespace: Optional[str] = None,
+        catalog_properties: Optional[Dict[str, str]] = None,
+        table_properties: Optional[Dict[str, str]] = None,
     ):
         super().__init__(TableFormatType.ICEBERG)
         self.catalog = catalog
@@ -104,8 +100,7 @@ class IcebergTableFormat(TableFormat):
         }
 
     @classmethod
-    def from_dict(cls,
-                  data: Dict) -> "IcebergTableFormat":
+    def from_dict(cls, data: Dict) -> "IcebergTableFormat":
         return cls(
             catalog=data.get("catalog"),
             namespace=data.get("namespace"),
@@ -122,9 +117,9 @@ class DeltaTableFormat(TableFormat):
     """
 
     def __init__(
-            self,
-            table_properties: Optional[Dict[str, str]] = None,
-            checkpoint_location: Optional[str] = None,
+        self,
+        table_properties: Optional[Dict[str, str]] = None,
+        checkpoint_location: Optional[str] = None,
     ):
         super().__init__(TableFormatType.DELTA)
         self.table_properties = table_properties or {}
@@ -145,8 +140,7 @@ class DeltaTableFormat(TableFormat):
         }
 
     @classmethod
-    def from_dict(cls,
-                  data: Dict) -> "DeltaTableFormat":
+    def from_dict(cls, data: Dict) -> "DeltaTableFormat":
         return cls(
             table_properties=data.get("table_properties", {}),
             checkpoint_location=data.get("checkpoint_location"),
@@ -161,11 +155,11 @@ class HudiTableFormat(TableFormat):
     """
 
     def __init__(
-            self,
-            table_type: Optional[str] = None,  # COPY_ON_WRITE or MERGE_ON_READ
-            record_key: Optional[str] = None,
-            precombine_field: Optional[str] = None,
-            table_properties: Optional[Dict[str, str]] = None,
+        self,
+        table_type: Optional[str] = None,  # COPY_ON_WRITE or MERGE_ON_READ
+        record_key: Optional[str] = None,
+        precombine_field: Optional[str] = None,
+        table_properties: Optional[Dict[str, str]] = None,
     ):
         super().__init__(TableFormatType.HUDI)
         self.table_type = table_type
@@ -180,7 +174,9 @@ class HudiTableFormat(TableFormat):
         if record_key:
             all_properties["hoodie.datasource.write.recordkey.field"] = record_key
         if precombine_field:
-            all_properties["hoodie.datasource.write.precombine.field"] = precombine_field
+            all_properties["hoodie.datasource.write.precombine.field"] = (
+                precombine_field
+            )
 
         self.properties = all_properties
 
@@ -194,8 +190,7 @@ class HudiTableFormat(TableFormat):
         }
 
     @classmethod
-    def from_dict(cls,
-                  data: Dict) -> "HudiTableFormat":
+    def from_dict(cls, data: Dict) -> "HudiTableFormat":
         return cls(
             table_type=data.get("table_type"),
             record_key=data.get("record_key"),
@@ -204,8 +199,7 @@ class HudiTableFormat(TableFormat):
         )
 
 
-def create_table_format(format_type: TableFormatType,
-                        **kwargs) -> TableFormat:
+def create_table_format(format_type: TableFormatType, **kwargs) -> TableFormat:
     """
     Factory function to create appropriate TableFormat instance based on type.
     """
