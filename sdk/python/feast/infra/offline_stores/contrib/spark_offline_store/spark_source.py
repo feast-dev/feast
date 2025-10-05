@@ -15,7 +15,7 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 )
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.table_format import TableFormat, TableFormatType, table_format_from_dict
+from feast.table_format import TableFormat, table_format_from_dict
 from feast.type_map import spark_to_feast_value_type
 from feast.value_type import ValueType
 
@@ -61,7 +61,7 @@ class SparkSource(DataSource):
             query: The query to be executed in Spark.
             path: The path to file data.
             file_format: The underlying file format (parquet, avro, csv, json).
-            table_format: The table metadata format (iceberg, delta, hudi, etc.). 
+            table_format: The table metadata format (iceberg, delta, hudi, etc.).
                 Optional and separate from file_format.
             created_timestamp_column: Timestamp column indicating when the row
                 was created, used for deduplicating rows.
@@ -244,19 +244,18 @@ class SparkSource(DataSource):
 
     def _load_dataframe_from_path(self, spark_session):
         """Load DataFrame from path, considering both file format and table format."""
-        from feast.table_format import TableFormatType
-        
+
         if self.table_format is None:
             # No table format specified, use standard file reading with file_format
             return spark_session.read.format(self.file_format).load(self.path)
-        
+
         # Build reader with table format and options
         reader = spark_session.read.format(self.table_format.format_type.value)
-        
+
         # Add table format specific options
         for key, value in self.table_format.properties.items():
             reader = reader.option(key, value)
-        
+
         # For catalog-based table formats like Iceberg, the path is actually a table name
         # For file-based formats, it's still a file path
         return reader.load(self.path)
