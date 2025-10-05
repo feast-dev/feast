@@ -163,6 +163,7 @@ class SparkSource(DataSource):
             query=spark_options.query,
             path=spark_options.path,
             file_format=spark_options.file_format,
+            table_format=spark_options.table_format,
             date_partition_column_format=spark_options.date_partition_column_format,
             date_partition_column=data_source.date_partition_column,
             timestamp_field=data_source.timestamp_field,
@@ -369,15 +370,20 @@ class SparkOptions:
         Returns:
             Returns a SparkOptions object based on the spark_options protobuf
         """
+        # Parse table_format if present
+        table_format = None
+        if spark_options_proto.table_format:
+            table_format = table_format_from_dict(
+                json.loads(spark_options_proto.table_format)
+            )
+
         spark_options = cls(
             table=spark_options_proto.table,
             query=spark_options_proto.query,
             path=spark_options_proto.path,
             file_format=spark_options_proto.file_format,
             date_partition_column_format=spark_options_proto.date_partition_column_format,
-            table_format=table_format_from_dict(
-                json.loads(spark_options_proto.table_format)
-            ),
+            table_format=table_format,
         )
 
         return spark_options
