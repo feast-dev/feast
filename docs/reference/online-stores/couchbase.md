@@ -38,13 +38,13 @@ project: my_feature_repo
 registry: data/registry.db
 provider: local
 online_store:
-  type: couchbase
+  type: couchbase.online
   connection_string: couchbase://127.0.0.1 # Couchbase connection string, copied from 'Connect' page in Couchbase Capella console
   user: Administrator  # Couchbase username from access credentials
   password: password  # Couchbase password from access credentials
   bucket_name: feast  # Couchbase bucket name, defaults to feast
   kv_port: 11210  # Couchbase key-value port, defaults to 11210. Required if custom ports are used. 
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
 ```
 {% endcode %}
 

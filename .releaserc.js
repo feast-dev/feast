@@ -41,7 +41,7 @@ module.exports = {
             "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
 
             // Bump all version files and build UI / update yarn.lock / helm charts
-            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}; make build-ui; make build-helm-docs; make -C infra/feast-operator build-installer bundle"
+            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}; make build-ui; make build-helm-docs; make -C infra/feast-operator build-installer bundle; rm -rf infra/feast-operator/bin"
         }],
 
         ["@semantic-release/release-notes-generator", {
@@ -66,9 +66,9 @@ module.exports = {
                     "CHANGELOG.md",
                     "java/pom.xml",
                     "infra/charts/**/*.*",
-                    "infra/feast-helm-operator/**/*",
                     "infra/feast-operator/**/*",
                     "ui/package.json",
+                    "sdk/python/feast/infra/feature_servers/multicloud/requirements.txt",
                     "sdk/python/feast/ui/package.json",
                     "sdk/python/feast/ui/yarn.lock"
                 ],

@@ -16,7 +16,7 @@ metadata:
   name: feast-data-stores
   namespace: test
 stringData:
-  postgres-secret-parameters: |
+  sql: |
     path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres.test.svc.cluster.local:5432/${POSTGRES_DB}
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
@@ -33,7 +33,7 @@ stringData:
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: example
+  name: sample-db-persistence
   namespace: test
 spec:
   feastProject: my_project
@@ -44,9 +44,10 @@ spec:
           type: postgres
           secretRef:
             name: feast-data-stores
-      envFrom:
-      - secretRef:
-          name: postgres-secret
+      server:
+        envFrom:
+        - secretRef:
+            name: postgres-secret
     registry:
       local:
         persistence:
@@ -54,7 +55,3 @@ spec:
             type: sql
             secretRef:
               name: feast-data-stores
-            secretKeyName: postgres-secret-parameters   # optional, will use store.type by default as the SecretKeyName if none is specified, in this case that's "sql"
-        envFrom:
-        - secretRef:
-            name: postgres-secret

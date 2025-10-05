@@ -11,8 +11,6 @@ jobs:
         with:
           go-version: 1.22.9
       - name: Operator tests
-        run: |
-          cd infra/feast-operator/
-          make test
+        run: make -C infra/feast-operator test
       - name: After code formatting, check for uncommitted differences
         run: git diff --exit-code infra/feast-operator

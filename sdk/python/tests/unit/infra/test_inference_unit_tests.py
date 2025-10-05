@@ -154,23 +154,6 @@ def test_on_demand_features_invalid_type_inference():
             }
             return output_dict
 
-    with pytest.raises(TypeError):
-
-        @on_demand_feature_view(
-            sources=[date_request],
-            schema=[
-                Field(name="output", dtype=UnixTimestamp),
-                Field(name="object_output", dtype=String),
-            ],
-            mode="python",
-        )
-        def python_native_test_invalid_dict_view(
-            features_df: pd.DataFrame,
-        ) -> pd.DataFrame:
-            data = pd.DataFrame()
-            data["output"] = features_df["some_date"]
-            return data
-
 
 def test_datasource_inference():
     # Create Feature Views
@@ -260,7 +243,7 @@ def test_feature_view_inference_respects_basic_inference():
     config = RepoConfig(
         provider="local",
         project="test",
-        entity_key_serialization_version=2,
+        entity_key_serialization_version=3,
         registry="dummy_registry.pb",
     )
     provider = get_provider(config)
@@ -281,7 +264,7 @@ def test_feature_view_inference_respects_basic_inference():
     config = RepoConfig(
         provider="local",
         project="test",
-        entity_key_serialization_version=2,
+        entity_key_serialization_version=3,
         registry="dummy_registry.pb",
     )
     provider = get_provider(config)
@@ -318,7 +301,7 @@ def test_feature_view_inference_on_entity_value_types():
     config = RepoConfig(
         provider="local",
         project="test",
-        entity_key_serialization_version=2,
+        entity_key_serialization_version=3,
         registry="dummy_registry.pb",
     )
     provider = get_provider(config)
@@ -394,7 +377,7 @@ def test_feature_view_inference_on_entity_columns(simple_dataset_1):
         config = RepoConfig(
             provider="local",
             project="test",
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
             registry="dummy_registry.pb",
         )
         provider = get_provider(config)
@@ -435,7 +418,7 @@ def test_feature_view_inference_on_feature_columns(simple_dataset_1):
         config = RepoConfig(
             provider="local",
             project="test",
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
             registry="dummy_registry.pb",
         )
         provider = get_provider(config)
@@ -493,7 +476,7 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
         config = RepoConfig(
             provider="local",
             project="test",
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
             registry="dummy_registry.pb",
         )
         provider = get_provider(config)
@@ -556,7 +539,7 @@ def test_update_feature_services_with_specified_features(simple_dataset_1):
         config = RepoConfig(
             provider="local",
             project="test",
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
             registry="dummy_registry.pb",
         )
         provider = get_provider(config)

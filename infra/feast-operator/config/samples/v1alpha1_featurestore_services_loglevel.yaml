@@ -6,12 +6,14 @@ spec:
   feastProject: my_project
   services:
     onlineStore:
-      logLevel: debug
+      server:
+        logLevel: debug
     offlineStore:
-      logLevel: debug
-    ui:
-      logLevel: debug
+      server:
+        logLevel: debug
     registry:
       local:
-       logLevel: info
-
+        server:
+          logLevel: debug
+    ui:
+      logLevel: debug

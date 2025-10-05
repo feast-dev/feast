@@ -31,10 +31,12 @@ The Feature Server operates as a stateless service backed by two key components:
 
 ## Endpoints Overview
 
-| Endpoint                   | Description                                                             |
-| -------------------------- | ----------------------------------------------------------------------- |
-| `/get-online-features`     | Retrieves feature values for specified entities and feature references. |
-| `/push`                    | Pushes feature data to the online and/or offline store.                 |
-| `/materialize`             | Materializes features within a specific time range to the online store. |
-| `/materialize-incremental` | Incrementally materializes features up to the current timestamp.        |
+| Endpoint                     | Description                                                             |
+|------------------------------|-------------------------------------------------------------------------|
+| `/get-online-features`       | Retrieves feature values for specified entities and feature references. |
+| `/push`                      | Pushes feature data to the online and/or offline store.                 |
+| `/materialize`               | Materializes features within a specific time range to the online store. |
+| `/materialize-incremental`   | Incrementally materializes features up to the current timestamp.        |
+| `/retrieve-online-documents` | Supports Vector Similarity Search for RAG (Alpha end-ponit)             |
+| `/docs`                      | API Contract for available endpoints                                    | 
 

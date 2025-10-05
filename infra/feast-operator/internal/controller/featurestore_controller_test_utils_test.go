@@ -105,7 +105,7 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 			FeastProject: feastProject,
 			Services: &feastdevv1alpha1.FeatureStoreServices{
 				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					ServerConfigs: feastdevv1alpha1.ServerConfigs{
+					Server: &feastdevv1alpha1.ServerConfigs{
 						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
 							OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
 								EnvFrom: envFromVar,
@@ -114,7 +114,7 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 					},
 				},
 				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					ServerConfigs: feastdevv1alpha1.ServerConfigs{
+					Server: &feastdevv1alpha1.ServerConfigs{
 						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
 							DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
 								Image: &image,
@@ -125,6 +125,13 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 								ImagePullPolicy: &pullPolicy,
 								Resources:       &corev1.ResourceRequirements{},
 							},
+						},
+					},
+				},
+				Registry: &feastdevv1alpha1.Registry{
+					Local: &feastdevv1alpha1.LocalRegistryConfig{
+						Server: &feastdevv1alpha1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
 						},
 					},
 				},

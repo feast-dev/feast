@@ -11,6 +11,7 @@ from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
 from .batch_feature_view import BatchFeatureView
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
+from .dataframe import DataFrameEngine, FeastDataFrame
 from .entity import Entity
 from .feature import Feature
 from .feature_service import FeatureService
@@ -22,6 +23,7 @@ from .project import Project
 from .repo_config import RepoConfig
 from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
+from .vector_store import FeastVectorStore
 
 try:
     __version__ = _version("feast")
@@ -31,9 +33,11 @@ except PackageNotFoundError:
 
 __all__ = [
     "BatchFeatureView",
+    "DataFrameEngine",
     "Entity",
     "KafkaSource",
     "KinesisSource",
+    "FeastDataFrame",
     "Feature",
     "Field",
     "FeatureService",
@@ -51,4 +55,5 @@ __all__ = [
     "RequestSource",
     "AthenaSource",
     "Project",
+    "FeastVectorStore",
 ]

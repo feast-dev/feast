@@ -1,11 +1,10 @@
 package registry
 
 import (
-	"io/ioutil"
+	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 
-	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -33,7 +32,7 @@ func NewFileRegistryStore(config *RegistryConfig, repoPath string) *FileRegistry
 // GetRegistryProto reads and parses the registry proto from the file path.
 func (r *FileRegistryStore) GetRegistryProto() (*core.Registry, error) {
 	registry := &core.Registry{}
-	in, err := ioutil.ReadFile(r.filePath)
+	in, err := os.ReadFile(r.filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +57,7 @@ func (r *FileRegistryStore) writeRegistry(rp *core.Registry) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(r.filePath, bytes, 0644)
+	err = os.WriteFile(r.filePath, bytes, 0644)
 	if err != nil {
 		return err
 	}

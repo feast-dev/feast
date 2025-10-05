@@ -57,8 +57,8 @@ To keep your online store up to date, you need to run a job that loads feature d
 Out of the box, Feast's materialization process uses an in-process materialization engine. This engine loads all the data being materialized into memory from the offline store, and writes it into the online store. 
 
 This approach may not scale to large amounts of data, which users of Feast may be dealing with in production.
-In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
-Users may also need to [write a custom materialization engine](../how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md) to work on their existing infrastructure.  
+In this case, we recommend using one of the more [scalable compute engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Compute Engine](../reference/compute-engine/snowflake.md).
+Users may also need to [write a custom compute engine](../how-to-guides/customizing-feast/creating-a-custom-compute-engine.md) to work on their existing infrastructure.  
 
 
 ### 2.2 Scheduled materialization with Airflow
@@ -88,7 +88,7 @@ def materialize(data_interval_start=None, data_interval_end=None):
     provider="aws",
     offline_store="file",
     online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
-    entity_key_serialization_version=2
+    entity_key_serialization_version=3
   )
   store = FeatureStore(config=repo_config)
   # Option 1: materialize just one feature view
@@ -205,27 +205,53 @@ feature_vector = fs.get_online_features(
 
 ### 4.2. Deploy Feast feature servers on Kubernetes
 
-To deploy a Feast feature server on Kubernetes, you can use the included [helm chart + tutorial](https://github.com/feast-dev/feast/tree/master/infra/charts/feast-feature-server) (which also has detailed instructions and an example tutorial).
+To deploy a Feast feature server on Kubernetes, you should use the included [feast-operator](../../infra/feast-operator).
+
+{% embed url="https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX" %}
 
 **Basic steps**
-1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) and [helm 3](https://helm.sh/)
-2. Add the Feast Helm repository and download the latest charts:
+1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+2. Install the Operator
 
-```
-helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
-helm repo update
-```
 
-3. Run Helm Install
-
-```
-helm install feast-release feast-charts/feast-feature-server \
-    --set feature_store_yaml_base64=$(base64 feature_store.yaml)    
+Install the latest release
+```sh
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
 ```
 
-This will deploy a single service. The service must have read access to the registry file on cloud storage and to the online store (e.g. via [podAnnotations](https://kubernetes-on-aws.readthedocs.io/en/latest/user-guide/iam-roles.html)). It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
+OR, install a specific version -
+```
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
+```
 
-> Alternatively, deploy the same helm chart with a [Kubernetes Operator](/infra/feast-helm-operator).
+3. Deploy a Feature Store
+
+```sh
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1alpha1_featurestore.yaml
+```
+Verify the status
+```
+$ kubectl get feast
+NAME     STATUS   AGE
+sample   Ready    2m21s
+```
+
+The above will install a simple [FeatureStore CR](../../infra/feast-operator/docs/api/markdown/ref.md) like the following. By default, it will run the [Online Store feature server](../reference/feature-servers/python-feature-server.md) -
+```yaml
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample
+spec:
+  feastProject: my_project
+```
+> _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
+
+For first-time Operator users, it may be a good exercise to try the [Feast Operator Quickstart](../../examples/operator-quickstart). The quickstart will demonstrate some of the Operator's built-in features, e.g. git repos, `feast apply` jobs, etc.
+
+{% hint style="success" %} Important note: Scaling a Feature Store Deployment should only be done if the configured data store(s) will support it.
+
+Please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md). {% endhint %}
 
 ## 5. Using environment variables in your yaml configuration
 

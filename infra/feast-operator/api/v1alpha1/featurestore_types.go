@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -36,25 +37,30 @@ const (
 	UIReadyType            = "UI"
 	ReadyType              = "FeatureStore"
 	AuthorizationReadyType = "Authorization"
+	CronJobReadyType       = "CronJob"
 
 	// Feast condition reasons:
-	ReadyReason                 = "Ready"
-	FailedReason                = "FeatureStoreFailed"
-	OfflineStoreFailedReason    = "OfflineStoreDeploymentFailed"
-	OnlineStoreFailedReason     = "OnlineStoreDeploymentFailed"
-	RegistryFailedReason        = "RegistryDeploymentFailed"
-	UIFailedReason              = "UIDeploymentFailed"
-	ClientFailedReason          = "ClientDeploymentFailed"
-	KubernetesAuthzFailedReason = "KubernetesAuthorizationDeploymentFailed"
+	ReadyReason                  = "Ready"
+	FailedReason                 = "FeatureStoreFailed"
+	DeploymentNotAvailableReason = "DeploymentNotAvailable"
+	OfflineStoreFailedReason     = "OfflineStoreDeploymentFailed"
+	OnlineStoreFailedReason      = "OnlineStoreDeploymentFailed"
+	RegistryFailedReason         = "RegistryDeploymentFailed"
+	UIFailedReason               = "UIDeploymentFailed"
+	ClientFailedReason           = "ClientDeploymentFailed"
+	CronJobFailedReason          = "CronJobDeploymentFailed"
+	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
 
 	// Feast condition messages:
-	ReadyMessage                = "FeatureStore installation complete"
-	OfflineStoreReadyMessage    = "Offline Store installation complete"
-	OnlineStoreReadyMessage     = "Online Store installation complete"
-	RegistryReadyMessage        = "Registry installation complete"
-	UIReadyMessage              = "UI installation complete"
-	ClientReadyMessage          = "Client installation complete"
-	KubernetesAuthzReadyMessage = "Kubernetes authorization installation complete"
+	ReadyMessage                  = "FeatureStore installation complete"
+	OfflineStoreReadyMessage      = "Offline Store installation complete"
+	OnlineStoreReadyMessage       = "Online Store installation complete"
+	RegistryReadyMessage          = "Registry installation complete"
+	UIReadyMessage                = "UI installation complete"
+	ClientReadyMessage            = "Client installation complete"
+	CronJobReadyMessage           = "CronJob installation complete"
+	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
+	DeploymentNotAvailableMessage = "Deployment is not available"
 
 	// entity_key_serialization_version
 	SerializationVersion = 3
@@ -62,28 +68,228 @@ const (
 
 // FeatureStoreSpec defines the desired state of FeatureStore
 type FeatureStoreSpec struct {
-	// +kubebuilder:validation:Pattern="^[A-Za-z0-9][A-Za-z0-9_]*$"
-	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required.
-	FeastProject string                `json:"feastProject"`
-	Services     *FeatureStoreServices `json:"services,omitempty"`
-	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
+	// +kubebuilder:validation:Pattern="^[A-Za-z0-9][A-Za-z0-9_-]*$"
+	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores and hyphens, but it cannot start with an underscore or hyphen. Required.
+	FeastProject    string                `json:"feastProject"`
+	FeastProjectDir *FeastProjectDir      `json:"feastProjectDir,omitempty"`
+	Services        *FeatureStoreServices `json:"services,omitempty"`
+	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
+	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
 }
 
-// FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
+// FeastProjectDir defines how to create the feast project directory.
+// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init)].exists_one(c, c)",message="One selection required between init or git."
+type FeastProjectDir struct {
+	Git  *GitCloneOptions  `json:"git,omitempty"`
+	Init *FeastInitOptions `json:"init,omitempty"`
+}
+
+// GitCloneOptions describes how a clone should be performed.
+// +kubebuilder:validation:XValidation:rule="has(self.featureRepoPath) ? !self.featureRepoPath.startsWith('/') : true",message="RepoPath must be a file name only, with no slashes."
+type GitCloneOptions struct {
+	// The repository URL to clone from.
+	URL string `json:"url"`
+	// Reference to a branch / tag / commit
+	Ref string `json:"ref,omitempty"`
+	// Configs passed to git via `-c`
+	// e.g. http.sslVerify: 'false'
+	// OR 'url."https://api:\${TOKEN}@github.com/".insteadOf': 'https://github.com/'
+	Configs map[string]string `json:"configs,omitempty"`
+	// FeatureRepoPath is the relative path to the feature repo subdirectory. Default is 'feature_repo'.
+	FeatureRepoPath string                  `json:"featureRepoPath,omitempty"`
+	Env             *[]corev1.EnvVar        `json:"env,omitempty"`
+	EnvFrom         *[]corev1.EnvFromSource `json:"envFrom,omitempty"`
+}
+
+// FeastInitOptions defines how to run a `feast init`.
+type FeastInitOptions struct {
+	Minimal bool `json:"minimal,omitempty"`
+	// Template for the created project
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase;clickhouse
+	Template string `json:"template,omitempty"`
+}
+
+// FeastCronJob defines a CronJob to execute against a Feature Store deployment.
+type FeastCronJob struct {
+	// Specification of the desired behavior of a job.
+	JobSpec          *JobSpec                 `json:"jobSpec,omitempty"`
+	ContainerConfigs *CronJobContainerConfigs `json:"containerConfigs,omitempty"`
+
+	// The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+	Schedule string `json:"schedule,omitempty"`
+
+	// The time zone name for the given schedule, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
+	// If not specified, this will default to the time zone of the kube-controller-manager process.
+	// The set of valid time zone names and the time zone offset is loaded from the system-wide time zone
+	// database by the API server during CronJob validation and the controller manager during execution.
+	// If no system-wide time zone database can be found a bundled version of the database is used instead.
+	// If the time zone name becomes invalid during the lifetime of a CronJob or due to a change in host
+	// configuration, the controller will stop creating new new Jobs and will create a system event with the
+	// reason UnknownTimeZone.
+	// More information can be found in https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#time-zones
+	TimeZone *string `json:"timeZone,omitempty"`
+
+	// Optional deadline in seconds for starting the job if it misses scheduled
+	// time for any reason.  Missed jobs executions will be counted as failed ones.
+	StartingDeadlineSeconds *int64 `json:"startingDeadlineSeconds,omitempty"`
+
+	// Specifies how to treat concurrent executions of a Job.
+	// Valid values are:
+	//
+	// - "Allow" (default): allows CronJobs to run concurrently;
+	// - "Forbid": forbids concurrent runs, skipping next run if previous run hasn't finished yet;
+	// - "Replace": cancels currently running job and replaces it with a new one
+	ConcurrencyPolicy batchv1.ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
+
+	// This flag tells the controller to suspend subsequent executions, it does
+	// not apply to already started executions.
+	Suspend *bool `json:"suspend,omitempty"`
+
+	// The number of successful finished jobs to retain. Value must be non-negative integer.
+	SuccessfulJobsHistoryLimit *int32 `json:"successfulJobsHistoryLimit,omitempty"`
+
+	// The number of failed finished jobs to retain. Value must be non-negative integer.
+	FailedJobsHistoryLimit *int32 `json:"failedJobsHistoryLimit,omitempty"`
+}
+
+// JobSpec describes how the job execution will look like.
+type JobSpec struct {
+	// Specifies the maximum desired number of pods the job should
+	// run at any given time. The actual number of pods running in steady state will
+	// be less than this number when ((.spec.completions - .status.successful) < .spec.parallelism),
+	// i.e. when the work left to do is less than max parallelism.
+	// More info: https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/
+	Parallelism *int32 `json:"parallelism,omitempty"`
+
+	// Specifies the desired number of successfully finished pods the
+	// job should be run with.  Setting to null means that the success of any
+	// pod signals the success of all pods, and allows parallelism to have any positive
+	// value.  Setting to 1 means that parallelism is limited to 1 and the success of that
+	// pod signals the success of the job.
+	// More info: https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/
+	Completions *int32 `json:"completions,omitempty"`
+
+	// Specifies the duration in seconds relative to the startTime that the job
+	// may be continuously active before the system tries to terminate it; value
+	// must be positive integer. If a Job is suspended (at creation or through an
+	// update), this timer will effectively be stopped and reset when the Job is
+	// resumed again.
+	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
+
+	// Specifies the policy of handling failed pods. In particular, it allows to
+	// specify the set of actions and conditions which need to be
+	// satisfied to take the associated action.
+	// If empty, the default behaviour applies - the counter of failed pods,
+	// represented by the jobs's .status.failed field, is incremented and it is
+	// checked against the backoffLimit. This field cannot be used in combination
+	// with restartPolicy=OnFailure.
+	//
+	// This field is beta-level. It can be used when the `JobPodFailurePolicy`
+	// feature gate is enabled (enabled by default).
+	PodFailurePolicy *batchv1.PodFailurePolicy `json:"podFailurePolicy,omitempty"`
+
+	// Specifies the number of retries before marking this job failed.
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
+	// Specifies the limit for the number of retries within an
+	// index before marking this index as failed. When enabled the number of
+	// failures per index is kept in the pod's
+	// batch.kubernetes.io/job-index-failure-count annotation. It can only
+	// be set when Job's completionMode=Indexed, and the Pod's restart
+	// policy is Never. The field is immutable.
+	// This field is beta-level. It can be used when the `JobBackoffLimitPerIndex`
+	// feature gate is enabled (enabled by default).
+	BackoffLimitPerIndex *int32 `json:"backoffLimitPerIndex,omitempty"`
+
+	// Specifies the maximal number of failed indexes before marking the Job as
+	// failed, when backoffLimitPerIndex is set. Once the number of failed
+	// indexes exceeds this number the entire Job is marked as Failed and its
+	// execution is terminated. When left as null the job continues execution of
+	// all of its indexes and is marked with the `Complete` Job condition.
+	// It can only be specified when backoffLimitPerIndex is set.
+	// It can be null or up to completions. It is required and must be
+	// less than or equal to 10^4 when is completions greater than 10^5.
+	// This field is beta-level. It can be used when the `JobBackoffLimitPerIndex`
+	// feature gate is enabled (enabled by default).
+	MaxFailedIndexes *int32 `json:"maxFailedIndexes,omitempty"`
+
+	// ttlSecondsAfterFinished limits the lifetime of a Job that has finished
+	// execution (either Complete or Failed). If this field is set,
+	// ttlSecondsAfterFinished after the Job finishes, it is eligible to be
+	// automatically deleted. When the Job is being deleted, its lifecycle
+	// guarantees (e.g. finalizers) will be honored. If this field is unset,
+	// the Job won't be automatically deleted. If this field is set to zero,
+	// the Job becomes eligible to be deleted immediately after it finishes.
+	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
+
+	// completionMode specifies how Pod completions are tracked. It can be
+	// `NonIndexed` (default) or `Indexed`.
+	//
+	// `NonIndexed` means that the Job is considered complete when there have
+	// been .spec.completions successfully completed Pods. Each Pod completion is
+	// homologous to each other.
+	//
+	// `Indexed` means that the Pods of a
+	// Job get an associated completion index from 0 to (.spec.completions - 1),
+	// available in the annotation batch.kubernetes.io/job-completion-index.
+	// The Job is considered complete when there is one successfully completed Pod
+	// for each index.
+	// When value is `Indexed`, .spec.completions must be specified and
+	// `.spec.parallelism` must be less than or equal to 10^5.
+	// In addition, The Pod name takes the form
+	// `$(job-name)-$(index)-$(random-string)`,
+	// the Pod hostname takes the form `$(job-name)-$(index)`.
+	//
+	// More completion modes can be added in the future.
+	// If the Job controller observes a mode that it doesn't recognize, which
+	// is possible during upgrades due to version skew, the controller
+	// skips updates for the Job.
+	CompletionMode *batchv1.CompletionMode `json:"completionMode,omitempty"`
+
+	// suspend specifies whether the Job controller should create Pods or not. If
+	// a Job is created with suspend set to true, no Pods are created by the Job
+	// controller. If a Job is suspended after creation (i.e. the flag goes from
+	// false to true), the Job controller will delete all active Pods associated
+	// with this Job. Users must design their workload to gracefully handle this.
+	// Suspending a Job will reset the StartTime field of the Job, effectively
+	// resetting the ActiveDeadlineSeconds timer too.
+	//
+	Suspend *bool `json:"suspend,omitempty"`
+
+	// podReplacementPolicy specifies when to create replacement Pods.
+	// Possible values are:
+	// - TerminatingOrFailed means that we recreate pods
+	//   when they are terminating (has a metadata.deletionTimestamp) or failed.
+	// - Failed means to wait until a previously created Pod is fully terminated (has phase
+	//   Failed or Succeeded) before creating a replacement Pod.
+	//
+	// When using podFailurePolicy, Failed is the the only allowed value.
+	// TerminatingOrFailed and Failed are allowed values when podFailurePolicy is not in use.
+	// This is an beta field. To use this, enable the JobPodReplacementPolicy feature toggle.
+	// This is on by default.
+	PodReplacementPolicy *batchv1.PodReplacementPolicy `json:"podReplacementPolicy,omitempty"`
+}
+
+// FeatureStoreServices defines the desired feast services. An ephemeral onlineStore feature server is deployed by default.
 type FeatureStoreServices struct {
-	OfflineStore       *OfflineStore              `json:"offlineStore,omitempty"`
-	OnlineStore        *OnlineStore               `json:"onlineStore,omitempty"`
-	Registry           *Registry                  `json:"registry,omitempty"`
+	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
+	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
+	Registry     *Registry     `json:"registry,omitempty"`
+	// Creates a UI server container
 	UI                 *ServerConfigs             `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
+	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
-// OfflineStore configures the deployed offline store service
+// OfflineStore configures the offline store service
 type OfflineStore struct {
-	ServerConfigs `json:",inline"`
-	Persistence   *OfflineStorePersistence `json:"persistence,omitempty"`
+	// Creates a remote offline server container
+	Server      *ServerConfigs           `json:"server,omitempty"`
+	Persistence *OfflineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service
@@ -108,7 +314,8 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;redis;athena;mssql
+	// Type of the persistence type you want to use.
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse;ray
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -123,15 +330,18 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"spark",
 	"postgres",
 	"trino",
-	"redis",
 	"athena",
 	"mssql",
+	"couchbase.offline",
+	"clickhouse",
+	"ray",
 }
 
-// OnlineStore configures the deployed online store service
+// OnlineStore configures the online store service
 type OnlineStore struct {
-	ServerConfigs `json:",inline"`
-	Persistence   *OnlineStorePersistence `json:"persistence,omitempty"`
+	// Creates a feature server container
+	Server      *ServerConfigs          `json:"server,omitempty"`
+	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -141,7 +351,7 @@ type OnlineStorePersistence struct {
 	DBPersistence   *OnlineStoreDBStorePersistence `json:"store,omitempty"`
 }
 
-// OnlineStoreFilePersistence configures the file-based persistence for the offline store service
+// OnlineStoreFilePersistence configures the file-based persistence for the online store service
 // +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? self.path.startsWith('/') : true",message="Ephemeral stores must have absolute paths."
 // +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !self.path.startsWith('/') : true",message="PVC path must be a file name only, with no slashes."
 // +kubebuilder:validation:XValidation:rule="has(self.path) ? !(self.path.startsWith('s3://') || self.path.startsWith('gs://')) : true",message="Online store does not support S3 or GS buckets."
@@ -150,9 +360,10 @@ type OnlineStoreFilePersistence struct {
 	PvcConfig *PvcConfig `json:"pvc,omitempty"`
 }
 
-// OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
+// OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase;milvus
+	// Type of the persistence type you want to use.
+	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -175,14 +386,15 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"hbase",
 	"elasticsearch",
 	"qdrant",
-	"couchbase",
+	"couchbase.online",
 	"milvus",
 }
 
-// LocalRegistryConfig configures the deployed registry service
+// LocalRegistryConfig configures the registry service
 type LocalRegistryConfig struct {
-	ServerConfigs `json:",inline"`
-	Persistence   *RegistryPersistence `json:"persistence,omitempty"`
+	// Creates a registry server container
+	Server      *RegistryServerConfigs `json:"server,omitempty"`
+	Persistence *RegistryPersistence   `json:"persistence,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -205,6 +417,7 @@ type RegistryFilePersistence struct {
 
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
 type RegistryDBStorePersistence struct {
+	// Type of the persistence type you want to use.
 	// +kubebuilder:validation:Enum=sql;snowflake.registry
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
@@ -214,8 +427,8 @@ type RegistryDBStorePersistence struct {
 }
 
 var ValidRegistryDBStorePersistenceTypes = []string{
-	"snowflake.registry",
 	"sql",
+	"snowflake.registry",
 }
 
 // PvcConfig defines the settings for a persistent file store based on PVCs.
@@ -275,14 +488,40 @@ type FeatureStoreRef struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// ServerConfigs server-related configurations for a feast service
+// ServerConfigs creates a server for the feast service, with specified container configurations.
 type ServerConfigs struct {
 	ContainerConfigs `json:",inline"`
 	TLS              *TlsConfigs `json:"tls,omitempty"`
 	// LogLevel sets the logging level for the server
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
+	LogLevel *string `json:"logLevel,omitempty"`
+	// VolumeMounts defines the list of volumes that should be mounted into the feast container.
+	// This allows attaching persistent storage, config files, secrets, or other resources
+	// required by the Feast components. Ensure that each volume mount has a corresponding
+	// volume definition in the Volumes field.
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+}
+
+// RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
+// +kubebuilder:validation:XValidation:rule="self.restAPI == true || self.grpc == true || !has(self.grpc)", message="At least one of restAPI or grpc must be true"
+type RegistryServerConfigs struct {
+	ServerConfigs `json:",inline"`
+
+	// Enable REST API registry server.
+	RestAPI *bool `json:"restAPI,omitempty"`
+
+	// Enable gRPC registry server. Defaults to true if unset.
+	GRPC *bool `json:"grpc,omitempty"`
+}
+
+// CronJobContainerConfigs k8s container settings for the CronJob
+type CronJobContainerConfigs struct {
+	ContainerConfigs `json:",inline"`
+
+	// Array of commands to be executed (in order) against a Feature Store deployment.
+	// Defaults to "feast apply" & "feast materialize-incremental $(date -u +'%Y-%m-%dT%H:%M:%S')"
+	Commands []string `json:"commands,omitempty"`
 }
 
 // ContainerConfigs k8s container settings for the server
@@ -373,7 +612,9 @@ type FeatureStoreStatus struct {
 	// Shows the currently applied feast configuration, including any pertinent defaults
 	Applied FeatureStoreSpec `json:"applied,omitempty"`
 	// ConfigMap in this namespace containing a client `feature_store.yaml` for this feast deployment
-	ClientConfigMap  string             `json:"clientConfigMap,omitempty"`
+	ClientConfigMap string `json:"clientConfigMap,omitempty"`
+	// CronJob in this namespace for this feast deployment
+	CronJob          string             `json:"cronJob,omitempty"`
 	Conditions       []metav1.Condition `json:"conditions,omitempty"`
 	FeastVersion     string             `json:"feastVersion,omitempty"`
 	Phase            string             `json:"phase,omitempty"`
@@ -385,6 +626,7 @@ type ServiceHostnames struct {
 	OfflineStore string `json:"offlineStore,omitempty"`
 	OnlineStore  string `json:"onlineStore,omitempty"`
 	Registry     string `json:"registry,omitempty"`
+	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`
 }
 

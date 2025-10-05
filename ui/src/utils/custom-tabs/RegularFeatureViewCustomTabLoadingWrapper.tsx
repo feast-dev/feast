@@ -19,7 +19,7 @@ const RegularFeatureViewCustomTabLoadingWrapper = ({
 
   if (!featureViewName) {
     throw new Error(
-      `This route has no 'featureViewName' part. This route is likely not supposed to render this component.`
+      `This route has no 'featureViewName' part. This route is likely not supposed to render this component.`,
     );
   }
 
@@ -31,7 +31,7 @@ const RegularFeatureViewCustomTabLoadingWrapper = ({
     feastObjectQuery.data.type !== FEAST_FV_TYPES.regular
   ) {
     throw new Error(
-      `This should not happen. Somehow a custom tab on a Regular FV page received data that does not have the shape?`
+      `This should not happen. Somehow a custom tab on a Regular FV page received data that does not have the shape?`,
     );
   }
 

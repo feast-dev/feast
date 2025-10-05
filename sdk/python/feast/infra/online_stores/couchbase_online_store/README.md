@@ -28,20 +28,20 @@ cd feature_repo
 
 #### Edit `feature_store.yaml`
 
-Set the `online_store` type to `couchbase`, and fill in the required fields as shown below.
+Set the `online_store` type to `couchbase.online`, and fill in the required fields as shown below.
 
 ```yaml
 project: feature_repo
 registry: data/registry.db
 provider: local
 online_store:
-  type: couchbase
+  type: couchbase.online
   connection_string: couchbase://127.0.0.1 # Couchbase connection string, copied from 'Connect' page in Couchbase Capella console
   user: Administrator  # Couchbase username from access credentials
   password: password  # Couchbase password from access credentials
   bucket_name: feast  # Couchbase bucket name, defaults to feast
   kv_port: 11210  # Couchbase key-value port, defaults to 11210. Required if custom ports are used. 
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
 ```
 
 #### Apply the feature definitions in [`example.py`](https://github.com/feast-dev/feast/blob/master/go/internal/test/feature_repo/example.py)

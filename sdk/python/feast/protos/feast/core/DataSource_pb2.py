@@ -19,7 +19,7 @@ from feast.protos.feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 from feast.protos.feast.core import Feature_pb2 as feast_dot_core_dot_Feature__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/core/DataSource.proto\x12\nfeast.core\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1b\x66\x65\x61st/core/DataFormat.proto\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x18\x66\x65\x61st/core/Feature.proto\"\xf2\x16\n\nDataSource\x12\x0c\n\x04name\x18\x14 \x01(\t\x12\x0f\n\x07project\x18\x15 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x17 \x01(\t\x12.\n\x04tags\x18\x18 \x03(\x0b\x32 .feast.core.DataSource.TagsEntry\x12\r\n\x05owner\x18\x19 \x01(\t\x12/\n\x04type\x18\x01 \x01(\x0e\x32!.feast.core.DataSource.SourceType\x12?\n\rfield_mapping\x18\x02 \x03(\x0b\x32(.feast.core.DataSource.FieldMappingEntry\x12\x17\n\x0ftimestamp_field\x18\x03 \x01(\t\x12\x1d\n\x15\x64\x61te_partition_column\x18\x04 \x01(\t\x12 \n\x18\x63reated_timestamp_column\x18\x05 \x01(\t\x12\x1e\n\x16\x64\x61ta_source_class_type\x18\x11 \x01(\t\x12,\n\x0c\x62\x61tch_source\x18\x1a \x01(\x0b\x32\x16.feast.core.DataSource\x12/\n\x04meta\x18\x32 \x01(\x0b\x32!.feast.core.DataSource.SourceMeta\x12:\n\x0c\x66ile_options\x18\x0b \x01(\x0b\x32\".feast.core.DataSource.FileOptionsH\x00\x12\x42\n\x10\x62igquery_options\x18\x0c \x01(\x0b\x32&.feast.core.DataSource.BigQueryOptionsH\x00\x12<\n\rkafka_options\x18\r \x01(\x0b\x32#.feast.core.DataSource.KafkaOptionsH\x00\x12@\n\x0fkinesis_options\x18\x0e \x01(\x0b\x32%.feast.core.DataSource.KinesisOptionsH\x00\x12\x42\n\x10redshift_options\x18\x0f \x01(\x0b\x32&.feast.core.DataSource.RedshiftOptionsH\x00\x12I\n\x14request_data_options\x18\x12 \x01(\x0b\x32).feast.core.DataSource.RequestDataOptionsH\x00\x12\x44\n\x0e\x63ustom_options\x18\x10 \x01(\x0b\x32*.feast.core.DataSource.CustomSourceOptionsH\x00\x12\x44\n\x11snowflake_options\x18\x13 \x01(\x0b\x32\'.feast.core.DataSource.SnowflakeOptionsH\x00\x12:\n\x0cpush_options\x18\x16 \x01(\x0b\x32\".feast.core.DataSource.PushOptionsH\x00\x12<\n\rspark_options\x18\x1b \x01(\x0b\x32#.feast.core.DataSource.SparkOptionsH\x00\x12<\n\rtrino_options\x18\x1e \x01(\x0b\x32#.feast.core.DataSource.TrinoOptionsH\x00\x12>\n\x0e\x61thena_options\x18# \x01(\x0b\x32$.feast.core.DataSource.AthenaOptionsH\x00\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x33\n\x11\x46ieldMappingEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x82\x01\n\nSourceMeta\x12:\n\x16\x65\x61rliestEventTimestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x38\n\x14latestEventTimestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x1a\x65\n\x0b\x46ileOptions\x12+\n\x0b\x66ile_format\x18\x01 \x01(\x0b\x32\x16.feast.core.FileFormat\x12\x0b\n\x03uri\x18\x02 \x01(\t\x12\x1c\n\x14s3_endpoint_override\x18\x03 \x01(\t\x1a/\n\x0f\x42igQueryOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x1a,\n\x0cTrinoOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x1a\xe0\x01\n\x0cKafkaOptions\x12\x1f\n\x17kafka_bootstrap_servers\x18\x01 \x01(\t\x12\r\n\x05topic\x18\x02 \x01(\t\x12\x30\n\x0emessage_format\x18\x03 \x01(\x0b\x32\x18.feast.core.StreamFormat\x12<\n\x19watermark_delay_threshold\x18\x04 \x01(\x0b\x32\x19.google.protobuf.Duration\x12\x30\n\x0ekafka_settings\x18\x05 \x01(\x0b\x32\x18.feast.core.StreamFormat\x1a\x66\n\x0eKinesisOptions\x12\x0e\n\x06region\x18\x01 \x01(\t\x12\x13\n\x0bstream_name\x18\x02 \x01(\t\x12/\n\rrecord_format\x18\x03 \x01(\x0b\x32\x18.feast.core.StreamFormat\x1aQ\n\x0fRedshiftOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x12\x0e\n\x06schema\x18\x03 \x01(\t\x12\x10\n\x08\x64\x61tabase\x18\x04 \x01(\t\x1aT\n\rAthenaOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x12\x10\n\x08\x64\x61tabase\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x61ta_source\x18\x04 \x01(\t\x1aX\n\x10SnowflakeOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x12\x0e\n\x06schema\x18\x03 \x01(\t\x12\x10\n\x08\x64\x61tabase\x18\x04 \x01(\tJ\x04\x08\x05\x10\x06\x1aO\n\x0cSparkOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x12\x0c\n\x04path\x18\x03 \x01(\t\x12\x13\n\x0b\x66ile_format\x18\x04 \x01(\t\x1a,\n\x13\x43ustomSourceOptions\x12\x15\n\rconfiguration\x18\x01 \x01(\x0c\x1a\xf7\x01\n\x12RequestDataOptions\x12Z\n\x11\x64\x65precated_schema\x18\x02 \x03(\x0b\x32?.feast.core.DataSource.RequestDataOptions.DeprecatedSchemaEntry\x12)\n\x06schema\x18\x03 \x03(\x0b\x32\x19.feast.core.FeatureSpecV2\x1aT\n\x15\x44\x65precatedSchemaEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12*\n\x05value\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum:\x02\x38\x01J\x04\x08\x01\x10\x02\x1a\x13\n\x0bPushOptionsJ\x04\x08\x01\x10\x02\"\xf8\x01\n\nSourceType\x12\x0b\n\x07INVALID\x10\x00\x12\x0e\n\nBATCH_FILE\x10\x01\x12\x13\n\x0f\x42\x41TCH_SNOWFLAKE\x10\x08\x12\x12\n\x0e\x42\x41TCH_BIGQUERY\x10\x02\x12\x12\n\x0e\x42\x41TCH_REDSHIFT\x10\x05\x12\x10\n\x0cSTREAM_KAFKA\x10\x03\x12\x12\n\x0eSTREAM_KINESIS\x10\x04\x12\x11\n\rCUSTOM_SOURCE\x10\x06\x12\x12\n\x0eREQUEST_SOURCE\x10\x07\x12\x0f\n\x0bPUSH_SOURCE\x10\t\x12\x0f\n\x0b\x42\x41TCH_TRINO\x10\n\x12\x0f\n\x0b\x42\x41TCH_SPARK\x10\x0b\x12\x10\n\x0c\x42\x41TCH_ATHENA\x10\x0c\x42\t\n\x07optionsJ\x04\x08\x06\x10\x0b\"=\n\x0e\x44\x61taSourceList\x12+\n\x0b\x64\x61tasources\x18\x01 \x03(\x0b\x32\x16.feast.core.DataSourceBT\n\x10\x66\x65\x61st.proto.coreB\x0f\x44\x61taSourceProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/core/DataSource.proto\x12\nfeast.core\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1b\x66\x65\x61st/core/DataFormat.proto\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x18\x66\x65\x61st/core/Feature.proto\"\xd9\x17\n\nDataSource\x12\x0c\n\x04name\x18\x14 \x01(\t\x12\x0f\n\x07project\x18\x15 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x17 \x01(\t\x12.\n\x04tags\x18\x18 \x03(\x0b\x32 .feast.core.DataSource.TagsEntry\x12\r\n\x05owner\x18\x19 \x01(\t\x12/\n\x04type\x18\x01 \x01(\x0e\x32!.feast.core.DataSource.SourceType\x12?\n\rfield_mapping\x18\x02 \x03(\x0b\x32(.feast.core.DataSource.FieldMappingEntry\x12\x17\n\x0ftimestamp_field\x18\x03 \x01(\t\x12\x1d\n\x15\x64\x61te_partition_column\x18\x04 \x01(\t\x12 \n\x18\x63reated_timestamp_column\x18\x05 \x01(\t\x12\x1e\n\x16\x64\x61ta_source_class_type\x18\x11 \x01(\t\x12,\n\x0c\x62\x61tch_source\x18\x1a \x01(\x0b\x32\x16.feast.core.DataSource\x12/\n\x04meta\x18\x32 \x01(\x0b\x32!.feast.core.DataSource.SourceMeta\x12:\n\x0c\x66ile_options\x18\x0b \x01(\x0b\x32\".feast.core.DataSource.FileOptionsH\x00\x12\x42\n\x10\x62igquery_options\x18\x0c \x01(\x0b\x32&.feast.core.DataSource.BigQueryOptionsH\x00\x12<\n\rkafka_options\x18\r \x01(\x0b\x32#.feast.core.DataSource.KafkaOptionsH\x00\x12@\n\x0fkinesis_options\x18\x0e \x01(\x0b\x32%.feast.core.DataSource.KinesisOptionsH\x00\x12\x42\n\x10redshift_options\x18\x0f \x01(\x0b\x32&.feast.core.DataSource.RedshiftOptionsH\x00\x12I\n\x14request_data_options\x18\x12 \x01(\x0b\x32).feast.core.DataSource.RequestDataOptionsH\x00\x12\x44\n\x0e\x63ustom_options\x18\x10 \x01(\x0b\x32*.feast.core.DataSource.CustomSourceOptionsH\x00\x12\x44\n\x11snowflake_options\x18\x13 \x01(\x0b\x32\'.feast.core.DataSource.SnowflakeOptionsH\x00\x12:\n\x0cpush_options\x18\x16 \x01(\x0b\x32\".feast.core.DataSource.PushOptionsH\x00\x12<\n\rspark_options\x18\x1b \x01(\x0b\x32#.feast.core.DataSource.SparkOptionsH\x00\x12<\n\rtrino_options\x18\x1e \x01(\x0b\x32#.feast.core.DataSource.TrinoOptionsH\x00\x12>\n\x0e\x61thena_options\x18# \x01(\x0b\x32$.feast.core.DataSource.AthenaOptionsH\x00\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x33\n\x11\x46ieldMappingEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\xf5\x01\n\nSourceMeta\x12:\n\x16\x65\x61rliestEventTimestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x38\n\x14latestEventTimestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x35\n\x11\x63reated_timestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12:\n\x16last_updated_timestamp\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x1a\x65\n\x0b\x46ileOptions\x12+\n\x0b\x66ile_format\x18\x01 \x01(\x0b\x32\x16.feast.core.FileFormat\x12\x0b\n\x03uri\x18\x02 \x01(\t\x12\x1c\n\x14s3_endpoint_override\x18\x03 \x01(\t\x1a/\n\x0f\x42igQueryOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x1a,\n\x0cTrinoOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x1a\xae\x01\n\x0cKafkaOptions\x12\x1f\n\x17kafka_bootstrap_servers\x18\x01 \x01(\t\x12\r\n\x05topic\x18\x02 \x01(\t\x12\x30\n\x0emessage_format\x18\x03 \x01(\x0b\x32\x18.feast.core.StreamFormat\x12<\n\x19watermark_delay_threshold\x18\x04 \x01(\x0b\x32\x19.google.protobuf.Duration\x1a\x66\n\x0eKinesisOptions\x12\x0e\n\x06region\x18\x01 \x01(\t\x12\x13\n\x0bstream_name\x18\x02 \x01(\t\x12/\n\rrecord_format\x18\x03 \x01(\x0b\x32\x18.feast.core.StreamFormat\x1aQ\n\x0fRedshiftOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x12\x0e\n\x06schema\x18\x03 \x01(\t\x12\x10\n\x08\x64\x61tabase\x18\x04 \x01(\t\x1aT\n\rAthenaOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x12\x10\n\x08\x64\x61tabase\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x61ta_source\x18\x04 \x01(\t\x1aX\n\x10SnowflakeOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x12\x0e\n\x06schema\x18\x03 \x01(\t\x12\x10\n\x08\x64\x61tabase\x18\x04 \x01(\tJ\x04\x08\x05\x10\x06\x1au\n\x0cSparkOptions\x12\r\n\x05table\x18\x01 \x01(\t\x12\r\n\x05query\x18\x02 \x01(\t\x12\x0c\n\x04path\x18\x03 \x01(\t\x12\x13\n\x0b\x66ile_format\x18\x04 \x01(\t\x12$\n\x1c\x64\x61te_partition_column_format\x18\x05 \x01(\t\x1a,\n\x13\x43ustomSourceOptions\x12\x15\n\rconfiguration\x18\x01 \x01(\x0c\x1a\xf7\x01\n\x12RequestDataOptions\x12Z\n\x11\x64\x65precated_schema\x18\x02 \x03(\x0b\x32?.feast.core.DataSource.RequestDataOptions.DeprecatedSchemaEntry\x12)\n\x06schema\x18\x03 \x03(\x0b\x32\x19.feast.core.FeatureSpecV2\x1aT\n\x15\x44\x65precatedSchemaEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12*\n\x05value\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum:\x02\x38\x01J\x04\x08\x01\x10\x02\x1a\x13\n\x0bPushOptionsJ\x04\x08\x01\x10\x02\"\xf8\x01\n\nSourceType\x12\x0b\n\x07INVALID\x10\x00\x12\x0e\n\nBATCH_FILE\x10\x01\x12\x13\n\x0f\x42\x41TCH_SNOWFLAKE\x10\x08\x12\x12\n\x0e\x42\x41TCH_BIGQUERY\x10\x02\x12\x12\n\x0e\x42\x41TCH_REDSHIFT\x10\x05\x12\x10\n\x0cSTREAM_KAFKA\x10\x03\x12\x12\n\x0eSTREAM_KINESIS\x10\x04\x12\x11\n\rCUSTOM_SOURCE\x10\x06\x12\x12\n\x0eREQUEST_SOURCE\x10\x07\x12\x0f\n\x0bPUSH_SOURCE\x10\t\x12\x0f\n\x0b\x42\x41TCH_TRINO\x10\n\x12\x0f\n\x0b\x42\x41TCH_SPARK\x10\x0b\x12\x10\n\x0c\x42\x41TCH_ATHENA\x10\x0c\x42\t\n\x07optionsJ\x04\x08\x06\x10\x0b\"=\n\x0e\x44\x61taSourceList\x12+\n\x0b\x64\x61tasources\x18\x01 \x03(\x0b\x32\x16.feast.core.DataSourceBT\n\x10\x66\x65\x61st.proto.coreB\x0f\x44\x61taSourceProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,41 +34,41 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_DATASOURCE_REQUESTDATAOPTIONS_DEPRECATEDSCHEMAENTRY']._options = None
   _globals['_DATASOURCE_REQUESTDATAOPTIONS_DEPRECATEDSCHEMAENTRY']._serialized_options = b'8\001'
   _globals['_DATASOURCE']._serialized_start=189
-  _globals['_DATASOURCE']._serialized_end=3119
+  _globals['_DATASOURCE']._serialized_end=3222
   _globals['_DATASOURCE_TAGSENTRY']._serialized_start=1436
   _globals['_DATASOURCE_TAGSENTRY']._serialized_end=1479
   _globals['_DATASOURCE_FIELDMAPPINGENTRY']._serialized_start=1481
   _globals['_DATASOURCE_FIELDMAPPINGENTRY']._serialized_end=1532
   _globals['_DATASOURCE_SOURCEMETA']._serialized_start=1535
-  _globals['_DATASOURCE_SOURCEMETA']._serialized_end=1665
-  _globals['_DATASOURCE_FILEOPTIONS']._serialized_start=1667
-  _globals['_DATASOURCE_FILEOPTIONS']._serialized_end=1768
-  _globals['_DATASOURCE_BIGQUERYOPTIONS']._serialized_start=1770
-  _globals['_DATASOURCE_BIGQUERYOPTIONS']._serialized_end=1817
-  _globals['_DATASOURCE_TRINOOPTIONS']._serialized_start=1819
-  _globals['_DATASOURCE_TRINOOPTIONS']._serialized_end=1863
-  _globals['_DATASOURCE_KAFKAOPTIONS']._serialized_start=1866
-  _globals['_DATASOURCE_KAFKAOPTIONS']._serialized_end=2090
-  _globals['_DATASOURCE_KINESISOPTIONS']._serialized_start=2092
-  _globals['_DATASOURCE_KINESISOPTIONS']._serialized_end=2194
-  _globals['_DATASOURCE_REDSHIFTOPTIONS']._serialized_start=2196
-  _globals['_DATASOURCE_REDSHIFTOPTIONS']._serialized_end=2277
-  _globals['_DATASOURCE_ATHENAOPTIONS']._serialized_start=2279
-  _globals['_DATASOURCE_ATHENAOPTIONS']._serialized_end=2363
-  _globals['_DATASOURCE_SNOWFLAKEOPTIONS']._serialized_start=2365
-  _globals['_DATASOURCE_SNOWFLAKEOPTIONS']._serialized_end=2453
-  _globals['_DATASOURCE_SPARKOPTIONS']._serialized_start=2455
-  _globals['_DATASOURCE_SPARKOPTIONS']._serialized_end=2534
-  _globals['_DATASOURCE_CUSTOMSOURCEOPTIONS']._serialized_start=2536
-  _globals['_DATASOURCE_CUSTOMSOURCEOPTIONS']._serialized_end=2580
-  _globals['_DATASOURCE_REQUESTDATAOPTIONS']._serialized_start=2583
-  _globals['_DATASOURCE_REQUESTDATAOPTIONS']._serialized_end=2830
-  _globals['_DATASOURCE_REQUESTDATAOPTIONS_DEPRECATEDSCHEMAENTRY']._serialized_start=2740
-  _globals['_DATASOURCE_REQUESTDATAOPTIONS_DEPRECATEDSCHEMAENTRY']._serialized_end=2824
-  _globals['_DATASOURCE_PUSHOPTIONS']._serialized_start=2832
-  _globals['_DATASOURCE_PUSHOPTIONS']._serialized_end=2851
-  _globals['_DATASOURCE_SOURCETYPE']._serialized_start=2854
-  _globals['_DATASOURCE_SOURCETYPE']._serialized_end=3102
-  _globals['_DATASOURCELIST']._serialized_start=3121
-  _globals['_DATASOURCELIST']._serialized_end=3182
+  _globals['_DATASOURCE_SOURCEMETA']._serialized_end=1780
+  _globals['_DATASOURCE_FILEOPTIONS']._serialized_start=1782
+  _globals['_DATASOURCE_FILEOPTIONS']._serialized_end=1883
+  _globals['_DATASOURCE_BIGQUERYOPTIONS']._serialized_start=1885
+  _globals['_DATASOURCE_BIGQUERYOPTIONS']._serialized_end=1932
+  _globals['_DATASOURCE_TRINOOPTIONS']._serialized_start=1934
+  _globals['_DATASOURCE_TRINOOPTIONS']._serialized_end=1978
+  _globals['_DATASOURCE_KAFKAOPTIONS']._serialized_start=1981
+  _globals['_DATASOURCE_KAFKAOPTIONS']._serialized_end=2155
+  _globals['_DATASOURCE_KINESISOPTIONS']._serialized_start=2157
+  _globals['_DATASOURCE_KINESISOPTIONS']._serialized_end=2259
+  _globals['_DATASOURCE_REDSHIFTOPTIONS']._serialized_start=2261
+  _globals['_DATASOURCE_REDSHIFTOPTIONS']._serialized_end=2342
+  _globals['_DATASOURCE_ATHENAOPTIONS']._serialized_start=2344
+  _globals['_DATASOURCE_ATHENAOPTIONS']._serialized_end=2428
+  _globals['_DATASOURCE_SNOWFLAKEOPTIONS']._serialized_start=2430
+  _globals['_DATASOURCE_SNOWFLAKEOPTIONS']._serialized_end=2518
+  _globals['_DATASOURCE_SPARKOPTIONS']._serialized_start=2520
+  _globals['_DATASOURCE_SPARKOPTIONS']._serialized_end=2637
+  _globals['_DATASOURCE_CUSTOMSOURCEOPTIONS']._serialized_start=2639
+  _globals['_DATASOURCE_CUSTOMSOURCEOPTIONS']._serialized_end=2683
+  _globals['_DATASOURCE_REQUESTDATAOPTIONS']._serialized_start=2686
+  _globals['_DATASOURCE_REQUESTDATAOPTIONS']._serialized_end=2933
+  _globals['_DATASOURCE_REQUESTDATAOPTIONS_DEPRECATEDSCHEMAENTRY']._serialized_start=2843
+  _globals['_DATASOURCE_REQUESTDATAOPTIONS_DEPRECATEDSCHEMAENTRY']._serialized_end=2927
+  _globals['_DATASOURCE_PUSHOPTIONS']._serialized_start=2935
+  _globals['_DATASOURCE_PUSHOPTIONS']._serialized_end=2954
+  _globals['_DATASOURCE_SOURCETYPE']._serialized_start=2957
+  _globals['_DATASOURCE_SOURCETYPE']._serialized_end=3205
+  _globals['_DATASOURCELIST']._serialized_start=3224
+  _globals['_DATASOURCELIST']._serialized_end=3285
 # @@protoc_insertion_point(module_scope)

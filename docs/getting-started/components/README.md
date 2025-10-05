@@ -16,8 +16,8 @@
 [feature-server.md](feature-server.md)
 {% endcontent-ref %}
 
-{% content-ref url="batch-materialization-engine.md" %}
-[batch-materialization-engine.md](batch-materialization-engine.md)
+{% content-ref url="compute-engine.md" %}
+[compute-engine.md](compute-engine.md)
 {% endcontent-ref %}
 
 {% content-ref url="provider.md" %}
@@ -26,4 +26,8 @@
 
 {% content-ref url="authz_manager.md" %}
 [authz_manager.md](authz_manager.md)
+{% endcontent-ref %}
+
+{% content-ref url="open-telemetry.md" %}
+[open-telemetry.md](open-telemetry.md)
 {% endcontent-ref %}

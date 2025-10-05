@@ -1,6 +1,10 @@
 # Registies
 
-Please see [Registry](../../getting-started/architecture-and-components/registry.md) for a conceptual explanation of registries.
+Please see [Registry](../../getting-started/components/registry.md) for a conceptual explanation of registries.
+
+{% content-ref url="metadata.md" %}
+[metadata.md](metadata.md)
+{% endcontent-ref %}
 
 {% content-ref url="local.md" %}
 [local.md](local.md)
@@ -20,4 +24,8 @@ Please see [Registry](../../getting-started/architecture-and-components/registry
 
 {% content-ref url="snowflake.md" %}
 [snowflake.md](snowflake.md)
+{% endcontent-ref %}
+
+{% content-ref url="remote.md" %}
+[remote.md](remote.md)
 {% endcontent-ref %}

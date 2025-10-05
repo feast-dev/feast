@@ -11,6 +11,9 @@ import { EntityIcon } from "../graphics/EntityIcon";
 import { FeatureViewIcon } from "../graphics/FeatureViewIcon";
 import { FeatureServiceIcon } from "../graphics/FeatureServiceIcon";
 import { DatasetIcon } from "../graphics/DatasetIcon";
+import { FeatureIcon } from "../graphics/FeatureIcon";
+import { HomeIcon } from "../graphics/HomeIcon";
+import { PermissionsIcon } from "../graphics/PermissionsIcon";
 
 const SideNav = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -41,6 +44,12 @@ const SideNav = () => {
       : ""
   }`;
 
+  const featureListLabel = `Features ${
+    isSuccess && data?.allFeatures && data?.allFeatures.length > 0
+      ? `(${data?.allFeatures.length})`
+      : ""
+  }`;
+
   const featureServicesLabel = `Feature Services ${
     isSuccess && data?.objects.featureServices
       ? `(${data?.objects.featureServices?.length})`
@@ -53,48 +62,92 @@ const SideNav = () => {
       : ""
   }`;
 
-  const baseUrl = `${process.env.PUBLIC_URL || ""}/p/${projectName}`;
+  const baseUrl = `/p/${projectName}`;
 
-  const sideNav: React.ComponentProps<typeof EuiSideNav>['items'] = [
+  const sideNav: React.ComponentProps<typeof EuiSideNav>["items"] = [
     {
       name: "Home",
-      id: htmlIdGenerator("basicExample")(),
-      renderItem: props => <Link {...props} to={`${baseUrl}/`} />,
+      id: htmlIdGenerator("home")(),
+      icon: <EuiIcon type={HomeIcon} />,
+      renderItem: (props) => <Link {...props} to={`${baseUrl}`} />,
+      isSelected: useMatchSubpath(`${baseUrl}$`),
+    },
+    {
+      name: "Resources",
+      id: htmlIdGenerator("resources")(),
       items: [
+        {
+          name: "Lineage",
+          id: htmlIdGenerator("lineage")(),
+          icon: <EuiIcon type="graphApp" />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/lineage`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/lineage`),
+        },
         {
           name: dataSourcesLabel,
           id: htmlIdGenerator("dataSources")(),
           icon: <EuiIcon type={DataSourceIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/data-source`} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/data-source`} />
+          ),
           isSelected: useMatchSubpath(`${baseUrl}/data-source`),
         },
         {
           name: entitiesLabel,
           id: htmlIdGenerator("entities")(),
           icon: <EuiIcon type={EntityIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/entity`} />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/entity`} />,
           isSelected: useMatchSubpath(`${baseUrl}/entity`),
+        },
+        {
+          name: featureListLabel,
+          id: htmlIdGenerator("featureList")(),
+          icon: <EuiIcon type={FeatureIcon} />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/features`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/features`),
         },
         {
           name: featureViewsLabel,
           id: htmlIdGenerator("featureView")(),
           icon: <EuiIcon type={FeatureViewIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/feature-view`} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/feature-view`} />
+          ),
           isSelected: useMatchSubpath(`${baseUrl}/feature-view`),
         },
         {
           name: featureServicesLabel,
           id: htmlIdGenerator("featureService")(),
           icon: <EuiIcon type={FeatureServiceIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/feature-service`} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/feature-service`} />
+          ),
           isSelected: useMatchSubpath(`${baseUrl}/feature-service`),
         },
         {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
           icon: <EuiIcon type={DatasetIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/data-set`} />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/data-set`} />,
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
+        },
+        {
+          name: "Data Labeling",
+          id: htmlIdGenerator("dataLabeling")(),
+          icon: <EuiIcon type="documentEdit" color="#006BB4" />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/data-labeling`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/data-labeling`),
+        },
+        {
+          name: "Permissions",
+          id: htmlIdGenerator("permissions")(),
+          icon: <EuiIcon type={PermissionsIcon} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/permissions`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/permissions`),
         },
       ],
     },

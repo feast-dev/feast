@@ -8,12 +8,14 @@ import FeastUISansProviders from "../FeastUISansProviders";
 import {
   projectsListWithDefaultProject,
   creditHistoryRegistry,
+  creditHistoryRegistryDB,
 } from "../mocks/handlers";
 
 // declare which API requests to mock
 const server = setupServer(
   projectsListWithDefaultProject,
-  creditHistoryRegistry
+  creditHistoryRegistry,
+  creditHistoryRegistryDB,
 );
 
 // establish API mocking before all tests
@@ -46,7 +48,7 @@ test("in a full App render, it shows the right initial project", async () => {
 
   // Wait for Project Data from Registry to Load
   await screen.findAllByRole("heading", {
-    name: /Project:/i,
+    name: /Project: credit_scoring_aws/i,
   });
 
   // Before User Event: Heading is the credit scoring project
@@ -62,7 +64,7 @@ test("in a full App render, it shows the right initial project", async () => {
     // Find and select the Ireland option
     within(topLevelNavigation).getByRole("option", {
       name: "Credit Score Project",
-    })
+    }),
   );
 
   // The selection should updated
@@ -70,12 +72,12 @@ test("in a full App render, it shows the right initial project", async () => {
     within(topLevelNavigation).getByRole("option", {
       name: "Credit Score Project",
       selected: true,
-    })
+    }),
   ).toBeInTheDocument();
 
   // ... and the new heading should appear
   // meaning we successfully navigated
   await screen.findByRole("heading", {
-    name: /credit_scoring_aws/i,
+    name: /Project: credit_scoring_aws/i,
   });
 });

@@ -2,23 +2,16 @@ name: unit-tests
 
 on:
   pull_request:
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
+
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.9", "3.10", "3.11"]
-        os: [ ubuntu-latest, macos-13, macos-14 ]
+        python-version: ["3.10", "3.11", "3.12"]
+        os: [ ubuntu-latest, macos-14 ]
         exclude:
-          - os: macos-13
-            python-version: "3.9"
-          - os: macos-14
-            python-version: "3.9"
           - os: macos-14
             python-version: "3.10"
 
@@ -33,23 +26,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
-        run: |          
-          echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
-      - name: uv cache
-        uses: actions/cache@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          enable-cache: true
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Python
         run: make test-python-unit
-
+      - name: Minimize uv cache
+        run: uv cache prune --ci
 
   unit-test-ui:
     runs-on: ubuntu-latest
@@ -64,6 +50,9 @@ jobs:
       - name: Install yarn dependencies
         working-directory: ./ui
         run: yarn install
+      - name: Check code formatting
+        working-directory: ./ui
+        run: yarn format:check
       - name: Build yarn rollup
         working-directory: ./ui
         run: yarn build:lib

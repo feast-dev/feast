@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: feast-data-stores
+stringData:
+  bigtable: |
+    project_id: my_gcp_project
+    instance: my_bigtable_instance
+  bigquery: |
+    dataset: feast_bq_dataset
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: gcloud-creds
+stringData:
+  # https://cloud.google.com/docs/authentication/application-default-credentials#personal
+  application_default_credentials.json: |
+    xxxx
+    xxxxx
+---
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: gcs
+spec:
+  feastProject: my_project
+  services:
+    offlineStore:
+      persistence:
+        store:
+          secretRef:
+            name: feast-data-stores
+          type: bigquery
+    onlineStore:
+      persistence:
+        store:
+          secretRef:
+            name: feast-data-stores
+          type: bigtable
+      server:
+        volumeMounts:
+          - mountPath: /opt/app-root/src/.config/gcloud
+            name: gcloud-creds
+            readOnly: true
+    registry:
+      local:
+        persistence:
+          file:
+            path: 'gs://[YOUR BUCKET YOU CREATED]/registry.pb'
+    volumes:
+      - name: gcloud-creds
+        secret:
+          secretName: gcloud-creds

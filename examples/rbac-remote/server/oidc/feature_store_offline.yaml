@@ -15,4 +15,4 @@ auth:
     type: oidc
     auth_discovery_url: https://keycloak-feast-dev.apps.com/realms/feast-rbac/.well-known/openid-configuration
     client_id: feast-client
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

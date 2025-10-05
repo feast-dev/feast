@@ -13,23 +13,23 @@ const useLoadFeatureService = (featureServiceName: string) => {
     registryQuery.data === undefined
       ? undefined
       : registryQuery.data.objects.featureServices?.find(
-        (fs) => fs?.spec?.name === featureServiceName
-      );
+          (fs) => fs?.spec?.name === featureServiceName,
+        );
 
   let entities =
     data === undefined
       ? undefined
       : registryQuery.data?.indirectRelationships
-        .filter((relationship) => {
-          return (
-            relationship.target.type === FEAST_FCO_TYPES.featureService &&
-            relationship.target.name === data?.spec?.name &&
-            relationship.source.type === FEAST_FCO_TYPES.entity
-          );
-        })
-        .map((relationship) => {
-          return relationship.source;
-        });
+          .filter((relationship) => {
+            return (
+              relationship.target.type === FEAST_FCO_TYPES.featureService &&
+              relationship.target.name === data?.spec?.name &&
+              relationship.source.type === FEAST_FCO_TYPES.entity
+            );
+          })
+          .map((relationship) => {
+            return relationship.source;
+          });
   // Deduplicate on name of entity
   if (entities) {
     let entityToName: { [key: string]: EntityReference } = {};
@@ -40,7 +40,12 @@ const useLoadFeatureService = (featureServiceName: string) => {
   }
   return {
     ...registryQuery,
-    data,
+    data: data
+      ? {
+          ...data,
+          permissions: registryQuery.data?.permissions,
+        }
+      : undefined,
     entities,
   };
 };

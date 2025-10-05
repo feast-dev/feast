@@ -11,7 +11,21 @@ This is a K8s Operator that can be used to deploy and manage **Feast**, an open 
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
-### To Deploy on the cluster
+## To deploy an Operator release on a cluster
+
+Users can just run `kubectl apply -f <URL for YAML BUNDLE>` to install the project, i.e.:
+
+```sh
+## Install the latest release -
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+
+## OR, install a specific version -
+# kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
+```
+##### Feast Operator Demo Videos
+[![](https://img.youtube.com/vi/48cb4AHxPR4/0.jpg)](https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX)
+
+### To deploy local changes on a cluster
 **Install the CRDs into the cluster:**
 
 ```sh
@@ -59,7 +73,7 @@ make undeploy
 
 Following are the steps to build the installer and distribute this project to users.
 
-1. Build the installer for the image built and published in the registry:
+Build the installer for the image built and published in the registry:
 
 ```sh
 make build-installer
@@ -69,14 +83,6 @@ NOTE: The makefile target mentioned above generates an 'install.yaml'
 file in the dist directory. This file contains all the resources built
 with Kustomize, which are necessary to install this project without
 its dependencies.
-
-2. Using the installer
-
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/feast-operator/<tag or branch>/dist/install.yaml
-```
 
 ## Contributing
 Additional Feast contrib information can be found on the project's [README](https://github.com/feast-dev/feast?tab=readme-ov-file#-contributing).

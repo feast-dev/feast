@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,6 +17,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func boolPtr(b bool) *bool {
+	return &b
+}
 
 func createFeatureStore() *feastdevv1alpha1.FeatureStore {
 	return &feastdevv1alpha1.FeatureStore{
@@ -334,6 +340,114 @@ func registryStoreWithDBPersistenceType(dbPersistenceType string, featureStore *
 	return fsCopy
 }
 
+func registryWithRestAPIFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Server: &feastdevv1alpha1.RegistryServerConfigs{
+					RestAPI: boolPtr(false),
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func registryWithOnlyRestAPI(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Server: &feastdevv1alpha1.RegistryServerConfigs{
+					RestAPI: boolPtr(true),
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func registryWithOnlyGRPC(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Server: &feastdevv1alpha1.RegistryServerConfigs{
+					GRPC: boolPtr(true),
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func registryWithBothAPIs(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Server: &feastdevv1alpha1.RegistryServerConfigs{
+					RestAPI: boolPtr(true),
+					GRPC:    boolPtr(true),
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func registryWithNoAPIs(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Server: &feastdevv1alpha1.RegistryServerConfigs{},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func registryWithBothFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Server: &feastdevv1alpha1.RegistryServerConfigs{
+					RestAPI: boolPtr(false),
+					GRPC:    boolPtr(false),
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func registryWithGRPCFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Server: &feastdevv1alpha1.RegistryServerConfigs{
+					GRPC: boolPtr(false),
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func quotedSlice(stringSlice []string) string {
+	quotedSlice := make([]string, len(stringSlice))
+
+	for i, str := range stringSlice {
+		quotedSlice[i] = fmt.Sprintf("\"%s\"", str)
+	}
+
+	return strings.Join(quotedSlice, ", ")
+}
+
 const resourceName = "test-resource"
 const namespaceName = "default"
 
@@ -377,7 +491,7 @@ var _ = Describe("FeatureStore API", func() {
 		})
 
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"snowflake.online\", \"redis\", \"ikv\", \"datastore\", \"dynamodb\", \"bigtable\", \"postgres\", \"cassandra\", \"mysql\", \"hazelcast\", \"singlestore\", \"hbase\", \"elasticsearch\", \"qdrant\", \"couchbase\"")
+			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidOnlineStoreDBStorePersistenceTypes))
 		})
 	})
 
@@ -388,7 +502,7 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithUnmanagedFileType(featurestore), "Unsupported value")
 		})
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"snowflake.offline\", \"bigquery\", \"redshift\", \"spark\", \"postgres\", \"trino\", \"redis\", \"athena\", \"mssql\"")
+			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidOfflineStoreDBStorePersistenceTypes))
 		})
 	})
 
@@ -410,7 +524,7 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, registryWithS3AdditionalKeywordsForGsBucket(featurestore), "Additional S3 settings are available only for S3 object store URIs")
 		})
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, registryStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"sql\", \"snowflake.registry\"")
+			attemptInvalidCreationAndAsserts(ctx, registryStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidRegistryDBStorePersistenceTypes))
 		})
 	})
 
@@ -462,6 +576,73 @@ var _ = Describe("FeatureStore API", func() {
 		ctx, featurestore := initContext()
 		It("should fail when both kubernetes and oidc settings are given", func() {
 			attemptInvalidCreationAndAsserts(ctx, authzConfigWithOidc(authzConfigWithKubernetes(featurestore)), "One selection required between kubernetes or oidc")
+		})
+	})
+
+	Context("When creating a Registry", func() {
+		ctx := context.Background()
+
+		BeforeEach(func() {
+			By("verifying the custom resource FeatureStore is not there")
+			resource := &feastdevv1alpha1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
+		})
+		AfterEach(func() {
+			By("Cleaning up the test resource")
+			resource := &feastdevv1alpha1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
+		})
+
+		Context("with valid API configurations", func() {
+			It("should succeed when restAPI is false and grpc is not specified (defaults to true)", func() {
+				featurestore := createFeatureStore()
+				resource := registryWithRestAPIFalse(featurestore)
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			})
+
+			It("should succeed when restAPI is true and grpc is not specified (defaults to true)", func() {
+				featurestore := createFeatureStore()
+				resource := registryWithOnlyRestAPI(featurestore)
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			})
+
+			It("should succeed when only grpc is true", func() {
+				featurestore := createFeatureStore()
+				resource := registryWithOnlyGRPC(featurestore)
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			})
+
+			It("should succeed when both APIs are true", func() {
+				featurestore := createFeatureStore()
+				resource := registryWithBothAPIs(featurestore)
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			})
+
+			It("should succeed when no APIs are specified (grpc defaults to true)", func() {
+				featurestore := createFeatureStore()
+				resource := registryWithNoAPIs(featurestore)
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			})
+		})
+
+		Context("with invalid API configurations", func() {
+			It("should fail when both APIs are explicitly false", func() {
+				featurestore := createFeatureStore()
+				resource := registryWithBothFalse(featurestore)
+				attemptInvalidCreationAndAsserts(ctx, resource, "At least one of restAPI or grpc must be true")
+			})
+
+			It("should fail when grpc is false and restAPI is not specified", func() {
+				featurestore := createFeatureStore()
+				resource := registryWithGRPCFalse(featurestore)
+				attemptInvalidCreationAndAsserts(ctx, resource, "At least one of restAPI or grpc must be true")
+			})
 		})
 	})
 })

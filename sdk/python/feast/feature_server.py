@@ -1,17 +1,30 @@
+import asyncio
+import os
 import sys
 import threading
 import time
 import traceback
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from importlib import resources as importlib_resources
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import psutil
 from dateutil import parser
-from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    Request,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from google.protobuf.json_format import MessageToDict
 from prometheus_client import Gauge, start_http_server
 from pydantic import BaseModel
@@ -49,6 +62,7 @@ class WriteToFeatureStoreRequest(BaseModel):
     feature_view_name: str
     df: dict
     allow_registry_cache: bool = True
+    transform_on_write: bool = True
 
 
 class PushFeaturesRequest(BaseModel):
@@ -56,12 +70,14 @@ class PushFeaturesRequest(BaseModel):
     df: dict
     allow_registry_cache: bool = True
     to: str = "online"
+    transform_on_write: bool = True
 
 
 class MaterializeRequest(BaseModel):
-    start_ts: str
-    end_ts: str
+    start_ts: Optional[str] = None
+    end_ts: Optional[str] = None
     feature_views: Optional[List[str]] = None
+    disable_event_timestamp: bool = False
 
 
 class MaterializeIncrementalRequest(BaseModel):
@@ -72,12 +88,42 @@ class MaterializeIncrementalRequest(BaseModel):
 class GetOnlineFeaturesRequest(BaseModel):
     entities: Dict[str, List[Any]]
     feature_service: Optional[str] = None
-    features: Optional[List[str]] = None
+    features: List[str] = []
     full_feature_names: bool = False
-    query_embedding: Optional[List[float]] = None
 
 
-def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
+class GetOnlineDocumentsRequest(BaseModel):
+    feature_service: Optional[str] = None
+    features: List[str] = []
+    full_feature_names: bool = False
+    top_k: Optional[int] = None
+    query: Optional[List[float]] = None
+    query_string: Optional[str] = None
+    api_version: Optional[int] = 1
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+
+class ReadDocumentRequest(BaseModel):
+    file_path: str
+
+
+class SaveDocumentRequest(BaseModel):
+    file_path: str
+    data: dict
+
+
+def _get_features(
+    request: Union[GetOnlineFeaturesRequest, GetOnlineDocumentsRequest],
+    store: "feast.FeatureStore",
+):
     if request.feature_service:
         feature_service = store.get_feature_service(
             request.feature_service, allow_cache=True
@@ -112,6 +158,37 @@ def get_app(
     store: "feast.FeatureStore",
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
 ):
+    """
+    Creates a FastAPI app that can be used to start a feature server.
+
+    Args:
+        store: The FeatureStore to use for serving features
+        registry_ttl_sec: The TTL in seconds for the registry cache
+
+    Returns:
+        A FastAPI app
+
+    Example:
+        ```python
+        from feast import FeatureStore
+
+        store = FeatureStore(repo_path="feature_repo")
+        app = get_app(store)
+        ```
+
+    The app provides the following endpoints:
+    - `/get-online-features`: Get online features
+    - `/retrieve-online-documents`: Retrieve online documents
+    - `/push`: Push features to the feature store
+    - `/write-to-online-store`: Write to the online store
+    - `/health`: Health check
+    - `/materialize`: Materialize features
+    - `/materialize-incremental`: Materialize features incrementally
+    - `/chat`: Chat UI
+    - `/ws/chat`: WebSocket endpoint for chat
+    MCP Support:
+    - If MCP is enabled in feature server configuration, MCP endpoints will be added automatically
+    """
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
     registry_proto = None
@@ -182,24 +259,26 @@ def get_app(
         dependencies=[Depends(inject_user_details)],
     )
     async def retrieve_online_documents(
-        request: GetOnlineFeaturesRequest,
+        request: GetOnlineDocumentsRequest,
     ) -> Dict[str, Any]:
-        logger.warn(
+        logger.warning(
             "This endpoint is in alpha and will be moved to /get-online-features when stable."
         )
         # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
         features = await run_in_threadpool(_get_features, request, store)
 
-        read_params = dict(
-            features=features,
-            entity_rows=request.entities,
-            full_feature_names=request.full_feature_names,
-            query=request.query_embedding,
-        )
+        read_params = dict(features=features, query=request.query, top_k=request.top_k)
+        if request.api_version == 2 and request.query_string is not None:
+            read_params["query_string"] = request.query_string
 
-        response = await run_in_threadpool(
-            lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
-        )
+        if request.api_version == 2:
+            response = await run_in_threadpool(
+                lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+            )
+        else:
+            response = await run_in_threadpool(
+                lambda: store.retrieve_online_documents(**read_params)  # type: ignore
+            )
 
         # Convert the Protobuf object to JSON and return it
         response_dict = await run_in_threadpool(
@@ -251,6 +330,7 @@ def get_app(
             df=df,
             allow_registry_cache=request.allow_registry_cache,
             to=to,
+            transform_on_write=request.transform_on_write,
         )
 
         should_push_async = (
@@ -285,6 +365,7 @@ def get_app(
             feature_view_name=feature_view_name,
             df=df,
             allow_registry_cache=allow_registry_cache,
+            transform_on_write=request.transform_on_write,
         )
 
     @app.get("/health")
@@ -295,6 +376,57 @@ def get_app(
             else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
         )
 
+    @app.post("/chat")
+    async def chat(request: ChatRequest):
+        # Process the chat request
+        # For now, just return dummy text
+        return {"response": "This is a dummy response from the Feast feature server."}
+
+    @app.post("/read-document")
+    async def read_document_endpoint(request: ReadDocumentRequest):
+        try:
+            import os
+
+            if not os.path.exists(request.file_path):
+                return {"error": f"File not found: {request.file_path}"}
+
+            with open(request.file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+
+            return {"content": content, "file_path": request.file_path}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.post("/save-document")
+    async def save_document_endpoint(request: SaveDocumentRequest):
+        try:
+            import json
+            import os
+            from pathlib import Path
+
+            file_path = Path(request.file_path).resolve()
+            if not str(file_path).startswith(os.getcwd()):
+                return {"error": "Invalid file path"}
+
+            base_name = file_path.stem
+            labels_file = file_path.parent / f"{base_name}-labels.json"
+
+            with open(labels_file, "w", encoding="utf-8") as file:
+                json.dump(request.data, file, indent=2, ensure_ascii=False)
+
+            return {"success": True, "saved_to": str(labels_file)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/chat")
+    async def chat_ui():
+        # Serve the chat UI
+        static_dir_ref = importlib_resources.files(__spec__.parent) / "static/chat"  # type: ignore[name-defined, arg-type]
+        with importlib_resources.as_file(static_dir_ref) as static_dir:
+            with open(os.path.join(static_dir, "index.html")) as f:
+                content = f.read()
+        return Response(content=content, media_type="text/html")
+
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
     def materialize(request: MaterializeRequest) -> None:
         for feature_view in request.feature_views or []:
@@ -302,10 +434,27 @@ def get_app(
                 resource=_get_feast_object(feature_view, True),
                 actions=[AuthzedAction.WRITE_ONLINE],
             )
+
+        if request.disable_event_timestamp:
+            # Query all available data and use current datetime as event timestamp
+            now = datetime.now()
+            start_date = datetime(
+                1970, 1, 1
+            )  # Beginning of time to capture all historical data
+            end_date = now
+        else:
+            if not request.start_ts or not request.end_ts:
+                raise ValueError(
+                    "start_ts and end_ts are required when disable_event_timestamp is False"
+                )
+            start_date = utils.make_tzaware(parser.parse(request.start_ts))
+            end_date = utils.make_tzaware(parser.parse(request.end_ts))
+
         store.materialize(
-            utils.make_tzaware(parser.parse(request.start_ts)),
-            utils.make_tzaware(parser.parse(request.end_ts)),
+            start_date,
+            end_date,
             request.feature_views,
+            disable_event_timestamp=request.disable_event_timestamp,
         )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
@@ -335,7 +484,75 @@ def get_app(
                 content=str(exc),
             )
 
+    # Chat WebSocket connection manager
+    class ConnectionManager:
+        def __init__(self):
+            self.active_connections: List[WebSocket] = []
+
+        async def connect(self, websocket: WebSocket):
+            await websocket.accept()
+            self.active_connections.append(websocket)
+
+        def disconnect(self, websocket: WebSocket):
+            self.active_connections.remove(websocket)
+
+        async def send_message(self, message: str, websocket: WebSocket):
+            await websocket.send_text(message)
+
+    manager = ConnectionManager()
+
+    @app.websocket("/ws/chat")
+    async def websocket_endpoint(websocket: WebSocket):
+        await manager.connect(websocket)
+        try:
+            while True:
+                message = await websocket.receive_text()
+                # Process the received message (currently unused but kept for future implementation)
+                # For now, just return dummy text
+                response = f"You sent: '{message}'. This is a dummy response from the Feast feature server."
+
+                # Stream the response word by word
+                words = response.split()
+                for word in words:
+                    await manager.send_message(word + " ", websocket)
+                    await asyncio.sleep(0.1)  # Add a small delay between words
+        except WebSocketDisconnect:
+            manager.disconnect(websocket)
+
+    # Mount static files
+    static_dir_ref = importlib_resources.files(__spec__.parent) / "static"  # type: ignore[name-defined, arg-type]
+    with importlib_resources.as_file(static_dir_ref) as static_dir:
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    # Add MCP support if enabled in feature server configuration
+    _add_mcp_support_if_enabled(app, store)
+
     return app
+
+
+def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
+    """Add MCP support to the FastAPI app if enabled in configuration."""
+    try:
+        # Check if MCP is enabled in feature server config
+        if (
+            store.config.feature_server
+            and hasattr(store.config.feature_server, "type")
+            and store.config.feature_server.type == "mcp"
+            and getattr(store.config.feature_server, "mcp_enabled", False)
+        ):
+            from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
+
+            mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
+
+            if mcp_server:
+                logger.info("MCP support has been enabled for the Feast feature server")
+            else:
+                logger.warning("MCP support was requested but could not be enabled")
+        else:
+            logger.debug("MCP support is not enabled in feature server configuration")
+    except Exception as e:
+        logger.error(f"Error checking/adding MCP support: {e}")
+        # Don't fail the entire server if MCP fails to initialize
 
 
 if sys.platform != "win32":

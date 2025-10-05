@@ -68,22 +68,6 @@ feast.protos.feast.core.DatastoreTable\_pb2\_grpc module
    :undoc-members:
    :show-inheritance:
 
-feast.protos.feast.core.DynamoDBTable\_pb2 module
--------------------------------------------------
-
-.. automodule:: feast.protos.feast.core.DynamoDBTable_pb2
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.protos.feast.core.DynamoDBTable\_pb2\_grpc module
--------------------------------------------------------
-
-.. automodule:: feast.protos.feast.core.DynamoDBTable_pb2_grpc
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.protos.feast.core.Entity\_pb2 module
 ------------------------------------------
 

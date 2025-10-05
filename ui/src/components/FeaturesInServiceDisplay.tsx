@@ -16,11 +16,13 @@ interface IFeatureColumnInService {
 
 const FeaturesInServiceList = ({ featureViews }: FeatureViewsListInterace) => {
   const { projectName } = useParams();
-  const items: IFeatureColumnInService[] = featureViews.flatMap(featureView => featureView.featureColumns!.map(featureColumn => ({
-    featureViewName: featureView.featureViewName!,
-    name: featureColumn.name!,
-    valueType: featureColumn.valueType!,
-  })));
+  const items: IFeatureColumnInService[] = featureViews.flatMap((featureView) =>
+    featureView.featureColumns!.map((featureColumn) => ({
+      featureViewName: featureView.featureViewName!,
+      name: featureColumn.name!,
+      valueType: featureColumn.valueType!,
+    })),
+  );
 
   const columns = [
     {
@@ -28,10 +30,7 @@ const FeaturesInServiceList = ({ featureViews }: FeatureViewsListInterace) => {
       field: "featureViewName",
       render: (name: string) => {
         return (
-          <EuiCustomLink
-            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${name}`}
-            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${name}`}
-          >
+          <EuiCustomLink to={`/p/${projectName}/feature-view/${name}`}>
             {name}
           </EuiCustomLink>
         );

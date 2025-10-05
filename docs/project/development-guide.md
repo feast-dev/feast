@@ -74,6 +74,7 @@ A quick list of things to keep in mind as you're making changes:
   - Ensure you leave a release note for any user facing changes in the PR. There is a field automatically generated in the PR request. You can write `NONE` in that field if there are no user facing changes.
   - Please run tests locally before submitting a PR (e.g. for Python, the [local integration tests](#local-integration-tests))
   - Try to keep PRs smaller. This makes them easier to review.
+  - Please make sure to update any useful documentation under `docs/` that impacts the area you are contributing to.
 
 ### Good practices to keep in mind
 * Fill in the description based on the default template configured when you first open the PR
@@ -135,10 +136,19 @@ Note that this means if you are midway through working through a PR and rebase, 
 - activate the venv: `source venv/bin/activate`
 - Install dependencies `make install-python-dependencies-dev`
 
-### building the UI
+### Building the UI
+To build the UI from the latest released NPM package (hosted under @feast-dev/feast-ui):
+
 ```sh
 make build-ui
 ```
+
+If you want to test backend and frontend together using 'feast ui' command and with a locally built Feast UI package, you can build using:
+
+```sh
+make build-ui-local
+```
+Use this when you are making changes to the React UI code and want to see them live via the backend.
 
 ### Recompiling python lock files
 Recompile python lock files. This only needs to be run when you make changes to requirements or simply want to update python lock files to reflect latest versions.

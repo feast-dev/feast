@@ -13,13 +13,21 @@ There is a CLI command that starts the Offline feature server: `feast serve_offl
 
 ## Deploying as a service on Kubernetes
 
-The Offline feature server can be deployed using helm chart see this [helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast-feature-server).
+See [this](../../how-to-guides/running-feast-in-production.md#id-4.2.-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.
 
-User need to set `feast_mode=offline`, when installing Offline feature server as shown in the helm command below:
-
+The Offline feature server can be deployed with a slight modification of the FeatureStore CR -
+```yaml
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-offline-server
+spec:
+  feastProject: my_project
+  services:
+    offlineStore:
+      server: {}
 ```
-helm install feast-offline-server feast-charts/feast-feature-server --set feast_mode=offline  --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
-```
+> _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../../infra/feast-operator/config/samples)._
 
 ## Server Example
 

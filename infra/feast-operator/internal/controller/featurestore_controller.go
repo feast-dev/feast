@@ -22,6 +22,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -59,8 +60,10 @@ type FeatureStoreReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims;serviceaccounts,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;create;update;watch;delete
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=secrets;pods,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -75,6 +78,16 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if apierrors.IsNotFound(err) {
 			// CR deleted since request queued, child objects getting GC'd, no requeue
 			logger.V(1).Info("FeatureStore CR not found, has been deleted")
+			// Clean up namespace registry entry even if the CR is not found
+			if err := r.cleanupNamespaceRegistry(ctx, &feastdevv1alpha1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      req.NamespacedName.Name,
+					Namespace: req.NamespacedName.Namespace,
+				},
+			}); err != nil {
+				logger.Error(err, "Failed to clean up namespace registry entry for deleted FeatureStore")
+				// Don't return error here as the CR is already deleted
+			}
 			return ctrl.Result{}, nil
 		}
 		// error fetching FeatureStore instance, requeue and try again
@@ -82,6 +95,16 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 	currentStatus := cr.Status.DeepCopy()
+
+	// Handle deletion - clean up namespace registry entry
+	if cr.DeletionTimestamp != nil {
+		logger.Info("FeatureStore is being deleted, cleaning up namespace registry entry")
+		if err := r.cleanupNamespaceRegistry(ctx, cr); err != nil {
+			logger.Error(err, "Failed to clean up namespace registry entry")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
 
 	result, recErr = r.deployFeast(ctx, cr)
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
@@ -96,6 +119,22 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				// There is no existing recErr. Set it to the status update error
 				recErr = err
 			}
+		}
+	}
+
+	// Add to namespace registry if deployment was successful and not being deleted
+	if recErr == nil && cr.DeletionTimestamp == nil {
+		feast := services.FeastServices{
+			Handler: feasthandler.FeastHandler{
+				Client:       r.Client,
+				Context:      ctx,
+				FeatureStore: cr,
+				Scheme:       r.Scheme,
+			},
+		}
+		if err := feast.AddToNamespaceRegistry(); err != nil {
+			logger.Error(err, "Failed to add FeatureStore to namespace registry")
+			// Don't return error here as the FeatureStore is already deployed successfully
 		}
 	}
 
@@ -138,6 +177,30 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 			Reason:  feastdevv1alpha1.FailedReason,
 			Message: "Error: " + err.Error(),
 		}
+	} else {
+		deployment, deploymentErr := feast.GetDeployment()
+		if deploymentErr != nil {
+			condition = metav1.Condition{
+				Type:    feastdevv1alpha1.ReadyType,
+				Status:  metav1.ConditionUnknown,
+				Reason:  feastdevv1alpha1.DeploymentNotAvailableReason,
+				Message: feastdevv1alpha1.DeploymentNotAvailableMessage,
+			}
+
+			result = errResult
+		} else {
+			isDeployAvailable := services.IsDeploymentAvailable(deployment.Status.Conditions)
+			if !isDeployAvailable {
+				condition = metav1.Condition{
+					Type:    feastdevv1alpha1.ReadyType,
+					Status:  metav1.ConditionUnknown,
+					Reason:  feastdevv1alpha1.DeploymentNotAvailableReason,
+					Message: feastdevv1alpha1.DeploymentNotAvailableMessage,
+				}
+
+				result = errResult
+			}
+		}
 	}
 
 	logger.Info(condition.Message)
@@ -164,6 +227,7 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&rbacv1.Role{}).
+		Owns(&batchv1.CronJob{}).
 		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests))
 	if services.IsOpenShift() {
 		bldr = bldr.Owns(&routev1.Route{})
@@ -171,6 +235,20 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return bldr.Complete(r)
 
+}
+
+// cleanupNamespaceRegistry removes the feature store instance from the namespace registry
+func (r *FeatureStoreReconciler) cleanupNamespaceRegistry(ctx context.Context, cr *feastdevv1alpha1.FeatureStore) error {
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+
+	return feast.RemoveFromNamespaceRegistry()
 }
 
 // if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.

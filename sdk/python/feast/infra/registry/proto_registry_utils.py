@@ -71,6 +71,31 @@ def registry_proto_cache_with_tags(func):
     return wrapper
 
 
+def registry_proto_cache_name(func):
+    cache_proto_key = None
+    cache = {}
+
+    @wraps(func)
+    def wrapper(registry_proto: RegistryProto, name: str, project: str):
+        nonlocal cache_proto_key, cache
+
+        proto_key = (id(registry_proto), registry_proto.version_id)
+
+        if proto_key != cache_proto_key:
+            cache = {}
+            cache_proto_key = proto_key
+
+        key = (project, name)
+        if key in cache:
+            return cache[key]
+        else:
+            value = func(registry_proto, name, project)
+            cache[key] = value
+            return value
+
+    return wrapper
+
+
 def get_project_metadata(
     registry_proto: Optional[RegistryProto], project: str
 ) -> Optional[ProjectMetadataProto]:
@@ -94,6 +119,7 @@ def get_feature_service(
     raise FeatureServiceNotFoundException(name, project=project)
 
 
+@registry_proto_cache_name
 def get_any_feature_view(
     registry_proto: RegistryProto, name: str, project: str
 ) -> BaseFeatureView:
@@ -294,7 +320,7 @@ def list_saved_datasets(
     saved_datasets = []
     for saved_dataset in registry_proto.saved_datasets:
         if saved_dataset.spec.project == project and utils.has_all_tags(
-            saved_dataset.tags, tags
+            saved_dataset.spec.tags, tags
         ):
             saved_datasets.append(SavedDataset.from_proto(saved_dataset))
     return saved_datasets

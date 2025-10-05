@@ -26,6 +26,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Feature.proto";
+import "feast/core/Transformation.proto";
 
 message FeatureView {
     // User-specified specifications of this feature view.
@@ -35,7 +36,7 @@ message FeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 13
+// Next available id: 16
 // TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
 message FeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
@@ -74,7 +75,16 @@ message FeatureViewSpec {
     DataSource stream_source = 9;
 
     // Whether these features should be served online or not
+    // This is also used to determine whether the features should be written to the online store
     bool online = 8;
+
+    // Whether these features should be written to the offline store
+    bool offline = 13;
+
+    repeated FeatureViewSpec source_views = 14;
+
+    // Feature transformation for batch feature views
+    FeatureTransformationV2 feature_transformation = 15;
 }
 
 message FeatureViewMeta {

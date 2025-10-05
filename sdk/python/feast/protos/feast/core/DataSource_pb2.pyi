@@ -118,18 +118,26 @@ class DataSource(google.protobuf.message.Message):
 
         EARLIESTEVENTTIMESTAMP_FIELD_NUMBER: builtins.int
         LATESTEVENTTIMESTAMP_FIELD_NUMBER: builtins.int
+        CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
+        LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
         @property
         def earliestEventTimestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
         @property
         def latestEventTimestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+        @property
+        def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+        @property
+        def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
         def __init__(
             self,
             *,
             earliestEventTimestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
             latestEventTimestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+            created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+            last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["earliestEventTimestamp", b"earliestEventTimestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["earliestEventTimestamp", b"earliestEventTimestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> None: ...
 
     class FileOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a file"""
@@ -365,6 +373,7 @@ class DataSource(google.protobuf.message.Message):
         QUERY_FIELD_NUMBER: builtins.int
         PATH_FIELD_NUMBER: builtins.int
         FILE_FORMAT_FIELD_NUMBER: builtins.int
+        DATE_PARTITION_COLUMN_FORMAT_FIELD_NUMBER: builtins.int
         table: builtins.str
         """Table name"""
         query: builtins.str
@@ -373,6 +382,8 @@ class DataSource(google.protobuf.message.Message):
         """Path from which spark can read the table, this is an alternative to `table`"""
         file_format: builtins.str
         """Format of files at `path` (e.g. parquet, avro, etc)"""
+        date_partition_column_format: builtins.str
+        """Date Format of date partition column (e.g. %Y-%m-%d)"""
         def __init__(
             self,
             *,
@@ -380,8 +391,9 @@ class DataSource(google.protobuf.message.Message):
             query: builtins.str = ...,
             path: builtins.str = ...,
             file_format: builtins.str = ...,
+            date_partition_column_format: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table"]) -> None: ...
 
     class CustomSourceOptions(google.protobuf.message.Message):
         """Defines configuration for custom third-party data sources."""

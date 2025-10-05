@@ -24,7 +24,7 @@ spec:
       serviceAccountName: feast-unauthorized-user-sa
       containers:
         - name: client-unauthorized-user-container
-          image: feastdev/feature-server:latest
+          image: quay.io/feastdev/feature-server:latest
           imagePullPolicy: Always
           command: ["sleep", "infinity"]
           volumeMounts:

@@ -90,6 +90,7 @@ class FooProvider(Provider):
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
     ) -> None:
         pass
 
@@ -169,9 +170,10 @@ class FooProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        query: List[float],
+        query: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],

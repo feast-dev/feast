@@ -13,16 +13,23 @@ import {
   EuiDescriptionListDescription,
   EuiSpacer,
 } from "@elastic/eui";
-import React from "react";
+import React, { useContext } from "react";
 import { useParams } from "react-router-dom";
+import PermissionsDisplay from "../../components/PermissionsDisplay";
+import RegistryPathContext from "../../contexts/RegistryPathContext";
+import { FEAST_FCO_TYPES } from "../../parsers/types";
+import { feast } from "../../protos";
+import useLoadRegistry from "../../queries/useLoadRegistry";
+import { getEntityPermissions } from "../../utils/permissionUtils";
 import BatchSourcePropertiesView from "./BatchSourcePropertiesView";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import RequestDataSourceSchemaTable from "./RequestDataSourceSchemaTable";
 import useLoadDataSource from "./useLoadDataSource";
-import { feast } from "../../protos";
 
 const DataSourceOverviewTab = () => {
   let { dataSourceName } = useParams();
+  const registryUrl = useContext(RegistryPathContext);
+  const registryQuery = useLoadRegistry(registryUrl);
 
   const dsName = dataSourceName === undefined ? "" : dataSourceName;
   const { isLoading, isSuccess, isError, data, consumingFeatureViews } =
@@ -78,12 +85,14 @@ const DataSourceOverviewTab = () => {
                       </EuiTitle>
                       <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                       <RequestDataSourceSchemaTable
-                        fields={data?.requestDataOptions?.schema!.map((obj) => {
-                          return {
-                            fieldName: obj.name!,
-                            valueType: obj.valueType!,
-                          };
-                        })!}
+                        fields={
+                          data?.requestDataOptions?.schema!.map((obj) => {
+                            return {
+                              fieldName: obj.name!,
+                              valueType: obj.valueType!,
+                            };
+                          })!
+                        }
                       />
                     </EuiPanel>
                   ) : (
@@ -106,6 +115,26 @@ const DataSourceOverviewTab = () => {
                   />
                 ) : (
                   <EuiText>No consuming feature views</EuiText>
+                )}
+              </EuiPanel>
+              <EuiSpacer size="m" />
+              <EuiPanel hasBorder={true}>
+                <EuiTitle size="xs">
+                  <h2>Permissions</h2>
+                </EuiTitle>
+                <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
+                {registryQuery.data?.permissions ? (
+                  <PermissionsDisplay
+                    permissions={getEntityPermissions(
+                      registryQuery.data.permissions,
+                      FEAST_FCO_TYPES.dataSource,
+                      dsName,
+                    )}
+                  />
+                ) : (
+                  <EuiText>
+                    No permissions defined for this data source.
+                  </EuiText>
                 )}
               </EuiPanel>
             </EuiFlexItem>

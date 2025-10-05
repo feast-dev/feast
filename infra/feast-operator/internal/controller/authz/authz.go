@@ -134,11 +134,11 @@ func (authz *FeastAuthorization) initFeastRoleBinding() *rbacv1.RoleBinding {
 
 func (authz *FeastAuthorization) setFeastRoleBinding(roleBinding *rbacv1.RoleBinding) error {
 	roleBinding.Labels = authz.getLabels()
-	roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
+	roleBinding.Subjects = []rbacv1.Subject{{
 		Kind:      rbacv1.ServiceAccountKind,
 		Name:      services.GetFeastName(authz.Handler.FeatureStore),
 		Namespace: authz.Handler.FeatureStore.Namespace,
-	})
+	}}
 	roleBinding.RoleRef = rbacv1.RoleRef{
 		APIGroup: rbacv1.GroupName,
 		Kind:     "Role",
@@ -179,7 +179,8 @@ func (authz *FeastAuthorization) setAuthRole(role *rbacv1.Role) error {
 
 func (authz *FeastAuthorization) getLabels() map[string]string {
 	return map[string]string{
-		services.NameLabelKey: authz.Handler.FeatureStore.Name,
+		services.NameLabelKey:        authz.Handler.FeatureStore.Name,
+		services.ServiceTypeLabelKey: string(services.AuthzFeastType),
 	}
 }
 

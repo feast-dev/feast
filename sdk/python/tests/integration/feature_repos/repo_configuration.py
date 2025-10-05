@@ -27,6 +27,9 @@ from feast.infra.feature_servers.base_config import (
     FeatureLoggingConfig,
 )
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
+from feast.infra.offline_stores.contrib.ray_repo_configuration import (
+    RayDataSourceCreator,
+)
 from feast.permissions.action import AuthzedAction
 from feast.permissions.auth_model import OidcClientAuthConfig
 from feast.permissions.permission import Permission
@@ -78,6 +81,9 @@ from tests.integration.feature_repos.universal.online_store.datastore import (
 from tests.integration.feature_repos.universal.online_store.dynamodb import (
     DynamoDBOnlineStoreCreator,
 )
+from tests.integration.feature_repos.universal.online_store.milvus import (
+    MilvusOnlineStoreCreator,
+)
 from tests.integration.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
@@ -86,7 +92,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-MILVUS_CONFIG = {"type": "milvus"}
+MILVUS_CONFIG = {"type": "milvus", "embedding_dim": 2, "path": "online_store.db"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
@@ -134,6 +140,7 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", RemoteOfflineStoreDataSourceCreator),
     ("local", RemoteOfflineOidcAuthStoreDataSourceCreator),
     ("local", RemoteOfflineTlsStoreDataSourceCreator),
+    ("local", RayDataSourceCreator),
 ]
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
@@ -163,7 +170,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
     AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
-    # AVAILABLE_ONLINE_STORES["milvus"] = (MILVUS_CONFIG, None)
+    AVAILABLE_ONLINE_STORES["milvus"] = (MILVUS_CONFIG, None)
 
     # Uncomment to test using private IKV account. Currently not enabled as
     # there is no dedicated IKV instance for CI testing and there is no
@@ -211,6 +218,7 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
         str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
     ] = {
         "redis": (REDIS_CONFIG, RedisOnlineStoreCreator),
+        "milvus": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
         "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
         "datastore": ("datastore", DatastoreOnlineStoreCreator),
         "bigtable": ("bigtable", BigtableOnlineStoreCreator),
@@ -524,7 +532,7 @@ def construct_test_environment(
     fixture_request: Optional[pytest.FixtureRequest],
     test_suite_name: str = "integration_test",
     worker_id: str = "worker_id",
-    entity_key_serialization_version: int = 2,
+    entity_key_serialization_version: int = 3,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
@@ -560,9 +568,6 @@ def construct_test_environment(
             path=str(Path(repo_dir_name) / "registry.db"),
             cache_ttl_seconds=1,
         )
-
-    if test_repo_config.online_store in ["milvus", "pgvector", "qdrant"]:
-        entity_key_serialization_version = 3
 
     environment_params = {
         "name": project,

@@ -3,7 +3,7 @@ import { feast } from "../protos";
 enum FEAST_FV_TYPES {
   regular = "regular",
   ondemand = "ondemand",
-  stream = "stream"
+  stream = "stream",
 }
 
 interface regularFVInterface {

@@ -116,7 +116,7 @@ class RemoteRetrievalJob(RetrievalJob):
         client: FeastFlightClient,
         api: str,
         api_parameters: Dict[str, Any],
-        entity_df: Union[pd.DataFrame, str] = None,
+        entity_df: Optional[Union[pd.DataFrame, str]] = None,
         table: pa.Table = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
@@ -193,7 +193,7 @@ class RemoteOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
@@ -234,8 +234,9 @@ class RemoteOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
@@ -253,8 +254,9 @@ class RemoteOfflineStore(OfflineStore):
             "join_key_columns": join_key_columns,
             "feature_name_columns": feature_name_columns,
             "timestamp_field": timestamp_field,
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
+            "created_timestamp_column": created_timestamp_column,
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
         }
 
         return RemoteRetrievalJob(
@@ -480,8 +482,8 @@ def _get_entity_df_event_timestamp_range(
 def _send_retrieve_remote(
     api: str,
     api_parameters: Dict[str, Any],
-    entity_df: Union[pd.DataFrame, str],
-    table: pa.Table,
+    entity_df: Optional[Union[pd.DataFrame, str]],
+    table: Optional[pa.Table],
     client: FeastFlightClient,
 ):
     command_descriptor = _call_put(
@@ -508,7 +510,7 @@ def _call_put(
     api: str,
     api_parameters: Dict[str, Any],
     client: FeastFlightClient,
-    entity_df: Union[pd.DataFrame, str],
+    entity_df: Optional[Union[pd.DataFrame, str]],
     table: pa.Table,
 ):
     # Generate unique command identifier
@@ -533,7 +535,7 @@ def _call_put(
 
 def _put_parameters(
     command_descriptor: fl.FlightDescriptor,
-    entity_df: Union[pd.DataFrame, str],
+    entity_df: Optional[Union[pd.DataFrame, str]],
     table: pa.Table,
     client: FeastFlightClient,
 ):

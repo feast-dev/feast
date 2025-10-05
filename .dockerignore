@@ -3,3 +3,6 @@ docs
 charts
 env
 **/.terraform
+offline_build/
+!offline_build/arrow
+!offline_build/ibis

@@ -2,17 +2,14 @@ name: smoke-tests
 
 on:
   pull_request:
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
+
 jobs:
-  unit-test-python:
+  smoke-test-python:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.9", "3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -25,21 +22,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
-        run: |
-          echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
-      - name: uv cache
-        uses: actions/cache@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          enable-cache: true
       - name: Install dependencies
-        run: |
-          uv pip sync --system sdk/python/requirements/py${{ matrix.python-version }}-requirements.txt
-          uv pip install --system --no-deps .
+        run: make install-python-dependencies-ci
       - name: Test Imports
-        run: python -c "from feast import cli"
+        run: python -c "from feast.cli import cli"
+      - name: Minimize uv cache
+        run: uv cache prune --ci

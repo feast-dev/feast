@@ -6,6 +6,7 @@ import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import RegularFeatureViewOverviewTab from "./RegularFeatureViewOverviewTab";
+import FeatureViewLineageTab from "./FeatureViewLineageTab";
 
 import {
   useRegularFeatureViewCustomTabs,
@@ -16,9 +17,13 @@ import { feast } from "../../protos";
 
 interface RegularFeatureInstanceProps {
   data: feast.core.IFeatureView;
+  permissions?: any[];
 }
 
-const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
+const RegularFeatureInstance = ({
+  data,
+  permissions,
+}: RegularFeatureInstanceProps) => {
   const { enabledFeatureStatistics } = useContext(FeatureFlagsContext);
   const navigate = useNavigate();
 
@@ -32,6 +37,14 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
       },
     },
   ];
+
+  tabs.push({
+    label: "Lineage",
+    isSelected: useMatchSubpath("lineage"),
+    onClick: () => {
+      navigate("lineage");
+    },
+  });
 
   let statisticsIsSelected = useMatchSubpath("statistics");
   if (enabledFeatureStatistics) {
@@ -60,7 +73,16 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
         <Routes>
           <Route
             path="/"
-            element={<RegularFeatureViewOverviewTab data={data} />}
+            element={
+              <RegularFeatureViewOverviewTab
+                data={data}
+                permissions={permissions}
+              />
+            }
+          />
+          <Route
+            path="/lineage"
+            element={<FeatureViewLineageTab data={data} />}
           />
           {TabRoutes}
         </Routes>

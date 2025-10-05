@@ -10,11 +10,12 @@ infra/charts/feast/README.md 11 68 69
 infra/charts/feast-feature-server/Chart.yaml 5
 infra/charts/feast-feature-server/README.md 3
 infra/charts/feast-feature-server/values.yaml 12
-infra/feast-helm-operator/Makefile 6
-infra/feast-helm-operator/config/manager/kustomization.yaml 8
 infra/feast-operator/Makefile 6
 infra/feast-operator/config/manager/kustomization.yaml 8
+infra/feast-operator/config/component_metadata.yaml 4
 infra/feast-operator/config/overlays/odh/params.env 1 2
+infra/feast-operator/config/overlays/rhoai/params.env 1 2
 infra/feast-operator/api/feastversion/version.go 20
 java/pom.xml 38
+sdk/python/feast/infra/feature_servers/multicloud/requirements.txt 2
 ui/package.json 3

@@ -73,6 +73,8 @@ spec:
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
           value: feast:latest
+        - name: RELATED_IMAGE_CRON_JOB
+          value: origin-cli:latest
         livenessProbe:
           httpGet:
             path: /healthz
@@ -89,8 +91,8 @@ spec:
         # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
         resources:
           limits:
-            cpu: 500m
-            memory: 128Mi
+            cpu: 1000m
+            memory: 256Mi
           requests:
             cpu: 10m
             memory: 64Mi

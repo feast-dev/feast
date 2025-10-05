@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -53,17 +53,10 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
-        run: |
-          echo "::set-output name=dir::$(uv cache dir)"
-      - name: uv cache
-        uses: actions/cache@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          enable-cache: true
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Setup Redis Cluster
@@ -88,6 +81,8 @@ jobs:
         run: pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-autosave --benchmark-save-data --durations=5
       - name: Upload Benchmark Artifact to S3
         run: aws s3 cp --recursive .benchmarks s3://feast-ci-pytest-benchmark
+      - name: Minimize uv cache
+        run: uv cache prune --ci
 
   build-all-docker-images:
     if: github.repository == 'feast-dev/feast'
@@ -99,6 +94,16 @@ jobs:
       REGISTRY: quay.io/feastdev-ci
     steps:
       - uses: actions/checkout@v4
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx

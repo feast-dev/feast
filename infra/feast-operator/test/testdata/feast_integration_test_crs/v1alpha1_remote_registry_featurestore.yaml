@@ -5,11 +5,11 @@ metadata:
 spec:
   feastProject: my_project
   services:
-    onlineStore: {}
-    offlineStore: {}
+    offlineStore:
+      server: {}
     ui: {}
     registry:
       remote:
         feastRef:
           name: simple-feast-setup
-          namespace: default
+          namespace: test-ns-feast

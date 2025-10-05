@@ -13,17 +13,24 @@ import {
   EuiDescriptionListTitle,
   EuiDescriptionListDescription,
 } from "@elastic/eui";
-import React from "react";
+import React, { useContext } from "react";
 import { useParams } from "react-router-dom";
+import PermissionsDisplay from "../../components/PermissionsDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
+import RegistryPathContext from "../../contexts/RegistryPathContext";
+import { FEAST_FCO_TYPES } from "../../parsers/types";
+import { feast } from "../../protos";
+import useLoadRegistry from "../../queries/useLoadRegistry";
+import { getEntityPermissions } from "../../utils/permissionUtils";
+import { toDate } from "../../utils/timestamp";
 import FeatureViewEdgesList from "./FeatureViewEdgesList";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
-import { toDate } from "../../utils/timestamp";
-import { feast } from "../../protos";
 
 const EntityOverviewTab = () => {
   let { entityName } = useParams();
+  const registryUrl = useContext(RegistryPathContext);
+  const registryQuery = useLoadRegistry(registryUrl);
 
   const eName = entityName === undefined ? "" : entityName;
   const { isLoading, isSuccess, isError, data } = useLoadEntity(eName);
@@ -74,18 +81,26 @@ const EntityOverviewTab = () => {
                   <EuiDescriptionListTitle>Created</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
                     {data?.meta?.createdTimestamp ? (
-                      toDate(data.meta.createdTimestamp).toLocaleDateString("en-CA")
+                      toDate(data.meta.createdTimestamp).toLocaleDateString(
+                        "en-CA",
+                      )
                     ) : (
-                      <EuiText>No createdTimestamp specified on this entity.</EuiText>
+                      <EuiText>
+                        No createdTimestamp specified on this entity.
+                      </EuiText>
                     )}
                   </EuiDescriptionListDescription>
 
                   <EuiDescriptionListTitle>Updated</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
                     {data?.meta?.lastUpdatedTimestamp ? (
-                      toDate(data.meta.lastUpdatedTimestamp).toLocaleDateString("en-CA")
+                      toDate(data.meta.lastUpdatedTimestamp).toLocaleDateString(
+                        "en-CA",
+                      )
                     ) : (
-                      <EuiText>No lastUpdatedTimestamp specified on this entity.</EuiText>
+                      <EuiText>
+                        No lastUpdatedTimestamp specified on this entity.
+                      </EuiText>
                     )}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
@@ -123,6 +138,24 @@ const EntityOverviewTab = () => {
                   <TagsDisplay tags={data.spec.tags} />
                 ) : (
                   <EuiText>No labels specified on this entity.</EuiText>
+                )}
+              </EuiPanel>
+              <EuiSpacer size="m" />
+              <EuiPanel hasBorder={true}>
+                <EuiTitle size="xs">
+                  <h3>Permissions</h3>
+                </EuiTitle>
+                <EuiHorizontalRule margin="xs" />
+                {registryQuery.data?.permissions ? (
+                  <PermissionsDisplay
+                    permissions={getEntityPermissions(
+                      registryQuery.data.permissions,
+                      FEAST_FCO_TYPES.entity,
+                      eName,
+                    )}
+                  />
+                ) : (
+                  <EuiText>No permissions defined for this entity.</EuiText>
                 )}
               </EuiPanel>
             </EuiFlexItem>

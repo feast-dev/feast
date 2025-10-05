@@ -2,4 +2,9 @@
   path: "/spec/template/spec/containers/0/env/0"
   value:
     name: RELATED_IMAGE_FEATURE_SERVER
-    value: docker.io/feastdev/feature-server:0.43.0
+    value: quay.io/feastdev/feature-server:0.54.0
+- op: replace
+  path: "/spec/template/spec/containers/0/env/1"
+  value:
+    name: RELATED_IMAGE_CRON_JOB
+    value: quay.io/openshift/origin-cli:4.17

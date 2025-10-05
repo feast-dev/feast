@@ -68,7 +68,6 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             "password": "test!@#$%",
             "database": "test",
             "vector_enabled": True,
-            "vector_len": 2,
             "port": self.container.get_exposed_port(5432),
         }
 

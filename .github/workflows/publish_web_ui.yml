@@ -1,0 +1,142 @@
+name: publish web ui
+
+on:
+  workflow_dispatch: # Allows manual trigger of the workflow
+    inputs:
+      current_version:
+        description: 'Current version to bump from (e.g., v1.2.3). If not provided, will auto-detect from git tags'
+        required: false
+        type: string
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: false
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
+  workflow_call: # Allows trigger of the workflow from another workflow
+    inputs:
+      current_version:
+        description: 'Current version to bump from (e.g., v1.2.3). If not provided, will auto-detect from git tags'
+        required: false
+        type: string
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: false
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  publish-web-ui-npm:
+    if: github.repository == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    env:
+      # This publish is working using an NPM automation token to bypass 2FA
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Determine current version
+        id: get-current-version
+        if: github.event.inputs.custom_version != ''
+        shell: bash
+        run: |
+          if [[ -n "${{ github.event.inputs.current_version }}" ]]; then
+            # Use provided current version
+            CURRENT_VERSION_RAW="${{ github.event.inputs.current_version }}"
+            echo "Using provided current version: $CURRENT_VERSION_RAW"
+            
+          else
+            # Auto-detect current version from git tags
+            echo "No current version provided, auto-detecting from git tags..."
+            source infra/scripts/setup-common-functions.sh
+            
+            if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+              # If running from a tag, get the previous tag
+              CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+              echo "Running from tag: $CURRENT_TAG"
+              
+              # Get all tags, sort them, find the one before current tag
+              PREVIOUS_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | grep -B1 "^${CURRENT_TAG}$" | head -1)
+              
+              if [[ -z "$PREVIOUS_TAG" ]]; then
+                echo "Error: Could not find previous version before $CURRENT_TAG"
+                exit 1
+              fi
+              
+              echo "Found previous version: $PREVIOUS_TAG"
+              CURRENT_VERSION_RAW="$PREVIOUS_TAG"
+              
+            else
+              # If running from branch, get the latest released version
+              LATEST_TAG=$(get_tag_release -s)
+              
+              if [[ -z "$LATEST_TAG" ]]; then
+                echo "Error: No semantic version tags found in repository"
+                exit 1
+              fi
+              
+              echo "Latest released version: $LATEST_TAG"
+              CURRENT_VERSION_RAW="$LATEST_TAG"
+            fi
+          fi
+          
+          # Remove 'v' prefix once at the end if present
+          if [[ "$CURRENT_VERSION_RAW" =~ ^v ]]; then
+            CURRENT_VERSION="${CURRENT_VERSION_RAW:1}"
+          else
+            CURRENT_VERSION="$CURRENT_VERSION_RAW"
+          fi
+          
+          echo "version_without_prefix=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Final current version (without prefix): $CURRENT_VERSION"
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: './ui/.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Bump file versions (temporarily for Web UI publish)
+        if: github.event.inputs.custom_version != ''
+        env:
+          CUSTOM_VERSION: ${{ github.event.inputs.custom_version }}
+        run: |
+          # Get current version from previous step
+          CURRENT_VERSION="${{ steps.get-current-version.outputs.version_without_prefix }}"
+          
+          # Normalize custom version (next version) by removing 'v' prefix if present
+          NEXT_VERSION="${CUSTOM_VERSION}"
+          if [[ "$NEXT_VERSION" =~ ^v ]]; then
+            NEXT_VERSION="${NEXT_VERSION:1}"
+          fi
+          
+          echo "Using current version: $CURRENT_VERSION"
+          echo "Using next version (custom): $NEXT_VERSION"
+          python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
+      - name: Install yarn dependencies
+        working-directory: ./ui
+        run: yarn install
+      - name: Build yarn rollup
+        working-directory: ./ui
+        run: yarn build:lib
+      - name: Publish UI package
+        working-directory: ./ui
+        if: github.event.inputs.publish_ui != 'false'
+        run: npm publish
+        env:
+          # This publish is working using an NPM automation token to bypass 2FA
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 

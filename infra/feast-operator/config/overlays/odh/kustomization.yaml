@@ -42,3 +42,13 @@ replacements:
           name: controller-manager
         fieldPaths:
           - spec.template.spec.containers.[name=manager].env.[name=RELATED_IMAGE_FEATURE_SERVER].value
+  - source:
+      kind: ConfigMap
+      name: feast-operator-parameters
+      fieldPath: data.RELATED_IMAGE_CRON_JOB
+    targets:
+      - select:
+          kind: Deployment
+          name: controller-manager
+        fieldPaths:
+          - spec.template.spec.containers.[name=manager].env.[name=RELATED_IMAGE_CRON_JOB].value

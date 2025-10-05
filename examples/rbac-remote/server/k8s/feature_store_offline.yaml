@@ -13,4 +13,4 @@ offline_store:
     password: feast
 auth:
     type: kubernetes
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

@@ -6,7 +6,7 @@ platforms = ["linux-64", "osx-arm64", "osx-64"]
 [tasks]
 
 [dependencies]
-uv = ">=0.1.39,<0.2"
+uv = ">=0.6.3"
 
 [feature.py39.dependencies]
 python = "~=3.9.0"
@@ -17,7 +17,11 @@ python = "~=3.10.0"
 [feature.py311.dependencies]
 python = "~=3.11.0"
 
+[feature.py312.dependencies]
+python = "~=3.12.0"
+
 [environments]
 py39 = ["py39"]
 py310 = ["py310"]
 py311 = ["py311"]
+py312 = ["py312"]

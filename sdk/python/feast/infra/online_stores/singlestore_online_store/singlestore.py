@@ -50,6 +50,7 @@ class SingleStoreOnlineStore(OnlineStore):
             password=online_store_config.password or "test",
             database=online_store_config.database or "feast",
             port=online_store_config.port or 3306,
+            conn_attrs={"_connector_name": "SingleStore Feast Online Store"},
             autocommit=True,
         )
 
@@ -79,7 +80,7 @@ class SingleStoreOnlineStore(OnlineStore):
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=2,
+                    entity_key_serialization_version=3,
                 ).hex()
                 timestamp = _to_naive_utc(timestamp)
                 if created_ts is not None:
@@ -129,7 +130,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 keys.append(
                     serialize_entity_key(
                         entity_key,
-                        entity_key_serialization_version=2,
+                        entity_key_serialization_version=3,
                     ).hex()
                 )
 

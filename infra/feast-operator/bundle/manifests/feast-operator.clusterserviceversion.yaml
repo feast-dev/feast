@@ -13,13 +13,47 @@ metadata:
           "spec": {
             "feastProject": "my_project"
           }
+        },
+        {
+          "apiVersion": "feast.dev/v1alpha1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-remote-servers"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "offlineStore": {
+                "server": {}
+              },
+              "registry": {
+                "local": {
+                  "server": {}
+                }
+              },
+              "ui": {}
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1alpha1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-ui"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "ui": {}
+            }
+          }
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-01-20T22:18:19Z"
+    createdAt: "2025-09-30T12:39:40Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.43.0
+  name: feast-operator.v0.54.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -51,6 +85,18 @@ spec:
           - update
           - watch
         - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - ""
           resources:
           - configmaps
@@ -67,10 +113,17 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - pods
           - secrets
           verbs:
           - get
           - list
+        - apiGroups:
+          - ""
+          resources:
+          - pods/exec
+          verbs:
+          - create
         - apiGroups:
           - feast.dev
           resources:
@@ -102,6 +155,17 @@ spec:
           resources:
           - rolebindings
           - roles
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes
           verbs:
           - create
           - delete
@@ -150,10 +214,10 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: docker.io/feastdev/feature-server:0.43.0
-                - name: RELATED_IMAGE_GRPC_CURL
-                  value: docker.io/fullstorydev/grpcurl:v1.9.1-alpine
-                image: feastdev/feast-operator:0.43.0
+                  value: quay.io/feastdev/feature-server:0.54.0
+                - name: RELATED_IMAGE_CRON_JOB
+                  value: quay.io/openshift/origin-cli:4.17
+                image: quay.io/feastdev/feast-operator:0.54.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -169,8 +233,8 @@ spec:
                   periodSeconds: 10
                 resources:
                   limits:
-                    cpu: 500m
-                    memory: 128Mi
+                    cpu: "1"
+                    memory: 256Mi
                   requests:
                     cpu: 10m
                     memory: 64Mi
@@ -243,8 +307,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: docker.io/feastdev/feature-server:0.43.0
+  - image: quay.io/feastdev/feature-server:0.54.0
     name: feature-server
-  - image: docker.io/fullstorydev/grpcurl:v1.9.1-alpine
-    name: grpc-curl
-  version: 0.43.0
+  - image: quay.io/openshift/origin-cli:4.17
+    name: cron-job
+  version: 0.54.0

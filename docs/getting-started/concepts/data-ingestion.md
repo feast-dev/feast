@@ -24,6 +24,8 @@ Ingesting from batch sources is only necessary to power real-time models. This i
 
 A key command to use in Feast is the `materialize_incremental` command, which fetches the _latest_ values for all entities in the batch source and ingests these values into the online store.
 
+When working with On Demand Feature Views with `write_to_online_store=True`, you can also control whether transformations are applied during ingestion by using the `transform_on_write` parameter. Setting `transform_on_write=False` allows you to materialize pre-transformed features without reapplying transformations, which is particularly useful for large batch datasets that have already been processed.
+
 Materialization can be called programmatically or through the CLI:
 
 <details>
@@ -62,9 +64,15 @@ materialize_python = PythonOperator(
 
 #### How to run this in the CLI
 
+**With timestamps:**
 ```bash
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
+```
+
+**Simple materialization (for data without event timestamps):**
+```bash
+feast materialize --disable-event-timestamp
 ```
 
 #### How to run this on Airflow

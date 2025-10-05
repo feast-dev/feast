@@ -25,6 +25,7 @@ import RegistryPathContext from "../../contexts/RegistryPathContext";
 import FeatureViewIndexEmptyState from "./FeatureViewIndexEmptyState";
 import { useFeatureViewTagsAggregation } from "../../hooks/useTagsAggregation";
 import TagSearch from "../../components/TagSearch";
+import ExportButton from "../../components/ExportButton";
 
 const useLoadFeatureViews = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -43,7 +44,7 @@ const useLoadFeatureViews = () => {
 
 const shouldIncludeFVsGivenTokenGroups = (
   entry: regularFVInterface,
-  tagTokenGroups: Record<string, string[]>
+  tagTokenGroups: Record<string, string[]>,
 ) => {
   return Object.entries(tagTokenGroups).every(([key, values]) => {
     const entryTagValue = entry?.object?.spec!.tags
@@ -68,7 +69,7 @@ const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
       if (entry.type === "regular") {
         return shouldIncludeFVsGivenTokenGroups(
           entry,
-          filterInput.tagTokenGroups
+          filterInput.tagTokenGroups,
         );
       } else {
         return false; // ODFVs don't have tags yet
@@ -117,6 +118,13 @@ const Index = () => {
         restrictWidth
         iconType={FeatureViewIcon}
         pageTitle="Feature Views"
+        rightSideItems={[
+          <ExportButton
+            data={filterResult ?? []}
+            fileName="feature_views"
+            formats={["json"]}
+          />,
+        ]}
       />
       <EuiPageTemplate.Section>
         {isLoading && (

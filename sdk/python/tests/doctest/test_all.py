@@ -71,46 +71,53 @@ def test_docstrings():
         next_packages = []
 
         for package in current_packages:
-            for _, name, is_pkg in pkgutil.walk_packages(package.__path__):
-                if name in FILES_TO_IGNORE:
-                    continue
+            try:
+                for _, name, is_pkg in pkgutil.walk_packages(package.__path__):
+                    if name in FILES_TO_IGNORE:
+                        continue
 
-                full_name = package.__name__ + "." + name
-                try:
-                    temp_module = importlib.import_module(full_name)
-                    if is_pkg:
-                        next_packages.append(temp_module)
-                except ModuleNotFoundError:
-                    pass
+                    full_name = package.__name__ + "." + name
+                    try:
+                        # https://github.com/feast-dev/feast/issues/5088
+                        if "ikv" not in full_name and "milvus" not in full_name:
+                            temp_module = importlib.import_module(full_name)
+                            if is_pkg:
+                                next_packages.append(temp_module)
+                    except ModuleNotFoundError:
+                        pass
 
-                # Retrieve the setup and teardown functions defined in this file.
-                relative_path_from_feast = full_name.split(".", 1)[1]
-                function_suffix = relative_path_from_feast.replace(".", "_")
-                setup_function_name = "setup_" + function_suffix
-                teardown_function_name = "teardown_" + function_suffix
-                setup_function = globals().get(setup_function_name)
-                teardown_function = globals().get(teardown_function_name)
+                    # Retrieve the setup and teardown functions defined in this file.
+                    relative_path_from_feast = full_name.split(".", 1)[1]
+                    function_suffix = relative_path_from_feast.replace(".", "_")
+                    setup_function_name = "setup_" + function_suffix
+                    teardown_function_name = "teardown_" + function_suffix
+                    setup_function = globals().get(setup_function_name)
+                    teardown_function = globals().get(teardown_function_name)
 
-                # Execute the test with setup and teardown functions.
-                try:
-                    if setup_function:
-                        setup_function()
+                    # Execute the test with setup and teardown functions.
+                    try:
+                        if setup_function:
+                            setup_function()
 
-                    test_suite = doctest.DocTestSuite(
-                        temp_module,
-                        optionflags=doctest.ELLIPSIS,
-                    )
-                    if test_suite.countTestCases() > 0:
-                        result = unittest.TextTestRunner(sys.stdout).run(test_suite)
-                        if not result.wasSuccessful():
-                            successful = False
-                            failed_cases.append(result.failures)
-                except Exception as e:
-                    successful = False
-                    failed_cases.append((full_name, str(e) + traceback.format_exc()))
-                finally:
-                    if teardown_function:
-                        teardown_function()
+                        test_suite = doctest.DocTestSuite(
+                            temp_module,
+                            optionflags=doctest.ELLIPSIS,
+                        )
+                        if test_suite.countTestCases() > 0:
+                            result = unittest.TextTestRunner(sys.stdout).run(test_suite)
+                            if not result.wasSuccessful():
+                                successful = False
+                                failed_cases.append(result.failures)
+                    except Exception as e:
+                        successful = False
+                        failed_cases.append(
+                            (full_name, str(e) + traceback.format_exc())
+                        )
+                    finally:
+                        if teardown_function:
+                            teardown_function()
+            except DeprecationWarning:  # To catch ray.tune.automl deprecation
+                pass
 
         current_packages = next_packages
 

@@ -44,11 +44,12 @@ REGISTRY_CLASS_FOR_TYPE = {
 }
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {
-    "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
-    "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
-    "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
-    "k8s": "feast.infra.materialization.kubernetes.k8s_materialization_engine.KubernetesMaterializationEngine",
-    "spark.engine": "feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine",
+    "local": "feast.infra.compute_engines.local.compute.LocalComputeEngine",
+    "snowflake.engine": "feast.infra.compute_engines.snowflake.snowflake_engine.SnowflakeComputeEngine",
+    "lambda": "feast.infra.compute_engines.aws_lambda.lambda_engine.LambdaComputeEngine",
+    "k8s": "feast.infra.compute_engines.kubernetes.k8s_engine.KubernetesComputeEngine",
+    "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
+    "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -58,9 +59,10 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
     "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
-    "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore": "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
+    "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
     "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
-    "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
+    "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
+    "feast.infra.online_stores.contrib.milvus.MilvusOnlineStore": "feast.infra.online_stores.milvus.MilvusOnlineStore",
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -76,11 +78,11 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "mysql": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "hazelcast": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "ikv": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
-    "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
+    "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
-    "qdrant": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
-    "couchbase": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
+    "qdrant": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
+    "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
@@ -98,10 +100,14 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
     "duckdb": "feast.infra.offline_stores.duckdb.DuckDBOfflineStore",
     "remote": "feast.infra.offline_stores.remote.RemoteOfflineStore",
+    "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
+    "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
+    "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
+    "mcp": "feast.infra.mcp_servers.mcp_config.McpFeatureServerConfig",
 }
 
 ALLOWED_AUTH_TYPES = ["no_auth", "kubernetes", "oidc"]
@@ -179,6 +185,10 @@ class RepoConfig(FeastBaseModel):
         provider account, as long as they have different project identifier.
     """
 
+    project_description: Optional[StrictStr] = None
+    """ str: Optional description of the project to provide context about the project's purpose and usage.
+    """
+
     provider: StrictStr = "local"
     """ str: local or gcp or aws """
 
@@ -211,16 +221,12 @@ class RepoConfig(FeastBaseModel):
     repo_path: Optional[Path] = None
     """When using relative path in FileSource path, this parameter is mandatory"""
 
-    entity_key_serialization_version: StrictInt = 1
+    entity_key_serialization_version: StrictInt = 3
     """ Entity key serialization version: This version is used to control what serialization scheme is
     used when writing data to the online store.
-    A value <= 1 uses the serialization scheme used by feast up to Feast 0.22.
-    A value of 2 uses a newer serialization scheme, supported as of Feast 0.23.
     A value of 3 uses the latest serialization scheme, supported as of Feast 0.38.
-    The main difference between the three schema is that
-    v1: the serialization scheme v1 stored `long` values as `int`s, which would result in errors trying to serialize a range of values.
-    v2: fixes this error, but v1 is kept around to ensure backwards compatibility - specifically the ability to read
-    feature values for entities that have already been written into the online store.
+
+    Version Schemas:
     v3: add entity_key value length to serialized bytes to enable deserialization, which can be used in retrieval of entity_key in document retrieval.
     """
 
@@ -262,14 +268,11 @@ class RepoConfig(FeastBaseModel):
                 self.feature_server["type"]
             )(**self.feature_server)
 
-        if self.entity_key_serialization_version <= 1:
+        if self.entity_key_serialization_version < 3:
             warnings.warn(
-                "`entity_key_serialization_version` is either not specified in the feature_store.yaml, "
-                "or is specified to a value <= 1."
-                "This serialization version may cause errors when trying to write fields with the `Long` data type"
-                " into the online store. Specifying `entity_key_serialization_version` to 2 is recommended for"
-                " new projects. ",
-                RuntimeWarning,
+                "The serialization version below 3 are deprecated. "
+                "Specifying `entity_key_serialization_version` to 3 is recommended.",
+                DeprecationWarning,
             )
 
     @property
@@ -311,11 +314,22 @@ class RepoConfig(FeastBaseModel):
     def auth_config(self):
         if not self._auth:
             if isinstance(self.auth, Dict):
-                is_oidc_client = (
-                    self.auth.get("type") == AuthType.OIDC.value
-                    and "username" in self.auth
-                    and "password" in self.auth
-                    and "client_secret" in self.auth
+                # treat this auth block as *client-side* OIDC when it matches
+                #   1)  ROPG            – username + password + client_secret
+                #   2)  client-credentials – client_secret only
+                #   3)  static token    – token
+                is_oidc_client = self.auth.get("type") == AuthType.OIDC.value and (
+                    (
+                        "username" in self.auth
+                        and "password" in self.auth
+                        and "client_secret" in self.auth
+                    )  # 1
+                    or (
+                        "client_secret" in self.auth
+                        and "username" not in self.auth
+                        and "password" not in self.auth
+                    )  # 2
+                    or ("token" in self.auth)  # 3
                 )
                 self._auth = get_auth_config_from_type(
                     "oidc_client" if is_oidc_client else self.auth.get("type")
@@ -475,7 +489,7 @@ class RepoConfig(FeastBaseModel):
         if not is_valid_name(v):
             raise ValueError(
                 f"Project name, {v}, should only have "
-                f"alphanumerical values and underscores but not start with an underscore."
+                f"alphanumerical values, underscores, and hyphens but not start with an underscore or hyphen."
             )
         return v
 
@@ -571,11 +585,16 @@ def get_auth_config_from_type(auth_config_type: str):
     return import_class(module_name, config_class_name, config_class_name)
 
 
-def get_offline_config_from_type(offline_store_type: str):
+def get_offline_store_type(offline_store_type: str):
     if offline_store_type in OFFLINE_STORE_CLASS_FOR_TYPE:
-        offline_store_type = OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
+        return OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
     elif not offline_store_type.endswith("OfflineStore"):
         raise FeastOfflineStoreInvalidName(offline_store_type)
+    return offline_store_type
+
+
+def get_offline_config_from_type(offline_store_type: str):
+    offline_store_type = get_offline_store_type(offline_store_type)
     module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
     config_class_name = f"{offline_store_class_type}Config"
 

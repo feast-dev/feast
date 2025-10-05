@@ -8,7 +8,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import List, Tuple
 
-from feast import cli
+from feast.cli import cli
 from feast.feature_store import FeatureStore
 
 
@@ -84,7 +84,7 @@ class CliRunner:
                     path: {data_path / "online_store.db"}
                 offline_store:
                     type: {offline_store}
-                entity_key_serialization_version: 2
+                entity_key_serialization_version: 3
                 """
                 )
             elif online_store == "milvus":

@@ -1,0 +1,180 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
+
+const posts = await Astro.glob('../../../docs/blog/*.md');
+const sortedPosts = posts.sort((a, b) => {
+  const dateA = new Date(a.frontmatter.date || '2000-01-01');
+  const dateB = new Date(b.frontmatter.date || '2000-01-01');
+  return dateB.getTime() - dateA.getTime();
+});
+---
+
+<BaseLayout title="Blog - Feast">
+  <Navigation slot="header" />
+  <div class="blog-wrapper">
+    <header class="blog-hero">
+      <div class="blog-hero-content">
+        <h1 class="text-smooth">BLOG</h1>
+        <p class="description">Latest updates and announcements from the Feast team</p>
+      </div>
+    </header>
+    <div class="blog-list-container">
+      <div class="blog-list">
+        {sortedPosts.map((post) => (
+          <div class="blog-list-item">
+            <div class="post-date">
+              <time datetime={post.frontmatter.date}>
+                {new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </time>
+            </div>
+            <div class="post-content">
+              <h2>
+                <a href={`/blog/${post.file.split('/').pop().replace('.md', '')}`}>
+                  {post.frontmatter.title}
+                </a>
+              </h2>
+              {post.frontmatter.authors && post.frontmatter.authors.length > 0 && (
+                <div class="post-authors">
+                  By {post.frontmatter.authors.join(', ')}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .blog-wrapper {
+    padding-top: 52px;
+  }
+
+  .blog-hero {
+    background: var(--color-background);
+    padding: 80px 20px;
+    text-align: center;
+  }
+
+  .blog-hero-content {
+    max-width: 1024px;
+    margin: 0 auto;
+  }
+
+  .blog-hero h1 {
+    font-family: var(--font-mono);
+    font-size: 48px;
+    line-height: 52px;
+    font-weight: 700;
+    margin: 0 0 24px;
+    letter-spacing: -0.32px;
+    text-transform: uppercase;
+    max-width: 1024px;
+    padding: 0 20px;
+    word-break: break-word;
+    color: rgb(0, 0, 0);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizelegibility;
+    font-feature-settings: "ss03";
+  }
+
+  .blog-hero .description {
+    font-family: var(--font-sans);
+    font-size: 20px;
+    line-height: 1.5;
+    color: #666;
+    margin: 0 auto 24px;
+    max-width: 768px;
+  }
+
+  .blog-list-container {
+    max-width: 768px;
+    margin: 0 auto;
+    padding: 60px 20px;
+  }
+
+  .blog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .blog-list-item {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 32px;
+    align-items: baseline;
+  }
+
+  .post-date {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: #666;
+    white-space: nowrap;
+  }
+
+  .post-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .post-content h2 {
+    font-family: var(--font-sans);
+    font-size: 18px;
+    line-height: 1.5;
+    font-weight: 400;
+    margin: 0;
+    color: var(--color-text);
+    padding-top: 1px;
+  }
+
+  .post-content a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .post-content a:hover {
+    color: var(--color-primary);
+  }
+
+  .post-authors {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: #666;
+  }
+
+  @media (max-width: 768px) {
+    .blog-hero {
+      padding: 60px 20px;
+    }
+
+    .blog-hero h1 {
+      font-size: 36px;
+      line-height: 40px;
+    }
+
+    .blog-hero .description {
+      font-size: 16px;
+    }
+
+    .blog-list-container {
+      padding: 40px 16px;
+    }
+
+    .blog-list-item {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .post-date {
+      margin-bottom: 4px;
+    }
+  }
+</style> 

@@ -93,6 +93,7 @@ def test_apply_feature_view(test_feature_store):
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
             Field(name="entity_id", dtype=Int64),
         ],
+        udf=lambda df: df,
         entities=[entity],
         tags={"team": "matchmaking", "tag": "two"},
         source=batch_source,
@@ -654,7 +655,7 @@ def test_apply_stream_feature_view_udf(test_feature_store, simple_dataset_1) -> 
             import pandas as pd
 
             assert type(pandas_df) == pd.DataFrame
-            df = pandas_df.transform(lambda x: x + 10, axis=1)
+            df = pandas_df.transform(lambda x: x + 10)
             df.insert(2, "C", [20.2, 230.0, 34.0], True)
             return df
 
@@ -683,11 +684,36 @@ def test_apply_stream_feature_view_udf(test_feature_store, simple_dataset_1) -> 
 def test_apply_batch_source(test_feature_store, simple_dataset_1) -> None:
     """Test that a batch source is applied correctly."""
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        # Store original timestamps before applying
+        original_created = file_source.created_timestamp
+        original_updated = file_source.last_updated_timestamp
+
         test_feature_store.apply([file_source])
 
         ds = test_feature_store.list_data_sources()
         assert len(ds) == 1
         assert ds[0] == file_source
+
+        # Verify timestamps are handled correctly during apply/registry operations
+        applied_source = ds[0]
+        assert applied_source.created_timestamp == original_created
+        assert applied_source.last_updated_timestamp >= original_updated
+
+        # Verify timestamps are included in protobuf representation
+        proto = applied_source.to_proto()
+        assert proto.HasField("meta")
+        assert proto.meta.HasField("created_timestamp")
+        assert proto.meta.HasField("last_updated_timestamp")
+
+        # Verify roundtrip serialization preserves timestamps
+        from feast.data_source import DataSource
+
+        roundtrip_source = DataSource.from_proto(proto)
+        assert roundtrip_source.created_timestamp == original_created
+        assert (
+            roundtrip_source.last_updated_timestamp
+            == applied_source.last_updated_timestamp
+        )
 
 
 @pytest.mark.parametrize(
@@ -708,17 +734,44 @@ def test_apply_stream_source(test_feature_store, simple_dataset_1) -> None:
             tags=TAGS,
         )
 
+        # Store original timestamps before applying
+        original_stream_created = stream_source.created_timestamp
+        original_stream_updated = stream_source.last_updated_timestamp
+        original_file_created = file_source.created_timestamp
+        original_file_updated = file_source.last_updated_timestamp
+
         test_feature_store.apply([stream_source])
 
         assert len(test_feature_store.list_data_sources(tags=TAGS)) == 1
         ds = test_feature_store.list_data_sources()
         assert len(ds) == 2
-        if isinstance(ds[0], FileSource):
-            assert ds[0] == file_source
-            assert ds[1] == stream_source
-        else:
-            assert ds[0] == stream_source
-            assert ds[1] == file_source
+
+        # Find the applied sources
+        applied_stream_source = None
+        applied_file_source = None
+        for source in ds:
+            if isinstance(source, FileSource):
+                applied_file_source = source
+            else:
+                applied_stream_source = source
+
+        assert applied_file_source == file_source
+        assert applied_stream_source == stream_source
+
+        assert applied_stream_source.created_timestamp == original_stream_created
+        assert applied_stream_source.last_updated_timestamp >= original_stream_updated
+        assert applied_file_source.created_timestamp == original_file_created
+        assert applied_file_source.last_updated_timestamp >= original_file_updated
+
+        stream_proto = applied_stream_source.to_proto()
+        assert stream_proto.HasField("meta")
+        assert stream_proto.meta.HasField("created_timestamp")
+        assert stream_proto.meta.HasField("last_updated_timestamp")
+
+        file_proto = applied_file_source.to_proto()
+        assert file_proto.HasField("meta")
+        assert file_proto.meta.HasField("created_timestamp")
+        assert file_proto.meta.HasField("last_updated_timestamp")
 
 
 def test_apply_stream_source_from_repo() -> None:
@@ -741,6 +794,6 @@ def feature_store_with_local_registry():
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
     )

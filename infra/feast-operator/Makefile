@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.43.0
+VERSION ?= 0.54.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -24,12 +24,12 @@ BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
-# IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
+# IMAGE_TAG_BASE defines the quay.io namespace and part of the image name for remote images.
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # feast.dev/feast-operator-bundle:$VERSION and feast.dev/feast-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= feastdev/feast-operator
+IMAGE_TAG_BASE ?= quay.io/feastdev/feast-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -51,7 +51,8 @@ endif
 OPERATOR_SDK_VERSION ?= v1.38.0
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
-FS_IMG ?= docker.io/feastdev/feature-server:$(VERSION)
+FS_IMG ?= quay.io/feastdev/feature-server:$(VERSION)
+CJ_IMG ?= quay.io/openshift/origin-cli:4.17
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.0
 
@@ -97,7 +98,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:maxDescLen=0 webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:maxDescLen=120 webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -113,12 +114,26 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: build-installer vet lint envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v test/e2e | grep -v test/data-source-types | grep -v test/upgrade | grep -v test/previous-version) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
-	go test -timeout 30m ./test/e2e/ -v -ginkgo.v
+	go test -timeout 60m ./test/e2e/ -v -ginkgo.v
+
+.PHONY: test-upgrade  # Run the upgrade tests against a Kind k8s instance that is spun up.
+test-upgrade:
+	go test -timeout 60m ./test/upgrade/ -v -ginkgo.v
+
+.PHONY: test-previous-version  # Run e2e tests against previous version in a Kind k8s instance that is spun up.
+test-previous-version:
+	go test -timeout 60m ./test/previous-version/ -v -ginkgo.v
+
+# Requires python3
+.PHONY: test-datasources
+test-datasources:
+	python3 test/data-source-types/data-source-types.py
+	go test ./test/data-source-types/
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
@@ -149,7 +164,6 @@ docker-build: ## Build docker image with the manager.
 .PHONY: feast-ci-dev-docker-img
 feast-ci-dev-docker-img:
 	cd ./../.. && make build-feature-server-dev
-
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -292,7 +306,7 @@ $(CRD_REF_DOCS): $(LOCALBIN)
 
 .PHONY: generate-ref
 generate-ref: generate fmt crd-ref-docs
-	$(CRD_REF_DOCS) --log-level=WARN --config=$(LOCALDIR)/docs/crd-ref-templates/config.yaml --source-path=$(LOCALDIR)/api/v1alpha1 --renderer=markdown --templates-dir=$(LOCALDIR)/docs/crd-ref-templates/markdown --output-path=$(LOCALDIR)/docs/api/markdown/ref.md
+	$(CRD_REF_DOCS) --log-level=WARN --max-depth=30 --config=$(LOCALDIR)/docs/crd-ref-templates/config.yaml --source-path=$(LOCALDIR)/api/v1alpha1 --renderer=markdown --templates-dir=$(LOCALDIR)/docs/crd-ref-templates/markdown --output-path=$(LOCALDIR)/docs/api/markdown/ref.md
 
 .PHONY: bundle
 bundle: manifests kustomize related-image-fs operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
@@ -352,4 +366,4 @@ catalog-push: ## Push a catalog image.
 
 .PHONY: related-image-fs
 related-image-fs: envsubst
-	FS_IMG=$(FS_IMG) $(ENVSUBST) < config/default/related_image_fs_patch.tmpl > config/default/related_image_fs_patch.yaml
+	FS_IMG=$(FS_IMG) CJ_IMG=$(CJ_IMG) $(ENVSUBST) < config/default/related_image_fs_patch.tmpl > config/default/related_image_fs_patch.yaml

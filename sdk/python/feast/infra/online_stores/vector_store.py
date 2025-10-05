@@ -6,9 +6,6 @@ class VectorStoreConfig:
     # This is only applicable for online store.
     vector_enabled: Optional[bool] = False
 
-    # If vector is enabled, the length of the vector field
-    vector_len: Optional[int] = 512
-
     # The vector similarity metric to use in KNN search
     # It is helpful for vector database that does not support config at retrieval runtime
     # E.g.

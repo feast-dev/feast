@@ -10,10 +10,8 @@ on:
       - opened
       - synchronize
       - labeled
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
+    paths:
+      - 'infra/**'
 
 jobs:
   operator-e2e-tests:
@@ -36,6 +34,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -43,7 +52,15 @@ jobs:
 
       - name: Create KIND cluster
         run: |
-          kind create cluster --name $KIND_CLUSTER --wait 10m
+          cat <<EOF | kind create cluster --name $KIND_CLUSTER --wait 10m --config=-
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+              extraMounts:
+                - hostPath: /mnt/kind
+                  containerPath: /var/lib/containerd
+          EOF
 
       - name: Set up kubernetes context
         run: |
@@ -56,6 +73,24 @@ jobs:
           cd infra/feast-operator/
           make test-e2e
 
+      - name: Run Previous version tests
+        run: |
+          # Run the previous version tests
+          cd infra/feast-operator/
+          make test-previous-version
+
+      - name: Clean up docker images
+        if: always()
+        run: |
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep 'feast' | xargs -r docker rmi -f
+          docker system prune -a -f
+
+      - name: Run Upgrade tests
+        run: |
+          # Run the upgrade tests
+          cd infra/feast-operator/
+          make test-upgrade
+
       - name: Debug KIND Cluster when there is a failure
         if: failure()
         run: |
@@ -67,5 +102,3 @@ jobs:
         run: |
           # Delete the KIND cluster after tests
           kind delete cluster --name kind-$KIND_CLUSTER
-
-      

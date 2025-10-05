@@ -42,4 +42,7 @@ message FeatureSpecV2 {
 
     // Metric used for vector similarity search.
     string vector_search_metric = 6;
+
+    // Field indicating the vector length
+    int32 vector_length = 7;
 }

@@ -17,6 +17,9 @@ from feast.value_type import ValueType
 
 
 class AthenaSource(DataSource):
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.BATCH_ATHENA
+
     def __init__(
         self,
         *,
@@ -144,7 +147,7 @@ class AthenaSource(DataSource):
         """Returns the Athena data_source of this Athena source."""
         return self.athena_options.data_source
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         """
         Converts a RedshiftSource object to its protobuf representation.
 

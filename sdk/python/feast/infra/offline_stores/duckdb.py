@@ -51,10 +51,9 @@ def _write_data_source(
 
     file_options = data_source.file_options
 
-    if not Path(file_options.uri).is_absolute():
-        absolute_path = Path(repo_path) / file_options.uri
-    else:
-        absolute_path = Path(file_options.uri)
+    absolute_path = FileSource.get_uri_for_file_path(
+        repo_path=repo_path, uri=file_options.uri
+    )
 
     if (
         mode == "overwrite"
@@ -180,8 +179,9 @@ class DuckDBOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         return pull_all_from_table_or_query_ibis(
             config=config,
@@ -189,6 +189,7 @@ class DuckDBOfflineStore(OfflineStore):
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
             timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
             data_source_reader=_read_data_source,

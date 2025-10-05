@@ -252,6 +252,26 @@ class RegistryServerStub(object):
                 request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
                 response_deserializer=feast_dot_core_dot_Registry__pb2.Registry.FromString,
                 )
+        self.GetRegistryLineage = channel.unary_unary(
+                '/feast.registry.RegistryServer/GetRegistryLineage',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetRegistryLineageRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetRegistryLineageResponse.FromString,
+                )
+        self.GetObjectRelationships = channel.unary_unary(
+                '/feast.registry.RegistryServer/GetObjectRelationships',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetObjectRelationshipsRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetObjectRelationshipsResponse.FromString,
+                )
+        self.ListFeatures = channel.unary_unary(
+                '/feast.registry.RegistryServer/ListFeatures',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListFeaturesRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListFeaturesResponse.FromString,
+                )
+        self.GetFeature = channel.unary_unary(
+                '/feast.registry.RegistryServer/GetFeature',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetFeatureRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.Feature.FromString,
+                )
 
 
 class RegistryServerServicer(object):
@@ -538,6 +558,32 @@ class RegistryServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetRegistryLineage(self, request, context):
+        """Lineage RPCs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetObjectRelationships(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListFeatures(self, request, context):
+        """Feature RPCs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetFeature(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_RegistryServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -765,6 +811,26 @@ def add_RegistryServerServicer_to_server(servicer, server):
                     servicer.Proto,
                     request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                     response_serializer=feast_dot_core_dot_Registry__pb2.Registry.SerializeToString,
+            ),
+            'GetRegistryLineage': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRegistryLineage,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetRegistryLineageRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetRegistryLineageResponse.SerializeToString,
+            ),
+            'GetObjectRelationships': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetObjectRelationships,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetObjectRelationshipsRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetObjectRelationshipsResponse.SerializeToString,
+            ),
+            'ListFeatures': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListFeatures,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListFeaturesRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListFeaturesResponse.SerializeToString,
+            ),
+            'GetFeature': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetFeature,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetFeatureRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.Feature.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -1538,5 +1604,73 @@ class RegistryServer(object):
         return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/Proto',
             google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             feast_dot_core_dot_Registry__pb2.Registry.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetRegistryLineage(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/GetRegistryLineage',
+            feast_dot_registry_dot_RegistryServer__pb2.GetRegistryLineageRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.GetRegistryLineageResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetObjectRelationships(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/GetObjectRelationships',
+            feast_dot_registry_dot_RegistryServer__pb2.GetObjectRelationshipsRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.GetObjectRelationshipsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListFeatures(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/ListFeatures',
+            feast_dot_registry_dot_RegistryServer__pb2.ListFeaturesRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.ListFeaturesResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetFeature(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/GetFeature',
+            feast_dot_registry_dot_RegistryServer__pb2.GetFeatureRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.Feature.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

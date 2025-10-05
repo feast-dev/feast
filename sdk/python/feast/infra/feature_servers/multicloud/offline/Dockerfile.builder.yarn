@@ -1,0 +1,5 @@
+FROM registry.access.redhat.com/ubi9/python-311:1
+
+USER 0
+RUN npm install -g yarn yalc && rm -rf .npm
+USER 1001

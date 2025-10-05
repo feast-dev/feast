@@ -1,0 +1,136 @@
+FROM registry.access.redhat.com/ubi9/python-311:1
+
+ENV APACHE_ARROW_VERSION="17.0.0"
+ENV MILVUS_LITE_VERSION="2.4.12"
+ENV IBIS_VERSION="9.5.0"
+
+ENV ARROW_HOME=${APP_ROOT}/arrow-dist
+ENV LD_LIBRARY_PATH=${ARROW_HOME}/lib:$LD_LIBRARY_PATH
+ENV CMAKE_PREFIX_PATH=${ARROW_HOME}:$CMAKE_PREFIX_PATH
+ENV THIRD_PARTY_PATH=/tmp/hermeto-generic-output/deps/generic
+
+######
+# unecessary for konflux build
+ENV RPM_PATH=/tmp/hermeto-rpm-output/deps/rpm/x86_64
+USER 0
+RUN useradd mockbuild
+RUN groupadd mock
+RUN usermod -G mock mockbuild
+RUN rpm -Uvh ${RPM_PATH}/*/*.rpm
+USER 1001
+######
+
+# configured for Arrow version 17.0.0
+RUN mkdir ${APP_ROOT}/src/arrow ${ARROW_HOME} ${APP_ROOT}/src/arrow-build && \
+    tar xfz ${THIRD_PARTY_PATH}/apache-arrow-${APACHE_ARROW_VERSION}.tar.gz -C ${APP_ROOT}/src/arrow --strip-components=1 && \
+    export \
+    # Environment variables for an offline Arrow build
+    ARROW_ABSL_URL="${THIRD_PARTY_PATH}/absl-20211102.0.tar.gz" \
+    ARROW_AWS_C_AUTH_URL="${THIRD_PARTY_PATH}/aws-c-auth-v0.6.22.tar.gz" \
+    ARROW_AWS_C_CAL_URL="${THIRD_PARTY_PATH}/aws-c-cal-v0.5.20.tar.gz" \
+    ARROW_AWS_C_COMMON_URL="${THIRD_PARTY_PATH}/aws-c-common-v0.8.9.tar.gz" \
+    ARROW_AWS_C_COMPRESSION_URL="${THIRD_PARTY_PATH}/aws-c-compression-v0.2.16.tar.gz" \
+    ARROW_AWS_C_EVENT_STREAM_URL="${THIRD_PARTY_PATH}/aws-c-event-stream-v0.2.18.tar.gz" \
+    ARROW_AWS_C_HTTP_URL="${THIRD_PARTY_PATH}/aws-c-http-v0.7.3.tar.gz" \
+    ARROW_AWS_C_IO_URL="${THIRD_PARTY_PATH}/aws-c-io-v0.13.14.tar.gz" \
+    ARROW_AWS_C_MQTT_URL="${THIRD_PARTY_PATH}/aws-c-mqtt-v0.8.4.tar.gz" \
+    ARROW_AWS_C_S3_URL="${THIRD_PARTY_PATH}/aws-c-s3-v0.2.3.tar.gz" \
+    ARROW_AWS_C_SDKUTILS_URL="${THIRD_PARTY_PATH}/aws-c-sdkutils-v0.1.6.tar.gz" \
+    ARROW_AWS_CHECKSUMS_URL="${THIRD_PARTY_PATH}/aws-checksums-v0.1.13.tar.gz" \
+    ARROW_AWS_CRT_CPP_URL="${THIRD_PARTY_PATH}/aws-crt-cpp-v0.18.16.tar.gz" \
+    ARROW_AWS_LC_URL="${THIRD_PARTY_PATH}/aws-lc-v1.3.0.tar.gz" \
+    ARROW_AWSSDK_URL="${THIRD_PARTY_PATH}/aws-sdk-cpp-1.10.55.tar.gz" \
+    ARROW_BOOST_URL="${THIRD_PARTY_PATH}/boost-1.81.0.tar.gz" \
+    ARROW_BROTLI_URL="${THIRD_PARTY_PATH}/brotli-v1.0.9.tar.gz" \
+    ARROW_BZIP2_URL="${THIRD_PARTY_PATH}/bzip2-1.0.8.tar.gz" \
+    ARROW_CARES_URL="${THIRD_PARTY_PATH}/cares-1.17.2.tar.gz" \
+    ARROW_CRC32C_URL="${THIRD_PARTY_PATH}/crc32c-1.1.2.tar.gz" \
+    ARROW_GBENCHMARK_URL="${THIRD_PARTY_PATH}/gbenchmark-v1.8.3.tar.gz" \
+    ARROW_GFLAGS_URL="${THIRD_PARTY_PATH}/gflags-v2.2.2.tar.gz" \
+    ARROW_GLOG_URL="${THIRD_PARTY_PATH}/glog-v0.5.0.tar.gz" \
+    ARROW_GOOGLE_CLOUD_CPP_URL="${THIRD_PARTY_PATH}/google-cloud-cpp-v2.22.0.tar.gz" \
+    ARROW_GRPC_URL="${THIRD_PARTY_PATH}/grpc-v1.46.3.tar.gz" \
+    ARROW_GTEST_URL="${THIRD_PARTY_PATH}/gtest-1.11.0.tar.gz" \
+    ARROW_JEMALLOC_URL="${THIRD_PARTY_PATH}/jemalloc-5.3.0.tar.bz2" \
+    ARROW_LZ4_URL="${THIRD_PARTY_PATH}/lz4-v1.9.4.tar.gz" \
+    ARROW_MIMALLOC_URL="${THIRD_PARTY_PATH}/mimalloc-v2.0.6.tar.gz" \
+    ARROW_NLOHMANN_JSON_URL="${THIRD_PARTY_PATH}/nlohmann-json-v3.10.5.tar.gz" \
+    ARROW_OPENTELEMETRY_URL="${THIRD_PARTY_PATH}/opentelemetry-cpp-v1.13.0.tar.gz" \
+    ARROW_OPENTELEMETRY_PROTO_URL="${THIRD_PARTY_PATH}/opentelemetry-proto-v0.17.0.tar.gz" \
+    ARROW_ORC_URL="${THIRD_PARTY_PATH}/orc-2.0.1.tar.gz" \
+    ARROW_PROTOBUF_URL="${THIRD_PARTY_PATH}/protobuf-v21.3.tar.gz" \
+    ARROW_RAPIDJSON_URL="${THIRD_PARTY_PATH}/rapidjson-232389d4f1012dddec4ef84861face2d2ba85709.tar.gz" \
+    ARROW_RE2_URL="${THIRD_PARTY_PATH}/re2-2022-06-01.tar.gz" \
+    ARROW_S2N_TLS_URL="${THIRD_PARTY_PATH}/s2n-v1.3.35.tar.gz" \
+    ARROW_SUBSTRAIT_URL="${THIRD_PARTY_PATH}/substrait-0.44.0.tar.gz" \
+    ARROW_SNAPPY_URL="${THIRD_PARTY_PATH}/snappy-1.1.10.tar.gz" \
+    ARROW_THRIFT_URL="${THIRD_PARTY_PATH}/thrift-0.16.0.tar.gz" \
+    ARROW_UCX_URL="${THIRD_PARTY_PATH}/ucx-1.12.1.tar.gz" \
+    ARROW_UTF8PROC_URL="${THIRD_PARTY_PATH}/utf8proc-v2.7.0.tar.gz" \
+    ARROW_XSIMD_URL="${THIRD_PARTY_PATH}/xsimd-13.0.0.tar.gz" \
+    ARROW_ZLIB_URL="${THIRD_PARTY_PATH}/zlib-1.3.1.tar.gz" \
+    ARROW_ZSTD_URL="${THIRD_PARTY_PATH}/zstd-1.5.6.tar.gz" \
+    && \
+    cmake \
+    -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
+    -DARROW_COMPUTE=ON \
+    -DARROW_ACERO=ON \
+    -DARROW_WITH_BROTLI=ON \
+    -DARROW_WITH_BZ2=ON \
+    -DARROW_CSV=ON \
+    -DARROW_DATASET=ON \
+    -DARROW_FILESYSTEM=ON \
+    -DARROW_FLIGHT=ON \
+    -DARROW_FLIGHT_SQL=ON \
+    -DARROW_GANDIVA=ON \
+    -DARROW_GCS=ON \
+    -DARROW_HDFS=ON \
+    -DARROW_JEMALLOC=ON \
+    -DARROW_JSON=ON \
+    -DARROW_WITH_LZ4=ON \
+    -DARROW_MIMALLOC=ON \
+    -DARROW_PARQUET=ON \
+    -DARROW_S3=ON \
+    -DARROW_WITH_SNAPPY=ON \
+    -DARROW_SUBSTRAIT=ON \
+    -DARROW_WITH_RE2=ON \
+    -DARROW_WITH_UTF8PROC=ON \
+    -DARROW_TENSORFLOW=ON \
+    -DARROW_WITH_ZLIB=ON \
+    -DARROW_WITH_ZSTD=ON \
+    -DARROW_BUILD_SHARED=ON \
+    -S ${APP_ROOT}/src/arrow/cpp \
+    -B ${APP_ROOT}/src/arrow-build && \
+    \
+    cmake --build ${APP_ROOT}/src/arrow-build --target install && \
+    \
+    source /tmp/hermeto.env && \
+    pip install -r ${APP_ROOT}/src/arrow/python/requirements-wheel-build.txt && \
+    \
+    cd ${APP_ROOT}/src/arrow/python && \
+    PYARROW_PARALLEL=4 python setup.py build_ext --bundle-arrow-cpp bdist_wheel && \
+    pip install dist/pyarrow-*.whl && \
+    pip install ${THIRD_PARTY_PATH}/milvus_lite-${MILVUS_LITE_VERSION}-py3-none-manylinux2014_x86_64.whl && \
+    pip install ${THIRD_PARTY_PATH}/ibis_framework-${IBIS_VERSION}-py3-none-any.whl[duckdb] && \
+    \
+    cd ${APP_ROOT}/src && \
+    rm -rf ${APP_ROOT}/src/arrow-build ${APP_ROOT}/src/arrow ${ARROW_HOME}
+
+RUN python -c "import pyarrow; print(pyarrow.__version__)"
+RUN python -c "import pyarrow.lib as _lib; print(_lib.__name__)"
+RUN python -c "import pyarrow.parquet as parquet; print(parquet.__name__)"
+RUN python -c "import pyarrow.dataset as dataset; print(dataset.__name__)"
+RUN python -c "import pyarrow.flight as flight; print(flight.__name__)"
+RUN python -c "import pyarrow.substrait as substrait; print(substrait.__name__)"
+
+# a higher numpy was required for the pyarrow wheel build, but the pyarrow module itself can run w/ a lesser version, "numpy>=1.16.6".
+# feast requires "numpy<2", so here we install numpy 1.x, as well as some other packages which will be needed for the feast build.
+RUN source /tmp/hermeto.env && \
+    pip install "numpy>=1.16.6,<2"
+
+COPY requirements.txt requirements.txt
+RUN source /tmp/hermeto.env && \
+    pip install -r requirements.txt
+
+# modify permissions to support running with a random uid
+RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json

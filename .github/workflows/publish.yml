@@ -15,6 +15,11 @@ on:
         required: true
         default: ""
         type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
   workflow_call: # Allows trigger the workflow from other workflow
     inputs:
       custom_version: # Optional input for a custom version
@@ -26,6 +31,11 @@ on:
         required: true
         default: ""
         type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   publish-python-sdk:
@@ -51,10 +61,11 @@ jobs:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
 
-  publish-java-sdk:
-    uses: ./.github/workflows/publish_java_sdk.yml
+  publish-web-ui:
+    uses: ./.github/workflows/publish_web_ui.yml
     needs: [ publish-python-sdk ]
     secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
+      token: ${{ github.event.inputs.token || github.token }}
+      publish_ui: ${{ github.event.inputs.publish_ui != 'false' }}

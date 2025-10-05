@@ -239,8 +239,9 @@ func getClientRepoConfig(
 			Host: strings.Split(status.ServiceHostnames.OfflineStore, ":")[0],
 			Port: HttpPort,
 		}
-		if appliedServices.OfflineStore != nil && appliedServices.OfflineStore.TLS.IsTLS() {
-			clientRepoConfig.OfflineStore.Cert = GetTlsPath(OfflineFeastType) + appliedServices.OfflineStore.TLS.SecretKeyNames.TlsCrt
+		if appliedServices.OfflineStore != nil &&
+			appliedServices.OfflineStore.Server != nil && appliedServices.OfflineStore.Server.TLS.IsTLS() {
+			clientRepoConfig.OfflineStore.Cert = GetTlsPath(OfflineFeastType) + appliedServices.OfflineStore.Server.TLS.SecretKeyNames.TlsCrt
 			clientRepoConfig.OfflineStore.Port = HttpsPort
 			clientRepoConfig.OfflineStore.Scheme = HttpsScheme
 		}
@@ -251,8 +252,9 @@ func getClientRepoConfig(
 			Type: OnlineRemoteConfigType,
 			Path: HttpScheme + onlinePath,
 		}
-		if appliedServices.OnlineStore != nil && appliedServices.OnlineStore.TLS.IsTLS() {
-			clientRepoConfig.OnlineStore.Cert = GetTlsPath(OnlineFeastType) + appliedServices.OnlineStore.TLS.SecretKeyNames.TlsCrt
+		if appliedServices.OnlineStore != nil &&
+			appliedServices.OnlineStore.Server != nil && appliedServices.OnlineStore.Server.TLS.IsTLS() {
+			clientRepoConfig.OnlineStore.Cert = GetTlsPath(OnlineFeastType) + appliedServices.OnlineStore.Server.TLS.SecretKeyNames.TlsCrt
 			clientRepoConfig.OnlineStore.Path = HttpsScheme + onlinePath
 		}
 	}
@@ -262,7 +264,7 @@ func getClientRepoConfig(
 			Path:         status.ServiceHostnames.Registry,
 		}
 		if localRegistryTls(featureStore) {
-			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Local.TLS.SecretKeyNames.TlsCrt
+			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Local.Server.TLS.SecretKeyNames.TlsCrt
 		} else if remoteRegistryTls(featureStore) {
 			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Remote.TLS.CertName
 		}

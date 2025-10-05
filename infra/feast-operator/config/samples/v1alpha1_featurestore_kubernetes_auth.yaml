@@ -3,23 +3,18 @@ kind: FeatureStore
 metadata:
   name: sample-kubernetes-auth
 spec:
-  feastProject: my_project
-  services:
-    onlineStore:
-      persistence:
-        file:
-          path: /data/online_store.db
-    offlineStore:
-      persistence:
-        file:
-          type: dask
-    registry:
-      local:
-        persistence:
-          file:
-            path: /data/registry.db
+  feastProject: feast_rbac
   authz:
     kubernetes:
       roles:
-        - reader
-        - writer
+        - feast-writer
+        - feast-reader
+  services:
+    offlineStore:
+      server: {}
+    onlineStore:
+      server: {}
+    registry:
+      local:
+        server: {}
+    ui: {}
