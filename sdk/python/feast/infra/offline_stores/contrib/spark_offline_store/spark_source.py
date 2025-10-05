@@ -1,3 +1,4 @@
+import json
 import logging
 import traceback
 import warnings
@@ -14,17 +15,17 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 )
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.table_format import TableFormat, TableFormatType, table_format_from_dict
 from feast.type_map import spark_to_feast_value_type
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
 
 
-class SparkSourceFormat(Enum):
+class SparkFileSourceFormat(Enum):
     csv = "csv"
     json = "json"
     parquet = "parquet"
-    delta = "delta"
     avro = "avro"
 
 
@@ -42,6 +43,7 @@ class SparkSource(DataSource):
         query: Optional[str] = None,
         path: Optional[str] = None,
         file_format: Optional[str] = None,
+        table_format: Optional[TableFormat] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         description: Optional[str] = "",
@@ -58,7 +60,9 @@ class SparkSource(DataSource):
             table: The name of a Spark table.
             query: The query to be executed in Spark.
             path: The path to file data.
-            file_format: The format of the file data.
+            file_format: The underlying file format (parquet, avro, csv, json).
+            table_format: The table metadata format (iceberg, delta, hudi, etc.). 
+                Optional and separate from file_format.
             created_timestamp_column: Timestamp column indicating when the row
                 was created, used for deduplicating rows.
             field_mapping: A dictionary mapping of column names in this data
@@ -70,7 +74,7 @@ class SparkSource(DataSource):
             timestamp_field: Event timestamp field used for point-in-time joins of
                 feature values.
             date_partition_column: The column to partition the data on for faster
-                retrieval. This is useful for large tables and will limit the number ofi
+                retrieval. This is useful for large tables and will limit the number of
         """
         # If no name, use the table as the default name.
         if name is None and table is None:
@@ -102,6 +106,7 @@ class SparkSource(DataSource):
             path=path,
             file_format=file_format,
             date_partition_column_format=date_partition_column_format,
+            table_format=table_format,
         )
 
     @property
@@ -131,6 +136,13 @@ class SparkSource(DataSource):
         Returns the file format of this feature data source.
         """
         return self.spark_options.file_format
+
+    @property
+    def table_format(self):
+        """
+        Returns the table format of this feature data source.
+        """
+        return self.spark_options.table_format
 
     @property
     def date_partition_column_format(self):
@@ -219,7 +231,7 @@ class SparkSource(DataSource):
         if spark_session is None:
             raise AssertionError("Could not find an active spark session.")
         try:
-            df = spark_session.read.format(self.file_format).load(self.path)
+            df = self._load_dataframe_from_path(spark_session)
         except Exception:
             logger.exception(
                 "Spark read of file source failed.\n" + traceback.format_exc()
@@ -229,6 +241,25 @@ class SparkSource(DataSource):
         df.createOrReplaceTempView(tmp_table_name)
 
         return f"`{tmp_table_name}`"
+
+    def _load_dataframe_from_path(self, spark_session):
+        """Load DataFrame from path, considering both file format and table format."""
+        from feast.table_format import TableFormatType
+        
+        if self.table_format is None:
+            # No table format specified, use standard file reading with file_format
+            return spark_session.read.format(self.file_format).load(self.path)
+        
+        # Build reader with table format and options
+        reader = spark_session.read.format(self.table_format.format_type.value)
+        
+        # Add table format specific options
+        for key, value in self.table_format.properties.items():
+            reader = reader.option(key, value)
+        
+        # For catalog-based table formats like Iceberg, the path is actually a table name
+        # For file-based formats, it's still a file path
+        return reader.load(self.path)
 
     def __eq__(self, other):
         base_eq = super().__eq__(other)
@@ -245,7 +276,7 @@ class SparkSource(DataSource):
 
 
 class SparkOptions:
-    allowed_formats = [format.value for format in SparkSourceFormat]
+    allowed_formats = [format.value for format in SparkFileSourceFormat]
 
     def __init__(
         self,
@@ -254,6 +285,7 @@ class SparkOptions:
         path: Optional[str],
         file_format: Optional[str],
         date_partition_column_format: Optional[str] = "%Y-%m-%d",
+        table_format: Optional[TableFormat] = None,
     ):
         # Check that only one of the ways to load a spark dataframe can be used. We have
         # to treat empty string and null the same due to proto (de)serialization.
@@ -262,11 +294,14 @@ class SparkOptions:
                 "Exactly one of params(table, query, path) must be specified."
             )
         if path:
-            if not file_format:
+            # If table_format is specified, file_format is optional (table format determines the reader)
+            # If no table_format, file_format is required for basic file reading
+            if not table_format and not file_format:
                 raise ValueError(
-                    "If 'path' is specified, then 'file_format' is required."
+                    "If 'path' is specified without 'table_format', then 'file_format' is required."
                 )
-            if file_format not in self.allowed_formats:
+            # Only validate file_format if it's provided (it's optional with table_format)
+            if file_format and file_format not in self.allowed_formats:
                 raise ValueError(
                     f"'file_format' should be one of {self.allowed_formats}"
                 )
@@ -276,6 +311,7 @@ class SparkOptions:
         self._path = path
         self._file_format = file_format
         self._date_partition_column_format = date_partition_column_format
+        self._table_format = table_format
 
     @property
     def table(self):
@@ -317,6 +353,14 @@ class SparkOptions:
     def date_partition_column_format(self, date_partition_column_format):
         self._date_partition_column_format = date_partition_column_format
 
+    @property
+    def table_format(self):
+        return self._table_format
+
+    @table_format.setter
+    def table_format(self, table_format):
+        self._table_format = table_format
+
     @classmethod
     def from_proto(cls, spark_options_proto: DataSourceProto.SparkOptions):
         """
@@ -332,6 +376,9 @@ class SparkOptions:
             path=spark_options_proto.path,
             file_format=spark_options_proto.file_format,
             date_partition_column_format=spark_options_proto.date_partition_column_format,
+            table_format=table_format_from_dict(
+                json.loads(spark_options_proto.table_format)
+            )
         )
 
         return spark_options
@@ -348,6 +395,7 @@ class SparkOptions:
             path=self.path,
             file_format=self.file_format,
             date_partition_column_format=self.date_partition_column_format,
+            table_format=json.dumps(self.table_format.to_dict()) if self.table_format else "",
         )
 
         return spark_options_proto
@@ -364,12 +412,14 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
         query: Optional[str] = None,
         path: Optional[str] = None,
         file_format: Optional[str] = None,
+        table_format: Optional[TableFormat] = None,
     ):
         self.spark_options = SparkOptions(
             table=table,
             query=query,
             path=path,
             file_format=file_format,
+            table_format=table_format,
         )
 
     @staticmethod
@@ -380,6 +430,7 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
             query=spark_options.query,
             path=spark_options.path,
             file_format=spark_options.file_format,
+            table_format=spark_options.table_format,
         )
 
     def to_proto(self) -> SavedDatasetStorageProto:
@@ -391,4 +442,5 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
             query=self.spark_options.query,
             path=self.spark_options.path,
             file_format=self.spark_options.file_format,
+            table_format=self.spark_options.table_format,
         )

@@ -36,7 +36,7 @@ message DataSource {
   reserved 6 to 10;
 
   // Type of Data Source.
-  // Next available id: 12
+  // Next available id: 13
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
@@ -231,6 +231,9 @@ message DataSource {
 
     // Date Format of date partition column (e.g. %Y-%m-%d)
     string date_partition_column_format = 5;
+
+    // Table Format (e.g. iceberg, delta, etc)
+    string table_format = 6;
   }
 
   // Defines configuration for custom third-party data sources.
