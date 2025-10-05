@@ -441,13 +441,15 @@ def table_format_from_dict(data: Dict) -> TableFormat:
         ... }
         >>> iceberg_format = table_format_from_dict(data)
     """
-    format_type = TableFormatType(data["format_type"])
+    if "format_type" not in data:
+        raise KeyError("Missing 'format_type' field in data")
+    format_type = data["format_type"]
 
-    if format_type == TableFormatType.ICEBERG:
+    if format_type == TableFormatType.ICEBERG.value:
         return IcebergFormat.from_dict(data)
-    elif format_type == TableFormatType.DELTA:
+    elif format_type == TableFormatType.DELTA.value:
         return DeltaFormat.from_dict(data)
-    elif format_type == TableFormatType.HUDI:
+    elif format_type == TableFormatType.HUDI.value:
         return HudiFormat.from_dict(data)
     else:
         raise ValueError(f"Unknown table format type: {format_type}")

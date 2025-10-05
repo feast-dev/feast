@@ -142,12 +142,12 @@ class TestSparkSourceWithTableFormat:
             )
 
     @patch(
-        "feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSession"
+        "feast.infra.offline_stores.contrib.spark_offline_store.spark.get_spark_session_or_start_new_with_repoconfig"
     )
-    def test_load_dataframe_from_path_with_table_format(self, mock_spark_session_class):
+    def test_load_dataframe_from_path_with_table_format(self, mock_get_spark_session):
         """Test _load_dataframe_from_path with table formats."""
         mock_spark_session = MagicMock()
-        mock_spark_session_class.getActiveSession.return_value = mock_spark_session
+        mock_get_spark_session.getActiveSession.return_value = mock_spark_session
 
         mock_reader = MagicMock()
         mock_spark_session.read.format.return_value = mock_reader
@@ -178,14 +178,14 @@ class TestSparkSourceWithTableFormat:
         mock_reader.load.assert_called_with("catalog.db.table")
 
     @patch(
-        "feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSession"
+        "feast.infra.offline_stores.contrib.spark_offline_store.spark.get_spark_session_or_start_new_with_repoconfig"
     )
     def test_load_dataframe_from_path_without_table_format(
-        self, mock_spark_session_class
+        self, mock_get_spark_session
     ):
         """Test _load_dataframe_from_path without table formats."""
         mock_spark_session = MagicMock()
-        mock_spark_session_class.getActiveSession.return_value = mock_spark_session
+        mock_get_spark_session.getActiveSession.return_value = mock_spark_session
 
         mock_reader = MagicMock()
         mock_spark_session.read.format.return_value = mock_reader
