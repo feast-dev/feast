@@ -180,15 +180,19 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string, project string
 func (r *Registry) InitializeRegistry() error {
 	registryProto, err := r.registryStore.GetRegistryProto()
 	if err != nil {
-		if _, ok := r.registryStore.(*HttpRegistryStore); ok {
+		switch r.registryStore.(type) {
+		case *FileRegistryStore, *HttpRegistryStore:
 			log.Error().Err(err).Msg("Registry Initialization Failed")
 			return err
+		default:
+			registryProto = &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
+			r.registryStore.UpdateRegistryProto(registryProto)
 		}
-		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
-		r.registryStore.UpdateRegistryProto(registryProto)
 	}
 	r.cachedRegistry = registryProto
-	r.load(registryProto)
+	if !r.registryStore.HasFallback() {
+		r.load(registryProto)
+	}
 	go r.RefreshRegistryOnInterval()
 	return nil
 }
