@@ -609,9 +609,15 @@ func TestGetOnlineFeaturesS3Registry(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error getting registry config. msg: %s", err.Error())
 		}
+		ttl := time.Duration(registryConfig.CacheTtlSeconds) * time.Second
 		r := &Registry{
-			project:                test.config.Project,
-			cachedRegistryProtoTtl: time.Duration(registryConfig.CacheTtlSeconds) * time.Second,
+			project:                    test.config.Project,
+			cachedFeatureServices:      newCacheMap[*model.FeatureService](ttl),
+			cachedEntities:             newCacheMap[*model.Entity](ttl),
+			cachedFeatureViews:         newCacheMap[*model.FeatureView](ttl),
+			cachedSortedFeatureViews:   newCacheMap[*model.SortedFeatureView](ttl),
+			cachedOnDemandFeatureViews: newCacheMap[*model.OnDemandFeatureView](ttl),
+			cachedRegistryProtoTtl:     ttl,
 		}
 		_ = registryConfig.RegistryStoreType
 		registryPath := registryConfig.Path
