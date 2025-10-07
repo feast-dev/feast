@@ -4,7 +4,7 @@ package registry
 
 import (
 	"context"
-	"errors"
+	goErrors "errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/feast-dev/feast/go/internal/feast/errors"
@@ -648,14 +648,14 @@ func (m *MockS3Client) GetObject(ctx context.Context, params *s3.GetObjectInput,
 	if m.GetObjectFn != nil {
 		return m.GetObjectFn(ctx, params)
 	}
-	return nil, errors.New("not implemented")
+	return nil, goErrors.New("not implemented")
 }
 
 func (m *MockS3Client) DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
 	if m.DeleteObjectFn != nil {
 		return m.DeleteObjectFn(ctx, params)
 	}
-	return nil, errors.New("not implemented")
+	return nil, goErrors.New("not implemented")
 }
 
 func TestExpireCachedModels_DeletesCacheOnNotFoundError(t *testing.T) {
