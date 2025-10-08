@@ -2,10 +2,27 @@
 # This demonstrates how to use the new group-based and namespace-based policies
 # in addition to the existing role-based policies
 
-from feast.feast_object import ALL_RESOURCE_TYPES
-from feast.permissions.action import READ, AuthzedAction, ALL_ACTIONS
+from feast.feast_object import ALL_FEATURE_VIEW_TYPES, ALL_RESOURCE_TYPES
+from feast.project import Project
+from feast.entity import Entity
+from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.batch_feature_view import BatchFeatureView
+from feast.stream_feature_view import StreamFeatureView
+from feast.feature_service import FeatureService
+from feast.data_source import DataSource
+from feast.saved_dataset import SavedDataset
 from feast.permissions.permission import Permission
+from feast.permissions.action import READ, AuthzedAction, ALL_ACTIONS
 from feast.permissions.policy import RoleBasedPolicy, GroupBasedPolicy, NamespaceBasedPolicy, CombinedGroupNamespacePolicy
+
+# New Testing 
+
+WITHOUT_DATA_SOURCE = [Project, Entity, FeatureService, SavedDataset] + ALL_FEATURE_VIEW_TYPES
+
+ONLY_ENTITIES = [Entity]
+
+ONLY_DS = [DataSource]
 
 # Define K8s roles (existing functionality)
 admin_roles = ["feast-writer"]  # Full access (can create, update, delete) Feast Resources
@@ -17,7 +34,16 @@ dev_team_groups = ["dev-team", "developers"]
 admin_groups = ["feast-admins", "platform-admins"]
 
 # Define namespaces for different environments
-prod_namespaces = ["production", "prod"]
+prod_namespaces = ["feast"]
+
+# pre_changed = Permission(name="entity_reader", types=ONLY_ENTITIES, policy=NamespaceBasedPolicy(namespaces=prod_namespaces), actions=[AuthzedAction.DESCRIBE] + READ)
+only_entities = Permission(
+    name="pre_Changed",
+    types=ONLY_ENTITIES,
+    policy=NamespaceBasedPolicy(namespaces=prod_namespaces),
+    actions=[AuthzedAction.DESCRIBE] + READ
+)
+only_ds = Permission(name="entity_reader", types=ONLY_DS, policy=NamespaceBasedPolicy(namespaces=[prod_namespaces]), actions=[AuthzedAction.DESCRIBE] + READ)
 staging_namespaces = ["staging", "dev"]
 test_namespaces = ["test", "testing"]
 
@@ -65,7 +91,7 @@ prod_read_perm = Permission(
     actions=[AuthzedAction.DESCRIBE] + READ
 )
 
-# - Grants full access to staging namespace users
+# # - Grants full access to staging namespace users
 staging_full_perm = Permission(
     name="staging_full_permission",
     types=ALL_RESOURCE_TYPES,
@@ -73,8 +99,8 @@ staging_full_perm = Permission(
     actions=ALL_ACTIONS
 )
 
-# Combined permissions (using combined policy type)
-# - Grants read access to dev team members in test namespaces
+# # Combined permissions (using combined policy type)
+# # - Grants read access to dev team members in test namespaces
 dev_test_perm = Permission(
     name="dev_test_permission",
     types=ALL_RESOURCE_TYPES,
@@ -82,29 +108,10 @@ dev_test_perm = Permission(
     actions=[AuthzedAction.DESCRIBE] + READ
 )
 
-# - Grants full access to data team members in staging namespaces
+# # - Grants full access to data team members in staging namespaces
 data_staging_perm = Permission(
     name="data_staging_permission",
     types=ALL_RESOURCE_TYPES,
     policy=CombinedGroupNamespacePolicy(groups=data_team_groups, namespaces=staging_namespaces),
     actions=ALL_ACTIONS
 )
-
-# Export all permissions
-permissions = [
-    # Role-based permissions (existing)
-    user_perm,
-    admin_perm,
-    
-    # Group-based permissions (new)
-    data_team_perm,
-    admin_group_perm,
-    
-    # Namespace-based permissions (new)
-    prod_read_perm,
-    staging_full_perm,
-    
-    # Combined permissions
-    dev_test_perm,
-    data_staging_perm,
-]

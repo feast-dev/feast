@@ -128,7 +128,7 @@ To ensure the Kubernetes RBAC environment aligns with Feast's RBAC configuration
 
 Feast supports advanced authorization by extracting user groups and namespaces from Kubernetes tokens, enabling fine-grained access control beyond simple role matching. This is achieved by leveraging Kubernetes Token Access Review, which allows Feast to determine the groups and namespaces associated with a user or service account.
 
-More details about this can be found in [Groups and Namespaces based Auth](./groups_namespaces_auth.md)
+More details can be found in [Groups and Namespaces based Auth](../../reference/auth/groups_namespaces_auth.md)
 
 
 If the above rules are satisfied, the Feast service must be  granted permissions to fetch `RoleBinding` instances from the local namespace.
