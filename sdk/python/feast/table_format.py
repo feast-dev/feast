@@ -94,16 +94,14 @@ class IcebergFormat(TableFormat):
             table metadata and provides access to tables.
         namespace (Optional[str]): Namespace (schema/database) within the catalog where
             the table is located.
-        catalog_properties (Optional[Dict[str, str]]): Properties for configuring the
-            Iceberg catalog (e.g., warehouse location, catalog implementation).
-        table_properties (Optional[Dict[str, str]]): Table-level properties for Iceberg
-            operations (e.g., file format, compression, partitioning).
+        properties (Optional[Dict[str, str]]): Properties for configuring Iceberg
+            catalog and table operations (e.g., warehouse location, snapshot-id,
+            as-of-timestamp, file format, compression, partitioning).
 
     Attributes:
         catalog (str): The Iceberg catalog name.
         namespace (str): The namespace within the catalog.
-        catalog_properties (Dict[str, str]): Catalog configuration properties.
-        table_properties (Dict[str, str]): Table-level properties.
+        properties (Dict[str, str]): Iceberg configuration properties.
 
     Examples:
         Basic Iceberg configuration:
@@ -113,16 +111,14 @@ class IcebergFormat(TableFormat):
         ...     namespace="my_database"
         ... )
 
-        Advanced configuration with catalog and table properties:
+        Advanced configuration with properties:
 
         >>> iceberg_format = IcebergFormat(
         ...     catalog="spark_catalog",
         ...     namespace="lakehouse",
-        ...     catalog_properties={
+        ...     properties={
         ...         "warehouse": "s3://my-bucket/warehouse",
-        ...         "catalog-impl": "org.apache.iceberg.spark.SparkCatalog"
-        ...     },
-        ...     table_properties={
+        ...         "catalog-impl": "org.apache.iceberg.spark.SparkCatalog",
         ...         "format-version": "2",
         ...         "write.parquet.compression-codec": "snappy"
         ...     }
@@ -142,33 +138,24 @@ class IcebergFormat(TableFormat):
         self,
         catalog: Optional[str] = None,
         namespace: Optional[str] = None,
-        catalog_properties: Optional[Dict[str, str]] = None,
-        table_properties: Optional[Dict[str, str]] = None,
+        properties: Optional[Dict[str, str]] = None,
     ):
-        super().__init__(TableFormatType.ICEBERG)
+        super().__init__(TableFormatType.ICEBERG, properties)
         self.catalog = catalog
         self.namespace = namespace
-        self.catalog_properties = catalog_properties or {}
-        self.table_properties = table_properties or {}
 
-        # Merge all properties
-        all_properties = {}
-        all_properties.update(self.catalog_properties)
-        all_properties.update(self.table_properties)
+        # Add catalog and namespace to properties if provided
         if catalog:
-            all_properties["iceberg.catalog"] = catalog
+            self.properties["iceberg.catalog"] = catalog
         if namespace:
-            all_properties["iceberg.namespace"] = namespace
-
-        self.properties = all_properties
+            self.properties["iceberg.namespace"] = namespace
 
     def to_dict(self) -> Dict:
         return {
             "format_type": self.format_type.value,
             "catalog": self.catalog,
             "namespace": self.namespace,
-            "catalog_properties": self.catalog_properties,
-            "table_properties": self.table_properties,
+            "properties": self.properties,
         }
 
     @classmethod
@@ -176,8 +163,7 @@ class IcebergFormat(TableFormat):
         return cls(
             catalog=data.get("catalog"),
             namespace=data.get("namespace"),
-            catalog_properties=data.get("catalog_properties", {}),
-            table_properties=data.get("table_properties", {}),
+            properties=data.get("properties", {}),
         )
 
 
@@ -190,14 +176,14 @@ class DeltaFormat(TableFormat):
     including table properties, checkpoint locations, and versioning options.
 
     Args:
-        table_properties (Optional[Dict[str, str]]): Properties for configuring Delta table
-            behavior (e.g., auto-optimize, vacuum settings, data skipping).
         checkpoint_location (Optional[str]): Location for storing Delta transaction logs
             and checkpoints. Required for streaming operations.
+        properties (Optional[Dict[str, str]]): Properties for configuring Delta table
+            behavior (e.g., auto-optimize, vacuum settings, data skipping).
 
     Attributes:
-        table_properties (Dict[str, str]): Delta table configuration properties.
         checkpoint_location (str): Path to checkpoint storage location.
+        properties (Dict[str, str]): Delta table configuration properties.
 
     Examples:
         Basic Delta configuration:
@@ -207,7 +193,7 @@ class DeltaFormat(TableFormat):
         Configuration with table properties:
 
         >>> delta_format = DeltaFormat(
-        ...     table_properties={
+        ...     properties={
         ...         "delta.autoOptimize.optimizeWrite": "true",
         ...         "delta.autoOptimize.autoCompact": "true",
         ...         "delta.tuneFileSizesForRewrites": "true"
@@ -232,32 +218,28 @@ class DeltaFormat(TableFormat):
 
     def __init__(
         self,
-        table_properties: Optional[Dict[str, str]] = None,
         checkpoint_location: Optional[str] = None,
+        properties: Optional[Dict[str, str]] = None,
     ):
-        super().__init__(TableFormatType.DELTA)
-        self.table_properties = table_properties or {}
+        super().__init__(TableFormatType.DELTA, properties)
         self.checkpoint_location = checkpoint_location
 
-        # Set up properties
-        all_properties = self.table_properties.copy()
+        # Add checkpoint location to properties if provided
         if checkpoint_location:
-            all_properties["delta.checkpointLocation"] = checkpoint_location
-
-        self.properties = all_properties
+            self.properties["delta.checkpointLocation"] = checkpoint_location
 
     def to_dict(self) -> Dict:
         return {
             "format_type": self.format_type.value,
-            "table_properties": self.table_properties,
             "checkpoint_location": self.checkpoint_location,
+            "properties": self.properties,
         }
 
     @classmethod
     def from_dict(cls, data: Dict) -> "DeltaFormat":
         return cls(
-            table_properties=data.get("table_properties", {}),
             checkpoint_location=data.get("checkpoint_location"),
+            properties=data.get("properties", {}),
         )
 
 
@@ -277,14 +259,14 @@ class HudiFormat(TableFormat):
             field or comma-separated list for composite keys.
         precombine_field (Optional[str]): Field used to determine the latest version of a record
             when multiple updates exist (usually a timestamp or version field).
-        table_properties (Optional[Dict[str, str]]): Additional Hudi table properties for
+        properties (Optional[Dict[str, str]]): Additional Hudi table properties for
             configuring compaction, indexing, and other Hudi features.
 
     Attributes:
         table_type (str): The Hudi table type (COPY_ON_WRITE or MERGE_ON_READ).
         record_key (str): The record key field(s).
         precombine_field (str): The field used for record deduplication.
-        table_properties (Dict[str, str]): Additional Hudi configuration properties.
+        properties (Dict[str, str]): Additional Hudi configuration properties.
 
     Examples:
         Basic Hudi configuration:
@@ -309,7 +291,7 @@ class HudiFormat(TableFormat):
         ...     table_type="COPY_ON_WRITE",
         ...     record_key="id",
         ...     precombine_field="updated_at",
-        ...     table_properties={
+        ...     properties={
         ...         "hoodie.compaction.strategy": "org.apache.hudi.table.action.compact.strategy.LogFileSizeBasedCompactionStrategy",
         ...         "hoodie.index.type": "BLOOM",
         ...         "hoodie.bloom.index.parallelism": "100"
@@ -328,26 +310,22 @@ class HudiFormat(TableFormat):
         table_type: Optional[str] = None,  # COPY_ON_WRITE or MERGE_ON_READ
         record_key: Optional[str] = None,
         precombine_field: Optional[str] = None,
-        table_properties: Optional[Dict[str, str]] = None,
+        properties: Optional[Dict[str, str]] = None,
     ):
-        super().__init__(TableFormatType.HUDI)
+        super().__init__(TableFormatType.HUDI, properties)
         self.table_type = table_type
         self.record_key = record_key
         self.precombine_field = precombine_field
-        self.table_properties = table_properties or {}
 
-        # Set up properties
-        all_properties = self.table_properties.copy()
+        # Add Hudi-specific properties if provided
         if table_type:
-            all_properties["hoodie.datasource.write.table.type"] = table_type
+            self.properties["hoodie.datasource.write.table.type"] = table_type
         if record_key:
-            all_properties["hoodie.datasource.write.recordkey.field"] = record_key
+            self.properties["hoodie.datasource.write.recordkey.field"] = record_key
         if precombine_field:
-            all_properties["hoodie.datasource.write.precombine.field"] = (
+            self.properties["hoodie.datasource.write.precombine.field"] = (
                 precombine_field
             )
-
-        self.properties = all_properties
 
     def to_dict(self) -> Dict:
         return {
@@ -355,7 +333,7 @@ class HudiFormat(TableFormat):
             "table_type": self.table_type,
             "record_key": self.record_key,
             "precombine_field": self.precombine_field,
-            "table_properties": self.table_properties,
+            "properties": self.properties,
         }
 
     @classmethod
@@ -364,7 +342,7 @@ class HudiFormat(TableFormat):
             table_type=data.get("table_type"),
             record_key=data.get("record_key"),
             precombine_field=data.get("precombine_field"),
-            table_properties=data.get("table_properties", {}),
+            properties=data.get("properties", {}),
         )
 
 
