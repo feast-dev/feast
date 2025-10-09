@@ -91,9 +91,9 @@ class KubernetesTokenParser(TokenParser):
 
             logger.info(f"Request received from User: {username}")
 
-            # For user tokens, we don't have traditional roles, but we have groups and namespaces
-            # You might want to map groups to roles or use a different role assignment strategy
-            roles = []  # Users don't have traditional service account roles
+            # Extract roles for the user from RoleBindings and ClusterRoleBindings
+            logger.info(f"Extracting roles for user {username} with groups: {groups}")
+            roles = self.get_user_roles(username, groups)
 
             return User(
                 username=username, roles=roles, groups=groups, namespaces=namespaces
@@ -133,6 +133,53 @@ class KubernetesTokenParser(TokenParser):
                         and subject.namespace == service_account_namespace
                     ):
                         roles.add(binding.role_ref.name)
+
+        return list(roles)
+
+    def get_user_roles(self, username: str, groups: list[str]) -> list[str]:
+        """
+        Fetches the Kubernetes `Role`s and `ClusterRole`s associated to the given user and their groups.
+
+        This method checks both namespaced RoleBindings and ClusterRoleBindings for:
+        - Direct user assignments
+        - Group-based assignments where the user is a member
+
+        Returns:
+            list[str]: Names of the `Role`s and `ClusterRole`s associated to the user.
+        """
+        roles: set[str] = set()
+
+        try:
+            # Get all namespaced RoleBindings across all namespaces
+            all_role_bindings = self.rbac_v1.list_role_binding_for_all_namespaces()
+
+            for binding in all_role_bindings.items:
+                if binding.subjects is not None:
+                    for subject in binding.subjects:
+                        # Check for direct user assignment
+                        if subject.kind == "User" and subject.name == username:
+                            roles.add(binding.role_ref.name)
+                        # Check for group-based assignment
+                        elif subject.kind == "Group" and subject.name in groups:
+                            roles.add(binding.role_ref.name)
+
+            # Get all ClusterRoleBindings
+            cluster_role_bindings = self.rbac_v1.list_cluster_role_binding()
+
+            for binding in cluster_role_bindings.items:
+                if binding.subjects is not None:
+                    for subject in binding.subjects:
+                        # Check for direct user assignment
+                        if subject.kind == "User" and subject.name == username:
+                            roles.add(binding.role_ref.name)
+                        # Check for group-based assignment
+                        elif subject.kind == "Group" and subject.name in groups:
+                            roles.add(binding.role_ref.name)
+
+            logger.info(f"Found {len(roles)} roles for user {username}: {list(roles)}")
+
+        except Exception as e:
+            logger.error(f"Failed to extract user roles for {username}: {e}")
 
         return list(roles)
 
@@ -189,7 +236,7 @@ class KubernetesTokenParser(TokenParser):
                             groups.extend(namespace_groups)
                     else:
                         # Regular user logic - extract namespaces from dashboard-permissions RoleBindings
-                        user_namespaces = self._extract_user_data_science_projects(
+                        user_namespaces = self._extract_user_project_namespaces(
                             username
                         )
                         namespaces.extend(user_namespaces)
@@ -269,7 +316,7 @@ class KubernetesTokenParser(TokenParser):
 
         return groups
 
-    def _extract_user_data_science_projects(self, username: str) -> list[str]:
+    def _extract_user_project_namespaces(self, username: str) -> list[str]:
         """
         Extract data science project namespaces where a user has been added via dashboard-permissions RoleBindings.
 

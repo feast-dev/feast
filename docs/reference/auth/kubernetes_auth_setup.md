@@ -1,34 +1,47 @@
-# Groups and Namespaces Authentication Support
+# Setting up the kubernetes Auth
 
-This document describes the enhanced authentication and authorization capabilities in Feast that support groups and namespaces extraction from Kubernetes tokens, extending the existing role-based access control (RBAC) system.
+This document describes the authentication and authorization capabilities in Feast that support groups, namespaces and roles extraction from Kubernetes tokens.
 
 ## Overview
 
-Feast now supports extracting user groups and namespaces of both Service Account and User from Kubernetes authentication tokens using Token Access Review, in addition to the existing role-based authentication. This allows for more granular access control based on:
+Feast supports extracting user groups, namespaces and roles of both Service Account and User from Kubernetes authentication tokens. This allows for more granular access control based on:
 
 - **Groups**: User groups associated directly with User/SA and from associated namespace 
 - **Namespaces**: Kubernetes namespaces associated with User/SA
+- **Roles**: Kubernetes roles associated with User/SA
 
 ## Key Features
 
-### 1. Token Access Review Integration
+### Setting Up Kubernetes RBAC for Feast
 
-The system now uses Kubernetes Token Access Review API to extract detailed user information from tokens, including:
-- User groups
-- Associated namespaces
-- User identity information
+#### Role based auth setup
 
-### 2. Enhanced User Model
+To ensure the Kubernetes RBAC environment aligns with Feast's RBAC configuration, follow these guidelines:
+* The roles defined in Feast `Permission` instances must have corresponding Kubernetes RBAC `Role` names. 
+* The Kubernetes RBAC `Role` must reside in the same namespace as the Feast service.
+* The client application can run in a different namespace, using its own dedicated `ServiceAccount`.
+* Finally, the `RoleBinding` that links the client `ServiceAccount` to the RBAC `Role` must be defined in the namespace of the Feast service.
 
-The `User` class has been extended along with roles to include:
-- `groups`: List of user groups
-- `namespaces`: List of associated namespaces
+#### Group and Namespace based auth setup
 
-### 3. New Policy Types
+To ensure the Kubernetes RBAC environment aligns with Feast's RBAC configuration, follow these guidelines:
+* The groups and namespaces defined in Feast `Permission` instances must have corresponding Kubernetes `Group` and `Namespace` names.
+* The user or service account must reside in the group or namespace defined in the Feast `Permission` instances.
+* The client application can run in a different namespace, using its own dedicated `ServiceAccount` or user.
+* Finally, the feast service grants access based on the group and namespace association defined in the Feast `Permission` instances.
 
-Three new policy types have been introduced:
+## Policy Types
 
-#### GroupBasedPolicy
+### RoleBasedPolicy
+Grants access based on user role membership.
+
+```python
+from feast.permissions.policy import RoleBasedPolicy
+
+policy = RoleBasedPolicy(roles=["data-team", "ml-engineers"])
+```
+
+### GroupBasedPolicy
 Grants access based on user group membership.
 
 ```python
@@ -47,7 +60,7 @@ policy = NamespaceBasedPolicy(namespaces=["production", "staging"])
 ```
 
 #### CombinedGroupNamespacePolicy
-Grants access only when user is added into either permitted groups AND namespaces.
+Grants access only when user is added into either permitted groups OR namespaces.
 
 ```python
 from feast.permissions.policy import CombinedGroupNamespacePolicy
@@ -62,12 +75,11 @@ policy = CombinedGroupNamespacePolicy(
 
 ### Server Configuration
 
-The server automatically extracts groups and namespaces when using Kubernetes authentication. No additional configuration is required beyond the existing Kubernetes auth setup.
+The server automatically extracts groups, namespaces and roles when using Kubernetes authentication. No additional configuration is required beyond the existing Kubernetes auth setup.
 
 ### Client Configuration
 
 For external users (not service accounts), you can provide a user token in the configuration:
-
 
 Refer examples of providing the token are described in doc [User Token Provisioning](./user_token_provisioning.md)
 
@@ -80,9 +92,18 @@ from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.permissions.action import READ, AuthzedAction, ALL_ACTIONS
 from feast.permissions.permission import Permission
 from feast.permissions.policy import (
+    RoleBasedPolicy,
     GroupBasedPolicy,
     NamespaceBasedPolicy,
     CombinedGroupNamespacePolicy
+)
+
+# Role-based permission
+role_perm = Permission(
+    name="role_permission",
+    types=ALL_RESOURCE_TYPES,
+    policy=RoleBasedPolicy(roles=["reader-role"]),
+    actions=[AuthzedAction.DESCRIBE] + READ
 )
 
 # Group-based permission (new)
@@ -117,14 +138,6 @@ dev_staging_perm = Permission(
 
 Run `feast apply` from CLI/API/SDK on server or from client(if permitted) to apply the permissions.
 
-## Token Access Review Process
-
-1. **Token Extraction**: The system extracts the authentication token from the request
-2. **Token Validation**: Uses Kubernetes Token Access Review API to validate the token
-3. **Information Extraction**: Extracts groups, namespaces, and user information
-4. **User Creation**: Creates a User object with roles, groups, and namespaces
-5. **Policy Evaluation**: Evaluates permissions against the user's attributes
-
 ## Troubleshooting
 
 ### Common Issues
@@ -139,7 +152,7 @@ Run `feast apply` from CLI/API/SDK on server or from client(if permitted) to app
    - Check that the user is properly configured in Kubernetes/ODH/RHOAI
 
 3. **Permission Denied**
-   - Verify the user is added to required groups/namespaces
+   - Verify the user is added to required groups/namespaces Or has the required role assigned
    - Check that the policy is correctly configured
    - Review the permission evaluation logs
 
@@ -167,6 +180,3 @@ Run `feast apply` from CLI/API/SDK on server or from client(if permitted) to app
 - [Permission Model](../concepts/permission.md)
 - [RBAC Architecture](../architecture/rbac.md)
 - [Kubernetes RBAC Authorization](./authz_manager.md#kubernetes-rbac-authorization)
-
-
-
