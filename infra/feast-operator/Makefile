@@ -50,6 +50,8 @@ endif
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.38.0
 # Image URL to use all building/pushing image targets
+# During development and testing, and before make deploy we need to export FS_IMG to point to
+# the dev image generated using command `make build-feature-server-dev-docker`
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 FS_IMG ?= quay.io/feastdev/feature-server:$(VERSION)
 CJ_IMG ?= quay.io/openshift/origin-cli:4.17
@@ -159,6 +161,10 @@ run: manifests generate fmt vet ## Run a controller from your host.
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${IMG} --load .
+
+.PHONY: docker-build-on-mac
+docker-build-on-mac: ## Build docker image with the manager on Mac.
+	$(CONTAINER_TOOL) build --platform linux/amd64 -t ${IMG} --load .
 
 ## Build feast docker image.
 .PHONY: feast-ci-dev-docker-img

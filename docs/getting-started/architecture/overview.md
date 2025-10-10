@@ -18,6 +18,6 @@ typically your Offline Store). We are exploring adding a default streaming engin
 
 * We recommend [using Python](language.md) for your Feature Store microservice. As mentioned in the document, precomputing features is the recommended optimal path to ensure low latency performance. Reducing feature serving to a lightweight database lookup is the ideal pattern, which means the marginal overhead of Python should be tolerable. Because of this we believe the pros of Python outweigh the costs, as reimplementing feature logic is undesirable. Java and Go Clients are also available for online feature retrieval.
 
-* [Role-Based Access Control (RBAC)](rbac.md) is a security mechanism that restricts access to resources based on the roles of individual users within an organization. In the context of the Feast, RBAC ensures that only authorized users or groups can access or modify specific resources, thereby maintaining data security and operational integrity.
+* [Role-Based Access Control (RBAC)](rbac.md) is a security mechanism that restricts access to resources based on the roles/groups/namespaces of individual users within an organization. In the context of the Feast, RBAC ensures that only authorized users or groups can access or modify specific resources, thereby maintaining data security and operational integrity.
 
 
