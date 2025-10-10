@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import ray
-import ray.data
 from ray.data import Dataset
 from ray.data.context import DatasetContext
 
@@ -38,6 +37,10 @@ from feast.infra.offline_stores.offline_utils import (
     get_entity_df_timestamp_bounds,
     get_pyarrow_schema_from_batch_source,
     infer_event_timestamp_from_entity_df,
+)
+from feast.infra.ray_initializer import (
+    ensure_ray_initialized,
+    get_ray_wrapper,
 )
 from feast.infra.ray_shared_utils import (
     _build_required_columns,
@@ -338,6 +341,19 @@ class RayOfflineStoreConfig(FeastConfigBaseModel):
     # Ray configuration for resource management (memory, CPU limits)
     ray_conf: Optional[Dict[str, Any]] = None
 
+    # KubeRay/CodeFlare SDK configurations
+    use_kuberay: Optional[bool] = None
+    """Whether to use KubeRay/CodeFlare SDK for Ray cluster management"""
+
+    cluster_name: Optional[str] = None
+    """Name of the KubeRay cluster to connect to (required for KubeRay mode)"""
+
+    auth_token: Optional[str] = None
+    """Authentication token for Ray cluster connection (for secure clusters)"""
+
+    kuberay_conf: Optional[Dict[str, Any]] = None
+    """KubeRay/CodeFlare configuration parameters (passed to CodeFlare SDK)"""
+
 
 class RayResourceManager:
     """
@@ -350,10 +366,18 @@ class RayResourceManager:
         Initialize the resource manager with cluster resource information.
         """
         self.config = config or RayOfflineStoreConfig()
+
+        if not ray.is_initialized():
+            self.cluster_resources = {"CPU": 4, "memory": 8 * 1024**3}
+            self.available_memory = 8 * 1024**3
+            self.available_cpus = 4
+            self.num_nodes = 1
+            return
+
         self.cluster_resources = ray.cluster_resources()
         self.available_memory = self.cluster_resources.get("memory", 8 * 1024**3)
         self.available_cpus = int(self.cluster_resources.get("CPU", 4))
-        self.num_nodes = len(ray.nodes()) if ray.is_initialized() else 1
+        self.num_nodes = len(ray.nodes())
 
     def configure_ray_context(self) -> None:
         """
@@ -919,7 +943,7 @@ class RayRetrievalJob(RetrievalJob):
         else:
             try:
                 result = self._resolve()
-                if isinstance(result, Dataset):
+                if is_ray_data(result):
                     timestamp_col = _safe_infer_event_timestamp_column(
                         result, "event_timestamp"
                     )
@@ -964,11 +988,12 @@ class RayRetrievalJob(RetrievalJob):
             return self._cached_dataset
 
         result = self._resolve()
-        if isinstance(result, Dataset):
+        if is_ray_data(result):
             self._cached_dataset = result
             return result
         elif isinstance(result, pd.DataFrame):
-            self._cached_dataset = ray.data.from_pandas(result)
+            ray_wrapper = get_ray_wrapper()
+            self._cached_dataset = ray_wrapper.from_pandas(result)
             return self._cached_dataset
         else:
             raise ValueError(f"Unsupported result type: {type(result)}")
@@ -1225,82 +1250,13 @@ class RayOfflineStore(OfflineStore):
     @staticmethod
     def _ensure_ray_initialized(config: Optional[RepoConfig] = None) -> None:
         """Ensure Ray is initialized with proper configuration."""
-        ray_config = None
-        if config and hasattr(config, "offline_store"):
-            ray_config = config.offline_store
-            if isinstance(ray_config, RayOfflineStoreConfig):
-                if not ray_config.enable_ray_logging:
-                    RayOfflineStore._suppress_ray_logging()
-
-        if not ray.is_initialized():
-            ray_init_kwargs: Dict[str, Any] = {
-                "ignore_reinit_error": True,
-                "include_dashboard": False,
-            }
-
-            if (
-                ray_config
-                and isinstance(ray_config, RayOfflineStoreConfig)
-                and not ray_config.enable_ray_logging
-            ):
-                ray_init_kwargs.update(
-                    {
-                        "log_to_driver": False,
-                        "logging_level": "ERROR",
-                    }
-                )
-
-            if config and hasattr(config, "offline_store"):
-                if isinstance(ray_config, RayOfflineStoreConfig):
-                    if ray_config.ray_address:
-                        ray_init_kwargs["address"] = ray_config.ray_address
-                    else:
-                        ray_init_kwargs.update(
-                            {
-                                "_node_ip_address": os.getenv(
-                                    "RAY_NODE_IP", "127.0.0.1"
-                                ),
-                                "num_cpus": os.cpu_count() or 4,
-                            }
-                        )
-
-                    if ray_config.ray_conf:
-                        ray_init_kwargs.update(ray_config.ray_conf)
-                else:
-                    pass  # Use default initialization
-
-            ray.init(**ray_init_kwargs)
-
-        ctx = DatasetContext.get_current()
-        ctx.shuffle_strategy = "sort"  # type: ignore
-        ctx.enable_tensor_extension_casting = False
-
-        if (
-            ray_config
-            and isinstance(ray_config, RayOfflineStoreConfig)
-            and not ray_config.enable_ray_logging
-        ):
-            RayOfflineStore._suppress_ray_logging()
-
-        if ray.is_initialized():
-            cluster_resources = ray.cluster_resources()
-            if (
-                not ray_config
-                or not isinstance(ray_config, RayOfflineStoreConfig)
-                or ray_config.enable_ray_logging
-            ):
-                logger.info(
-                    f"Ray cluster initialized with {cluster_resources.get('CPU', 0)} CPUs, "
-                    f"{cluster_resources.get('memory', 0) / (1024**3):.1f}GB memory"
-                )
+        ensure_ray_initialized(config)
 
     def _init_ray(self, config: RepoConfig) -> None:
         ray_config = config.offline_store
         assert isinstance(ray_config, RayOfflineStoreConfig)
-        RayOfflineStore._ensure_ray_initialized(config)
 
-        if not ray_config.enable_ray_logging:
-            RayOfflineStore._suppress_ray_logging()
+        RayOfflineStore._ensure_ray_initialized(config)
 
         if self._resource_manager is None:
             self._resource_manager = RayResourceManager(ray_config)
@@ -1378,12 +1334,13 @@ class RayOfflineStore(OfflineStore):
         batch_source_path = feature_view.batch_source.file_options.uri
         feature_path = FileSource.get_uri_for_file_path(repo_path, batch_source_path)
 
-        ds = ray.data.from_arrow(table)
+        ray_wrapper = get_ray_wrapper()
+        ds = ray_wrapper.from_arrow(table)
 
         try:
             if feature_path.endswith(".parquet"):
                 if os.path.exists(feature_path):
-                    existing_ds = ray.data.read_parquet(feature_path)
+                    existing_ds = ray_wrapper.read_parquet(feature_path)
                     combined_ds = existing_ds.union(ds)
                     combined_ds.write_parquet(feature_path)
                 else:
@@ -1408,7 +1365,7 @@ class RayOfflineStore(OfflineStore):
                     df.to_parquet(feature_path, index=False)
             else:
                 os.makedirs(feature_path, exist_ok=True)
-                ds_fallback = ray.data.from_pandas(df)
+                ds_fallback = ray_wrapper.from_pandas(df)
                 ds_fallback.write_parquet(feature_path)
 
             if progress:
@@ -1776,10 +1733,11 @@ class RayOfflineStore(OfflineStore):
         absolute_path = FileSource.get_uri_for_file_path(repo_path, destination.path)
 
         try:
+            ray_wrapper = get_ray_wrapper()
             if isinstance(data, Path):
-                ds = ray.data.read_parquet(str(data))
+                ds = ray_wrapper.read_parquet(str(data))
             else:
-                ds = ray.data.from_arrow(data)
+                ds = ray_wrapper.from_arrow(data)
 
                 # Normalize feature timestamp precision to seconds to match test expectations during write
                 # Note: Don't normalize __log_timestamp as it's used for time range filtering
@@ -1831,7 +1789,8 @@ class RayOfflineStore(OfflineStore):
         end_date: Optional[datetime] = None,
     ) -> Dataset:
         """Helper method to create a filtered dataset based on timestamp range."""
-        ds = ray.data.read_parquet(source_path)
+        ray_wrapper = get_ray_wrapper()
+        ds = ray_wrapper.read_parquet(source_path)
 
         try:
             col_names = ds.schema().names
@@ -1888,11 +1847,12 @@ class RayOfflineStore(OfflineStore):
         store._init_ray(config)
 
         # Load entity_df as Ray dataset for distributed processing
+        ray_wrapper = get_ray_wrapper()
         if isinstance(entity_df, str):
-            entity_ds = ray.data.read_csv(entity_df)
+            entity_ds = ray_wrapper.read_csv(entity_df)
             entity_df_sample = entity_ds.limit(1000).to_pandas()
         else:
-            entity_ds = ray.data.from_pandas(entity_df)
+            entity_ds = ray_wrapper.from_pandas(entity_df)
             entity_df_sample = entity_df.copy()
 
         entity_ds = ensure_timestamp_compatibility(entity_ds, ["event_timestamp"])
@@ -1970,7 +1930,7 @@ class RayOfflineStore(OfflineStore):
 
             # Read from the resolved data source
             source_path = store._get_source_path(source_info.data_source, config)
-            feature_ds = ray.data.read_parquet(source_path)
+            feature_ds = ray_wrapper.read_parquet(source_path)
             logger.info(
                 f"Reading feature view {fv.name}: {source_info.source_description}"
             )

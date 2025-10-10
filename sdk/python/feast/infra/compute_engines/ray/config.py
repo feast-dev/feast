@@ -46,9 +46,6 @@ class RayComputeEngineConfig(FeastConfigBaseModel):
     enable_optimization: bool = True
     """Enable automatic performance optimizations."""
 
-    execution_timeout_seconds: Optional[int] = None
-    """Timeout for job execution in seconds."""
-
     @property
     def window_size_timedelta(self) -> timedelta:
         """Convert window size string to timedelta."""
@@ -64,3 +61,19 @@ class RayComputeEngineConfig(FeastConfigBaseModel):
         else:
             # Default to 1 hour
             return timedelta(hours=1)
+
+    # KubeRay/CodeFlare SDK configurations
+    use_kuberay: Optional[bool] = None
+    """Whether to use KubeRay/CodeFlare SDK for Ray cluster management"""
+
+    cluster_name: Optional[str] = None
+    """Name of the KubeRay cluster to connect to (required for KubeRay mode)"""
+
+    auth_token: Optional[str] = None
+    """Authentication token for Ray cluster connection (for secure clusters)"""
+
+    kuberay_conf: Optional[Dict[str, Any]] = None
+    """KubeRay/CodeFlare configuration parameters (passed to CodeFlare SDK)"""
+
+    enable_ray_logging: bool = False
+    """Enable Ray progress bars and verbose logging"""
