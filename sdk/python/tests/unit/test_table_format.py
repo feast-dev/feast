@@ -21,8 +21,7 @@ class TestTableFormat:
         iceberg_format = IcebergFormat(
             catalog="my_catalog",
             namespace="my_namespace",
-            catalog_properties={"catalog.uri": "s3://bucket/warehouse"},
-            table_properties={"format-version": "2"},
+            properties={"catalog.uri": "s3://bucket/warehouse", "format-version": "2"},
         )
 
         assert iceberg_format.format_type == TableFormatType.ICEBERG
@@ -45,8 +44,8 @@ class TestTableFormat:
     def test_delta_table_format_creation(self):
         """Test DeltaFormat creation and properties."""
         delta_format = DeltaFormat(
-            table_properties={"delta.autoOptimize.optimizeWrite": "true"},
             checkpoint_location="s3://bucket/checkpoints",
+            properties={"delta.autoOptimize.optimizeWrite": "true"},
         )
 
         assert delta_format.format_type == TableFormatType.DELTA
@@ -63,7 +62,7 @@ class TestTableFormat:
             table_type="COPY_ON_WRITE",
             record_key="id",
             precombine_field="timestamp",
-            table_properties={
+            properties={
                 "hoodie.compaction.strategy": "org.apache.hudi.table.action.compact.strategy.LogFileSizeBasedCompactionStrategy"
             },
         )
@@ -102,8 +101,7 @@ class TestTableFormat:
         iceberg_format = IcebergFormat(
             catalog="test_catalog",
             namespace="test_namespace",
-            catalog_properties={"key1": "value1"},
-            table_properties={"key2": "value2"},
+            properties={"key1": "value1", "key2": "value2"},
         )
 
         iceberg_dict = iceberg_format.to_dict()
@@ -112,20 +110,19 @@ class TestTableFormat:
         assert iceberg_restored.format_type == iceberg_format.format_type
         assert iceberg_restored.catalog == iceberg_format.catalog
         assert iceberg_restored.namespace == iceberg_format.namespace
-        assert iceberg_restored.catalog_properties == iceberg_format.catalog_properties
-        assert iceberg_restored.table_properties == iceberg_format.table_properties
+        assert iceberg_restored.properties == iceberg_format.properties
 
         # Test Delta
         delta_format = DeltaFormat(
-            table_properties={"key": "value"},
             checkpoint_location="s3://bucket/checkpoints",
+            properties={"key": "value"},
         )
 
         delta_dict = delta_format.to_dict()
         delta_restored = DeltaFormat.from_dict(delta_dict)
 
         assert delta_restored.format_type == delta_format.format_type
-        assert delta_restored.table_properties == delta_format.table_properties
+        assert delta_restored.properties == delta_format.properties
         assert delta_restored.checkpoint_location == delta_format.checkpoint_location
 
         # Test Hudi
@@ -182,8 +179,7 @@ class TestTableFormat:
             "format_type": "iceberg",
             "catalog": "test_catalog",
             "namespace": "test_namespace",
-            "catalog_properties": {"key1": "value1"},
-            "table_properties": {"key2": "value2"},
+            "properties": {"key1": "value1", "key2": "value2"},
         }
         iceberg_format = table_format_from_dict(iceberg_dict)
         assert isinstance(iceberg_format, IcebergFormat)
@@ -192,7 +188,7 @@ class TestTableFormat:
         # Test Delta
         delta_dict = {
             "format_type": "delta",
-            "table_properties": {"key": "value"},
+            "properties": {"key": "value"},
             "checkpoint_location": "s3://bucket/checkpoints",
         }
         delta_format = table_format_from_dict(delta_dict)
@@ -205,7 +201,7 @@ class TestTableFormat:
             "table_type": "MERGE_ON_READ",
             "record_key": "id",
             "precombine_field": "ts",
-            "table_properties": {},
+            "properties": {},
         }
         hudi_format = table_format_from_dict(hudi_dict)
         assert isinstance(hudi_format, HudiFormat)
@@ -221,8 +217,7 @@ class TestTableFormat:
             "format_type": "iceberg",
             "catalog": "test_catalog",
             "namespace": "test_namespace",
-            "catalog_properties": {},
-            "table_properties": {},
+            "properties": {},
         }
         json_str = json.dumps(iceberg_dict)
         iceberg_format = table_format_from_json(json_str)
@@ -264,15 +259,15 @@ class TestTableFormat:
         assert iceberg_format.get_property("snapshot-id") == "456"
 
         # Test empty properties
-        delta_format = DeltaFormat(table_properties=None)
-        assert len(delta_format.table_properties) == 0
+        delta_format = DeltaFormat(properties=None)
+        assert len(delta_format.properties) == 0
 
         # Test None values in constructors
         hudi_format = HudiFormat(
             table_type=None,
             record_key=None,
             precombine_field=None,
-            table_properties=None,
+            properties=None,
         )
         assert hudi_format.table_type is None
         assert hudi_format.record_key is None
@@ -285,7 +280,7 @@ class TestTableFormat:
             table_type="COPY_ON_WRITE",
             record_key="id,uuid",
             precombine_field="ts",
-            table_properties={"custom.prop": "value"},
+            properties={"custom.prop": "value"},
         )
 
         assert (
@@ -314,7 +309,7 @@ class TestTableFormat:
         iceberg_format = IcebergFormat(
             catalog="测试目录",  # Chinese
             namespace="тест_ns",  # Cyrillic
-            catalog_properties={"special.key": "value with spaces & symbols!@#$%^&*()"},
+            properties={"special.key": "value with spaces & symbols!@#$%^&*()"},
         )
 
         # Serialization roundtrip should preserve special characters
@@ -323,6 +318,6 @@ class TestTableFormat:
         assert restored.catalog == "测试目录"
         assert restored.namespace == "тест_ns"
         assert (
-            restored.catalog_properties["special.key"]
+            restored.properties["special.key"]
             == "value with spaces & symbols!@#$%^&*()"
         )
