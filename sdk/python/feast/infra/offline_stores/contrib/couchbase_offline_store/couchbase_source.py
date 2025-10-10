@@ -26,6 +26,10 @@ from feast.type_map import ValueType, cb_columnar_type_to_feast_value_type
 class CouchbaseColumnarSource(DataSource):
     """A CouchbaseColumnarSource object defines a data source that a CouchbaseColumnarOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        # TODO: Add Couchbase to DataSourceProto.SourceType
+        return DataSourceProto.CUSTOM_SOURCE
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -121,7 +125,7 @@ class CouchbaseColumnarSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,

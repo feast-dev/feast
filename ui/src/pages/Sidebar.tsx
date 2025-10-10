@@ -12,6 +12,8 @@ import { FeatureViewIcon } from "../graphics/FeatureViewIcon";
 import { FeatureServiceIcon } from "../graphics/FeatureServiceIcon";
 import { DatasetIcon } from "../graphics/DatasetIcon";
 import { FeatureIcon } from "../graphics/FeatureIcon";
+import { HomeIcon } from "../graphics/HomeIcon";
+import { PermissionsIcon } from "../graphics/PermissionsIcon";
 
 const SideNav = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -66,7 +68,9 @@ const SideNav = () => {
     {
       name: "Home",
       id: htmlIdGenerator("home")(),
-      isSelected: useMatchSubpath(`${baseUrl}`),
+      icon: <EuiIcon type={HomeIcon} />,
+      renderItem: (props) => <Link {...props} to={`${baseUrl}`} />,
+      isSelected: useMatchSubpath(`${baseUrl}$`),
     },
     {
       name: "Resources",
@@ -128,9 +132,18 @@ const SideNav = () => {
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
         {
+          name: "Data Labeling",
+          id: htmlIdGenerator("dataLabeling")(),
+          icon: <EuiIcon type="documentEdit" color="#006BB4" />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/data-labeling`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/data-labeling`),
+        },
+        {
           name: "Permissions",
           id: htmlIdGenerator("permissions")(),
-          icon: <EuiIcon type="lock" />,
+          icon: <EuiIcon type={PermissionsIcon} />,
           renderItem: (props) => (
             <Link {...props} to={`${baseUrl}/permissions`} />
           ),

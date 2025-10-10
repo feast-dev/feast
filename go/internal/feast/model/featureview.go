@@ -1,6 +1,8 @@
 package model
 
 import (
+	"slices"
+
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/feast-dev/feast/go/protos/feast/core"
@@ -66,10 +68,5 @@ func (fv *FeatureView) NewFeatureViewFromBase(base *BaseFeatureView) *FeatureVie
 }
 
 func (fv *FeatureView) HasEntity(name string) bool {
-	for _, entityName := range fv.EntityNames {
-		if entityName == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(fv.EntityNames, name)
 }

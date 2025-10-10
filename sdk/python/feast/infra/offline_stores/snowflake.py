@@ -130,7 +130,10 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
     convert_timestamp_columns: Optional[bool] = None
     """ Convert timestamp columns on export to a Parquet-supported format """
-    model_config = ConfigDict(populate_by_name=True)
+
+    max_file_size: Optional[int] = None
+    """ Upper size limit (in bytes) of each file that is offloaded. Default: 16777216"""
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class SnowflakeOfflineStore(OfflineStore):
@@ -616,6 +619,9 @@ class SnowflakeRetrievalJob(RetrievalJob):
               DETAILED_OUTPUT = TRUE
               HEADER = TRUE
         """
+        if (max_file_size := self.config.offline_store.max_file_size) is not None:
+            query += f"\nMAX_FILE_SIZE = {max_file_size}"
+
         cursor = execute_snowflake_statement(self.snowflake_conn, query)
         # s3gov schema is used by Snowflake in AWS govcloud regions
         # remove gov portion from schema and pass it to online store upload

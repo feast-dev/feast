@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -43,6 +44,7 @@ from feast.utils import (
 
 PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.VARCHAR,
+    ValueType.IMAGE_BYTES: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_val"]: DataType.BOOL,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["string_val"]: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["float_val"]: DataType.FLOAT,
@@ -88,8 +90,8 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
 
     type: Literal["milvus"] = "milvus"
-    path: Optional[StrictStr] = "online_store.db"
-    host: Optional[StrictStr] = "localhost"
+    path: Optional[StrictStr] = ""
+    host: Optional[StrictStr] = "http://localhost"
     port: Optional[int] = 19530
     index_type: Optional[str] = "FLAT"
     metric_type: Optional[str] = "COSINE"
@@ -126,13 +128,16 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig) -> MilvusClient:
         if not self.client:
-            if config.provider == "local":
+            if config.provider == "local" and config.online_store.path:
                 db_path = self._get_db_path(config)
                 print(f"Connecting to Milvus in local mode using {db_path}")
                 self.client = MilvusClient(db_path)
             else:
+                print(
+                    f"Connecting to Milvus remotely at {config.online_store.host}:{config.online_store.port}"
+                )
                 self.client = MilvusClient(
-                    url=f"{config.online_store.host}:{config.online_store.port}",
+                    uri=f"{config.online_store.host}:{config.online_store.port}",
                     token=f"{config.online_store.username}:{config.online_store.password}"
                     if config.online_store.username and config.online_store.password
                     else "",
@@ -659,13 +664,24 @@ class MilvusOnlineStore(OnlineStore):
                             embedding
                         )
                         res[ann_search_field] = serialized_embedding
-                    elif entity_name_feast_primitive_type_map.get(
-                        field, PrimitiveFeastType.INVALID
-                    ) in [
-                        PrimitiveFeastType.STRING,
-                        PrimitiveFeastType.BYTES,
-                    ]:
+                    elif (
+                        entity_name_feast_primitive_type_map.get(
+                            field, PrimitiveFeastType.INVALID
+                        )
+                        == PrimitiveFeastType.STRING
+                    ):
                         res[field] = ValueProto(string_val=str(field_value))
+                    elif (
+                        entity_name_feast_primitive_type_map.get(
+                            field, PrimitiveFeastType.INVALID
+                        )
+                        == PrimitiveFeastType.BYTES
+                    ):
+                        try:
+                            decoded_bytes = base64.b64decode(field_value)
+                            res[field] = ValueProto(bytes_val=decoded_bytes)
+                        except Exception:
+                            res[field] = ValueProto(string_val=str(field_value))
                     elif entity_name_feast_primitive_type_map.get(
                         field, PrimitiveFeastType.INVALID
                     ) in [
@@ -729,9 +745,13 @@ def _extract_proto_values_to_dict(
                     else:
                         if (
                             serialize_to_string
-                            and proto_val_type not in ["string_val"] + numeric_types
+                            and proto_val_type
+                            not in ["string_val", "bytes_val"] + numeric_types
                         ):
                             vector_values = feature_values.SerializeToString().decode()
+                        elif proto_val_type == "bytes_val":
+                            byte_data = getattr(feature_values, proto_val_type)
+                            vector_values = base64.b64encode(byte_data).decode("utf-8")
                         else:
                             if not isinstance(feature_values, str):
                                 vector_values = str(

@@ -56,6 +56,10 @@ class ClickhouseOptions:
 
 
 class ClickhouseSource(DataSource):
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        # TODO: Add ClickhouseSourceType to DataSourceProto
+        return DataSourceProto.CUSTOM_SOURCE
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -105,7 +109,7 @@ class ClickhouseSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,

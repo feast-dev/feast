@@ -25,7 +25,8 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
-from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.supported_async_methods import ProviderAsyncMethods
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -51,6 +52,10 @@ class Provider(ABC):
     components of a feature store, such as the offline store, online store, and materialization
     engine. It is configured through a RepoConfig object.
     """
+
+    repo_config: RepoConfig
+    offline_store: OfflineStore
+    online_store: OnlineStore
 
     @abstractmethod
     def __init__(self, config: RepoConfig):
@@ -217,12 +222,13 @@ class Provider(ABC):
     def materialize_single_feature_view(
         self,
         config: RepoConfig,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         start_date: datetime,
         end_date: datetime,
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
     ) -> None:
         """
         Writes latest feature values in the specified time range to the online store.
@@ -235,6 +241,7 @@ class Provider(ABC):
             registry: The registry for the current feature store.
             project: Feast project to which the objects belong.
             tqdm_builder: A function to monitor the progress of materialization.
+            disable_event_timestamp: If True, materializes all available data using current datetime as event timestamp instead of source event timestamps.
         """
         pass
 
@@ -244,10 +251,11 @@ class Provider(ABC):
         config: RepoConfig,
         feature_views: List[Union[FeatureView, OnDemandFeatureView]],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
+        **kwargs,
     ) -> RetrievalJob:
         """
         Retrieves the point-in-time correct historical feature values for the specified entity rows.
@@ -258,12 +266,14 @@ class Provider(ABC):
             feature_refs: The features to be retrieved.
             entity_df: A collection of rows containing all entity columns on which features need to be joined,
                 as well as the timestamp column used for point-in-time joins. Either a pandas dataframe can be
-                provided or a SQL query.
+                provided or a SQL query. If None, features will be retrieved for the specified timestamp range.
             registry: The registry for the current feature store.
             project: Feast project to which the feature views belong.
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+            start_date: Start date for the timestamp range when retrieving features without entity_df.
+            end_date: End date for the timestamp range when retrieving features without entity_df.
 
         Returns:
             A RetrievalJob that can be executed to get the features.

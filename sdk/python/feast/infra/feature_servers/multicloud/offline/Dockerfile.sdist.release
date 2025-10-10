@@ -1,11 +1,24 @@
-FROM yum-builder:release
+FROM registry.access.redhat.com/ubi9/python-311:1
 
 ENV APACHE_ARROW_VERSION="17.0.0"
+ENV MILVUS_LITE_VERSION="2.4.12"
+ENV IBIS_VERSION="9.5.0"
 
 ENV ARROW_HOME=${APP_ROOT}/arrow-dist
 ENV LD_LIBRARY_PATH=${ARROW_HOME}/lib:$LD_LIBRARY_PATH
 ENV CMAKE_PREFIX_PATH=${ARROW_HOME}:$CMAKE_PREFIX_PATH
 ENV THIRD_PARTY_PATH=/tmp/hermeto-generic-output/deps/generic
+
+######
+# unecessary for konflux build
+ENV RPM_PATH=/tmp/hermeto-rpm-output/deps/rpm/x86_64
+USER 0
+RUN useradd mockbuild
+RUN groupadd mock
+RUN usermod -G mock mockbuild
+RUN rpm -Uvh ${RPM_PATH}/*/*.rpm
+USER 1001
+######
 
 # configured for Arrow version 17.0.0
 RUN mkdir ${APP_ROOT}/src/arrow ${ARROW_HOME} ${APP_ROOT}/src/arrow-build && \
@@ -97,6 +110,8 @@ RUN mkdir ${APP_ROOT}/src/arrow ${ARROW_HOME} ${APP_ROOT}/src/arrow-build && \
     cd ${APP_ROOT}/src/arrow/python && \
     PYARROW_PARALLEL=4 python setup.py build_ext --bundle-arrow-cpp bdist_wheel && \
     pip install dist/pyarrow-*.whl && \
+    pip install ${THIRD_PARTY_PATH}/milvus_lite-${MILVUS_LITE_VERSION}-py3-none-manylinux2014_x86_64.whl && \
+    pip install ${THIRD_PARTY_PATH}/ibis_framework-${IBIS_VERSION}-py3-none-any.whl[duckdb] && \
     \
     cd ${APP_ROOT}/src && \
     rm -rf ${APP_ROOT}/src/arrow-build ${APP_ROOT}/src/arrow ${ARROW_HOME}
@@ -112,12 +127,6 @@ RUN python -c "import pyarrow.substrait as substrait; print(substrait.__name__)"
 # feast requires "numpy<2", so here we install numpy 1.x, as well as some other packages which will be needed for the feast build.
 RUN source /tmp/hermeto.env && \
     pip install "numpy>=1.16.6,<2"
-
-RUN cd ${APP_ROOT}/src/ibis && \
-    source /tmp/hermeto.env && \
-    pip install .[duckdb] && \
-    cd ${APP_ROOT}/src && \
-    rm -rf ${APP_ROOT}/src/ibis
 
 COPY requirements.txt requirements.txt
 RUN source /tmp/hermeto.env && \

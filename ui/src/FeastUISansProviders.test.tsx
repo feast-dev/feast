@@ -13,6 +13,7 @@ import FeastUISansProviders from "./FeastUISansProviders";
 import {
   projectsListWithDefaultProject,
   creditHistoryRegistry,
+  creditHistoryRegistryDB,
 } from "./mocks/handlers";
 
 import { readFileSync } from "fs";
@@ -23,9 +24,18 @@ import path from "path";
 const server = setupServer(
   projectsListWithDefaultProject,
   creditHistoryRegistry,
+  creditHistoryRegistryDB,
 );
 const registry = readFileSync(path.resolve(__dirname, "../public/registry.db"));
 const parsedRegistry = feast.core.Registry.decode(registry);
+
+console.log("Registry Feature Views:", parsedRegistry.featureViews?.length);
+if (parsedRegistry.featureViews && parsedRegistry.featureViews.length > 0) {
+  console.log(
+    "First Feature View Name:",
+    parsedRegistry.featureViews[0].spec?.name,
+  );
+}
 
 // establish API mocking before all tests
 beforeAll(() => server.listen());

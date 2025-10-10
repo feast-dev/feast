@@ -5,8 +5,9 @@ import threading
 import time
 import traceback
 from contextlib import asynccontextmanager
+from datetime import datetime
 from importlib import resources as importlib_resources
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import psutil
@@ -73,9 +74,10 @@ class PushFeaturesRequest(BaseModel):
 
 
 class MaterializeRequest(BaseModel):
-    start_ts: str
-    end_ts: str
+    start_ts: Optional[str] = None
+    end_ts: Optional[str] = None
     feature_views: Optional[List[str]] = None
+    disable_event_timestamp: bool = False
 
 
 class MaterializeIncrementalRequest(BaseModel):
@@ -86,10 +88,18 @@ class MaterializeIncrementalRequest(BaseModel):
 class GetOnlineFeaturesRequest(BaseModel):
     entities: Dict[str, List[Any]]
     feature_service: Optional[str] = None
-    features: Optional[List[str]] = None
+    features: List[str] = []
     full_feature_names: bool = False
-    query_embedding: Optional[List[float]] = None
+
+
+class GetOnlineDocumentsRequest(BaseModel):
+    feature_service: Optional[str] = None
+    features: List[str] = []
+    full_feature_names: bool = False
+    top_k: Optional[int] = None
+    query: Optional[List[float]] = None
     query_string: Optional[str] = None
+    api_version: Optional[int] = 1
 
 
 class ChatMessage(BaseModel):
@@ -101,7 +111,19 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 
-def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
+class ReadDocumentRequest(BaseModel):
+    file_path: str
+
+
+class SaveDocumentRequest(BaseModel):
+    file_path: str
+    data: dict
+
+
+def _get_features(
+    request: Union[GetOnlineFeaturesRequest, GetOnlineDocumentsRequest],
+    store: "feast.FeatureStore",
+):
     if request.feature_service:
         feature_service = store.get_feature_service(
             request.feature_service, allow_cache=True
@@ -164,6 +186,8 @@ def get_app(
     - `/materialize-incremental`: Materialize features incrementally
     - `/chat`: Chat UI
     - `/ws/chat`: WebSocket endpoint for chat
+    MCP Support:
+    - If MCP is enabled in feature server configuration, MCP endpoints will be added automatically
     """
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
@@ -235,24 +259,26 @@ def get_app(
         dependencies=[Depends(inject_user_details)],
     )
     async def retrieve_online_documents(
-        request: GetOnlineFeaturesRequest,
+        request: GetOnlineDocumentsRequest,
     ) -> Dict[str, Any]:
-        logger.warn(
+        logger.warning(
             "This endpoint is in alpha and will be moved to /get-online-features when stable."
         )
         # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
         features = await run_in_threadpool(_get_features, request, store)
 
-        read_params = dict(
-            features=features,
-            full_feature_names=request.full_feature_names,
-            query=request.query_embedding,
-            query_string=request.query_string,
-        )
+        read_params = dict(features=features, query=request.query, top_k=request.top_k)
+        if request.api_version == 2 and request.query_string is not None:
+            read_params["query_string"] = request.query_string
 
-        response = await run_in_threadpool(
-            lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
-        )
+        if request.api_version == 2:
+            response = await run_in_threadpool(
+                lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+            )
+        else:
+            response = await run_in_threadpool(
+                lambda: store.retrieve_online_documents(**read_params)  # type: ignore
+            )
 
         # Convert the Protobuf object to JSON and return it
         response_dict = await run_in_threadpool(
@@ -356,6 +382,42 @@ def get_app(
         # For now, just return dummy text
         return {"response": "This is a dummy response from the Feast feature server."}
 
+    @app.post("/read-document")
+    async def read_document_endpoint(request: ReadDocumentRequest):
+        try:
+            import os
+
+            if not os.path.exists(request.file_path):
+                return {"error": f"File not found: {request.file_path}"}
+
+            with open(request.file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+
+            return {"content": content, "file_path": request.file_path}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.post("/save-document")
+    async def save_document_endpoint(request: SaveDocumentRequest):
+        try:
+            import json
+            import os
+            from pathlib import Path
+
+            file_path = Path(request.file_path).resolve()
+            if not str(file_path).startswith(os.getcwd()):
+                return {"error": "Invalid file path"}
+
+            base_name = file_path.stem
+            labels_file = file_path.parent / f"{base_name}-labels.json"
+
+            with open(labels_file, "w", encoding="utf-8") as file:
+                json.dump(request.data, file, indent=2, ensure_ascii=False)
+
+            return {"success": True, "saved_to": str(labels_file)}
+        except Exception as e:
+            return {"error": str(e)}
+
     @app.get("/chat")
     async def chat_ui():
         # Serve the chat UI
@@ -372,10 +434,27 @@ def get_app(
                 resource=_get_feast_object(feature_view, True),
                 actions=[AuthzedAction.WRITE_ONLINE],
             )
+
+        if request.disable_event_timestamp:
+            # Query all available data and use current datetime as event timestamp
+            now = datetime.now()
+            start_date = datetime(
+                1970, 1, 1
+            )  # Beginning of time to capture all historical data
+            end_date = now
+        else:
+            if not request.start_ts or not request.end_ts:
+                raise ValueError(
+                    "start_ts and end_ts are required when disable_event_timestamp is False"
+                )
+            start_date = utils.make_tzaware(parser.parse(request.start_ts))
+            end_date = utils.make_tzaware(parser.parse(request.end_ts))
+
         store.materialize(
-            utils.make_tzaware(parser.parse(request.start_ts)),
-            utils.make_tzaware(parser.parse(request.end_ts)),
+            start_date,
+            end_date,
             request.feature_views,
+            disable_event_timestamp=request.disable_event_timestamp,
         )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
@@ -445,7 +524,35 @@ def get_app(
     with importlib_resources.as_file(static_dir_ref) as static_dir:
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    # Add MCP support if enabled in feature server configuration
+    _add_mcp_support_if_enabled(app, store)
+
     return app
+
+
+def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
+    """Add MCP support to the FastAPI app if enabled in configuration."""
+    try:
+        # Check if MCP is enabled in feature server config
+        if (
+            store.config.feature_server
+            and hasattr(store.config.feature_server, "type")
+            and store.config.feature_server.type == "mcp"
+            and getattr(store.config.feature_server, "mcp_enabled", False)
+        ):
+            from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
+
+            mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
+
+            if mcp_server:
+                logger.info("MCP support has been enabled for the Feast feature server")
+            else:
+                logger.warning("MCP support was requested but could not be enabled")
+        else:
+            logger.debug("MCP support is not enabled in feature server configuration")
+    except Exception as e:
+        logger.error(f"Error checking/adding MCP support: {e}")
+        # Don't fail the entire server if MCP fails to initialize
 
 
 if sys.platform != "win32":

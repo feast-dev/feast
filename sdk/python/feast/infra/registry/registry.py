@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
@@ -163,6 +163,24 @@ class Registry(BaseRegistry):
         self, project: str, feature_view: BaseFeatureView
     ) -> Optional[bytes]:
         pass
+
+    def set_project_metadata(self, project: str, key: str, value: str):
+        """Set a custom project metadata key-value pair in the registry backend."""
+        if hasattr(self._registry_store, "set_project_metadata"):
+            self._registry_store.set_project_metadata(project, key, value)
+        else:
+            raise NotImplementedError(
+                "set_project_metadata not implemented for this registry backend"
+            )
+
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """Get a custom project metadata value by key from the registry backend."""
+        if hasattr(self._registry_store, "get_project_metadata"):
+            return self._registry_store.get_project_metadata(project, key)
+        else:
+            raise NotImplementedError(
+                "get_project_metadata not implemented for this registry backend"
+            )
 
     # The cached_registry_proto object is used for both reads and writes. In particular,
     # all write operations refresh the cache and modify it in memory; the write must
@@ -338,10 +356,27 @@ class Registry(BaseRegistry):
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
+        now = _utc_now()
+        if not data_source.created_timestamp:
+            data_source.created_timestamp = now
+        data_source.last_updated_timestamp = now
+
         registry = self._prepare_registry_for_changes(project)
+
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
             if existing_data_source_proto.name == data_source.name:
-                del registry.data_sources[idx]
+                existing_data_source = DataSource.from_proto(existing_data_source_proto)
+                # Check if the data source has actually changed
+                if existing_data_source == data_source:
+                    return
+                else:
+                    # Preserve created_timestamp from existing data source
+                    data_source.created_timestamp = (
+                        existing_data_source.created_timestamp
+                    )
+                    del registry.data_sources[idx]
+                    break
+
         data_source_proto = data_source.to_proto()
         data_source_proto.project = project
         data_source_proto.data_source_class_type = (
@@ -529,7 +564,7 @@ class Registry(BaseRegistry):
 
     def apply_materialization(
         self,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         project: str,
         start_date: datetime,
         end_date: datetime,

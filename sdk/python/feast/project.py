@@ -117,7 +117,7 @@ class Project:
         if not is_valid_name(self.name):
             raise ValueError(
                 f"Project name, {self.name}, should only have "
-                f"alphanumerical values and underscores but not start with an underscore."
+                f"alphanumerical values, underscores, and hyphens but not start with an underscore or hyphen."
             )
 
     @classmethod

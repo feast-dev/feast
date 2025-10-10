@@ -19,7 +19,9 @@ package controller
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"reflect"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -48,6 +50,10 @@ const domain = ".svc.cluster.local:80"
 const domainTls = ".svc.cluster.local:443"
 
 var image = "test:latest"
+
+func ptr[T any](v T) *T {
+	return &v
+}
 
 var _ = Describe("FeatureStore Controller", func() {
 	Context("When reconciling a resource", func() {
@@ -1213,6 +1219,142 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Message).To(Equal("Error: Remote feast registry of referenced FeatureStore '" + referencedRegistry.Name + "' is not ready"))
 		})
 
+		It("should correctly set container command args for grpc/rest modes", func() {
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			cases := []struct {
+				name         string
+				grpc         *bool
+				restAPI      *bool
+				expectedArgs []string
+			}{
+				{
+					name:         "default grpc only",
+					grpc:         nil,
+					restAPI:      nil,
+					expectedArgs: []string{"--grpc"},
+				},
+				{
+					name:         "explicit grpc true only",
+					grpc:         ptr(true),
+					restAPI:      ptr(false),
+					expectedArgs: []string{"--grpc"},
+				},
+				{
+					name:         "rest only",
+					grpc:         ptr(false),
+					restAPI:      ptr(true),
+					expectedArgs: []string{"--no-grpc", "--rest-api"},
+				},
+				{
+					name:         "both grpc and rest",
+					grpc:         ptr(true),
+					restAPI:      ptr(true),
+					expectedArgs: []string{"--grpc", "--rest-api"},
+				},
+			}
+
+			for _, tc := range cases {
+				By(fmt.Sprintf("Testing: %s", tc.name))
+
+				name := strings.ReplaceAll(tc.name, " ", "-")
+				nsName := types.NamespacedName{
+					Name:      name,
+					Namespace: "default",
+				}
+				resource := &feastdevv1alpha1.FeatureStore{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: "default",
+					},
+					Spec: feastdevv1alpha1.FeatureStoreSpec{
+						FeastProject: feastProject,
+						Services: &feastdevv1alpha1.FeatureStoreServices{
+							Registry: &feastdevv1alpha1.Registry{
+								Local: &feastdevv1alpha1.LocalRegistryConfig{
+									Server: &feastdevv1alpha1.RegistryServerConfigs{
+										GRPC:    tc.grpc,
+										RestAPI: tc.restAPI,
+									},
+								},
+							},
+						},
+					},
+				}
+				resource.SetGroupVersionKind(feastdevv1alpha1.GroupVersion.WithKind("FeatureStore"))
+				err := k8sClient.Create(ctx, resource)
+				Expect(err).NotTo(HaveOccurred())
+
+				_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: nsName})
+				Expect(err).NotTo(HaveOccurred())
+
+				err = k8sClient.Get(ctx, nsName, resource)
+				Expect(err).NotTo(HaveOccurred())
+
+				feast := services.FeastServices{
+					Handler: handler.FeastHandler{
+						Client:       controllerReconciler.Client,
+						Context:      ctx,
+						Scheme:       controllerReconciler.Scheme,
+						FeatureStore: resource,
+					},
+				}
+
+				deploy := &appsv1.Deployment{}
+				objMeta := feast.GetObjectMeta()
+				err = k8sClient.Get(ctx, types.NamespacedName{
+					Name:      objMeta.Name,
+					Namespace: objMeta.Namespace,
+				}, deploy)
+				Expect(err).NotTo(HaveOccurred())
+
+				registryContainer := services.GetRegistryContainer(*deploy)
+				Expect(registryContainer).NotTo(BeNil())
+
+				for _, expectedArg := range tc.expectedArgs {
+					Expect(registryContainer.Command).
+						To(ContainElement(expectedArg),
+							"expected %s to be present in container command: %v", expectedArg, registryContainer.Command)
+				}
+				Expect(resource.Status.Conditions).NotTo(BeEmpty())
+				cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
+				Expect(cond).ToNot(BeNil())
+				Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+				Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
+				Expect(cond.Type).To(Equal(feastdevv1alpha1.RegistryReadyType))
+				Expect(cond.Message).To(Equal(feastdevv1alpha1.RegistryReadyMessage))
+			}
+
+			By("Verifying that creation fails when both REST API and gRPC are disabled")
+			disabledResource := &feastdevv1alpha1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "disabled-both",
+					Namespace: "default",
+				},
+				Spec: feastdevv1alpha1.FeatureStoreSpec{
+					FeastProject: feastProject,
+					Services: &feastdevv1alpha1.FeatureStoreServices{
+						Registry: &feastdevv1alpha1.Registry{
+							Local: &feastdevv1alpha1.LocalRegistryConfig{
+								Server: &feastdevv1alpha1.RegistryServerConfigs{
+									RestAPI: ptr(false),
+									GRPC:    ptr(false),
+								},
+							},
+						},
+					},
+				},
+			}
+			disabledResource.SetGroupVersionKind(feastdevv1alpha1.GroupVersion.WithKind("FeatureStore"))
+
+			err := k8sClient.Create(ctx, disabledResource)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("At least one of restAPI or grpc must be true"))
+		})
+
 		It("should error on reconcile", func() {
 			By("Trying to set the controller OwnerRef of a Deployment that already has a controller")
 			controllerReconciler := &FeatureStoreReconciler{
@@ -1360,6 +1502,59 @@ var _ = Describe("FeatureStore Controller", func() {
 			err = k8sClient.Update(ctx, resource)
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("should error if referencing a remote registry without gRPC server enabled", func() {
+			const remoteStoreName = "remote-featurestore"
+			remoteNamespacedName := types.NamespacedName{
+				Name:      remoteStoreName,
+				Namespace: "default",
+			}
+
+			// Create remote FeatureStore with gRPC disabled
+			remote := &feastdevv1alpha1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      remoteStoreName,
+					Namespace: "default",
+				},
+				Spec: feastdevv1alpha1.FeatureStoreSpec{
+					FeastProject: feastProject,
+					Services: &feastdevv1alpha1.FeatureStoreServices{
+						Registry: &feastdevv1alpha1.Registry{
+							Local: &feastdevv1alpha1.LocalRegistryConfig{
+								Server: &feastdevv1alpha1.RegistryServerConfigs{
+									GRPC:    ptr(false),
+									RestAPI: ptr(true),
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, remote)).To(Succeed())
+			reconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: remoteNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Update main FeatureStore to reference the remote registry
+			Expect(k8sClient.Get(ctx, typeNamespacedName, featurestore)).To(Succeed())
+			featurestore.Spec.FeastProject = feastProject
+			featurestore.Spec.Services.Registry = &feastdevv1alpha1.Registry{
+				Remote: &feastdevv1alpha1.RemoteRegistryConfig{
+					FeastRef: &feastdevv1alpha1.FeatureStoreRef{Name: remoteStoreName},
+				},
+			}
+			Expect(k8sClient.Update(ctx, featurestore)).To(Succeed())
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("must have gRPC server enabled"))
+		})
 	})
 })
 
@@ -1405,5 +1600,9 @@ func strPtr(str string) *string {
 }
 
 func int32Ptr(value int32) *int32 {
+	return &value
+}
+
+func int64Ptr(value int64) *int64 {
 	return &value
 }

@@ -16,9 +16,20 @@ import logging
 import os
 import sqlite3
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 from pydantic import StrictStr
 
@@ -100,7 +111,6 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
 
-    vector_enabled: bool = False
     text_search_enabled: bool = False
 
 
@@ -264,7 +274,11 @@ class SqliteOnlineStore(OnlineStore):
                 val = ValueProto()
                 val.ParseFromString(val_bin)
                 res[feature_name] = val
-                res_ts = ts
+                ts = cast(datetime, ts)
+                if ts.tzinfo is not None:
+                    res_ts = ts.astimezone(timezone.utc)
+                else:
+                    res_ts = ts.replace(tzinfo=timezone.utc)
 
             if not res:
                 result.append((None, None))

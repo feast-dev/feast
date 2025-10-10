@@ -1,13 +1,18 @@
+from dataclasses import dataclass
 from typing import List, Optional, cast
 
 import pandas as pd
 import pyarrow
 
-from feast import OnDemandFeatureView
+from feast.infra.common.materialization_job import (
+    MaterializationJob,
+    MaterializationJobStatus,
+)
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.saved_dataset import SavedDatasetStorage
 
 
@@ -75,3 +80,32 @@ class LocalRetrievalJob(RetrievalJob):
         raise NotImplementedError(
             "SQL generation is not supported in LocalRetrievalJob"
         )
+
+
+@dataclass
+class LocalMaterializationJob(MaterializationJob):
+    def __init__(
+        self,
+        job_id: str,
+        status: MaterializationJobStatus,
+        error: Optional[BaseException] = None,
+    ) -> None:
+        super().__init__()
+        self._job_id: str = job_id
+        self._status: MaterializationJobStatus = status
+        self._error: Optional[BaseException] = error
+
+    def status(self) -> MaterializationJobStatus:
+        return self._status
+
+    def error(self) -> Optional[BaseException]:
+        return self._error
+
+    def should_be_retried(self) -> bool:
+        return False
+
+    def job_id(self) -> str:
+        return self._job_id
+
+    def url(self) -> Optional[str]:
+        return None

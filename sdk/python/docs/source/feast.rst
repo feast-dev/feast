@@ -7,10 +7,13 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   feast.api
+   feast.cli
    feast.diff
    feast.dqm
    feast.embedded_go
    feast.infra
+   feast.lineage
    feast.loaders
    feast.permissions
    feast.protos
@@ -52,22 +55,6 @@ feast.batch\_feature\_view module
    :undoc-members:
    :show-inheritance:
 
-feast.cli module
-----------------
-
-.. automodule:: feast.cli
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.cli\_utils module
------------------------
-
-.. automodule:: feast.cli_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.constants module
 ----------------------
 
@@ -88,6 +75,14 @@ feast.data\_source module
 -------------------------
 
 .. automodule:: feast.data_source
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.document\_labeling module
+-------------------------------
+
+.. automodule:: feast.document_labeling
    :members:
    :undoc-members:
    :show-inheritance:
@@ -236,6 +231,14 @@ feast.names module
    :undoc-members:
    :show-inheritance:
 
+feast.nlp\_test\_data module
+----------------------------
+
+.. automodule:: feast.nlp_test_data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.offline\_server module
 ----------------------------
 
@@ -280,6 +283,14 @@ feast.proto\_json module
 ------------------------
 
 .. automodule:: feast.proto_json
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.rag\_retriever module
+---------------------------
+
+.. automodule:: feast.rag_retriever
    :members:
    :undoc-members:
    :show-inheritance:
@@ -348,6 +359,14 @@ feast.stream\_feature\_view module
    :undoc-members:
    :show-inheritance:
 
+feast.torch\_wrapper module
+---------------------------
+
+.. automodule:: feast.torch_wrapper
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.transformation\_server module
 -----------------------------------
 
@@ -392,6 +411,14 @@ feast.value\_type module
 ------------------------
 
 .. automodule:: feast.value_type
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.vector\_store module
+--------------------------
+
+.. automodule:: feast.vector_store
    :members:
    :undoc-members:
    :show-inheritance:

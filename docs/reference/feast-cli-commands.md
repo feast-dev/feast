@@ -79,7 +79,7 @@ online_store:
     path: data/online_store.db
 offline_store: 
     type: dask 
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
 auth:
     type: no_auth
 ```
@@ -152,17 +152,29 @@ feast init -t gcp my_feature_repo
 
 ## Materialize
 
-Load data from feature views into the online store between two dates
+Load data from feature views into the online store.
 
+**With timestamps:**
 ```bash
 feast materialize 2020-01-01T00:00:00 2022-01-01T00:00:00
 ```
 
-Load data for specific feature views into the online store between two dates
+**Without timestamps (uses current datetime):**
+```bash
+feast materialize --disable-event-timestamp
+```
+
+Load data for specific feature views:
 
 ```text
 feast materialize -v driver_hourly_stats 2020-01-01T00:00:00 2022-01-01T00:00:00
 ```
+
+```text
+feast materialize --disable-event-timestamp -v driver_hourly_stats
+```
+
+The `--disable-event-timestamp` flag is useful when your source data lacks event timestamp columns, allowing you to materialize all available data using the current datetime as the event timestamp.
 
 ```text
 Materializing 1 feature views from 2020-01-01 to 2022-01-01

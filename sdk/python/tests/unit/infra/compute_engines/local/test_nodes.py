@@ -45,12 +45,6 @@ def create_context(node_outputs):
         entity_defs=MagicMock(),
         entity_df=entity_df,
         node_outputs=node_outputs,
-        column_info=ColumnInfo(
-            join_keys=["entity_id"],
-            feature_cols=["value"],
-            ts_col="event_timestamp",
-            created_ts_col=None,
-        ),
     )
 
 
@@ -64,6 +58,12 @@ def test_local_filter_node():
         name="filter",
         backend=backend,
         filter_expr="value > 15",
+        column_info=ColumnInfo(
+            join_keys=["entity_id"],
+            feature_cols=["value"],
+            ts_col="event_timestamp",
+            created_ts_col=None,
+        ),
     )
     filter_node.add_input(MagicMock())
     filter_node.inputs[0].name = "source"
@@ -110,6 +110,12 @@ def test_local_join_node():
     join_node = LocalJoinNode(
         name="join",
         backend=backend,
+        column_info=ColumnInfo(
+            join_keys=["entity_id"],
+            feature_cols=["value"],
+            ts_col="event_timestamp",
+            created_ts_col=None,
+        ),
     )
     join_node.add_input(MagicMock())
     join_node.inputs[0].name = "source"
@@ -156,7 +162,16 @@ def test_local_dedup_node():
     context.entity_timestamp_col = "event_timestamp"
 
     # Build node
-    node = LocalDedupNode(name="dedup", backend=backend)
+    node = LocalDedupNode(
+        name="dedup",
+        backend=backend,
+        column_info=ColumnInfo(
+            join_keys=["entity_id"],
+            feature_cols=["value"],
+            ts_col="event_timestamp",
+            created_ts_col="created_ts",
+        ),
+    )
     node.add_input(MagicMock())
     node.inputs[0].name = "source"
 

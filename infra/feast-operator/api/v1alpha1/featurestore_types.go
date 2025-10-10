@@ -68,8 +68,8 @@ const (
 
 // FeatureStoreSpec defines the desired state of FeatureStore
 type FeatureStoreSpec struct {
-	// +kubebuilder:validation:Pattern="^[A-Za-z0-9][A-Za-z0-9_]*$"
-	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required.
+	// +kubebuilder:validation:Pattern="^[A-Za-z0-9][A-Za-z0-9_-]*$"
+	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores and hyphens, but it cannot start with an underscore or hyphen. Required.
 	FeastProject    string                `json:"feastProject"`
 	FeastProjectDir *FeastProjectDir      `json:"feastProjectDir,omitempty"`
 	Services        *FeatureStoreServices `json:"services,omitempty"`
@@ -105,7 +105,7 @@ type GitCloneOptions struct {
 type FeastInitOptions struct {
 	Minimal bool `json:"minimal,omitempty"`
 	// Template for the created project
-	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase;clickhouse
 	Template string `json:"template,omitempty"`
 }
 
@@ -278,6 +278,7 @@ type FeatureStoreServices struct {
 	// Creates a UI server container
 	UI                 *ServerConfigs             `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
+	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
@@ -314,7 +315,7 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse;ray
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -332,6 +333,8 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"athena",
 	"mssql",
 	"couchbase.offline",
+	"clickhouse",
+	"ray",
 }
 
 // OnlineStore configures the online store service
@@ -390,8 +393,8 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 // LocalRegistryConfig configures the registry service
 type LocalRegistryConfig struct {
 	// Creates a registry server container
-	Server      *ServerConfigs       `json:"server,omitempty"`
-	Persistence *RegistryPersistence `json:"persistence,omitempty"`
+	Server      *RegistryServerConfigs `json:"server,omitempty"`
+	Persistence *RegistryPersistence   `json:"persistence,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -498,6 +501,18 @@ type ServerConfigs struct {
 	// required by the Feast components. Ensure that each volume mount has a corresponding
 	// volume definition in the Volumes field.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+}
+
+// RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
+// +kubebuilder:validation:XValidation:rule="self.restAPI == true || self.grpc == true || !has(self.grpc)", message="At least one of restAPI or grpc must be true"
+type RegistryServerConfigs struct {
+	ServerConfigs `json:",inline"`
+
+	// Enable REST API registry server.
+	RestAPI *bool `json:"restAPI,omitempty"`
+
+	// Enable gRPC registry server. Defaults to true if unset.
+	GRPC *bool `json:"grpc,omitempty"`
 }
 
 // CronJobContainerConfigs k8s container settings for the CronJob
@@ -611,6 +626,7 @@ type ServiceHostnames struct {
 	OfflineStore string `json:"offlineStore,omitempty"`
 	OnlineStore  string `json:"onlineStore,omitempty"`
 	Registry     string `json:"registry,omitempty"`
+	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`
 }
 

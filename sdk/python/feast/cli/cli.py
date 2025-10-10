@@ -47,6 +47,7 @@ from feast.cli.serve import (
 from feast.cli.stream_feature_views import stream_feature_views_cmd
 from feast.cli.ui import ui
 from feast.cli.validation_references import validation_references_cmd
+from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.errors import FeastProviderLoginError
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -81,7 +82,8 @@ class NoOptionDefaultFormat(click.Command):
 @click.option(
     "--chdir",
     "-c",
-    help="Switch to a different feature repository directory before executing the given subcommand.",
+    envvar="FEATURE_REPO_DIR_ENV_VAR",
+    help="Switch to a different feature repository directory before executing the given subcommand. Can also be set via the FEATURE_REPO_DIR_ENV_VAR environment variable.",
 )
 @click.option(
     "--log-level",
@@ -91,7 +93,7 @@ class NoOptionDefaultFormat(click.Command):
 @click.option(
     "--feature-store-yaml",
     "-f",
-    help="Override the directory where the CLI should look for the feature_store.yaml file.",
+    help=f"Override the directory where the CLI should look for the feature_store.yaml file. Can also be set via the {FEAST_FS_YAML_FILE_PATH_ENV_NAME} environment variable.",
 )
 @click.pass_context
 def cli(
@@ -138,7 +140,61 @@ def version():
     """
     Display Feast SDK version
     """
-    print(f'Feast SDK Version: "{importlib_version("feast")}"')
+    print(
+        f'{Style.BRIGHT + Fore.BLUE}Feast SDK Version: {Style.BRIGHT + Fore.GREEN}"{importlib_version("feast")}"'
+    )
+
+
+@cli.command()
+@click.argument("object_id")
+@click.pass_context
+def delete(ctx: click.Context, object_id: str):
+    """
+    Delete Feast Object
+    """
+    repo = ctx.obj["CHDIR"]
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    store = create_feature_store(ctx)
+
+    e = None
+    object_type = None
+
+    # Order matters if names can overlap between types,
+    # though typically they shouldn't in a well-structured feature store.
+    object_getters_and_types = [
+        (store.get_entity, "Entity"),
+        (store.get_feature_view, "FeatureView"),
+        (store.get_feature_service, "FeatureService"),
+        (store.get_data_source, "DataSource"),
+        (store.get_saved_dataset, "SavedDataset"),
+        (store.get_validation_reference, "ValidationReference"),
+        (store.get_stream_feature_view, "StreamFeatureView"),
+        (store.get_on_demand_feature_view, "OnDemandFeatureView"),
+        # Add other get_* methods here if needed
+    ]
+
+    for getter, obj_type_str in object_getters_and_types:
+        try:
+            potential_e = getter(object_id)  # type: ignore[operator]
+            if potential_e:
+                e = potential_e
+                object_type = obj_type_str
+                break
+        except Exception:
+            pass
+
+    if isinstance(e, list):
+        e = e[0]
+    if e:
+        store.apply([e], objects_to_delete=[e], partial=False)
+        print(
+            f"{Style.BRIGHT + Fore.RED}Deleted {Style.BRIGHT + Fore.GREEN}{object_type} {Fore.YELLOW}{object_id} from {Fore.GREEN}{store.project}.{Style.RESET_ALL}"
+        )
+    else:
+        print(
+            f"{Style.BRIGHT + Fore.GREEN}Object not found. Deletion skipped.{Style.RESET_ALL}"
+        )
 
 
 @cli.command()
@@ -247,17 +303,26 @@ def registry_dump_command(ctx: click.Context):
 
 
 @cli.command("materialize")
-@click.argument("start_ts")
-@click.argument("end_ts")
+@click.argument("start_ts", required=False)
+@click.argument("end_ts", required=False)
 @click.option(
     "--views",
     "-v",
     help="Feature views to materialize",
     multiple=True,
 )
+@click.option(
+    "--disable-event-timestamp",
+    is_flag=True,
+    help="Materialize all available data using current datetime as event timestamp (useful when source data lacks event timestamps)",
+)
 @click.pass_context
 def materialize_command(
-    ctx: click.Context, start_ts: str, end_ts: str, views: List[str]
+    ctx: click.Context,
+    start_ts: Optional[str],
+    end_ts: Optional[str],
+    views: List[str],
+    disable_event_timestamp: bool,
 ):
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
@@ -266,13 +331,35 @@ def materialize_command(
     Views will be materialized.
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
+
+    If --disable-event-timestamp is used, timestamps are not required and all available data will be materialized using the current datetime as the event timestamp.
     """
     store = create_feature_store(ctx)
 
+    if disable_event_timestamp:
+        if start_ts or end_ts:
+            raise click.UsageError(
+                "Cannot specify START_TS or END_TS when --disable-event-timestamp is used"
+            )
+        now = datetime.now()
+        # Query all available data and use current datetime as event timestamp
+        start_date = datetime(
+            1970, 1, 1
+        )  # Beginning of time to capture all historical data
+        end_date = now
+    else:
+        if not start_ts or not end_ts:
+            raise click.UsageError(
+                "START_TS and END_TS are required unless --disable-event-timestamp is used"
+            )
+        start_date = utils.make_tzaware(parser.parse(start_ts))
+        end_date = utils.make_tzaware(parser.parse(end_ts))
+
     store.materialize(
         feature_views=None if not views else views,
-        start_date=utils.make_tzaware(parser.parse(start_ts)),
-        end_date=utils.make_tzaware(parser.parse(end_ts)),
+        start_date=start_date,
+        end_date=end_date,
+        disable_event_timestamp=disable_event_timestamp,
     )
 
 
@@ -323,6 +410,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "ikv",
             "couchbase",
             "milvus",
+            "ray",
         ],
         case_sensitive=False,
     ),
