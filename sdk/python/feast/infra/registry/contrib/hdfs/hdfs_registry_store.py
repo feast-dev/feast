@@ -4,6 +4,8 @@ from pathlib import Path, PurePosixPath
 from typing import Optional
 from urllib.parse import urlparse
 
+from pyarrow import fs
+
 from feast.infra.registry.registry_store import RegistryStore
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
@@ -35,8 +37,8 @@ class HDFSRegistryStore(RegistryStore):
 
     def get_registry_proto(self):
         registry_proto = RegistryProto()
-        if self._hdfs.exists(str(self._path)):
-            with self._hdfs.open(str(self._path), "rb") as f:
+        if _check_hdfs_path_exists(self._hdfs, str(self._path)):
+            with self._hdfs.open_input_file(str(self._path)) as f:
                 registry_proto.ParseFromString(f.read())
             return registry_proto
         raise FileNotFoundError(
@@ -47,11 +49,10 @@ class HDFSRegistryStore(RegistryStore):
         self._write_registry(registry_proto)
 
     def teardown(self):
-        try:
-            self._hdfs.delete(str(self._path))
-        except FileNotFoundError:
-            # If the file deletion fails with FileNotFoundError, the file has already
-            # been deleted.
+        if _check_hdfs_path_exists(self._hdfs, str(self._path)):
+            self._hdfs.delete_file(str(self._path))
+        else:
+            # Nothing to do
             pass
 
     def _write_registry(self, registry_proto: RegistryProto):
@@ -60,10 +61,10 @@ class HDFSRegistryStore(RegistryStore):
         registry_proto.last_updated.FromDatetime(_utc_now())
 
         dir_path = self._path.parent
-        if not self._hdfs.exists(str(dir_path)):
-            self._hdfs.mkdir(str(dir_path))
+        if not _check_hdfs_path_exists(self._hdfs, str(dir_path)):
+            self._hdfs.create_dir(str(dir_path), recursive=True)
 
-        with self._hdfs.open(str(self._path), "wb") as f:
+        with self._hdfs.open_output_stream(str(self._path)) as f:
             f.write(registry_proto.SerializeToString())
 
     def set_project_metadata(self, project: str, key: str, value: str):
@@ -113,3 +114,8 @@ class HDFSRegistryStore(RegistryStore):
                     return None
                 return meta.get(key, None)
         return None
+
+
+def _check_hdfs_path_exists(hdfs, path: str) -> bool:
+    info = hdfs.get_file_info([path])[0]
+    return info.type != fs.FileType.NotFound
