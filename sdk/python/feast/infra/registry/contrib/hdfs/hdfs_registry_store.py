@@ -1,7 +1,6 @@
-import uuid
 import json
-from pathlib import PurePosixPath, Path
-from tempfile import TemporaryFile
+import uuid
+from pathlib import Path, PurePosixPath
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -15,16 +14,22 @@ class HDFSRegistryStore(RegistryStore):
     """HDFS implementation of RegistryStore.
     registryConfig.path should be a hdfs path like hdfs://namenode:8020/path/to/registry.db
     """
+
     def __init__(self, registry_config: RegistryConfig, repo_path: Path):
         try:
             from pyarrow.fs import HadoopFileSystem
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
-            raise FeastExtrasDependencyImportError("pyarrow.fs.HadoopFileSystem", str(e))
+
+            raise FeastExtrasDependencyImportError(
+                "pyarrow.fs.HadoopFileSystem", str(e)
+            )
         uri = registry_config.path
         self._uri = urlparse(uri)
         if self._uri.scheme != "hdfs":
-            raise ValueError(f"Unsupported scheme {self._uri.scheme} in HDFS path {uri}")
+            raise ValueError(
+                f"Unsupported scheme {self._uri.scheme} in HDFS path {uri}"
+            )
         self._hdfs = HadoopFileSystem(self._uri.hostname, self._uri.port or 8020)
         self._path = PurePosixPath(self._uri.path)
 
@@ -48,15 +53,6 @@ class HDFSRegistryStore(RegistryStore):
             # If the file deletion fails with FileNotFoundError, the file has already
             # been deleted.
             pass
-
-    def _write_registry(self, registry_proto: RegistryProto):
-        registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(_utc_now())
-        dir_path = self._path.parent
-        if not self._hdfs.exists(str(dir_path)):
-            self._hdfs.mkdir(str(dir_path))
-        with self._hdfs.open(str(self._path), "wb") as f:
-            f.write(registry_proto.SerializeToString())
 
     def _write_registry(self, registry_proto: RegistryProto):
         """Write registry protobuf to HDFS."""
@@ -94,6 +90,7 @@ class HDFSRegistryStore(RegistryStore):
         if not found:
             # Create new ProjectMetadata entry
             from feast.project_metadata import ProjectMetadata
+
             pm = ProjectMetadata(project_name=project)
             pm.project_uuid = json.dumps({key: value})
             registry_proto.project_metadata.append(pm.to_proto())

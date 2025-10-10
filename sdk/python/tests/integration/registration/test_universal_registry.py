@@ -22,8 +22,10 @@ from unittest import mock
 
 import grpc_testing
 import pandas as pd
+import pyarrow.fs as fs
 import pytest
 from pytest_lazyfixture import lazy_fixture
+from testcontainers.core.container import DockerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
 
@@ -280,6 +282,29 @@ def sqlite_registry():
     yield SqlRegistry(registry_config, "project", None)
 
 
+HDFS_IMAGE = "bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8"
+HDFS_PORT = 8020
+
+
+@pytest.fixture(scope="function")
+def hdfs_registry():
+    hdfs_image = HDFS_IMAGE
+    with DockerContainer(hdfs_image) as hdfs_container:
+        host = hdfs_container.get_container_host_ip()
+        port = HDFS_PORT
+        hdfs = fs.HadoopFileSystem(host=host, port=port)
+        hdfs.create_dir("/feast")
+
+        registry_path = f"hdfs://{host}:{port}/feast/registry.db"
+        with hdfs.open_output_stream(registry_path) as f:
+            f.write(b"")
+
+            registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
+        reg = Registry("project", registry_config, None)
+
+        yield reg
+
+
 class GrpcMockChannel:
     def __init__(self, service, servicer):
         self.service = service
@@ -349,6 +374,10 @@ else:
         pytest.param(
             lazy_fixture("mock_remote_registry"),
             marks=pytest.mark.rbac_remote_integration_test,
+        ),
+        pytest.param(
+            lazy_fixture("hdfs_registry"),
+            marks=pytest.mark.xdist_group(name="hdfs_registry"),
         ),
     ]
 
