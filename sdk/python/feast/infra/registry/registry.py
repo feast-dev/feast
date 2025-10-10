@@ -62,7 +62,7 @@ REGISTRY_STORE_CLASS_FOR_TYPE = {
     "S3RegistryStore": "feast.infra.registry.s3.S3RegistryStore",
     "FileRegistryStore": "feast.infra.registry.file.FileRegistryStore",
     "AzureRegistryStore": "feast.infra.registry.contrib.azure.azure_registry_store.AzBlobRegistryStore",
-    "HDFSRegistryStore": "feast.infra.registry.contrib.hdfs.hdfs_registry_store.HDFSRegistryStore"
+    "HDFSRegistryStore": "feast.infra.registry.contrib.hdfs.hdfs_registry_store.HDFSRegistryStore",
 }
 
 REGISTRY_STORE_CLASS_FOR_SCHEME = {
