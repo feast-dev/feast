@@ -153,6 +153,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
 	HADOOP_HOME=$$HOME/hadoop \
 	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
+	HADOOP_USER_NAME=root \
 	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
