@@ -90,8 +90,8 @@ install-python-dependencies-ci: ## Install Python CI dependencies in system envi
 # Used in github actions/ci
 install-hadoop-dependencies-ci: ## Install Hadoop dependencies
 	wget -q https://dlcdn.apache.org/hadoop/common/hadoop-3.4.2/hadoop-3.4.2.tar.gz
-	tar -xzf hadoop-3.4.2.tar.gz -C $HOME
-	mv $HOME/hadoop-3.4.2 $HOME/hadoop
+	tar -xzf hadoop-3.4.2.tar.gz -C $$HOME
+	mv $$HOME/hadoop-3.4.2 $$HOME/hadoop
 # Used by multicloud/Dockerfile.dev
 install-python-ci-dependencies: ## Install Python CI dependencies in system environment using piptools
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
