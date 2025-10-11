@@ -289,8 +289,8 @@ def hdfs_registry():
     HADOOP_NAMENODE_IMAGE = "bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8"
     HADOOP_DATANODE_IMAGE = "bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8"
     HDFS_CLUSTER_NAME = "feast-hdfs-cluster"
-    HADOOP_NAMENODE_WAIT_LOG = "ipc.Server: IPC Server listener on 8020: starting"
-    HADOOP_DATANODE_WAIT_LOG = "ipc.Server: IPC Server listener on 9867: starting"
+    HADOOP_NAMENODE_WAIT_LOG = "namenode.NameNode: NameNode RPC up"
+    HADOOP_DATANODE_WAIT_LOG = "datanode.DataNode: .*successfully registered with NN"
     with Network() as network:
         namenode = None
         datanode = None
