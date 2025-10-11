@@ -144,6 +144,7 @@ def python_type_to_feast_value_type(
         "int": ValueType.INT64,
         "str": ValueType.STRING,
         "string": ValueType.STRING,  # pandas.StringDtype
+        "object": ValueType.STRING,  # pandas often uses object dtype for strings
         "float": ValueType.DOUBLE,
         "bytes": ValueType.BYTES,
         "float64": ValueType.DOUBLE,

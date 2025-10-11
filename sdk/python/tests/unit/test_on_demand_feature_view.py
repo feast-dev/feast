@@ -17,6 +17,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import pytest
 
+from feast.data_source import RequestSource
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
@@ -26,7 +27,7 @@ from feast.on_demand_feature_view import (
     PythonTransformation,
     on_demand_feature_view,
 )
-from feast.types import Float32
+from feast.types import Float32, String
 
 
 def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -418,3 +419,40 @@ def test_function_call_syntax():
 
     deserialized = OnDemandFeatureView.from_proto(proto)
     assert deserialized.name == CUSTOM_FUNCTION_NAME
+
+
+def test_on_demand_string_features():
+    """Test that on-demand feature views work with STRING type inputs from RequestSource."""
+    # Define a request data source with STRING type fields
+    input_request = RequestSource(
+        name="vals_to_add",
+        schema=[
+            Field(name="val_to_add", dtype=String),
+            Field(name="val_to_add_2", dtype=String),
+        ],
+    )
+
+    # Use input data to create new features in Pandas mode
+    @on_demand_feature_view(
+        sources=[input_request],
+        schema=[
+            Field(name="conv_rate_plus_val1", dtype=String),
+            Field(name="conv_rate_plus_val2", dtype=String),
+        ],
+        mode="pandas",
+    )
+    def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame()
+        df["conv_rate_plus_val1"] = features_df["val_to_add"]
+        df["conv_rate_plus_val2"] = features_df["val_to_add_2"]
+        return df
+
+    # This should work without raising ValueError about 'object' type
+    transformed_conv_rate.infer_features()
+
+    # Verify the inferred features have the correct type
+    assert len(transformed_conv_rate.features) == 2
+    assert transformed_conv_rate.features[0].name == "conv_rate_plus_val1"
+    assert transformed_conv_rate.features[0].dtype == String
+    assert transformed_conv_rate.features[1].name == "conv_rate_plus_val2"
+    assert transformed_conv_rate.features[1].dtype == String
