@@ -1,9 +1,13 @@
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import pyarrow as pa
 
-from feast.infra.compute_engines.local.backends.base import DataFrameBackend
+from feast.infra.compute_engines.backends.base import DataFrameBackend
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class PandasBackend(DataFrameBackend):
@@ -44,3 +48,15 @@ class PandasBackend(DataFrameBackend):
 
     def rename_columns(self, df, columns: dict[str, str]):
         return df.rename(columns=columns)
+
+    def get_schema(self, df) -> dict[str, "np.dtype"]:
+        """Get pandas DataFrame schema as column name to numpy dtype mapping."""
+        return {col: dtype for col, dtype in df.dtypes.items()}
+
+    def get_timestamp_range(self, df, timestamp_column: str) -> tuple:
+        """Get min/max of a timestamp column in pandas DataFrame."""
+        col = df[timestamp_column]
+        # Ensure it's datetime type
+        if not pd.api.types.is_datetime64_any_dtype(col):
+            col = pd.to_datetime(col, utc=True)
+        return (col.min().to_pydatetime(), col.max().to_pydatetime())
