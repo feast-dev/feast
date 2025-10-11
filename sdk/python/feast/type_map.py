@@ -144,7 +144,6 @@ def python_type_to_feast_value_type(
         "int": ValueType.INT64,
         "str": ValueType.STRING,
         "string": ValueType.STRING,  # pandas.StringDtype
-        "object": ValueType.STRING,  # pandas often uses object dtype for strings
         "float": ValueType.DOUBLE,
         "bytes": ValueType.BYTES,
         "float64": ValueType.DOUBLE,
@@ -169,6 +168,15 @@ def python_type_to_feast_value_type(
         "date": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
     }
+
+    # Special handling for pandas 'object' dtype - infer from actual value type
+    if type_name == "object":
+        if value is not None:
+            actual_type = type(value).__name__.lower()
+            if actual_type in type_map:
+                return type_map[actual_type]
+        # Default to STRING for object dtype (pandas commonly uses object for strings)
+        return ValueType.STRING
 
     if type_name in type_map:
         return type_map[type_name]
