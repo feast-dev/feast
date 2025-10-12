@@ -169,21 +169,22 @@ def python_type_to_feast_value_type(
         "category": ValueType.STRING,
     }
 
-    # Special handling for pandas 'object' dtype - infer from actual value type
-    if type_name == "object":
-        if value is not None:
-            actual_type = type(value).__name__.lower()
-            if actual_type in type_map:
-                return type_map[actual_type]
-        # Default to STRING for object dtype (pandas commonly uses object for strings)
-        return ValueType.STRING
-
     if type_name in type_map:
         return type_map[type_name]
 
     if isinstance(value, np.ndarray) and str(value.dtype) in type_map:
         item_type = type_map[str(value.dtype)]
         return ValueType[item_type.name + "_LIST"]
+
+    # Special handling for pandas 'object' dtype - infer from actual value type
+    # This must come after array handling to avoid intercepting array types
+    if type_name == "object":
+        if value is not None and not isinstance(value, (list, np.ndarray)):
+            actual_type = type(value).__name__.lower()
+            if actual_type in type_map:
+                return type_map[actual_type]
+        # Default to STRING for object dtype (pandas commonly uses object for strings)
+        return ValueType.STRING
 
     if isinstance(value, (list, np.ndarray)):
         # if the value's type is "ndarray" and we couldn't infer from "value.dtype"
