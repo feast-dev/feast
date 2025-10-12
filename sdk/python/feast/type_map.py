@@ -178,8 +178,8 @@ def python_type_to_feast_value_type(
 
     # Special handling for pandas 'object' dtype - infer from actual value type
     # This must come after array handling to avoid intercepting array types
-    if type_name == "object":
-        if value is not None and not isinstance(value, (list, np.ndarray)):
+    if type_name == "object" and not isinstance(value, (list, np.ndarray)):
+        if value is not None:
             actual_type = type(value).__name__.lower()
             if actual_type in type_map:
                 return type_map[actual_type]
