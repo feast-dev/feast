@@ -620,6 +620,11 @@ build-feature-server-dev-docker: ## Build Feature Server Dev Docker image
 		-t $(REGISTRY)/feature-server:$(VERSION) \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
 
+build-feature-server-dev-docker_on_mac: ## Build Feature Server Dev Docker image on Mac
+	docker buildx build --platform linux/amd64 \
+		-t $(REGISTRY)/feature-server:$(VERSION) \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
 push-feature-server-dev-docker: ## Push Feature Server Dev Docker image
 	docker push $(REGISTRY)/feature-server:$(VERSION)
 
