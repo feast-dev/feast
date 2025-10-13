@@ -626,9 +626,9 @@ environs==9.5.0 \
     --hash=sha256:1e549569a3de49c05f856f40bce86979e7d5ffbbc4398e7f338574c220189124 \
     --hash=sha256:a76307b36fbe856bdca7ee9161e6c466fd7fcffc297109a118c59b54e27e30c9
     # via pymilvus
-fastapi==0.117.1 \
-    --hash=sha256:33c51a0d21cab2b9722d4e56dbb9316f3687155be6b276191790d8da03507552 \
-    --hash=sha256:fb2d42082d22b185f904ca0ecad2e195b851030bd6c5e4c032d1c981240c631a
+fastapi==0.119.0 \
+    --hash=sha256:451082403a2c1f0b99c6bd57c09110ed5463856804c8078d38e5a1f1035dbbb7 \
+    --hash=sha256:90a2e49ed19515320abb864df570dd766be0662c5d577688f1600170f7f73cf2
     # via
     #   feast (setup.py)
     #   fastapi-mcp
