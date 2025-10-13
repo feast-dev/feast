@@ -119,7 +119,7 @@ rag = [
 ]
 ray = [
 'ray>=2.47.0; python_version == "3.10"',
-'codeflare-sdk>=0.31.1; python_version != "3.10"'
+'codeflare-sdk>=0.31.1; python_version > "3.10"'
 ]
 redis = [
     "redis>=4.2.2,<5",
