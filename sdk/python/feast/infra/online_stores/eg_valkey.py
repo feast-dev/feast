@@ -87,6 +87,9 @@ class EGValkeyOnlineStoreConfig(FeastConfigBaseModel):
     full_scan_for_deletion: Optional[bool] = True
     """(Optional) whether to scan for deletion of features"""
 
+    read_batch_size: Optional[int] = -1
+    """(Optional) number of keys to read in a single batch for online read requests. Anything <= 1 means no batching."""
+
 
 class EGValkeyOnlineStore(OnlineStore):
     """

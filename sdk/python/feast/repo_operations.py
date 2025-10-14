@@ -348,10 +348,12 @@ def extract_objects_for_apply_delete(project, registry, repo):
     return (
         all_to_apply,
         all_to_delete,
-        set(objs_to_add[FeastObjectType.FEATURE_VIEW]).union(
-            set(objs_to_update[FeastObjectType.FEATURE_VIEW])
+        set(objs_to_add[FeastObjectType.FEATURE_VIEW])
+        .union(set(objs_to_update[FeastObjectType.FEATURE_VIEW]))
+        .union(set(objs_to_update[FeastObjectType.SORTED_FEATURE_VIEW])),
+        set(objs_to_delete[FeastObjectType.FEATURE_VIEW]).union(
+            set(objs_to_delete[FeastObjectType.SORTED_FEATURE_VIEW])
         ),
-        objs_to_delete[FeastObjectType.FEATURE_VIEW],
     )
 
 

@@ -1,11 +1,13 @@
 package registry
 
 import (
-	"github.com/feast-dev/feast/go/internal/feast/errors"
+	"fmt"
 	"net/url"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/feast-dev/feast/go/internal/feast/errors"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/rs/zerolog/log"

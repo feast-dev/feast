@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 
 	// Exit with the appropriate code
 	if exitCode != 0 {
-		fmt.Printf("CassandraOnlineStore Int Tests failed with exit code %d\n", exitCode)
+		fmt.Printf("ValkeyOnlineStore Integration Tests failed with exit code %d\n", exitCode)
 	}
 	os.Exit(exitCode)
 }

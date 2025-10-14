@@ -6,11 +6,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/feast-dev/feast/go/internal/feast/model"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/feast-dev/feast/go/internal/feast/model"
 
 	"github.com/feast-dev/feast/go/internal/feast/utils"
 
@@ -224,6 +224,10 @@ func (r *RedisOnlineStore) buildRedisKeys(entityKeys []*types.EntityKey) ([]*[]b
 	return redisKeys, redisKeyToEntityIndex, nil
 }
 
+func (r *RedisOnlineStore) OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	return r.OnlineRead(ctx, entityKeys, featureViewNames, featureNames)
+}
+
 func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
 	span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
 	defer span.Finish()
@@ -356,4 +360,13 @@ func buildRedisKey(project string, entityKey *types.EntityKey, entityKeySerializ
 	}
 	fullKey := append(*serKey, []byte(project)...)
 	return &fullKey, nil
+}
+
+func (r *RedisOnlineStore) GetDataModelType() OnlineStoreDataModel {
+	return EntityLevel
+}
+
+func (r *RedisOnlineStore) GetReadBatchSize() int {
+	return -1 // No Batching
+
 }

@@ -416,6 +416,132 @@ type BatchJob struct {
 	CQLStatement string
 }
 
+func (c *CassandraOnlineStore) OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	serializedEntityKeys, serializedEntityKeyToIndex, err := c.buildCassandraEntityKeys(entityKeys)
+	if err != nil {
+		return nil, fmt.Errorf("error when serializing entity keys for Cassandra: %v", err)
+	}
+
+	featureNamesToIdx := make(map[string]int)
+	for idx, name := range featureNames {
+		featureNamesToIdx[name] = idx
+	}
+
+	featureViewName := featureViewNames[0]
+
+	tableName, err := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName, c.tableNameFormatVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	var cqlForBatch string
+	cqlForBatch = c.getMultiKeyCQLStatement(tableName, featureNames, len(serializedEntityKeys))
+
+	job := BatchJob{
+		ViewName:     featureViewName,
+		TableName:    tableName,
+		FeatureNames: featureNames,
+		EntityKeys:   serializedEntityKeys,
+		CQLStatement: cqlForBatch,
+	}
+
+	results, err := c.executeBatchV2(ctx, job, serializedEntityKeyToIndex, featureNamesToIdx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func (c *CassandraOnlineStore) executeBatchV2(
+	ctx context.Context,
+	job BatchJob,
+	serializedEntityKeyToIndex map[string]int,
+	featureNamesToIdx map[string]int,
+) ([][]FeatureData, error) {
+	results := make([][]FeatureData, len(job.EntityKeys))
+	for i := range results {
+		results[i] = make([]FeatureData, len(job.FeatureNames))
+	}
+
+	iter := c.session.Query(job.CQLStatement, job.EntityKeys...).WithContext(ctx).Iter()
+	defer iter.Close()
+
+	scanner := iter.Scanner()
+	var entityKey string
+	var featureName string
+	var eventTs time.Time
+	var valueStr []byte
+	var deserializedValue *types.Value
+
+	batchFeatures := make(map[string]map[string]*FeatureData)
+	for scanner.Next() {
+		err := scanner.Scan(&entityKey, &featureName, &eventTs, &valueStr)
+		if err != nil {
+			return nil, fmt.Errorf("could not read row in query for (entity key, feature name, value, event ts): %w", err)
+		}
+		deserializedValue, _, err = UnmarshalStoredProto(valueStr)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshaling stored proto: %w", err)
+		}
+
+		if deserializedValue.Val != nil {
+			if batchFeatures[entityKey] == nil {
+				batchFeatures[entityKey] = make(map[string]*FeatureData)
+			}
+			batchFeatures[entityKey][featureName] = &FeatureData{
+				Reference: serving.FeatureReferenceV2{
+					FeatureViewName: job.ViewName,
+					FeatureName:     featureName,
+				},
+				Timestamp: timestamppb.Timestamp{Seconds: eventTs.Unix(), Nanos: int32(eventTs.Nanosecond())},
+				Value: types.Value{
+					Val: deserializedValue.Val,
+				},
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to scan features: %w", err)
+	}
+
+	for _, serializedEntityKey := range job.EntityKeys {
+		for _, featName := range job.FeatureNames {
+			keyString := serializedEntityKey.(string)
+
+			if featureData, exists := batchFeatures[keyString][featName]; exists {
+				results[serializedEntityKeyToIndex[keyString]][featureNamesToIdx[featName]] = FeatureData{
+					Reference: serving.FeatureReferenceV2{
+						FeatureViewName: featureData.Reference.FeatureViewName,
+						FeatureName:     featureData.Reference.FeatureName,
+					},
+					Timestamp: timestamppb.Timestamp{Seconds: featureData.Timestamp.Seconds, Nanos: featureData.Timestamp.Nanos},
+					Value: types.Value{
+						Val: featureData.Value.Val,
+					},
+				}
+			} else {
+				// TODO: return not found status to differentiate between nulls and not found features
+				results[serializedEntityKeyToIndex[keyString]][featureNamesToIdx[featName]] = FeatureData{
+					Reference: serving.FeatureReferenceV2{
+						FeatureViewName: job.ViewName,
+						FeatureName:     featName,
+					},
+					Value: types.Value{
+						Val: &types.Value_NullVal{
+							NullVal: types.Null_NULL,
+						},
+					},
+				}
+			}
+		}
+	}
+
+	return results, nil
+}
+
 func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
 	serializedEntityKeys, serializedEntityKeyToIndex, err := c.buildCassandraEntityKeys(entityKeys)
 	if err != nil {
@@ -894,4 +1020,12 @@ func appendRangeFeature(row *RangeFeatureData, featName, view string, val interf
 
 func (c *CassandraOnlineStore) Destruct() {
 	c.session.Close()
+}
+
+func (c *CassandraOnlineStore) GetDataModelType() OnlineStoreDataModel {
+	return FeatureViewLevel
+}
+
+func (c *CassandraOnlineStore) GetReadBatchSize() int {
+	return c.KeyBatchSize
 }

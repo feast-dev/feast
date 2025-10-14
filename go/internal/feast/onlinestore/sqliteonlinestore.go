@@ -3,11 +3,12 @@ package onlinestore
 import (
 	"database/sql"
 	"errors"
-	"github.com/feast-dev/feast/go/internal/feast/model"
-	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/internal/feast/utils"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 
@@ -54,6 +55,12 @@ func NewSqliteOnlineStore(project string, repoConfig *registry.RepoConfig, onlin
 
 func (s *SqliteOnlineStore) Destruct() {
 	s.db.Close()
+}
+
+// Returns FeatureData 2D array. Each row corresponds to one entity Value and each column corresponds to a single feature where the number of columns should be
+// same length as the length of featureNames. Reads from every table in featureViewNames with the entity keys described.
+func (s *SqliteOnlineStore) OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	return s.OnlineRead(ctx, entityKeys, featureViewNames, featureNames)
 }
 
 // Returns FeatureData 2D array. Each row corresponds to one entity Value and each column corresponds to a single feature where the number of columns should be
@@ -154,4 +161,12 @@ func initializeConnection(db_path string) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+func (s *SqliteOnlineStore) GetDataModelType() OnlineStoreDataModel {
+	return FeatureViewLevel
+}
+
+func (s *SqliteOnlineStore) GetReadBatchSize() int {
+	return -1 // No Batching
 }
