@@ -42,7 +42,7 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: make install-python-dependencies-ci
-      - name: Instal Hadoop dependencies
+      - name: Install Hadoop dependencies
         run: make install-hadoop-dependencies-ci
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
