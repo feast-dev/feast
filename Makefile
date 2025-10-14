@@ -98,6 +98,7 @@ install-hadoop-dependencies-ci: ## Install Hadoop dependencies
 	@if [ ! -d $$HOME/hadoop ]; then \
 		echo "Extracting Hadoop tarball..."; \
 		tar -xzf $$HOME/hadoop-3.4.2.tar.gz -C $$HOME; \
+		mv $$HOME/hadoop-3.4.2 $$HOME/hadoop; \
 	fi
 install-python-ci-dependencies: ## Install Python CI dependencies in system environment using piptools
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
