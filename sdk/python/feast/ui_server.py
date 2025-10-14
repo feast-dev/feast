@@ -4,7 +4,7 @@ from importlib import resources as importlib_resources
 from typing import Callable, Optional
 
 import uvicorn
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -76,10 +76,20 @@ def get_app(
     @app.get("/registry")
     def read_registry():
         if registry_proto is None:
-            return Response(status_code=503)  # Service Unavailable
+            return Response(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+            )  # Service Unavailable
         return Response(
             content=registry_proto.SerializeToString(),
             media_type="application/octet-stream",
+        )
+
+    @app.get("/health")
+    async def health():
+        return (
+            Response(status_code=status.HTTP_200_OK)
+            if registry_proto
+            else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
         )
 
     @app.post("/save-document")
