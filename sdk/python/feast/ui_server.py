@@ -85,7 +85,7 @@ def get_app(
         )
 
     @app.get("/health")
-    async def health():
+    def health():
         return (
             Response(status_code=status.HTTP_200_OK)
             if registry_proto
