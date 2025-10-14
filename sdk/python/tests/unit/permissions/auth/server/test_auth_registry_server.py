@@ -170,7 +170,8 @@ def _test_list_entities(client_fs: FeatureStore, permissions: list[Permission]):
 
 
 def _no_permission_retrieved(permissions: list[Permission]) -> bool:
-    return len(permissions) == 0
+    # With security-first approach, no permissions means access should be denied
+    return False
 
 
 def _test_list_permissions(
@@ -278,13 +279,17 @@ def _is_permission_enabled(
     permissions: list[Permission],
     permission: Permission,
 ):
-    return _is_auth_enabled(client_fs) and (
-        _no_permission_retrieved(permissions)
-        or (
-            _permissions_exist_in_permission_list(
-                [read_permissions_perm, permission], permissions
-            )
-        )
+    # With security-first approach, if no permissions are defined, access should be denied
+    if not _is_auth_enabled(client_fs):
+        return True  # No auth enabled, allow access
+
+    # If auth is enabled but no permissions are defined, deny access (security-first)
+    if len(permissions) == 0:
+        return False
+
+    # Check if the specific permission exists
+    return _permissions_exist_in_permission_list(
+        [read_permissions_perm, permission], permissions
     )
 
 
