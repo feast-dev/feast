@@ -40,10 +40,13 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      - name: Cache Hadoop tarball
+        uses: actions/cache@v4
+        with:
+          path: ~/hadoop-3.4.2.tar.gz
+          key: hadoop-3.4.2
       - name: Install dependencies
         run: make install-python-dependencies-ci
-      - name: Install Hadoop dependencies
-        run: make install-hadoop-dependencies-ci
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: make test-python-integration-local
