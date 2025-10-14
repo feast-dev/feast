@@ -101,6 +101,19 @@ func (m *MockOnlineStore) Destruct() {
 	m.Called()
 }
 
+func (m *MockOnlineStore) GetReadBatchSize() int {
+	return -1
+}
+
+func (m *MockOnlineStore) GetDataModelType() onlinestore.OnlineStoreDataModel {
+	return onlinestore.EntityLevel
+}
+
+func (m *MockOnlineStore) OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]onlinestore.FeatureData, error) {
+	args := m.Called(ctx, entityKeys, featureViewNames, featureNames)
+	return args.Get(0).([][]onlinestore.FeatureData), args.Error(1)
+}
+
 func TestGetOnlineFeaturesRange(t *testing.T) {
 	mockStore := new(MockOnlineStore)
 

@@ -5,15 +5,16 @@ package http
 import (
 	"bytes"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/server"
-	"github.com/feast-dev/feast/go/internal/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/feast-dev/feast/go/internal/feast/server"
+	"github.com/feast-dev/feast/go/internal/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var httpServer *server.HttpServer
@@ -43,7 +44,7 @@ func TestMain(m *testing.M) {
 
 	// Exit with the appropriate code
 	if exitCode != 0 {
-		fmt.Printf("CassandraOnlineStore Int Tests failed with exit code %d\n", exitCode)
+		fmt.Printf("CassandraOnlineStore HTTP Int Tests failed with exit code %d\n", exitCode)
 	}
 	os.Exit(exitCode)
 }

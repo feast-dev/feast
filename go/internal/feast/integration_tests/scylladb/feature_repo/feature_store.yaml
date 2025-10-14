@@ -14,7 +14,7 @@ online_store:
     table_name_format_version: 2
     read_batch_size: 2
     write_batch_size: 100
-    write_concurrency: 2
+    write_concurrency: 5
     write_rate_limit: 10
     protocol_version: 4
 entity_key_serialization_version: 2

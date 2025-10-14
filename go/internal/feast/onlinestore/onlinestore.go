@@ -3,6 +3,7 @@ package onlinestore
 import (
 	"context"
 	"fmt"
+
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -15,6 +16,13 @@ type FeatureData struct {
 	Timestamp timestamppb.Timestamp
 	Value     types.Value
 }
+
+type OnlineStoreDataModel int
+
+const (
+	EntityLevel OnlineStoreDataModel = iota
+	FeatureViewLevel
+)
 
 type RangeFeatureData struct {
 	FeatureView     string
@@ -45,11 +53,19 @@ type OnlineStore interface {
 	// and reuse them in GetOnlineFeaturesResponse?
 	OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error)
 
+	OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error)
+
 	OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]RangeFeatureData, error)
 
 	// Destruct must be call once user is done using OnlineStore
 	// This is to comply with the Connector since we have to close the plugin
 	Destruct()
+
+	GetDataModelType() OnlineStoreDataModel
+
+	// GetReadBatchSize Return value <= 0 to indicate no batching
+	// Return value > 0 indicates reads should be batched
+	GetReadBatchSize() int
 }
 
 func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool) {

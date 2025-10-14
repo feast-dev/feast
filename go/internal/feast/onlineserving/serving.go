@@ -3,11 +3,12 @@ package onlineserving
 import (
 	"crypto/sha256"
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/feast-dev/feast/go/internal/feast/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"sort"
-	"strings"
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/memory"
@@ -83,6 +84,18 @@ type GroupedFeaturesPerEntitySet struct {
 	EntityKeys []*prototypes.EntityKey
 	// Reversed mapping to project result of retrieval from storage to response
 	Indices [][]int
+}
+
+type GroupedFeaturesBatch struct {
+	// A list of requested feature references of the form featureViewName:featureName that share this entity set
+	FeatureNames     []string
+	FeatureViewNames []string
+	// full feature references as they supposed to appear in response
+	AliasedFeatureNames []string
+	// Entity set as a list of EntityKeys to pass to OnlineRead
+	EntityKeys []*prototypes.EntityKey
+	// Start Index of the Batch
+	StartIndex int
 }
 
 /*
@@ -1087,79 +1100,140 @@ func GroupFeatureRefs(requestedFeatureViews []*FeatureViewAndRefs,
 	joinKeyValues map[string]*prototypes.RepeatedValue,
 	entityNameToJoinKeyMap map[string]string,
 	fullFeatureNames bool,
-) (map[string]*GroupedFeaturesPerEntitySet,
-	error,
+) (map[string]*GroupedFeaturesPerEntitySet, error) {
+	return GroupFeatureRefsByEntity(requestedFeatureViews, joinKeyValues, entityNameToJoinKeyMap, fullFeatureNames)
+}
+
+func buildGroupedFeaturesPerEntitySet(
+	fv *model.FeatureView,
+	featureNames []string,
+	joinKeyValues map[string]*prototypes.RepeatedValue,
+	entityNameToJoinKeyMap map[string]string,
+	fullFeatureNames bool,
+) (
+	groupKey string,
+	aliasedFeatureNames []string,
+	featureViewNames []string,
+	uniqueEntityRows []*prototypes.EntityKey,
+	mappingIndices [][]int,
+	err error,
 ) {
-	groups := make(map[string]*GroupedFeaturesPerEntitySet)
+	joinKeys := make([]string, 0)
+	for _, entityName := range fv.EntityNames {
+		joinKeys = append(joinKeys, entityNameToJoinKeyMap[entityName])
+	}
 
-	for _, featuresAndView := range requestedFeatureViews {
-		joinKeys := make([]string, 0)
-		fv := featuresAndView.View
-		featureNames := featuresAndView.FeatureRefs
-		for _, entityName := range fv.EntityNames {
-			joinKeys = append(joinKeys, entityNameToJoinKeyMap[entityName])
-		}
+	groupKeyBuilder := make([]string, 0)
+	joinKeysValuesProjection := make(map[string]*prototypes.RepeatedValue)
 
-		groupKeyBuilder := make([]string, 0)
-		joinKeysValuesProjection := make(map[string]*prototypes.RepeatedValue)
+	joinKeyToAliasMap := make(map[string]string)
+	if fv.Base.Projection != nil && fv.Base.Projection.JoinKeyMap != nil {
+		joinKeyToAliasMap = fv.Base.Projection.JoinKeyMap
+	}
 
-		joinKeyToAliasMap := make(map[string]string)
-		if fv.Base.Projection != nil && fv.Base.Projection.JoinKeyMap != nil {
-			joinKeyToAliasMap = fv.Base.Projection.JoinKeyMap
-		}
-
-		for _, joinKey := range joinKeys {
-			var joinKeyOrAlias string
-
-			if alias, ok := joinKeyToAliasMap[joinKey]; ok {
-				groupKeyBuilder = append(groupKeyBuilder, fmt.Sprintf("%s[%s]", joinKey, alias))
-				joinKeyOrAlias = alias
-			} else {
-				groupKeyBuilder = append(groupKeyBuilder, joinKey)
-				joinKeyOrAlias = joinKey
-			}
-
-			if _, ok := joinKeyValues[joinKeyOrAlias]; !ok {
-				return nil, errors.GrpcInvalidArgumentErrorf("key %s is missing in provided entity rows for view %s", joinKey, fv.Base.Name)
-			}
-			joinKeysValuesProjection[joinKey] = joinKeyValues[joinKeyOrAlias]
-		}
-
-		sort.Strings(groupKeyBuilder)
-		groupKey := strings.Join(groupKeyBuilder, ",")
-
-		aliasedFeatureNames := make([]string, 0)
-		featureViewNames := make([]string, 0)
-		var viewNameToUse string
-		if fv.Base.Projection != nil {
-			viewNameToUse = fv.Base.Projection.NameToUse()
+	for _, joinKey := range joinKeys {
+		var joinKeyOrAlias string
+		if alias, ok := joinKeyToAliasMap[joinKey]; ok {
+			groupKeyBuilder = append(groupKeyBuilder, fmt.Sprintf("%s[%s]", joinKey, alias))
+			joinKeyOrAlias = alias
 		} else {
-			viewNameToUse = fv.Base.Name
+			groupKeyBuilder = append(groupKeyBuilder, joinKey)
+			joinKeyOrAlias = joinKey
 		}
-
-		for _, featureName := range featureNames {
-			aliasedFeatureNames = append(aliasedFeatureNames,
-				getQualifiedFeatureName(viewNameToUse, featureName, fullFeatureNames))
-			featureViewNames = append(featureViewNames, fv.Base.Name)
+		if _, ok := joinKeyValues[joinKeyOrAlias]; !ok {
+			err = errors.GrpcInvalidArgumentErrorf("key %s is missing in provided entity rows for view %s", joinKey, fv.Base.Name)
+			return
 		}
+		joinKeysValuesProjection[joinKey] = joinKeyValues[joinKeyOrAlias]
+	}
 
+	sort.Strings(groupKeyBuilder)
+	groupKey = strings.Join(groupKeyBuilder, ",")
+
+	aliasedFeatureNames = make([]string, 0)
+	featureViewNames = make([]string, 0)
+	var viewNameToUse string
+	if fv.Base.Projection != nil {
+		viewNameToUse = fv.Base.Projection.NameToUse()
+	} else {
+		viewNameToUse = fv.Base.Name
+	}
+	for _, featureName := range featureNames {
+		aliasedFeatureNames = append(aliasedFeatureNames, getQualifiedFeatureName(viewNameToUse, featureName, fullFeatureNames))
+		featureViewNames = append(featureViewNames, fv.Base.Name)
+	}
+
+	joinKeysProto := entityKeysToProtos(joinKeysValuesProjection)
+	uniqueEntityRows, mappingIndices, err = getUniqueEntityRows(joinKeysProto)
+	return
+}
+
+func GroupFeatureRefsV2(requestedFeatureViews []*FeatureViewAndRefs,
+	joinKeyValues map[string]*prototypes.RepeatedValue,
+	entityNameToJoinKeyMap map[string]string,
+	fullFeatureNames bool,
+	dataModel onlinestore.OnlineStoreDataModel,
+) ([]*GroupedFeaturesPerEntitySet, error) {
+	if dataModel == onlinestore.FeatureViewLevel {
+		return GroupFeatureRefsByFeatureView(requestedFeatureViews, joinKeyValues, entityNameToJoinKeyMap, fullFeatureNames)
+	}
+
+	// Convert map to slice when grouping by entity
+	groups, err := GroupFeatureRefsByEntity(requestedFeatureViews, joinKeyValues, entityNameToJoinKeyMap, fullFeatureNames)
+	if err != nil {
+		return nil, err
+	}
+	listGroups := make([]*GroupedFeaturesPerEntitySet, 0, len(groups))
+	for _, group := range groups {
+		listGroups = append(listGroups, group)
+	}
+	return listGroups, nil
+}
+
+func GroupFeatureRefsByFeatureView(requestedFeatureViews []*FeatureViewAndRefs,
+	joinKeyValues map[string]*prototypes.RepeatedValue,
+	entityNameToJoinKeyMap map[string]string,
+	fullFeatureNames bool) ([]*GroupedFeaturesPerEntitySet, error) {
+	groups := make([]*GroupedFeaturesPerEntitySet, 0)
+	for _, featuresAndView := range requestedFeatureViews {
+		_, aliasedFeatureNames, featureViewNames, uniqueEntityRows, mappingIndices, err :=
+			buildGroupedFeaturesPerEntitySet(featuresAndView.View, featuresAndView.FeatureRefs, joinKeyValues, entityNameToJoinKeyMap, fullFeatureNames)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, &GroupedFeaturesPerEntitySet{
+			FeatureNames:        featuresAndView.FeatureRefs,
+			FeatureViewNames:    featureViewNames,
+			AliasedFeatureNames: aliasedFeatureNames,
+			Indices:             mappingIndices,
+			EntityKeys:          uniqueEntityRows,
+		})
+	}
+	return groups, nil
+}
+
+func GroupFeatureRefsByEntity(requestedFeatureViews []*FeatureViewAndRefs,
+	joinKeyValues map[string]*prototypes.RepeatedValue,
+	entityNameToJoinKeyMap map[string]string,
+	fullFeatureNames bool,
+) (map[string]*GroupedFeaturesPerEntitySet, error) {
+	groups := make(map[string]*GroupedFeaturesPerEntitySet)
+	for _, featuresAndView := range requestedFeatureViews {
+		groupKey, aliasedFeatureNames, featureViewNames, uniqueEntityRows, mappingIndices, err :=
+			buildGroupedFeaturesPerEntitySet(featuresAndView.View, featuresAndView.FeatureRefs, joinKeyValues, entityNameToJoinKeyMap, fullFeatureNames)
+		if err != nil {
+			return nil, err
+		}
 		if _, ok := groups[groupKey]; !ok {
-			joinKeysProto := entityKeysToProtos(joinKeysValuesProjection)
-			uniqueEntityRows, mappingIndices, err := getUniqueEntityRows(joinKeysProto)
-			if err != nil {
-				return nil, err
-			}
-
 			groups[groupKey] = &GroupedFeaturesPerEntitySet{
-				FeatureNames:        featureNames,
+				FeatureNames:        featuresAndView.FeatureRefs,
 				FeatureViewNames:    featureViewNames,
 				AliasedFeatureNames: aliasedFeatureNames,
 				Indices:             mappingIndices,
 				EntityKeys:          uniqueEntityRows,
 			}
-
 		} else {
-			groups[groupKey].FeatureNames = append(groups[groupKey].FeatureNames, featureNames...)
+			groups[groupKey].FeatureNames = append(groups[groupKey].FeatureNames, featuresAndView.FeatureRefs...)
 			groups[groupKey].AliasedFeatureNames = append(groups[groupKey].AliasedFeatureNames, aliasedFeatureNames...)
 			groups[groupKey].FeatureViewNames = append(groups[groupKey].FeatureViewNames, featureViewNames...)
 		}
@@ -1353,4 +1427,36 @@ func (e featureNameCollisionError) Error() string {
 
 func (e featureNameCollisionError) GRPCStatus() *status.Status {
 	return status.New(codes.InvalidArgument, e.Error())
+}
+
+func BatchGroupedFeatureRef(groupRef *GroupedFeaturesPerEntitySet, batchSize int) []*GroupedFeaturesBatch {
+	// Split groupRef into multiple groups with each group having at most batchSize entity rows.
+	if batchSize <= 0 {
+		return []*GroupedFeaturesBatch{
+			{
+				FeatureNames:        groupRef.FeatureNames,
+				FeatureViewNames:    groupRef.FeatureViewNames,
+				AliasedFeatureNames: groupRef.AliasedFeatureNames,
+				EntityKeys:          groupRef.EntityKeys,
+				StartIndex:          0,
+			},
+		}
+	}
+	numEntities := len(groupRef.EntityKeys)
+
+	var batches []*GroupedFeaturesBatch
+	for i := 0; i < numEntities; i += batchSize {
+		end := i + batchSize
+		if end > numEntities {
+			end = numEntities
+		}
+		batches = append(batches, &GroupedFeaturesBatch{
+			FeatureNames:        groupRef.FeatureNames,
+			FeatureViewNames:    groupRef.FeatureViewNames,
+			AliasedFeatureNames: groupRef.AliasedFeatureNames,
+			EntityKeys:          groupRef.EntityKeys[i:end],
+			StartIndex:          i,
+		})
+	}
+	return batches
 }

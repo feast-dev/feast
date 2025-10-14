@@ -526,7 +526,7 @@ func RepeatedProtoValuesToArrowArray(repeatedValues []*types.RepeatedValue, allo
 				}
 
 				nullListBuilder.Append(true)
-				for _, _ = range repeatedVal.Val {
+				for range repeatedVal.Val {
 					nullValueBuilder.AppendNull()
 				}
 			}

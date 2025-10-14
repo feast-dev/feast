@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-  
-	"github.com/feast-dev/feast/go/internal/feast/errors"
-	"github.com/feast-dev/feast/go/types"
 
-	"golang.org/x/sync/errgroup"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/feast-dev/feast/go/internal/feast/errors"
+	"github.com/feast-dev/feast/go/types"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -250,47 +249,95 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	entitylessCase := checkEntitylessCase(featureViews)
 	addDummyEntityIfNeeded(entitylessCase, joinKeyToEntityValues, numRows)
 
-	groupedRefs, err := onlineserving.GroupFeatureRefs(requestedFeatureViews, joinKeyToEntityValues, entityNameToJoinKeyMap, fullFeatureNames)
-	if err != nil {
-		return nil, err
-	}
-
-	resultChan := make(chan []*onlineserving.FeatureVector, len(groupedRefs))
-	g, ctx := errgroup.WithContext(ctx) // Can consider adding 'setLimit' and a variable to limit the max number of concurrent reads to prevent thundering herd.
-	for _, groupRef := range groupedRefs {
-		g.Go(func(grpRef *onlineserving.GroupedFeaturesPerEntitySet) func() error {
-			return func() error {
-				featureData, err := fs.readFromOnlineStore(ctx, grpRef.EntityKeys, grpRef.FeatureViewNames, grpRef.FeatureNames)
-				if err != nil {
-					return err
-				}
-
-				vectors, err := onlineserving.TransposeFeatureRowsIntoColumns(
-					featureData,
-					grpRef,
-					requestedFeatureViews,
-					arrowMemory,
-					numRows,
-				)
-				if err != nil {
-					return err
-				}
-
-				resultChan <- vectors
-				return nil
-			}
-		}(groupRef))
-	}
-
-	if err := g.Wait(); err != nil {
-		return nil, err
-	}
-	close(resultChan)
-
 	// Flatten channel into 1D
 	var result []*onlineserving.FeatureVector
-	for vectors := range resultChan {
-		result = append(result, vectors...)
+
+	v2Batching := os.Getenv("ENABLE_V2_BATCHING")
+	if v2Batching != "false" {
+		groupedRefsV2, err := onlineserving.GroupFeatureRefsV2(requestedFeatureViews, joinKeyToEntityValues, entityNameToJoinKeyMap, fullFeatureNames, fs.onlineStore.GetDataModelType())
+		if err != nil {
+			return nil, err
+		}
+
+		batchSize := fs.onlineStore.GetReadBatchSize()
+
+		resultChan := make(chan []*onlineserving.FeatureVector, len(groupedRefsV2))
+		g, ctx := errgroup.WithContext(ctx) // Can consider adding 'setLimit' and a variable to limit the max number of concurrent reads to prevent thundering herd.
+
+		for _, groupRef := range groupedRefsV2 {
+			g.Go(func(grpRef *onlineserving.GroupedFeaturesPerEntitySet) func() error {
+				return func() error {
+					featureData, err := fs.readFromOnlineStoreV2(ctx, groupRef, batchSize)
+					if err != nil {
+						return err
+					}
+
+					vectors, err := onlineserving.TransposeFeatureRowsIntoColumns(
+						featureData,
+						grpRef,
+						requestedFeatureViews,
+						arrowMemory,
+						numRows,
+					)
+					if err != nil {
+						return err
+					}
+
+					resultChan <- vectors
+					return nil
+				}
+			}(groupRef))
+		}
+
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
+		close(resultChan)
+
+		for vectors := range resultChan {
+			result = append(result, vectors...)
+		}
+	} else {
+		groupedRefs, err := onlineserving.GroupFeatureRefs(requestedFeatureViews, joinKeyToEntityValues, entityNameToJoinKeyMap, fullFeatureNames)
+		if err != nil {
+			return nil, err
+		}
+
+		resultChan := make(chan []*onlineserving.FeatureVector, len(groupedRefs))
+		g, ctx := errgroup.WithContext(ctx) // Can consider adding 'setLimit' and a variable to limit the max number of concurrent reads to prevent thundering herd.
+		for _, groupRef := range groupedRefs {
+			g.Go(func(grpRef *onlineserving.GroupedFeaturesPerEntitySet) func() error {
+				return func() error {
+					featureData, err := fs.readFromOnlineStore(ctx, grpRef.EntityKeys, grpRef.FeatureViewNames, grpRef.FeatureNames)
+					if err != nil {
+						return err
+					}
+
+					vectors, err := onlineserving.TransposeFeatureRowsIntoColumns(
+						featureData,
+						grpRef,
+						requestedFeatureViews,
+						arrowMemory,
+						numRows,
+					)
+					if err != nil {
+						return err
+					}
+
+					resultChan <- vectors
+					return nil
+				}
+			}(groupRef))
+		}
+
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
+		close(resultChan)
+
+		for vectors := range resultChan {
+			result = append(result, vectors...)
+		}
 	}
 
 	if fs.transformationCallback != nil || fs.transformationService != nil {
@@ -544,6 +591,57 @@ func (fs *FeatureStore) GetFeatureView(featureViewName string, hideDummyEntity b
 		fv.EntityNames = []string{}
 	}
 	return fv, nil
+}
+
+type BatchResult struct {
+	FeatureData [][]onlinestore.FeatureData
+	StartIndex  int
+}
+
+func (fs *FeatureStore) readFromOnlineStoreV2(
+	ctx context.Context,
+	groupRef *onlineserving.GroupedFeaturesPerEntitySet,
+	batchSize int,
+) ([][]onlinestore.FeatureData, error) {
+	// Create a Datadog span from context
+	span, _ := tracer.StartSpanFromContext(ctx, "fs.readFromOnlineStoreV2")
+	defer span.Finish()
+
+	results := make([][]onlinestore.FeatureData, len(groupRef.EntityKeys))
+
+	batchedGroupRef := onlineserving.BatchGroupedFeatureRef(groupRef, batchSize)
+
+	resultChan := make(chan BatchResult, len(batchedGroupRef))
+	g, ctx := errgroup.WithContext(ctx) // Can consider adding 'setLimit' and a variable to limit the max number of concurrent reads to prevent thundering herd.
+	for _, batchedGroupRef := range batchedGroupRef {
+		g.Go(func(grpRef *onlineserving.GroupedFeaturesBatch) func() error {
+			return func() error {
+				featureData, err := fs.onlineStore.OnlineReadV2(ctx, batchedGroupRef.EntityKeys, batchedGroupRef.FeatureViewNames, batchedGroupRef.FeatureNames)
+				if err != nil {
+					return err
+				}
+
+				select {
+				case resultChan <- BatchResult{FeatureData: featureData, StartIndex: batchedGroupRef.StartIndex}:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				return nil
+			}
+		}(batchedGroupRef))
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	close(resultChan)
+
+	for batchResult := range resultChan {
+		for i, featureData := range batchResult.FeatureData {
+			results[batchResult.StartIndex+i] = featureData
+		}
+	}
+	return results, nil
 }
 
 func (fs *FeatureStore) readFromOnlineStore(

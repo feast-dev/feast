@@ -6,11 +6,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/model"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -48,6 +48,9 @@ type ValkeyOnlineStore struct {
 	client valkey.Client
 
 	config *registry.RepoConfig
+
+	// Number of keys to read in a batch
+	ReadBatchSize int
 }
 
 func parseConnectionString(onlineStoreConfig map[string]interface{}, valkeyStoreType valkeyType) (valkey.ClientOption, error) {
@@ -165,6 +168,19 @@ func NewValkeyOnlineStore(project string, config *registry.RepoConfig, onlineSto
 		return nil, err
 	}
 
+	// Parse read batch size
+	var readBatchSize float64
+	if readBatchSizeJsonValue, ok := onlineStoreConfig["read_batch_size"]; !ok {
+		readBatchSize = -1.0 // Default to -1 (no batching)
+	} else if readBatchSize, ok = readBatchSizeJsonValue.(float64); !ok {
+		return nil, fmt.Errorf("failed to convert read_batch_size: %+v", readBatchSizeJsonValue)
+	}
+	store.ReadBatchSize = int(readBatchSize)
+
+	if store.ReadBatchSize >= 1 {
+		log.Info().Msgf("Reads will be done in key batches of size: %d", store.ReadBatchSize)
+	}
+
 	log.Info().Msgf("Using Valkey: %s", clientOption.InitAddress)
 	return &store, nil
 }
@@ -190,7 +206,7 @@ func getValkeyType(onlineStoreConfig map[string]interface{}) (valkeyType, error)
 	return t, nil
 }
 
-func (r *ValkeyOnlineStore) buildFeatureViewIndices(featureViewNames []string, featureNames []string) (map[string]int, map[int]string, int) {
+func (v *ValkeyOnlineStore) buildFeatureViewIndices(featureViewNames []string, featureNames []string) (map[string]int, map[int]string, int) {
 	featureViewIndices := make(map[string]int)
 	indicesFeatureView := make(map[int]string)
 	index := len(featureNames)
@@ -204,7 +220,7 @@ func (r *ValkeyOnlineStore) buildFeatureViewIndices(featureViewNames []string, f
 	return featureViewIndices, indicesFeatureView, index
 }
 
-func (r *ValkeyOnlineStore) buildHsetKeys(featureViewNames []string, featureNames []string, indicesFeatureView map[int]string, index int) ([]string, []string) {
+func (v *ValkeyOnlineStore) buildHsetKeys(featureViewNames []string, featureNames []string, indicesFeatureView map[int]string, index int) ([]string, []string) {
 	featureCount := len(featureNames)
 	var hsetKeys = make([]string, index)
 	h := murmur3.New32()
@@ -227,10 +243,10 @@ func (r *ValkeyOnlineStore) buildHsetKeys(featureViewNames []string, featureName
 	return hsetKeys, featureNames
 }
 
-func (r *ValkeyOnlineStore) buildValkeyKeys(entityKeys []*types.EntityKey) ([]*[]byte, error) {
+func (v *ValkeyOnlineStore) buildValkeyKeys(entityKeys []*types.EntityKey) ([]*[]byte, error) {
 	valkeyKeys := make([]*[]byte, len(entityKeys))
 	for i := 0; i < len(entityKeys); i++ {
-		var key, err = buildValkeyKey(r.project, entityKeys[i], r.config.EntityKeySerializationVersion)
+		var key, err = buildValkeyKey(v.project, entityKeys[i], v.config.EntityKeySerializationVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -239,14 +255,18 @@ func (r *ValkeyOnlineStore) buildValkeyKeys(entityKeys []*types.EntityKey) ([]*[
 	return valkeyKeys, nil
 }
 
-func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+func (v *ValkeyOnlineStore) OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	return v.OnlineRead(ctx, entityKeys, featureViewNames, featureNames)
+}
+
+func (v *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
 	span, _ := tracer.StartSpanFromContext(ctx, "OnlineRead")
 	defer span.Finish()
 
 	featureCount := len(featureNames)
-	featureViewIndices, indicesFeatureView, index := r.buildFeatureViewIndices(featureViewNames, featureNames)
-	hsetKeys, featureNamesWithTimeStamps := r.buildHsetKeys(featureViewNames, featureNames, indicesFeatureView, index)
-	valkeyKeys, err := r.buildValkeyKeys(entityKeys)
+	featureViewIndices, indicesFeatureView, index := v.buildFeatureViewIndices(featureViewNames, featureNames)
+	hsetKeys, featureNamesWithTimeStamps := v.buildHsetKeys(featureViewNames, featureNames, indicesFeatureView, index)
+	valkeyKeys, err := v.buildValkeyKeys(entityKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -256,11 +276,11 @@ func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 
 	for _, valkeyKey := range valkeyKeys {
 		keyString := string(*valkeyKey)
-		cmds = append(cmds, r.client.B().Hmget().Key(keyString).Field(hsetKeys...).Build())
+		cmds = append(cmds, v.client.B().Hmget().Key(keyString).Field(hsetKeys...).Build())
 	}
 
 	var resContainsNonNil bool
-	for entityIndex, values := range r.client.DoMulti(ctx, cmds...) {
+	for entityIndex, values := range v.client.DoMulti(ctx, cmds...) {
 
 		if err := values.Error(); err != nil {
 			return nil, err
@@ -334,13 +354,13 @@ func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	return results, nil
 }
 
-func (r *ValkeyOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]RangeFeatureData, error) {
+func (v *ValkeyOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]RangeFeatureData, error) {
 	// TODO: Implement OnlineReadRange
 	return nil, errors.New("OnlineReadRange is not supported by ValkeyOnlineStore")
 }
 
 // Dummy destruct function to conform with plugin OnlineStore interface
-func (r *ValkeyOnlineStore) Destruct() {
+func (v *ValkeyOnlineStore) Destruct() {
 
 }
 
@@ -351,4 +371,12 @@ func buildValkeyKey(project string, entityKey *types.EntityKey, entityKeySeriali
 	}
 	fullKey := append(*serKey, []byte(project)...)
 	return &fullKey, nil
+}
+
+func (v *ValkeyOnlineStore) GetDataModelType() OnlineStoreDataModel {
+	return EntityLevel
+}
+
+func (v *ValkeyOnlineStore) GetReadBatchSize() int {
+	return v.ReadBatchSize
 }

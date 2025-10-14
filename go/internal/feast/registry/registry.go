@@ -2,11 +2,12 @@ package registry
 
 import (
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/errors"
 	"net/url"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/feast-dev/feast/go/internal/feast/errors"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/rs/zerolog/log"
@@ -189,6 +190,7 @@ func (r *Registry) InitializeRegistry() error {
 		r.registryStore.UpdateRegistryProto(registryProto)
 	}
 	r.cachedRegistry = registryProto
+	r.load(registryProto)
 	go r.RefreshRegistryOnInterval()
 	return nil
 }

@@ -3,15 +3,16 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/apache/arrow/go/v17/arrow"
-	"github.com/apache/arrow/go/v17/arrow/memory"
-	"github.com/apache/arrow/go/v17/parquet/file"
-	"github.com/apache/arrow/go/v17/parquet/pqarrow"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/apache/arrow/go/v17/parquet/file"
+	"github.com/apache/arrow/go/v17/parquet/pqarrow"
 
 	"github.com/apache/arrow/go/v17/arrow/array"
 
@@ -254,14 +255,15 @@ func SetupInitializedRepo(basePath string) error {
 	if err != nil {
 		return err
 	}
-	// Pause to ensure apply completes
-	time.Sleep(5 * time.Second)
 	applyCommand.Dir = featureRepoPath
 	out, err := applyCommand.CombinedOutput()
 	if err != nil {
 		log.Println(string(out))
 		return err
 	}
+
+	// Pause to ensure apply completes
+	time.Sleep(5 * time.Second)
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
