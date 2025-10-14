@@ -6,6 +6,10 @@ HDFS registry provides support for storing the protobuf representation of your f
 
 While it can be used in production, there are still inherent limitations with a file-based registries, since changing a single field in the registry requires re-writing the whole registry file. With multiple concurrent writers, this presents a risk of data loss, or bottlenecks writes to the registry since all changes have to be serialized (e.g. when running materialization for multiple feature views or time ranges concurrently).
 
+### Pre-requisites
+
+The HDFS registry requires Hadoop 3.3+ to be installed and the `HADOOP_HOME` environment variable set.
+
 ### Authentication and User Configuration
 
 The HDFS registry is using `pyarrow.fs.HadoopFileSystem` and **does not** support specifying HDFS users or Kerberos credentials directly in the `feature_store.yaml` configuration. It relies entirely on the Hadoop and system environment configuration available to the process running Feast.
@@ -32,8 +36,7 @@ registry:
   path: hdfs://[YOUR NAMENODE HOST]:[YOUR NAMENODE PORT]/[PATH TO REGISTRY]/registry.pb
   cache_ttl_seconds: 60
 online_store: null
-offline_store:
-  type: dask
+offline_store: null
 ```
 {% endcode %}
 
