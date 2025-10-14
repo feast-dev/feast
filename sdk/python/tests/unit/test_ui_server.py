@@ -57,7 +57,6 @@ def _setup_importlib_mocks(temp_dir):
         patch("feast.ui_server.importlib_resources.files") as mock_files,
         patch("feast.ui_server.importlib_resources.as_file") as mock_as_file,
     ):
-
         mock_files.return_value = mock_file_ref
         mock_as_file.return_value = mock_context_manager
 
