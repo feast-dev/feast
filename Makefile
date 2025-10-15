@@ -739,7 +739,7 @@ compile-python-datamodels:
 patch-datamodels:
 	cd sdk/python/feast/datamodels && python patch_datamodels.py
 
-generate-datamodels: compile-protos-python patch-datamodels
+generate-python-datamodels: compile-python-datamodels patch-datamodels
 
 install-go-ci-dependencies:
 	go install golang.org/x/tools/cmd/goimports
