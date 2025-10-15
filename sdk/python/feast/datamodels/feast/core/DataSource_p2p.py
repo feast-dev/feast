@@ -2,9 +2,12 @@
 # gen by protobuf_to_pydantic[v0.3.3.1](https://github.com/so1n/protobuf_to_pydantic)
 # Protobuf Version: 4.25.8
 # Pydantic Version: 2.10.6
+# PATCHED by patch_datamodels.py v1 - DataSource_p2p.py
+
 import typing
 from datetime import datetime, timedelta
 from enum import IntEnum
+from pydantic import field_validator
 
 from protobuf_to_pydantic.customer_validator import check_one_of
 from protobuf_to_pydantic.util import Timedelta

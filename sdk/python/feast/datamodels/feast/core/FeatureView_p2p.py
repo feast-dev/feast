@@ -2,6 +2,7 @@
 # gen by protobuf_to_pydantic[v0.3.3.1](https://github.com/so1n/protobuf_to_pydantic)
 # Protobuf Version: 4.25.8
 # Pydantic Version: 2.10.6
+# PATCHED by patch_datamodels.py v4 - FeatureView_p2p.py
 import typing
 from datetime import datetime, timedelta
 
@@ -11,11 +12,12 @@ from typing_extensions import Annotated
 
 from .DataSource_p2p import DataSource
 from .Feature_p2p import FeatureSpecV2
+from .Transformation_p2p import FeatureTransformationV2
 
 
 class FeatureViewSpec(BaseModel):
     """
-        Next available id: 13
+        Next available id: 16
     TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
     """
 
@@ -52,6 +54,10 @@ class FeatureViewSpec(BaseModel):
     # Whether these features should be written to the offline store
     offline: bool = Field(default=False)
     source_views: typing.List["FeatureViewSpec"] = Field(default_factory=list)
+    # Feature transformation for batch feature views
+    feature_transformation: FeatureTransformationV2 = Field(
+        default_factory=FeatureTransformationV2
+    )
 
 
 class MaterializationInterval(BaseModel):
