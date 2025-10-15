@@ -87,7 +87,19 @@ install-python-dependencies-ci: ## Install Python CI dependencies in system envi
 	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
 
-# Used by multicloud/Dockerfile.dev
+# Used in github actions/ci
+install-hadoop-dependencies-ci: ## Install Hadoop dependencies
+	@if [ ! -f $$HOME/hadoop-3.4.2.tar.gz ]; then \
+		echo "Downloading Hadoop tarball..."; \
+		wget -q https://dlcdn.apache.org/hadoop/common/hadoop-3.4.2/hadoop-3.4.2.tar.gz -O $$HOME/hadoop-3.4.2.tar.gz; \
+	else \
+		echo "Using cached Hadoop tarball"; \
+	fi
+	@if [ ! -d $$HOME/hadoop ]; then \
+		echo "Extracting Hadoop tarball..."; \
+		tar -xzf $$HOME/hadoop-3.4.2.tar.gz -C $$HOME; \
+		mv $$HOME/hadoop-3.4.2 $$HOME/hadoop; \
+	fi
 install-python-ci-dependencies: ## Install Python CI dependencies in system environment using piptools
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
@@ -146,6 +158,9 @@ test-python-integration: ## Run Python integration tests (CI)
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
+	HADOOP_HOME=$$HOME/hadoop \
+	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
+	HADOOP_USER_NAME=root \
 	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
