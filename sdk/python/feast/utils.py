@@ -672,7 +672,7 @@ def _augment_response_with_on_demand_transforms(
     for odfv_name, _feature_refs in odfv_feature_refs.items():
         odfv = requested_odfv_map[odfv_name]
         if not odfv.write_to_online_store:
-            # Apply aggregations BEFORE transformation if defined
+            # Apply aggregations if configured.
             if odfv.aggregations:
                 if odfv.mode == "python":
                     if initial_response_dict is None:
@@ -694,7 +694,7 @@ def _augment_response_with_on_demand_transforms(
                     )
 
             # Apply transformation
-            if odfv.mode == "python":
+            elif odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
