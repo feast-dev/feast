@@ -53,15 +53,16 @@ class DatamodelPatcher:
 
     def add_patch_header(self, content: str, filename: str) -> str:
         """Add patch metadata header to file content.
-        
         Tracks the number of times this file has been patched for debugging.
         Version increments each time the script processes the file.
         """
         if self.is_already_patched(content):
             # Extract current version and increment it
-            version_pattern = rf"{re.escape(PATCH_MARKER)} v(\d+) - {re.escape(filename)}"
+            version_pattern = (
+                rf"{re.escape(PATCH_MARKER)} v(\d+) - {re.escape(filename)}"
+            )
             match = re.search(version_pattern, content)
-            
+
             if match:
                 current_version = int(match.group(1))
                 new_version = current_version + 1
@@ -72,18 +73,18 @@ class DatamodelPatcher:
                 old_pattern = rf"{re.escape(PATCH_MARKER)}[^\n]*\n"
                 replacement = f"{PATCH_MARKER} v2 - {filename}\n"
                 content = re.sub(old_pattern, replacement, content)
-            
+
             return content
-        
+
         # Add new header after the Pydantic Version comment (starting at v1)
         # Include a blank line after the patch marker to separate from imports
         header = f"{PATCH_MARKER} v1 - {filename}\n\n"
-        
+
         # Find the line with "# Pydantic Version:" and add our header after it
         pattern = r"(# Pydantic Version: [^\n]+\n)"
         replacement = rf"\1{header}"
         content = re.sub(pattern, replacement, content, count=1)
-        
+
         return content
 
     def patch_datasource(self):
@@ -94,7 +95,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -171,7 +172,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -191,7 +192,7 @@ class DatamodelPatcher:
         )
 
         self.write_file(filepath, content)
-    
+
     def patch_field(self):
         """Patch Field_p2p.py"""
         filepath = self.base_path / "feast" / "types" / "Field_p2p.py"
@@ -200,7 +201,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -221,7 +222,6 @@ class DatamodelPatcher:
 
         self.write_file(filepath, content)
 
-
     def patch_feature_table(self):
         """Patch FeatureTable_p2p.py"""
         filepath = self.base_path / "feast" / "core" / "FeatureTable_p2p.py"
@@ -230,7 +230,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -258,7 +258,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -286,7 +286,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -314,7 +314,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -343,7 +343,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -372,7 +372,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -444,7 +444,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 
@@ -472,7 +472,7 @@ class DatamodelPatcher:
             return
 
         content = self.read_file(filepath)
-        
+
         # Add patch header
         content = self.add_patch_header(content, filepath.name)
 

@@ -733,6 +733,14 @@ compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
 			--go-grpc_out=$(ROOT_DIR)/go/protos \
 			--go-grpc_opt=module=github.com/feast-dev/feast/go/protos $(ROOT_DIR)/protos/feast/$(folder)/*.proto; ) true
 
+compile-python-datamodels: 
+	protoc --proto_path=protos --protobuf-to-pydantic_out=sdk/python/feast/datamodels protos/feast/**/*.proto
+
+patch-datamodels:
+	cd sdk/python/feast/datamodels && python patch_datamodels.py
+
+generate-datamodels: compile-protos-python patch-datamodels
+
 install-go-ci-dependencies:
 	go install golang.org/x/tools/cmd/goimports
 	uv pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
