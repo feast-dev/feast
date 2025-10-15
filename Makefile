@@ -83,8 +83,13 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 install-python-dependencies-ci: ## Install Python CI dependencies in system environment using uv
 	# Install CPU-only torch first to prevent CUDA dependency issues
 	pip uninstall torch torchvision -y || true
-	pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
-	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	@if [ "$$(uname -s)" = "Linux" ]; then \
+		echo "Installing dependencies with torch CPU index for Linux..."; \
+		uv pip sync --system --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+	else \
+		echo "Installing dependencies from PyPI for macOS..."; \
+		uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+	fi
 	uv pip install --system --no-deps -e .
 
 # Used in github actions/ci
