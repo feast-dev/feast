@@ -1528,6 +1528,90 @@ def test_metrics_resource_counts_via_rest(fastapi_test_app):
     assert isinstance(per_project["demo_project"], dict)
 
 
+def test_feature_views_all_types_and_resource_counts_match(fastapi_test_app):
+    """
+    Test that verifies:
+    1. All types of feature views (regular, on-demand, stream) are returned in /feature_views/all
+    2. The count from /metrics/resource_counts matches the count from /feature_views/all
+    """
+    response_all = fastapi_test_app.get("/feature_views/all")
+    assert response_all.status_code == 200
+    data_all = response_all.json()
+    assert "featureViews" in data_all
+
+    feature_views = data_all["featureViews"]
+
+    # Count should include at least:
+    # - 3 regular feature views: user_profile, user_behavior, user_preferences
+    # - 1 on-demand feature view: test_on_demand_feature_view
+    assert len(feature_views) >= 4, (
+        f"Expected at least 4 feature views, got {len(feature_views)}"
+    )
+
+    # Verify we have different types of feature views
+    feature_view_names = {fv["spec"]["name"] for fv in feature_views}
+
+    # Check for regular feature views
+    assert "user_profile" in feature_view_names, (
+        "Regular feature view 'user_profile' not found"
+    )
+    assert "user_behavior" in feature_view_names, (
+        "Regular feature view 'user_behavior' not found"
+    )
+    assert "user_preferences" in feature_view_names, (
+        "Regular feature view 'user_preferences' not found"
+    )
+
+    # Check for on-demand feature view
+    assert "test_on_demand_feature_view" in feature_view_names, (
+        "On-demand feature view 'test_on_demand_feature_view' not found"
+    )
+
+    # Verify all have the correct project
+    for fv in feature_views:
+        assert fv["project"] == "demo_project", (
+            f"Feature view has incorrect project: {fv.get('project')}"
+        )
+
+    # Now get resource counts from /metrics/resource_counts endpoint
+    response_metrics = fastapi_test_app.get(
+        "/metrics/resource_counts?project=demo_project"
+    )
+    assert response_metrics.status_code == 200
+    data_metrics = response_metrics.json()
+    assert "counts" in data_metrics
+
+    counts = data_metrics["counts"]
+    assert "featureViews" in counts
+
+    # Verify that the count from metrics matches the count from feature_views/all
+    feature_views_count_from_all = len(feature_views)
+    feature_views_count_from_metrics = counts["featureViews"]
+
+    assert feature_views_count_from_all == feature_views_count_from_metrics, (
+        f"Feature views count mismatch: /feature_views/all returned {feature_views_count_from_all} "
+        f"but /metrics/resource_counts returned {feature_views_count_from_metrics}"
+    )
+
+    # Test without project parameter (all projects)
+    response_all_projects = fastapi_test_app.get("/feature_views/all")
+    assert response_all_projects.status_code == 200
+    data_all_projects = response_all_projects.json()
+
+    response_metrics_all = fastapi_test_app.get("/metrics/resource_counts")
+    assert response_metrics_all.status_code == 200
+    data_metrics_all = response_metrics_all.json()
+
+    total_fv_count_from_all = len(data_all_projects["featureViews"])
+    total_fv_count_from_metrics = data_metrics_all["total"]["featureViews"]
+
+    assert total_fv_count_from_all == total_fv_count_from_metrics, (
+        f"Total feature views count mismatch across all projects: "
+        f"/feature_views/all returned {total_fv_count_from_all} "
+        f"but /metrics/resource_counts returned {total_fv_count_from_metrics}"
+    )
+
+
 def test_metrics_recently_visited_via_rest(fastapi_test_app):
     """Test the /metrics/recently_visited endpoint."""
     # First, make some requests to generate visit data
