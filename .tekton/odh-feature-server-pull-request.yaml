@@ -47,7 +47,8 @@ spec:
           "type": "pip",
           "path": ".",
           "requirements_files": [
-            "sdk/python/feast/infra/feature_servers/multicloud/requirements.txt"
+            "sdk/python/feast/infra/feature_servers/multicloud/requirements.txt",
+            "sdk/python/feast/infra/feature_servers/multicloud/requirements-ppc64le.txt"
           ],
           "requirements_build_files": [
             "sdk/python/requirements/py3.11-minimal-requirements.txt",
