@@ -249,7 +249,18 @@ class DynamoDBOnlineStore(OnlineStore):
             # tags won't be updated in the create_table call if the table already exists
             if do_tag_updates[table_name]:
                 tags = self._table_tags(online_config, table_instance)
-                self._update_tags(dynamodb_client, table_name, tags)
+                try:
+                    self._update_tags(dynamodb_client, table_name, tags)
+                except ClientError as ce:
+                    # If tag update fails with AccessDeniedException, log warning and continue
+                    # This allows Feast to work in environments where IAM roles don't have
+                    # dynamodb:TagResource and dynamodb:UntagResource permissions
+                    if ce.response["Error"]["Code"] == "AccessDeniedException":
+                        logger.warning(
+                            f"Unable to update tags for table {table_name} due to insufficient permissions."
+                        )
+                    else:
+                        raise
 
         for table_to_delete in tables_to_delete:
             _delete_table_idempotent(
