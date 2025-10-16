@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
-	//"strings"
+	"strings"
 	"syscall"
 
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -18,9 +19,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	//grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
-	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var tracer trace.Tracer
 
 type ServerStarter interface {
 	StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
@@ -55,6 +64,30 @@ func main() {
 	flag.StringVar(&host, "host", host, "Specify a host for the server")
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
 	flag.Parse()
+
+	// Initial tracer
+	if OTELTracingEnabled() {
+		ctx := context.Background()
+
+		exp, err := newExporter(ctx)
+		if err != nil {
+			log.Fatal().Stack().Err(err).Msg("Failed to initialize exporter.")
+		}
+
+		// Create a new tracer provider with a batch span processor and the given exporter.
+		tp, err := newTracerProvider(exp)
+		if err != nil {
+			log.Fatal().Stack().Err(err).Msg("Failed to initialize tracer provider.")
+		}
+
+		// Handle shutdown properly so nothing leaks.
+		defer func() { _ = tp.Shutdown(ctx) }()
+
+		otel.SetTracerProvider(tp)
+
+		// Finally, set the tracer that can be used for this package.
+		tracer = tp.Tracer("github.com/feast-dev/feast/go")
+	}
 
 	repoConfig, err := registry.NewRepoConfigFromFile(repoPath)
 	if err != nil {
@@ -110,11 +143,6 @@ func constructLoggingService(fs *feast.FeatureStore, writeLoggedFeaturesCallback
 
 // StartGprcServerWithLogging starts gRPC server with enabled feature logging
 func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	// #DD
-	//if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
-	//	tracer.Start(tracer.WithRuntimeMetrics())
-	//	defer tracer.Stop()
-	//}
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
@@ -178,3 +206,35 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 
 	return ser.Serve(host, port)
 }
+
+func OTELTracingEnabled() bool {
+	return strings.ToLower(os.Getenv("ENABLE_OTEL_TRACING")) == "true"
+}
+
+func newExporter(ctx context.Context) (*otlptrace.Exporter, error) {
+	exp, err := otlptracehttp.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return exp, nil
+}
+
+func newTracerProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, error) {
+	r, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("FeastGoFeatureServer"),
+		),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exp),
+		sdktrace.WithResource(r),
+	), nil
+}
+
