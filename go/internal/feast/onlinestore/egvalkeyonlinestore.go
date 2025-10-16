@@ -171,7 +171,7 @@ func NewValkeyOnlineStore(project string, config *registry.RepoConfig, onlineSto
 	// Parse read batch size
 	var readBatchSize float64
 	if readBatchSizeJsonValue, ok := onlineStoreConfig["read_batch_size"]; !ok {
-		readBatchSize = -1.0 // Default to -1 (no batching)
+		readBatchSize = 100.0 // Default to 100 Keys Per Batch
 	} else if readBatchSize, ok = readBatchSizeJsonValue.(float64); !ok {
 		return nil, fmt.Errorf("failed to convert read_batch_size: %+v", readBatchSizeJsonValue)
 	}
