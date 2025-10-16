@@ -9,10 +9,10 @@ from typing import Generator
 
 import pandas as pd
 import pytest
-import ray
 
 from feast import Entity, FileSource
 from feast.data_source import DataSource
+from feast.infra.ray_initializer import shutdown_ray
 from feast.utils import _utc_now
 from tests.integration.feature_repos.repo_configuration import (
     construct_test_environment,
@@ -126,8 +126,7 @@ def cleanup_ray_environment(ray_environment):
 
     # Ensure Ray is shut down completely
     try:
-        if ray.is_initialized():
-            ray.shutdown()
+        shutdown_ray()
         time.sleep(0.2)  # Brief pause to ensure clean shutdown
     except Exception as e:
         print(f"Warning: Ray shutdown failed: {e}")
@@ -147,9 +146,8 @@ def create_ray_environment():
 def ray_environment() -> Generator:
     """Pytest fixture to provide a Ray environment for tests with automatic cleanup."""
     try:
-        if ray.is_initialized():
-            ray.shutdown()
-            time.sleep(0.2)
+        shutdown_ray()
+        time.sleep(0.2)
     except Exception:
         pass
 
