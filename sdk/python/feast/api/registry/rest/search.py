@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
 
+from feast.api.registry.rest.response_models import SearchResponse
 from feast.api.registry.rest.rest_utils import (
     filter_search_results_and_match_score,
     get_all_project_resources,
@@ -30,7 +31,7 @@ custom_pagination = validate_or_set_default_pagination_params(
 def get_search_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/search")
+    @router.get("/search", response_model=SearchResponse)
     def search_resources(
         query: str = Query(..., description="Search query string"),
         projects: Optional[List[str]] = Query(
