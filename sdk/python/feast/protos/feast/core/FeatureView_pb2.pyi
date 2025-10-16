@@ -20,6 +20,7 @@ import builtins
 import collections.abc
 import feast.core.DataSource_pb2
 import feast.core.Feature_pb2
+import feast.core.Transformation_pb2
 import google.protobuf.descriptor
 import google.protobuf.duration_pb2
 import google.protobuf.internal.containers
@@ -57,7 +58,7 @@ class FeatureView(google.protobuf.message.Message):
 global___FeatureView = FeatureView
 
 class FeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 13
+    """Next available id: 16
     TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
     """
 
@@ -92,6 +93,7 @@ class FeatureViewSpec(google.protobuf.message.Message):
     ONLINE_FIELD_NUMBER: builtins.int
     OFFLINE_FIELD_NUMBER: builtins.int
     SOURCE_VIEWS_FIELD_NUMBER: builtins.int
+    FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -133,6 +135,9 @@ class FeatureViewSpec(google.protobuf.message.Message):
     """Whether these features should be written to the offline store"""
     @property
     def source_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureViewSpec]: ...
+    @property
+    def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
+        """Feature transformation (UDF or Substrait) for batch feature views"""
     def __init__(
         self,
         *,
@@ -150,9 +155,10 @@ class FeatureViewSpec(google.protobuf.message.Message):
         online: builtins.bool = ...,
         offline: builtins.bool = ...,
         source_views: collections.abc.Iterable[global___FeatureViewSpec] | None = ...,
+        feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 

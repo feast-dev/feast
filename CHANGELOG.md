@@ -1,5 +1,21 @@
 # Changelog
 
+# [0.55.0](https://github.com/feast-dev/feast/compare/v0.54.0...v0.55.0) (2025-10-14)
+
+
+### Bug Fixes
+
+* Added unix_timestamp_val in _serialize_val ([#5659](https://github.com/feast-dev/feast/issues/5659)) ([35a8423](https://github.com/feast-dev/feast/commit/35a84237bb15c5582ffa432f13fe5e4948a1c19c))
+* BatchFeatureView transformation should persist in Registry Ser/Deserialization ([3364bad](https://github.com/feast-dev/feast/commit/3364bad2be06556d20f6ff509068372c5f880561))
+* Check if DynamoDB table exists before create ([#5658](https://github.com/feast-dev/feast/issues/5658)) ([e7fd506](https://github.com/feast-dev/feast/commit/e7fd506f7320b0e3d9d62d247387ec21c1fe8c0f))
+* Fix the link to Expedia in the Go Feature Server readme. ([3ed0163](https://github.com/feast-dev/feast/commit/3ed01636d8476d2abc93c1396d33a877241a3091))
+
+
+### Features
+
+* Add Claude instructions ([#5651](https://github.com/feast-dev/feast/issues/5651)) ([4807a52](https://github.com/feast-dev/feast/commit/4807a524129535ab26e76879cf95fc6513dbec74))
+* Groups and Namespaces based authorization, for Users and Service Accounts ([#5619](https://github.com/feast-dev/feast/issues/5619)) ([da6257c](https://github.com/feast-dev/feast/commit/da6257c757b2286f030acb31ea505090cf472442))
+
 # [0.54.0](https://github.com/feast-dev/feast/compare/v0.53.0...v0.54.0) (2025-09-30)
 
 

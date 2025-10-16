@@ -16,6 +16,12 @@ rules:
   - update
   - watch
 - apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
   - batch
   resources:
   - cronjobs
@@ -44,11 +50,13 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
   - pods
   - secrets
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -84,8 +92,11 @@ rules:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
+  - clusterrolebindings
+  - clusterroles
   - rolebindings
   - roles
+  - subjectaccessreviews
   verbs:
   - create
   - delete

@@ -40,7 +40,12 @@ def enforce_policy(
         FeastPermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
     """
     if not permissions:
-        return resources
+        # If no permissions are defined, deny access to all resources
+        # This is a security measure to prevent unauthorized access
+        logger.warning("No permissions defined - denying access to all resources")
+        if not filter_only:
+            raise FeastPermissionError("No permissions defined - access denied")
+        return []
 
     _permitted_resources: list[FeastObject] = []
     for resource in resources:

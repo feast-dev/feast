@@ -1,4 +1,4 @@
-[Update 10/31/2024] This Go feature server code is updated from the Expedia Group's forked Feast branch (https://github.com/EXPEbdodla/feast) on 10/22/2024. Thanks the engineers of the Expedia Groups who contributed and improved the Go feature server.  
+[Update 10/31/2024] This Go feature server code is updated from the Expedia Group's forked Feast branch (https://github.com/ExpediaGroup/feast.git) on 10/22/2024. Thanks the engineers of the Expedia Groups who contributed and improved the Go feature server.  
 
 
 This directory contains the Go logic that's executed by the `EmbeddedOnlineFeatureServer` from Python.

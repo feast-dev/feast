@@ -99,7 +99,7 @@ auth:
 
 ### Kubernetes RBAC Authorization
 With Kubernetes RBAC Authorization, the client uses the service account token as the authorizarion bearer token, and the
-server fetches the associated roles from the Kubernetes RBAC resources.
+server fetches the associated roles from the Kubernetes RBAC resources. Feast supports advanced authorization by extracting user groups and namespaces from Kubernetes tokens, enabling fine-grained access control beyond simple role matching. This is achieved by leveraging Kubernetes Token Access Review, which allows Feast to determine the groups and namespaces associated with a user or service account.
 
 An example of Kubernetes RBAC authorization configuration is the following: 
 {% hint style="info" %}
@@ -109,19 +109,12 @@ An example of Kubernetes RBAC authorization configuration is the following:
 project: my-project
 auth:
   type: kubernetes
+  user_token: <user_token> #Optional, else service account token Or env var is used for getting the token
 ...
 ```
 
 In case the client cannot run on the same cluster as the servers, the client token can be injected using the `LOCAL_K8S_TOKEN` 
 environment variable on the client side. The value must refer to the token of a service account created on the servers cluster
-and linked to the desired RBAC roles.
+and linked to the desired RBAC roles/groups/namespaces.
 
-#### Setting Up Kubernetes RBAC for Feast
-
-To ensure the Kubernetes RBAC environment aligns with Feast's RBAC configuration, follow these guidelines:
-* The roles defined in Feast `Permission` instances must have corresponding Kubernetes RBAC `Role` names.
-* The Kubernetes RBAC `Role` must reside in the same namespace as the Feast service.
-* The client application can run in a different namespace, using its own dedicated `ServiceAccount`.
-* Finally, the `RoleBinding` that links the client `ServiceAccount` to the RBAC `Role` must be defined in the namespace of the Feast service.
-
-If the above rules are satisfied, the Feast service must be  granted permissions to fetch `RoleBinding` instances from the local namespace.
+More details can be found in [Setting up kubernetes doc](../../reference/auth/kubernetes_auth_setup.md)

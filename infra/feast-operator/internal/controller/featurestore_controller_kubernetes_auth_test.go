@@ -227,7 +227,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				feastRole)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(feastRole.Rules).ToNot(BeEmpty())
-			Expect(feastRole.Rules).To(HaveLen(1))
+			Expect(feastRole.Rules).To(HaveLen(6))
 			Expect(feastRole.Rules[0].APIGroups).To(HaveLen(1))
 			Expect(feastRole.Rules[0].APIGroups[0]).To(Equal(rbacv1.GroupName))
 			Expect(feastRole.Rules[0].Resources).To(HaveLen(2))

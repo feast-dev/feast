@@ -14,10 +14,30 @@ message Policy {
 
   oneof policy_type {
     RoleBasedPolicy role_based_policy = 3;
+    GroupBasedPolicy group_based_policy = 4;
+    NamespaceBasedPolicy namespace_based_policy = 5;
+    CombinedGroupNamespacePolicy combined_group_namespace_policy = 6;
   }
 }
 
 message RoleBasedPolicy {
   // List of roles in this policy.
   repeated string roles = 1;
+}
+
+message GroupBasedPolicy {
+  // List of groups in this policy.
+  repeated string groups = 1;
+}
+
+message NamespaceBasedPolicy {
+  // List of namespaces in this policy.
+  repeated string namespaces = 1;
+}
+
+message CombinedGroupNamespacePolicy {
+  // List of groups in this policy.
+  repeated string groups = 1;
+  // List of namespaces in this policy.
+  repeated string namespaces = 2;
 }

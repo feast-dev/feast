@@ -101,6 +101,15 @@ Permission(
 )
 ```
 
+## Permission granting order
+
+When mixing and matching policies in permissions script, the permission granting order is as follows:
+
+1. The first matching policy wins in the list of policies and the permission is granted based on the matching policy rules and rest policies are ignored.
+2. If any policy matches from the list of policies, the permission is granted based on the matching policy rules and rest policies are ignored
+3. If no policy matches, the permission is denied
+
+
 ## Authorization configuration
 In order to leverage the permission functionality, the `auth` section is needed in the `feature_store.yaml` configuration.
 Currently, Feast supports OIDC and Kubernetes RBAC authorization protocols.

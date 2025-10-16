@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import model_validator
+from pydantic import ConfigDict, model_validator
 
 from feast.repo_config import FeastConfigBaseModel
 
@@ -67,4 +67,7 @@ class NoAuthConfig(AuthConfig):
 
 
 class KubernetesAuthConfig(AuthConfig):
-    pass
+    # Optional user token for users (not service accounts)
+    user_token: Optional[str] = None
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")

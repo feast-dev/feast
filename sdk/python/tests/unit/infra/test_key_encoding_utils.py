@@ -79,6 +79,15 @@ def test_serialize_value():
     assert t == ValueType.INT64
     assert v == b"\x01\x00\x00\x00\x00\x00\x00\x00"
 
+    # Test unix_timestamp_val serialization
+    v, t = _serialize_val(
+        "unix_timestamp_val", ValueProto(unix_timestamp_val=1758823656)
+    )
+    assert t == ValueType.UNIX_TIMESTAMP
+    # Verify roundtrip: deserialize the serialized value
+    deserialized = _deserialize_value(ValueType.UNIX_TIMESTAMP, v)
+    assert deserialized.unix_timestamp_val == 1758823656
+
 
 def test_deserialize_value():
     v = _deserialize_value(ValueType.STRING, b"test")
@@ -92,6 +101,33 @@ def test_deserialize_value():
 
     v = _deserialize_value(ValueType.INT64, b"\x01\x00\x00\x00\x00\x00\x00\x00")
     assert v.int64_val == 1
+
+    timestamp_val = 1758823656
+    serialized_bytes, _ = _serialize_val(
+        "unix_timestamp_val", ValueProto(unix_timestamp_val=timestamp_val)
+    )
+    v = _deserialize_value(ValueType.UNIX_TIMESTAMP, serialized_bytes)
+    assert v.unix_timestamp_val == timestamp_val
+
+
+def test_serialize_deserialize_unix_timestamp_entity():
+    entity_key_proto = EntityKeyProto(
+        join_keys=["e2"],
+        entity_values=[ValueProto(unix_timestamp_val=1758823656)],
+    )
+
+    serialized_key = serialize_entity_key(
+        entity_key_proto,
+        entity_key_serialization_version=3,
+    )
+
+    deserialized_key = deserialize_entity_key(
+        serialized_key,
+        entity_key_serialization_version=3,
+    )
+
+    assert deserialized_key == entity_key_proto
+    assert deserialized_key.entity_values[0].unix_timestamp_val == 1758823656
 
 
 def test_reserialize_entity_v2_key_to_v3():
