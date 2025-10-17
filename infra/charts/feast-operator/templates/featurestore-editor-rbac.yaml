@@ -1,0 +1,25 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "feast-operator.fullname" . }}-featurestore-editor-role
+  labels:
+  {{- include "feast-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - feast.dev
+  resources:
+  - featurestores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - feast.dev
+  resources:
+  - featurestores/status
+  verbs:
+  - get

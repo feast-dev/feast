@@ -197,6 +197,8 @@ build-installer: manifests generate-ref kustomize related-image-fs ## Generate a
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
+	# Generate dynamic Helm chart as part of release build flow
+	$(MAKE) helm-generate
 
 ##@ Deployment
 
@@ -237,6 +239,7 @@ CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 ENVSUBST = $(LOCALBIN)/envsubst
+HELMIFY ?= $(LOCALBIN)/helmify
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.4.2
@@ -245,6 +248,7 @@ CRD_REF_DOCS_VERSION ?= v0.1.0
 ENVTEST_VERSION ?= release-0.18
 GOLANGCI_LINT_VERSION ?= v1.59.1
 ENVSUBST_VERSION ?= v1.4.2
+HELMIFY_VERSION ?= v0.4.18
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -270,6 +274,11 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 envsubst: $(ENVSUBST) ## Download envsubst locally if necessary.
 $(ENVSUBST): $(LOCALBIN)
 	$(call go-install-tool,$(ENVSUBST),github.com/a8m/envsubst/cmd/envsubst,$(ENVSUBST_VERSION))
+
+.PHONY: helmify
+helmify: $(HELMIFY) ## Download helmify locally if necessary.
+$(HELMIFY): $(LOCALBIN)
+	$(call go-install-tool,$(HELMIFY),github.com/arttor/helmify/cmd/helmify,$(HELMIFY_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
@@ -373,3 +382,44 @@ catalog-push: ## Push a catalog image.
 .PHONY: related-image-fs
 related-image-fs: envsubst
 	FS_IMG=$(FS_IMG) CJ_IMG=$(CJ_IMG) $(ENVSUBST) < config/default/related_image_fs_patch.tmpl > config/default/related_image_fs_patch.yaml
+
+##@ Helm chart (operator)
+
+.PHONY: chart-verify-crd
+chart-verify-crd: ## Verify Helm chart CRD matches generated CRD (ignoring Helm gate)
+	@diff -u \
+		<(grep -v '^{{-' ../charts/feast-operator/templates/crd.yaml | sed '/^---$$/d;/^[[:space:]]*$$/d') \
+		<(sed '/^---$$/d;/^[[:space:]]*$$/d' config/crd/bases/feast.dev_featurestores.yaml)
+
+.PHONY: chart-sync-crd
+chart-sync-crd: ## Sync generated CRD into Helm chart (wrapped in Values.crds.install)
+	@{ \
+	  echo "{{- if .Values.crds.install }}"; \
+	  echo; \
+	  cat config/crd/bases/feast.dev_featurestores.yaml; \
+	  echo; \
+	  echo "{{- end }}"; \
+	} > ../charts/feast-operator/templates/crd.yaml
+
+.PHONY: chart-verify
+chart-verify: chart-verify-crd ## Aggregate chart checks (extend as needed)
+
+##@ Dynamic Helm chart generation
+
+HELM_CHART_DIR ?= ../charts
+HELM_CHART_NAME ?= feast-operator
+
+.PHONY: helm-generate
+helm-generate: kustomize helmify related-image-fs ## Generate Helm chart dynamically from kustomize output
+	@echo "Generating dynamic Helm chart..."
+	@rm -rf $(HELM_CHART_DIR)/$(HELM_CHART_NAME)
+	$(KUSTOMIZE) build config/default | $(HELMIFY) -crd-dir $(HELM_CHART_NAME)
+	@mv $(HELM_CHART_NAME) $(HELM_CHART_DIR)/
+	@echo "Dynamic Helm chart generated at $(HELM_CHART_DIR)/$(HELM_CHART_NAME)"
+	@echo "Chart replaces the manually maintained chart - review and commit changes"
+
+.PHONY: helm-package
+helm-package: helm-generate ## Package the dynamically generated Helm chart
+	@echo "Packaging Helm chart..."
+	@helm package $(HELM_CHART_DIR)/$(HELM_CHART_NAME) --destination ./dist/
+	@echo "Helm chart packaged in ./dist/"
