@@ -9,13 +9,15 @@ import (
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/rs/zerolog/log"
-	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 )
+
+var tracer = otel.Tracer("github.com/feast-dev/feast/go/transformation")
 
 /*
 TransformationCallback is a Python callback function's expected signature.
@@ -40,8 +42,8 @@ func AugmentResponseWithOnDemandTransforms(
 	fullFeatureNames bool,
 
 ) ([]*onlineserving.FeatureVector, error) {
-	//span, _ := tracer.StartSpanFromContext(ctx, "transformation.AugmentResponseWithOnDemandTransforms")
-	//defer span.Finish()
+	ctx, span := tracer.Start(ctx, "transformation.AugmentResponseWithOnDemandTransforms")
+	defer span.End()
 
 	result := make([]*onlineserving.FeatureVector, 0)
 	var err error
