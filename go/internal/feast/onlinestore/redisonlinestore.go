@@ -53,6 +53,9 @@ type RedisOnlineStore struct {
 	clusterClient *redis.ClusterClient
 
 	config *registry.RepoConfig
+
+	// Number of keys to read in a batch
+	ReadBatchSize int
 }
 
 func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStoreConfig map[string]interface{}) (*RedisOnlineStore, error) {
@@ -109,6 +112,19 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 				return nil, fmt.Errorf("unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part)
 			}
 		}
+	}
+
+	// Parse read batch size
+	var readBatchSize float64
+	if readBatchSizeJsonValue, ok := onlineStoreConfig["read_batch_size"]; !ok {
+		readBatchSize = 100.0 // Default to 100 Keys Per Batch
+	} else if readBatchSize, ok = readBatchSizeJsonValue.(float64); !ok {
+		return nil, fmt.Errorf("failed to convert read_batch_size: %+v", readBatchSizeJsonValue)
+	}
+	store.ReadBatchSize = int(readBatchSize)
+
+	if store.ReadBatchSize >= 1 {
+		log.Info().Msgf("Reads will be done in key batches of size: %d", store.ReadBatchSize)
 	}
 
 	// Metrics are not showing up when the service name is set to DD_SERVICE
