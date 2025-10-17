@@ -412,6 +412,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
+	feast.applyNodeSelector(podSpec)
 
 	return nil
 }
@@ -791,6 +792,40 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 		return serviceConfigs.LogLevel
 	}
 	return nil
+}
+
+func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *map[string]string {
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.ContainerConfigs.OptionalCtrConfigs.NodeSelector
+	}
+	return nil
+}
+
+func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
+	var selectedNodeSelector map[string]string
+	var selectedService FeastServiceType
+
+	// Check all service types for node selector configuration
+	allServiceTypes := append(feastServerTypes, UIFeastType)
+	for _, feastType := range allServiceTypes {
+		if selector := feast.getNodeSelectorForType(feastType); selector != nil && len(*selector) > 0 {
+			selectedNodeSelector = *selector
+			selectedService = feastType
+		}
+	}
+
+	// If no service has node selector configured, we're done
+	if len(selectedNodeSelector) == 0 {
+		return
+	}
+
+	// Apply the simple node selector to the pod spec
+	podSpec.NodeSelector = selectedNodeSelector
+
+	// Log which service's node selector was applied for debugging
+	log.FromContext(feast.Handler.Context).V(1).Info("Applied node selector",
+		"serviceType", selectedService,
+		"selector", selectedNodeSelector)
 }
 
 // GetObjectMeta returns the feast k8s object metadata with type

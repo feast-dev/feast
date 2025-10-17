@@ -203,4 +203,145 @@ var _ = Describe("Registry Service", func() {
 			Expect(ports[1].Name).To(Equal(string(RegistryFeastType) + "-rest"))
 		})
 	})
+
+	Describe("NodeSelector Configuration", func() {
+		It("should apply NodeSelector to pod spec when configured", func() {
+			// Set NodeSelector for registry service
+			nodeSelector := map[string]string{
+				"kubernetes.io/os": "linux",
+				"node-type":        "compute",
+			}
+			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &nodeSelector
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify NodeSelector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify NodeSelector is applied to pod spec
+			expectedNodeSelector := map[string]string{
+				"kubernetes.io/os": "linux",
+				"node-type":        "compute",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should apply NodeSelector from last service when multiple services have selectors", func() {
+			// Set NodeSelector for registry service
+			registryNodeSelector := map[string]string{
+				"kubernetes.io/os": "linux",
+				"node-type":        "compute",
+			}
+			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &registryNodeSelector
+
+			// Set NodeSelector for online store service
+			onlineNodeSelector := map[string]string{
+				"node-type": "online",
+				"zone":      "us-west-1a",
+			}
+			featureStore.Spec.Services.OnlineStore = &feastdevv1alpha1.OnlineStore{
+				Server: &feastdevv1alpha1.ServerConfigs{
+					ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+						OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+							NodeSelector: &onlineNodeSelector,
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify merged NodeSelector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify NodeSelector is applied with the last service's selector (Online service wins)
+			expectedNodeSelector := map[string]string{
+				"node-type": "online",
+				"zone":      "us-west-1a",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should apply UI service NodeSelector when UI has highest precedence", func() {
+			// Set NodeSelector for online service
+			onlineNodeSelector := map[string]string{
+				"node-type": "online",
+			}
+			featureStore.Spec.Services.OnlineStore = &feastdevv1alpha1.OnlineStore{
+				Server: &feastdevv1alpha1.ServerConfigs{
+					ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+						OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+							NodeSelector: &onlineNodeSelector,
+						},
+					},
+				},
+			}
+
+			// Set NodeSelector for UI service (should win)
+			uiNodeSelector := map[string]string{
+				"node-type": "ui",
+				"zone":      "us-east-1",
+			}
+			featureStore.Spec.Services.UI = &feastdevv1alpha1.ServerConfigs{
+				ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
+					DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+						Image: ptr("test-image"),
+					},
+					OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+						NodeSelector: &uiNodeSelector,
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify UI service selector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify NodeSelector is applied with UI service's selector (UI wins)
+			expectedNodeSelector := map[string]string{
+				"node-type": "ui",
+				"zone":      "us-east-1",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should handle empty NodeSelector gracefully", func() {
+			// Set empty NodeSelector
+			emptyNodeSelector := map[string]string{}
+			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &emptyNodeSelector
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify no NodeSelector is applied (empty selector)
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify no NodeSelector is applied (empty selector)
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(BeEmpty())
+		})
+	})
 })
