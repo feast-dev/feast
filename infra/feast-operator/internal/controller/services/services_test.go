@@ -275,13 +275,7 @@ var _ = Describe("Registry Service", func() {
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
 
-		It("should merge operator NodeSelector with existing selectors (ops team scenario)", func() {
-			// Simulate existing node selector from ops team
-			existingNodeSelector := map[string]string{
-				"team":        "ml",
-				"environment": "prod",
-			}
-
+		It("should merge operator NodeSelector with existing selectors (mutating webhook scenario)", func() {
 			// Set NodeSelector for UI service
 			uiNodeSelector := map[string]string{
 				"node-type": "ui",
@@ -302,11 +296,22 @@ var _ = Describe("Registry Service", func() {
 			applySpecToStatus(featureStore)
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
-			// Create deployment and simulate existing node selector
+			// Create deployment first
 			deployment := feast.initFeastDeploy()
-			deployment.Spec.Template.Spec.NodeSelector = existingNodeSelector
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Simulate a mutating webhook or admission controller adding node selectors
+			// This would happen after the operator creates the pod spec but before scheduling
+			existingNodeSelector := map[string]string{
+				"team":        "ml",
+				"environment": "prod",
+			}
+			deployment.Spec.Template.Spec.NodeSelector = existingNodeSelector
+
+			// Apply the node selector logic again to test merging
+			// This simulates the operator reconciling and re-applying node selectors
+			feast.applyNodeSelector(&deployment.Spec.Template.Spec)
 
 			// Verify NodeSelector merges existing and operator selectors
 			expectedNodeSelector := map[string]string{
