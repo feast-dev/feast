@@ -93,6 +93,9 @@ install-python-dependencies-ci: ## Install Python CI dependencies in system envi
 	# Install CPU-only torch first to prevent CUDA dependency issues
 	uv pip uninstall --system torch torchvision || true
 	uv pip install --system torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
+	# Ensure numpy is within supported version range for spark 3.5.5
+	uv pip uninstall --system numpy || true
+	uv pip install --system "numpy>=1.22,<2"
 	uv pip install --system --no-deps -e .
 	#python setup.py build_python_protos --inplace
 
