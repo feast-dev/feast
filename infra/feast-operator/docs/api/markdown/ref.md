@@ -46,7 +46,7 @@ _Appears in:_
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-| `nodeSelector` _map[string]string_ |  |
+| `nodeSelector` _map[string]string_ | NodeSelector constrains pod scheduling to nodes with matching labels. When multiple services define nodeSelector, all selectors are merged together. Operator node selectors are merged with any existing selectors (e.g., from ops team), with operator values taking precedence for conflicting keys. |
 
 
 #### CronJobContainerConfigs
@@ -65,7 +65,7 @@ _Appears in:_
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-| `nodeSelector` _map[string]string_ |  |
+| `nodeSelector` _map[string]string_ | NodeSelector constrains pod scheduling to nodes with matching labels. When multiple services define nodeSelector, all selectors are merged together. Operator node selectors are merged with any existing selectors (e.g., from ops team), with operator values taking precedence for conflicting keys. |
 | `commands` _string array_ | Array of commands to be executed (in order) against a Feature Store deployment.
 Defaults to "feast apply" & "feast materialize-incremental $(date -u +'%Y-%m-%dT%H:%M:%S')" |
 
@@ -568,7 +568,7 @@ _Appears in:_
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-| `nodeSelector` _map[string]string_ |  |
+| `nodeSelector` _map[string]string_ | NodeSelector constrains pod scheduling to nodes with matching labels. When multiple services define nodeSelector, all selectors are merged together. Operator node selectors are merged with any existing selectors (e.g., from ops team), with operator values taking precedence for conflicting keys. |
 
 
 #### PvcConfig
@@ -657,7 +657,7 @@ _Appears in:_
 | --- | --- |
 | `path` _string_ |  |
 | `pvc` _[PvcConfig](#pvcconfig)_ |  |
-| `s3_additional_kwargs` _map[string]string_ |  |
+| `s3_additional_kwargs` _map[string]string_ | NodeSelector constrains pod scheduling to nodes with matching labels. When multiple services define nodeSelector, the last service's configuration takes precedence. |
 
 
 #### RegistryPersistence
@@ -691,7 +691,7 @@ _Appears in:_
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-| `nodeSelector` _map[string]string_ |  |
+| `nodeSelector` _map[string]string_ | NodeSelector constrains pod scheduling to nodes with matching labels. When multiple services define nodeSelector, all selectors are merged together. Operator node selectors are merged with any existing selectors (e.g., from ops team), with operator values taking precedence for conflicting keys. |
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |
@@ -754,7 +754,7 @@ _Appears in:_
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-| `nodeSelector` _map[string]string_ |  |
+| `nodeSelector` _map[string]string_ | NodeSelector constrains pod scheduling to nodes with matching labels. When multiple services define nodeSelector, all selectors are merged together. Operator node selectors are merged with any existing selectors (e.g., from ops team), with operator values taking precedence for conflicting keys. |
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |

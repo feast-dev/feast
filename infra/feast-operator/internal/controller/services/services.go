@@ -802,30 +802,46 @@ func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *
 }
 
 func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
-	var selectedNodeSelector map[string]string
-	var selectedService FeastServiceType
+	// Merge node selectors from all services
+	mergedNodeSelector := make(map[string]string)
 
 	// Check all service types for node selector configuration
 	allServiceTypes := append(feastServerTypes, UIFeastType)
 	for _, feastType := range allServiceTypes {
 		if selector := feast.getNodeSelectorForType(feastType); selector != nil && len(*selector) > 0 {
-			selectedNodeSelector = *selector
-			selectedService = feastType
+			for k, v := range *selector {
+				mergedNodeSelector[k] = v
+			}
 		}
 	}
 
 	// If no service has node selector configured, we're done
-	if len(selectedNodeSelector) == 0 {
+	if len(mergedNodeSelector) == 0 {
 		return
 	}
 
-	// Apply the simple node selector to the pod spec
-	podSpec.NodeSelector = selectedNodeSelector
+	// Merge with any existing node selectors (from ops team or other sources)
+	// This preserves pre-existing selectors while adding operator requirements
+	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, mergedNodeSelector)
+	podSpec.NodeSelector = finalNodeSelector
+}
 
-	// Log which service's node selector was applied for debugging
-	log.FromContext(feast.Handler.Context).V(1).Info("Applied node selector",
-		"serviceType", selectedService,
-		"selector", selectedNodeSelector)
+// mergeNodeSelectors merges existing and operator node selectors
+// Existing selectors are preserved, operator selectors can override existing keys
+func (feast *FeastServices) mergeNodeSelectors(existing, operator map[string]string) map[string]string {
+	merged := make(map[string]string)
+
+	// Start with existing selectors (from ops team or other sources)
+	for k, v := range existing {
+		merged[k] = v
+	}
+
+	// Add/override with operator selectors
+	for k, v := range operator {
+		merged[k] = v
+	}
+
+	return merged
 }
 
 // GetObjectMeta returns the feast k8s object metadata with type

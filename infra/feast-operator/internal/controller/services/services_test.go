@@ -230,7 +230,7 @@ var _ = Describe("Registry Service", func() {
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
 
-		It("should apply NodeSelector from last service when multiple services have selectors", func() {
+		It("should merge NodeSelectors from multiple services", func() {
 			// Set NodeSelector for registry service
 			registryNodeSelector := map[string]string{
 				"kubernetes.io/os": "linux",
@@ -266,10 +266,53 @@ var _ = Describe("Registry Service", func() {
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
-			// Verify NodeSelector is applied with the last service's selector (Online service wins)
+			// Verify NodeSelector merges all service selectors (online overrides registry for node-type)
 			expectedNodeSelector := map[string]string{
-				"node-type": "online",
-				"zone":      "us-west-1a",
+				"kubernetes.io/os": "linux",
+				"node-type":        "online",
+				"zone":             "us-west-1a",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should merge operator NodeSelector with existing selectors (ops team scenario)", func() {
+			// Simulate existing node selector from ops team
+			existingNodeSelector := map[string]string{
+				"team":        "ml",
+				"environment": "prod",
+			}
+
+			// Set NodeSelector for UI service
+			uiNodeSelector := map[string]string{
+				"node-type": "ui",
+			}
+			featureStore.Spec.Services.UI = &feastdevv1alpha1.ServerConfigs{
+				ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
+					DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+						Image: ptr("test-image"),
+					},
+					OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+						NodeSelector: &uiNodeSelector,
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and simulate existing node selector
+			deployment := feast.initFeastDeploy()
+			deployment.Spec.Template.Spec.NodeSelector = existingNodeSelector
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify NodeSelector merges existing and operator selectors
+			expectedNodeSelector := map[string]string{
+				"team":        "ml",
+				"environment": "prod",
+				"node-type":   "ui",
 			}
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
