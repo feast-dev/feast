@@ -567,7 +567,7 @@ def _get_aggregate_operations(agg_specs) -> dict:
     Convert Aggregation specs to agg_ops format for PandasBackend.
 
     Reused from LocalFeatureBuilder logic.
-    TODO: This logic is duplicated from LocalFeatureBuilder._get_aggregate_operations().
+    TODO: This logic is duplicated from feast.infra.compute_engines.local.feature_builder.LocalFeatureBuilder._get_aggregate_operations().
     Consider refactoring to a shared utility module in the future.
     """
     agg_ops = {}
@@ -697,7 +697,7 @@ def _augment_response_with_on_demand_transforms(
                         odfv.mode,
                     )
 
-            # Apply transformation. Note, aggregations and transformation configs are mutually exclusive
+            # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
             elif odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
