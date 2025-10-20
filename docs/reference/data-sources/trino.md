@@ -20,7 +20,7 @@ from feast.infra.offline_stores.contrib.trino_offline_store.trino_source import 
 )
 
 driver_hourly_stats = TrinoSource(
-    event_timestamp_column="event_timestamp",
+    timestamp_field="event_timestamp",
     table_ref="feast.driver_stats",
     created_timestamp_column="created",
 )
