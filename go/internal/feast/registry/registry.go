@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"fmt"
 	"net/url"
 	"reflect"
 	"sync"

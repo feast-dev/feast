@@ -47,6 +47,21 @@ type DynamodbOnlineStore struct {
 	maxRetries     *int
 }
 
+func (d *DynamodbOnlineStore) OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *DynamodbOnlineStore) GetDataModelType() OnlineStoreDataModel {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *DynamodbOnlineStore) GetReadBatchSize() int {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewDynamodbOnlineStore(project string, config *registry.RepoConfig, onlineStoreConfig map[string]interface{}) (*DynamodbOnlineStore, error) {
 	store := DynamodbOnlineStore{
 		project: project,

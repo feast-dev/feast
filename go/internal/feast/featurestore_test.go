@@ -126,6 +126,19 @@ type MockRedis struct {
 	mock.Mock
 }
 
+func (m *MockRedis) OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]onlinestore.FeatureData, error) {
+	// TODO: this is a quick fix to satisfy the interface, revisit for proper mocking
+	return m.OnlineRead(ctx, entityKeys, featureViewNames, featureNames)
+}
+
+func (m *MockRedis) GetDataModelType() onlinestore.OnlineStoreDataModel {
+	return onlinestore.EntityLevel
+}
+
+func (m *MockRedis) GetReadBatchSize() int {
+	return -1
+}
+
 func (m *MockRedis) Destruct() {}
 func (m *MockRedis) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]onlinestore.FeatureData, error) {
 	args := m.Called(ctx, entityKeys, featureViewNames, featureNames)
