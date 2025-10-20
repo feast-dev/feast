@@ -5,11 +5,11 @@ import pyarrow as pa
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.data_source import DataSource
+from feast.infra.compute_engines.backends.base import DataFrameBackend
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
-from feast.infra.compute_engines.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.local_node import LocalNode
 from feast.infra.compute_engines.utils import (
     create_offline_store_retrieval_job,

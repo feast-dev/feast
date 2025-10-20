@@ -584,7 +584,7 @@ def _get_aggregate_operations(agg_specs) -> dict:
 def _apply_aggregations_to_response(
     response_data: Union[pyarrow.Table, Dict[str, List[Any]]],
     aggregations,
-    group_keys: List[str],
+    group_keys: Optional[List[str]],
     mode: str,
 ) -> Union[pyarrow.Table, Dict[str, List[Any]]]:
     """
@@ -593,7 +593,7 @@ def _apply_aggregations_to_response(
     Args:
         response_data: Either a pyarrow.Table or dict of lists containing the data
         aggregations: List of Aggregation objects to apply
-        group_keys: List of column names to group by
+        group_keys: List of column names to group by (optional)
         mode: Transformation mode ("python", "pandas", or "substrait")
 
     Returns:
@@ -619,7 +619,11 @@ def _apply_aggregations_to_response(
     agg_ops = _get_aggregate_operations(aggregations)
 
     # Apply aggregations using PandasBackend
-    result_df = backend.groupby_agg(df, group_keys, agg_ops)
+    if group_keys:
+        result_df = backend.groupby_agg(df, group_keys, agg_ops)
+    else:
+        # No grouping - aggregate over entire dataset
+        result_df = backend.groupby_agg(df, [], agg_ops)
 
     # Convert back to original format
     if mode == "python":
@@ -693,7 +697,7 @@ def _augment_response_with_on_demand_transforms(
                         odfv.mode,
                     )
 
-            # Apply transformation
+            # Apply transformation. Note, aggregations and transformation configs are mutually exclusive
             elif odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
