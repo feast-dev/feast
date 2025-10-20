@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pyarrow as pa
 
+from feast.infra.compute_engines.backends.pandas_backend import PandasBackend
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
-from feast.infra.compute_engines.backends.pandas_backend import PandasBackend
 from feast.infra.compute_engines.local.nodes import (
     LocalAggregationNode,
     LocalDedupNode,
