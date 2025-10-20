@@ -657,7 +657,7 @@ _Appears in:_
 | --- | --- |
 | `path` _string_ |  |
 | `pvc` _[PvcConfig](#pvcconfig)_ |  |
-| `s3_additional_kwargs` _map[string]string_ | NodeSelector constrains pod scheduling to nodes with matching labels. When multiple services define nodeSelector, the last service's configuration takes precedence. |
+| `s3_additional_kwargs` _map[string]string_ |  |
 
 
 #### RegistryPersistence
