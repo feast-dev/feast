@@ -469,7 +469,6 @@ class FeatureView(BaseFeatureView):
                     substrait_transformation=transformation_proto,
                 )
 
-
         original_entities: List[EntityProto] = []
         for entity in self.original_entities:
             original_entities.append(entity.to_proto())
