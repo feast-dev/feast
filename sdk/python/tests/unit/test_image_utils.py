@@ -29,7 +29,9 @@ from feast.image_utils import (
 )
 
 
-@pytest.mark.skip(reason="Image utilities tests are skipped because they call out to a 3rd-party api.")
+@pytest.mark.skip(
+    reason="Image utilities tests are skipped because they call out to a 3rd-party api."
+)
 class TestImageFeatureExtractor:
     """Test ImageFeatureExtractor functionality."""
 
