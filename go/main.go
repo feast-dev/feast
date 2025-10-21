@@ -87,6 +87,8 @@ func main() {
 
 		// Finally, set the tracer that can be used for this package.
 		tracer = tp.Tracer("github.com/feast-dev/feast/go")
+
+		log.Info().Msg("OTEL based tracing started.")
 	}
 
 	repoConfig, err := registry.NewRepoConfigFromFile(repoPath)
@@ -212,7 +214,9 @@ func OTELTracingEnabled() bool {
 }
 
 func newExporter(ctx context.Context) (*otlptrace.Exporter, error) {
-	exp, err := otlptracehttp.New(ctx)
+	exp, err := otlptracehttp.New(ctx,
+		otlptracehttp.WithEndpoint("localhost:4318"),
+		otlptracehttp.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -237,4 +241,3 @@ func newTracerProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, err
 		sdktrace.WithResource(r),
 	), nil
 }
-

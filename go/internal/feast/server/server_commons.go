@@ -14,10 +14,8 @@ func LogWithSpanContext(span trace.Span) zerolog.Logger {
 	spanContext := span.SpanContext()
 
 	var logger = zerolog.New(os.Stderr).With().
-		Timestamp().
-		Logger().
-		Hex("trace_id", spanContext.TraceID()).
-		Hex("span_id", spanContext.SpanID()).
+		Str("trace_id", spanContext.TraceID().String()).
+		Str("span_id", spanContext.SpanID().String()).
 		Timestamp().
 		Logger()
 
