@@ -38,6 +38,9 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
+from feast.protos.feast.core.Transformation_pb2 import (
+    FeatureTransformationV2 as FeatureTransformationProto,
+)
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
@@ -446,6 +449,27 @@ class FeatureView(BaseFeatureView):
                 view._to_proto_internal(seen).spec for view in self.source_views
             ]
 
+        feature_transformation_proto = None
+        if hasattr(self, "feature_transformation") and self.feature_transformation:
+            from feast.protos.feast.core.Transformation_pb2 import (
+                SubstraitTransformationV2 as SubstraitTransformationProto,
+            )
+            from feast.protos.feast.core.Transformation_pb2 import (
+                UserDefinedFunctionV2 as UserDefinedFunctionProto,
+            )
+
+            transformation_proto = self.feature_transformation.to_proto()
+
+            if isinstance(transformation_proto, UserDefinedFunctionProto):
+                feature_transformation_proto = FeatureTransformationProto(
+                    user_defined_function=transformation_proto,
+                )
+            elif isinstance(transformation_proto, SubstraitTransformationProto):
+                feature_transformation_proto = FeatureTransformationProto(
+                    substrait_transformation=transformation_proto,
+                )
+
+
         original_entities: List[EntityProto] = []
         for entity in self.original_entities:
             original_entities.append(entity.to_proto())
@@ -465,6 +489,7 @@ class FeatureView(BaseFeatureView):
             stream_source=stream_source_proto,
             source_views=source_view_protos,
             original_entities=original_entities,
+            feature_transformation=feature_transformation_proto,
         )
 
     def to_proto_meta(self):
@@ -574,21 +599,61 @@ class FeatureView(BaseFeatureView):
             for view_spec in feature_view_proto.spec.source_views
         ]
 
-        feature_view = cls(
-            name=feature_view_proto.spec.name,
-            description=feature_view_proto.spec.description,
-            tags=dict(feature_view_proto.spec.tags),
-            owner=feature_view_proto.spec.owner,
-            online=feature_view_proto.spec.online,
-            offline=feature_view_proto.spec.offline,
-            ttl=(
-                timedelta(days=0)
-                if feature_view_proto.spec.ttl.ToNanoseconds() == 0
-                else feature_view_proto.spec.ttl.ToTimedelta()
-            ),
-            source=source_views if source_views else batch_source,
-            sink_source=batch_source if source_views else None,
-        )
+        has_transformation = feature_view_proto.spec.HasField("feature_transformation")
+
+        if has_transformation and cls == FeatureView:
+            from feast.batch_feature_view import BatchFeatureView
+            from feast.transformation.python_transformation import PythonTransformation
+            from feast.transformation.substrait_transformation import (
+                SubstraitTransformation,
+            )
+
+            feature_transformation_proto = (
+                feature_view_proto.spec.feature_transformation
+            )
+            transformation = None
+
+            if feature_transformation_proto.HasField("user_defined_function"):
+                transformation = PythonTransformation.from_proto(
+                    feature_transformation_proto.user_defined_function
+                )
+            elif feature_transformation_proto.HasField("substrait_transformation"):
+                transformation = SubstraitTransformation.from_proto(
+                    feature_transformation_proto.substrait_transformation
+                )
+
+            feature_view: FeatureView = BatchFeatureView(  # type: ignore[assignment]
+                name=feature_view_proto.spec.name,
+                description=feature_view_proto.spec.description,
+                tags=dict(feature_view_proto.spec.tags),
+                owner=feature_view_proto.spec.owner,
+                online=feature_view_proto.spec.online,
+                offline=feature_view_proto.spec.offline,
+                ttl=(
+                    timedelta(days=0)
+                    if feature_view_proto.spec.ttl.ToNanoseconds() == 0
+                    else feature_view_proto.spec.ttl.ToTimedelta()
+                ),
+                source=source_views if source_views else batch_source,  # type: ignore[arg-type]
+                sink_source=batch_source if source_views else None,
+                feature_transformation=transformation,
+            )
+        else:
+            feature_view = cls(  # type: ignore[assignment]
+                name=feature_view_proto.spec.name,
+                description=feature_view_proto.spec.description,
+                tags=dict(feature_view_proto.spec.tags),
+                owner=feature_view_proto.spec.owner,
+                online=feature_view_proto.spec.online,
+                offline=feature_view_proto.spec.offline,
+                ttl=(
+                    timedelta(days=0)
+                    if feature_view_proto.spec.ttl.ToNanoseconds() == 0
+                    else feature_view_proto.spec.ttl.ToTimedelta()
+                ),
+                source=source_views if source_views else batch_source,
+                sink_source=batch_source if source_views else None,
+            )
         if stream_source:
             feature_view.stream_source = stream_source
 

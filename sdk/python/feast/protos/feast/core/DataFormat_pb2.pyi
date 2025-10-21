@@ -16,21 +16,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
 import builtins
 import google.protobuf.descriptor
 import google.protobuf.message
-import typing
+import sys
+
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
+else:
+    import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@typing.final
 class FileFormat(google.protobuf.message.Message):
     """Defines the file format encoding the features/entity data in files"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    @typing.final
     class ParquetFormat(google.protobuf.message.Message):
         """Defines options for the Parquet data format"""
 
@@ -40,7 +42,6 @@ class FileFormat(google.protobuf.message.Message):
             self,
         ) -> None: ...
 
-    @typing.final
     class DeltaFormat(google.protobuf.message.Message):
         """Defines options for delta data format"""
 
@@ -62,19 +63,17 @@ class FileFormat(google.protobuf.message.Message):
         parquet_format: global___FileFormat.ParquetFormat | None = ...,
         delta_format: global___FileFormat.DeltaFormat | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["format", b"format"]) -> typing.Literal["parquet_format", "delta_format"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["parquet_format", "delta_format"] | None: ...
 
 global___FileFormat = FileFormat
 
-@typing.final
 class StreamFormat(google.protobuf.message.Message):
     """Defines the data format encoding features/entity data in data streams"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    @typing.final
     class ProtoFormat(google.protobuf.message.Message):
         """Defines options for the protobuf data format"""
 
@@ -90,9 +89,8 @@ class StreamFormat(google.protobuf.message.Message):
             *,
             class_path: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["class_path", b"class_path"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["class_path", b"class_path"]) -> None: ...
 
-    @typing.final
     class AvroFormat(google.protobuf.message.Message):
         """Defines options for the avro data format"""
 
@@ -108,9 +106,8 @@ class StreamFormat(google.protobuf.message.Message):
             *,
             schema_json: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["schema_json", b"schema_json"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["schema_json", b"schema_json"]) -> None: ...
 
-    @typing.final
     class JsonFormat(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -121,9 +118,8 @@ class StreamFormat(google.protobuf.message.Message):
             *,
             schema_json: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["schema_json", b"schema_json"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["schema_json", b"schema_json"]) -> None: ...
 
-    @typing.final
     class ConfluentAvroFormat(google.protobuf.message.Message):
         """Confluent Avro fetches schema from a schema registry"""
 
@@ -139,7 +135,7 @@ class StreamFormat(google.protobuf.message.Message):
             record_name: builtins.str = ...,
             record_namespace: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["record_name", b"record_name", "record_namespace", b"record_namespace"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["record_name", b"record_name", "record_namespace", b"record_namespace"]) -> None: ...
 
     AVRO_FORMAT_FIELD_NUMBER: builtins.int
     PROTO_FORMAT_FIELD_NUMBER: builtins.int
@@ -161,8 +157,8 @@ class StreamFormat(google.protobuf.message.Message):
         json_format: global___StreamFormat.JsonFormat | None = ...,
         confluent_avro_format: global___StreamFormat.ConfluentAvroFormat | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["avro_format", b"avro_format", "confluent_avro_format", b"confluent_avro_format", "format", b"format", "json_format", b"json_format", "proto_format", b"proto_format"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["avro_format", b"avro_format", "confluent_avro_format", b"confluent_avro_format", "format", b"format", "json_format", b"json_format", "proto_format", b"proto_format"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["format", b"format"]) -> typing.Literal["avro_format", "proto_format", "json_format", "confluent_avro_format"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["avro_format", b"avro_format", "confluent_avro_format", b"confluent_avro_format", "format", b"format", "json_format", b"json_format", "proto_format", b"proto_format"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["avro_format", b"avro_format", "confluent_avro_format", b"confluent_avro_format", "format", b"format", "json_format", b"json_format", "proto_format", b"proto_format"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["avro_format", "proto_format", "json_format", "confluent_avro_format"] | None: ...
 
 global___StreamFormat = StreamFormat

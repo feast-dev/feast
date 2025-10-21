@@ -16,18 +16,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
 import builtins
 import collections.abc
 import feast.types.Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
-import typing
+import sys
+
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
+else:
+    import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@typing.final
 class EntityKey(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -43,6 +46,6 @@ class EntityKey(google.protobuf.message.Message):
         join_keys: collections.abc.Iterable[builtins.str] | None = ...,
         entity_values: collections.abc.Iterable[feast.types.Value_pb2.Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["entity_values", b"entity_values", "join_keys", b"join_keys"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["entity_values", b"entity_values", "join_keys", b"join_keys"]) -> None: ...
 
 global___EntityKey = EntityKey

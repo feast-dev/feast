@@ -63,12 +63,14 @@ REGISTRY_STORE_CLASS_FOR_TYPE = {
     "S3RegistryStore": "feast.infra.registry.s3.S3RegistryStore",
     "FileRegistryStore": "feast.infra.registry.file.FileRegistryStore",
     "AzureRegistryStore": "feast.infra.registry.contrib.azure.azure_registry_store.AzBlobRegistryStore",
+    "HDFSRegistryStore": "feast.infra.registry.contrib.hdfs.hdfs_registry_store.HDFSRegistryStore",
 }
 
 REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "gs": "GCSRegistryStore",
     "s3": "S3RegistryStore",
     "file": "FileRegistryStore",
+    "hdfs": "HDFSRegistryStore",
     "": "FileRegistryStore",
 }
 
@@ -149,7 +151,7 @@ def get_registry_store_class_from_scheme(registry_path: str):
     if uri.scheme not in REGISTRY_STORE_CLASS_FOR_SCHEME:
         raise Exception(
             f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
-            f"Supported schemes are file, s3 and gs."
+            f"Supported schemes are file, s3, gs and hdfs."
         )
     else:
         registry_store_type = REGISTRY_STORE_CLASS_FOR_SCHEME[uri.scheme]

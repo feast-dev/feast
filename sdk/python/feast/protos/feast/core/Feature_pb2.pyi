@@ -16,22 +16,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
 import builtins
 import collections.abc
 import feast.types.Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
-import typing
+import sys
+
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
+else:
+    import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@typing.final
 class FeatureSpecV2(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -45,7 +47,7 @@ class FeatureSpecV2(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     VALUE_TYPE_FIELD_NUMBER: builtins.int
@@ -58,6 +60,9 @@ class FeatureSpecV2(google.protobuf.message.Message):
     """Name of the feature. Not updatable."""
     value_type: feast.types.Value_pb2.ValueType.Enum.ValueType
     """Value type of the feature. Not updatable."""
+    @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+        """Tags for user defined metadata on a feature"""
     description: builtins.str
     """Description of the feature."""
     vector_index: builtins.bool
@@ -66,10 +71,6 @@ class FeatureSpecV2(google.protobuf.message.Message):
     """Metric used for vector similarity search."""
     vector_length: builtins.int
     """Field indicating the vector length"""
-    @property
-    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
-        """Tags for user defined metadata on a feature"""
-
     def __init__(
         self,
         *,
@@ -81,6 +82,6 @@ class FeatureSpecV2(google.protobuf.message.Message):
         vector_search_metric: builtins.str = ...,
         vector_length: builtins.int = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["description", b"description", "name", b"name", "tags", b"tags", "value_type", b"value_type", "vector_index", b"vector_index", "vector_length", b"vector_length", "vector_search_metric", b"vector_search_metric"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "name", b"name", "tags", b"tags", "value_type", b"value_type", "vector_index", b"vector_index", "vector_length", b"vector_length", "vector_search_metric", b"vector_search_metric"]) -> None: ...
 
 global___FeatureSpecV2 = FeatureSpecV2

@@ -16,18 +16,21 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
-
 import builtins
 import collections.abc
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
 import google.protobuf.timestamp_pb2
-import typing
+import sys
+
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
+else:
+    import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@typing.final
 class Project(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -36,27 +39,23 @@ class Project(google.protobuf.message.Message):
     @property
     def spec(self) -> global___ProjectSpec:
         """User-specified specifications of this entity."""
-
     @property
     def meta(self) -> global___ProjectMeta:
         """System-populated metadata for this entity."""
-
     def __init__(
         self,
         *,
         spec: global___ProjectSpec | None = ...,
         meta: global___ProjectMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
 
 global___Project = Project
 
-@typing.final
 class ProjectSpec(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -70,7 +69,7 @@ class ProjectSpec(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     DESCRIPTION_FIELD_NUMBER: builtins.int
@@ -80,12 +79,11 @@ class ProjectSpec(google.protobuf.message.Message):
     """Name of the Project"""
     description: builtins.str
     """Description of the Project"""
-    owner: builtins.str
-    """Owner of the Project"""
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
-
+    owner: builtins.str
+    """Owner of the Project"""
     def __init__(
         self,
         *,
@@ -94,11 +92,10 @@ class ProjectSpec(google.protobuf.message.Message):
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         owner: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["description", b"description", "name", b"name", "owner", b"owner", "tags", b"tags"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "name", b"name", "owner", b"owner", "tags", b"tags"]) -> None: ...
 
 global___ProjectSpec = ProjectSpec
 
-@typing.final
 class ProjectMeta(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -107,18 +104,16 @@ class ProjectMeta(google.protobuf.message.Message):
     @property
     def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time when the Project is created"""
-
     @property
     def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time when the Project is last updated with registry changes (Apply stage)"""
-
     def __init__(
         self,
         *,
         created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> None: ...
 
 global___ProjectMeta = ProjectMeta

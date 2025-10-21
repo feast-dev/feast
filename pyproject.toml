@@ -26,7 +26,7 @@ dependencies = [
     "numpy>=1.22,<2",
 #    "numpy>=2.0.0,<3", # downgrade numpy for spark 3.5.5 compatibility
     "pandas>=1.4.3,<3",
-    "pyarrow<=17.0.0",
+    "pyarrow<=21.0.0",
     "pydantic==2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -97,7 +97,7 @@ ibis = [
 ikv = [
     "ikvpy>=0.0.36",
 ]
-k8s = ["kubernetes>=20.13.0,<=23.3.0"]
+k8s = ["kubernetes"]
 image = [
     "eg-feast[pytorch]",
     "timm>=0.6.0",
@@ -131,7 +131,10 @@ rag = [
     "transformers>=4.36.0",
     "datasets>=3.6.0",
 ]
-ray = ["ray>=2.47.0"]
+ray = [
+'ray>=2.47.0; python_version == "3.10"',
+'codeflare-sdk>=0.31.1; python_version > "3.10"'
+]
 redis = [
     "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",

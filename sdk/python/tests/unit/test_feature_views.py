@@ -1,6 +1,7 @@
 import copy
 from datetime import timedelta
 
+import pandas as pd
 import pytest
 from typeguard import TypeCheckError
 
@@ -426,3 +427,94 @@ def test_fv_compatibility_change_entities_with_no_materialization_interval():
     ok, reasons = fv1.is_update_compatible_with(fv2)
     assert ok
     assert reasons == []
+
+
+def test_batch_feature_view_serialization_deserialization():
+    """
+    Test that BatchFeatureView with transformations correctly serializes to proto
+    and deserializes back preserving both type and transformation.
+    """
+
+    def transform_udf(df: pd.DataFrame) -> pd.DataFrame:
+        df["output_feature"] = df["input_feature"] * 2 + 10
+        return df
+
+    file_source = FileSource(
+        name="test-source",
+        path="test_data.parquet",
+        timestamp_field="event_timestamp",
+    )
+
+    entity = Entity(name="test_entity", join_keys=["entity_id"])
+
+    original_bfv = BatchFeatureView(
+        name="test_batch_feature_view",
+        entities=[entity],
+        schema=[
+            Field(name="entity_id", dtype=String),
+            Field(name="input_feature", dtype=Int64),
+            Field(name="output_feature", dtype=Int64),
+        ],
+        source=file_source,
+        ttl=timedelta(days=1),
+        online=True,
+        description="Test batch feature view with transformation",
+        tags={"team": "data_science", "env": "test"},
+        owner="test_owner",
+        udf=transform_udf,
+        mode="python",
+    )
+
+    # Verify the original has the transformation
+    assert hasattr(original_bfv, "feature_transformation")
+    assert original_bfv.feature_transformation is not None
+    assert original_bfv.feature_transformation.udf == transform_udf
+
+    # Serialize to proto
+    proto = original_bfv.to_proto()
+
+    # Verify proto has the transformation field
+    assert proto.spec.HasField("feature_transformation")
+    assert proto.spec.feature_transformation.HasField("user_defined_function")
+    assert (
+        proto.spec.feature_transformation.user_defined_function.name == "transform_udf"
+    )
+    assert proto.spec.feature_transformation.user_defined_function.body != b""
+
+    # Deserialize from proto using FeatureView.from_proto()
+    # This should return a BatchFeatureView, not a generic FeatureView
+    deserialized = FeatureView.from_proto(proto)
+
+    # Verify the type is preserved
+    assert isinstance(deserialized, BatchFeatureView), (
+        f"Expected BatchFeatureView but got {type(deserialized).__name__}. "
+        "Type should be preserved during deserialization."
+    )
+
+    # Verify basic attributes
+    assert deserialized.name == "test_batch_feature_view"
+    assert deserialized.description == "Test batch feature view with transformation"
+    assert deserialized.tags == {"team": "data_science", "env": "test"}
+    assert deserialized.owner == "test_owner"
+    assert deserialized.ttl == timedelta(days=1)
+    assert deserialized.online is True
+
+    # Verify the transformation is preserved
+    assert hasattr(deserialized, "feature_transformation")
+    assert deserialized.feature_transformation is not None
+
+    # Verify the UDF is functional by testing it
+    test_df = pd.DataFrame({"input_feature": [1, 2, 3]})
+    result_df = deserialized.feature_transformation.udf(test_df)
+    expected_df = pd.DataFrame(
+        {"input_feature": [1, 2, 3], "output_feature": [12, 14, 16]}
+    )
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+    # Test round-trip: serialize again and verify consistency
+    second_proto = deserialized.to_proto()
+    second_deserialized = FeatureView.from_proto(second_proto)
+
+    assert isinstance(second_deserialized, BatchFeatureView)
+    assert second_deserialized.name == original_bfv.name
+    assert second_deserialized.feature_transformation is not None

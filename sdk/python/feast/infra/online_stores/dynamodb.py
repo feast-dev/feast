@@ -203,25 +203,44 @@ class DynamoDBOnlineStore(OnlineStore):
             kwargs = {"Tags": table_tags} if table_tags else {}
 
             table_name = _get_table_name(online_config, config, table_instance)
+            # Check if table already exists before attempting to create
+            # This is required for environments where IAM roles don't have
+            # dynamodb:CreateTable permissions (e.g., Terraform-managed tables)
+            table_exists = False
             try:
-                dynamodb_resource.create_table(
-                    TableName=table_name,
-                    KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
-                    AttributeDefinitions=[
-                        {"AttributeName": "entity_id", "AttributeType": "S"}
-                    ],
-                    BillingMode="PAY_PER_REQUEST",
-                    **kwargs,
-                )
-
-            except ClientError as ce:
+                dynamodb_client.describe_table(TableName=table_name)
+                table_exists = True
                 do_tag_updates[table_name] = True
-
-                # If the table creation fails with ResourceInUseException,
-                # it means the table already exists or is being created.
-                # Otherwise, re-raise the exception
-                if ce.response["Error"]["Code"] != "ResourceInUseException":
+                logger.info(
+                    f"DynamoDB table {table_name} already exists, skipping creation"
+                )
+            except ClientError as ce:
+                if ce.response["Error"]["Code"] != "ResourceNotFoundException":
+                    # If it's not a "table not found" error, re-raise
                     raise
+
+            # Only attempt to create table if it doesn't exist
+            if not table_exists:
+                try:
+                    dynamodb_resource.create_table(
+                        TableName=table_name,
+                        KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
+                        AttributeDefinitions=[
+                            {"AttributeName": "entity_id", "AttributeType": "S"}
+                        ],
+                        BillingMode="PAY_PER_REQUEST",
+                        **kwargs,
+                    )
+                    logger.info(f"Created DynamoDB table {table_name}")
+
+                except ClientError as ce:
+                    do_tag_updates[table_name] = True
+
+                    # If the table creation fails with ResourceInUseException,
+                    # it means the table already exists or is being created.
+                    # Otherwise, re-raise the exception
+                    if ce.response["Error"]["Code"] != "ResourceInUseException":
+                        raise
 
         for table_instance in tables_to_keep:
             table_name = _get_table_name(online_config, config, table_instance)
@@ -230,7 +249,18 @@ class DynamoDBOnlineStore(OnlineStore):
             # tags won't be updated in the create_table call if the table already exists
             if do_tag_updates[table_name]:
                 tags = self._table_tags(online_config, table_instance)
-                self._update_tags(dynamodb_client, table_name, tags)
+                try:
+                    self._update_tags(dynamodb_client, table_name, tags)
+                except ClientError as ce:
+                    # If tag update fails with AccessDeniedException, log warning and continue
+                    # This allows Feast to work in environments where IAM roles don't have
+                    # dynamodb:TagResource and dynamodb:UntagResource permissions
+                    if ce.response["Error"]["Code"] == "AccessDeniedException":
+                        logger.warning(
+                            f"Unable to update tags for table {table_name} due to insufficient permissions."
+                        )
+                    else:
+                        raise
 
         for table_to_delete in tables_to_delete:
             _delete_table_idempotent(
@@ -712,13 +742,22 @@ def _delete_table_idempotent(
         table.delete()
         logger.info(f"Dynamo table {table_name} was deleted")
     except ClientError as ce:
+        error_code = ce.response["Error"]["Code"]
+
         # If the table deletion fails with ResourceNotFoundException,
         # it means the table has already been deleted.
-        # Otherwise, re-raise the exception
-        if ce.response["Error"]["Code"] != "ResourceNotFoundException":
-            raise
-        else:
+        if error_code == "ResourceNotFoundException":
             logger.warning(f"Trying to delete table that doesn't exist: {table_name}")
+        # If it fails with AccessDeniedException, the IAM role doesn't have
+        # dynamodb:DeleteTable permission (e.g., Terraform-managed tables)
+        elif error_code == "AccessDeniedException":
+            logger.warning(
+                f"Unable to delete table {table_name} due to insufficient permissions. "
+                f"The table may need to be deleted manually or via your infrastructure management tool (e.g., Terraform)."
+            )
+        else:
+            # Some other error, re-raise
+            raise
 
 
 def _to_resource_write_item(config, entity_key, features, timestamp):

@@ -35,7 +35,7 @@ REQUIRED = [
     "numpy>=1.22,<2",
     # "numpy>=2.0.0,<3", # downgrade numpy for spark 3.5.5 compatibility
     "pandas>=1.4.3,<3",
-    "pyarrow<18.1.0",
+    "pyarrow<=21.0.0",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -79,7 +79,7 @@ EG_VALKEY_REQUIRED = ["valkey[libvalkey]>=6.1.0"]
 
 AWS_REQUIRED = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 
-KUBERNETES_REQUIRED = ["kubernetes>=20.13.0,<=23.3.0"]
+KUBERNETES_REQUIRED = ["kubernetes"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3.7,<4",
@@ -202,7 +202,10 @@ IMAGE_REQUIRED = [
     "scikit-learn>=1.0.0",
 ] + TORCH_REQUIRED
 
-RAY_REQUIRED = ["ray>=2.47.0"]
+RAY_REQUIRED = [
+    "ray>=2.47.0; python_version == '3.10'",
+    'codeflare-sdk>=0.31.1; python_version != "3.10"',
+    ]
 
 CI_REQUIRED = (
     [

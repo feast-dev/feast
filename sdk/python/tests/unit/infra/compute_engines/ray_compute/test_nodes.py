@@ -1,4 +1,6 @@
+import os
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -17,6 +19,12 @@ from feast.infra.compute_engines.ray.nodes import (
     RayJoinNode,
     RayReadNode,
     RayTransformationNode,
+)
+from feast.infra.ray_initializer import (
+    RayConfigManager,
+    RayExecutionMode,
+    ensure_ray_initialized,
+    get_ray_wrapper,
 )
 
 
@@ -317,3 +325,101 @@ def test_ray_config_validation():
     # Test invalid window size defaults to 1 hour
     config_invalid = RayComputeEngineConfig(window_size_for_joins="invalid")
     assert config_invalid.window_size_timedelta == timedelta(hours=1)
+
+
+def test_ray_initialization_and_kuberay_modes():
+    """
+    Comprehensive test for Ray initialization modes and KubeRay configuration.
+
+    Tests: Mode detection (LOCAL/REMOTE/KUBERAY), config parsing, defaults,
+    environment variables, mode precedence, and Ray wrapper instantiation.
+    """
+    # Test LOCAL mode (default)
+    config_local = RayComputeEngineConfig()
+    assert (
+        RayConfigManager(config_local).determine_execution_mode()
+        == RayExecutionMode.LOCAL
+    )
+
+    # Test REMOTE mode
+    config_remote = RayComputeEngineConfig(ray_address="ray://localhost:10001")
+    manager_remote = RayConfigManager(config_remote)
+    assert manager_remote.determine_execution_mode() == RayExecutionMode.REMOTE
+    # Test execution mode caching
+    assert manager_remote.determine_execution_mode() == RayExecutionMode.REMOTE
+
+    # Test KUBERAY mode with full config
+    config_kuberay = RayComputeEngineConfig(
+        use_kuberay=True,
+        kuberay_conf={
+            "cluster_name": "feast-cluster",
+            "namespace": "feast-system",
+            "auth_token": "test-token",
+            "auth_server": "https://api.example.com",
+            "skip_tls": True,
+        },
+    )
+    manager_kuberay = RayConfigManager(config_kuberay)
+    assert manager_kuberay.determine_execution_mode() == RayExecutionMode.KUBERAY
+    kuberay_config = manager_kuberay.get_kuberay_config()
+    assert kuberay_config["cluster_name"] == "feast-cluster"
+    assert kuberay_config["namespace"] == "feast-system"
+    assert kuberay_config["auth_token"] == "test-token"
+    assert kuberay_config["skip_tls"] is True
+
+    # Test KubeRay defaults
+    config_defaults = RayComputeEngineConfig(
+        use_kuberay=True, kuberay_conf={"cluster_name": "test-cluster"}
+    )
+    defaults_config = RayConfigManager(config_defaults).get_kuberay_config()
+    assert defaults_config["namespace"] == "default"
+    assert defaults_config["skip_tls"] is False
+
+    # Test mode precedence - KUBERAY overrides REMOTE
+    config_precedence = RayComputeEngineConfig(
+        ray_address="ray://localhost:10001",
+        use_kuberay=True,
+        kuberay_conf={"cluster_name": "test-cluster"},
+    )
+    assert (
+        RayConfigManager(config_precedence).determine_execution_mode()
+        == RayExecutionMode.KUBERAY
+    )
+
+    # Test environment variable support
+    with patch.dict(
+        os.environ,
+        {
+            "FEAST_RAY_CLUSTER_NAME": "env-cluster",
+            "FEAST_RAY_NAMESPACE": "env-namespace",
+            "FEAST_RAY_AUTH_TOKEN": "env-token",
+        },
+    ):
+        env_config = RayConfigManager(
+            RayComputeEngineConfig(use_kuberay=True, kuberay_conf={})
+        ).get_kuberay_config()
+        assert env_config["cluster_name"] == "env-cluster"
+        assert env_config["namespace"] == "env-namespace"
+        assert env_config["auth_token"] == "env-token"
+
+    # Test Ray wrapper instantiation
+    from feast.infra.ray_initializer import StandardRayWrapper
+
+    wrapper = get_ray_wrapper()
+    assert isinstance(wrapper, StandardRayWrapper)
+
+    config_custom = RayComputeEngineConfig(
+        enable_ray_logging=True,
+        max_workers=4,
+        broadcast_join_threshold_mb=200,
+        ray_conf={"num_cpus": 4},
+    )
+    assert config_custom.enable_ray_logging is True
+    assert config_custom.max_workers == 4
+    assert config_custom.broadcast_join_threshold_mb == 200
+    assert config_custom.ray_conf["num_cpus"] == 4
+
+    with patch("feast.infra.ray_initializer.ray") as mock_ray:
+        mock_ray.is_initialized.return_value = True
+        ensure_ray_initialized(config_local)
+        mock_ray.init.assert_not_called()

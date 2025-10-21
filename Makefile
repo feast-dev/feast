@@ -89,10 +89,15 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 # Used in github actions/ci
 # formerly install-python-ci-dependencies-uv
 install-python-dependencies-ci: ## Install Python CI dependencies in system environment using uv
-	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	# Install CPU-only torch first to prevent CUDA dependency issues
-	uv pip uninstall --system torch torchvision || true
-	uv pip install --system torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
+	pip uninstall torch torchvision -y || true
+	@if [ "$$(uname -s)" = "Linux" ]; then \
+		echo "Installing dependencies with torch CPU index for Linux..."; \
+		uv pip sync --system --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+	else \
+		echo "Installing dependencies from PyPI for macOS..."; \
+		uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+	fi
 	# Ensure numpy is within supported version range for spark 3.5.5
 	uv pip uninstall --system numpy || true
 	uv pip install --system "numpy>=1.22,<2"
@@ -108,7 +113,20 @@ install-protoc-dependencies:
 lock-python-ci-dependencies:
 	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 
-# Used by multicloud/Dockerfile.dev
+# Used in github actions/ci
+install-hadoop-dependencies-ci: ## Install Hadoop dependencies
+	@if [ ! -f $$HOME/hadoop-3.4.2.tar.gz ]; then \
+		echo "Downloading Hadoop tarball..."; \
+		wget -q https://dlcdn.apache.org/hadoop/common/hadoop-3.4.2/hadoop-3.4.2.tar.gz -O $$HOME/hadoop-3.4.2.tar.gz; \
+	else \
+		echo "Using cached Hadoop tarball"; \
+	fi
+	@if [ ! -d $$HOME/hadoop ]; then \
+		echo "Extracting Hadoop tarball..."; \
+		tar -xzf $$HOME/hadoop-3.4.2.tar.gz -C $$HOME; \
+		mv $$HOME/hadoop-3.4.2 $$HOME/hadoop; \
+	fi
+
 install-python-ci-dependencies: ## Install Python CI dependencies in system environment using piptools
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
@@ -178,6 +196,9 @@ test-python-integration: ## Run Python integration tests (CI)
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
+	HADOOP_HOME=$$HOME/hadoop \
+	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
+	HADOOP_USER_NAME=root \
 	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
@@ -775,6 +796,11 @@ build-feature-server-dev: ## Build Feature Server Dev Docker image
 
 build-feature-server-dev-docker: ## Build Feature Server Dev Docker image
 	docker buildx build \
+		-t $(REGISTRY)/feature-server:$(VERSION) \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
+build-feature-server-dev-docker_on_mac: ## Build Feature Server Dev Docker image on Mac
+	docker buildx build --platform linux/amd64 \
 		-t $(REGISTRY)/feature-server:$(VERSION) \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
 

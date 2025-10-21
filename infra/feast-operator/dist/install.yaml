@@ -267,6 +267,10 @@ spec:
                         description: PullPolicy describes a policy for if/when to
                           pull a container image
                         type: string
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -1033,6 +1037,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1488,6 +1496,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1954,6 +1966,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -2449,6 +2465,10 @@ spec:
                         - error
                         - critical
                         type: string
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -4224,6 +4244,10 @@ spec:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -5002,6 +5026,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -5465,6 +5493,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -5943,6 +5975,10 @@ spec:
                                     - error
                                     - critical
                                     type: string
+                                  nodeSelector:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                   resources:
                                     description: ResourceRequirements describes the
                                       compute resource requirements.
@@ -6448,6 +6484,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -8212,6 +8252,12 @@ rules:
   - update
   - watch
 - apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
   - batch
   resources:
   - cronjobs
@@ -8240,11 +8286,13 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
   - pods
   - secrets
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -8280,8 +8328,11 @@ rules:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
+  - clusterrolebindings
+  - clusterroles
   - rolebindings
   - roles
+  - subjectaccessreviews
   verbs:
   - create
   - delete
@@ -8432,10 +8483,10 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: quay.io/feastdev/feature-server:0.53.0
+          value: quay.io/feastdev/feature-server:0.55.0
         - name: RELATED_IMAGE_CRON_JOB
           value: quay.io/openshift/origin-cli:4.17
-        image: quay.io/feastdev/feast-operator:0.53.0
+        image: quay.io/feastdev/feast-operator:0.55.0
         livenessProbe:
           httpGet:
             path: /healthz

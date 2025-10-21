@@ -76,7 +76,9 @@ def get_app(
     @app.get("/registry")
     def read_registry():
         if registry_proto is None:
-            return Response(status_code=503)  # Service Unavailable
+            return Response(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+            )  # Service Unavailable
         return Response(
             content=registry_proto.SerializeToString(),
             media_type="application/octet-stream",
@@ -84,7 +86,11 @@ def get_app(
 
     @app.get("/health")
     def health():
-        return Response(status_code=status.HTTP_200_OK)
+        return (
+            Response(status_code=status.HTTP_200_OK)
+            if registry_proto
+            else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+        )
 
     @app.post("/save-document")
     async def save_document_endpoint(request: SaveDocumentRequest):

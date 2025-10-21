@@ -4,7 +4,6 @@ package server
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -142,7 +141,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 
 	// Wait for logger to flush.
 	require.Eventually(t, func() bool {
-		files, err := ioutil.ReadDir(logPath)
+		files, err := os.ReadDir(logPath)
 		if err != nil || len(files) == 0 {
 			return false
 		}
@@ -150,7 +149,8 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		return err == nil && stat.Size() > 0
 	}, 1*time.Second, 100*time.Millisecond)
 
-	files, err := ioutil.ReadDir(logPath)
+	files, err := os.ReadDir(logPath)
+	assert.Nil(t, err)
 	logFile := filepath.Join(logPath, files[0].Name())
 	pf, err := file.OpenParquetFile(logFile, false)
 	assert.Nil(t, err)

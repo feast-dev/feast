@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -581,7 +581,7 @@ func TestGetOnlineFeaturesS3Registry(t *testing.T) {
 	mockS3Client := &MockS3Client{
 		GetObjectFn: func(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
 			return &s3.GetObjectOutput{
-				Body: ioutil.NopCloser(strings.NewReader("mock data")),
+				Body: io.NopCloser(strings.NewReader("mock data")),
 			}, nil
 		},
 		DeleteObjectFn: func(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {

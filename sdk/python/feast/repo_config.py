@@ -158,6 +158,12 @@ class RegistryConfig(FeastBaseModel):
      set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
+    cache_mode: StrictStr = "sync"
+    """str: Cache mode type. Possible options are 'sync' (immediate refresh after each write operation) and
+     'thread' (asynchronous background refresh at cache_ttl_seconds intervals). In 'sync' mode, registry changes
+     are immediately visible. In 'thread' mode, changes may take up to
+     cache_ttl_seconds to be visible."""
+
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
 

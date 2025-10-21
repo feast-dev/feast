@@ -16,7 +16,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
 import builtins
 import collections.abc
 import feast.core.DataSource_pb2
@@ -26,11 +25,15 @@ import google.protobuf.duration_pb2
 import google.protobuf.internal.containers
 import google.protobuf.message
 import google.protobuf.timestamp_pb2
-import typing
+import sys
+
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
+else:
+    import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@typing.final
 class FeatureTable(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -39,27 +42,23 @@ class FeatureTable(google.protobuf.message.Message):
     @property
     def spec(self) -> global___FeatureTableSpec:
         """User-specified specifications of this feature table."""
-
     @property
     def meta(self) -> global___FeatureTableMeta:
         """System-populated metadata for this feature table."""
-
     def __init__(
         self,
         *,
         spec: global___FeatureTableSpec | None = ...,
         meta: global___FeatureTableMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
 
 global___FeatureTable = FeatureTable
 
-@typing.final
 class FeatureTableSpec(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    @typing.final
     class LabelsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -73,7 +72,7 @@ class FeatureTableSpec(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
@@ -92,15 +91,12 @@ class FeatureTableSpec(google.protobuf.message.Message):
         """List names of entities to associate with the Features defined in this 
         Feature Table. Not updatable.
         """
-
     @property
     def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of features specifications for each feature defined with this feature table."""
-
     @property
     def labels(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
-
     @property
     def max_age(self) -> google.protobuf.duration_pb2.Duration:
         """Features in this feature table can only be retrieved from online serving
@@ -108,21 +104,18 @@ class FeatureTableSpec(google.protobuf.message.Message):
         the feature's event timestamp and when the feature is retrieved
         Feature values outside max age will be returned as unset values and indicated to end user
         """
-
     @property
     def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Batch/Offline DataSource to source batch/offline feature data.
         Only batch DataSource can be specified 
         (ie source type should start with 'BATCH_')
         """
-
     @property
     def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Stream/Online DataSource to source stream/online feature data.
         Only stream DataSource can be specified 
         (ie source type should start with 'STREAM_')
         """
-
     def __init__(
         self,
         *,
@@ -135,12 +128,11 @@ class FeatureTableSpec(google.protobuf.message.Message):
         batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
         stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["batch_source", b"batch_source", "max_age", b"max_age", "stream_source", b"stream_source"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["batch_source", b"batch_source", "entities", b"entities", "features", b"features", "labels", b"labels", "max_age", b"max_age", "name", b"name", "project", b"project", "stream_source", b"stream_source"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "max_age", b"max_age", "stream_source", b"stream_source"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "entities", b"entities", "features", b"features", "labels", b"labels", "max_age", b"max_age", "name", b"name", "project", b"project", "stream_source", b"stream_source"]) -> None: ...
 
 global___FeatureTableSpec = FeatureTableSpec
 
-@typing.final
 class FeatureTableMeta(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -148,20 +140,18 @@ class FeatureTableMeta(google.protobuf.message.Message):
     LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     REVISION_FIELD_NUMBER: builtins.int
     HASH_FIELD_NUMBER: builtins.int
+    @property
+    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+        """Time where this Feature Table is created"""
+    @property
+    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+        """Time where this Feature Table is last updated"""
     revision: builtins.int
     """Auto incrementing revision no. of this Feature Table"""
     hash: builtins.str
     """Hash entities, features, batch_source and stream_source to inform JobService if
     jobs should be restarted should hash change
     """
-    @property
-    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
-        """Time where this Feature Table is created"""
-
-    @property
-    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
-        """Time where this Feature Table is last updated"""
-
     def __init__(
         self,
         *,
@@ -170,7 +160,7 @@ class FeatureTableMeta(google.protobuf.message.Message):
         revision: builtins.int = ...,
         hash: builtins.str = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["created_timestamp", b"created_timestamp", "hash", b"hash", "last_updated_timestamp", b"last_updated_timestamp", "revision", b"revision"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "hash", b"hash", "last_updated_timestamp", b"last_updated_timestamp", "revision", b"revision"]) -> None: ...
 
 global___FeatureTableMeta = FeatureTableMeta

@@ -16,7 +16,6 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
-
 import builtins
 import collections.abc
 import feast.core.DatastoreTable_pb2
@@ -24,11 +23,15 @@ import feast.core.SqliteTable_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
-import typing
+import sys
+
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
+else:
+    import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@typing.final
 class Infra(google.protobuf.message.Message):
     """Represents a set of infrastructure objects managed by Feast"""
 
@@ -38,23 +41,20 @@ class Infra(google.protobuf.message.Message):
     @property
     def infra_objects(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___InfraObject]:
         """List of infrastructure objects managed by Feast"""
-
     def __init__(
         self,
         *,
         infra_objects: collections.abc.Iterable[global___InfraObject] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["infra_objects", b"infra_objects"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["infra_objects", b"infra_objects"]) -> None: ...
 
 global___Infra = Infra
 
-@typing.final
 class InfraObject(google.protobuf.message.Message):
     """Represents a single infrastructure object managed by Feast"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    @typing.final
     class CustomInfra(google.protobuf.message.Message):
         """Allows for custom infra objects to be added"""
 
@@ -67,7 +67,7 @@ class InfraObject(google.protobuf.message.Message):
             *,
             field: builtins.bytes = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing.Literal["field", b"field"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["field", b"field"]) -> None: ...
 
     INFRA_OBJECT_CLASS_TYPE_FIELD_NUMBER: builtins.int
     DATASTORE_TABLE_FIELD_NUMBER: builtins.int
@@ -89,8 +89,8 @@ class InfraObject(google.protobuf.message.Message):
         sqlite_table: feast.core.SqliteTable_pb2.SqliteTable | None = ...,
         custom_infra: global___InfraObject.CustomInfra | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "sqlite_table", b"sqlite_table"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "infra_object_class_type", b"infra_object_class_type", "sqlite_table", b"sqlite_table"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["infra_object", b"infra_object"]) -> typing.Literal["datastore_table", "sqlite_table", "custom_infra"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "sqlite_table", b"sqlite_table"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "infra_object_class_type", b"infra_object_class_type", "sqlite_table", b"sqlite_table"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["infra_object", b"infra_object"]) -> typing_extensions.Literal["datastore_table", "sqlite_table", "custom_infra"] | None: ...
 
 global___InfraObject = InfraObject
