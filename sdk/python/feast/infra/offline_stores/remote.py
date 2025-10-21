@@ -219,7 +219,7 @@ class RemoteOfflineStore(OfflineStore):
             "full_feature_names": full_feature_names,
             "name_aliases": name_aliases,
         }
-        
+
         # Extract and serialize start_date/end_date for remote transmission
         start_date = kwargs.get("start_date", None)
         end_date = kwargs.get("end_date", None)

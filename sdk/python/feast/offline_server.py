@@ -449,7 +449,7 @@ class OfflineServer(fl.FlightServerBase):
                 resource=feature_view, actions=[AuthzedAction.READ_OFFLINE]
             )
 
-    # Extract and deserialize start_date/end_date if present
+        # Extract and deserialize start_date/end_date if present
         kwargs = {}
         if "start_date" in command and command["start_date"] is not None:
             kwargs["start_date"] = utils.make_tzaware(
@@ -459,7 +459,7 @@ class OfflineServer(fl.FlightServerBase):
             kwargs["end_date"] = utils.make_tzaware(
                 datetime.fromisoformat(command["end_date"])
             )
-        
+
         retJob = self.offline_store.get_historical_features(
             config=self.store.config,
             feature_views=feature_views,
