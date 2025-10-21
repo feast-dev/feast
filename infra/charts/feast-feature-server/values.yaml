@@ -29,6 +29,24 @@ feature_store_yaml_base64: ""
 # feast_mode -- Feast supported deployment modes - online (default), offline, ui and registry
 feast_mode: "online"
 
+# commandArgs -- Override the default command arguments for complete control over CLI options
+# If not specified, falls back to legacy behavior based on feast_mode
+# Example for UI mode with custom options:
+# commandArgs:
+#   - "feast"
+#   - "--log-level"
+#   - "INFO"
+#   - "ui"
+#   - "--root_path"
+#   - "/feast"
+#   - "--registry_ttl_sec"
+#   - "300"
+#   - "-h"
+#   - "0.0.0.0"
+#   - "-p"
+#   - "8888"
+commandArgs: []
+
 podAnnotations: {}
 
 podSecurityContext: {}
