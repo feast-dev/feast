@@ -65,7 +65,7 @@ func main() {
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
 	flag.Parse()
 
-	// Initial tracer
+	// Initialize tracer
 	if OTELTracingEnabled() {
 		ctx := context.Background()
 

@@ -71,7 +71,7 @@ exporters:
   prometheus:
     endpoint: 0.0.0.0:8889
     namespace: feast-go
-  otlp/jarger:  # this is a gRPC based exporter. use "otelhttp" for http based exporter.
+  otlp/jaeger:  # this is a gRPC based exporter. use "otelhttp" for http based exporter.
     endpoint: jaeger:4317
     tls:
       insecure: true
@@ -91,7 +91,7 @@ service:
       exporters: [prometheus]
     traces:
       receivers: [otlp]
-      exporters: [otlp/jarger]
+      exporters: [otlp/jaeger]
 ```
 3. Prometheus config.
 ```yaml

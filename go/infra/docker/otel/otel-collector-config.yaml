@@ -8,7 +8,7 @@ exporters:
   prometheus:
     endpoint: 0.0.0.0:8889
     namespace: feast-go
-  otlp/jarger:
+  otlp/jaeger:
     endpoint: jaeger:4317
     tls:
       insecure: true
@@ -28,4 +28,4 @@ service:
       exporters: [prometheus]
     traces:
       receivers: [otlp]
-      exporters: [otlp/jarger]
+      exporters: [otlp/jaeger]

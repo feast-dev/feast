@@ -14,7 +14,6 @@ import (
 
 const feastServerVersion = "0.0.1"
 
-
 type grpcServingServiceServer struct {
 	fs             *feast.FeatureStore
 	loggingService *logging.LoggingService

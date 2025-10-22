@@ -25,6 +25,7 @@ import (
 )
 
 var tracer = otel.Tracer("github.com/feast-dev/feast/go/onlinestore")
+
 type redisType int
 
 const (

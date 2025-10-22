@@ -176,7 +176,6 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, fmt.Errorf("Error decoding JSON request data: %+v", err), http.StatusInternalServerError)
 		return
 	}
-	
 	var featureService *model.FeatureService
 	if request.FeatureService != nil {
 		featureService, err = s.fs.GetFeatureService(*request.FeatureService)
