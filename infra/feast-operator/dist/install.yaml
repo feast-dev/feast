@@ -267,6 +267,10 @@ spec:
                         description: PullPolicy describes a policy for if/when to
                           pull a container image
                         type: string
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -1033,6 +1037,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1488,6 +1496,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1954,6 +1966,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -2449,6 +2465,10 @@ spec:
                         - error
                         - critical
                         type: string
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -4224,6 +4244,10 @@ spec:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -5002,6 +5026,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -5465,6 +5493,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -5943,6 +5975,10 @@ spec:
                                     - error
                                     - critical
                                     type: string
+                                  nodeSelector:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                   resources:
                                     description: ResourceRequirements describes the
                                       compute resource requirements.
@@ -6448,6 +6484,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
