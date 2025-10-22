@@ -43,7 +43,7 @@ dependencies = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
-    "protobuf_to_pydantic<=0.3.3.1"
+    "protobuf_to_pydantic>=0.3.3.1"
 ]
 
 [project.optional-dependencies]
@@ -245,6 +245,7 @@ tag_regex = "^(?:[\\/\\w-]+)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+
 line-length = 88
 target-version = "py310"
 include = ["*.py", "*.pyi"]
+extend-exclude = ["sdk/python/datamodels/feast/*"]
 
 [tool.ruff.format]
 # exclude a few common directories in the root of the project
