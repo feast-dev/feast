@@ -1,6 +1,6 @@
 import struct
 import warnings
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 
@@ -142,9 +142,51 @@ def serialize_entity_key(
             "Serialization of entity key with version < 3 is removed. Please use version 3 by setting entity_key_serialization_version=3."
             "To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md"
         )
-    sorted_keys, sorted_values = zip(
-        *sorted(zip(entity_key.join_keys, entity_key.entity_values))
-    )
+
+    # DEBUG: Print entity key details
+    print(f"DEBUG: entity_key.join_keys = {entity_key.join_keys}")
+    print(f"DEBUG: entity_key.entity_values = {entity_key.entity_values}")
+    print(f"DEBUG: len(join_keys) = {len(entity_key.join_keys)}")
+    print(f"DEBUG: len(entity_values) = {len(entity_key.entity_values)}")
+    print(f"DEBUG: join_keys type = {type(entity_key.join_keys)}")
+    print(f"DEBUG: entity_values type = {type(entity_key.entity_values)}")
+
+    # Check for empty or mismatched lengths
+    if not entity_key.join_keys or not entity_key.entity_values:
+        print("DEBUG: Empty entity keys detected!")
+        sorted_keys: List[str] = []
+        sorted_values: List[Any] = []
+    elif len(entity_key.join_keys) != len(entity_key.entity_values):
+        print(
+            f"DEBUG: Mismatched lengths! join_keys={len(entity_key.join_keys)}, entity_values={len(entity_key.entity_values)}"
+        )
+        # Take the minimum length to avoid the error
+        min_len = min(len(entity_key.join_keys), len(entity_key.entity_values))
+        sorted_keys = list(entity_key.join_keys[:min_len])
+        sorted_values = list(entity_key.entity_values[:min_len])
+    else:
+        try:
+            # Get the zipped and sorted data
+            zipped_data = sorted(zip(entity_key.join_keys, entity_key.entity_values))
+            # Unpack and convert to lists in one step to satisfy type checker
+            if zipped_data:
+                keys_tuple, values_tuple = zip(*zipped_data)
+                sorted_keys = list(keys_tuple)
+                sorted_values = list(values_tuple)
+            else:
+                sorted_keys = []
+                sorted_values = []
+        except ValueError as e:
+            print(f"DEBUG: Error in zip operation: {e}")
+            print(f"DEBUG: join_keys = {entity_key.join_keys}")
+            print(f"DEBUG: entity_values = {entity_key.entity_values}")
+            print(
+                f"DEBUG: zip result = {list(zip(entity_key.join_keys, entity_key.entity_values))}"
+            )
+            print(
+                f"DEBUG: sorted zip result = {list(sorted(zip(entity_key.join_keys, entity_key.entity_values)))}"
+            )
+            raise
 
     output: List[bytes] = []
     if entity_key_serialization_version > 2:

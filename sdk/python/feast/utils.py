@@ -288,13 +288,22 @@ def _convert_arrow_fv_to_proto(
         for column, value_type in columns
     }
 
-    entity_keys = [
-        EntityKeyProto(
+    entity_keys = []
+    for idx in range(table.num_rows):
+        entity_values = [proto_values_by_column[k][idx] for k in join_keys]
+
+        # DEBUG: Print details for each row
+        if idx < 5:  # Only print first 5 rows to avoid spam
+            print(f"DEBUG Row {idx}: join_keys = {join_keys}")
+            print(f"DEBUG Row {idx}: entity_values = {entity_values}")
+            print(f"DEBUG Row {idx}: len(join_keys) = {len(join_keys)}")
+            print(f"DEBUG Row {idx}: len(entity_values) = {len(entity_values)}")
+
+        entity_key = EntityKeyProto(
             join_keys=join_keys,
-            entity_values=[proto_values_by_column[k][idx] for k in join_keys],
+            entity_values=entity_values,
         )
-        for idx in range(table.num_rows)
-    ]
+        entity_keys.append(entity_key)
 
     # Serialize the features per row
     feature_dict = {

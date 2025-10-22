@@ -57,6 +57,14 @@ def compute_entity_id(
     Remember that Entity here refers to `EntityKeyProto` which is used in some online stores to encode the keys.
     It has nothing to do with the Entity concept we have in Feast.
     """
+    # DEBUG: Print entity key before serialization
+    print(f"DEBUG compute_entity_id: join_keys = {entity_key.join_keys}")
+    print(f"DEBUG compute_entity_id: entity_values = {entity_key.entity_values}")
+    print(f"DEBUG compute_entity_id: len(join_keys) = {len(entity_key.join_keys)}")
+    print(
+        f"DEBUG compute_entity_id: len(entity_values) = {len(entity_key.entity_values)}"
+    )
+
     return mmh3.hash_bytes(
         serialize_entity_key(
             entity_key,
