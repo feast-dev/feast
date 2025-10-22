@@ -698,6 +698,8 @@ def _augment_response_with_on_demand_transforms(
                     )
 
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
+            # TODO: Fix to make it work for having both aggregation and transformation
+            #  ticket: https://github.com/feast-dev/feast/issues/5689
             elif odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
