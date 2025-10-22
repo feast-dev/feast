@@ -412,6 +412,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
+	feast.applyNodeSelector(podSpec)
 
 	return nil
 }
@@ -791,6 +792,56 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 		return serviceConfigs.LogLevel
 	}
 	return nil
+}
+
+func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *map[string]string {
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.ContainerConfigs.OptionalCtrConfigs.NodeSelector
+	}
+	return nil
+}
+
+func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
+	// Merge node selectors from all services
+	mergedNodeSelector := make(map[string]string)
+
+	// Check all service types for node selector configuration
+	allServiceTypes := append(feastServerTypes, UIFeastType)
+	for _, feastType := range allServiceTypes {
+		if selector := feast.getNodeSelectorForType(feastType); selector != nil && len(*selector) > 0 {
+			for k, v := range *selector {
+				mergedNodeSelector[k] = v
+			}
+		}
+	}
+
+	// If no service has node selector configured, we're done
+	if len(mergedNodeSelector) == 0 {
+		return
+	}
+
+	// Merge with any existing node selectors (from ops team or other sources)
+	// This preserves pre-existing selectors while adding operator requirements
+	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, mergedNodeSelector)
+	podSpec.NodeSelector = finalNodeSelector
+}
+
+// mergeNodeSelectors merges existing and operator node selectors
+// Existing selectors are preserved, operator selectors can override existing keys
+func (feast *FeastServices) mergeNodeSelectors(existing, operator map[string]string) map[string]string {
+	merged := make(map[string]string)
+
+	// Start with existing selectors (from ops team or other sources)
+	for k, v := range existing {
+		merged[k] = v
+	}
+
+	// Add/override with operator selectors
+	for k, v := range operator {
+		merged[k] = v
+	}
+
+	return merged
 }
 
 // GetObjectMeta returns the feast k8s object metadata with type
