@@ -15,6 +15,10 @@ To build and run the Go Feature Server locally, create a feature_store.yaml file
 ## OTEL based observability
 The OS level env variable `ENABLE_OTEL_TRACING=="true"/"false"` (string type) is used to enable/disable this service (with Tracing only).
 
+The default export URL is "http://localhost:4318". The default schema of sending data to collector is **HTTP**. Please refer the following two docs about the configuration of the OTEL exporter:  
+1. https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/  
+2. https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp#WithEndpoint  
+
 ## List of files have OTEL observability code  
 1. internal/feast/transformation/transformation.go
 

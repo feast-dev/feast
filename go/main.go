@@ -215,7 +215,6 @@ func OTELTracingEnabled() bool {
 
 func newExporter(ctx context.Context) (*otlptrace.Exporter, error) {
 	exp, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpoint("localhost:4318"),
 		otlptracehttp.WithInsecure())
 	if err != nil {
 		return nil, err
