@@ -59,6 +59,7 @@ REQUIRED = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "protobuf_to_pydantic>=0.3.3.1"
 ]
 
 GCP_REQUIRED = [

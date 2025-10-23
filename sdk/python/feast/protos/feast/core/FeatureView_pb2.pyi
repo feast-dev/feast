@@ -137,7 +137,7 @@ class FeatureViewSpec(google.protobuf.message.Message):
     def source_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureViewSpec]: ...
     @property
     def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
-        """Feature transformation (UDF or Substrait) for batch feature views"""
+        """Feature transformation for batch feature views"""
     def __init__(
         self,
         *,

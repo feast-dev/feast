@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.codegen_utils import render_feature_code
+from feast.api.registry.rest.response_models import (
+    GetFeatureResponse,
+    ListFeaturesAllResponse,
+    ListFeaturesResponse,
+)
 from feast.api.registry.rest.rest_utils import (
     aggregate_across_projects,
     create_grpc_pagination_params,
@@ -19,7 +24,7 @@ from feast.types import from_value_type
 def get_feature_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/features")
+    @router.get("/features", response_model=ListFeaturesResponse)
     def list_features(
         project: str = Query(...),
         feature_view: str = Query(None),
@@ -55,7 +60,7 @@ def get_feature_router(grpc_handler) -> APIRouter:
             response["relationships"] = relationships
         return response
 
-    @router.get("/features/{feature_view}/{name}")
+    @router.get("/features/{feature_view}/{name}", response_model=GetFeatureResponse)
     def get_feature(
         feature_view: str,
         name: str,
@@ -102,7 +107,7 @@ def get_feature_router(grpc_handler) -> APIRouter:
 
         return response
 
-    @router.get("/features/all")
+    @router.get("/features/all", response_model=ListFeaturesAllResponse)
     def list_features_all(
         page: int = Query(1, ge=1),
         limit: int = Query(50, ge=1, le=100),
