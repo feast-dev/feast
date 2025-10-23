@@ -7,7 +7,6 @@
 import typing
 from datetime import datetime, timedelta
 from enum import IntEnum
-from pydantic import field_validator
 
 from protobuf_to_pydantic.customer_validator import check_one_of
 from protobuf_to_pydantic.util import Timedelta

@@ -83,15 +83,13 @@ class EntityResponse(BaseModel):
 
     spec: EntitySpecV2 = Field(..., description="Entity specification")
     meta: EntityMeta = Field(..., description="Entity metadata")
-    data_sources: List[DataSource] = Field(
-        default_factory=list, description="Related data sources", alias="dataSources"
+    dataSources: List[DataSource] = Field(
+        default_factory=list, description="Related data sources"
     )
     relationships: Optional[List[EntityRelation]] = Field(
         None, description="Entity relationships"
     )
-    feature_definition: Optional[str] = Field(
-        None, description="Generated entity code", alias="featureDefinition"
-    )
+    featureDefinition: Optional[str] = Field(None, description="Generated entity code")
 
 
 class ListEntitiesResponse(BaseModel):
@@ -130,16 +128,16 @@ class AnyFeatureViewResponse(BaseModel):
     relationships: Optional[List[EntityRelation]] = Field(
         None, description="Feature view relationships"
     )
-    feature_definition: Optional[str] = Field(
-        None, description="Generated feature view code", alias="featureDefinition"
+    featureDefinition: Optional[str] = Field(
+        None, description="Generated feature view code"
     )
 
 
 class ListFeatureViewsAllResponse(BaseModel):
     """Response for GET /feature_views/all - feature_views.py:list_feature_views_all"""
 
-    feature_views: List[FeatureViewWithProject] = Field(
-        ..., description="List of feature views", alias="featureViews"
+    featureViews: List[FeatureViewWithProject] = Field(
+        ..., description="List of feature views"
     )
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     relationships: Optional[Dict[str, List[EntityRelation]]] = Field(
@@ -150,8 +148,8 @@ class ListFeatureViewsAllResponse(BaseModel):
 class ListAllFeatureViewsResponse(BaseModel):
     """Response for GET /feature_views - feature_views.py:list_all_feature_views"""
 
-    feature_views: List[FeatureViewWithType] = Field(
-        ..., description="List of feature views", alias="featureViews"
+    featureViews: List[FeatureViewWithType] = Field(
+        ..., description="List of feature views"
     )
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     relationships: Optional[Dict[str, List[EntityRelation]]] = Field(
@@ -172,16 +170,16 @@ class FeatureServiceResponse(BaseModel):
     relationships: Optional[List[EntityRelation]] = Field(
         None, description="Feature service relationships"
     )
-    feature_definition: Optional[str] = Field(
-        None, description="Generated feature service code", alias="featureDefinition"
+    featureDefinition: Optional[str] = Field(
+        None, description="Generated feature service code"
     )
 
 
 class ListFeatureServicesResponse(BaseModel):
     """Response for GET /feature_services - feature_services.py:list_feature_services"""
 
-    feature_services: List[FeatureService] = Field(
-        ..., description="List of feature services", alias="featureServices"
+    featureServices: List[FeatureService] = Field(
+        ..., description="List of feature services"
     )
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     relationships: Optional[Dict[str, List[EntityRelation]]] = Field(
@@ -192,8 +190,8 @@ class ListFeatureServicesResponse(BaseModel):
 class ListFeatureServicesAllResponse(BaseModel):
     """Response for GET /feature_services/all - feature_services.py:list_feature_services_all"""
 
-    feature_services: List[FeatureServiceWithProject] = Field(
-        ..., description="List of feature services", alias="featureServices"
+    featureServices: List[FeatureServiceWithProject] = Field(
+        ..., description="List of feature services"
     )
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     relationships: Optional[Dict[str, List[EntityRelation]]] = Field(
@@ -212,17 +210,15 @@ class DataSourceResponse(DataSource):
     relationships: Optional[List[EntityRelation]] = Field(
         None, description="Data source relationships"
     )
-    feature_definition: Optional[str] = Field(
-        None, description="Generated data source code", alias="featureDefinition"
+    featureDefinition: Optional[str] = Field(
+        None, description="Generated data source code"
     )
 
 
 class ListDataSourcesResponse(BaseModel):
     """Response for GET /data_sources - data_sources.py:list_data_sources"""
 
-    data_sources: List[Dict[str, Any]] = Field(
-        ..., description="List of data sources", alias="dataSources"
-    )
+    dataSources: List[Dict[str, Any]] = Field(..., description="List of data sources")
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     relationships: Optional[Dict[str, List[EntityRelation]]] = Field(
         None, description="Data source relationships map"
@@ -232,9 +228,7 @@ class ListDataSourcesResponse(BaseModel):
 class ListDataSourcesAllResponse(BaseModel):
     """Response for GET /data_sources/all - data_sources.py:list_data_sources_all"""
 
-    data_sources: List[Dict[str, Any]] = Field(
-        ..., description="List of data sources", alias="dataSources"
-    )
+    dataSources: List[Dict[str, Any]] = Field(..., description="List of data sources")
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     relationships: Optional[Dict[str, List[EntityRelation]]] = Field(
         None, description="Data source relationships map"
@@ -254,17 +248,15 @@ class SavedDatasetResponse(BaseModel):
     relationships: Optional[List[EntityRelation]] = Field(
         None, description="Saved dataset relationships"
     )
-    feature_definition: Optional[str] = Field(
-        None, description="Generated saved dataset code", alias="featureDefinition"
+    featureDefinition: Optional[str] = Field(
+        None, description="Generated saved dataset code"
     )
 
 
 class ListSavedDatasetsResponse(BaseModel):
     """Response for GET /saved_datasets - saved_datasets.py:list_saved_datasets"""
 
-    saved_datasets: List[SavedDataset] = Field(
-        ..., description="List of saved datasets", alias="savedDatasets"
-    )
+    savedDatasets: List[SavedDataset] = Field(..., description="List of saved datasets")
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     relationships: Optional[Dict[str, List[EntityRelation]]] = Field(
         None, description="Saved dataset relationships map"
@@ -274,8 +266,8 @@ class ListSavedDatasetsResponse(BaseModel):
 class ListSavedDatasetsAllResponse(BaseModel):
     """Response for GET /saved_datasets/all - saved_datasets.py:list_saved_datasets_all"""
 
-    saved_datasets: List[SavedDatasetWithProject] = Field(
-        ..., description="List of saved datasets", alias="savedDatasets"
+    savedDatasets: List[SavedDatasetWithProject] = Field(
+        ..., description="List of saved datasets"
     )
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     relationships: Optional[Dict[str, List[EntityRelation]]] = Field(
@@ -343,16 +335,15 @@ class RegistryObjects(BaseModel):
     """Registry objects collection."""
 
     entities: List[Entity] = Field(default_factory=list, description="List of entities")
-    data_sources: List[Dict[str, Any]] = Field(
-        default_factory=list, description="List of data sources", alias="dataSources"
+    dataSources: List[Dict[str, Any]] = Field(
+        default_factory=list, description="List of data sources"
     )
-    feature_views: List[FeatureView] = Field(
-        default_factory=list, description="List of feature views", alias="featureViews"
+    featureViews: List[FeatureView] = Field(
+        default_factory=list, description="List of feature views"
     )
-    feature_services: List[FeatureService] = Field(
+    featureServices: List[FeatureService] = Field(
         default_factory=list,
         description="List of feature services",
-        alias="featureServices",
     )
     features: List[Dict[str, Any]] = Field(
         default_factory=list, description="List of features"
@@ -365,20 +356,17 @@ class RegistryPagination(BaseModel):
     entities: PaginationMetadata = Field(
         default_factory=PaginationMetadata, description="Entity pagination"
     )
-    data_sources: PaginationMetadata = Field(
+    dataSources: PaginationMetadata = Field(
         default_factory=PaginationMetadata,
         description="Data source pagination",
-        alias="dataSources",
     )
-    feature_views: PaginationMetadata = Field(
+    featureViews: PaginationMetadata = Field(
         default_factory=PaginationMetadata,
         description="Feature view pagination",
-        alias="featureViews",
     )
-    feature_services: PaginationMetadata = Field(
+    featureServices: PaginationMetadata = Field(
         default_factory=PaginationMetadata,
         description="Feature service pagination",
-        alias="featureServices",
     )
     features: PaginationMetadata = Field(
         default_factory=PaginationMetadata, description="Feature pagination"
@@ -386,10 +374,9 @@ class RegistryPagination(BaseModel):
     relationships: PaginationMetadata = Field(
         default_factory=PaginationMetadata, description="Relationships pagination"
     )
-    indirect_relationships: PaginationMetadata = Field(
+    indirectRelationships: PaginationMetadata = Field(
         default_factory=PaginationMetadata,
         description="Indirect relationships pagination",
-        alias="indirectRelationships",
     )
 
 
@@ -399,8 +386,8 @@ class CompleteRegistryDataResponse(BaseModel):
     project: str = Field(..., description="Project name")
     objects: RegistryObjects = Field(..., description="Registry objects")
     relationships: List[EntityRelation] = Field(..., description="Direct relationships")
-    indirect_relationships: List[EntityRelation] = Field(
-        ..., description="Indirect relationships", alias="indirectRelationships"
+    indirectRelationships: List[EntityRelation] = Field(
+        ..., description="Indirect relationships"
     )
     pagination: RegistryPagination = Field(..., description="Pagination metadata")
 
@@ -411,8 +398,8 @@ class ProjectRegistryData(BaseModel):
     project: str = Field(..., description="Project name")
     objects: RegistryObjects = Field(..., description="Registry objects")
     relationships: List[EntityRelation] = Field(..., description="Direct relationships")
-    indirect_relationships: List[EntityRelation] = Field(
-        ..., description="Indirect relationships", alias="indirectRelationships"
+    indirectRelationships: List[EntityRelation] = Field(
+        ..., description="Indirect relationships"
     )
 
 
@@ -425,7 +412,6 @@ class RegistryLineageAllResponse(BaseModel):
     indirect_relationships: List[EntityRelationWithProject] = Field(
         ...,
         description="All indirect relationships across projects",
-        alias="indirect_relationships",
     )
 
 
@@ -446,11 +432,9 @@ class GetFeatureResponse(BaseModel):
     """Response for GET /features/{feature_view}/{name} - features.py:get_feature"""
 
     name: str = Field(..., description="Feature name")
-    featureView: str = Field(..., description="Feature view name", alias="featureView")
+    featureView: str = Field(..., description="Feature view name")
     type: str = Field(..., description="Feature type")
-    featureDefinition: Optional[str] = Field(
-        None, description="Generated feature code", alias="featureDefinition"
-    )
+    featureDefinition: Optional[str] = Field(None, description="Generated feature code")
     relationships: Optional[List[EntityRelation]] = Field(
         None, description="Feature relationships"
     )
@@ -491,19 +475,11 @@ class ResourceCounts(BaseModel):
     """Resource counts for a project."""
 
     entities: int = Field(..., description="Number of entities")
-    data_sources: int = Field(
-        ..., description="Number of data sources", alias="dataSources"
-    )
-    saved_datasets: int = Field(
-        ..., description="Number of saved datasets", alias="savedDatasets"
-    )
+    dataSources: int = Field(..., description="Number of data sources")
+    savedDatasets: int = Field(..., description="Number of saved datasets")
     features: int = Field(..., description="Number of features")
-    feature_views: int = Field(
-        ..., description="Number of feature views", alias="featureViews"
-    )
-    feature_services: int = Field(
-        ..., description="Number of feature services", alias="featureServices"
-    )
+    featureViews: int = Field(..., description="Number of feature views")
+    featureServices: int = Field(..., description="Number of feature services")
 
 
 class ProjectResourceCountsResponse(BaseModel):
@@ -519,8 +495,8 @@ class AllResourceCountsResponse(BaseModel):
     total: ResourceCounts = Field(
         ..., description="Total resource counts across all projects"
     )
-    per_project: Dict[str, ResourceCounts] = Field(
-        ..., description="Resource counts per project", alias="perProject"
+    perProject: Dict[str, ResourceCounts] = Field(
+        ..., description="Resource counts per project"
     )
 
 
@@ -603,21 +579,15 @@ class SearchResult(BaseModel):
     name: str = Field(..., description="Resource name")
     description: str = Field(default="", description="Resource description")
     project: str = Field(..., description="Project name")
-    match_score: Optional[float] = Field(
-        None, description="Search match score", alias="match_score"
-    )
-    featureView: Optional[str] = Field(
-        None, description="Feature view name", alias="featureView"
-    )
+    match_score: Optional[float] = Field(None, description="Search match score")
+    featureView: Optional[str] = Field(None, description="Feature view name")
 
 
 class SearchResponse(BaseModel):
     """Response for GET /search - search.py:search_resources"""
 
     query: str = Field(..., description="Search query string")
-    projects_searched: List[str] = Field(
-        ..., description="List of projects searched", alias="projects_searched"
-    )
+    projects_searched: List[str] = Field(..., description="List of projects searched")
     results: List[SearchResult] = Field(..., description="Search results")
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
     errors: List[str] = Field(

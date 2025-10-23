@@ -1,5 +1,5 @@
 [tool.ruff]
-exclude = [".git","__pycache__","docs/conf.py","dist","feast/protos","feast/embedded_go/lib","feast/infra/utils/snowflake/snowpark/snowflake_udfs.py"]
+exclude = [".git","__pycache__","docs/conf.py","dist","feast/protos","feast/embedded_go/lib","feast/infra/utils/snowflake/snowpark/snowflake_udfs.py", "datamodels/feast/"]
 
 [tool.ruff.lint]
 select = ["E","F","W","I"]
@@ -12,4 +12,4 @@ default-section = "third-party"
 [tool.mypy]
 files = ["feast","tests"]
 ignore_missing_imports = true
-exclude = ["feast/embedded_go/lib"]
+exclude = ["feast/embedded_go/lib", "datamodels/feast"]
