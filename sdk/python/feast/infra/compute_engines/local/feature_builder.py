@@ -2,8 +2,8 @@ from typing import Union
 
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.backends.base import DataFrameBackend
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
-from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.nodes import (
     LocalAggregationNode,
     LocalDedupNode,

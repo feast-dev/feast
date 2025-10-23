@@ -12,10 +12,10 @@ from feast.infra.common.materialization_job import (
     MaterializationTask,
 )
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.backends.base import DataFrameBackend
+from feast.infra.compute_engines.backends.factory import BackendFactory
 from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.compute_engines.dag.context import ExecutionContext
-from feast.infra.compute_engines.local.backends.base import DataFrameBackend
-from feast.infra.compute_engines.local.backends.factory import BackendFactory
 from feast.infra.compute_engines.local.feature_builder import LocalFeatureBuilder
 from feast.infra.compute_engines.local.job import (
     LocalMaterializationJob,
