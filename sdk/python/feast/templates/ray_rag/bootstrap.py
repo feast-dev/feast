@@ -1,4 +1,3 @@
-import os
 import pathlib
 
 import pandas as pd
@@ -14,84 +13,66 @@ def bootstrap():
     data_path = repo_path / "data"
     data_path.mkdir(exist_ok=True)
 
-    print("   🎬 Downloading real IMDB movie data for RAG demonstration...")
+    print("   🎬 Setting up sample IMDB movie data for RAG demonstration...")
 
-    def download_imdb_dataset():
-        """Download and process the IMDB movies dataset."""
+    parquet_file = data_path / "raw_movies.parquet"
 
+    if parquet_file.exists():
         try:
-            try:
-                import kaggle
-
-                print("   🔑 Kaggle API found, checking authentication...")
-                kaggle.api.dataset_download_files(
-                    "yashgupta24/48000-movies-dataset", path="./data", unzip=True
-                )
-                print("   📥 Dataset downloaded successfully!")
-            except OSError as auth_error:
-                if "kaggle.json" in str(auth_error):
-                    print("Kaggle credentials not found")
-                    print("   💡 To use Kaggle API:")
-                    print(
-                        "      1. Get API credentials from https://www.kaggle.com/account"
-                    )
-                    print("      2. Place kaggle.json in ~/.kaggle/")
-                    print("      3. chmod 600 ~/.kaggle/kaggle.json")
-                    raise ImportError("Kaggle credentials not configured")
-                else:
-                    raise
-
-            data_dir = "./data"
-            if os.path.exists(data_dir):
-                csv_files = [f for f in os.listdir(data_dir) if f.endswith(".csv")]
-                if csv_files:
-                    dataset_path = os.path.join(data_dir, csv_files[0])
-                    print(f"   📄 Found dataset file: {csv_files[0]}")
-                    df = pd.read_csv(dataset_path)
-                    print(f"   📊 Dataset shape: {df.shape}")
-                    print(f"   📋 Columns: {list(df.columns)}")
-                    print(
-                        f"   ✅ Successfully downloaded Kaggle dataset with {len(df)} movies"
-                    )
-                    import shutil
-
-                    target_csv_path = data_path / "final_data.csv"
-                    if os.path.exists(dataset_path) and not os.path.exists(
-                        target_csv_path
-                    ):
-                        shutil.copy2(dataset_path, str(target_csv_path))
-                        print(f"   📁 Copied CSV to: {target_csv_path}")
-                    return
-        except ImportError:
-            print("Kaggle API not available. Install with: pip install kaggle")
-
-    try:
-        print("   📥 Attempting to download IMDB dataset...")
-        download_imdb_dataset()
-    except Exception as e:
-        print(f"Dataset download failed: {e}")
-
-    try:
-        csv_path = data_path / "final_data.csv"
-        parquet_path = data_path / "raw_movies.parquet"
-
-        if csv_path.exists():
-            df = pd.read_csv(csv_path)
-
-            # Convert timestamp columns to datetime with UTC timezone
-            # Drop rows without DatePublished as it's required for timestamp filtering
-            if "DatePublished" in df.columns:
-                df = df.dropna(subset=["DatePublished"])
-                df["DatePublished"] = pd.to_datetime(
-                    df["DatePublished"], errors="coerce", utc=True
-                )
-
-            table = pa.Table.from_pandas(df)
-            pq.write_table(table, parquet_path)
-        else:
-            print(f"CSV file not found at {csv_path}")
-    except Exception as e:
-        print(f"Parquet conversion failed: {e}")
+            df = pd.read_parquet(parquet_file)
+            print(f"   ✅ Sample dataset ready with {len(df)} movies")
+            print("   💡 For full dataset (48K+ movies), see README.md")
+        except Exception as e:
+            print(f"   ⚠️  Could not read sample dataset: {e}")
+    else:
+        print("   ⚠️  Sample dataset not found, creating minimal example...")
+        sample_data = pd.DataFrame(
+            {
+                "id": ["tt0111161", "tt0068646", "tt0468569", "tt0071562", "tt0050083"],
+                "Name": [
+                    "The Shawshank Redemption",
+                    "The Godfather",
+                    "The Dark Knight",
+                    "The Godfather Part II",
+                    "12 Angry Men",
+                ],
+                "Description": [
+                    "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.",
+                    "The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.",
+                    "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests.",
+                    "The early life and career of Vito Corleone in 1920s New York City is portrayed, while his son, Michael, expands and tightens his grip on the family crime syndicate.",
+                    "A jury holdout attempts to prevent a miscarriage of justice by forcing his colleagues to reconsider the evidence.",
+                ],
+                "Director": [
+                    "Frank Darabont",
+                    "Francis Ford Coppola",
+                    "Christopher Nolan",
+                    "Francis Ford Coppola",
+                    "Sidney Lumet",
+                ],
+                "Genres": [
+                    "Drama",
+                    "Crime, Drama",
+                    "Action, Crime, Drama",
+                    "Crime, Drama",
+                    "Crime, Drama",
+                ],
+                "RatingValue": [9.3, 9.2, 9.0, 9.0, 9.0],
+                "DatePublished": pd.to_datetime(
+                    [
+                        "1994-09-23",
+                        "1972-03-24",
+                        "2008-07-18",
+                        "1974-12-20",
+                        "1957-04-10",
+                    ],
+                    utc=True,
+                ),
+            }
+        )
+        table = pa.Table.from_pandas(sample_data)
+        pq.write_table(table, parquet_file)
+        print(f"   ✅ Created sample dataset with {len(sample_data)} movies")
 
     example_py_file = repo_path / "example_repo.py"
     replace_str_in_file(example_py_file, "%PROJECT_NAME%", str(project_name))

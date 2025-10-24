@@ -38,45 +38,37 @@ def main():
     print("Vector similarity search with Feast ...")
     try:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-        test_queries = [
-            "Science fiction movie",
-            "Action movie with explosions and car chases",
-            "Space exploration and time travel film",
-        ]
-        for query in test_queries:
-            print(f"\n   Query: '{query}'")
-            # Generate query embedding
-            query_embedding = model.encode([query], normalize_embeddings=True)[
-                0
-            ].tolist()
+        query = "Crime drama about organized crime families"
 
-            # Use Feast's retrieve_online_documents_v2 API
-            # Request all fields we want to display
-            results = store.retrieve_online_documents_v2(
-                features=[
-                    "document_embeddings:embedding",
-                    "document_embeddings:movie_name",
-                    "document_embeddings:movie_director",
-                    "document_embeddings:movie_genres",
-                    "document_embeddings:movie_rating",
-                ],
-                query=query_embedding,
-                top_k=3,
-            ).to_dict()
+        print(f"\n   Query: '{query}'")
+        # Generate query embedding
+        query_embedding = model.encode([query], normalize_embeddings=True)[0].tolist()
 
-            if results and len(results.get("document_id_pk", [])) > 0:
-                print("   📊 Top 3 results:")
-                num_results = len(results["document_id_pk"])
-                for i in range(num_results):
-                    name = results.get("movie_name", ["Unknown"] * num_results)[i]
-                    director = results.get("movie_director", ["Unknown"] * num_results)[
-                        i
-                    ]
-                    genres = results.get("movie_genres", ["Unknown"] * num_results)[i]
-                    print(f"      {i + 1}. {name}")
-                    print(f"         Director: {director} | Genres: {genres}")
-            else:
-                print("No results found")
+        # Use Feast's retrieve_online_documents_v2 API
+        # Request all fields we want to display
+        results = store.retrieve_online_documents_v2(
+            features=[
+                "document_embeddings:embedding",
+                "document_embeddings:movie_name",
+                "document_embeddings:movie_director",
+                "document_embeddings:movie_genres",
+                "document_embeddings:movie_rating",
+            ],
+            query=query_embedding,
+            top_k=3,
+        ).to_dict()
+
+        if results and len(results.get("document_id_pk", [])) > 0:
+            print("   📊 Top 3 results:")
+            num_results = len(results["document_id_pk"])
+            for i in range(num_results):
+                name = results.get("movie_name", ["Unknown"] * num_results)[i]
+                director = results.get("movie_director", ["Unknown"] * num_results)[i]
+                genres = results.get("movie_genres", ["Unknown"] * num_results)[i]
+                print(f"      {i + 1}. {name}")
+                print(f"         Director: {director} | Genres: {genres}")
+        else:
+            print("No results found")
 
     except Exception as e:
         print(f"Search failed: {e}")

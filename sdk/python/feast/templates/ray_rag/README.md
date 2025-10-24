@@ -4,10 +4,11 @@ RAG (Retrieval-Augmented Generation) template using Feast with Ray for distribut
 
 ## 🚀 What This Template Provides
 
-- **🎬 Real IMDB Data**: 48K+ movies from Kaggle for realistic demonstrations
+- **🎬 Sample IMDB Data**: 10 curated movies included for quick demos
 - **⚡ Ray Distributed Processing**: Parallel embedding generation across workers
 - **🔍 Vector Search**: Milvus integration for semantic similarity
 - **🎯 Complete Pipeline**: Data → Embeddings → Search in one workflow
+- **📦 Ready to Scale**: Easy upgrade to full dataset (48K+ movies) if needed
 
 ## 📁 Template Structure
 
@@ -17,8 +18,9 @@ ray_rag/
 │   ├── feature_store.yaml      # Ray + Milvus configuration
 │   ├── example_repo.py         # Feature definitions with Ray UDF
 │   ├── test_workflow.py        # End-to-end demo
-│   └── data/                   # IMDB dataset
-├── bootstrap.py                # Downloads IMDB data from Kaggle
+│   └── data/                   
+│       └── raw_movies.parquet  # Sample IMDB dataset (10 movies)
+├── bootstrap.py                # Template initialization
 └── README.md
 ```
 
@@ -31,16 +33,13 @@ feast init -t ray_rag my_rag_project
 cd my_rag_project/feature_repo
 ```
 
-The template automatically downloads the IMDB dataset from Kaggle during initialization.
+The template includes a sample dataset with 10 movies for quick testing.
 
 ### 2. Install Dependencies
 
 ```bash
 # Core dependencies
 pip install feast[ray] sentence-transformers
-
-# Optional: For Kaggle API (template works without it)
-pip install kaggle
 ```
 
 ### 3. Apply Feature Definitions
@@ -52,7 +51,7 @@ feast apply
 ### 4. Materialize Features
 
 ```bash
-# Generate embeddings for all 48K+ movies
+# Generate embeddings for sample movies
 feast materialize --disable-event-timestamp 
 ```
 
@@ -62,8 +61,8 @@ feast materialize --disable-event-timestamp
 python test_workflow.py
 ```
 
-Expected output:
-- ✅ ~47K embeddings materialized
+Expected output with sample dataset:
+- ✅ 10 embeddings materialized
 - ✅ Vector search working with relevant results
 - ✅ Similarity scores for relevant matches
 
@@ -115,3 +114,68 @@ for i in range(len(results["document_id_pk"])):
     print(f"   Director: {results['movie_director'][i]}")
     print(f"   Distance: {results['distance'][i]:.3f}")
 ```
+
+## 📥 Using the Full IMDB Dataset (Optional)
+
+The template includes a small sample dataset (10 movies) for quick testing. To work with the full dataset containing 48K+ movies:
+
+### Option 1: Download via Kaggle API
+
+1. **Setup Kaggle credentials:**
+   ```bash
+   # Get API credentials from https://www.kaggle.com/account
+   # Place kaggle.json in ~/.kaggle/
+   chmod 600 ~/.kaggle/kaggle.json
+   ```
+
+2. **Install Kaggle API and download dataset:**
+   ```bash
+   pip install kaggle
+   
+   # Download to your feature_repo/data directory
+   cd feature_repo
+   kaggle datasets download -d yashgupta24/48000-movies-dataset -p ./data --unzip
+   ```
+
+3. **Convert to parquet format:**
+   ```python
+   import pandas as pd
+   import pyarrow as pa
+   import pyarrow.parquet as pq
+   from pathlib import Path
+   
+   # Read the CSV file (filename may vary)
+   data_path = Path("./data")
+   csv_files = list(data_path.glob("*.csv"))
+   df = pd.read_csv(csv_files[0])
+   
+   # Convert DatePublished to datetime with UTC timezone
+   df = df.dropna(subset=["DatePublished"])
+   df["DatePublished"] = pd.to_datetime(df["DatePublished"], errors="coerce", utc=True)
+   
+   # Write to parquet
+   table = pa.Table.from_pandas(df)
+   pq.write_table(table, data_path / "raw_movies.parquet")
+   print(f"✅ Converted {len(df)} movies to parquet format")
+   ```
+
+4. **Run the full pipeline:**
+   ```bash
+   feast apply
+   feast materialize --disable-event-timestamp
+   python test_workflow.py
+   ```
+
+### Option 2: Use Your Own Dataset
+
+Replace `feature_repo/data/raw_movies.parquet` with your own dataset. Required schema:
+
+- `id`: Unique identifier (string)
+- `Name`: Movie name (string)
+- `Description`: Movie description for embedding (string)
+- `Director`: Director name (string)
+- `Genres`: Comma-separated genres (string)
+- `RatingValue`: Rating score (float)
+- `DatePublished`: Publication date (datetime with UTC timezone)
+
+The Ray embedding pipeline will automatically process your dataset in parallel.
