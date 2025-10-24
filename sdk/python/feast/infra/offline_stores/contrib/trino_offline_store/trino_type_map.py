@@ -14,13 +14,37 @@ def trino_to_feast_value_type(trino_type_as_str: str) -> ValueType:
         "integer": ValueType.INT32,
         "bigint": ValueType.INT64,
         "double": ValueType.DOUBLE,
-        "decimal": ValueType.FLOAT,
+        "decimal32": ValueType.FLOAT,
+        "decimal64": ValueType.DOUBLE,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "char": ValueType.STRING,
         "varchar": ValueType.STRING,
         "boolean": ValueType.BOOL,
+        "real": ValueType.FLOAT,
     }
-    return type_map[trino_type_as_str.lower()]
+    _trino_type_as_str: str = trino_type_as_str
+    trino_type_as_str = trino_type_as_str.lower()
+
+    if trino_type_as_str.startswith("decimal"):
+        search_precision = re.search(
+            r"^decimal\((\d+)(?>,\s?\d+)?\)$", trino_type_as_str
+        )
+        if search_precision:
+            precision = int(search_precision.group(1))
+            if precision > 32:
+                trino_type_as_str = "decimal64"
+            else:
+                trino_type_as_str = "decimal32"
+
+    elif trino_type_as_str.startswith("timestamp"):
+        trino_type_as_str = "timestamp"
+
+    elif trino_type_as_str.startswith("varchar"):
+        trino_type_as_str = "varchar"
+
+    if trino_type_as_str not in type_map:
+        raise ValueError(f"Trino type not supported by feast {_trino_type_as_str}")
+    return type_map[trino_type_as_str]
 
 
 def pa_to_trino_value_type(pa_type_as_str: str) -> str:
