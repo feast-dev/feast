@@ -175,8 +175,8 @@ class DynamoDBOnlineStore(OnlineStore):
                 ),
             )
             self._aioboto_context_stack = contextlib.AsyncExitStack()
-            self._aioboto_client = await self._aioboto_context_stack.enter_async_context(
-                client_context
+            self._aioboto_client = (
+                await self._aioboto_context_stack.enter_async_context(client_context)
             )
         return self._aioboto_client
 
