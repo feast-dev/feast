@@ -24,7 +24,7 @@ def trino_to_feast_value_type(trino_type_as_str: str) -> ValueType:
     }
     _trino_type_as_str: str = trino_type_as_str
     trino_type_as_str = trino_type_as_str.lower()
-    
+
     if trino_type_as_str.startswith("decimal"):
         search_precision = re.search(
             r"^decimal\((\d+)(?>,\s?\d+)?\)$", trino_type_as_str
@@ -41,7 +41,7 @@ def trino_to_feast_value_type(trino_type_as_str: str) -> ValueType:
 
     elif trino_type_as_str.startswith("varchar"):
         trino_type_as_str = "varchar"
-    
+
     if trino_type_as_str not in type_map:
         raise ValueError(f"Trino type not supported by feast {_trino_type_as_str}")
     return type_map[trino_type_as_str]
