@@ -108,15 +108,24 @@ class DynamoDBOnlineStore(OnlineStore):
     Attributes:
         _dynamodb_client: Boto3 DynamoDB client.
         _dynamodb_resource: Boto3 DynamoDB resource.
+        _aioboto_session: Async boto session.
+        _aioboto_client: Async boto client.
+        _aioboto_context_stack: Async context stack.
     """
 
     _dynamodb_client = None
     _dynamodb_resource = None
 
+    def __init__(self):
+        super().__init__()
+        self._aioboto_session = None
+        self._aioboto_client = None
+        self._aioboto_context_stack = None
+
     async def initialize(self, config: RepoConfig):
         online_config = config.online_store
 
-        await _get_aiodynamodb_client(
+        await self._get_aiodynamodb_client(
             online_config.region,
             online_config.max_pool_connections,
             online_config.keepalive_timeout,
@@ -127,7 +136,59 @@ class DynamoDBOnlineStore(OnlineStore):
         )
 
     async def close(self):
-        await _aiodynamodb_close()
+        await self._aiodynamodb_close()
+
+    def _get_aioboto_session(self):
+        if self._aioboto_session is None:
+            logger.debug("initializing the aiobotocore session")
+            self._aioboto_session = session.get_session()
+        return self._aioboto_session
+
+    async def _get_aiodynamodb_client(
+        self,
+        region: str,
+        max_pool_connections: int,
+        keepalive_timeout: float,
+        connect_timeout: Union[int, float],
+        read_timeout: Union[int, float],
+        total_max_retry_attempts: Union[int, None],
+        retry_mode: Union[Literal["legacy", "standard", "adaptive"], None],
+    ):
+        if self._aioboto_client is None:
+            logger.debug("initializing the aiobotocore dynamodb client")
+
+            retries: Dict[str, Any] = {}
+            if total_max_retry_attempts is not None:
+                retries["total_max_attempts"] = total_max_retry_attempts
+            if retry_mode is not None:
+                retries["mode"] = retry_mode
+
+            client_context = self._get_aioboto_session().create_client(
+                "dynamodb",
+                region_name=region,
+                config=AioConfig(
+                    max_pool_connections=max_pool_connections,
+                    connect_timeout=connect_timeout,
+                    read_timeout=read_timeout,
+                    retries=retries if retries else None,
+                    connector_args={"keepalive_timeout": keepalive_timeout},
+                ),
+            )
+            self._aioboto_context_stack = contextlib.AsyncExitStack()
+            self._aioboto_client = await self._aioboto_context_stack.enter_async_context(
+                client_context
+            )
+        return self._aioboto_client
+
+    async def _aiodynamodb_close(self):
+        if self._aioboto_client:
+            await self._aioboto_client.close()
+            self._aioboto_client = None
+        if self._aioboto_context_stack:
+            await self._aioboto_context_stack.aclose()
+            self._aioboto_context_stack = None
+        if self._aioboto_session:
+            self._aioboto_session = None
 
     @property
     def async_supported(self) -> SupportedAsyncMethods:
@@ -362,7 +423,7 @@ class DynamoDBOnlineStore(OnlineStore):
             _to_client_write_item(config, entity_key, features, timestamp)
             for entity_key, features, timestamp, _ in _latest_data_to_write(data)
         ]
-        client = await _get_aiodynamodb_client(
+        client = await self._get_aiodynamodb_client(
             online_config.region,
             online_config.max_pool_connections,
             online_config.keepalive_timeout,
@@ -473,7 +534,7 @@ class DynamoDBOnlineStore(OnlineStore):
             batches.append(batch)
             entity_id_batches.append(entity_id_batch)
 
-        client = await _get_aiodynamodb_client(
+        client = await self._get_aiodynamodb_client(
             online_config.region,
             online_config.max_pool_connections,
             online_config.keepalive_timeout,
@@ -627,66 +688,7 @@ class DynamoDBOnlineStore(OnlineStore):
         }
 
 
-_aioboto_session = None
-_aioboto_client = None
-_aioboto_context_stack = None
-
-
-def _get_aioboto_session():
-    global _aioboto_session
-    if _aioboto_session is None:
-        logger.debug("initializing the aiobotocore session")
-        _aioboto_session = session.get_session()
-    return _aioboto_session
-
-
-async def _get_aiodynamodb_client(
-    region: str,
-    max_pool_connections: int,
-    keepalive_timeout: float,
-    connect_timeout: Union[int, float],
-    read_timeout: Union[int, float],
-    total_max_retry_attempts: Union[int, None],
-    retry_mode: Union[Literal["legacy", "standard", "adaptive"], None],
-):
-    global _aioboto_client, _aioboto_context_stack
-    if _aioboto_client is None:
-        logger.debug("initializing the aiobotocore dynamodb client")
-
-        retries: Dict[str, Any] = {}
-        if total_max_retry_attempts is not None:
-            retries["total_max_attempts"] = total_max_retry_attempts
-        if retry_mode is not None:
-            retries["mode"] = retry_mode
-
-        client_context = _get_aioboto_session().create_client(
-            "dynamodb",
-            region_name=region,
-            config=AioConfig(
-                max_pool_connections=max_pool_connections,
-                connect_timeout=connect_timeout,
-                read_timeout=read_timeout,
-                retries=retries if retries else None,
-                connector_args={"keepalive_timeout": keepalive_timeout},
-            ),
-        )
-        _aioboto_context_stack = contextlib.AsyncExitStack()
-        _aioboto_client = await _aioboto_context_stack.enter_async_context(
-            client_context
-        )
-    return _aioboto_client
-
-
-async def _aiodynamodb_close():
-    global _aioboto_client, _aioboto_session, _aioboto_context_stack
-    if _aioboto_client:
-        await _aioboto_client.close()
-        _aioboto_client = None
-    if _aioboto_context_stack:
-        await _aioboto_context_stack.aclose()
-        _aioboto_context_stack = None
-    if _aioboto_session:
-        _aioboto_session = None
+# Global async client functions removed - now using instance methods
 
 
 def _initialize_dynamodb_client(
