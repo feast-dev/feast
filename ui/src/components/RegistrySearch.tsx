@@ -112,6 +112,7 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
               ? String(item.spec.description || "")
               : "",
           type: getItemType(item, name),
+          projectId: "projectId" in item ? String(item.projectId) : undefined,
         };
       });
 
@@ -185,6 +186,17 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
                                   style={searchResultsStyles.itemDescription}
                                 >
                                   {item.description}
+                                </div>
+                              )}
+                              {item.projectId && (
+                                <div
+                                  style={{
+                                    fontSize: "0.85em",
+                                    color: "#69707D",
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  Project: {item.projectId}
                                 </div>
                               )}
                             </EuiFlexItem>

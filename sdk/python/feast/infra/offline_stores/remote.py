@@ -197,6 +197,7 @@ class RemoteOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs,
     ) -> RemoteRetrievalJob:
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
@@ -218,6 +219,15 @@ class RemoteOfflineStore(OfflineStore):
             "full_feature_names": full_feature_names,
             "name_aliases": name_aliases,
         }
+
+        # Extract and serialize start_date/end_date for remote transmission
+        start_date = kwargs.get("start_date", None)
+        end_date = kwargs.get("end_date", None)
+
+        if start_date is not None:
+            api_parameters["start_date"] = start_date.isoformat()
+        if end_date is not None:
+            api_parameters["end_date"] = end_date.isoformat()
 
         return RemoteRetrievalJob(
             client=client,
