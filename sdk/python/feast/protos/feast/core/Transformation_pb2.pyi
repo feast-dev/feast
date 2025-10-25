@@ -22,20 +22,24 @@ class UserDefinedFunctionV2(google.protobuf.message.Message):
     NAME_FIELD_NUMBER: builtins.int
     BODY_FIELD_NUMBER: builtins.int
     BODY_TEXT_FIELD_NUMBER: builtins.int
+    MODE_FIELD_NUMBER: builtins.int
     name: builtins.str
     """The function name"""
     body: builtins.bytes
     """The python-syntax function body (serialized by dill)"""
     body_text: builtins.str
     """The string representation of the udf"""
+    mode: builtins.str
+    """The transformation mode (e.g., "python", "pandas", "spark", "sql")"""
     def __init__(
         self,
         *,
         name: builtins.str = ...,
         body: builtins.bytes = ...,
         body_text: builtins.str = ...,
+        mode: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["body", b"body", "body_text", b"body_text", "name", b"name"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["body", b"body", "body_text", b"body_text", "mode", b"mode", "name", b"name"]) -> None: ...
 
 global___UserDefinedFunctionV2 = UserDefinedFunctionV2
 
