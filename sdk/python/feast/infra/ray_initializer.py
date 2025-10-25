@@ -211,13 +211,13 @@ class RayConfigManager:
 class StandardRayWrapper:
     """Wrapper for Ray Native operations."""
 
-    def read_parquet(self, path: Union[str, List[str]]) -> Any:
+    def read_parquet(self, path: Union[str, List[str]], **kwargs) -> Any:
         """Read parquet files using standard Ray."""
-        return ray.data.read_parquet(path)
+        return ray.data.read_parquet(path, **kwargs)
 
-    def read_csv(self, path: Union[str, List[str]]) -> Any:
+    def read_csv(self, path: Union[str, List[str]], **kwargs) -> Any:
         """Read CSV files using standard Ray."""
-        return ray.data.read_csv(path)
+        return ray.data.read_csv(path, **kwargs)
 
     def from_pandas(self, df: Any) -> Any:
         """Create dataset from pandas DataFrame using standard Ray."""
@@ -308,29 +308,29 @@ class CodeFlareRayWrapper:
             raise
 
     # Ray Data API methods - wrapped in @ray.remote to execute on cluster workers
-    def read_parquet(self, path: Union[str, List[str]]) -> Any:
+    def read_parquet(self, path: Union[str, List[str]], **kwargs) -> Any:
         """Read parquet files - runs remotely on KubeRay cluster workers."""
         from feast.infra.ray_shared_utils import RemoteDatasetProxy
 
         @ray.remote
-        def _remote_read_parquet(file_path):
+        def _remote_read_parquet(file_path, read_kwargs):
             import ray
 
-            return ray.data.read_parquet(file_path)
+            return ray.data.read_parquet(file_path, **read_kwargs)
 
-        return RemoteDatasetProxy(_remote_read_parquet.remote(path))
+        return RemoteDatasetProxy(_remote_read_parquet.remote(path, kwargs))
 
-    def read_csv(self, path: Union[str, List[str]]) -> Any:
+    def read_csv(self, path: Union[str, List[str]], **kwargs) -> Any:
         """Read CSV files - runs remotely on KubeRay cluster workers."""
         from feast.infra.ray_shared_utils import RemoteDatasetProxy
 
         @ray.remote
-        def _remote_read_csv(file_path):
+        def _remote_read_csv(file_path, read_kwargs):
             import ray
 
-            return ray.data.read_csv(file_path)
+            return ray.data.read_csv(file_path, **read_kwargs)
 
-        return RemoteDatasetProxy(_remote_read_csv.remote(path))
+        return RemoteDatasetProxy(_remote_read_csv.remote(path, kwargs))
 
     def from_pandas(self, df: Any) -> Any:
         """Create dataset from pandas DataFrame - runs remotely on KubeRay cluster workers."""
