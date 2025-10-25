@@ -158,6 +158,7 @@ class StreamFeatureView(FeatureView):
             schema=schema,
             source=source,  # type: ignore[arg-type]
             sink_source=sink_source,
+            mode=mode,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:

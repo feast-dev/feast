@@ -87,6 +87,9 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
+        mode: The transformation mode for feature transformations. Only meaningful when
+            transformations are applied. Choose from TransformationMode enum values
+            (e.g., PYTHON, PANDAS, RAY, SQL, SPARK, SUBSTRAIT).
     """
 
     name: str
@@ -103,6 +106,7 @@ class FeatureView(BaseFeatureView):
     tags: Dict[str, str]
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
+    mode: Optional[Union["TransformationMode", str]]
 
     def __init__(
         self,
@@ -118,6 +122,7 @@ class FeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        mode: Optional[Union["TransformationMode", str]] = None,
     ):
         """
         Creates a FeatureView object.
@@ -141,6 +146,8 @@ class FeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
+            mode (optional): The transformation mode for feature transformations. Only meaningful
+                when transformations are applied. Choose from TransformationMode enum values.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -149,6 +156,7 @@ class FeatureView(BaseFeatureView):
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
         schema = schema or []
+        self.mode = mode
 
         # Normalize source
         self.stream_source = None
