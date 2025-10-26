@@ -8,3 +8,4 @@ class TransformationMode(Enum):
     SPARK = "spark"
     SQL = "sql"
     SUBSTRAIT = "substrait"
+    TILING = "tiling"
