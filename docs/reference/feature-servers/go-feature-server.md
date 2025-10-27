@@ -4,7 +4,7 @@
 The Go feature server is an HTTP/gRPC endpoint that serves features. It is written in Go.
 
 ## Configuration of `feature_store.yaml`
-The current Go feature server needs a Python based feature Transforamtion service support. Please refer to the following code as an example:
+The current Go feature server needs a Python based feature Transformation service support. Please refer to the following code as an example:
 ```
 # -*- coding: utf-8 -*-
 from feast.feature_store import FeatureStore
@@ -40,14 +40,14 @@ Here is the list of supported APIs:
 
 ## OTEL based Observability
 The Go feature server support [OTEL](https://opentelemetry.io/) based Observabilities.
-To enable it, we need to set the global env `ENABLE_OTEL_TRACING` to `"true"` (as a string type!) in the contianer or your local OS.
+To enable it, we need to set the global env `ENABLE_OTEL_TRACING` to `"true"` (as a string type!) in the container or your local OS.
 ```
 export ENABLE_OTEL_TRACING='true'
 ```
 There are example OTEL infra setup under the `/go/infra/docker/otel` folder.
 
 ## Demo
-Please check the Reference[2] for a local demo of Go feature server. If you want to see a real word example of applying Go feature server in Production, please check Reference[1].
+Please check the Reference[2] for a local demo of Go feature server. If you want to see a real world example of applying Go feature server in Production, please check Reference[1].
 
 ## Reference
 1. [Expedia Group's Go Feature Server Implementation (in Production)](https://github.com/EXPEbdodla/feast)
