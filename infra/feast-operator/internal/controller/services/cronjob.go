@@ -55,13 +55,9 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 	appliedCronJob := feast.Handler.FeatureStore.Status.Applied.CronJob
 	cronJob.Labels = feast.getFeastTypeLabels(CronJobFeastType)
 	if appliedCronJob.Annotations != nil {
-		if cronJob.Annotations == nil {
-			cronJob.Annotations = make(map[string]string)
-		}
+		cronJob.Annotations = make(map[string]string, len(appliedCronJob.Annotations))
 		for k, v := range appliedCronJob.Annotations {
-			if _, exists := cronJob.Annotations[k]; !exists {
-				cronJob.Annotations[k] = v
-			}
+			cronJob.Annotations[k] = v
 		}
 	}
 	cronJob.Spec = batchv1.CronJobSpec{
