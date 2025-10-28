@@ -98,8 +98,8 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 features = {"features": []}
             try:
                 feature_views = grpc_call(
-                    grpc_handler.ListFeatureViews,
-                    RegistryServer_pb2.ListFeatureViewsRequest(
+                    grpc_handler.ListAllFeatureViews,
+                    RegistryServer_pb2.ListAllFeatureViewsRequest(
                         project=project_name, allow_cache=allow_cache
                     ),
                 )

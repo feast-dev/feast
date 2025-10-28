@@ -3,7 +3,7 @@ from datetime import timedelta
 import polars as pl
 import pyarrow as pa
 
-from feast.infra.compute_engines.local.backends.base import DataFrameBackend
+from feast.infra.compute_engines.backends.base import DataFrameBackend
 
 
 class PolarsBackend(DataFrameBackend):

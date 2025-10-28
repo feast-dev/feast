@@ -3,8 +3,8 @@ from typing import Optional
 import pandas as pd
 import pyarrow
 
-from feast.infra.compute_engines.local.backends.base import DataFrameBackend
-from feast.infra.compute_engines.local.backends.pandas_backend import PandasBackend
+from feast.infra.compute_engines.backends.base import DataFrameBackend
+from feast.infra.compute_engines.backends.pandas_backend import PandasBackend
 
 
 class BackendFactory:
@@ -46,7 +46,7 @@ class BackendFactory:
 
     @staticmethod
     def _get_polars_backend():
-        from feast.infra.compute_engines.local.backends.polars_backend import (
+        from feast.infra.compute_engines.backends.polars_backend import (
             PolarsBackend,
         )
 

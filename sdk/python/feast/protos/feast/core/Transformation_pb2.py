@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1f\x66\x65\x61st/core/Transformation.proto\x12\nfeast.core\"F\n\x15UserDefinedFunctionV2\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04\x62ody\x18\x02 \x01(\x0c\x12\x11\n\tbody_text\x18\x03 \x01(\t\"\xba\x01\n\x17\x46\x65\x61tureTransformationV2\x12\x42\n\x15user_defined_function\x18\x01 \x01(\x0b\x32!.feast.core.UserDefinedFunctionV2H\x00\x12I\n\x18substrait_transformation\x18\x02 \x01(\x0b\x32%.feast.core.SubstraitTransformationV2H\x00\x42\x10\n\x0etransformation\"J\n\x19SubstraitTransformationV2\x12\x16\n\x0esubstrait_plan\x18\x01 \x01(\x0c\x12\x15\n\ribis_function\x18\x02 \x01(\x0c\x42_\n\x10\x66\x65\x61st.proto.coreB\x1a\x46\x65\x61tureTransformationProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1f\x66\x65\x61st/core/Transformation.proto\x12\nfeast.core\"T\n\x15UserDefinedFunctionV2\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04\x62ody\x18\x02 \x01(\x0c\x12\x11\n\tbody_text\x18\x03 \x01(\t\x12\x0c\n\x04mode\x18\x04 \x01(\t\"\xba\x01\n\x17\x46\x65\x61tureTransformationV2\x12\x42\n\x15user_defined_function\x18\x01 \x01(\x0b\x32!.feast.core.UserDefinedFunctionV2H\x00\x12I\n\x18substrait_transformation\x18\x02 \x01(\x0b\x32%.feast.core.SubstraitTransformationV2H\x00\x42\x10\n\x0etransformation\"J\n\x19SubstraitTransformationV2\x12\x16\n\x0esubstrait_plan\x18\x01 \x01(\x0c\x12\x15\n\ribis_function\x18\x02 \x01(\x0c\x42_\n\x10\x66\x65\x61st.proto.coreB\x1a\x46\x65\x61tureTransformationProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -23,9 +23,9 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['DESCRIPTOR']._options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\020feast.proto.coreB\032FeatureTransformationProtoZ/github.com/feast-dev/feast/go/protos/feast/core'
   _globals['_USERDEFINEDFUNCTIONV2']._serialized_start=47
-  _globals['_USERDEFINEDFUNCTIONV2']._serialized_end=117
-  _globals['_FEATURETRANSFORMATIONV2']._serialized_start=120
-  _globals['_FEATURETRANSFORMATIONV2']._serialized_end=306
-  _globals['_SUBSTRAITTRANSFORMATIONV2']._serialized_start=308
-  _globals['_SUBSTRAITTRANSFORMATIONV2']._serialized_end=382
+  _globals['_USERDEFINEDFUNCTIONV2']._serialized_end=131
+  _globals['_FEATURETRANSFORMATIONV2']._serialized_start=134
+  _globals['_FEATURETRANSFORMATIONV2']._serialized_end=320
+  _globals['_SUBSTRAITTRANSFORMATIONV2']._serialized_start=322
+  _globals['_SUBSTRAITTRANSFORMATIONV2']._serialized_end=396
 # @@protoc_insertion_point(module_scope)

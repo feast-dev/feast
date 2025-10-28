@@ -52,6 +52,11 @@ Feast helps ML platform/MLOps teams with DevOps experience productionize real-ti
 
 * *For AI Engineers*: Feast provides a platform designed to scale your AI applications by enabling seamless integration of richer data and facilitating fine-tuning. With Feast, you can optimize the performance of your AI models while ensuring a scalable and efficient data pipeline.
 
+
+![](assets/feast_persona_diagram.png)
+
+
+
 ## What Feast is not?
 
 ### Feast is not

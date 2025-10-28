@@ -154,6 +154,15 @@ class FeatureBuilder(ABC):
         )
         field_mapping = self.get_field_mapping(self.task.feature_view)
 
+        # For feature views with transformations that need access to all source columns,
+        # we need to read ALL source columns, not just the output feature columns.
+        # This is specifically for transformations that create new columns or need raw data.
+        mode = getattr(getattr(view, "feature_transformation", None), "mode", None)
+        if mode == "ray" or getattr(mode, "value", None) == "ray":
+            # Signal to read all columns by passing empty list for feature_cols
+            # The transformation will produce the output columns defined in the schema
+            feature_cols = []
+
         return ColumnInfo(
             join_keys=join_keys,
             feature_cols=feature_cols,

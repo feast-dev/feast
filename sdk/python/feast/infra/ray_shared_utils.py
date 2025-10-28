@@ -49,7 +49,12 @@ class RemoteDatasetProxy:
 
         @ray.remote
         def _remote_to_arrow(dataset):
-            return dataset.to_arrow()
+            arrow_refs = dataset.to_arrow_refs()
+            if arrow_refs:
+                tables = ray.get(arrow_refs)
+                return pa.concat_tables(tables)
+            else:
+                return pa.Table.from_pydict({})
 
         result_ref = _remote_to_arrow.remote(self._dataset_ref)
         return ray.get(result_ref)
@@ -122,6 +127,16 @@ class RemoteDatasetProxy:
             return dataset.take(num)
 
         result_ref = _remote_take.remote(self._dataset_ref, n)
+        return ray.get(result_ref)
+
+    def size_bytes(self) -> int:
+        """Execute size_bytes remotely and return result."""
+
+        @ray.remote
+        def _remote_size_bytes(dataset):
+            return dataset.size_bytes()
+
+        result_ref = _remote_size_bytes.remote(self._dataset_ref)
         return ray.get(result_ref)
 
     def __getattr__(self, name):

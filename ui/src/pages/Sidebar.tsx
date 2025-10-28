@@ -17,8 +17,8 @@ import { PermissionsIcon } from "../graphics/PermissionsIcon";
 
 const SideNav = () => {
   const registryUrl = useContext(RegistryPathContext);
-  const { isSuccess, data } = useLoadRegistry(registryUrl);
   const { projectName } = useParams();
+  const { isSuccess, data } = useLoadRegistry(registryUrl, projectName);
 
   const [isSideNavOpenOnMobile, setisSideNavOpenOnMobile] = useState(false);
 

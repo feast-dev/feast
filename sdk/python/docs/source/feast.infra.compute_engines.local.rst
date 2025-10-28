@@ -7,7 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   feast.infra.compute_engines.local.backends
+   feast.infra.compute_engines.backends
 
 Submodules
 ----------

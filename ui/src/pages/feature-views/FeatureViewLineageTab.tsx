@@ -22,13 +22,13 @@ interface FeatureViewLineageTabProps {
 
 const FeatureViewLineageTab = ({ data }: FeatureViewLineageTabProps) => {
   const registryUrl = useContext(RegistryPathContext);
+  const { featureViewName, projectName } = useParams();
   const {
     isLoading,
     isSuccess,
     isError,
     data: registryData,
-  } = useLoadRegistry(registryUrl);
-  const { featureViewName } = useParams();
+  } = useLoadRegistry(registryUrl, projectName);
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
 
   const filterNode = {

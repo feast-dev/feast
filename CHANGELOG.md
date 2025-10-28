@@ -1,5 +1,33 @@
 # Changelog
 
+# [0.56.0](https://github.com/feast-dev/feast/compare/v0.55.0...v0.56.0) (2025-10-27)
+
+
+### Bug Fixes
+
+* Add mode field to Transformation proto for proper serialization ([2390d2e](https://github.com/feast-dev/feast/commit/2390d2ea654e299fc74f697212542b755f3b4938))
+* Date wise remote offline store historical data retrieval  ([#5686](https://github.com/feast-dev/feast/issues/5686)) ([949ba3d](https://github.com/feast-dev/feast/commit/949ba3dae420f82f493018113d1fd6de9e130a56))
+* Fix STRING type handling in on-demand feature views ([#5669](https://github.com/feast-dev/feast/issues/5669)) ([dfbb743](https://github.com/feast-dev/feast/commit/dfbb7433f059e6f0d1d4ef6c0ef65b63dac1c1ff))
+* Fixed torch install issue in CI ([366e5a8](https://github.com/feast-dev/feast/commit/366e5a8c8f8093eda840b667849c6d2e45fa56bb))
+* ODFV not getting counted in resource count ([1d640b6](https://github.com/feast-dev/feast/commit/1d640b6c8136c47a78887e4490a5b7ae677b7c99))
+* Skip tag updates if user do not have permissions ([#5673](https://github.com/feast-dev/feast/issues/5673)) ([0a951ce](https://github.com/feast-dev/feast/commit/0a951ce8d7f9b31490fa279339eacd444d2d2434))
+
+
+### Features
+
+* Add document of Go feature server. ([#5697](https://github.com/feast-dev/feast/issues/5697)) ([cbd1dde](https://github.com/feast-dev/feast/commit/cbd1dde9a0a6e5a3ec7e3520b6613d3818bcd842))
+* Add flexible commandArgs support for complete Feast CLI control ([#5678](https://github.com/feast-dev/feast/issues/5678)) ([6414924](https://github.com/feast-dev/feast/commit/64149246c1925e9f3dcac60d9ab629225c232261))
+* Add HDFS as a feature registry ([#5655](https://github.com/feast-dev/feast/issues/5655)) ([4c65872](https://github.com/feast-dev/feast/commit/4c65872ee6cf7e14ed14c8a8a7e141126027e575))
+* Add nodeSelector to service config ([#5675](https://github.com/feast-dev/feast/issues/5675)) ([9728cde](https://github.com/feast-dev/feast/commit/9728cde4d3cf4d22a790d3a3af2eba705b7a56d3))
+* Add OTEL based observability to the Go Feature Server ([#5685](https://github.com/feast-dev/feast/issues/5685)) ([f4afdad](https://github.com/feast-dev/feast/commit/f4afdad27c7fe92e9778e29ad08e4b227a3c17a4))
+* Added health endpoint for the UI ([#5665](https://github.com/feast-dev/feast/issues/5665)) ([3aec5d5](https://github.com/feast-dev/feast/commit/3aec5d5fd24540d10f07e79c081c2658ca35678c))
+* Added kuberay support ([e0b698d](https://github.com/feast-dev/feast/commit/e0b698d7b8733c8177ca053bc89defb01ebeb538))
+* Added support for filtering multi-projects ([#5688](https://github.com/feast-dev/feast/issues/5688)) ([eb0a86e](https://github.com/feast-dev/feast/commit/eb0a86eb81defb5ccb2407a0d5f2b2425bcb61c1))
+* Batch Embedding at scale for RAG with Ray ([cc2a46d](https://github.com/feast-dev/feast/commit/cc2a46d54c413ed52a9bf568588dd06096592c1f))
+* Optimize SQL entity handling without creating temporary tables ([#5695](https://github.com/feast-dev/feast/issues/5695)) ([aa2c838](https://github.com/feast-dev/feast/commit/aa2c8386253181145c4f314187e0873b96b2be59))
+* Support aggregation in odfv ([#5666](https://github.com/feast-dev/feast/issues/5666)) ([564e965](https://github.com/feast-dev/feast/commit/564e9651dabea5458a77a8889920749cb1a6a5ed))
+* Support cache_mode for registries ([021e9ea](https://github.com/feast-dev/feast/commit/021e9ea759bfee0292c5f7c804119ed9a15d6a58))
+
 # [0.55.0](https://github.com/feast-dev/feast/compare/v0.54.0...v0.55.0) (2025-10-14)
 
 

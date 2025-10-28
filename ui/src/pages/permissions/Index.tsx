@@ -13,6 +13,7 @@ import {
   EuiFormRow,
 } from "@elastic/eui";
 import { useContext, useState } from "react";
+import { useParams } from "react-router-dom";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import PermissionsDisplay from "../../components/PermissionsDisplay";
@@ -20,7 +21,11 @@ import { filterPermissionsByAction } from "../../utils/permissionUtils";
 
 const PermissionsIndex = () => {
   const registryUrl = useContext(RegistryPathContext);
-  const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
+  const { projectName } = useParams();
+  const { isLoading, isSuccess, isError, data } = useLoadRegistry(
+    registryUrl,
+    projectName,
+  );
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
 
   return (

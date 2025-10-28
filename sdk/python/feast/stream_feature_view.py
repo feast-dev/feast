@@ -157,6 +157,7 @@ class StreamFeatureView(FeatureView):
             owner=owner,
             schema=schema,
             source=source,  # type: ignore[arg-type]
+            mode=mode,
             sink_source=sink_source,
         )
 

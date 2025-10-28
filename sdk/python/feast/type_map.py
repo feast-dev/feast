@@ -172,6 +172,16 @@ def python_type_to_feast_value_type(
     if type_name in type_map:
         return type_map[type_name]
 
+    # Handle pandas "object" dtype by inspecting the actual value
+    if type_name == "object" and value is not None:
+        # Check the actual type of the value
+        actual_type = type(value).__name__.lower()
+        if actual_type == "str":
+            return ValueType.STRING
+        # If it's a different type wrapped in object, try to infer from the value
+        elif actual_type in type_map:
+            return type_map[actual_type]
+
     if isinstance(value, np.ndarray) and str(value.dtype) in type_map:
         item_type = type_map[str(value.dtype)]
         return ValueType[item_type.name + "_LIST"]

@@ -541,6 +541,7 @@ type OptionalCtrConfigs struct {
 	EnvFrom         *[]corev1.EnvFromSource      `json:"envFrom,omitempty"`
 	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
+	NodeSelector    *map[string]string           `json:"nodeSelector,omitempty"`
 }
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.

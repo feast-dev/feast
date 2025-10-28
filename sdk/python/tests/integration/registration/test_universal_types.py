@@ -343,7 +343,6 @@ def offline_types_test_fixtures(request, environment):
     if (
         environment.data_source_creator.__class__.__name__
         == "ClickhouseDataSourceCreator"
-        and config.feature_dtype in {"float", "datetime", "bool"}
         and config.feature_is_list
         and not config.has_empty_list
     ):

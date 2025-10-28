@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from tempfile import mkstemp
+from unittest.mock import patch
 
 import pytest
 from pytest_lazyfixture import lazy_fixture
@@ -18,7 +19,7 @@ from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
-from feast.repo_config import RepoConfig
+from feast.repo_config import RegistryConfig, RepoConfig
 from feast.stream_feature_view import stream_feature_view
 from feast.types import Array, Bytes, Float32, Int64, String, ValueType, from_value_type
 from tests.integration.feature_repos.universal.feature_views import TAGS
@@ -797,3 +798,67 @@ def feature_store_with_local_registry():
             entity_key_serialization_version=3,
         )
     )
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_refreshes_registry_cache_sync_mode(test_feature_store):
+    """Test that apply() refreshes registry cache when cache_mode is 'sync' (default)"""
+    # Create a simple entity (no FeatureView to avoid file path issues)
+    entity = Entity(name="test_entity", join_keys=["id"])
+
+    # Mock the refresh_registry method to verify it's called
+    with patch.object(test_feature_store, "refresh_registry") as mock_refresh:
+        # Apply the entity
+        test_feature_store.apply([entity])
+
+        # Verify refresh_registry was called once (due to sync mode)
+        mock_refresh.assert_called_once()
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_skips_refresh_registry_cache_thread_mode(test_feature_store):
+    """Test that apply() skips registry refresh when cache_mode is 'thread'"""
+    # Create a simple entity
+    entity = Entity(name="test_entity", join_keys=["id"])
+
+    # Temporarily change cache_mode to 'thread'
+    original_cache_mode = test_feature_store.config.registry.cache_mode
+    test_feature_store.config.registry.cache_mode = "thread"
+
+    try:
+        # Mock the refresh_registry method to verify it's NOT called
+        with patch.object(test_feature_store, "refresh_registry") as mock_refresh:
+            # Apply the entity
+            test_feature_store.apply([entity])
+
+            # Verify refresh_registry was NOT called (due to thread mode)
+            mock_refresh.assert_not_called()
+    finally:
+        # Restore original cache_mode
+        test_feature_store.config.registry.cache_mode = original_cache_mode
+
+    test_feature_store.teardown()
+
+
+def test_registry_config_cache_mode_default():
+    """Test that RegistryConfig has cache_mode with default value 'sync'"""
+    config = RegistryConfig()
+    assert hasattr(config, "cache_mode")
+    assert config.cache_mode == "sync"
+
+
+def test_registry_config_cache_mode_can_be_set():
+    """Test that RegistryConfig cache_mode can be set to different values"""
+    config = RegistryConfig(cache_mode="thread")
+    assert config.cache_mode == "thread"
+
+    config = RegistryConfig(cache_mode="sync")
+    assert config.cache_mode == "sync"

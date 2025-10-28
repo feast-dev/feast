@@ -96,14 +96,6 @@ def test_on_demand_features_valid_type_inference():
 
     python_native_test_view.infer_features()
 
-
-def test_on_demand_features_invalid_type_inference():
-    # Create Feature Views
-    date_request = RequestSource(
-        name="date_request",
-        schema=[Field(name="some_date", dtype=UnixTimestamp)],
-    )
-
     @on_demand_feature_view(
         sources=[date_request],
         schema=[
@@ -111,14 +103,20 @@ def test_on_demand_features_invalid_type_inference():
             Field(name="object_output", dtype=String),
         ],
     )
-    def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
+    def object_string_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
         data["output"] = features_df["some_date"]
         data["object_output"] = features_df["some_date"].astype(str)
         return data
 
-    with pytest.raises(ValueError, match="Value with native type object"):
-        invalid_test_view.infer_features()
+    object_string_test_view.infer_features()
+
+
+def test_on_demand_features_invalid_type_inference():
+    date_request = RequestSource(
+        name="date_request",
+        schema=[Field(name="some_date", dtype=UnixTimestamp)],
+    )
 
     @on_demand_feature_view(
         schema=[
@@ -184,14 +182,13 @@ def test_datasource_inference():
             Field(name="object_output", dtype=String),
         ],
     )
-    def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
+    def object_string_view(features_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
         data["output"] = features_df["some_date"]
         data["object_output"] = features_df["some_date"].astype(str)
         return data
 
-    with pytest.raises(ValueError, match="Value with native type object"):
-        invalid_test_view.infer_features()
+    object_string_view.infer_features()
 
     @on_demand_feature_view(
         sources=[date_request],
