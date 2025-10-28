@@ -30,6 +30,8 @@ class MySQLOnlineStoreConfig(FeastConfigBaseModel):
     password: Optional[StrictStr] = None
     database: Optional[StrictStr] = None
     port: Optional[int] = None
+    batch_write: Optional[bool] = False
+    batch_size: Optional[int] = None
 
 
 class MySQLOnlineStore(OnlineStore):
@@ -51,7 +53,7 @@ class MySQLOnlineStore(OnlineStore):
                 password=online_store_config.password or "test",
                 database=online_store_config.database or "feast",
                 port=online_store_config.port or 3306,
-                autocommit=True,
+                autocommit=(not online_store_config.batch_write),
             )
         return self._conn
 
@@ -69,29 +71,97 @@ class MySQLOnlineStore(OnlineStore):
 
         project = config.project
 
-        for entity_key, values, timestamp, created_ts in data:
-            entity_key_bin = serialize_entity_key(
-                entity_key,
-                entity_key_serialization_version=3,
-            ).hex()
-            timestamp = to_naive_utc(timestamp)
-            if created_ts is not None:
-                created_ts = to_naive_utc(created_ts)
+        batch_write = config.online_store.batch_write
+        if not batch_write:
+            for entity_key, values, timestamp, created_ts in data:
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=3,
+                ).hex()
+                timestamp = to_naive_utc(timestamp)
+                if created_ts is not None:
+                    created_ts = to_naive_utc(created_ts)
 
-            for feature_name, val in values.items():
-                self.write_to_table(
-                    created_ts,
-                    cur,
-                    entity_key_bin,
-                    feature_name,
-                    project,
-                    table,
-                    timestamp,
-                    val,
-                )
-            conn.commit()
-            if progress:
-                progress(1)
+                for feature_name, val in values.items():
+                    self.write_to_table(
+                        created_ts,
+                        cur,
+                        entity_key_bin,
+                        feature_name,
+                        project,
+                        table,
+                        timestamp,
+                        val,
+                    )
+                conn.commit()
+                if progress:
+                    progress(1)
+        else:
+            batch_size = config.online_store.bacth_size
+            if not batch_size or batch_size < 2:
+                raise ValueError("Batch size must be at least 2")
+            insert_values = []
+            for entity_key, values, timestamp, created_ts in data:
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=2,
+                ).hex()
+                timestamp = to_naive_utc(timestamp)
+                if created_ts is not None:
+                    created_ts = to_naive_utc(created_ts)
+
+                for feature_name, val in values.items():
+                    serialized_val = val.SerializeToString()
+                    insert_values.append(
+                        (
+                            entity_key_bin,
+                            feature_name,
+                            serialized_val,
+                            timestamp,
+                            created_ts,
+                        )
+                    )
+
+                    if len(insert_values) >= batch_size:
+                        try:
+                            self._execute_batch(cur, project, table, insert_values)
+                            conn.commit()
+                            if progress:
+                                progress(len(insert_values))
+                        except Exception as e:
+                            conn.rollback()
+                            raise e
+                        insert_values.clear()
+
+            if insert_values:
+                try:
+                    self._execute_batch(cur, project, table, insert_values)
+                    conn.commit()
+                    if progress:
+                        progress(len(insert_values))
+                except Exception as e:
+                    conn.rollback()
+                    raise e
+
+    def _execute_batch(self, cur, project, table, insert_values):
+        sql = f"""
+            INSERT INTO {_table_id(project, table)}
+            (entity_key, feature_name, value, event_ts, created_ts)
+            values (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                value = VALUES(value),
+                event_ts = VALUES(event_ts),
+                created_ts = VALUES(created_ts);
+        """
+        try:
+            cur.executemany(sql, insert_values)
+        except Exception as e:
+            # Log SQL info for debugging without leaking sensitive data
+            first_sample = insert_values[0] if insert_values else None
+            raise RuntimeError(
+                f"Failed to execute batch insert into table '{_table_id(project, table)}' "
+                f"(rows={len(insert_values)}, sample={first_sample}): {e}"
+            ) from e
 
     @staticmethod
     def write_to_table(
