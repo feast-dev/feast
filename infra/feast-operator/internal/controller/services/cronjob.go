@@ -59,7 +59,9 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 			cronJob.Annotations = make(map[string]string)
 		}
 		for k, v := range appliedCronJob.Annotations {
-			cronJob.Annotations[k] = v
+			if _, exists := cronJob.Annotations[k]; !exists {
+				cronJob.Annotations[k] = v
+			}
 		}
 	}
 	cronJob.Spec = batchv1.CronJobSpec{
