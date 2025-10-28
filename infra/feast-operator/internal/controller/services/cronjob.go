@@ -54,6 +54,14 @@ func (feast *FeastServices) initCronJob() *batchv1.CronJob {
 func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 	appliedCronJob := feast.Handler.FeatureStore.Status.Applied.CronJob
 	cronJob.Labels = feast.getFeastTypeLabels(CronJobFeastType)
+	if appliedCronJob.Annotations != nil {
+		if cronJob.Annotations == nil {
+			cronJob.Annotations = make(map[string]string)
+		}
+		for k, v := range appliedCronJob.Annotations {
+			cronJob.Annotations[k] = v
+		}
+	}
 	cronJob.Spec = batchv1.CronJobSpec{
 		Schedule: appliedCronJob.Schedule,
 		JobTemplate: batchv1.JobTemplateSpec{
