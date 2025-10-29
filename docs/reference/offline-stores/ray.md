@@ -5,6 +5,23 @@
 
 The Ray offline store is a data I/O implementation that leverages [Ray](https://www.ray.io/) for reading and writing data from various sources. It focuses on efficient data access operations, while complex feature computation is handled by the [Ray Compute Engine](../compute-engine/ray.md).
 
+## Quick Start with Ray Template
+
+The easiest way to get started with Ray offline store is to use the built-in Ray template:
+
+```bash
+feast init -t ray my_ray_project
+cd my_ray_project/feature_repo
+```
+
+This template includes:
+- Pre-configured Ray offline store and compute engine setup
+- Sample feature definitions optimized for Ray processing
+- Demo workflow showcasing Ray capabilities
+- Resource settings for local development
+
+The template provides a complete working example with sample datasets and demonstrates both Ray offline store data I/O operations and Ray compute engine distributed processing.
+
 ## Overview
 
 The Ray offline store provides:
