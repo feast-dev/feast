@@ -435,7 +435,7 @@ class SqlRegistry(CachingRegistry):
         self, project: str, commit: bool
     ) -> ProjectMetadataModel:
         self._maybe_init_project_metadata(project)
-        return self.get_project_metadata(project)
+        return self._get_project_metadata_model(project)
 
     def _get_entity(self, name: str, project: str) -> Entity:
         return self._get_object(
@@ -1468,20 +1468,19 @@ class SqlRegistry(CachingRegistry):
                         )
         return list(project_metadata_model_dict.values())
 
-    # # Deprecated: EG implementation requires that get_project_metadata returns ProjectMetadataModel.
-    # def get_project_metadata(self, project: str, key: str) -> Optional[str]:
-    #     """Get a custom project metadata value by key from the feast_metadata table."""
-    #     with self.read_engine.begin() as conn:
-    #         stmt = select(feast_metadata).where(
-    #             feast_metadata.c.project_id == project,
-    #             feast_metadata.c.metadata_key == key,
-    #             )
-    #         row = conn.execute(stmt).first()
-    #         if row:
-    #             return row._mapping["metadata_value"]
-    #         return None
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """Get a custom project metadata value by key from the feast_metadata table."""
+        with self.read_engine.begin() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.project_id == project,
+                feast_metadata.c.metadata_key == key,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                return row._mapping["metadata_value"]
+            return None
 
-    def get_project_metadata(
+    def _get_project_metadata_model(
         self,
         project: str,
         allow_cache: bool = False,
