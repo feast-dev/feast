@@ -41,6 +41,9 @@ from feast.errors import (
     SortedFeatureViewNotFoundException,
     ValidationReferenceNotFound,
 )
+from feast.expediagroup.pydantic_models.project_metadata_model import (
+    ProjectMetadataModel,
+)
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
@@ -290,6 +293,7 @@ class SqlRegistry(CachingRegistry):
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
             cache_mode=registry_config.cache_mode,
+            exempt_projects=registry_config.exempt_projects,
         )
         # Sync feast_metadata to projects table
         # when purge_feast_metadata is set to True, Delete data from
@@ -426,6 +430,12 @@ class SqlRegistry(CachingRegistry):
             obj=entity,
             proto_field_name="entity_proto",
         )
+
+    def apply_project_metadata(
+        self, project: str, commit: bool
+    ) -> ProjectMetadataModel:
+        self._maybe_init_project_metadata(project)
+        return self.get_project_metadata(project)
 
     def _get_entity(self, name: str, project: str) -> Entity:
         return self._get_object(
@@ -934,6 +944,18 @@ class SqlRegistry(CachingRegistry):
             project_name = project.name
             last_updated_timestamp = project.last_updated_timestamp
 
+            try:
+                cached_project = self.get_project(project_name, True)
+            except ProjectObjectNotFoundException:
+                cached_project = None
+
+            allow_cache = False
+
+            if cached_project is not None:
+                allow_cache = (
+                    last_updated_timestamp <= cached_project.last_updated_timestamp
+                )
+
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
 
@@ -949,7 +971,7 @@ class SqlRegistry(CachingRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project_name, allow_cache=False)  # type: ignore
+                objs: List[Any] = lister(project_name, allow_cache)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
@@ -1415,14 +1437,77 @@ class SqlRegistry(CachingRegistry):
             insert_stmt = insert(feast_metadata).values(values)
             conn.execute(insert_stmt)
 
-    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
-        """Get a custom project metadata value by key from the feast_metadata table."""
+    def get_all_project_metadata(self) -> List[ProjectMetadataModel]:
+        """
+        Returns all projects metadata. No supporting function in SQL Registry so implemented this here instead of _get_all_projects.
+        """
+        project_metadata_model_dict: Dict[str, ProjectMetadataModel] = {}
+        with self.read_engine.begin() as conn:
+            stmt = select(feast_metadata)
+            rows = conn.execute(stmt).all()
+            if rows:
+                for row in rows:
+                    project_id = row._mapping["project_id"]
+                    metadata_key = row._mapping["metadata_key"]
+                    metadata_value = row._mapping["metadata_value"]
+
+                    if project_id not in project_metadata_model_dict:
+                        project_metadata_model_dict[project_id] = ProjectMetadataModel(
+                            project_name=project_id
+                        )
+
+                    project_metadata_model: ProjectMetadataModel = (
+                        project_metadata_model_dict[project_id]
+                    )
+                    if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata_model.project_uuid = metadata_value
+
+                    if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
+                        project_metadata_model.last_updated_timestamp = (
+                            datetime.utcfromtimestamp(int(metadata_value))
+                        )
+        return list(project_metadata_model_dict.values())
+
+    # # Deprecated: EG implementation requires that get_project_metadata returns ProjectMetadataModel.
+    # def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+    #     """Get a custom project metadata value by key from the feast_metadata table."""
+    #     with self.read_engine.begin() as conn:
+    #         stmt = select(feast_metadata).where(
+    #             feast_metadata.c.project_id == project,
+    #             feast_metadata.c.metadata_key == key,
+    #             )
+    #         row = conn.execute(stmt).first()
+    #         if row:
+    #             return row._mapping["metadata_value"]
+    #         return None
+
+    def get_project_metadata(
+        self,
+        project: str,
+        allow_cache: bool = False,
+    ) -> ProjectMetadataModel:
+        """
+        Returns given project metdata. No supporting function in SQL Registry so implemented this here rather than using _get_last_updated_metadata and list_project_metadata.
+        """
+
+        project_metadata_model: ProjectMetadataModel = ProjectMetadataModel(
+            project_name=project
+        )
         with self.read_engine.begin() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.project_id == project,
-                feast_metadata.c.metadata_key == key,
             )
-            row = conn.execute(stmt).first()
-            if row:
-                return row._mapping["metadata_value"]
-            return None
+            rows = conn.execute(stmt).all()
+            if rows:
+                for row in rows:
+                    metadata_key = row._mapping["metadata_key"]
+                    metadata_value = row._mapping["metadata_value"]
+
+                    if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata_model.project_uuid = metadata_value
+
+                    if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
+                        project_metadata_model.last_updated_timestamp = (
+                            datetime.utcfromtimestamp(int(metadata_value))
+                        )
+        return project_metadata_model
