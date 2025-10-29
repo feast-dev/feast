@@ -58,7 +58,7 @@ class FeatureView(google.protobuf.message.Message):
 global___FeatureView = FeatureView
 
 class FeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 16
+    """Next available id: 17
     TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
     """
 
@@ -83,17 +83,18 @@ class FeatureViewSpec(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ENTITIES_FIELD_NUMBER: builtins.int
     FEATURES_FIELD_NUMBER: builtins.int
-    ENTITY_COLUMNS_FIELD_NUMBER: builtins.int
-    DESCRIPTION_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
-    OWNER_FIELD_NUMBER: builtins.int
     TTL_FIELD_NUMBER: builtins.int
     BATCH_SOURCE_FIELD_NUMBER: builtins.int
-    STREAM_SOURCE_FIELD_NUMBER: builtins.int
     ONLINE_FIELD_NUMBER: builtins.int
+    STREAM_SOURCE_FIELD_NUMBER: builtins.int
+    DESCRIPTION_FIELD_NUMBER: builtins.int
+    OWNER_FIELD_NUMBER: builtins.int
+    ENTITY_COLUMNS_FIELD_NUMBER: builtins.int
     OFFLINE_FIELD_NUMBER: builtins.int
     SOURCE_VIEWS_FIELD_NUMBER: builtins.int
     FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
+    MODE_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -105,15 +106,8 @@ class FeatureViewSpec(google.protobuf.message.Message):
     def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each feature defined as part of this feature view."""
     @property
-    def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
-        """List of specifications for each entity defined as part of this feature view."""
-    description: builtins.str
-    """Description of the feature view."""
-    @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
-    owner: builtins.str
-    """Owner of the feature view."""
     @property
     def ttl(self) -> google.protobuf.duration_pb2.Duration:
         """Features in this feature view can only be retrieved from online serving
@@ -124,20 +118,29 @@ class FeatureViewSpec(google.protobuf.message.Message):
     @property
     def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Batch/Offline DataSource where this view can retrieve offline feature data."""
-    @property
-    def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
-        """Streaming DataSource from where this view can consume "online" feature data."""
     online: builtins.bool
     """Whether these features should be served online or not
     This is also used to determine whether the features should be written to the online store
     """
+    @property
+    def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
+        """Streaming DataSource from where this view can consume "online" feature data."""
+    description: builtins.str
+    """Description of the feature view."""
+    owner: builtins.str
+    """Owner of the feature view."""
+    @property
+    def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
+        """List of specifications for each entity defined as part of this feature view."""
     offline: builtins.bool
     """Whether these features should be written to the offline store"""
     @property
     def source_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureViewSpec]: ...
     @property
     def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
-        """Feature transformation (UDF or Substrait) for batch feature views"""
+        """Feature transformation for batch feature views"""
+    mode: builtins.str
+    """The transformation mode (e.g., "python", "pandas", "ray", "spark", "sql")"""
     def __init__(
         self,
         *,
@@ -145,20 +148,21 @@ class FeatureViewSpec(google.protobuf.message.Message):
         project: builtins.str = ...,
         entities: collections.abc.Iterable[builtins.str] | None = ...,
         features: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
-        entity_columns: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
-        description: builtins.str = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
-        owner: builtins.str = ...,
         ttl: google.protobuf.duration_pb2.Duration | None = ...,
         batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
-        stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
         online: builtins.bool = ...,
+        stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
+        description: builtins.str = ...,
+        owner: builtins.str = ...,
+        entity_columns: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
         offline: builtins.bool = ...,
         source_views: collections.abc.Iterable[global___FeatureViewSpec] | None = ...,
         feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
+        mode: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 

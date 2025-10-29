@@ -1,5 +1,6 @@
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import { useContext } from "react";
+import { useParams } from "react-router-dom";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
@@ -7,7 +8,8 @@ import { EntityReference } from "../../parsers/parseEntityRelationships";
 
 const useLoadFeatureService = (featureServiceName: string) => {
   const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
+  const { projectName } = useParams();
+  const registryQuery = useLoadRegistry(registryUrl, projectName);
 
   const data =
     registryQuery.data === undefined

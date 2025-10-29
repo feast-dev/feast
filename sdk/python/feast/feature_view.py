@@ -39,6 +39,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2 as FeatureTransformationProto,
 )
+from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
@@ -86,6 +87,9 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
+        mode: The transformation mode for feature transformations. Only meaningful when
+            transformations are applied. Choose from TransformationMode enum values
+            (e.g., PYTHON, PANDAS, RAY, SQL, SPARK, SUBSTRAIT).
     """
 
     name: str
@@ -102,6 +106,7 @@ class FeatureView(BaseFeatureView):
     tags: Dict[str, str]
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
+    mode: Optional[Union["TransformationMode", str]]
 
     def __init__(
         self,
@@ -117,6 +122,7 @@ class FeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        mode: Optional[Union["TransformationMode", str]] = None,
     ):
         """
         Creates a FeatureView object.
@@ -140,6 +146,8 @@ class FeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
+            mode (optional): The transformation mode for feature transformations. Only meaningful
+                when transformations are applied. Choose from TransformationMode enum values.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -148,6 +156,7 @@ class FeatureView(BaseFeatureView):
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
         schema = schema or []
+        self.mode = mode
 
         # Normalize source
         self.stream_source = None
@@ -252,6 +261,7 @@ class FeatureView(BaseFeatureView):
         )
         self.online = online
         self.offline = offline
+        self.mode = mode
         self.materialization_intervals = []
 
     def __hash__(self):
@@ -439,6 +449,14 @@ class FeatureView(BaseFeatureView):
                     substrait_transformation=transformation_proto,
                 )
 
+        mode_str = ""
+        if self.mode:
+            mode_str = (
+                self.mode.value
+                if isinstance(self.mode, TransformationMode)
+                else self.mode
+            )
+
         return FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -454,6 +472,7 @@ class FeatureView(BaseFeatureView):
             stream_source=stream_source_proto,
             source_views=source_view_protos,
             feature_transformation=feature_transformation_proto,
+            mode=mode_str,
         )
 
     def to_proto_meta(self):
@@ -527,6 +546,7 @@ class FeatureView(BaseFeatureView):
 
         if has_transformation and cls == FeatureView:
             from feast.batch_feature_view import BatchFeatureView
+            from feast.transformation.factory import get_transformation_class_from_type
             from feast.transformation.python_transformation import PythonTransformation
             from feast.transformation.substrait_transformation import (
                 SubstraitTransformation,
@@ -538,13 +558,29 @@ class FeatureView(BaseFeatureView):
             transformation = None
 
             if feature_transformation_proto.HasField("user_defined_function"):
-                transformation = PythonTransformation.from_proto(
-                    feature_transformation_proto.user_defined_function
-                )
+                udf_proto = feature_transformation_proto.user_defined_function
+                if udf_proto.mode:
+                    try:
+                        transformation_class = get_transformation_class_from_type(
+                            udf_proto.mode
+                        )
+                        transformation = transformation_class.from_proto(udf_proto)
+                    except (ValueError, KeyError):
+                        transformation = PythonTransformation.from_proto(udf_proto)
+                else:
+                    transformation = PythonTransformation.from_proto(udf_proto)
             elif feature_transformation_proto.HasField("substrait_transformation"):
                 transformation = SubstraitTransformation.from_proto(
                     feature_transformation_proto.substrait_transformation
                 )
+
+            mode: Union[TransformationMode, str]
+            if feature_view_proto.spec.mode:
+                mode = feature_view_proto.spec.mode
+            elif transformation and hasattr(transformation, "mode"):
+                mode = transformation.mode
+            else:
+                mode = TransformationMode.PYTHON
 
             feature_view: FeatureView = BatchFeatureView(  # type: ignore[assignment]
                 name=feature_view_proto.spec.name,
@@ -560,9 +596,14 @@ class FeatureView(BaseFeatureView):
                 ),
                 source=source_views if source_views else batch_source,  # type: ignore[arg-type]
                 sink_source=batch_source if source_views else None,
+                mode=mode,
                 feature_transformation=transformation,
             )
         else:
+            mode_from_spec = (
+                feature_view_proto.spec.mode if feature_view_proto.spec.mode else None
+            )
+
             feature_view = cls(  # type: ignore[assignment]
                 name=feature_view_proto.spec.name,
                 description=feature_view_proto.spec.description,
@@ -577,6 +618,7 @@ class FeatureView(BaseFeatureView):
                 ),
                 source=source_views if source_views else batch_source,
                 sink_source=batch_source if source_views else None,
+                mode=mode_from_spec,
             )
         if stream_source:
             feature_view.stream_source = stream_source
