@@ -1,0 +1,14 @@
+ #https://github.com/prometheus/prometheus/blob/release-3.6/config/testdata/conf.good.yml
+ scrape_configs:
+  - job_name: 'otel-collector'
+    scrape_interval: 1m
+    scrape_timeout: 30s # Increase this if needed
+    static_configs:
+      # Check the IP address of or Docker host network. 
+      # Refer: https://stackoverflow.com/questions/48546124/what-is-the-linux-equivalent-of-host-docker-internal
+      - targets: ['172.17.0.1:8888'] # Replace with the Collector's IP and port
+  - job_name: 'otel-collected'
+    scrape_interval: 1m
+    scrape_timeout: 30s # Increase this if needed
+    static_configs:
+      - targets: ['172.17.0.1:8889'] # Replace with the Collector's IP and port

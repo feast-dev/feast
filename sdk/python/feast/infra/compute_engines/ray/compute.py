@@ -2,8 +2,6 @@ import logging
 from datetime import datetime
 from typing import Sequence, Union
 
-import ray
-
 from feast import (
     BatchFeatureView,
     Entity,
@@ -26,6 +24,10 @@ from feast.infra.compute_engines.ray.job import (
 )
 from feast.infra.compute_engines.ray.utils import write_to_online_store
 from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.infra.ray_initializer import (
+    ensure_ray_initialized,
+    get_ray_wrapper,
+)
 from feast.infra.registry.base_registry import BaseRegistry
 
 logger = logging.getLogger(__name__)
@@ -58,37 +60,7 @@ class RayComputeEngine(ComputeEngine):
 
     def _ensure_ray_initialized(self):
         """Ensure Ray is initialized with proper configuration."""
-        if not ray.is_initialized():
-            if self.config.ray_address:
-                ray.init(
-                    address=self.config.ray_address,
-                    ignore_reinit_error=True,
-                    include_dashboard=False,
-                )
-            else:
-                ray_init_args = {
-                    "ignore_reinit_error": True,
-                    "include_dashboard": False,
-                }
-
-                # Add configuration from ray_conf if provided
-                if self.config.ray_conf:
-                    ray_init_args.update(self.config.ray_conf)
-
-                ray.init(**ray_init_args)
-
-        # Configure Ray context for optimal performance
-        from ray.data.context import DatasetContext
-
-        ctx = DatasetContext.get_current()
-        ctx.enable_tensor_extension_casting = False
-
-        # Log Ray cluster information
-        cluster_resources = ray.cluster_resources()
-        logger.info(
-            f"Ray cluster initialized with {cluster_resources.get('CPU', 0)} CPUs, "
-            f"{cluster_resources.get('memory', 0) / (1024**3):.1f}GB memory"
-        )
+        ensure_ray_initialized(self.config)
 
     def update(
         self,
@@ -230,7 +202,8 @@ class RayComputeEngine(ComputeEngine):
 
                 # Write to sink_source using Ray data
                 try:
-                    ray_dataset = ray.data.from_arrow(arrow_table)
+                    ray_wrapper = get_ray_wrapper()
+                    ray_dataset = ray_wrapper.from_arrow(arrow_table)
                     ray_dataset.write_parquet(sink_source.path)
                 except Exception as e:
                     logger.error(

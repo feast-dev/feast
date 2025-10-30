@@ -6,5 +6,6 @@ class TransformationMode(Enum):
     PANDAS = "pandas"
     SPARK_SQL = "spark_sql"
     SPARK = "spark"
+    RAY = "ray"
     SQL = "sql"
     SUBSTRAIT = "substrait"

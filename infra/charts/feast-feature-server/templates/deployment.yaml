@@ -47,6 +47,10 @@ spec:
               {{- toYaml . | nindent 12 }}
             {{- end}}
           command:
+            {{- if .Values.commandArgs }}
+            {{- toYaml .Values.commandArgs | nindent 12 }}
+            {{- else }}
+            {{- /* Fallback to legacy behavior for backward compatibility */}}
             {{- if eq .Values.feast_mode "offline" }}
             - "feast"
             - "--log-level"
@@ -80,6 +84,7 @@ spec:
             - "serve"
             - "-h"
             - "0.0.0.0"
+            {{- end }}
             {{- end }}
             {{- end }}
           ports:

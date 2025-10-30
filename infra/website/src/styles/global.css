@@ -265,15 +265,17 @@ main::before {
 
 /* Logo grid */
 .logo-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: 32px;
     max-width: 1000px;
     margin: 0 auto;
     padding: 20px 20px var(--spacing-xl);
+    justify-content: center;
 }
 
 .logo-item {
+    flex: 0 0 150px;
     display: flex;
     align-items: center;
     justify-content: center;

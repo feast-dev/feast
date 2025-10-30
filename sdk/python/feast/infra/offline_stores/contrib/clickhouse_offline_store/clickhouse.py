@@ -191,6 +191,43 @@ class ClickhouseOfflineStore(OfflineStore):
             on_demand_feature_views=None,
         )
 
+    @staticmethod
+    def pull_all_from_table_or_query(
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> RetrievalJob:
+        assert isinstance(config.offline_store, ClickhouseOfflineStoreConfig)
+        assert isinstance(data_source, ClickhouseSource)
+
+        from_expression = data_source.get_table_query_string()
+
+        timestamp_fields = [timestamp_field]
+
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
+
+        field_string = ", ".join(
+            join_key_columns + feature_name_columns + timestamp_fields
+        )
+
+        query = f"""
+            SELECT {field_string}
+            FROM {from_expression}
+            WHERE {timestamp_field} BETWEEN parseDateTimeBestEffort('{start_date}') AND parseDateTimeBestEffort('{end_date}')
+        """
+
+        return ClickhouseRetrievalJob(
+            query=query,
+            config=config,
+            full_feature_names=False,
+        )
+
 
 class ClickhouseRetrievalJob(PostgreSQLRetrievalJob):
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:

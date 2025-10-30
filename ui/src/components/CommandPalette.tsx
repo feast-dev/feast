@@ -149,6 +149,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
             ? String(item.spec.description || "")
             : "",
         type: getItemType(item, name),
+        projectId: "projectId" in item ? String(item.projectId) : undefined,
       };
     });
 
@@ -158,15 +159,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     };
   });
 
-  console.log(
-    "CommandPalette isOpen:",
-    isOpen,
-    "categories:",
-    categories.length,
-  ); // Debug log
-
   if (!isOpen) {
-    console.log("CommandPalette not rendering due to isOpen=false");
     return null;
   }
 
@@ -227,16 +220,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                   href={item.link}
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    console.log(
-                                      "Search result clicked:",
-                                      item.name,
-                                    );
 
                                     onClose();
 
                                     setSearchText("");
 
-                                    console.log("Navigating to:", item.link);
                                     navigate(item.link);
                                   }}
                                   style={{
@@ -251,6 +239,17 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                     style={commandPaletteStyles.itemDescription}
                                   >
                                     {item.description}
+                                  </div>
+                                )}
+                                {item.projectId && (
+                                  <div
+                                    style={{
+                                      fontSize: "0.85em",
+                                      color: "#69707D",
+                                      marginTop: "4px",
+                                    }}
+                                  >
+                                    Project: {item.projectId}
                                   </div>
                                 )}
                               </EuiFlexItem>

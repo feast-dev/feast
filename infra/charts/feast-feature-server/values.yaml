@@ -9,7 +9,7 @@ image:
   repository: quay.io/feastdev/feature-server
   pullPolicy: IfNotPresent
   # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
-  tag: 0.55.0
+  tag: 0.56.0
 
 logLevel: "WARNING"  # Set log level DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive)
 
@@ -28,6 +28,24 @@ feature_store_yaml_base64: ""
 
 # feast_mode -- Feast supported deployment modes - online (default), offline, ui and registry
 feast_mode: "online"
+
+# commandArgs -- Override the default command arguments for complete control over CLI options
+# If not specified, falls back to legacy behavior based on feast_mode
+# Example for UI mode with custom options:
+# commandArgs:
+#   - "feast"
+#   - "--log-level"
+#   - "INFO"
+#   - "ui"
+#   - "--root_path"
+#   - "/feast"
+#   - "--registry_ttl_sec"
+#   - "300"
+#   - "-h"
+#   - "0.0.0.0"
+#   - "-p"
+#   - "8888"
+commandArgs: []
 
 podAnnotations: {}
 

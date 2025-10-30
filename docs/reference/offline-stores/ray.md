@@ -5,14 +5,32 @@
 
 The Ray offline store is a data I/O implementation that leverages [Ray](https://www.ray.io/) for reading and writing data from various sources. It focuses on efficient data access operations, while complex feature computation is handled by the [Ray Compute Engine](../compute-engine/ray.md).
 
+## Quick Start with Ray Template
+
+The easiest way to get started with Ray offline store is to use the built-in Ray template:
+
+```bash
+feast init -t ray my_ray_project
+cd my_ray_project/feature_repo
+```
+
+This template includes:
+- Pre-configured Ray offline store and compute engine setup
+- Sample feature definitions optimized for Ray processing
+- Demo workflow showcasing Ray capabilities
+- Resource settings for local development
+
+The template provides a complete working example with sample datasets and demonstrates both Ray offline store data I/O operations and Ray compute engine distributed processing.
+
 ## Overview
 
 The Ray offline store provides:
 - Ray-based data reading from file sources (Parquet, CSV, etc.)
-- Support for both local and distributed Ray clusters
+- Support for local, remote, and KubeRay (Kubernetes-managed) clusters
 - Integration with various storage backends (local files, S3, GCS, HDFS)
 - Efficient data filtering and column selection
 - Timestamp-based data processing with timezone awareness
+- Enterprise-ready KubeRay cluster support via CodeFlare SDK
 
 
 ## Functionality Matrix
@@ -59,9 +77,15 @@ For complex feature processing, historical feature retrieval, and distributed jo
 
 ## Configuration
 
-The Ray offline store can be configured in your `feature_store.yaml` file. Below are two main configuration patterns:
+The Ray offline store can be configured in your `feature_store.yaml` file. It supports **three execution modes**:
 
-### Basic Ray Offline Store
+1. **LOCAL**: Ray runs locally on the same machine (default)
+2. **REMOTE**: Connects to a remote Ray cluster via `ray_address`
+3. **KUBERAY**: Connects to Ray clusters on Kubernetes via CodeFlare SDK
+
+### Execution Modes
+
+#### Local Mode (Default)
 
 For simple data I/O operations without distributed processing:
 
@@ -72,7 +96,44 @@ provider: local
 offline_store:
     type: ray
     storage_path: data/ray_storage        # Optional: Path for storing datasets
-    ray_address: localhost:10001          # Optional: Ray cluster address
+```
+
+#### Remote Ray Cluster
+
+Connect to an existing Ray cluster:
+
+```yaml
+offline_store:
+    type: ray
+    storage_path: s3://my-bucket/feast-data
+    ray_address: "ray://my-cluster.example.com:10001"
+```
+
+#### KubeRay Cluster (Kubernetes)
+
+Connect to Ray clusters on Kubernetes using CodeFlare SDK:
+
+```yaml
+offline_store:
+    type: ray
+    storage_path: s3://my-bucket/feast-data
+    use_kuberay: true
+    kuberay_conf:
+        cluster_name: "feast-ray-cluster"
+        namespace: "feast-system"
+        auth_token: "${RAY_AUTH_TOKEN}"
+        auth_server: "https://api.openshift.com:6443"
+        skip_tls: false
+    enable_ray_logging: false
+```
+
+**Environment Variables** (alternative to config file):
+```bash
+export FEAST_RAY_USE_KUBERAY=true
+export FEAST_RAY_CLUSTER_NAME=feast-ray-cluster
+export FEAST_RAY_AUTH_TOKEN=your-token
+export FEAST_RAY_AUTH_SERVER=https://api.openshift.com:6443
+export FEAST_RAY_NAMESPACE=feast-system
 ```
 
 ### Ray Offline Store + Compute Engine
@@ -175,8 +236,29 @@ batch_engine:
 |--------|------|---------|-------------|
 | `type` | string | Required | Must be `feast.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore` or `ray` |
 | `storage_path` | string | None | Path for storing temporary files and datasets |
-| `ray_address` | string | None | Address of the Ray cluster (e.g., "localhost:10001") |
+| `ray_address` | string | None | Ray cluster address (triggers REMOTE mode, e.g., "ray://host:10001") |
+| `use_kuberay` | boolean | None | Enable KubeRay mode (overrides ray_address) |
+| `kuberay_conf` | dict | None | **KubeRay configuration dict** with keys: `cluster_name` (required), `namespace` (default: "default"), `auth_token`, `auth_server`, `skip_tls` (default: false) |
+| `enable_ray_logging` | boolean | false | Enable Ray progress bars and verbose logging |
 | `ray_conf` | dict | None | Ray initialization parameters for resource management (e.g., memory, CPU limits) |
+| `broadcast_join_threshold_mb` | int | 100 | Size threshold for broadcast joins (MB) |
+| `enable_distributed_joins` | boolean | true | Enable distributed joins for large datasets |
+| `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
+| `target_partition_size_mb` | int | 64 | Target partition size (MB) |
+| `window_size_for_joins` | string | "1H" | Time window for distributed joins |
+
+#### Mode Detection Precedence
+
+The Ray offline store automatically detects the execution mode using the following precedence:
+
+1. **Environment Variables** (highest priority)
+   - `FEAST_RAY_USE_KUBERAY`, `FEAST_RAY_CLUSTER_NAME`, etc.
+2. **Config `kuberay_conf`**
+   - If present → KubeRay mode
+3. **Config `ray_address`**
+   - If present → Remote mode
+4. **Default**
+   - Local mode (lowest priority)
 
 #### Ray Compute Engine Options
 
@@ -385,6 +467,8 @@ job.persist(hdfs_storage, allow_overwrite=True)
 
 ### Using Ray Cluster
 
+#### Standard Ray Cluster
+
 To use Ray in cluster mode for distributed data access:
 
 1. Start a Ray cluster:
@@ -405,6 +489,53 @@ offline_store:
 # On worker nodes
 ray start --address='head-node-ip:10001'
 ```
+
+#### KubeRay Cluster (Kubernetes)
+
+To use Feast with Ray clusters on Kubernetes via CodeFlare SDK:
+
+**Prerequisites:**
+- KubeRay cluster deployed on Kubernetes
+- CodeFlare SDK installed: `pip install codeflare-sdk`
+- Access credentials for the Kubernetes cluster
+
+**Configuration:**
+
+1. Using configuration file:
+```yaml
+offline_store:
+    type: ray
+    use_kuberay: true
+    storage_path: s3://my-bucket/feast-data
+    kuberay_conf:
+        cluster_name: "feast-ray-cluster"
+        namespace: "feast-system"
+        auth_token: "${RAY_AUTH_TOKEN}"
+        auth_server: "https://api.openshift.com:6443"
+        skip_tls: false
+    enable_ray_logging: false
+```
+
+2. Using environment variables:
+```bash
+export FEAST_RAY_USE_KUBERAY=true
+export FEAST_RAY_CLUSTER_NAME=feast-ray-cluster
+export FEAST_RAY_AUTH_TOKEN=your-k8s-token
+export FEAST_RAY_AUTH_SERVER=https://api.openshift.com:6443
+export FEAST_RAY_NAMESPACE=feast-system
+export FEAST_RAY_SKIP_TLS=false
+
+# Then use standard Feast code
+python your_feast_script.py
+```
+
+**Features:**
+- The CodeFlare SDK handles cluster connection and authentication
+- Automatic TLS certificate management
+- Authentication with Kubernetes clusters
+- Namespace isolation
+- Secure communication between client and Ray cluster
+- Automatic cluster discovery
 
 ### Data Source Validation
 

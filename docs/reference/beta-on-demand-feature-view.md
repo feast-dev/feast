@@ -35,9 +35,39 @@ When defining an ODFV, you can specify the transformation mode using the `mode` 
 
 ### Singleton Transformations in Native Python Mode
 
-Native Python mode supports transformations on singleton dictionaries by setting `singleton=True`. This allows you to 
-write transformation functions that operate on a single row at a time, making the code more intuitive and aligning with 
+Native Python mode supports transformations on singleton dictionaries by setting `singleton=True`. This allows you to
+write transformation functions that operate on a single row at a time, making the code more intuitive and aligning with
 how data scientists typically think about data transformations.
+
+## Aggregations
+
+On Demand Feature Views support aggregations that compute aggregate statistics over groups of rows. When using aggregations, data is grouped by entity columns (e.g., `driver_id`) and aggregated before being passed to the transformation function.
+
+**Important**: Aggregations and transformations are mutually exclusive. When aggregations are specified, they replace the transformation function.
+
+### Usage
+
+```python
+from feast import Aggregation
+from datetime import timedelta
+
+@on_demand_feature_view(
+    sources=[driver_hourly_stats_view],
+    schema=[
+        Field(name="total_trips", dtype=Int64),
+        Field(name="avg_rating", dtype=Float64),
+    ],
+    aggregations=[
+        Aggregation(column="trips", function="sum"),
+        Aggregation(column="rating", function="mean"),
+    ],
+)
+def driver_aggregated_stats(inputs):
+    # No transformation function needed when using aggregations
+    pass
+```
+
+Aggregated columns are automatically named using the pattern `{function}_{column}` (e.g., `sum_trips`, `mean_rating`).
 
 ## Example
 See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views.

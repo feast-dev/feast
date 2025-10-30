@@ -95,6 +95,11 @@ spec:
                 description: FeastCronJob defines a CronJob to execute against a Feature
                   Store deployment.
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations to be added to the CronJob metadata.
+                    type: object
                   concurrencyPolicy:
                     description: Specifies how to treat concurrent executions of a
                       Job.
@@ -267,6 +272,10 @@ spec:
                         description: PullPolicy describes a policy for if/when to
                           pull a container image
                         type: string
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -1033,6 +1042,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1488,6 +1501,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1954,6 +1971,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -2449,6 +2470,10 @@ spec:
                         - error
                         - critical
                         type: string
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -4051,6 +4076,11 @@ spec:
                     description: FeastCronJob defines a CronJob to execute against
                       a Feature Store deployment.
                     properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations to be added to the CronJob metadata.
+                        type: object
                       concurrencyPolicy:
                         description: Specifies how to treat concurrent executions
                           of a Job.
@@ -4224,6 +4254,10 @@ spec:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -5002,6 +5036,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -5465,6 +5503,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              nodeSelector:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -5943,6 +5985,10 @@ spec:
                                     - error
                                     - critical
                                     type: string
+                                  nodeSelector:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                   resources:
                                     description: ResourceRequirements describes the
                                       compute resource requirements.
@@ -6448,6 +6494,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          nodeSelector:
+                            additionalProperties:
+                              type: string
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -8443,10 +8493,10 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: quay.io/feastdev/feature-server:0.55.0
+          value: quay.io/feastdev/feature-server:0.56.0
         - name: RELATED_IMAGE_CRON_JOB
           value: quay.io/openshift/origin-cli:4.17
-        image: quay.io/feastdev/feast-operator:0.55.0
+        image: quay.io/feastdev/feast-operator:0.56.0
         livenessProbe:
           httpGet:
             path: /healthz

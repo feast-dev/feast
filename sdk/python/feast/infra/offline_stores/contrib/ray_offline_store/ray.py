@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import ray
-import ray.data
 from ray.data import Dataset
 from ray.data.context import DatasetContext
 
@@ -38,6 +37,10 @@ from feast.infra.offline_stores.offline_utils import (
     get_entity_df_timestamp_bounds,
     get_pyarrow_schema_from_batch_source,
     infer_event_timestamp_from_entity_df,
+)
+from feast.infra.ray_initializer import (
+    ensure_ray_initialized,
+    get_ray_wrapper,
 )
 from feast.infra.ray_shared_utils import (
     _build_required_columns,
@@ -338,6 +341,19 @@ class RayOfflineStoreConfig(FeastConfigBaseModel):
     # Ray configuration for resource management (memory, CPU limits)
     ray_conf: Optional[Dict[str, Any]] = None
 
+    # KubeRay/CodeFlare SDK configurations
+    use_kuberay: Optional[bool] = None
+    """Whether to use KubeRay/CodeFlare SDK for Ray cluster management"""
+
+    cluster_name: Optional[str] = None
+    """Name of the KubeRay cluster to connect to (required for KubeRay mode)"""
+
+    auth_token: Optional[str] = None
+    """Authentication token for Ray cluster connection (for secure clusters)"""
+
+    kuberay_conf: Optional[Dict[str, Any]] = None
+    """KubeRay/CodeFlare configuration parameters (passed to CodeFlare SDK)"""
+
 
 class RayResourceManager:
     """
@@ -350,10 +366,18 @@ class RayResourceManager:
         Initialize the resource manager with cluster resource information.
         """
         self.config = config or RayOfflineStoreConfig()
+
+        if not ray.is_initialized():
+            self.cluster_resources = {"CPU": 4, "memory": 8 * 1024**3}
+            self.available_memory = 8 * 1024**3
+            self.available_cpus = 4
+            self.num_nodes = 1
+            return
+
         self.cluster_resources = ray.cluster_resources()
         self.available_memory = self.cluster_resources.get("memory", 8 * 1024**3)
         self.available_cpus = int(self.cluster_resources.get("CPU", 4))
-        self.num_nodes = len(ray.nodes()) if ray.is_initialized() else 1
+        self.num_nodes = len(ray.nodes())
 
     def configure_ray_context(self) -> None:
         """
@@ -367,7 +391,8 @@ class RayResourceManager:
         else:
             ctx.target_shuffle_buffer_size = 512 * 1024**2
             ctx.target_max_block_size = 128 * 1024**2
-        ctx.min_parallelism = self.available_cpus
+
+        ctx.read_op_min_num_blocks = self.available_cpus
         multiplier = (
             self.config.max_parallelism_multiplier
             if self.config.max_parallelism_multiplier is not None
@@ -457,8 +482,8 @@ class RayDataProcessor:
         if not join_keys:
             # For datasets without join keys, use simple repartitioning
             return ds.repartition(num_blocks=optimal_partitions)
-        # For datasets with join keys, use shuffle for better distribution
-        return ds.random_shuffle(num_blocks=optimal_partitions)
+        # For datasets with join keys, repartition then shuffle for better distribution
+        return ds.repartition(num_blocks=optimal_partitions).random_shuffle()
 
     def _manual_point_in_time_join(
         self,
@@ -919,7 +944,7 @@ class RayRetrievalJob(RetrievalJob):
         else:
             try:
                 result = self._resolve()
-                if isinstance(result, Dataset):
+                if is_ray_data(result):
                     timestamp_col = _safe_infer_event_timestamp_column(
                         result, "event_timestamp"
                     )
@@ -964,11 +989,12 @@ class RayRetrievalJob(RetrievalJob):
             return self._cached_dataset
 
         result = self._resolve()
-        if isinstance(result, Dataset):
+        if is_ray_data(result):
             self._cached_dataset = result
             return result
         elif isinstance(result, pd.DataFrame):
-            self._cached_dataset = ray.data.from_pandas(result)
+            ray_wrapper = get_ray_wrapper()
+            self._cached_dataset = ray_wrapper.from_pandas(result)
             return self._cached_dataset
         else:
             raise ValueError(f"Unsupported result type: {type(result)}")
@@ -1225,82 +1251,13 @@ class RayOfflineStore(OfflineStore):
     @staticmethod
     def _ensure_ray_initialized(config: Optional[RepoConfig] = None) -> None:
         """Ensure Ray is initialized with proper configuration."""
-        ray_config = None
-        if config and hasattr(config, "offline_store"):
-            ray_config = config.offline_store
-            if isinstance(ray_config, RayOfflineStoreConfig):
-                if not ray_config.enable_ray_logging:
-                    RayOfflineStore._suppress_ray_logging()
-
-        if not ray.is_initialized():
-            ray_init_kwargs: Dict[str, Any] = {
-                "ignore_reinit_error": True,
-                "include_dashboard": False,
-            }
-
-            if (
-                ray_config
-                and isinstance(ray_config, RayOfflineStoreConfig)
-                and not ray_config.enable_ray_logging
-            ):
-                ray_init_kwargs.update(
-                    {
-                        "log_to_driver": False,
-                        "logging_level": "ERROR",
-                    }
-                )
-
-            if config and hasattr(config, "offline_store"):
-                if isinstance(ray_config, RayOfflineStoreConfig):
-                    if ray_config.ray_address:
-                        ray_init_kwargs["address"] = ray_config.ray_address
-                    else:
-                        ray_init_kwargs.update(
-                            {
-                                "_node_ip_address": os.getenv(
-                                    "RAY_NODE_IP", "127.0.0.1"
-                                ),
-                                "num_cpus": os.cpu_count() or 4,
-                            }
-                        )
-
-                    if ray_config.ray_conf:
-                        ray_init_kwargs.update(ray_config.ray_conf)
-                else:
-                    pass  # Use default initialization
-
-            ray.init(**ray_init_kwargs)
-
-        ctx = DatasetContext.get_current()
-        ctx.shuffle_strategy = "sort"  # type: ignore
-        ctx.enable_tensor_extension_casting = False
-
-        if (
-            ray_config
-            and isinstance(ray_config, RayOfflineStoreConfig)
-            and not ray_config.enable_ray_logging
-        ):
-            RayOfflineStore._suppress_ray_logging()
-
-        if ray.is_initialized():
-            cluster_resources = ray.cluster_resources()
-            if (
-                not ray_config
-                or not isinstance(ray_config, RayOfflineStoreConfig)
-                or ray_config.enable_ray_logging
-            ):
-                logger.info(
-                    f"Ray cluster initialized with {cluster_resources.get('CPU', 0)} CPUs, "
-                    f"{cluster_resources.get('memory', 0) / (1024**3):.1f}GB memory"
-                )
+        ensure_ray_initialized(config)
 
     def _init_ray(self, config: RepoConfig) -> None:
         ray_config = config.offline_store
         assert isinstance(ray_config, RayOfflineStoreConfig)
-        RayOfflineStore._ensure_ray_initialized(config)
 
-        if not ray_config.enable_ray_logging:
-            RayOfflineStore._suppress_ray_logging()
+        RayOfflineStore._ensure_ray_initialized(config)
 
         if self._resource_manager is None:
             self._resource_manager = RayResourceManager(ray_config)
@@ -1378,12 +1335,13 @@ class RayOfflineStore(OfflineStore):
         batch_source_path = feature_view.batch_source.file_options.uri
         feature_path = FileSource.get_uri_for_file_path(repo_path, batch_source_path)
 
-        ds = ray.data.from_arrow(table)
+        ray_wrapper = get_ray_wrapper()
+        ds = ray_wrapper.from_arrow(table)
 
         try:
             if feature_path.endswith(".parquet"):
                 if os.path.exists(feature_path):
-                    existing_ds = ray.data.read_parquet(feature_path)
+                    existing_ds = ray_wrapper.read_parquet(feature_path)
                     combined_ds = existing_ds.union(ds)
                     combined_ds.write_parquet(feature_path)
                 else:
@@ -1408,7 +1366,7 @@ class RayOfflineStore(OfflineStore):
                     df.to_parquet(feature_path, index=False)
             else:
                 os.makedirs(feature_path, exist_ok=True)
-                ds_fallback = ray.data.from_pandas(df)
+                ds_fallback = ray_wrapper.from_pandas(df)
                 ds_fallback.write_parquet(feature_path)
 
             if progress:
@@ -1443,15 +1401,21 @@ class RayOfflineStore(OfflineStore):
             return _handle_empty_dataframe_case(
                 join_key_columns, feature_name_columns, timestamp_columns
             )
-        all_required_columns = _build_required_columns(
-            join_key_columns, feature_name_columns, timestamp_columns
-        )
+
         if not join_key_columns:
             batch[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
-        available_columns = [
-            col for col in all_required_columns if col in batch.columns
-        ]
-        batch = batch[available_columns]
+
+        # If feature_name_columns is empty, it means "keep all columns" (for transformations)
+        # Otherwise, filter to only the requested columns
+        if feature_name_columns:
+            all_required_columns = _build_required_columns(
+                join_key_columns, feature_name_columns, timestamp_columns
+            )
+            available_columns = [
+                col for col in all_required_columns if col in batch.columns
+            ]
+            batch = batch[available_columns]
+
         if (
             "event_timestamp" not in batch.columns
             and timestamp_field_mapped != "event_timestamp"
@@ -1473,8 +1437,22 @@ class RayOfflineStore(OfflineStore):
     ) -> pd.DataFrame:
         try:
             field_mapping = getattr(data_source, "field_mapping", None)
+
+            if not feature_name_columns:
+                columns_to_read = None
+            else:
+                columns_to_read = list(
+                    set(join_key_columns + feature_name_columns + [timestamp_field])
+                )
+                if created_timestamp_column:
+                    columns_to_read.append(created_timestamp_column)
+
             ds = RayOfflineStore._create_filtered_dataset(
-                source_path, timestamp_field, start_date, end_date
+                source_path,
+                timestamp_field,
+                start_date,
+                end_date,
+                columns=columns_to_read,
             )
             df = ds.to_pandas()
             if field_mapping:
@@ -1523,8 +1501,22 @@ class RayOfflineStore(OfflineStore):
     ) -> Dataset:
         try:
             field_mapping = getattr(data_source, "field_mapping", None)
+
+            if not feature_name_columns:
+                columns_to_read = None
+            else:
+                columns_to_read = list(
+                    set(join_key_columns + feature_name_columns + [timestamp_field])
+                )
+                if created_timestamp_column:
+                    columns_to_read.append(created_timestamp_column)
+
             ds = RayOfflineStore._create_filtered_dataset(
-                source_path, timestamp_field, start_date, end_date
+                source_path,
+                timestamp_field,
+                start_date,
+                end_date,
+                columns=columns_to_read,
             )
             if field_mapping:
                 ds = apply_field_mapping(ds, field_mapping)
@@ -1776,10 +1768,11 @@ class RayOfflineStore(OfflineStore):
         absolute_path = FileSource.get_uri_for_file_path(repo_path, destination.path)
 
         try:
+            ray_wrapper = get_ray_wrapper()
             if isinstance(data, Path):
-                ds = ray.data.read_parquet(str(data))
+                ds = ray_wrapper.read_parquet(str(data))
             else:
-                ds = ray.data.from_arrow(data)
+                ds = ray_wrapper.from_arrow(data)
 
                 # Normalize feature timestamp precision to seconds to match test expectations during write
                 # Note: Don't normalize __log_timestamp as it's used for time range filtering
@@ -1829,9 +1822,11 @@ class RayOfflineStore(OfflineStore):
         timestamp_field: str,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        columns: Optional[List[str]] = None,
     ) -> Dataset:
         """Helper method to create a filtered dataset based on timestamp range."""
-        ds = ray.data.read_parquet(source_path)
+        ray_wrapper = get_ray_wrapper()
+        ds = ray_wrapper.read_parquet(source_path, columns=columns)
 
         try:
             col_names = ds.schema().names
@@ -1888,11 +1883,12 @@ class RayOfflineStore(OfflineStore):
         store._init_ray(config)
 
         # Load entity_df as Ray dataset for distributed processing
+        ray_wrapper = get_ray_wrapper()
         if isinstance(entity_df, str):
-            entity_ds = ray.data.read_csv(entity_df)
+            entity_ds = ray_wrapper.read_csv(entity_df)
             entity_df_sample = entity_ds.limit(1000).to_pandas()
         else:
-            entity_ds = ray.data.from_pandas(entity_df)
+            entity_ds = ray_wrapper.from_pandas(entity_df)
             entity_df_sample = entity_df.copy()
 
         entity_ds = ensure_timestamp_compatibility(entity_ds, ["event_timestamp"])
@@ -1940,9 +1936,12 @@ class RayOfflineStore(OfflineStore):
 
             entities = fv.entities or []
             entity_objs = [registry.get_entity(e, project) for e in entities]
-            original_join_keys, _, timestamp_field, created_col = _get_column_names(
-                fv, entity_objs
-            )
+            (
+                original_join_keys,
+                reverse_mapped_feature_names,
+                timestamp_field,
+                created_col,
+            ) = _get_column_names(fv, entity_objs)
 
             if fv.projection.join_key_map:
                 join_keys = [
@@ -1952,11 +1951,12 @@ class RayOfflineStore(OfflineStore):
             else:
                 join_keys = original_join_keys
 
-            requested_feats = [ref.split(":", 1)[1] for ref in fv_feature_refs]
+            # Get the logical feature names from refs
+            logical_requested_feats = [ref.split(":", 1)[1] for ref in fv_feature_refs]
 
             available_feature_names = [f.name for f in fv.features]
             missing_feats = [
-                f for f in requested_feats if f not in available_feature_names
+                f for f in logical_requested_feats if f not in available_feature_names
             ]
             if missing_feats:
                 raise KeyError(
@@ -1964,16 +1964,37 @@ class RayOfflineStore(OfflineStore):
                     f"(available: {available_feature_names})"
                 )
 
+            # Build reverse field mapping to get actual source column names
+            reverse_field_mapping = {}
+            if fv.batch_source.field_mapping:
+                reverse_field_mapping = {
+                    v: k for k, v in fv.batch_source.field_mapping.items()
+                }
+
+            # Map logical feature names to actual source column names
+            requested_feats = [
+                reverse_field_mapping.get(feat, feat)
+                for feat in logical_requested_feats
+            ]
+
             source_info = resolve_feature_view_source_with_fallback(
                 fv, config, is_materialization=False
             )
 
             # Read from the resolved data source
             source_path = store._get_source_path(source_info.data_source, config)
-            feature_ds = ray.data.read_parquet(source_path)
-            logger.info(
-                f"Reading feature view {fv.name}: {source_info.source_description}"
-            )
+
+            if not source_info.has_transformation:
+                required_feature_columns = set(
+                    original_join_keys + requested_feats + [timestamp_field]
+                )
+                if created_col:
+                    required_feature_columns.add(created_col)
+                feature_ds = ray_wrapper.read_parquet(
+                    source_path, columns=list(required_feature_columns)
+                )
+            else:
+                feature_ds = ray_wrapper.read_parquet(source_path)
 
             # Apply transformation if available
             if source_info.has_transformation and source_info.transformation_func:
@@ -2012,10 +2033,23 @@ class RayOfflineStore(OfflineStore):
             field_mapping = getattr(fv.batch_source, "field_mapping", None)
             if field_mapping:
                 feature_ds = apply_field_mapping(feature_ds, field_mapping)
-                join_keys = [field_mapping.get(k, k) for k in join_keys]
+                # Update original_join_keys to logical names after forward mapping
+                original_join_keys = [
+                    field_mapping.get(k, k) for k in original_join_keys
+                ]
+                # Recompute join_keys from updated original_join_keys
+                if fv.projection.join_key_map:
+                    join_keys = [
+                        fv.projection.join_key_map.get(key, key)
+                        for key in original_join_keys
+                    ]
+                else:
+                    join_keys = original_join_keys
                 timestamp_field = field_mapping.get(timestamp_field, timestamp_field)
                 if created_col:
                     created_col = field_mapping.get(created_col, created_col)
+                # Also map requested_feats back to logical names after forward mapping
+                requested_feats = [field_mapping.get(f, f) for f in requested_feats]
 
             if (
                 timestamp_field != "event_timestamp"

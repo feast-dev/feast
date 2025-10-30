@@ -33,6 +33,7 @@ from feast.errors import (
     RequestDataNotFoundInEntityRowsException,
 )
 from feast.field import Field
+from feast.infra.compute_engines.backends.pandas_backend import PandasBackend
 from feast.infra.key_encoding_utils import deserialize_entity_key
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -561,6 +562,76 @@ def construct_response_feature_vector(
     )
 
 
+def _get_aggregate_operations(agg_specs) -> dict:
+    """
+    Convert Aggregation specs to agg_ops format for PandasBackend.
+
+    Reused from LocalFeatureBuilder logic.
+    TODO: This logic is duplicated from feast.infra.compute_engines.local.feature_builder.LocalFeatureBuilder._get_aggregate_operations().
+    Consider refactoring to a shared utility module in the future.
+    """
+    agg_ops = {}
+    for agg in agg_specs:
+        if agg.time_window is not None:
+            raise ValueError(
+                "Time window aggregation is not supported in online serving."
+            )
+        alias = f"{agg.function}_{agg.column}"
+        agg_ops[alias] = (agg.function, agg.column)
+    return agg_ops
+
+
+def _apply_aggregations_to_response(
+    response_data: Union[pyarrow.Table, Dict[str, List[Any]]],
+    aggregations,
+    group_keys: Optional[List[str]],
+    mode: str,
+) -> Union[pyarrow.Table, Dict[str, List[Any]]]:
+    """
+    Apply aggregations using PandasBackend.
+
+    Args:
+        response_data: Either a pyarrow.Table or dict of lists containing the data
+        aggregations: List of Aggregation objects to apply
+        group_keys: List of column names to group by (optional)
+        mode: Transformation mode ("python", "pandas", or "substrait")
+
+    Returns:
+        Aggregated data in the same format as input
+
+    TODO: Consider refactoring to support backends other than pandas in the future.
+    """
+    if not aggregations:
+        return response_data
+
+    backend = PandasBackend()
+
+    # Convert to pandas DataFrame
+    if isinstance(response_data, dict):
+        df = pd.DataFrame(response_data)
+    else:  # pyarrow.Table
+        df = backend.from_arrow(response_data)
+
+    if df.empty:
+        return response_data
+
+    # Convert aggregations to agg_ops format
+    agg_ops = _get_aggregate_operations(aggregations)
+
+    # Apply aggregations using PandasBackend
+    if group_keys:
+        result_df = backend.groupby_agg(df, group_keys, agg_ops)
+    else:
+        # No grouping - aggregate over entire dataset
+        result_df = backend.groupby_agg(df, [], agg_ops)
+
+    # Convert back to original format
+    if mode == "python":
+        return {col: result_df[col].tolist() for col in result_df.columns}
+    else:  # pandas or substrait
+        return backend.to_arrow(result_df)
+
+
 def _augment_response_with_on_demand_transforms(
     online_features_response: GetOnlineFeaturesResponse,
     feature_refs: List[str],
@@ -605,7 +676,31 @@ def _augment_response_with_on_demand_transforms(
     for odfv_name, _feature_refs in odfv_feature_refs.items():
         odfv = requested_odfv_map[odfv_name]
         if not odfv.write_to_online_store:
-            if odfv.mode == "python":
+            # Apply aggregations if configured.
+            if odfv.aggregations:
+                if odfv.mode == "python":
+                    if initial_response_dict is None:
+                        initial_response_dict = initial_response.to_dict()
+                    initial_response_dict = _apply_aggregations_to_response(
+                        initial_response_dict,
+                        odfv.aggregations,
+                        odfv.entities,
+                        odfv.mode,
+                    )
+                elif odfv.mode in {"pandas", "substrait"}:
+                    if initial_response_arrow is None:
+                        initial_response_arrow = initial_response.to_arrow()
+                    initial_response_arrow = _apply_aggregations_to_response(
+                        initial_response_arrow,
+                        odfv.aggregations,
+                        odfv.entities,
+                        odfv.mode,
+                    )
+
+            # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
+            # TODO: Fix to make it work for having both aggregation and transformation
+            #  ticket: https://github.com/feast-dev/feast/issues/5689
+            elif odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
