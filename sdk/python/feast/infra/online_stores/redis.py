@@ -37,6 +37,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.sorted_feature_view import SortedFeatureView
 
 try:
     from redis import Redis
@@ -292,50 +293,96 @@ class RedisOnlineStore(OnlineStore):
         keys = []
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
-            # check if a previous record under the key bin exists
-            # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
-            # it may be significantly slower but avoids potential (rare) race conditions
-            for entity_key, _, _, _ in data:
-                redis_key_bin = _redis_key(
-                    project,
-                    entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
-                )
-                keys.append(redis_key_bin)
-                pipe.hmget(redis_key_bin, ts_key)
-            prev_event_timestamps = pipe.execute()
-            # flattening the list of lists. `hmget` does the lookup assuming a list of keys in the key bin
-            prev_event_timestamps = [i[0] for i in prev_event_timestamps]
+            if isinstance(table, SortedFeatureView):
+                if len(table.sort_keys) == 1:
+                    sort_key_name = table.sort_keys[0].name
+                    sort_key_value_type = table.sort_keys[0].value_type
+                    for entity_key, values, timestamp, _ in data:
+                        redis_key_bin = _redis_key(
+                            project,
+                            entity_key,
+                            entity_key_serialization_version=config.entity_key_serialization_version,
+                        )
+                        entity_key.join_keys.append(sort_key_name)
+                        entity_key.entity_values.append(values[sort_key_name])
+                        redis_key_bin_with_sort_keys = _redis_key(
+                            project,
+                            entity_key,
+                            entity_key_serialization_version=config.entity_key_serialization_version,
+                        )
 
-            for redis_key_bin, prev_event_time, (_, values, timestamp, _) in zip(
-                keys, prev_event_timestamps, data
-            ):
-                event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
+                        event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
+                        ts = Timestamp()
+                        ts.seconds = event_time_seconds
+                        entity_hset = dict()
+                        entity_hset[ts_key] = ts.SerializeToString()
 
-                # ignore if event_timestamp is before the event features that are currently in the feature store
-                if prev_event_time:
-                    prev_ts = Timestamp()
-                    prev_ts.ParseFromString(prev_event_time)
-                    if prev_ts.seconds and event_time_seconds <= prev_ts.seconds:
-                        # TODO: somehow signal that it's not overwriting the current record?
-                        if progress:
-                            progress(1)
-                        continue
+                        for feature_name, val in values.items():
+                            f_key = _mmh3(f"{feature_view}:{feature_name}")
+                            entity_hset[f_key] = val.SerializeToString()
+                            if feature_name == sort_key_name:
+                                feast_value_type = val.WhichOneof("val")
+                                if feast_value_type == "unix_timestamp_val":
+                                    feature_value = (
+                                            val.unix_timestamp_val * 1000
+                                    )  # Convert to milliseconds
+                                else:
+                                    feature_value = getattr(val, str(feast_value_type))
+                                score = feature_value
+                                member = redis_key_bin_with_sort_keys
+                                zset_key = f"{project}:{table.name}:{feature_name}:{redis_key_bin}"
+                                pipe.zadd(zset_key, {member: score})
 
-                ts = Timestamp()
-                ts.seconds = event_time_seconds
-                entity_hset = dict()
-                entity_hset[ts_key] = ts.SerializeToString()
+                        pipe.hset(redis_key_bin_with_sort_keys, mapping=entity_hset)
 
-                for feature_name, val in values.items():
-                    f_key = _mmh3(f"{feature_view}:{feature_name}")
-                    entity_hset[f_key] = val.SerializeToString()
+                        ttl = online_store_config.key_ttl_seconds
+                        if ttl:
+                            pipe.expire(name=redis_key_bin_with_sort_keys, time=ttl)
+            else:
+                # check if a previous record under the key bin exists
+                # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
+                # it may be significantly slower but avoids potential (rare) race conditions
+                for entity_key, _, _, _ in data:
+                    redis_key_bin = _redis_key(
+                        project,
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    )
+                    keys.append(redis_key_bin)
+                    pipe.hmget(redis_key_bin, ts_key)
+                prev_event_timestamps = pipe.execute()
+                # flattening the list of lists. `hmget` does the lookup assuming a list of keys in the key bin
+                prev_event_timestamps = [i[0] for i in prev_event_timestamps]
 
-                pipe.hset(redis_key_bin, mapping=entity_hset)
+                for redis_key_bin, prev_event_time, (_, values, timestamp, _) in zip(
+                        keys, prev_event_timestamps, data
+                ):
+                    event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
 
-                ttl = online_store_config.key_ttl_seconds
-                if ttl:
-                    pipe.expire(name=redis_key_bin, time=ttl)
+                    # ignore if event_timestamp is before the event features that are currently in the feature store
+                    if prev_event_time:
+                        prev_ts = Timestamp()
+                        prev_ts.ParseFromString(prev_event_time)
+                        if prev_ts.seconds and event_time_seconds <= prev_ts.seconds:
+                            # TODO: somehow signal that it's not overwriting the current record?
+                            if progress:
+                                progress(1)
+                            continue
+
+                    ts = Timestamp()
+                    ts.seconds = event_time_seconds
+                    entity_hset = dict()
+                    entity_hset[ts_key] = ts.SerializeToString()
+
+                    for feature_name, val in values.items():
+                        f_key = _mmh3(f"{feature_view}:{feature_name}")
+                        entity_hset[f_key] = val.SerializeToString()
+
+                    pipe.hset(redis_key_bin, mapping=entity_hset)
+
+                    ttl = online_store_config.key_ttl_seconds
+                    if ttl:
+                        pipe.expire(name=redis_key_bin, time=ttl)
             results = pipe.execute()
             if progress:
                 progress(len(results))

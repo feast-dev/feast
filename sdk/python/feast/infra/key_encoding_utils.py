@@ -24,6 +24,10 @@ def _serialize_val(
         return struct.pack("<q", v.int64_val), ValueType.INT64
     elif value_type == "unix_timestamp_val":
         return struct.pack("<q", v.unix_timestamp_val), ValueType.UNIX_TIMESTAMP
+    elif value_type == "float_val":  # 32-bit float
+        return struct.pack("<f", float(v.float_val)), ValueType.FLOAT
+    elif value_type == "double_val":  # 64-bit float
+        return struct.pack("<d", float(v.double_val)), ValueType.DOUBLE
     else:
         raise ValueError(f"Value type not supported for feast feature store: {v}")
 
@@ -43,6 +47,12 @@ def _deserialize_value(value_type, value_bytes) -> ValueProto:
     elif value_type == ValueType.UNIX_TIMESTAMP:
         value = struct.unpack("<q", value_bytes)[0]
         return ValueProto(unix_timestamp_val=value)
+    elif value_type == ValueType.FLOAT:
+        value = struct.unpack("<f", value_bytes)[0]
+        return ValueProto(float_val=value)
+    elif value_type == ValueType.DOUBLE:
+        value = struct.unpack("<d", value_bytes)[0]
+        return ValueProto(double_val=value)
     else:
         raise ValueError(f"Unsupported value type: {value_type}")
 
