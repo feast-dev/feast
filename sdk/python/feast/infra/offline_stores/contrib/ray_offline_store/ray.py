@@ -391,7 +391,8 @@ class RayResourceManager:
         else:
             ctx.target_shuffle_buffer_size = 512 * 1024**2
             ctx.target_max_block_size = 128 * 1024**2
-        ctx.min_parallelism = self.available_cpus
+
+        ctx.read_op_min_num_blocks = self.available_cpus
         multiplier = (
             self.config.max_parallelism_multiplier
             if self.config.max_parallelism_multiplier is not None
@@ -481,8 +482,8 @@ class RayDataProcessor:
         if not join_keys:
             # For datasets without join keys, use simple repartitioning
             return ds.repartition(num_blocks=optimal_partitions)
-        # For datasets with join keys, use shuffle for better distribution
-        return ds.random_shuffle(num_blocks=optimal_partitions)
+        # For datasets with join keys, repartition then shuffle for better distribution
+        return ds.repartition(num_blocks=optimal_partitions).random_shuffle()
 
     def _manual_point_in_time_join(
         self,
@@ -1400,15 +1401,21 @@ class RayOfflineStore(OfflineStore):
             return _handle_empty_dataframe_case(
                 join_key_columns, feature_name_columns, timestamp_columns
             )
-        all_required_columns = _build_required_columns(
-            join_key_columns, feature_name_columns, timestamp_columns
-        )
+
         if not join_key_columns:
             batch[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
-        available_columns = [
-            col for col in all_required_columns if col in batch.columns
-        ]
-        batch = batch[available_columns]
+
+        # If feature_name_columns is empty, it means "keep all columns" (for transformations)
+        # Otherwise, filter to only the requested columns
+        if feature_name_columns:
+            all_required_columns = _build_required_columns(
+                join_key_columns, feature_name_columns, timestamp_columns
+            )
+            available_columns = [
+                col for col in all_required_columns if col in batch.columns
+            ]
+            batch = batch[available_columns]
+
         if (
             "event_timestamp" not in batch.columns
             and timestamp_field_mapped != "event_timestamp"
@@ -1430,8 +1437,22 @@ class RayOfflineStore(OfflineStore):
     ) -> pd.DataFrame:
         try:
             field_mapping = getattr(data_source, "field_mapping", None)
+
+            if not feature_name_columns:
+                columns_to_read = None
+            else:
+                columns_to_read = list(
+                    set(join_key_columns + feature_name_columns + [timestamp_field])
+                )
+                if created_timestamp_column:
+                    columns_to_read.append(created_timestamp_column)
+
             ds = RayOfflineStore._create_filtered_dataset(
-                source_path, timestamp_field, start_date, end_date
+                source_path,
+                timestamp_field,
+                start_date,
+                end_date,
+                columns=columns_to_read,
             )
             df = ds.to_pandas()
             if field_mapping:
@@ -1480,8 +1501,22 @@ class RayOfflineStore(OfflineStore):
     ) -> Dataset:
         try:
             field_mapping = getattr(data_source, "field_mapping", None)
+
+            if not feature_name_columns:
+                columns_to_read = None
+            else:
+                columns_to_read = list(
+                    set(join_key_columns + feature_name_columns + [timestamp_field])
+                )
+                if created_timestamp_column:
+                    columns_to_read.append(created_timestamp_column)
+
             ds = RayOfflineStore._create_filtered_dataset(
-                source_path, timestamp_field, start_date, end_date
+                source_path,
+                timestamp_field,
+                start_date,
+                end_date,
+                columns=columns_to_read,
             )
             if field_mapping:
                 ds = apply_field_mapping(ds, field_mapping)
@@ -1787,10 +1822,11 @@ class RayOfflineStore(OfflineStore):
         timestamp_field: str,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        columns: Optional[List[str]] = None,
     ) -> Dataset:
         """Helper method to create a filtered dataset based on timestamp range."""
         ray_wrapper = get_ray_wrapper()
-        ds = ray_wrapper.read_parquet(source_path)
+        ds = ray_wrapper.read_parquet(source_path, columns=columns)
 
         try:
             col_names = ds.schema().names
@@ -1900,9 +1936,12 @@ class RayOfflineStore(OfflineStore):
 
             entities = fv.entities or []
             entity_objs = [registry.get_entity(e, project) for e in entities]
-            original_join_keys, _, timestamp_field, created_col = _get_column_names(
-                fv, entity_objs
-            )
+            (
+                original_join_keys,
+                reverse_mapped_feature_names,
+                timestamp_field,
+                created_col,
+            ) = _get_column_names(fv, entity_objs)
 
             if fv.projection.join_key_map:
                 join_keys = [
@@ -1912,11 +1951,12 @@ class RayOfflineStore(OfflineStore):
             else:
                 join_keys = original_join_keys
 
-            requested_feats = [ref.split(":", 1)[1] for ref in fv_feature_refs]
+            # Get the logical feature names from refs
+            logical_requested_feats = [ref.split(":", 1)[1] for ref in fv_feature_refs]
 
             available_feature_names = [f.name for f in fv.features]
             missing_feats = [
-                f for f in requested_feats if f not in available_feature_names
+                f for f in logical_requested_feats if f not in available_feature_names
             ]
             if missing_feats:
                 raise KeyError(
@@ -1924,16 +1964,37 @@ class RayOfflineStore(OfflineStore):
                     f"(available: {available_feature_names})"
                 )
 
+            # Build reverse field mapping to get actual source column names
+            reverse_field_mapping = {}
+            if fv.batch_source.field_mapping:
+                reverse_field_mapping = {
+                    v: k for k, v in fv.batch_source.field_mapping.items()
+                }
+
+            # Map logical feature names to actual source column names
+            requested_feats = [
+                reverse_field_mapping.get(feat, feat)
+                for feat in logical_requested_feats
+            ]
+
             source_info = resolve_feature_view_source_with_fallback(
                 fv, config, is_materialization=False
             )
 
             # Read from the resolved data source
             source_path = store._get_source_path(source_info.data_source, config)
-            feature_ds = ray_wrapper.read_parquet(source_path)
-            logger.info(
-                f"Reading feature view {fv.name}: {source_info.source_description}"
-            )
+
+            if not source_info.has_transformation:
+                required_feature_columns = set(
+                    original_join_keys + requested_feats + [timestamp_field]
+                )
+                if created_col:
+                    required_feature_columns.add(created_col)
+                feature_ds = ray_wrapper.read_parquet(
+                    source_path, columns=list(required_feature_columns)
+                )
+            else:
+                feature_ds = ray_wrapper.read_parquet(source_path)
 
             # Apply transformation if available
             if source_info.has_transformation and source_info.transformation_func:
@@ -1972,10 +2033,23 @@ class RayOfflineStore(OfflineStore):
             field_mapping = getattr(fv.batch_source, "field_mapping", None)
             if field_mapping:
                 feature_ds = apply_field_mapping(feature_ds, field_mapping)
-                join_keys = [field_mapping.get(k, k) for k in join_keys]
+                # Update original_join_keys to logical names after forward mapping
+                original_join_keys = [
+                    field_mapping.get(k, k) for k in original_join_keys
+                ]
+                # Recompute join_keys from updated original_join_keys
+                if fv.projection.join_key_map:
+                    join_keys = [
+                        fv.projection.join_key_map.get(key, key)
+                        for key in original_join_keys
+                    ]
+                else:
+                    join_keys = original_join_keys
                 timestamp_field = field_mapping.get(timestamp_field, timestamp_field)
                 if created_col:
                     created_col = field_mapping.get(created_col, created_col)
+                # Also map requested_feats back to logical names after forward mapping
+                requested_feats = [field_mapping.get(f, f) for f in requested_feats]
 
             if (
                 timestamp_field != "event_timestamp"

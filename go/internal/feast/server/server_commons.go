@@ -1,31 +1,23 @@
 package server
 
 import (
-	"github.com/rs/zerolog"
-	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"os"
+
+	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
-func LogWiwithSpanContext() zerolog.Logger {
+var tracer = otel.Tracer("github.com/feast-dev/feast/go/server")
+
+func LogWithSpanContext(span trace.Span) zerolog.Logger {
+	spanContext := span.SpanContext()
+
 	var logger = zerolog.New(os.Stderr).With().
+		Str("trace_id", spanContext.TraceID().String()).
+		Str("span_id", spanContext.SpanID().String()).
 		Timestamp().
 		Logger()
 
 	return logger
 }
-
-/*
-func LogWithSpanContext(span tracer.Span) zerolog.Logger {
-	spanContext := span.Context()
-
-	var logger = zerolog.New(os.Stderr).With().
-		Timestamp().
-		Logger()
-		//Int64("trace_id", int64(spanContext.TraceID())).
-		//Int64("span_id", int64(spanContext.SpanID())).
-		//Timestamp().
-		//Logger()
-
-	return logger
-}
-*/

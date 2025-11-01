@@ -173,7 +173,9 @@ class RayJoinNode(DAGNode):
                 return result
 
             joined_dataset = entity_dataset.map_batches(
-                join_with_aggregated_features, batch_format="pandas"
+                join_with_aggregated_features,
+                batch_format="pandas",
+                concurrency=self.config.max_workers or 12,
             )
         else:
             if feature_size <= self.config.broadcast_join_threshold_mb * 1024 * 1024:
@@ -274,8 +276,8 @@ class RayFilterNode(DAGNode):
                     else:
                         # Use current time for TTL calculation (real-time retrieval)
                         # Check if timestamp column is timezone-aware
-                        if pd.api.types.is_datetime64tz_dtype(
-                            filtered_batch[timestamp_col]
+                        if isinstance(
+                            filtered_batch[timestamp_col].dtype, pd.DatetimeTZDtype
                         ):
                             # Use timezone-aware current time
                             current_time = datetime.now(timezone.utc)
@@ -517,31 +519,59 @@ class RayTransformationNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
-        transformation_serialized = None
-        if hasattr(self.transformation, "udf") and callable(self.transformation.udf):
-            transformation_serialized = dill.dumps(self.transformation.udf)
-        elif callable(self.transformation):
-            transformation_serialized = dill.dumps(self.transformation)
+        # Check transformation mode
+        from feast.transformation.mode import TransformationMode
 
-        @safe_batch_processor
-        def apply_transformation_with_serialized_udf(
-            batch: pd.DataFrame,
-        ) -> pd.DataFrame:
-            """Apply the transformation using pre-serialized UDF."""
-            if transformation_serialized:
-                transformation_func = dill.loads(transformation_serialized)
-                transformed_batch = transformation_func(batch)
+        transformation_mode = getattr(
+            self.transformation, "mode", TransformationMode.PYTHON
+        )
+        is_ray_native = transformation_mode in (TransformationMode.RAY, "ray")
+        if is_ray_native:
+            transformation_func = None
+            if hasattr(self.transformation, "udf") and callable(
+                self.transformation.udf
+            ):
+                transformation_func = self.transformation.udf
+            elif callable(self.transformation):
+                transformation_func = self.transformation
+
+            if transformation_func:
+                transformed_dataset = transformation_func(dataset)
             else:
                 logger.warning(
-                    "No serialized transformation available, returning original batch"
+                    "No transformation function available in RAY mode, returning original dataset"
                 )
-                transformed_batch = batch
+                transformed_dataset = dataset
+        else:
+            transformation_serialized = None
+            if hasattr(self.transformation, "udf") and callable(
+                self.transformation.udf
+            ):
+                transformation_serialized = dill.dumps(self.transformation.udf)
+            elif callable(self.transformation):
+                transformation_serialized = dill.dumps(self.transformation)
 
-            return transformed_batch
+            @safe_batch_processor
+            def apply_transformation_with_serialized_udf(
+                batch: pd.DataFrame,
+            ) -> pd.DataFrame:
+                """Apply the transformation using pre-serialized UDF."""
+                if transformation_serialized:
+                    transformation_func = dill.loads(transformation_serialized)
+                    transformed_batch = transformation_func(batch)
+                else:
+                    logger.warning(
+                        "No serialized transformation available, returning original batch"
+                    )
+                    transformed_batch = batch
 
-        transformed_dataset = dataset.map_batches(
-            apply_transformation_with_serialized_udf, batch_format="pandas"
-        )
+                return transformed_batch
+
+            transformed_dataset = dataset.map_batches(
+                apply_transformation_with_serialized_udf,
+                batch_format="pandas",
+                concurrency=self.config.max_workers or 12,
+            )
 
         return DAGValue(
             data=transformed_dataset,
@@ -598,7 +628,9 @@ class RayDerivedReadNode(DAGNode):
                     return transformation_func(batch)
 
                 transformed_dataset = parent_value.data.map_batches(
-                    apply_transformation
+                    apply_transformation,
+                    batch_format="pandas",
+                    concurrency=self.config.max_workers or 12,
                 )
                 return DAGValue(
                     data=transformed_dataset,
@@ -630,9 +662,11 @@ class RayWriteNode(DAGNode):
         name: str,
         feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
         inputs=None,
+        config: Optional[RayComputeEngineConfig] = None,
     ):
         super().__init__(name, inputs=inputs)
         self.feature_view = feature_view
+        self.config = config
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the write operation."""
@@ -676,7 +710,9 @@ class RayWriteNode(DAGNode):
             return batch
 
         written_dataset = dataset.map_batches(
-            write_batch_with_serialized_artifacts, batch_format="pandas"
+            write_batch_with_serialized_artifacts,
+            batch_format="pandas",
+            concurrency=self.config.max_workers if self.config else 12,
         )
         written_dataset = written_dataset.materialize()
 

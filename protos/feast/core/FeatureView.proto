@@ -36,7 +36,7 @@ message FeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 16
+// Next available id: 17
 // TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
 message FeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
@@ -51,17 +51,8 @@ message FeatureViewSpec {
     // List of specifications for each feature defined as part of this feature view.
     repeated FeatureSpecV2 features = 4;
 
-    // List of specifications for each entity defined as part of this feature view.
-    repeated FeatureSpecV2 entity_columns = 12;
-
-    // Description of the feature view.
-    string description = 10;
-
     // User defined metadata
     map<string,string> tags = 5;
-
-    // Owner of the feature view.
-    string owner = 11;
 
     // Features in this feature view can only be retrieved from online serving
     // younger than ttl. Ttl is measured as the duration of time between
@@ -71,12 +62,22 @@ message FeatureViewSpec {
 
     // Batch/Offline DataSource where this view can retrieve offline feature data.
     DataSource batch_source = 7;
-    // Streaming DataSource from where this view can consume "online" feature data.
-    DataSource stream_source = 9;
 
     // Whether these features should be served online or not
     // This is also used to determine whether the features should be written to the online store
     bool online = 8;
+
+    // Streaming DataSource from where this view can consume "online" feature data.
+    DataSource stream_source = 9;
+
+    // Description of the feature view.
+    string description = 10;
+
+    // Owner of the feature view.
+    string owner = 11;
+
+    // List of specifications for each entity defined as part of this feature view.
+    repeated FeatureSpecV2 entity_columns = 12;
 
     // Whether these features should be written to the offline store
     bool offline = 13;
@@ -85,6 +86,9 @@ message FeatureViewSpec {
 
     // Feature transformation for batch feature views
     FeatureTransformationV2 feature_transformation = 15;
+
+    // The transformation mode (e.g., "python", "pandas", "spark", "sql", "ray")
+    string mode = 16;
 }
 
 message FeatureViewMeta {

@@ -111,6 +111,9 @@ type FeastInitOptions struct {
 
 // FeastCronJob defines a CronJob to execute against a Feature Store deployment.
 type FeastCronJob struct {
+	// Annotations to be added to the CronJob metadata.
+	Annotations map[string]string `json:"annotations,omitempty"`
+
 	// Specification of the desired behavior of a job.
 	JobSpec          *JobSpec                 `json:"jobSpec,omitempty"`
 	ContainerConfigs *CronJobContainerConfigs `json:"containerConfigs,omitempty"`

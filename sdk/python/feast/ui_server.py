@@ -61,16 +61,45 @@ def get_app(
     with importlib_resources.as_file(ui_dir_ref) as ui_dir:
         # Initialize with the projects-list.json file
         with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
-            projects_dict = {
-                "projects": [
+            # Get all projects from the registry
+            discovered_projects = []
+            registry = store.registry.proto()
+
+            # Use the projects list from the registry
+            if registry and registry.projects and len(registry.projects) > 0:
+                for proj in registry.projects:
+                    if proj.spec and proj.spec.name:
+                        discovered_projects.append(
+                            {
+                                "name": proj.spec.name.replace("_", " ").title(),
+                                "description": proj.spec.description
+                                or f"Project: {proj.spec.name}",
+                                "id": proj.spec.name,
+                                "registryPath": f"{root_path}/registry",
+                            }
+                        )
+            else:
+                # If no projects in registry, use the current project from feature_store.yaml
+                discovered_projects.append(
                     {
                         "name": "Project",
                         "description": "Test project",
                         "id": project_id,
                         "registryPath": f"{root_path}/registry",
                     }
-                ]
-            }
+                )
+
+            # Add "All Projects" option at the beginning if there are multiple projects
+            if len(discovered_projects) > 1:
+                all_projects_entry = {
+                    "name": "All Projects",
+                    "description": "View data across all projects",
+                    "id": "all",
+                    "registryPath": f"{root_path}/registry",
+                }
+                discovered_projects.insert(0, all_projects_entry)
+
+            projects_dict = {"projects": discovered_projects}
             f.write(json.dumps(projects_dict))
 
     @app.get("/registry")
