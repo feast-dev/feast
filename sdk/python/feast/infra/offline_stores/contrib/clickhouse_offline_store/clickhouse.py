@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import re
 from dataclasses import asdict
 from datetime import datetime
@@ -31,6 +32,8 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 from feast.infra.utils.clickhouse.connection_utils import get_client
 from feast.saved_dataset import SavedDatasetStorage
+
+logger = logging.getLogger(__name__)
 
 
 class ClickhouseOfflineStoreConfig(ClickhouseConfig):
@@ -204,6 +207,29 @@ class ClickhouseOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, ClickhouseOfflineStoreConfig)
         assert isinstance(data_source, ClickhouseSource)
+
+        # https://github.com/feast-dev/feast/issues/5707
+        # Not an ideal solution, but least invasion into existing codebase
+        if config.offline_store.deduplicate_pushdown:
+            logger.warning(
+                """
+                deduplicate_pushdown optimization is set to True in ClickhouseOfflineStoreConfig.
+                Calling pull_latest_from_table_or_query instead of pull_all_from_table_or_query.
+                This results in multiple times more efficient materialization jobs for large datasets.
+                However, it comes with a caveat - can't compute historical features (just latest values available) with Feast compute engines
+                Use with caution and ensure your use case aligns with this behavior.
+                """
+            )
+            return ClickhouseOfflineStore.pull_latest_from_table_or_query(
+                config=config,
+                data_source=data_source,
+                join_key_columns=join_key_columns,
+                feature_name_columns=feature_name_columns,
+                timestamp_field=timestamp_field,
+                created_timestamp_column=created_timestamp_column,
+                start_date=start_date,
+                end_date=end_date,
+            )
 
         from_expression = data_source.get_table_query_string()
 
