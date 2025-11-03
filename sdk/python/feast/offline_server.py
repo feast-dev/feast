@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 
 import click
-import pandas as pd
 import pyarrow as pa
 import pyarrow.flight as fl
 from google.protobuf.json_format import Parse
