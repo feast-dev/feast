@@ -436,17 +436,6 @@ class OfflineServer(fl.FlightServerBase):
             if len(entity_df.columns) == 1 and "key" in entity_df.columns:
                 entity_df = None
 
-        # If no entity_df provided, create minimal one with timestamps
-        if entity_df is None and "start_date" in command and "end_date" in command:
-            # Create minimal entity_df with event_timestamp when using start_date/end_date mode
-            start_date = utils.make_tzaware(
-                datetime.fromisoformat(command["start_date"])
-            )
-            end_date = utils.make_tzaware(datetime.fromisoformat(command["end_date"]))
-            entity_df = pd.DataFrame(
-                {"event_timestamp": pd.to_datetime([start_date, end_date])}
-            )
-
         feature_view_names = command["feature_view_names"]
         name_aliases = command["name_aliases"]
         feature_refs = command["feature_refs"]
