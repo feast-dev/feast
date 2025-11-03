@@ -201,12 +201,17 @@ class ClickhouseOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
         created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, ClickhouseOfflineStoreConfig)
         assert isinstance(data_source, ClickhouseSource)
+
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "Start_date and end_date must be provided. Pulling without filtering is not supported in ClickHouseOfflineStore."
+            )
 
         # https://github.com/feast-dev/feast/issues/5707
         # Not an ideal solution, but least invasion into existing codebase
