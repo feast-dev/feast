@@ -211,7 +211,7 @@ class ClickhouseOfflineStore(OfflineStore):
         # https://github.com/feast-dev/feast/issues/5707
         # Not an ideal solution, but least invasion into existing codebase
         if config.offline_store.deduplicate_pushdown:
-            logger.warning(
+            logger.info(
                 """
                 deduplicate_pushdown optimization is set to True in ClickhouseOfflineStoreConfig.
                 Calling pull_latest_from_table_or_query instead of pull_all_from_table_or_query.
