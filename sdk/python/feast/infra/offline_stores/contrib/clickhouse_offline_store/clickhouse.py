@@ -201,9 +201,9 @@ class ClickhouseOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
+        start_date: datetime,
+        end_date: datetime,
         created_timestamp_column: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, ClickhouseOfflineStoreConfig)
         assert isinstance(data_source, ClickhouseSource)
