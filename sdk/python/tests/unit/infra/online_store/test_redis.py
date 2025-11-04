@@ -66,11 +66,13 @@ def feature_view():
     return feature_view
 
 @pytest.fixture
-def cleanup_manager(redis_client):
-    """Fixture for RedisCleanupManager with short cleanup interval."""
-    manager = RedisCleanupManager(redis_client, cleanup_interval=1)
-    yield manager
-    manager.stop()
+def cleanup_manager(repo_config):
+    from redis import Redis
+
+    host, port = repo_config.online_store.connection_string.split(":")
+    client = Redis(host=host, port=int(port))
+
+    return RedisCleanupManager(client)
 
 def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_config):
     entity_keys = [
@@ -429,8 +431,12 @@ def _make_rows(n=10):
         for i in range(n)
     ]
 
-def test_ttl_cleanup_removes_expired_members_and_index(redis_client, cleanup_manager):
+def test_ttl_cleanup_removes_expired_members_and_index(repo_config, cleanup_manager):
     """Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs."""
+    connection_string = repo_config.online_store.connection_string
+    host, port = connection_string.split(":")
+    redis_client = Redis(host=host, port=int(port), decode_responses=True)
+
     zset_key = "test:ttl_cleanup:zset"
     ttl_seconds = 2
 
@@ -464,8 +470,12 @@ def test_ttl_cleanup_removes_expired_members_and_index(redis_client, cleanup_man
     assert not redis_client.exists(zset_key), "ZSET should be deleted when empty"
 
 
-def test_zset_trim_removes_old_members_and_deletes_empty_index(redis_client, cleanup_manager):
+def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config, cleanup_manager):
     """Ensure ZSET size cleanup trims correctly and removes empty indexes."""
+    connection_string = repo_config.online_store.connection_string
+    host, port = connection_string.split(":")
+    redis_client = Redis(host=host, port=int(port), decode_responses=True)
+
     zset_key = "test:zset_trim:zset"
     max_events = 2
 
