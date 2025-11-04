@@ -8,8 +8,6 @@ from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 thread_local = threading.local()
 
 
-# wildcall - shouldn't this be a generic decorator? none of {cache, lru_cache, functools.cache} support thread-local
-# cache, whilst is useful for non thread-safe clients
 def get_client(config: ClickhouseConfig) -> Client:
     # Clickhouse client is not thread-safe, so we need to create a separate instance for each thread.
     if not hasattr(thread_local, "clickhouse_client"):
