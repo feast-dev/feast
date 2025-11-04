@@ -2,7 +2,9 @@ import logging
 import queue
 import threading
 import time
-
+from typing import (
+    Tuple
+)
 logger = logging.getLogger(__name__)
 
 class RedisCleanupManager:
@@ -18,7 +20,7 @@ class RedisCleanupManager:
         """
         self.client = client
         self.cleanup_interval = cleanup_interval
-        self.queue = queue.Queue()
+        self.queue: "queue.Queue[Tuple]" = queue.Queue()
         self.stop_event = threading.Event()
         self.worker_thread = threading.Thread(target=self._worker, daemon=True)
         self.worker_thread.start()
