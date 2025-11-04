@@ -34,6 +34,7 @@ from pydantic import StrictStr
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.online_stores.RedisCleanupManager import RedisCleanupManager
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
@@ -83,6 +84,8 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     read_batch_size: Optional[int] = 100
     """(Optional) number of keys to read in a single batch for online read requests. Anything < 1 means no batching."""
 
+    max_retained_events: Optional[int] = None
+    """(Optional) Number of events retained per entity in Redis. Only applicable for SortedFeatureView."""
 
 class RedisOnlineStore(OnlineStore):
     """
@@ -99,6 +102,13 @@ class RedisOnlineStore(OnlineStore):
     _client_async: Optional[Union[redis_asyncio.Redis, redis_asyncio.RedisCluster]] = (
         None
     )
+
+    _cleanup_manager: Optional[RedisCleanupManager] = None
+
+    def _get_cleanup_manager(self, client):
+        if not self._cleanup_manager:
+            self._cleanup_manager = RedisCleanupManager(client)
+        return self._cleanup_manager
 
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
@@ -287,6 +297,7 @@ class RedisOnlineStore(OnlineStore):
 
         client = self._get_client(online_store_config)
         project = config.project
+        cleanup_manager = self._get_cleanup_manager(client)
 
         feature_view = table.name
         ts_key = f"_ts:{feature_view}"
@@ -296,7 +307,6 @@ class RedisOnlineStore(OnlineStore):
             if isinstance(table, SortedFeatureView):
                 if len(table.sort_keys) == 1:
                     sort_key_name = table.sort_keys[0].name
-                    sort_key_value_type = table.sort_keys[0].value_type
                     for entity_key, values, timestamp, _ in data:
                         redis_key_bin = _redis_key(
                             project,
@@ -336,8 +346,12 @@ class RedisOnlineStore(OnlineStore):
                         pipe.hset(redis_key_bin_with_sort_keys, mapping=entity_hset)
 
                         ttl = online_store_config.key_ttl_seconds
+                        max_events = online_store_config.max_retained_events
                         if ttl:
                             pipe.expire(name=redis_key_bin_with_sort_keys, time=ttl)
+                            cleanup_manager.enqueue(("ttl_cleanup", zset_key, ttl))
+                        if max_events and max_events > 0:
+                            cleanup_manager.enqueue(("zset_trim", zset_key, max_events))
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting

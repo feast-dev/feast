@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta
 
 import pytest
@@ -6,7 +7,11 @@ from redis import Redis
 
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig, ValueType
 from feast.infra.online_stores.helpers import _mmh3, _redis_key
-from feast.infra.online_stores.redis import RedisOnlineStore, RedisOnlineStoreConfig
+from feast.infra.online_stores.redis import (
+    RedisCleanupManager,
+    RedisOnlineStore,
+    RedisOnlineStoreConfig,
+)
 from feast.protos.feast.core.SortedFeatureView_pb2 import SortOrder
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -44,7 +49,6 @@ def repo_config(redis_online_store_config):
         registry="dummy_registry.db",
     )
 
-
 @pytest.fixture
 def feature_view():
     file_source = FileSource(name="my_file_source", path="test.parquet")
@@ -61,6 +65,12 @@ def feature_view():
     )
     return feature_view
 
+@pytest.fixture
+def cleanup_manager(redis_client):
+    """Fixture for RedisCleanupManager with short cleanup interval."""
+    manager = RedisCleanupManager(redis_client, cleanup_interval=1)
+    yield manager
+    manager.stop()
 
 def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_config):
     entity_keys = [
@@ -418,3 +428,73 @@ def _make_rows(n=10):
         )
         for i in range(n)
     ]
+
+def test_ttl_cleanup_removes_expired_members_and_index(redis_client, cleanup_manager):
+    """Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs."""
+    zset_key = "test:ttl_cleanup:zset"
+    ttl_seconds = 2
+
+    now = int(time.time())
+    expired_ts = now - (ttl_seconds + 1)
+    active_ts = now
+
+    expired_member = f"member:{expired_ts}"
+    active_member = f"member:{active_ts}"
+
+    # Add ZSET entries and corresponding hashes
+    redis_client.zadd(zset_key, {expired_member: expired_ts, active_member: active_ts})
+    redis_client.hset(expired_member, mapping={"v": "old"})
+    redis_client.hset(active_member, mapping={"v": "new"})
+
+    # Run cleanup asynchronously
+    cleanup_manager.enqueue(("ttl_cleanup", zset_key, ttl_seconds))
+    time.sleep(2)
+
+    # Check expired member removed, active remains
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert active_member in remaining
+    assert expired_member not in remaining
+    assert not redis_client.exists(expired_member)
+
+    # Simulate full expiry → all removed → ZSET key deleted
+    redis_client.zadd(zset_key, {active_member: expired_ts})
+    cleanup_manager.enqueue(("ttl_cleanup", zset_key, ttl_seconds))
+    time.sleep(2)
+
+    assert not redis_client.exists(zset_key), "ZSET should be deleted when empty"
+
+
+def test_zset_trim_removes_old_members_and_deletes_empty_index(redis_client, cleanup_manager):
+    """Ensure ZSET size cleanup trims correctly and removes empty indexes."""
+    zset_key = "test:zset_trim:zset"
+    max_events = 2
+
+    members = {
+        "m1": 1,
+        "m2": 2,
+        "m3": 3,
+    }
+    redis_client.zadd(zset_key, members)
+    for m in members:
+        redis_client.hset(m, mapping={"v": m})
+
+    # Trim to retain only latest max_events
+    cleanup_manager.enqueue(("zset_trim", zset_key, max_events))
+    time.sleep(2)
+
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert remaining == ["m2", "m3"]
+    assert not redis_client.exists("m1"), "Oldest member's hash should be deleted"
+
+    # Delete all members manually and trigger cleanup again
+    redis_client.zremrangebyrank(zset_key, 0, -1)
+    cleanup_manager.enqueue(("zset_trim", zset_key, max_events))
+    time.sleep(2)
+
+    assert not redis_client.exists(zset_key), "Empty ZSET index should be deleted"
+
+
+def test_cleanup_manager_idle_state(cleanup_manager):
+    """Ensure cleanup manager remains stable with empty queue."""
+    time.sleep(cleanup_manager.cleanup_interval * 2)
+    assert cleanup_manager.worker_thread.is_alive()
