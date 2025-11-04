@@ -75,12 +75,17 @@ class RayFeatureBuilder(FeatureBuilder):
         group_by_keys = view.entities
         timestamp_col = getattr(view.batch_source, "timestamp_field", "event_timestamp")
 
+        enable_tiling = getattr(view, "enable_tiling", False)
+        tiling_hop_size = getattr(view, "tiling_hop_size", None)
+
         node = RayAggregationNode(
             name="aggregation",
             aggregations=agg_specs,
             group_by_keys=group_by_keys,
             timestamp_col=timestamp_col,
             config=self.config,
+            enable_tiling=enable_tiling,
+            hop_size=tiling_hop_size,
         )
         node.add_input(input_node)
 
