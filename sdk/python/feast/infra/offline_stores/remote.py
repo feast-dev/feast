@@ -443,7 +443,16 @@ class RemoteOfflineStore(OfflineStore):
         return zip(table.column("name").to_pylist(), table.column("type").to_pylist())
 
 
-def _create_retrieval_metadata(feature_refs: List[str], entity_df: pd.DataFrame):
+def _create_retrieval_metadata(
+    feature_refs: List[str], entity_df: Optional[pd.DataFrame] = None
+):
+    if entity_df is None:
+        return RetrievalMetadata(
+            features=feature_refs,
+            keys=[],  # No entity keys when no entity_df provided
+            min_event_timestamp=None,
+            max_event_timestamp=None,
+        )
     entity_schema = _get_entity_schema(
         entity_df=entity_df,
     )
