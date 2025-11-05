@@ -4,7 +4,7 @@
 
 Spark data sources are tables or files that can be loaded from some Spark store (e.g. Hive or in-memory). They can also be specified by a SQL query.
 
-**New in Feast:** SparkSource now supports advanced table formats including **Apache Iceberg**, **Delta Lake**, and **Apache Hudi**, enabling ACID transactions, time travel, and schema evolution capabilities.
+**New in Feast:** SparkSource now supports advanced table formats including **Apache Iceberg**, **Delta Lake**, and **Apache Hudi**, enabling ACID transactions, time travel, and schema evolution capabilities. See the [Table Formats guide](table-formats.md) for detailed documentation.
 
 ## Disclaimer
 
@@ -55,9 +55,9 @@ my_spark_source = SparkSource(
 )
 ```
 
-### Table Format Support
+### Table Format Examples
 
-SparkSource now supports advanced table formats for modern data lakehouse architectures:
+SparkSource supports advanced table formats for modern data lakehouse architectures. For detailed documentation, configuration options, and best practices, see the **[Table Formats guide](table-formats.md)**.
 
 #### Apache Iceberg
 
@@ -65,7 +65,6 @@ SparkSource now supports advanced table formats for modern data lakehouse archit
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import SparkSource
 from feast.table_format import IcebergFormat
 
-# Basic Iceberg configuration
 iceberg_format = IcebergFormat(
     catalog="my_catalog",
     namespace="my_database"
@@ -79,50 +78,16 @@ my_spark_source = SparkSource(
 )
 ```
 
-Time travel with Iceberg:
-
-```python
-# Read from a specific snapshot
-iceberg_format = IcebergFormat(
-    catalog="spark_catalog",
-    namespace="lakehouse"
-)
-iceberg_format.set_property("snapshot-id", "123456789")
-
-my_spark_source = SparkSource(
-    name="historical_features",
-    path="spark_catalog.lakehouse.features",
-    table_format=iceberg_format,
-    timestamp_field="event_timestamp"
-)
-```
-
 #### Delta Lake
 
 ```python
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import SparkSource
 from feast.table_format import DeltaFormat
 
-# Basic Delta configuration
 delta_format = DeltaFormat()
 
 my_spark_source = SparkSource(
     name="transaction_features",
-    path="s3://my-bucket/delta-tables/transactions",
-    table_format=delta_format,
-    timestamp_field="transaction_timestamp"
-)
-```
-
-Time travel with Delta:
-
-```python
-# Read from a specific version
-delta_format = DeltaFormat()
-delta_format.set_property("versionAsOf", "5")
-
-my_spark_source = SparkSource(
-    name="historical_transactions",
     path="s3://my-bucket/delta-tables/transactions",
     table_format=delta_format,
     timestamp_field="transaction_timestamp"
@@ -135,9 +100,8 @@ my_spark_source = SparkSource(
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import SparkSource
 from feast.table_format import HudiFormat
 
-# Basic Hudi configuration
 hudi_format = HudiFormat(
-    table_type="COPY_ON_WRITE",  # or "MERGE_ON_READ"
+    table_type="COPY_ON_WRITE",
     record_key="user_id",
     precombine_field="updated_at"
 )
@@ -150,15 +114,17 @@ my_spark_source = SparkSource(
 )
 ```
 
+For advanced configuration including time travel, incremental queries, and performance tuning, see the **[Table Formats guide](table-formats.md)**.
+
 ## Configuration Options
 
 The full set of configuration options is available [here](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource).
 
 ### Table Format Options
 
-- **IcebergFormat**: See [Python API reference](https://rtd.feast.dev/en/master/#feast.table_format.IcebergFormat)
-- **DeltaFormat**: See [Python API reference](https://rtd.feast.dev/en/master/#feast.table_format.DeltaFormat)
-- **HudiFormat**: See [Python API reference](https://rtd.feast.dev/en/master/#feast.table_format.HudiFormat)
+- **IcebergFormat**: See [Table Formats - Iceberg](table-formats.md#apache-iceberg)
+- **DeltaFormat**: See [Table Formats - Delta Lake](table-formats.md#delta-lake)
+- **HudiFormat**: See [Table Formats - Hudi](table-formats.md#apache-hudi)
 
 ## Supported Types
 
