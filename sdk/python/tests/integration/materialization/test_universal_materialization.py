@@ -219,7 +219,12 @@ def test_odfv_materialization_incremental_multi_source(environment):
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-def test_universal_materialization_consistency(environment):
+@pytest.mark.parametrize("materialization_pull_latest", [True, False])
+def test_universal_materialization_consistency(
+    environment, materialization_pull_latest
+):
+    environment.materialization.pull_latest_features = materialization_pull_latest
+
     fs = environment.feature_store
     df = create_basic_driver_dataset()
     ds = environment.data_source_creator.create_data_source(
