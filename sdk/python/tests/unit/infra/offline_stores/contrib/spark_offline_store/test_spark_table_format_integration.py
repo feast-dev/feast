@@ -6,7 +6,6 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkOptions,
     SparkSource,
 )
-from feast.protos.feast.core.DataFormat_pb2 import TableFormat as TableFormatProto
 from feast.table_format import (
     DeltaFormat,
     HudiFormat,
@@ -235,7 +234,9 @@ class TestSparkOptionsWithTableFormat:
         assert proto.table_format.HasField("iceberg_format")
         assert proto.table_format.iceberg_format.catalog == "test_catalog"
         assert proto.table_format.iceberg_format.namespace == "test_namespace"
-        assert proto.table_format.iceberg_format.properties["snapshot-id"] == "123456789"
+        assert (
+            proto.table_format.iceberg_format.properties["snapshot-id"] == "123456789"
+        )
 
         # Test deserialization from proto
         restored_options = SparkOptions.from_proto(proto)
