@@ -22,7 +22,6 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "DataFormatProto";
 option java_package = "feast.proto.core";
 
-
 // Defines the file format encoding the features/entity data in files
 message FileFormat {
   // Defines options for the Parquet data format

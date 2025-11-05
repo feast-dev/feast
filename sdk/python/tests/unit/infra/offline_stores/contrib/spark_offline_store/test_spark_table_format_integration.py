@@ -1,4 +1,3 @@
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +6,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkOptions,
     SparkSource,
 )
+from feast.protos.feast.core.DataFormat_pb2 import TableFormat as TableFormatProto
 from feast.table_format import (
     DeltaFormat,
     HudiFormat,
@@ -230,11 +230,12 @@ class TestSparkOptionsWithTableFormat:
         assert proto.path == "catalog.db.table"
         assert proto.file_format == ""  # Should be empty when not provided
 
-        # Verify table_format is serialized as JSON
-        table_format_dict = json.loads(proto.table_format)
-        assert table_format_dict["format_type"] == "iceberg"
-        assert table_format_dict["catalog"] == "test_catalog"
-        assert table_format_dict["namespace"] == "test_namespace"
+        # Verify table_format is serialized as proto TableFormat
+        assert proto.HasField("table_format")
+        assert proto.table_format.HasField("iceberg_format")
+        assert proto.table_format.iceberg_format.catalog == "test_catalog"
+        assert proto.table_format.iceberg_format.namespace == "test_namespace"
+        assert proto.table_format.iceberg_format.properties["snapshot-id"] == "123456789"
 
         # Test deserialization from proto
         restored_options = SparkOptions.from_proto(proto)
@@ -243,6 +244,7 @@ class TestSparkOptionsWithTableFormat:
         assert isinstance(restored_options.table_format, IcebergFormat)
         assert restored_options.table_format.catalog == "test_catalog"
         assert restored_options.table_format.namespace == "test_namespace"
+        assert restored_options.table_format.get_property("snapshot-id") == "123456789"
 
     def test_spark_options_protobuf_serialization_without_table_format(self):
         """Test SparkOptions protobuf serialization/deserialization without table format."""
@@ -258,7 +260,7 @@ class TestSparkOptionsWithTableFormat:
         proto = spark_options.to_proto()
         assert proto.path == "s3://bucket/data.parquet"
         assert proto.file_format == "parquet"
-        assert proto.table_format == ""  # Should be empty when not provided
+        assert not proto.HasField("table_format")  # Should not have table_format field
 
         # Test deserialization from proto
         restored_options = SparkOptions.from_proto(proto)
