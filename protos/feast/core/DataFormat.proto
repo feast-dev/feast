@@ -22,17 +22,65 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "DataFormatProto";
 option java_package = "feast.proto.core";
 
+
 // Defines the file format encoding the features/entity data in files
 message FileFormat {
   // Defines options for the Parquet data format
   message ParquetFormat {}
 
-  // Defines options for delta data format
-  message DeltaFormat {}
-
   oneof format {
     ParquetFormat parquet_format = 1;
+    // Deprecated: Delta Lake is a table format, not a file format.
+    // Use TableFormat.DeltaFormat instead for Delta Lake support.
+    TableFormat.DeltaFormat delta_format = 2 [deprecated = true];
+  }
+}
+
+message TableFormat {
+  // Defines options for Apache Iceberg table format
+  message IcebergFormat {
+    // Optional catalog name for the Iceberg table
+    string catalog = 1;
+
+    // Optional namespace (schema/database) within the catalog
+    string namespace = 2;
+
+    // Additional properties for Iceberg configuration
+    // Examples: warehouse location, snapshot-id, as-of-timestamp, etc.
+    map<string, string> properties = 3;
+  }
+
+  // Defines options for Delta Lake table format
+  message DeltaFormat {
+    // Optional checkpoint location for Delta transaction logs
+    string checkpoint_location = 1;
+
+    // Additional properties for Delta configuration
+    // Examples: auto-optimize settings, vacuum settings, etc.
+    map<string, string> properties = 2;
+  }
+
+  // Defines options for Apache Hudi table format
+  message HudiFormat {
+    // Type of Hudi table (COPY_ON_WRITE or MERGE_ON_READ)
+    string table_type = 1;
+
+    // Field(s) that uniquely identify a record
+    string record_key = 2;
+
+    // Field used to determine the latest version of a record
+    string precombine_field = 3;
+
+    // Additional properties for Hudi configuration
+    // Examples: compaction strategy, indexing options, etc.
+    map<string, string> properties = 4;
+  }
+
+  // Specifies the table format and format-specific options
+  oneof format {
+    IcebergFormat iceberg_format = 1;
     DeltaFormat delta_format = 2;
+    HudiFormat hudi_format = 3;
   }
 }
 

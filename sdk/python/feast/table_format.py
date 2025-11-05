@@ -15,7 +15,10 @@
 import json
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from feast.protos.feast.core.DataFormat_pb2 import TableFormat as TableFormatProto
 
 
 class TableFormatType(Enum):
@@ -166,6 +169,27 @@ class IcebergFormat(TableFormat):
             properties=data.get("properties", {}),
         )
 
+    def to_proto(self) -> "TableFormatProto":
+        """Convert to protobuf TableFormat message"""
+        from feast.protos.feast.core.DataFormat_pb2 import TableFormat as TableFormatProto
+
+        iceberg_proto = TableFormatProto.IcebergFormat(
+            catalog=self.catalog or "",
+            namespace=self.namespace or "",
+            properties=self.properties,
+        )
+        return TableFormatProto(iceberg_format=iceberg_proto)
+
+    @classmethod
+    def from_proto(cls, proto: "TableFormatProto") -> "IcebergFormat":
+        """Create from protobuf TableFormat message"""
+        iceberg_proto = proto.iceberg_format
+        return cls(
+            catalog=iceberg_proto.catalog if iceberg_proto.catalog else None,
+            namespace=iceberg_proto.namespace if iceberg_proto.namespace else None,
+            properties=dict(iceberg_proto.properties),
+        )
+
 
 class DeltaFormat(TableFormat):
     """
@@ -240,6 +264,25 @@ class DeltaFormat(TableFormat):
         return cls(
             checkpoint_location=data.get("checkpoint_location"),
             properties=data.get("properties", {}),
+        )
+
+    def to_proto(self) -> "TableFormatProto":
+        """Convert to protobuf TableFormat message"""
+        from feast.protos.feast.core.DataFormat_pb2 import TableFormat as TableFormatProto
+
+        delta_proto = TableFormatProto.DeltaFormat(
+            checkpoint_location=self.checkpoint_location or "",
+            properties=self.properties,
+        )
+        return TableFormatProto(delta_format=delta_proto)
+
+    @classmethod
+    def from_proto(cls, proto: "TableFormatProto") -> "DeltaFormat":
+        """Create from protobuf TableFormat message"""
+        delta_proto = proto.delta_format
+        return cls(
+            checkpoint_location=delta_proto.checkpoint_location if delta_proto.checkpoint_location else None,
+            properties=dict(delta_proto.properties),
         )
 
 
@@ -343,6 +386,29 @@ class HudiFormat(TableFormat):
             record_key=data.get("record_key"),
             precombine_field=data.get("precombine_field"),
             properties=data.get("properties", {}),
+        )
+
+    def to_proto(self) -> "TableFormatProto":
+        """Convert to protobuf TableFormat message"""
+        from feast.protos.feast.core.DataFormat_pb2 import TableFormat as TableFormatProto
+
+        hudi_proto = TableFormatProto.HudiFormat(
+            table_type=self.table_type or "",
+            record_key=self.record_key or "",
+            precombine_field=self.precombine_field or "",
+            properties=self.properties,
+        )
+        return TableFormatProto(hudi_format=hudi_proto)
+
+    @classmethod
+    def from_proto(cls, proto: "TableFormatProto") -> "HudiFormat":
+        """Create from protobuf TableFormat message"""
+        hudi_proto = proto.hudi_format
+        return cls(
+            table_type=hudi_proto.table_type if hudi_proto.table_type else None,
+            record_key=hudi_proto.record_key if hudi_proto.record_key else None,
+            precombine_field=hudi_proto.precombine_field if hudi_proto.precombine_field else None,
+            properties=dict(hudi_proto.properties),
         )
 
 
@@ -460,3 +526,30 @@ def table_format_from_json(json_str: str) -> TableFormat:
     """
     data = json.loads(json_str)
     return table_format_from_dict(data)
+
+
+def table_format_from_proto(proto: "TableFormatProto") -> TableFormat:
+    """
+    Create TableFormat instance from protobuf TableFormat message.
+
+    Args:
+        proto: TableFormat protobuf message
+
+    Returns:
+        TableFormat: An instance of the appropriate TableFormat subclass.
+
+    Raises:
+        ValueError: If the proto doesn't contain a recognized format.
+    """
+    from feast.protos.feast.core.DataFormat_pb2 import TableFormat as TableFormatProto
+
+    which_format = proto.WhichOneof("format")
+
+    if which_format == "iceberg_format":
+        return IcebergFormat.from_proto(proto)
+    elif which_format == "delta_format":
+        return DeltaFormat.from_proto(proto)
+    elif which_format == "hudi_format":
+        return HudiFormat.from_proto(proto)
+    else:
+        raise ValueError(f"Unknown table format in proto: {which_format}")

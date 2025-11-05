@@ -380,8 +380,9 @@ class DataSource(google.protobuf.message.Message):
         """Format of files at `path` (e.g. parquet, avro, etc)"""
         date_partition_column_format: builtins.str
         """Date Format of date partition column (e.g. %Y-%m-%d)"""
-        table_format: builtins.str
-        """Table Format (e.g. iceberg, delta, etc)"""
+        @property
+        def table_format(self) -> feast.core.DataFormat_pb2.TableFormat:
+            """Table Format (e.g. iceberg, delta, hudi)"""
         def __init__(
             self,
             *,
@@ -390,8 +391,9 @@ class DataSource(google.protobuf.message.Message):
             path: builtins.str = ...,
             file_format: builtins.str = ...,
             date_partition_column_format: builtins.str = ...,
-            table_format: builtins.str = ...,
+            table_format: feast.core.DataFormat_pb2.TableFormat | None = ...,
         ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["table_format", b"table_format"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table", "table_format", b"table_format"]) -> None: ...
 
     class CustomSourceOptions(google.protobuf.message.Message):

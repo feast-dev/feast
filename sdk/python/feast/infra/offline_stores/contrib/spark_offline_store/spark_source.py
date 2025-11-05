@@ -15,7 +15,7 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 )
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.table_format import TableFormat, table_format_from_dict
+from feast.table_format import TableFormat, table_format_from_proto
 from feast.type_map import spark_to_feast_value_type
 from feast.value_type import ValueType
 
@@ -372,10 +372,8 @@ class SparkOptions:
         """
         # Parse table_format if present
         table_format = None
-        if spark_options_proto.table_format:
-            table_format = table_format_from_dict(
-                json.loads(spark_options_proto.table_format)
-            )
+        if spark_options_proto.HasField("table_format"):
+            table_format = table_format_from_proto(spark_options_proto.table_format)
 
         spark_options = cls(
             table=spark_options_proto.table,
@@ -394,16 +392,20 @@ class SparkOptions:
         Returns:
             SparkOptionsProto protobuf
         """
+        table_format_proto = None
+        if self.table_format:
+            table_format_proto = self.table_format.to_proto()
+
         spark_options_proto = DataSourceProto.SparkOptions(
             table=self.table,
             query=self.query,
             path=self.path,
             file_format=self.file_format,
             date_partition_column_format=self.date_partition_column_format,
-            table_format=json.dumps(self.table_format.to_dict())
-            if self.table_format
-            else "",
         )
+
+        if table_format_proto:
+            spark_options_proto.table_format.CopyFrom(table_format_proto)
 
         return spark_options_proto
 

@@ -232,8 +232,8 @@ message DataSource {
     // Date Format of date partition column (e.g. %Y-%m-%d)
     string date_partition_column_format = 5;
 
-    // Table Format (e.g. iceberg, delta, etc)
-    string table_format = 6;
+    // Table Format (e.g. iceberg, delta, hudi)
+    TableFormat table_format = 6;
   }
 
   // Defines configuration for custom third-party data sources.
