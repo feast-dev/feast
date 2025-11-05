@@ -29,6 +29,11 @@ def create_offline_store_retrieval_job(
     pull_latest = context.repo_config.materialization_config.pull_latest_features
 
     if pull_latest:
+        if not start_time or not end_time:
+            raise ValueError(
+                "start_time and end_time must be provided when pull_latest_features is True"
+            )
+
         retrieval_job = offline_store.pull_latest_from_table_or_query(
             config=context.repo_config,
             data_source=data_source,
