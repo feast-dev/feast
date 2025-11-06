@@ -338,7 +338,7 @@ class RedisOnlineStore(OnlineStore):
                                     feature_value = getattr(val, str(feast_value_type))
                                 score = feature_value
                                 member = redis_key_bin_with_sort_keys
-                                zset_key = f"{project}:{table.name}:{feature_name}:{redis_key_bin}"
+                                zset_key = f"{project}:{table.name}:{feature_name}:{redis_key_bin!r}"
                                 pipe.zadd(zset_key, {member: score})
 
                         pipe.hset(redis_key_bin_with_sort_keys, mapping=entity_hset)
