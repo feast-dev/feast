@@ -29,12 +29,14 @@ from tests.unit.infra.online_store.redis_online_store_creator import (
 def redis_online_store() -> RedisOnlineStore:
     return RedisOnlineStore()
 
+
 @pytest.fixture(scope="session")
 def redis_online_store_config():
     creator = RedisOnlineStoreCreator("redis_project")
     config = creator.create_online_store()
     yield config
     creator.teardown()
+
 
 @pytest.fixture
 def repo_config(redis_online_store_config):
@@ -47,6 +49,7 @@ def repo_config(redis_online_store_config):
         entity_key_serialization_version=3,
         registry="dummy_registry.db",
     )
+
 
 @pytest.fixture
 def feature_view():
@@ -63,6 +66,7 @@ def feature_view():
         source=file_source,
     )
     return feature_view
+
 
 def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_config):
     entity_keys = [
@@ -152,6 +156,7 @@ def test_get_features_for_entity(redis_online_store: RedisOnlineStore, feature_v
     assert "feature_view_1:feature_11" in features
     assert features["feature_view_1:feature_10"].int32_val == 1
     assert features["feature_view_1:feature_11"].int32_val == 2
+
 
 def test_redis_online_write_batch_with_timestamp_as_sortkey(
     repo_config: RepoConfig,
@@ -420,6 +425,7 @@ def _make_rows(n=10):
         )
         for i in range(n)
     ]
+
 
 def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
     """Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs."""

@@ -87,6 +87,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     max_retained_events: Optional[int] = None
     """(Optional) Number of events retained per entity in Redis. Only applicable for SortedFeatureView."""
 
+
 class RedisOnlineStore(OnlineStore):
     """
     Redis implementation of the online store interface.
@@ -313,7 +314,9 @@ class RedisOnlineStore(OnlineStore):
                             entity_key_serialization_version=config.entity_key_serialization_version,
                         )
 
-                        event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
+                        event_time_seconds = int(
+                            utils.make_tzaware(timestamp).timestamp()
+                        )
                         ts = Timestamp()
                         ts.seconds = event_time_seconds
                         entity_hset = dict()
@@ -326,7 +329,7 @@ class RedisOnlineStore(OnlineStore):
                                 feast_value_type = val.WhichOneof("val")
                                 if feast_value_type == "unix_timestamp_val":
                                     feature_value = (
-                                            val.unix_timestamp_val * 1000
+                                        val.unix_timestamp_val * 1000
                                     )  # Convert to milliseconds
                                 else:
                                     feature_value = getattr(val, str(feast_value_type))
@@ -361,7 +364,7 @@ class RedisOnlineStore(OnlineStore):
                 prev_event_timestamps = [i[0] for i in prev_event_timestamps]
 
                 for redis_key_bin, prev_event_time, (_, values, timestamp, _) in zip(
-                        keys, prev_event_timestamps, data
+                    keys, prev_event_timestamps, data
                 ):
                     event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
 
