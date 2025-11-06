@@ -505,7 +505,6 @@ class RedisOnlineStore(OnlineStore):
 
         client = await self._get_client_async(online_store_config)
         feature_view = table
-
         requested_features, hset_keys = self._generate_hset_keys_for_features(
             feature_view, requested_features
         )
