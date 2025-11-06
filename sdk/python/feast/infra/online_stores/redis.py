@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
-import logging
+import loggingW
+import time
 from datetime import datetime, timezone
 from enum import Enum
 from typing import (
@@ -34,7 +35,6 @@ from pydantic import StrictStr
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.online_stores.RedisCleanupManager import RedisCleanupManager
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
@@ -103,7 +103,6 @@ class RedisOnlineStore(OnlineStore):
         None
     )
 
-    _cleanup_manager: Optional[RedisCleanupManager] = None
 
     def _get_cleanup_manager(self, client):
         if not self._cleanup_manager:
@@ -297,7 +296,6 @@ class RedisOnlineStore(OnlineStore):
 
         client = self._get_client(online_store_config)
         project = config.project
-        cleanup_manager = self._get_cleanup_manager(client)
 
         feature_view = table.name
         ts_key = f"_ts:{feature_view}"
@@ -349,9 +347,9 @@ class RedisOnlineStore(OnlineStore):
                         max_events = online_store_config.max_retained_events
                         if ttl:
                             pipe.expire(name=redis_key_bin_with_sort_keys, time=ttl)
-                            cleanup_manager.enqueue(("ttl_cleanup", zset_key, ttl))
+                            self._run_ttl_cleanup(client, zset_key, ttl)
                         if max_events and max_events > 0:
-                            cleanup_manager.enqueue(("zset_trim", zset_key, max_events))
+                            self._run_zset_trim(client, zset_key, max_events)
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
@@ -400,6 +398,35 @@ class RedisOnlineStore(OnlineStore):
             results = pipe.execute()
             if progress:
                 progress(len(results))
+
+    def _run_ttl_cleanup(self, client, zset_key: str, ttl_seconds: int):
+        now = int(time.time())
+        cutoff = now - ttl_seconds
+        old_members = client.zrangebyscore(zset_key, 0, cutoff)
+        if not old_members:
+            return
+
+        with client.pipeline(transaction=False) as pipe:
+            for member in old_members:
+                pipe.delete(member)
+                pipe.zrem(zset_key, member)
+            pipe.execute()
+
+    def _run_zset_trim(self, client, zset_key: str, max_events: int):
+        current_size = client.zcard(zset_key)
+        if current_size <= max_events:
+            return
+
+        num_to_remove = current_size - max_events
+        old_members = client.zrange(zset_key, 0, num_to_remove - 1)
+        if not old_members:
+            return
+
+        with client.pipeline(transaction=False) as pipe:
+            for member in old_members:
+                pipe.delete(member)
+                pipe.zrem(zset_key, member)
+            pipe.execute()
 
     def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]

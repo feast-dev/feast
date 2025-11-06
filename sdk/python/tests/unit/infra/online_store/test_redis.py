@@ -8,7 +8,6 @@ from redis import Redis
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig, ValueType
 from feast.infra.online_stores.helpers import _mmh3, _redis_key
 from feast.infra.online_stores.redis import (
-    RedisCleanupManager,
     RedisOnlineStore,
     RedisOnlineStoreConfig,
 )
@@ -64,15 +63,6 @@ def feature_view():
         source=file_source,
     )
     return feature_view
-
-@pytest.fixture
-def cleanup_manager(repo_config):
-    from redis import Redis
-
-    host, port = repo_config.online_store.connection_string.split(":")
-    client = Redis(host=host, port=int(port))
-
-    return RedisCleanupManager(client)
 
 def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_config):
     entity_keys = [
@@ -431,12 +421,13 @@ def _make_rows(n=10):
         for i in range(n)
     ]
 
-def test_ttl_cleanup_removes_expired_members_and_index(repo_config, cleanup_manager):
+def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
     """Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs."""
     connection_string = repo_config.online_store.connection_string
     host, port = connection_string.split(":")
     redis_client = Redis(host=host, port=int(port), decode_responses=True)
 
+    store = RedisOnlineStore()
     zset_key = "test:ttl_cleanup:zset"
     ttl_seconds = 2
 
@@ -452,9 +443,8 @@ def test_ttl_cleanup_removes_expired_members_and_index(repo_config, cleanup_mana
     redis_client.hset(expired_member, mapping={"v": "old"})
     redis_client.hset(active_member, mapping={"v": "new"})
 
-    # Run cleanup asynchronously
-    cleanup_manager.enqueue(("ttl_cleanup", zset_key, ttl_seconds))
-    time.sleep(2)
+    # Run cleanup synchronously
+    store._run_ttl_cleanup(redis_client, zset_key, ttl_seconds)
 
     # Check expired member removed, active remains
     remaining = redis_client.zrange(zset_key, 0, -1)
@@ -462,35 +452,29 @@ def test_ttl_cleanup_removes_expired_members_and_index(repo_config, cleanup_mana
     assert expired_member not in remaining
     assert not redis_client.exists(expired_member)
 
-    # Simulate full expiry → all removed → ZSET key deleted
     redis_client.zadd(zset_key, {active_member: expired_ts})
-    cleanup_manager.enqueue(("ttl_cleanup", zset_key, ttl_seconds))
-    time.sleep(2)
+    store._run_ttl_cleanup(redis_client, zset_key, ttl_seconds)
 
     assert not redis_client.exists(zset_key), "ZSET should be deleted when empty"
 
 
-def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config, cleanup_manager):
+def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
     """Ensure ZSET size cleanup trims correctly and removes empty indexes."""
     connection_string = repo_config.online_store.connection_string
     host, port = connection_string.split(":")
     redis_client = Redis(host=host, port=int(port), decode_responses=True)
 
+    store = RedisOnlineStore()
     zset_key = "test:zset_trim:zset"
     max_events = 2
 
-    members = {
-        "m1": 1,
-        "m2": 2,
-        "m3": 3,
-    }
+    members = {"m1": 1, "m2": 2, "m3": 3}
     redis_client.zadd(zset_key, members)
     for m in members:
         redis_client.hset(m, mapping={"v": m})
 
     # Trim to retain only latest max_events
-    cleanup_manager.enqueue(("zset_trim", zset_key, max_events))
-    time.sleep(2)
+    store._run_zset_trim(redis_client, zset_key, max_events)
 
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert remaining == ["m2", "m3"]
@@ -498,13 +482,27 @@ def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config, clea
 
     # Delete all members manually and trigger cleanup again
     redis_client.zremrangebyrank(zset_key, 0, -1)
-    cleanup_manager.enqueue(("zset_trim", zset_key, max_events))
-    time.sleep(2)
+    store._run_zset_trim(redis_client, zset_key, max_events)
 
     assert not redis_client.exists(zset_key), "Empty ZSET index should be deleted"
 
 
-def test_cleanup_manager_idle_state(cleanup_manager):
-    """Ensure cleanup manager remains stable with empty queue."""
-    time.sleep(cleanup_manager.cleanup_interval * 2)
-    assert cleanup_manager.worker_thread.is_alive()
+def test_ttl_cleanup_no_expired_members(repo_config):
+    """Ensure TTL cleanup is a no-op when there are no expired members."""
+    connection_string = repo_config.online_store.connection_string
+    host, port = connection_string.split(":")
+    redis_client = Redis(host=host, port=int(port), decode_responses=True)
+
+    store = RedisOnlineStore()
+    zset_key = "test:ttl_cleanup:no_expired"
+    ttl_seconds = 5
+
+    now = int(time.time())
+    active_member = f"member:{now}"
+    redis_client.zadd(zset_key, {active_member: now})
+    redis_client.hset(active_member, mapping={"v": "new"})
+
+    store._run_ttl_cleanup(redis_client, zset_key, ttl_seconds)
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert active_member in remaining
+    assert redis_client.exists(active_member)
