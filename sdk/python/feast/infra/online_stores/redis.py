@@ -40,6 +40,8 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.sorted_feature_view import SortedFeatureView
 
+from sdk.python.feast.types import Invalid
+
 try:
     from redis import Redis
     from redis import asyncio as redis_asyncio
@@ -341,10 +343,21 @@ class RedisOnlineStore(OnlineStore):
                         pipe.hset(redis_key_bin_with_sort_keys, mapping=entity_hset)
 
                         ttl = online_store_config.key_ttl_seconds
-                        max_events = online_store_config.max_retained_events
                         if ttl:
                             pipe.expire(name=redis_key_bin_with_sort_keys, time=ttl)
                             self._run_ttl_cleanup(client, zset_key, ttl)
+                        max_events = None
+                        if table.tags:
+                            tag_value = table.tags.get("max_retained_events")
+                            if tag_value is not None:
+                                try:
+                                    max_events = int(tag_value)
+                                except Exception:
+                                    logger.warning(
+                                        f"Invalid max_retained_events tag value: {tag_value}"
+                                    )
+
+                        # Only trim if max_events is valid and > 0
                         if max_events and max_events > 0:
                             self._run_zset_trim(client, zset_key, max_events)
             else:
