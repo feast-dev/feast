@@ -40,8 +40,6 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.sorted_feature_view import SortedFeatureView
 
-from sdk.python.feast.types import Invalid
-
 try:
     from redis import Redis
     from redis import asyncio as redis_asyncio
