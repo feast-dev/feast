@@ -84,9 +84,6 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     read_batch_size: Optional[int] = 100
     """(Optional) number of keys to read in a single batch for online read requests. Anything < 1 means no batching."""
 
-    max_retained_events: Optional[int] = None
-    """(Optional) Number of events retained per entity in Redis. Only applicable for SortedFeatureView."""
-
 
 class RedisOnlineStore(OnlineStore):
     """
@@ -414,27 +411,36 @@ class RedisOnlineStore(OnlineStore):
         if not old_members:
             return
 
+        # Remove the expired sorted set members
         with client.pipeline(transaction=False) as pipe:
             for member in old_members:
                 pipe.delete(member)
                 pipe.zrem(zset_key, member)
             pipe.execute()
+
+        # Remove the
+        if client.zcard(zset_key) == 0:
+            client.delete(zset_key)
 
     def _run_zset_trim(self, client, zset_key: str, max_events: int):
         current_size = client.zcard(zset_key)
         if current_size <= max_events:
             return
-
         num_to_remove = current_size - max_events
-        old_members = client.zrange(zset_key, 0, num_to_remove - 1)
-        if not old_members:
+        # Get and remove members atomically from sorted set
+        with client.pipeline(transaction=True) as pipe:
+            pipe.zpopmin(zset_key, num_to_remove)
+            popped, = pipe.execute()
+        if not popped:
             return
-
+        # Remove the redis keys
         with client.pipeline(transaction=False) as pipe:
-            for member in old_members:
+            for member, _score in popped:
                 pipe.delete(member)
-                pipe.zrem(zset_key, member)
             pipe.execute()
+        # Remove the empty indexes
+        if client.zcard(zset_key) == 0:
+            client.delete(zset_key)
 
     def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]

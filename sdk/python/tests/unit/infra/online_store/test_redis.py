@@ -427,20 +427,21 @@ def _make_rows(n=10):
     ]
 
 
-def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
-    """Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs."""
+def _make_redis_client(repo_config):
     connection_string = repo_config.online_store.connection_string
     host, port = connection_string.split(":")
-    redis_client = Redis(host=host, port=int(port), decode_responses=True)
+    return Redis(host=host, port=int(port), decode_responses=True)
 
+
+def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
+    """Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs."""
+    redis_client = _make_redis_client(repo_config)
     store = RedisOnlineStore()
     zset_key = "test:ttl_cleanup:zset"
     ttl_seconds = 2
-
     now = int(time.time())
     expired_ts = now - (ttl_seconds + 1)
     active_ts = now
-
     expired_member = f"member:{expired_ts}"
     active_member = f"member:{active_ts}"
 
@@ -448,67 +449,102 @@ def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
     redis_client.zadd(zset_key, {expired_member: expired_ts, active_member: active_ts})
     redis_client.hset(expired_member, mapping={"v": "old"})
     redis_client.hset(active_member, mapping={"v": "new"})
-
-    # Run cleanup synchronously
     store._run_ttl_cleanup(redis_client, zset_key, ttl_seconds)
-
     # Check expired member removed, active remains
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert active_member in remaining
     assert expired_member not in remaining
     assert not redis_client.exists(expired_member)
-
     redis_client.zadd(zset_key, {active_member: expired_ts})
     store._run_ttl_cleanup(redis_client, zset_key, ttl_seconds)
-
     assert not redis_client.exists(zset_key), "ZSET should be deleted when empty"
-
-
-def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
-    """Ensure ZSET size cleanup trims correctly and removes empty indexes."""
-    connection_string = repo_config.online_store.connection_string
-    host, port = connection_string.split(":")
-    redis_client = Redis(host=host, port=int(port), decode_responses=True)
-
-    store = RedisOnlineStore()
-    zset_key = "test:zset_trim:zset"
-    max_events = 2
-
-    members = {"m1": 1, "m2": 2, "m3": 3}
-    redis_client.zadd(zset_key, members)
-    for m in members:
-        redis_client.hset(m, mapping={"v": m})
-
-    # Trim to retain only latest max_events
-    store._run_zset_trim(redis_client, zset_key, max_events)
-
-    remaining = redis_client.zrange(zset_key, 0, -1)
-    assert remaining == ["m2", "m3"]
-    assert not redis_client.exists("m1"), "Oldest member's hash should be deleted"
-
-    # Delete all members manually and trigger cleanup again
-    redis_client.zremrangebyrank(zset_key, 0, -1)
-    store._run_zset_trim(redis_client, zset_key, max_events)
-
-    assert not redis_client.exists(zset_key), "Empty ZSET index should be deleted"
 
 
 def test_ttl_cleanup_no_expired_members(repo_config):
     """Ensure TTL cleanup is a no-op when there are no expired members."""
-    connection_string = repo_config.online_store.connection_string
-    host, port = connection_string.split(":")
-    redis_client = Redis(host=host, port=int(port), decode_responses=True)
-
+    redis_client = _make_redis_client(repo_config)
     store = RedisOnlineStore()
     zset_key = "test:ttl_cleanup:no_expired"
     ttl_seconds = 5
-
     now = int(time.time())
     active_member = f"member:{now}"
     redis_client.zadd(zset_key, {active_member: now})
     redis_client.hset(active_member, mapping={"v": "new"})
-
     store._run_ttl_cleanup(redis_client, zset_key, ttl_seconds)
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert active_member in remaining
     assert redis_client.exists(active_member)
+
+
+def test_ttl_cleanup_empty_zset(repo_config):
+    """Ensure cleanup safely returns when ZSET has no members."""
+    redis_client = _make_redis_client(repo_config)
+    store = RedisOnlineStore()
+    zset_key = "test:ttl_cleanup:empty"
+
+    # Create a ZSET and then remove all members to simulate an empty one
+    redis_client.zadd(zset_key, {"temp": 1})
+    redis_client.zrem(zset_key, "temp")
+    assert redis_client.zcard(zset_key) == 0, "ZSET should be empty before cleanup"
+
+    # Run cleanup
+    store._run_ttl_cleanup(redis_client, zset_key, 10)
+    assert not redis_client.exists(zset_key), "Empty ZSET should be deleted after cleanup"
+
+def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
+    """Ensure ZSET size cleanup trims correctly and removes empty indexes."""
+    redis_client = _make_redis_client(repo_config)
+    store = RedisOnlineStore()
+    zset_key = "test:zset_trim:zset"
+    max_events = 2
+    members = {"m1": 1, "m2": 2, "m3": 3}
+    redis_client.zadd(zset_key, members)
+    for m in members:
+        redis_client.hset(m, mapping={"v": m})
+    # Trim to retain only latest max_events
+    store._run_zset_trim(redis_client, zset_key, max_events)
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert remaining == ["m2", "m3"]
+    assert not redis_client.exists("m1"), "Oldest member's hash should be deleted"
+    redis_client.zremrangebyrank(zset_key, 0, -1)
+    store._run_zset_trim(redis_client, zset_key, max_events)
+    assert not redis_client.exists(zset_key), "Empty ZSET index should be deleted"
+
+
+def test_zset_trim_no_trim_needed(repo_config):
+    """Ensure no-op when ZSET size <= max_events."""
+    redis_client = _make_redis_client(repo_config)
+    store = RedisOnlineStore()
+    zset_key = "test:zset_trim:no_trim"
+    max_events = 3
+    members = {"a": 1, "b": 2, "c": 3}
+    redis_client.zadd(zset_key, members)
+    store._run_zset_trim(redis_client, zset_key, max_events)
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert remaining == ["a", "b", "c"]
+
+
+def test_zset_trim_no_popped_members(repo_config):
+    """Ensure function handles case where zpopmin returns empty list."""
+    redis_client = _make_redis_client(repo_config)
+    store = RedisOnlineStore()
+    zset_key = "test:zset_trim:no_popped"
+    redis_client.zadd(zset_key, {"k1": 1, "k2": 2})
+    original_zpopmin = redis_client.zpopmin
+    redis_client.zpopmin = lambda *a, **kw: []
+    store._run_zset_trim(redis_client, zset_key, 1)
+    assert redis_client.exists(zset_key)
+    redis_client.zpopmin = original_zpopmin
+
+
+def test_zset_trim_delete_all_members(repo_config):
+    """Ensure trimming can remove all members and delete empty ZSET."""
+    redis_client = _make_redis_client(repo_config)
+    store = RedisOnlineStore()
+    zset_key = "test:zset_trim:delete_all"
+    members = {"x1": 1, "x2": 2}
+    redis_client.zadd(zset_key, members)
+    for m in members:
+        redis_client.hset(m, mapping={"v": m})
+    store._run_zset_trim(redis_client, zset_key, 0)
+    assert not redis_client.exists(zset_key)
