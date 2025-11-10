@@ -430,7 +430,7 @@ class RedisOnlineStore(OnlineStore):
         # Get and remove members atomically from sorted set
         with client.pipeline(transaction=True) as pipe:
             pipe.zpopmin(zset_key, num_to_remove)
-            popped, = pipe.execute()
+            (popped,) = pipe.execute()
         if not popped:
             return
         # Remove the redis keys

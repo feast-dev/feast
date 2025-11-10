@@ -489,7 +489,10 @@ def test_ttl_cleanup_empty_zset(repo_config):
 
     # Run cleanup
     store._run_ttl_cleanup(redis_client, zset_key, 10)
-    assert not redis_client.exists(zset_key), "Empty ZSET should be deleted after cleanup"
+    assert not redis_client.exists(zset_key), (
+        "Empty ZSET should be deleted after cleanup"
+    )
+
 
 def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
     """Ensure ZSET size cleanup trims correctly and removes empty indexes."""
