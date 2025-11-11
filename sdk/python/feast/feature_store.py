@@ -1618,7 +1618,7 @@ class FeatureStore:
                         full_feature_names=full_feature_names,
                     )
                 continue
-            provider = self._get_provider()self
+            provider = self._get_provider()
             print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
 
             def tqdm_builder(length):
