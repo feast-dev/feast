@@ -64,6 +64,7 @@ def feature_view():
     )
     return feature_view
 
+
 def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_config):
     entity_keys = [
         EntityKeyProto(join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]),
