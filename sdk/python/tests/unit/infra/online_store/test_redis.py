@@ -15,7 +15,6 @@ from feast.sorted_feature_view import SortedFeatureView, SortKey
 from feast.types import (
     Float32,
     Int32,
-    String,
     UnixTimestamp,
 )
 from tests.unit.infra.online_store.redis_online_store_creator import (
