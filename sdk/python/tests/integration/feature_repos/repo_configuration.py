@@ -34,7 +34,7 @@ from feast.permissions.action import AuthzedAction
 from feast.permissions.auth_model import OidcClientAuthConfig
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
-from feast.repo_config import RegistryConfig, RepoConfig
+from feast.repo_config import MaterializationConfig, RegistryConfig, RepoConfig
 from feast.utils import _utc_now
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -423,6 +423,9 @@ class Environment:
     entity_key_serialization_version: int
     repo_dir_name: str
     fixture_request: Optional[pytest.FixtureRequest] = None
+    materialization: MaterializationConfig = dataclasses.field(
+        default_factory=lambda: MaterializationConfig()
+    )
 
     def __post_init__(self):
         self.end_date = _utc_now().replace(microsecond=0, second=0, minute=0)
@@ -443,6 +446,7 @@ class Environment:
             repo_path=self.repo_dir_name,
             feature_server=self.feature_server,
             entity_key_serialization_version=self.entity_key_serialization_version,
+            materialization_config=self.materialization,
         )
 
         self.feature_store = FeatureStore(config=self.config)
