@@ -182,6 +182,14 @@ class RegistryConfig(FeastBaseModel):
         return path
 
 
+class MaterializationConfig(BaseModel):
+    """Configuration options for feature materialization behavior."""
+
+    pull_latest_features: StrictBool = False
+    """ bool: If true, feature retrieval jobs will only pull the latest feature values for each entity.
+        If false, feature retrieval jobs will pull all feature values within the specified time range. """
+
+
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 
@@ -238,6 +246,11 @@ class RepoConfig(FeastBaseModel):
 
     coerce_tz_aware: Optional[bool] = True
     """ If True, coerces entity_df timestamp columns to be timezone aware (to UTC by default). """
+
+    materialization_config: MaterializationConfig = Field(
+        MaterializationConfig(), alias="materialization"
+    )
+    """ MaterializationConfig: Configuration options for feature materialization behavior. """
 
     def __init__(self, **data: Any):
         super().__init__(**data)
