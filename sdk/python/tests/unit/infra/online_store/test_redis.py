@@ -7,10 +7,7 @@ from redis import Redis
 
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig, ValueType
 from feast.infra.online_stores.helpers import _mmh3, _redis_key
-from feast.infra.online_stores.redis import (
-    RedisOnlineStore,
-    RedisOnlineStoreConfig,
-)
+from feast.infra.online_stores.redis import RedisOnlineStore, RedisOnlineStoreConfig
 from feast.protos.feast.core.SortedFeatureView_pb2 import SortOrder
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -18,6 +15,7 @@ from feast.sorted_feature_view import SortedFeatureView, SortKey
 from feast.types import (
     Float32,
     Int32,
+    String,
     UnixTimestamp,
 )
 from tests.unit.infra.online_store.redis_online_store_creator import (
@@ -66,7 +64,6 @@ def feature_view():
         source=file_source,
     )
     return feature_view
-
 
 def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_config):
     entity_keys = [
