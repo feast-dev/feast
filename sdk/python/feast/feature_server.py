@@ -78,6 +78,7 @@ class MaterializeRequest(BaseModel):
     end_ts: Optional[str] = None
     feature_views: Optional[List[str]] = None
     disable_event_timestamp: bool = False
+    full_feature_names: bool = False
 
 
 class MaterializeIncrementalRequest(BaseModel):
@@ -470,6 +471,7 @@ def get_app(
             end_date,
             request.feature_views,
             disable_event_timestamp=request.disable_event_timestamp,
+            full_feature_names=request.full_feature_names,
         )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
