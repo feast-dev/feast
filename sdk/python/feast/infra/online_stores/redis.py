@@ -466,7 +466,7 @@ class RedisOnlineStore(OnlineStore):
         """
         sk = EntityKeyProto(join_keys=[sort_key_name], entity_values=[sort_val])
         return serialize_entity_key(sk, entity_key_serialization_version=v)
-    
+
     def _run_ttl_cleanup(
         self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
     ):
@@ -513,7 +513,7 @@ class RedisOnlineStore(OnlineStore):
 
         if client.zcard(zset_key) == 0:
             client.delete(zset_key)
-            
+
     def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]
     ) -> List[bytes]:
