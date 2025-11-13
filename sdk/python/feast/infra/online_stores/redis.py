@@ -325,7 +325,6 @@ class RedisOnlineStore(OnlineStore):
                             logger.warning(
                                 f"Invalid max_retained_events tag value: {tag_value}"
                             )
-
                 for entity_key, values, timestamp, _ in data:
                     entity_key_bytes = _redis_key(
                         project,
@@ -449,14 +448,14 @@ class RedisOnlineStore(OnlineStore):
     @staticmethod
     def hash_key_bytes(entity_key_bytes: bytes, sort_key_bytes: bytes) -> bytes:
         """
-        hash key format: <ek_bytes><sort_ek_bytes>
+        hash key format: <ek_bytes><sort_key_bytes>
         """
         return b"".join([entity_key_bytes, sort_key_bytes])
 
     @staticmethod
     def zset_key_bytes(feature_view: str, entity_key_bytes: bytes) -> bytes:
         """
-        sorted set key format:<feature_view><ek_bytes>
+        sorted set key format: <feature_view><ek_bytes>
         """
         return b"".join([feature_view.encode("utf-8"), entity_key_bytes])
 
@@ -467,7 +466,7 @@ class RedisOnlineStore(OnlineStore):
         """
         sk = EntityKeyProto(join_keys=[sort_key_name], entity_values=[sort_val])
         return serialize_entity_key(sk, entity_key_serialization_version=v)
-
+    
     def _run_ttl_cleanup(
         self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
     ):
@@ -514,7 +513,7 @@ class RedisOnlineStore(OnlineStore):
 
         if client.zcard(zset_key) == 0:
             client.delete(zset_key)
-
+            
     def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]
     ) -> List[bytes]:

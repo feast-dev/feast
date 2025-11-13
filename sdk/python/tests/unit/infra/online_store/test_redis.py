@@ -27,8 +27,7 @@ from tests.unit.infra.online_store.redis_online_store_creator import (
 def redis_online_store() -> RedisOnlineStore:
     return RedisOnlineStore()
 
-
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def redis_online_store_config():
     creator = RedisOnlineStoreCreator("redis_project")
     config = creator.create_online_store()
@@ -488,7 +487,7 @@ def _create_sorted_feature_view_with_non_numeric_sortkey(n=10):
 
 def _create_sorted_feature_view_with_float_as_sortkey(n=10):
     fv = SortedFeatureView(
-        name="driver_stats",
+        name="driver_stats_float",
         source=FileSource(
             name="my_file_source",
             path="test.parquet",
