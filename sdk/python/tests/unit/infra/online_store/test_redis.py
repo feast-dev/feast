@@ -14,6 +14,7 @@ from feast.sorted_feature_view import SortedFeatureView, SortKey
 from feast.types import (
     Float32,
     Int32,
+    String,
     UnixTimestamp,
 )
 from tests.unit.infra.online_store.redis_online_store_creator import (
@@ -25,12 +26,14 @@ from tests.unit.infra.online_store.redis_online_store_creator import (
 def redis_online_store() -> RedisOnlineStore:
     return RedisOnlineStore()
 
+
 @pytest.fixture(scope="session")
 def redis_online_store_config():
     creator = RedisOnlineStoreCreator("redis_project")
     config = creator.create_online_store()
     yield config
     creator.teardown()
+
 
 @pytest.fixture
 def repo_config(redis_online_store_config):
@@ -151,6 +154,7 @@ def test_get_features_for_entity(redis_online_store: RedisOnlineStore, feature_v
     assert features["feature_view_1:feature_10"].int32_val == 1
     assert features["feature_view_1:feature_11"].int32_val == 2
 
+
 def test_redis_online_write_batch_with_timestamp_as_sortkey(
     repo_config: RepoConfig,
     redis_online_store: RedisOnlineStore,
@@ -188,7 +192,9 @@ def test_redis_online_write_batch_with_timestamp_as_sortkey(
         entity_key_serialization_version=repo_config.entity_key_serialization_version,
     )
 
-    zset_key_driver_1 = f"{repo_config.project}:{feature_view.name}:{feature_view.sort_keys[0].name}:{redis_key_bin_driver_1}"
+    zset_key_driver_1 = redis_online_store.zset_key_bytes(
+        feature_view.name, redis_key_bin_driver_1
+    )
 
     entity_key_driver_2 = EntityKeyProto(
         join_keys=["driver_id"],
@@ -200,7 +206,9 @@ def test_redis_online_write_batch_with_timestamp_as_sortkey(
         entity_key_serialization_version=repo_config.entity_key_serialization_version,
     )
 
-    zset_key_driver_2 = f"{repo_config.project}:{feature_view.name}:{feature_view.sort_keys[0].name}:{redis_key_bin_driver_2}"
+    zset_key_driver_2 = redis_online_store.zset_key_bytes(
+        feature_view.name, redis_key_bin_driver_2
+    )
 
     driver_1_zset_members = r.zrange(zset_key_driver_1, 0, -1, withscores=True)
     driver_2_zset_members = r.zrange(zset_key_driver_2, 0, -1, withscores=True)
@@ -218,11 +226,13 @@ def test_redis_online_write_batch_with_timestamp_as_sortkey(
 
     # Look up features for last 3 trips for driver 1
     for id in last_3_trips_driver_1:
-        pipe.hgetall(id)
+        hash_key = redis_online_store.hash_key_bytes(redis_key_bin_driver_1, id)
+        pipe.hgetall(hash_key)
 
     # Look up features for last 3 trips for driver 2
     for id in last_3_trips_driver_2:
-        pipe.hgetall(id)
+        hash_key = redis_online_store.hash_key_bytes(redis_key_bin_driver_2, id)
+        pipe.hgetall(hash_key)
 
     features_list = pipe.execute()
 
@@ -272,7 +282,9 @@ def test_redis_online_write_batch_with_float_as_sortkey(
         entity_key_serialization_version=repo_config.entity_key_serialization_version,
     )
 
-    zset_key_driver_1 = f"{repo_config.project}:{feature_view.name}:{feature_view.sort_keys[0].name}:{redis_key_bin_driver_1}"
+    zset_key_driver_1 = redis_online_store.zset_key_bytes(
+        feature_view.name, redis_key_bin_driver_1
+    )
 
     entity_key_driver_2 = EntityKeyProto(
         join_keys=["driver_id"],
@@ -284,7 +296,9 @@ def test_redis_online_write_batch_with_float_as_sortkey(
         entity_key_serialization_version=repo_config.entity_key_serialization_version,
     )
 
-    zset_key_driver_2 = f"{repo_config.project}:{feature_view.name}:{feature_view.sort_keys[0].name}:{redis_key_bin_driver_2}"
+    zset_key_driver_2 = redis_online_store.zset_key_bytes(
+        feature_view.name, redis_key_bin_driver_2
+    )
 
     driver_1_zset_members = r.zrange(zset_key_driver_1, 0, -1, withscores=True)
     driver_2_zset_members = r.zrange(zset_key_driver_2, 0, -1, withscores=True)
@@ -299,11 +313,13 @@ def test_redis_online_write_batch_with_float_as_sortkey(
 
     # Look up features for trips for driver 1
     for id in driver_1_trips:
-        pipe.hgetall(id)
+        hash_key = redis_online_store.hash_key_bytes(redis_key_bin_driver_1, id)
+        pipe.hgetall(hash_key)
 
     # Look up features for trips for driver 2
     for id in driver_2_trips:
-        pipe.hgetall(id)
+        hash_key = redis_online_store.hash_key_bytes(redis_key_bin_driver_2, id)
+        pipe.hgetall(hash_key)
 
     features_list = pipe.execute()
 
@@ -314,6 +330,45 @@ def test_redis_online_write_batch_with_float_as_sortkey(
         val.ParseFromString(feature_dict[trip_id_feature_name])
         trip_id_drivers.append(val.int32_val)
     assert trip_id_drivers == [2, 3, 4, 7, 8, 9]
+
+
+def test_multiple_sort_keys_not_supported(
+    repo_config: RepoConfig, redis_online_store: RedisOnlineStore
+):
+    (
+        feature_view,
+        data,
+    ) = _create_sorted_feature_view_with_multiple_sortkeys()
+
+    with pytest.raises(
+        ValueError,
+        match=r"Only one sort key is supported for Range query use cases in Redis, but found 2 sort keys in the",
+    ):
+        redis_online_store.online_write_batch(
+            config=repo_config,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+
+
+def test_non_numeric_sort_key_not_supported(
+    repo_config: RepoConfig, redis_online_store: RedisOnlineStore
+):
+    (
+        feature_view,
+        data,
+    ) = _create_sorted_feature_view_with_non_numeric_sortkey()
+
+    with pytest.raises(
+        TypeError, match=r"Unsupported sort key type STRING. Only numerics or timestamp"
+    ):
+        redis_online_store.online_write_batch(
+            config=repo_config,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
 
 
 def _create_sorted_feature_view_with_timestamp_as_sortkey():
@@ -353,9 +408,86 @@ def _create_sorted_feature_view_with_timestamp_as_sortkey():
     return fv, _make_rows()
 
 
-def _create_sorted_feature_view_with_float_as_sortkey(n=10):
+def _create_sorted_feature_view_with_multiple_sortkeys(n=10):
     fv = SortedFeatureView(
         name="driver_stats",
+        source=FileSource(
+            name="my_file_source",
+            path="test.parquet",
+            timestamp_field="event_timestamp",
+        ),
+        entities=[Entity(name="driver_id")],
+        ttl=timedelta(seconds=10),
+        sort_keys=[
+            SortKey(
+                name="rating",
+                value_type=ValueType.FLOAT,
+                default_sort_order=SortOrder.DESC,
+            ),
+            SortKey(
+                name="trip_id",
+                value_type=ValueType.INT32,
+                default_sort_order=SortOrder.DESC,
+            ),
+        ],
+        schema=[
+            Field(
+                name="driver_id",
+                dtype=Int32,
+            ),
+            Field(name="event_timestamp", dtype=UnixTimestamp),
+            Field(
+                name="trip_id",
+                dtype=Int32,
+            ),
+            Field(
+                name="rating",
+                dtype=Float32,
+            ),
+        ],
+    )
+    return fv, _make_rows()
+
+
+def _create_sorted_feature_view_with_non_numeric_sortkey(n=10):
+    fv = SortedFeatureView(
+        name="driver_stats",
+        source=FileSource(
+            name="my_file_source",
+            path="test.parquet",
+            timestamp_field="event_timestamp",
+        ),
+        entities=[Entity(name="driver_id")],
+        ttl=timedelta(seconds=10),
+        sort_keys=[
+            SortKey(
+                name="rating",
+                value_type=ValueType.STRING,
+                default_sort_order=SortOrder.DESC,
+            )
+        ],
+        schema=[
+            Field(
+                name="driver_id",
+                dtype=Int32,
+            ),
+            Field(name="event_timestamp", dtype=UnixTimestamp),
+            Field(
+                name="trip_id",
+                dtype=Int32,
+            ),
+            Field(
+                name="rating",
+                dtype=String,
+            ),
+        ],
+    )
+    return fv, _make_rows()
+
+
+def _create_sorted_feature_view_with_float_as_sortkey(n=10):
+    fv = SortedFeatureView(
+        name="driver_stats_float",
         source=FileSource(
             name="my_file_source",
             path="test.parquet",
