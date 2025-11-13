@@ -33,12 +33,14 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig, utils
+from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.sorted_feature_view import SortedFeatureView
+from feast.value_type import ValueType
 
 try:
     from redis import Redis
@@ -295,66 +297,92 @@ class RedisOnlineStore(OnlineStore):
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
             if isinstance(table, SortedFeatureView):
-                if len(table.sort_keys) == 1:
-                    sort_key_name = table.sort_keys[0].name
-                    for entity_key, values, timestamp, _ in data:
-                        redis_key_bin = _redis_key(
-                            project,
-                            entity_key,
-                            entity_key_serialization_version=config.entity_key_serialization_version,
-                        )
-                        entity_key.join_keys.append(sort_key_name)
-                        entity_key.entity_values.append(values[sort_key_name])
-                        redis_key_bin_with_sort_keys = _redis_key(
-                            project,
-                            entity_key,
-                            entity_key_serialization_version=config.entity_key_serialization_version,
-                        )
+                if len(table.sort_keys) != 1:
+                    raise ValueError(
+                        f"Only one sort key is supported for Range query use cases in Redis, "
+                        f"but found {len(table.sort_keys)} sort keys in the feature view {table.name}."
+                    )
 
-                        event_time_seconds = int(
-                            utils.make_tzaware(timestamp).timestamp()
-                        )
-                        ts = Timestamp()
-                        ts.seconds = event_time_seconds
-                        entity_hset = dict()
-                        entity_hset[ts_key] = ts.SerializeToString()
+                sort_key_type = table.sort_keys[0].value_type
+                if sort_key_type in (ValueType.STRING, ValueType.BYTES, ValueType.BOOL):
+                    raise TypeError(
+                        f"Unsupported sort key type {sort_key_type.name}. Only numerics or timestamp type is supported as a sort key."
+                    )
 
-                        for feature_name, val in values.items():
-                            f_key = _mmh3(f"{feature_view}:{feature_name}")
-                            entity_hset[f_key] = val.SerializeToString()
-                            if feature_name == sort_key_name:
-                                feast_value_type = val.WhichOneof("val")
-                                if feast_value_type == "unix_timestamp_val":
-                                    feature_value = (
-                                        val.unix_timestamp_val * 1000
-                                    )  # Convert to milliseconds
-                                else:
-                                    feature_value = getattr(val, str(feast_value_type))
-                                score = feature_value
-                                member = redis_key_bin_with_sort_keys
-                                zset_key = f"{project}:{table.name}:{feature_name}:{redis_key_bin!r}"
-                                pipe.zadd(zset_key, {member: score})
+                sort_key_name = table.sort_keys[0].name
+                num_cmds = 0
+                # Picking an arbitrary number to start with and will be tuned after perf testing
+                # TODO : Make this a config as this can be different for different users based on payload size etc..
+                num_cmds_per_pipeline_execute = 3000
+                ttl = online_store_config.key_ttl_seconds
+                max_events = None
+                if table.tags:
+                    tag_value = table.tags.get("max_retained_events")
+                    if tag_value is not None:
+                        try:
+                            max_events = int(tag_value)
+                        except Exception:
+                            logger.warning(
+                                f"Invalid max_retained_events tag value: {tag_value}"
+                            )
 
-                        pipe.hset(redis_key_bin_with_sort_keys, mapping=entity_hset)
+                for entity_key, values, timestamp, _ in data:
+                    entity_key_bytes = _redis_key(
+                        project,
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    )
+                    sort_key_val = values[sort_key_name]
+                    sort_key_bytes = RedisOnlineStore.sort_key_bytes(
+                        sort_key_name,
+                        sort_key_val,
+                        v=config.entity_key_serialization_version,
+                    )
 
-                        ttl = online_store_config.key_ttl_seconds
+                    event_time_seconds = int(utils.make_tzaware(timestamp).timestamp())
+                    ts = Timestamp()
+                    ts.seconds = event_time_seconds
+                    entity_hset = dict()
+                    entity_hset[ts_key] = ts.SerializeToString()
+
+                    for feature_name, val in values.items():
+                        f_key = _mmh3(f"{feature_view}:{feature_name}")
+                        entity_hset[f_key] = val.SerializeToString()
+
+                    zset_key = RedisOnlineStore.zset_key_bytes(
+                        table.name, entity_key_bytes
+                    )
+                    hash_key = RedisOnlineStore.hash_key_bytes(
+                        entity_key_bytes, sort_key_bytes
+                    )
+                    zset_score = RedisOnlineStore.zset_score(sort_key_val)
+                    zset_member = sort_key_bytes
+
+                    pipe.hset(hash_key, mapping=entity_hset)
+                    pipe.zadd(zset_key, {zset_member: zset_score})
+                    if ttl:
+                        pipe.expire(name=hash_key, time=ttl)
+                    num_cmds += 2
+                    if num_cmds >= num_cmds_per_pipeline_execute:
+                        # TODO: May be add retries with backoff
+                        pipe.execute()  # flush
                         if ttl:
-                            pipe.expire(name=redis_key_bin_with_sort_keys, time=ttl)
-                            self._run_ttl_cleanup(client, zset_key, ttl)
-                        max_events = None
-                        if table.tags:
-                            tag_value = table.tags.get("max_retained_events")
-                            if tag_value is not None:
-                                try:
-                                    max_events = int(tag_value)
-                                except Exception:
-                                    logger.warning(
-                                        f"Invalid max_retained_events tag value: {tag_value}"
-                                    )
-
-                        # Only trim if max_events is valid and > 0
+                            self._run_ttl_cleanup(
+                                client, zset_key, entity_key_bytes, ttl
+                            )
                         if max_events and max_events > 0:
-                            self._run_zset_trim(client, zset_key, max_events)
+                            self._run_zset_trim(
+                                client, zset_key, entity_key_bytes, max_events
+                            )
+                        num_cmds = 0
+                if num_cmds:
+                    pipe.execute()  # flush any remaining data in the last batch
+                    if ttl:
+                        self._run_ttl_cleanup(client, zset_key, entity_key_bytes, ttl)
+                    if max_events and max_events > 0:
+                        self._run_zset_trim(
+                            client, zset_key, entity_key_bytes, max_events
+                        )
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
@@ -404,41 +432,86 @@ class RedisOnlineStore(OnlineStore):
             if progress:
                 progress(len(results))
 
-    def _run_ttl_cleanup(self, client, zset_key: str, ttl_seconds: int):
+    @staticmethod
+    def zset_score(sort_key_value: ValueProto):
+        """
+        # Get sorted set score from sorted set value
+        """
+        feast_value_type = sort_key_value.WhichOneof("val")
+        if feast_value_type == "unix_timestamp_val":
+            feature_value = (
+                sort_key_value.unix_timestamp_val * 1000
+            )  # Convert to milliseconds
+        else:
+            feature_value = getattr(sort_key_value, str(feast_value_type))
+        return feature_value
+
+    @staticmethod
+    def hash_key_bytes(entity_key_bytes: bytes, sort_key_bytes: bytes) -> bytes:
+        """
+        hash key format: <ek_bytes><sort_ek_bytes>
+        """
+        return b"".join([entity_key_bytes, sort_key_bytes])
+
+    @staticmethod
+    def zset_key_bytes(feature_view: str, entity_key_bytes: bytes) -> bytes:
+        """
+        sorted set key format:<feature_view><ek_bytes>
+        """
+        return b"".join([feature_view.encode("utf-8"), entity_key_bytes])
+
+    @staticmethod
+    def sort_key_bytes(sort_key_name: str, sort_val: ValueProto, v: int = 3) -> bytes:
+        """
+        # Serialize sort key using the same method used for entity key
+        """
+        sk = EntityKeyProto(join_keys=[sort_key_name], entity_values=[sort_val])
+        return serialize_entity_key(sk, entity_key_serialization_version=v)
+
+    def _run_ttl_cleanup(
+        self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
+    ):
         now = int(time.time())
         cutoff = now - ttl_seconds
-        old_members = client.zrangebyscore(zset_key, 0, cutoff)
+        old_members = client.zrangebyscore(
+            zset_key, 0, cutoff
+        )  # Limitation: This works only when the sorted set score is timestamp.
         if not old_members:
             return
 
-        # Remove the expired sorted set members
         with client.pipeline(transaction=False) as pipe:
-            for member in old_members:
-                pipe.delete(member)
-                pipe.zrem(zset_key, member)
+            for sort_key_bytes in old_members:
+                hash_key = RedisOnlineStore.hash_key_bytes(
+                    entity_key_bytes, sort_key_bytes
+                )
+                pipe.delete(hash_key)
+                pipe.zrem(zset_key, sort_key_bytes)
             pipe.execute()
 
-        # Remove the
         if client.zcard(zset_key) == 0:
             client.delete(zset_key)
 
-    def _run_zset_trim(self, client, zset_key: str, max_events: int):
+    def _run_zset_trim(
+        self, client, zset_key: bytes, entity_key_bytes: bytes, max_events: int
+    ):
         current_size = client.zcard(zset_key)
         if current_size <= max_events:
             return
         num_to_remove = current_size - max_events
-        # Get and remove members atomically from sorted set
-        with client.pipeline(transaction=True) as pipe:
-            pipe.zpopmin(zset_key, num_to_remove)
-            (popped,) = pipe.execute()
+
+        # Remove oldest entries atomically
+        popped = client.zpopmin(zset_key, num_to_remove)
         if not popped:
             return
-        # Remove the redis keys
+
         with client.pipeline(transaction=False) as pipe:
-            for member, _score in popped:
-                pipe.delete(member)
+            for sort_key_bytes, _score in popped:
+                hash_key = RedisOnlineStore.hash_key_bytes(
+                    entity_key_bytes, sort_key_bytes
+                )
+                pipe.delete(hash_key)
             pipe.execute()
-        # Remove the empty indexes
+
         if client.zcard(zset_key) == 0:
             client.delete(zset_key)
 
@@ -525,6 +598,7 @@ class RedisOnlineStore(OnlineStore):
 
         client = await self._get_client_async(online_store_config)
         feature_view = table
+
         requested_features, hset_keys = self._generate_hset_keys_for_features(
             feature_view, requested_features
         )
