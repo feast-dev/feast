@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 
 from feast.protos.feast.core.DataFormat_pb2 import FileFormat as FileFormatProto
 from feast.protos.feast.core.DataFormat_pb2 import StreamFormat as StreamFormatProto
+from feast.protos.feast.core.DataFormat_pb2 import TableFormat as TableFormatProto
 
 
 class FileFormat(ABC):
@@ -70,11 +71,12 @@ class ParquetFormat(FileFormat):
 
 class DeltaFormat(FileFormat):
     """
-    Defines delta data format
+    Defines delta data format (deprecated - use TableFormat.DeltaFormat instead)
     """
 
     def to_proto(self):
-        return FileFormatProto(delta_format=FileFormatProto.DeltaFormat())
+        # Reference TableFormat.DeltaFormat since DeltaFormat is now nested there
+        return FileFormatProto(delta_format=TableFormatProto.DeltaFormat())
 
     def __str__(self):
         return "delta"

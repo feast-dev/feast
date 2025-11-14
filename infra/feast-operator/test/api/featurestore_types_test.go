@@ -438,6 +438,35 @@ func registryWithGRPCFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastde
 	return fsCopy
 }
 
+func cronJobWithAnnotations(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.CronJob = &feastdevv1alpha1.FeastCronJob{
+		Annotations: map[string]string{
+			"test-annotation":    "test-value",
+			"another-annotation": "another-value",
+		},
+		Schedule: "0 0 * * *",
+	}
+	return fsCopy
+}
+
+func cronJobWithEmptyAnnotations(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.CronJob = &feastdevv1alpha1.FeastCronJob{
+		Annotations: map[string]string{},
+		Schedule:    "0 0 * * *",
+	}
+	return fsCopy
+}
+
+func cronJobWithoutAnnotations(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.CronJob = &feastdevv1alpha1.FeastCronJob{
+		Schedule: "0 0 * * *",
+	}
+	return fsCopy
+}
+
 func quotedSlice(stringSlice []string) string {
 	quotedSlice := make([]string, len(stringSlice))
 
@@ -642,6 +671,78 @@ var _ = Describe("FeatureStore API", func() {
 				featurestore := createFeatureStore()
 				resource := registryWithGRPCFalse(featurestore)
 				attemptInvalidCreationAndAsserts(ctx, resource, "At least one of restAPI or grpc must be true")
+			})
+		})
+	})
+
+	Context("When creating a CronJob", func() {
+		ctx := context.Background()
+
+		BeforeEach(func() {
+			By("verifying the custom resource FeatureStore is not there")
+			resource := &feastdevv1alpha1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
+		})
+		AfterEach(func() {
+			By("Cleaning up the test resource")
+			resource := &feastdevv1alpha1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
+		})
+
+		Context("with annotations", func() {
+			It("should succeed when annotations are provided", func() {
+				featurestore := createFeatureStore()
+				resource := cronJobWithAnnotations(featurestore)
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			})
+
+			It("should succeed when annotations are empty", func() {
+				featurestore := createFeatureStore()
+				resource := cronJobWithEmptyAnnotations(featurestore)
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			})
+
+			It("should succeed when annotations are not specified", func() {
+				featurestore := createFeatureStore()
+				resource := cronJobWithoutAnnotations(featurestore)
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			})
+
+			It("should apply the annotations correctly in the status", func() {
+				featurestore := createFeatureStore()
+				resource := cronJobWithAnnotations(featurestore)
+				services.ApplyDefaultsToStatus(resource)
+
+				Expect(resource.Status.Applied.CronJob).NotTo(BeNil())
+				Expect(resource.Status.Applied.CronJob.Annotations).NotTo(BeNil())
+				Expect(resource.Status.Applied.CronJob.Annotations).To(HaveLen(2))
+				Expect(resource.Status.Applied.CronJob.Annotations["test-annotation"]).To(Equal("test-value"))
+				Expect(resource.Status.Applied.CronJob.Annotations["another-annotation"]).To(Equal("another-value"))
+			})
+
+			It("should keep empty annotations in the status", func() {
+				featurestore := createFeatureStore()
+				resource := cronJobWithEmptyAnnotations(featurestore)
+				services.ApplyDefaultsToStatus(resource)
+
+				Expect(resource.Status.Applied.CronJob).NotTo(BeNil())
+				Expect(resource.Status.Applied.CronJob.Annotations).NotTo(BeNil())
+				Expect(resource.Status.Applied.CronJob.Annotations).To(BeEmpty())
+			})
+
+			It("should have nil annotations in status when not specified", func() {
+				featurestore := createFeatureStore()
+				resource := cronJobWithoutAnnotations(featurestore)
+				services.ApplyDefaultsToStatus(resource)
+
+				Expect(resource.Status.Applied.CronJob).NotTo(BeNil())
+				Expect(resource.Status.Applied.CronJob.Annotations).To(BeNil())
 			})
 		})
 	})

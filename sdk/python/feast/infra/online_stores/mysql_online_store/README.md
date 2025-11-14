@@ -25,6 +25,9 @@ online_store:
     user: test            # mysql user, default to test
     password: test        # mysql password, default to test
     database: feast       # mysql database, default to feast
+    batch_write: false    # supporting batch write and commit per batch
+    batch_size: 100       # batch size, default to 100
+
 ```
 
 #### Apply the feature definitions in `example.py`

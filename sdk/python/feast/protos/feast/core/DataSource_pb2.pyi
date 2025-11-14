@@ -66,7 +66,7 @@ class DataSource(google.protobuf.message.Message):
 
     class SourceType(_SourceType, metaclass=_SourceTypeEnumTypeWrapper):
         """Type of Data Source.
-        Next available id: 12
+        Next available id: 13
         """
 
     INVALID: DataSource.SourceType.ValueType  # 0
@@ -369,6 +369,7 @@ class DataSource(google.protobuf.message.Message):
         PATH_FIELD_NUMBER: builtins.int
         FILE_FORMAT_FIELD_NUMBER: builtins.int
         DATE_PARTITION_COLUMN_FORMAT_FIELD_NUMBER: builtins.int
+        TABLE_FORMAT_FIELD_NUMBER: builtins.int
         table: builtins.str
         """Table name"""
         query: builtins.str
@@ -379,6 +380,9 @@ class DataSource(google.protobuf.message.Message):
         """Format of files at `path` (e.g. parquet, avro, etc)"""
         date_partition_column_format: builtins.str
         """Date Format of date partition column (e.g. %Y-%m-%d)"""
+        @property
+        def table_format(self) -> feast.core.DataFormat_pb2.TableFormat:
+            """Table Format (e.g. iceberg, delta, hudi)"""
         def __init__(
             self,
             *,
@@ -387,8 +391,10 @@ class DataSource(google.protobuf.message.Message):
             path: builtins.str = ...,
             file_format: builtins.str = ...,
             date_partition_column_format: builtins.str = ...,
+            table_format: feast.core.DataFormat_pb2.TableFormat | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table"]) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["table_format", b"table_format"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table", "table_format", b"table_format"]) -> None: ...
 
     class CustomSourceOptions(google.protobuf.message.Message):
         """Defines configuration for custom third-party data sources."""

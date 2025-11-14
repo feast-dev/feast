@@ -431,6 +431,9 @@ class OfflineServer(fl.FlightServerBase):
             # Extract parameters from the internal flights dictionary
             entity_df_value = self.flights[key]
             entity_df = pa.Table.to_pandas(entity_df_value)
+            # Check if this is a mock/empty table (contains only 'key' column)
+            if len(entity_df.columns) == 1 and "key" in entity_df.columns:
+                entity_df = None
 
         feature_view_names = command["feature_view_names"]
         name_aliases = command["name_aliases"]

@@ -17,7 +17,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import builtins
+import collections.abc
 import google.protobuf.descriptor
+import google.protobuf.internal.containers
 import google.protobuf.message
 import sys
 
@@ -42,32 +44,174 @@ class FileFormat(google.protobuf.message.Message):
             self,
         ) -> None: ...
 
-    class DeltaFormat(google.protobuf.message.Message):
-        """Defines options for delta data format"""
-
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-        def __init__(
-            self,
-        ) -> None: ...
-
     PARQUET_FORMAT_FIELD_NUMBER: builtins.int
     DELTA_FORMAT_FIELD_NUMBER: builtins.int
     @property
     def parquet_format(self) -> global___FileFormat.ParquetFormat: ...
     @property
-    def delta_format(self) -> global___FileFormat.DeltaFormat: ...
+    def delta_format(self) -> global___TableFormat.DeltaFormat:
+        """Deprecated: Delta Lake is a table format, not a file format.
+        Use TableFormat.DeltaFormat instead for Delta Lake support.
+        """
     def __init__(
         self,
         *,
         parquet_format: global___FileFormat.ParquetFormat | None = ...,
-        delta_format: global___FileFormat.DeltaFormat | None = ...,
+        delta_format: global___TableFormat.DeltaFormat | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]) -> builtins.bool: ...
     def ClearField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["parquet_format", "delta_format"] | None: ...
 
 global___FileFormat = FileFormat
+
+class TableFormat(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class IcebergFormat(google.protobuf.message.Message):
+        """Defines options for Apache Iceberg table format"""
+
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        class PropertiesEntry(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            KEY_FIELD_NUMBER: builtins.int
+            VALUE_FIELD_NUMBER: builtins.int
+            key: builtins.str
+            value: builtins.str
+            def __init__(
+                self,
+                *,
+                key: builtins.str = ...,
+                value: builtins.str = ...,
+            ) -> None: ...
+            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+        CATALOG_FIELD_NUMBER: builtins.int
+        NAMESPACE_FIELD_NUMBER: builtins.int
+        PROPERTIES_FIELD_NUMBER: builtins.int
+        catalog: builtins.str
+        """Optional catalog name for the Iceberg table"""
+        namespace: builtins.str
+        """Optional namespace (schema/database) within the catalog"""
+        @property
+        def properties(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+            """Additional properties for Iceberg configuration
+            Examples: warehouse location, snapshot-id, as-of-timestamp, etc.
+            """
+        def __init__(
+            self,
+            *,
+            catalog: builtins.str = ...,
+            namespace: builtins.str = ...,
+            properties: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["catalog", b"catalog", "namespace", b"namespace", "properties", b"properties"]) -> None: ...
+
+    class DeltaFormat(google.protobuf.message.Message):
+        """Defines options for Delta Lake table format"""
+
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        class PropertiesEntry(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            KEY_FIELD_NUMBER: builtins.int
+            VALUE_FIELD_NUMBER: builtins.int
+            key: builtins.str
+            value: builtins.str
+            def __init__(
+                self,
+                *,
+                key: builtins.str = ...,
+                value: builtins.str = ...,
+            ) -> None: ...
+            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+        CHECKPOINT_LOCATION_FIELD_NUMBER: builtins.int
+        PROPERTIES_FIELD_NUMBER: builtins.int
+        checkpoint_location: builtins.str
+        """Optional checkpoint location for Delta transaction logs"""
+        @property
+        def properties(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+            """Additional properties for Delta configuration
+            Examples: auto-optimize settings, vacuum settings, etc.
+            """
+        def __init__(
+            self,
+            *,
+            checkpoint_location: builtins.str = ...,
+            properties: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["checkpoint_location", b"checkpoint_location", "properties", b"properties"]) -> None: ...
+
+    class HudiFormat(google.protobuf.message.Message):
+        """Defines options for Apache Hudi table format"""
+
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        class PropertiesEntry(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            KEY_FIELD_NUMBER: builtins.int
+            VALUE_FIELD_NUMBER: builtins.int
+            key: builtins.str
+            value: builtins.str
+            def __init__(
+                self,
+                *,
+                key: builtins.str = ...,
+                value: builtins.str = ...,
+            ) -> None: ...
+            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+        TABLE_TYPE_FIELD_NUMBER: builtins.int
+        RECORD_KEY_FIELD_NUMBER: builtins.int
+        PRECOMBINE_FIELD_FIELD_NUMBER: builtins.int
+        PROPERTIES_FIELD_NUMBER: builtins.int
+        table_type: builtins.str
+        """Type of Hudi table (COPY_ON_WRITE or MERGE_ON_READ)"""
+        record_key: builtins.str
+        """Field(s) that uniquely identify a record"""
+        precombine_field: builtins.str
+        """Field used to determine the latest version of a record"""
+        @property
+        def properties(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+            """Additional properties for Hudi configuration
+            Examples: compaction strategy, indexing options, etc.
+            """
+        def __init__(
+            self,
+            *,
+            table_type: builtins.str = ...,
+            record_key: builtins.str = ...,
+            precombine_field: builtins.str = ...,
+            properties: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["precombine_field", b"precombine_field", "properties", b"properties", "record_key", b"record_key", "table_type", b"table_type"]) -> None: ...
+
+    ICEBERG_FORMAT_FIELD_NUMBER: builtins.int
+    DELTA_FORMAT_FIELD_NUMBER: builtins.int
+    HUDI_FORMAT_FIELD_NUMBER: builtins.int
+    @property
+    def iceberg_format(self) -> global___TableFormat.IcebergFormat: ...
+    @property
+    def delta_format(self) -> global___TableFormat.DeltaFormat: ...
+    @property
+    def hudi_format(self) -> global___TableFormat.HudiFormat: ...
+    def __init__(
+        self,
+        *,
+        iceberg_format: global___TableFormat.IcebergFormat | None = ...,
+        delta_format: global___TableFormat.DeltaFormat | None = ...,
+        hudi_format: global___TableFormat.HudiFormat | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["iceberg_format", "delta_format", "hudi_format"] | None: ...
+
+global___TableFormat = TableFormat
 
 class StreamFormat(google.protobuf.message.Message):
     """Defines the data format encoding features/entity data in data streams"""

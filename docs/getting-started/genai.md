@@ -104,6 +104,24 @@ This integration enables:
 - Efficiently materializing features to vector databases
 - Scaling RAG applications to enterprise-level document repositories
 
+### Scaling with Ray Integration
+
+Feast integrates with Ray to enable distributed processing for RAG applications:
+
+* **Ray Compute Engine**: Distributed feature computation using Ray's task and actor model
+* **Ray Offline Store**: Process large document collections and generate embeddings at scale
+* **Ray Batch Materialization**: Efficiently materialize features from offline to online stores
+* **Distributed Embedding Generation**: Scale embedding generation across multiple nodes
+
+This integration enables:
+- Distributed processing of large document collections
+- Parallel embedding generation for millions of text chunks
+- Kubernetes-native scaling for RAG applications
+- Efficient resource utilization across multiple nodes
+- Production-ready distributed RAG pipelines
+
+For detailed information on building distributed RAG applications with Feast and Ray, see [Feast + Ray: Distributed Processing for RAG Applications](https://feast.dev/blog/feast-ray-distributed-processing/).
+
 ## Model Context Protocol (MCP) Support
 
 Feast supports the Model Context Protocol (MCP), which enables AI agents and applications to interact with your feature store through standardized MCP interfaces. This allows seamless integration with LLMs and AI agents for GenAI applications.
@@ -158,6 +176,7 @@ For more detailed information and examples:
 * [RAG Tutorial with Docling](../tutorials/rag-with-docling.md)
 * [RAG Fine Tuning with Feast and Milvus](../../examples/rag-retriever/README.md)
 * [Milvus Quickstart Example](https://github.com/feast-dev/feast/tree/master/examples/rag/milvus-quickstart.ipynb)
+* [Feast + Ray: Distributed Processing for RAG Applications](https://feast.dev/blog/feast-ray-distributed-processing/)
 * [MCP Feature Store Example](../../examples/mcp_feature_store/)
 * [MCP Feature Server Reference](../reference/feature-servers/mcp-feature-server.md)
 * [Spark Data Source](../reference/data-sources/spark.md)

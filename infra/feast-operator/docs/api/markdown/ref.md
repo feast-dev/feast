@@ -98,6 +98,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `annotations` _object (keys:string, values:string)_ | Annotations to be added to the CronJob metadata. |
 | `jobSpec` _[JobSpec](#jobspec)_ | Specification of the desired behavior of a job. |
 | `containerConfigs` _[CronJobContainerConfigs](#cronjobcontainerconfigs)_ |  |
 | `schedule` _string_ | The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron. |

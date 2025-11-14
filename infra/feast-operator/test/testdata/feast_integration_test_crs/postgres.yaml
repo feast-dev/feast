@@ -4,9 +4,9 @@ metadata:
   name: postgres-secret
   namespace: test-ns-feast
 stringData:
-  POSTGRES_DB: feast
-  POSTGRES_USER: feast
-  POSTGRES_PASSWORD: feast
+  POSTGRESQL_DATABASE: feast
+  POSTGRESQL_USER: feast
+  POSTGRESQL_PASSWORD: feast
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: 'postgres:16-alpine'
+          image: 'quay.io/sclorg/postgresql-16-c9s@sha256:5879226a0fd2ea295df6836cc30ab624d2a1c51b81b3406284885604e10ddefe'
           ports:
             - containerPort: 5432
           envFrom:

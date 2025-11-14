@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/core/DataFormat.proto\x12\nfeast.core\"\xb2\x01\n\nFileFormat\x12>\n\x0eparquet_format\x18\x01 \x01(\x0b\x32$.feast.core.FileFormat.ParquetFormatH\x00\x12:\n\x0c\x64\x65lta_format\x18\x02 \x01(\x0b\x32\".feast.core.FileFormat.DeltaFormatH\x00\x1a\x0f\n\rParquetFormat\x1a\r\n\x0b\x44\x65ltaFormatB\x08\n\x06\x66ormat\"\xb7\x02\n\x0cStreamFormat\x12:\n\x0b\x61vro_format\x18\x01 \x01(\x0b\x32#.feast.core.StreamFormat.AvroFormatH\x00\x12<\n\x0cproto_format\x18\x02 \x01(\x0b\x32$.feast.core.StreamFormat.ProtoFormatH\x00\x12:\n\x0bjson_format\x18\x03 \x01(\x0b\x32#.feast.core.StreamFormat.JsonFormatH\x00\x1a!\n\x0bProtoFormat\x12\x12\n\nclass_path\x18\x01 \x01(\t\x1a!\n\nAvroFormat\x12\x13\n\x0bschema_json\x18\x01 \x01(\t\x1a!\n\nJsonFormat\x12\x13\n\x0bschema_json\x18\x01 \x01(\tB\x08\n\x06\x66ormatBT\n\x10\x66\x65\x61st.proto.coreB\x0f\x44\x61taFormatProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/core/DataFormat.proto\x12\nfeast.core\"\xa8\x01\n\nFileFormat\x12>\n\x0eparquet_format\x18\x01 \x01(\x0b\x32$.feast.core.FileFormat.ParquetFormatH\x00\x12?\n\x0c\x64\x65lta_format\x18\x02 \x01(\x0b\x32#.feast.core.TableFormat.DeltaFormatB\x02\x18\x01H\x00\x1a\x0f\n\rParquetFormatB\x08\n\x06\x66ormat\"\xf9\x05\n\x0bTableFormat\x12?\n\x0eiceberg_format\x18\x01 \x01(\x0b\x32%.feast.core.TableFormat.IcebergFormatH\x00\x12;\n\x0c\x64\x65lta_format\x18\x02 \x01(\x0b\x32#.feast.core.TableFormat.DeltaFormatH\x00\x12\x39\n\x0bhudi_format\x18\x03 \x01(\x0b\x32\".feast.core.TableFormat.HudiFormatH\x00\x1a\xb1\x01\n\rIcebergFormat\x12\x0f\n\x07\x63\x61talog\x18\x01 \x01(\t\x12\x11\n\tnamespace\x18\x02 \x01(\t\x12I\n\nproperties\x18\x03 \x03(\x0b\x32\x35.feast.core.TableFormat.IcebergFormat.PropertiesEntry\x1a\x31\n\x0fPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\xa6\x01\n\x0b\x44\x65ltaFormat\x12\x1b\n\x13\x63heckpoint_location\x18\x01 \x01(\t\x12G\n\nproperties\x18\x02 \x03(\x0b\x32\x33.feast.core.TableFormat.DeltaFormat.PropertiesEntry\x1a\x31\n\x0fPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\xc9\x01\n\nHudiFormat\x12\x12\n\ntable_type\x18\x01 \x01(\t\x12\x12\n\nrecord_key\x18\x02 \x01(\t\x12\x18\n\x10precombine_field\x18\x03 \x01(\t\x12\x46\n\nproperties\x18\x04 \x03(\x0b\x32\x32.feast.core.TableFormat.HudiFormat.PropertiesEntry\x1a\x31\n\x0fPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42\x08\n\x06\x66ormat\"\xb7\x02\n\x0cStreamFormat\x12:\n\x0b\x61vro_format\x18\x01 \x01(\x0b\x32#.feast.core.StreamFormat.AvroFormatH\x00\x12<\n\x0cproto_format\x18\x02 \x01(\x0b\x32$.feast.core.StreamFormat.ProtoFormatH\x00\x12:\n\x0bjson_format\x18\x03 \x01(\x0b\x32#.feast.core.StreamFormat.JsonFormatH\x00\x1a!\n\x0bProtoFormat\x12\x12\n\nclass_path\x18\x01 \x01(\t\x1a!\n\nAvroFormat\x12\x13\n\x0bschema_json\x18\x01 \x01(\t\x1a!\n\nJsonFormat\x12\x13\n\x0bschema_json\x18\x01 \x01(\tB\x08\n\x06\x66ormatBT\n\x10\x66\x65\x61st.proto.coreB\x0f\x44\x61taFormatProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -22,18 +22,38 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'feast.core.DataFormat_pb2',
 if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['DESCRIPTOR']._options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\020feast.proto.coreB\017DataFormatProtoZ/github.com/feast-dev/feast/go/protos/feast/core'
+  _globals['_FILEFORMAT'].fields_by_name['delta_format']._options = None
+  _globals['_FILEFORMAT'].fields_by_name['delta_format']._serialized_options = b'\030\001'
+  _globals['_TABLEFORMAT_ICEBERGFORMAT_PROPERTIESENTRY']._options = None
+  _globals['_TABLEFORMAT_ICEBERGFORMAT_PROPERTIESENTRY']._serialized_options = b'8\001'
+  _globals['_TABLEFORMAT_DELTAFORMAT_PROPERTIESENTRY']._options = None
+  _globals['_TABLEFORMAT_DELTAFORMAT_PROPERTIESENTRY']._serialized_options = b'8\001'
+  _globals['_TABLEFORMAT_HUDIFORMAT_PROPERTIESENTRY']._options = None
+  _globals['_TABLEFORMAT_HUDIFORMAT_PROPERTIESENTRY']._serialized_options = b'8\001'
   _globals['_FILEFORMAT']._serialized_start=44
-  _globals['_FILEFORMAT']._serialized_end=222
-  _globals['_FILEFORMAT_PARQUETFORMAT']._serialized_start=182
-  _globals['_FILEFORMAT_PARQUETFORMAT']._serialized_end=197
-  _globals['_FILEFORMAT_DELTAFORMAT']._serialized_start=199
-  _globals['_FILEFORMAT_DELTAFORMAT']._serialized_end=212
-  _globals['_STREAMFORMAT']._serialized_start=225
-  _globals['_STREAMFORMAT']._serialized_end=536
-  _globals['_STREAMFORMAT_PROTOFORMAT']._serialized_start=423
-  _globals['_STREAMFORMAT_PROTOFORMAT']._serialized_end=456
-  _globals['_STREAMFORMAT_AVROFORMAT']._serialized_start=458
-  _globals['_STREAMFORMAT_AVROFORMAT']._serialized_end=491
-  _globals['_STREAMFORMAT_JSONFORMAT']._serialized_start=493
-  _globals['_STREAMFORMAT_JSONFORMAT']._serialized_end=526
+  _globals['_FILEFORMAT']._serialized_end=212
+  _globals['_FILEFORMAT_PARQUETFORMAT']._serialized_start=187
+  _globals['_FILEFORMAT_PARQUETFORMAT']._serialized_end=202
+  _globals['_TABLEFORMAT']._serialized_start=215
+  _globals['_TABLEFORMAT']._serialized_end=976
+  _globals['_TABLEFORMAT_ICEBERGFORMAT']._serialized_start=416
+  _globals['_TABLEFORMAT_ICEBERGFORMAT']._serialized_end=593
+  _globals['_TABLEFORMAT_ICEBERGFORMAT_PROPERTIESENTRY']._serialized_start=544
+  _globals['_TABLEFORMAT_ICEBERGFORMAT_PROPERTIESENTRY']._serialized_end=593
+  _globals['_TABLEFORMAT_DELTAFORMAT']._serialized_start=596
+  _globals['_TABLEFORMAT_DELTAFORMAT']._serialized_end=762
+  _globals['_TABLEFORMAT_DELTAFORMAT_PROPERTIESENTRY']._serialized_start=544
+  _globals['_TABLEFORMAT_DELTAFORMAT_PROPERTIESENTRY']._serialized_end=593
+  _globals['_TABLEFORMAT_HUDIFORMAT']._serialized_start=765
+  _globals['_TABLEFORMAT_HUDIFORMAT']._serialized_end=966
+  _globals['_TABLEFORMAT_HUDIFORMAT_PROPERTIESENTRY']._serialized_start=544
+  _globals['_TABLEFORMAT_HUDIFORMAT_PROPERTIESENTRY']._serialized_end=593
+  _globals['_STREAMFORMAT']._serialized_start=979
+  _globals['_STREAMFORMAT']._serialized_end=1290
+  _globals['_STREAMFORMAT_PROTOFORMAT']._serialized_start=1177
+  _globals['_STREAMFORMAT_PROTOFORMAT']._serialized_end=1210
+  _globals['_STREAMFORMAT_AVROFORMAT']._serialized_start=1212
+  _globals['_STREAMFORMAT_AVROFORMAT']._serialized_end=1245
+  _globals['_STREAMFORMAT_JSONFORMAT']._serialized_start=1247
+  _globals['_STREAMFORMAT_JSONFORMAT']._serialized_end=1280
 # @@protoc_insertion_point(module_scope)

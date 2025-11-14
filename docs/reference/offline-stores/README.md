@@ -45,3 +45,7 @@ Please see [Offline Store](../../getting-started/components/offline-store.md) fo
 {% content-ref url="mssql.md" %}
 [mssql.md](mssql.md)
 {% endcontent-ref %}
+
+{% content-ref url="ray.md" %}
+[ray.md](ray.md)
+{% endcontent-ref %}

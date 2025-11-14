@@ -28,6 +28,28 @@ online_store:
 
 The full set of configuration options is available in [MySQLOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.mysql_online_store.MySQLOnlineStoreConfig).
 
+## Batch write mode
+By default, the MySQL online store performs row-by-row insert and commit for each feature record. While this ensures per-record atomicity, it can lead to significant overhead on write operations — especially on distributed SQL databases (for example, TiDB, which is MySQL-compatible and uses a consensus protocol).
+
+To improve writing performance, you can enable batch write mode by setting `batch_write` to `true` and `batch_size`, which executes multiple insert queries in batches and commits them together per batch instead of committing each record individually.
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+    type: mysql
+    host: DB_HOST
+    port: DB_PORT
+    database: DB_NAME
+    user: DB_USERNAME
+    password: DB_PASSWORD
+    batch_write: true
+    batch_size: 100
+```
+{% endcode %}
+
 ## Functionality Matrix
 
 The set of functionality supported by online stores is described in detail [here](overview.md#functionality).
