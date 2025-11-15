@@ -140,10 +140,22 @@ class BigQuerySource(DataSource):
 
     def validate(self, config: RepoConfig):
         if not self.query:
-            from google.api_core.exceptions import NotFound
-            from google.cloud import bigquery
-
-            client = bigquery.Client()
+            try:
+                from google.api_core import client_info as http_client_info
+                from google.api_core.exceptions import NotFound
+                from google.cloud import bigquery
+            except ImportError as e:
+                from feast.errors import FeastExtrasDependencyImportError
+                raise FeastExtrasDependencyImportError("gcp", str(e))
+    
+            project_id = (
+                config.offline_store.billing_project_id or config.offline_store.project_id
+            )
+            client = bigquery.Client(
+                project=project_id,
+                location=config.offline_store.location,
+                client_info=http_client_info.ClientInfo(user_agent=get_user_agent()),
+            )
             try:
                 client.get_table(self.table)
             except NotFound:
