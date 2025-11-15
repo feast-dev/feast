@@ -676,14 +676,20 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 			restEnabled := feast.isRegistryRestEnabled()
 
 			if grpcEnabled && restEnabled {
-				// Both services enabled: Use gRPC service name as primary, add REST as SAN
-				grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
-				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+				// Both services enabled: Only set TLS annotation on gRPC service to ensure
+				// OpenShift creates certificate with gRPC service name as CN (not REST service name)
+				// The certificate will include both hostnames as SANs
+				if !isRestService {
+					grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
+					svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
 
-				// Add Subject Alternative Names (SANs) for both services
-				grpcHostname := grpcSvcName + "." + svc.Namespace + ".svc.cluster.local"
-				restHostname := feast.GetFeastRestServiceName(RegistryFeastType) + "." + svc.Namespace + ".svc.cluster.local"
-				svc.Annotations["service.beta.openshift.io/serving-cert-sans"] = grpcHostname + "," + restHostname
+					// Add Subject Alternative Names (SANs) for both services
+					grpcHostname := grpcSvcName + "." + svc.Namespace + ".svc.cluster.local"
+					restHostname := feast.GetFeastRestServiceName(RegistryFeastType) + "." + svc.Namespace + ".svc.cluster.local"
+					svc.Annotations["service.beta.openshift.io/serving-cert-sans"] = grpcHostname + "," + restHostname
+				}
+				// REST service should not have the annotation - it will use the same certificate
+				// from the gRPC service secret (mounted in the pod)
 			} else if grpcEnabled && !restEnabled {
 				// Only gRPC enabled: Use gRPC service name
 				grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
