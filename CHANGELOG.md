@@ -1,5 +1,23 @@
 # Changelog
 
+# [0.57.0](https://github.com/feast-dev/feast/compare/v0.56.0...v0.57.0) (2025-11-13)
+
+
+### Bug Fixes
+
+* Improve trino to feast type mapping with (real,varchar,timestamp,decimal) ([#5691](https://github.com/feast-dev/feast/issues/5691)) ([f855ad2](https://github.com/feast-dev/feast/commit/f855ad245f1800cb5e591ad0370903f361641037))
+* Materialize API - ODFV views not looked-up (thinks views non existant)  - crashes materialize ([#5716](https://github.com/feast-dev/feast/issues/5716)) ([1b050b3](https://github.com/feast-dev/feast/commit/1b050b32fefd1190044087dec504acdcb43a51d5))
+* Support historical feature retrieval with start_date/end_date in RemoteOfflineStore ([#5703](https://github.com/feast-dev/feast/issues/5703)) ([ad32756](https://github.com/feast-dev/feast/commit/ad3275654226f614fa4a40411440d16634f6971c))
+* Thread safe Clickhouse offline store ([#5710](https://github.com/feast-dev/feast/issues/5710)) ([5f446ed](https://github.com/feast-dev/feast/commit/5f446ede403e778264e6a44266ba72e1174e1db9))
+
+
+### Features
+
+* Add annotations to cronjob CRDs ([#5701](https://github.com/feast-dev/feast/issues/5701)) ([be6e6c2](https://github.com/feast-dev/feast/commit/be6e6c2752df669d030ed2c8b66dd2229448490e))
+* Add batch commit mode for MySQL OnlineStore ([#5699](https://github.com/feast-dev/feast/issues/5699)) ([3cfe4eb](https://github.com/feast-dev/feast/commit/3cfe4ebfa9de589fa03c020cadcb4d9de504affa))
+* Add possibility to materialize only latest values, to increase performance ([#5713](https://github.com/feast-dev/feast/issues/5713)) ([8d77b72](https://github.com/feast-dev/feast/commit/8d77b7287b9dea11acad56fed1dada453150785c))
+* Support table format: Iceberg, Delta, and Hudi ([#5650](https://github.com/feast-dev/feast/issues/5650)) ([2915ad1](https://github.com/feast-dev/feast/commit/2915ad18735ee4f749c2e63a6bbf0dd2a922bc96))
+
 # [0.56.0](https://github.com/feast-dev/feast/compare/v0.55.0...v0.56.0) (2025-10-27)
 
 
