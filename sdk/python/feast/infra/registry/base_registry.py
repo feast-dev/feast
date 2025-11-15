@@ -266,7 +266,9 @@ class BaseRegistry(ABC):
     @abstractmethod
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
         """
-        Deletes a feature view or raises an exception if not found.
+        Deletes a feature view  of any kind (FeatureView, OnDemandFeatureView, StreamFeatureView).
+        Or raises an exception if not found.
+
 
         Args:
             name: Name of feature view

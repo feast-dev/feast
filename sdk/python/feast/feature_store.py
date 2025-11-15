@@ -543,7 +543,7 @@ class FeatureStore:
 
     def delete_feature_view(self, name: str):
         """
-        Deletes a feature view.
+        Deletes a feature view of any kind (FeatureView, OnDemandFeatureView, StreamFeatureView).
 
         Args:
             name: Name of feature view.
