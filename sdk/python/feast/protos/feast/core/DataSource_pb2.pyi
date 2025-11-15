@@ -221,6 +221,7 @@ class DataSource(google.protobuf.message.Message):
         TOPIC_FIELD_NUMBER: builtins.int
         MESSAGE_FORMAT_FIELD_NUMBER: builtins.int
         WATERMARK_DELAY_THRESHOLD_FIELD_NUMBER: builtins.int
+        KAFKA_SETTINGS_FIELD_NUMBER: builtins.int
         kafka_bootstrap_servers: builtins.str
         """Comma separated list of Kafka bootstrap servers. Used for feature tables without a defined source host[:port]]"""
         topic: builtins.str
@@ -231,6 +232,9 @@ class DataSource(google.protobuf.message.Message):
         @property
         def watermark_delay_threshold(self) -> google.protobuf.duration_pb2.Duration:
             """Watermark delay threshold for stream data"""
+        @property
+        def kafka_settings(self) -> feast.core.DataFormat_pb2.StreamFormat:
+            """kafka_settings field"""
         def __init__(
             self,
             *,
@@ -238,9 +242,10 @@ class DataSource(google.protobuf.message.Message):
             topic: builtins.str = ...,
             message_format: feast.core.DataFormat_pb2.StreamFormat | None = ...,
             watermark_delay_threshold: google.protobuf.duration_pb2.Duration | None = ...,
+            kafka_settings: feast.core.DataFormat_pb2.StreamFormat | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["message_format", b"message_format", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["kafka_bootstrap_servers", b"kafka_bootstrap_servers", "message_format", b"message_format", "topic", b"topic", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["kafka_settings", b"kafka_settings", "message_format", b"message_format", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["kafka_bootstrap_servers", b"kafka_bootstrap_servers", "kafka_settings", b"kafka_settings", "message_format", b"message_format", "topic", b"topic", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> None: ...
 
     class KinesisOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from Kinesis records.
