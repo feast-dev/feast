@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -44,6 +45,8 @@ class FileRegistryStore(RegistryStore):
         file_dir.mkdir(exist_ok=True)
         with open(self._filepath, mode="wb", buffering=0) as f:
             f.write(registry_proto.SerializeToString())
+            f.flush()
+            os.fsync(f.fileno())
 
     def set_project_metadata(self, project: str, key: str, value: str):
         """Set a custom project metadata key-value pair in the registry proto (file backend)."""
