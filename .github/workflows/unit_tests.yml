@@ -47,7 +47,7 @@ jobs:
         run: make test-python-unit
       - name: Test Python for Mac
         if: matrix.os != 'ubuntu-latest'
-        run: python -m pytest -n 8 --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup
+        run: python -m pytest -n 8 --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup -m "not docker"
       - name: Minimize uv cache
         run: uv cache prune --ci
 

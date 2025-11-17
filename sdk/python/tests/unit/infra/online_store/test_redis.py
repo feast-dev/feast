@@ -37,15 +37,32 @@ def redis_online_store_config():
 
 
 @pytest.fixture
-def repo_config(redis_online_store_config):
-    return RepoConfig(
+def base_repo_config_kwargs():
+    return dict(
         provider="local",
         project="test",
+        entity_key_serialization_version=3,
+        registry="dummy_registry.db",
+    )
+
+
+@pytest.fixture
+def repo_config_without_docker_connection_string(base_repo_config_kwargs) -> RepoConfig:
+    return RepoConfig(
+        **base_repo_config_kwargs,
+        online_store=RedisOnlineStoreConfig(
+            connection_string="redis://localhost:6379",
+        ),
+    )
+
+
+@pytest.fixture
+def repo_config(redis_online_store_config, base_repo_config_kwargs) -> RepoConfig:
+    return RepoConfig(
+        **base_repo_config_kwargs,
         online_store=RedisOnlineStoreConfig(
             connection_string=redis_online_store_config["connection_string"],
         ),
-        entity_key_serialization_version=3,
-        registry="dummy_registry.db",
     )
 
 
@@ -66,13 +83,15 @@ def feature_view():
     return feature_view
 
 
-def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_config):
+def test_generate_entity_redis_keys(
+    redis_online_store: RedisOnlineStore, repo_config_without_docker_connection_string
+):
     entity_keys = [
         EntityKeyProto(join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]),
     ]
 
     actual = redis_online_store._generate_redis_keys_for_entities(
-        repo_config, entity_keys
+        repo_config_without_docker_connection_string, entity_keys
     )
     expected = [
         b"\x01\x00\x00\x00\x02\x00\x00\x00\x06\x00\x00\x00entity\x03\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00test"
@@ -156,6 +175,7 @@ def test_get_features_for_entity(redis_online_store: RedisOnlineStore, feature_v
     assert features["feature_view_1:feature_11"].int32_val == 2
 
 
+@pytest.mark.docker
 def test_redis_online_write_batch_with_timestamp_as_sortkey(
     repo_config: RepoConfig,
     redis_online_store: RedisOnlineStore,
@@ -246,6 +266,7 @@ def test_redis_online_write_batch_with_timestamp_as_sortkey(
     assert trip_id_drivers == [4, 3, 2, 9, 8, 7]
 
 
+@pytest.mark.docker
 def test_redis_online_write_batch_with_float_as_sortkey(
     repo_config: RepoConfig,
     redis_online_store: RedisOnlineStore,
@@ -333,8 +354,22 @@ def test_redis_online_write_batch_with_float_as_sortkey(
     assert trip_id_drivers == [2, 3, 4, 7, 8, 9]
 
 
+@pytest.fixture
+def repo_config_before(redis_online_store_config):
+    return RepoConfig(
+        provider="local",
+        project="test",
+        online_store=RedisOnlineStoreConfig(
+            connection_string=redis_online_store_config["connection_string"],
+        ),
+        entity_key_serialization_version=3,
+        registry="dummy_registry.db",
+    )
+
+
 def test_multiple_sort_keys_not_supported(
-    repo_config: RepoConfig, redis_online_store: RedisOnlineStore
+    repo_config_without_docker_connection_string: RepoConfig,
+    redis_online_store: RedisOnlineStore,
 ):
     (
         feature_view,
@@ -346,7 +381,7 @@ def test_multiple_sort_keys_not_supported(
         match=r"Only one sort key is supported for Range query use cases in Redis, but found 2 sort keys in the",
     ):
         redis_online_store.online_write_batch(
-            config=repo_config,
+            config=repo_config_without_docker_connection_string,
             table=feature_view,
             data=data,
             progress=None,
@@ -354,7 +389,8 @@ def test_multiple_sort_keys_not_supported(
 
 
 def test_non_numeric_sort_key_not_supported(
-    repo_config: RepoConfig, redis_online_store: RedisOnlineStore
+    repo_config_without_docker_connection_string: RepoConfig,
+    redis_online_store: RedisOnlineStore,
 ):
     (
         feature_view,
@@ -365,7 +401,7 @@ def test_non_numeric_sort_key_not_supported(
         TypeError, match=r"Unsupported sort key type STRING. Only numerics or timestamp"
     ):
         redis_online_store.online_write_batch(
-            config=repo_config,
+            config=repo_config_without_docker_connection_string,
             table=feature_view,
             data=data,
             progress=None,
