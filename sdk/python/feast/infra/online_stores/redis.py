@@ -374,9 +374,9 @@ class RedisOnlineStore(OnlineStore):
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
                 for zset_key, entity_key_bytes in zsets_to_cleanup:
                     if ttl:
-                        self._run_ttl_cleanup(client, zset_key, entity_key_bytes, ttl)
+                        self._run_cleanup_by_event_time(client, zset_key, entity_key_bytes, ttl)
                     if max_events and max_events > 0:
-                        self._run_zset_trim(
+                        self._run_cleanup_by_retained_events(
                             client, zset_key, entity_key_bytes, max_events
                         )
 
@@ -465,7 +465,7 @@ class RedisOnlineStore(OnlineStore):
         sk = EntityKeyProto(join_keys=[sort_key_name], entity_values=[sort_val])
         return serialize_entity_key(sk, entity_key_serialization_version=v)
 
-    def _run_ttl_cleanup(
+    def _run_cleanup_by_event_time(
         self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
     ):
         now = int(time.time())
@@ -488,7 +488,7 @@ class RedisOnlineStore(OnlineStore):
         if client.zcard(zset_key) == 0:
             client.delete(zset_key)
 
-    def _run_zset_trim(
+    def _run_cleanup_by_retained_events(
         self, client, zset_key: bytes, entity_key_bytes: bytes, max_events: int
     ):
         current_size = client.zcard(zset_key)

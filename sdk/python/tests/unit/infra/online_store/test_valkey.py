@@ -494,7 +494,7 @@ def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
     redis_client.hset(expired_hash, mapping={"v": "old"})
     redis_client.hset(active_hash, mapping={"v": "new"})
 
-    store._run_ttl_cleanup(redis_client, zset_key, entity_key_bytes, ttl_seconds)
+    store._run_cleanup_by_event_time(redis_client, zset_key, entity_key_bytes, ttl_seconds)
 
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert active_member in remaining
@@ -503,7 +503,7 @@ def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
 
     # Make everything expired → cleanup should delete zset
     redis_client.zadd(zset_key, {active_member: expired_ts})
-    store._run_ttl_cleanup(redis_client, zset_key, entity_key_bytes, ttl_seconds)
+    store._run_cleanup_by_event_time(redis_client, zset_key, entity_key_bytes, ttl_seconds)
     assert not redis_client.exists(zset_key), "ZSET should be deleted when empty"
 
 
@@ -521,7 +521,7 @@ def test_ttl_cleanup_no_expired_members(repo_config):
     redis_client.zadd(zset_key, {active_member: now})
     redis_client.hset(active_hash, mapping={"v": "new"})
 
-    store._run_ttl_cleanup(redis_client, zset_key, entity_key_bytes, ttl_seconds)
+    store._run_cleanup_by_event_time(redis_client, zset_key, entity_key_bytes, ttl_seconds)
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert active_member in remaining
     assert redis_client.exists(active_hash)
@@ -538,7 +538,7 @@ def test_ttl_cleanup_empty_zset(repo_config):
     redis_client.zrem(zset_key, "temp")
     assert redis_client.zcard(zset_key) == 0
 
-    store._run_ttl_cleanup(redis_client, zset_key, entity_key_bytes, 10)
+    store._run_cleanup_by_event_time(redis_client, zset_key, entity_key_bytes, 10)
     assert not redis_client.exists(zset_key)
 
 
@@ -558,7 +558,7 @@ def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
             mapping={"v": m.decode()},
         )
 
-    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, max_events)
+    store._run_cleanup_by_retained_events(redis_client, zset_key, entity_key_bytes, max_events)
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert remaining == [b"m2", b"m3"]
     assert not redis_client.exists(
@@ -566,7 +566,7 @@ def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
     )
 
     redis_client.zremrangebyrank(zset_key, 0, -1)
-    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, max_events)
+    store._run_cleanup_by_retained_events(redis_client, zset_key, entity_key_bytes, max_events)
     assert not redis_client.exists(zset_key)
 
 
@@ -580,7 +580,7 @@ def test_zset_trim_no_trim_needed(repo_config):
     members = {b"a": 1, b"b": 2, b"c": 3}
     redis_client.zadd(zset_key, members)
 
-    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, max_events)
+    store._run_cleanup_by_retained_events(redis_client, zset_key, entity_key_bytes, max_events)
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert remaining == [b"a", b"b", b"c"]
 
@@ -595,7 +595,7 @@ def test_zset_trim_no_popped_members(repo_config):
 
     original_zpopmin = redis_client.zpopmin
     redis_client.zpopmin = lambda *a, **kw: []
-    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, 1)
+    store._run_cleanup_by_retained_events(redis_client, zset_key, entity_key_bytes, 1)
     assert redis_client.exists(zset_key)
     redis_client.zpopmin = original_zpopmin
 
@@ -615,5 +615,5 @@ def test_zset_trim_delete_all_members(repo_config):
             mapping={"v": m.decode()},
         )
 
-    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, 0)
+    store._run_cleanup_by_retained_events(redis_client, zset_key, entity_key_bytes, 0)
     assert not redis_client.exists(zset_key)
