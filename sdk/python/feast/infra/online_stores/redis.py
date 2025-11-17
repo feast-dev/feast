@@ -295,7 +295,9 @@ class RedisOnlineStore(OnlineStore):
         ts_key = f"_ts:{feature_view}"
         keys = []
         # Track all ZSET keys touched in this batch for TTL cleanup & trimming
-        zsets_to_cleanup: set[Tuple[bytes, bytes]]= set()  # (zset_key, entity_key_bytes)
+        zsets_to_cleanup: set[Tuple[bytes, bytes]] = (
+            set()
+        )  # (zset_key, entity_key_bytes)
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
             if isinstance(table, SortedFeatureView):
@@ -374,7 +376,9 @@ class RedisOnlineStore(OnlineStore):
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
                 for zset_key, entity_key_bytes in zsets_to_cleanup:
                     if ttl:
-                        self._run_cleanup_by_event_time(client, zset_key, entity_key_bytes, ttl)
+                        self._run_cleanup_by_event_time(
+                            client, zset_key, entity_key_bytes, ttl
+                        )
                     if max_events and max_events > 0:
                         self._run_cleanup_by_retained_events(
                             client, zset_key, entity_key_bytes, max_events
