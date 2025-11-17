@@ -302,7 +302,7 @@ class EGValkeyOnlineStore(OnlineStore):
         ts_key = f"_ts:{feature_view}"
         keys = []
         # Track all ZSET keys touched in this batch for TTL cleanup & trimming
-        zsets_to_cleanup = set()  # (zset_key, entity_key_bytes)
+        zsets_to_cleanup: set[Tuple[bytes, bytes]] = set()  # (zset_key, entity_key_bytes)
         # pipelining optimization: send multiple commands to valkey server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
             if isinstance(table, SortedFeatureView):
