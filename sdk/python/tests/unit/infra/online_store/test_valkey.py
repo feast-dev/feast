@@ -48,7 +48,7 @@ def base_repo_config_kwargs():
 
 
 @pytest.fixture
-def repo_config(base_repo_config_kwargs) -> RepoConfig:
+def repo_config_without_docker_connection_string(base_repo_config_kwargs) -> RepoConfig:
     return RepoConfig(
         **base_repo_config_kwargs,
         online_store=EGValkeyOnlineStoreConfig(
@@ -58,9 +58,7 @@ def repo_config(base_repo_config_kwargs) -> RepoConfig:
 
 
 @pytest.fixture
-def repo_config_with_docker_connection_string(
-    valkey_online_store_config, base_repo_config_kwargs
-) -> RepoConfig:
+def repo_config(valkey_online_store_config, base_repo_config_kwargs) -> RepoConfig:
     return RepoConfig(
         **base_repo_config_kwargs,
         online_store=EGValkeyOnlineStoreConfig(
@@ -71,7 +69,7 @@ def repo_config_with_docker_connection_string(
 
 @pytest.mark.docker
 def test_valkey_online_write_batch_with_timestamp_as_sortkey(
-    repo_config_with_docker_connection_string: RepoConfig,
+    repo_config: RepoConfig,
     valkey_online_store: EGValkeyOnlineStore,
 ):
     (
@@ -80,15 +78,13 @@ def test_valkey_online_write_batch_with_timestamp_as_sortkey(
     ) = _create_sorted_feature_view_with_timestamp_as_sortkey()
 
     valkey_online_store.online_write_batch(
-        config=repo_config_with_docker_connection_string,
+        config=repo_config,
         table=feature_view,
         data=data,
         progress=None,
     )
 
-    connection_string = (
-        repo_config_with_docker_connection_string.online_store.connection_string
-    )
+    connection_string = repo_config.online_store.connection_string
     connection_string_split = connection_string.split(":")
     conn_dict = {}
     conn_dict["host"] = connection_string_split[0]
@@ -104,9 +100,9 @@ def test_valkey_online_write_batch_with_timestamp_as_sortkey(
     )
 
     redis_key_bin_driver_1 = _redis_key(
-        repo_config_with_docker_connection_string.project,
+        repo_config.project,
         entity_key_driver_1,
-        entity_key_serialization_version=repo_config_with_docker_connection_string.entity_key_serialization_version,
+        entity_key_serialization_version=repo_config.entity_key_serialization_version,
     )
 
     zset_key_driver_1 = valkey_online_store.zset_key_bytes(
@@ -118,9 +114,9 @@ def test_valkey_online_write_batch_with_timestamp_as_sortkey(
         entity_values=[ValueProto(int32_val=2)],
     )
     redis_key_bin_driver_2 = _redis_key(
-        repo_config_with_docker_connection_string.project,
+        repo_config.project,
         entity_key_driver_2,
-        entity_key_serialization_version=repo_config_with_docker_connection_string.entity_key_serialization_version,
+        entity_key_serialization_version=repo_config.entity_key_serialization_version,
     )
 
     zset_key_driver_2 = valkey_online_store.zset_key_bytes(
@@ -164,7 +160,7 @@ def test_valkey_online_write_batch_with_timestamp_as_sortkey(
 
 @pytest.mark.docker
 def test_valkey_online_write_batch_with_float_as_sortkey(
-    repo_config_with_docker_connection_string: RepoConfig,
+    repo_config: RepoConfig,
     valkey_online_store: EGValkeyOnlineStore,
 ):
     (
@@ -173,15 +169,13 @@ def test_valkey_online_write_batch_with_float_as_sortkey(
     ) = _create_sorted_feature_view_with_float_as_sortkey()
 
     valkey_online_store.online_write_batch(
-        config=repo_config_with_docker_connection_string,
+        config=repo_config,
         table=feature_view,
         data=data,
         progress=None,
     )
 
-    connection_string = (
-        repo_config_with_docker_connection_string.online_store.connection_string
-    )
+    connection_string = repo_config.online_store.connection_string
     connection_string_split = connection_string.split(":")
     conn_dict = {}
     conn_dict["host"] = connection_string_split[0]
@@ -197,9 +191,9 @@ def test_valkey_online_write_batch_with_float_as_sortkey(
     )
 
     redis_key_bin_driver_1 = _redis_key(
-        repo_config_with_docker_connection_string.project,
+        repo_config.project,
         entity_key_driver_1,
-        entity_key_serialization_version=repo_config_with_docker_connection_string.entity_key_serialization_version,
+        entity_key_serialization_version=repo_config.entity_key_serialization_version,
     )
 
     zset_key_driver_1 = valkey_online_store.zset_key_bytes(
@@ -211,9 +205,9 @@ def test_valkey_online_write_batch_with_float_as_sortkey(
         entity_values=[ValueProto(int32_val=2)],
     )
     redis_key_bin_driver_2 = _redis_key(
-        repo_config_with_docker_connection_string.project,
+        repo_config.project,
         entity_key_driver_2,
-        entity_key_serialization_version=repo_config_with_docker_connection_string.entity_key_serialization_version,
+        entity_key_serialization_version=repo_config.entity_key_serialization_version,
     )
 
     zset_key_driver_2 = valkey_online_store.zset_key_bytes(
@@ -253,7 +247,8 @@ def test_valkey_online_write_batch_with_float_as_sortkey(
 
 
 def test_multiple_sort_keys_not_supported(
-    repo_config: RepoConfig, valkey_online_store: EGValkeyOnlineStore
+    repo_config_without_docker_connection_string: RepoConfig,
+    valkey_online_store: EGValkeyOnlineStore,
 ):
     (
         feature_view,
@@ -265,7 +260,7 @@ def test_multiple_sort_keys_not_supported(
         match=r"Only one sort key is supported for Range query use cases in Valkey, but found 2 sort keys in the",
     ):
         valkey_online_store.online_write_batch(
-            config=repo_config,
+            config=repo_config_without_docker_connection_string,
             table=feature_view,
             data=data,
             progress=None,
@@ -273,7 +268,8 @@ def test_multiple_sort_keys_not_supported(
 
 
 def test_non_numeric_sort_key_not_supported(
-    repo_config: RepoConfig, valkey_online_store: EGValkeyOnlineStore
+    repo_config_without_docker_connection_string: RepoConfig,
+    valkey_online_store: EGValkeyOnlineStore,
 ):
     (
         feature_view,
@@ -284,7 +280,7 @@ def test_non_numeric_sort_key_not_supported(
         TypeError, match=r"Unsupported sort key type STRING. Only numerics or timestamp"
     ):
         valkey_online_store.online_write_batch(
-            config=repo_config,
+            config=repo_config_without_docker_connection_string,
             table=feature_view,
             data=data,
             progress=None,
