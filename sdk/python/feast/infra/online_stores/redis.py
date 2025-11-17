@@ -294,6 +294,8 @@ class RedisOnlineStore(OnlineStore):
         feature_view = table.name
         ts_key = f"_ts:{feature_view}"
         keys = []
+        # Track all ZSET keys touched in this batch for TTL cleanup & trimming
+        zsets_to_cleanup = set()  # (zset_key, entity_key_bytes)
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
             if isinstance(table, SortedFeatureView):
@@ -365,23 +367,19 @@ class RedisOnlineStore(OnlineStore):
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
                         pipe.execute()  # flush
-                        if ttl:
-                            self._run_ttl_cleanup(
-                                client, zset_key, entity_key_bytes, ttl
-                            )
-                        if max_events and max_events > 0:
-                            self._run_zset_trim(
-                                client, zset_key, entity_key_bytes, max_events
-                            )
                         num_cmds = 0
                 if num_cmds:
                     pipe.execute()  # flush any remaining data in the last batch
+
+                # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
+                for zset_key, entity_key_bytes in zsets_to_cleanup:
                     if ttl:
                         self._run_ttl_cleanup(client, zset_key, entity_key_bytes, ttl)
                     if max_events and max_events > 0:
                         self._run_zset_trim(
                             client, zset_key, entity_key_bytes, max_events
                         )
+
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
@@ -424,7 +422,7 @@ class RedisOnlineStore(OnlineStore):
 
                     pipe.hset(redis_key_bin, mapping=entity_hset)
 
-                    ttl = online_store_config.key_ttl_seconds
+                    ttl = onlionlne_store_config.key_ttl_seconds
                     if ttl:
                         pipe.expire(name=redis_key_bin, time=ttl)
             results = pipe.execute()

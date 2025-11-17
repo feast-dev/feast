@@ -301,6 +301,8 @@ class EGValkeyOnlineStore(OnlineStore):
         feature_view = table.name
         ts_key = f"_ts:{feature_view}"
         keys = []
+        # Track all ZSET keys touched in this batch for TTL cleanup & trimming
+        zsets_to_cleanup = set()  # (zset_key, entity_key_bytes)
         # pipelining optimization: send multiple commands to valkey server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
             if isinstance(table, SortedFeatureView):
@@ -372,17 +374,11 @@ class EGValkeyOnlineStore(OnlineStore):
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
                         pipe.execute()  # flush
-                        if ttl:
-                            self._run_ttl_cleanup(
-                                client, zset_key, entity_key_bytes, ttl
-                            )
-                        if max_events and max_events > 0:
-                            self._run_zset_trim(
-                                client, zset_key, entity_key_bytes, max_events
-                            )
                         num_cmds = 0
                 if num_cmds:
                     pipe.execute()  # flush any remaining data in the last batch
+                # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
+                for zset_key, entity_key_bytes in zsets_to_cleanup:
                     if ttl:
                         self._run_ttl_cleanup(client, zset_key, entity_key_bytes, ttl)
                     if max_events and max_events > 0:
