@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from enum import Enum
 from typing import (
@@ -320,6 +321,17 @@ class EGValkeyOnlineStore(OnlineStore):
                 # Picking an arbitrary number to start with and will be tuned after perf testing
                 # TODO : Make this a config as this can be different for different users based on payload size etc..
                 num_cmds_per_pipeline_execute = 3000
+                ttl = online_store_config.key_ttl_seconds
+                max_events = None
+                if table.tags:
+                    tag_value = table.tags.get("max_retained_events")
+                    if tag_value is not None:
+                        try:
+                            max_events = int(tag_value)
+                        except Exception:
+                            logger.warning(
+                                f"Invalid max_retained_events tag value: {tag_value}"
+                            )
                 for entity_key, values, timestamp, _ in data:
                     entity_key_bytes = _redis_key(
                         project,
@@ -354,14 +366,29 @@ class EGValkeyOnlineStore(OnlineStore):
 
                     pipe.hset(hash_key, mapping=entity_hset)
                     pipe.zadd(zset_key, {zset_member: zset_score})
-
+                    if ttl:
+                        pipe.expire(name=hash_key, time=ttl)
                     num_cmds += 2
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
                         pipe.execute()  # flush
+                        if ttl:
+                            self._run_ttl_cleanup(
+                                client, zset_key, entity_key_bytes, ttl
+                            )
+                        if max_events and max_events > 0:
+                            self._run_zset_trim(
+                                client, zset_key, entity_key_bytes, max_events
+                            )
                         num_cmds = 0
                 if num_cmds:
                     pipe.execute()  # flush any remaining data in the last batch
+                    if ttl:
+                        self._run_ttl_cleanup(client, zset_key, entity_key_bytes, ttl)
+                    if max_events and max_events > 0:
+                        self._run_zset_trim(
+                            client, zset_key, entity_key_bytes, max_events
+                        )
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
@@ -446,6 +473,53 @@ class EGValkeyOnlineStore(OnlineStore):
         """
         sk = EntityKeyProto(join_keys=[sort_key_name], entity_values=[sort_val])
         return serialize_entity_key(sk, entity_key_serialization_version=v)
+
+    def _run_ttl_cleanup(
+        self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
+    ):
+        now = int(time.time())
+        cutoff = now - ttl_seconds
+        old_members = client.zrangebyscore(
+            zset_key, 0, cutoff
+        )  # Limitation: This works only when the sorted set score is timestamp.
+        if not old_members:
+            return
+
+        with client.pipeline(transaction=False) as pipe:
+            for sort_key_bytes in old_members:
+                hash_key = EGValkeyOnlineStore.hash_key_bytes(
+                    entity_key_bytes, sort_key_bytes
+                )
+                pipe.delete(hash_key)
+                pipe.zrem(zset_key, sort_key_bytes)
+            pipe.execute()
+
+        if client.zcard(zset_key) == 0:
+            client.delete(zset_key)
+
+    def _run_zset_trim(
+        self, client, zset_key: bytes, entity_key_bytes: bytes, max_events: int
+    ):
+        current_size = client.zcard(zset_key)
+        if current_size <= max_events:
+            return
+        num_to_remove = current_size - max_events
+
+        # Remove oldest entries atomically
+        popped = client.zpopmin(zset_key, num_to_remove)
+        if not popped:
+            return
+
+        with client.pipeline(transaction=False) as pipe:
+            for sort_key_bytes, _score in popped:
+                hash_key = EGValkeyOnlineStore.hash_key_bytes(
+                    entity_key_bytes, sort_key_bytes
+                )
+                pipe.delete(hash_key)
+            pipe.execute()
+
+        if client.zcard(zset_key) == 0:
+            client.delete(zset_key)
 
     def _generate_valkey_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]

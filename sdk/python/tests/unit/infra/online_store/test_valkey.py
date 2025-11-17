@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta
 
 import pytest
@@ -445,3 +446,153 @@ def _make_rows(n=10):
         )
         for i in range(n)
     ]
+
+
+def _make_redis_client(repo_config):
+    connection_string = repo_config.online_store.connection_string
+    host, port = connection_string.split(":")
+    return Valkey(host=host, port=int(port), decode_responses=False)
+
+
+def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
+    """Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs."""
+    redis_client = _make_redis_client(repo_config)
+    store = EGValkeyOnlineStore()
+    zset_key = b"test:ttl_cleanup:zset"
+    entity_key_bytes = b"entity:1"
+    ttl_seconds = 2
+    now = int(time.time())
+    expired_ts = now - (ttl_seconds + 1)
+    active_ts = now
+    expired_member = f"member:{expired_ts}".encode()
+    active_member = f"member:{active_ts}".encode()
+
+    redis_client.zadd(zset_key, {expired_member: expired_ts, active_member: active_ts})
+    expired_hash = EGValkeyOnlineStore.hash_key_bytes(entity_key_bytes, expired_member)
+    active_hash = EGValkeyOnlineStore.hash_key_bytes(entity_key_bytes, active_member)
+    redis_client.hset(expired_hash, mapping={"v": "old"})
+    redis_client.hset(active_hash, mapping={"v": "new"})
+
+    store._run_ttl_cleanup(redis_client, zset_key, entity_key_bytes, ttl_seconds)
+
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert active_member in remaining
+    assert expired_member not in remaining
+    assert not redis_client.exists(expired_hash)
+
+    # Make everything expired → cleanup should delete zset
+    redis_client.zadd(zset_key, {active_member: expired_ts})
+    store._run_ttl_cleanup(redis_client, zset_key, entity_key_bytes, ttl_seconds)
+    assert not redis_client.exists(zset_key), "ZSET should be deleted when empty"
+
+
+def test_ttl_cleanup_no_expired_members(repo_config):
+    """Ensure TTL cleanup is a no-op when there are no expired members."""
+    redis_client = _make_redis_client(repo_config)
+    store = EGValkeyOnlineStore()
+    zset_key = b"test:ttl_cleanup:no_expired"
+    entity_key_bytes = b"entity:2"
+    ttl_seconds = 5
+    now = int(time.time())
+    active_member = f"member:{now}".encode()
+    active_hash = EGValkeyOnlineStore.hash_key_bytes(entity_key_bytes, active_member)
+
+    redis_client.zadd(zset_key, {active_member: now})
+    redis_client.hset(active_hash, mapping={"v": "new"})
+
+    store._run_ttl_cleanup(redis_client, zset_key, entity_key_bytes, ttl_seconds)
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert active_member in remaining
+    assert redis_client.exists(active_hash)
+
+
+def test_ttl_cleanup_empty_zset(repo_config):
+    """Ensure cleanup safely returns when ZSET has no members."""
+    redis_client = _make_redis_client(repo_config)
+    store = EGValkeyOnlineStore()
+    zset_key = b"test:ttl_cleanup:empty"
+    entity_key_bytes = b"entity:3"
+
+    redis_client.zadd(zset_key, {"temp": 1})
+    redis_client.zrem(zset_key, "temp")
+    assert redis_client.zcard(zset_key) == 0
+
+    store._run_ttl_cleanup(redis_client, zset_key, entity_key_bytes, 10)
+    assert not redis_client.exists(zset_key)
+
+
+def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
+    """Ensure ZSET size cleanup trims correctly and removes empty indexes."""
+    redis_client = _make_redis_client(repo_config)
+    store = EGValkeyOnlineStore()
+    zset_key = b"test:zset_trim:zset"
+    entity_key_bytes = b"entity:4"
+    max_events = 2
+    members = {b"m1": 1, b"m2": 2, b"m3": 3}
+
+    redis_client.zadd(zset_key, members)
+    for m in members:
+        redis_client.hset(
+            EGValkeyOnlineStore.hash_key_bytes(entity_key_bytes, m),
+            mapping={"v": m.decode()},
+        )
+
+    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, max_events)
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert remaining == [b"m2", b"m3"]
+    assert not redis_client.exists(
+        EGValkeyOnlineStore.hash_key_bytes(entity_key_bytes, b"m1")
+    )
+
+    redis_client.zremrangebyrank(zset_key, 0, -1)
+    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, max_events)
+    assert not redis_client.exists(zset_key)
+
+
+def test_zset_trim_no_trim_needed(repo_config):
+    """Ensure no-op when ZSET size <= max_events."""
+    redis_client = _make_redis_client(repo_config)
+    store = EGValkeyOnlineStore()
+    zset_key = b"test:zset_trim:no_trim"
+    entity_key_bytes = b"entity:5"
+    max_events = 3
+    members = {b"a": 1, b"b": 2, b"c": 3}
+    redis_client.zadd(zset_key, members)
+
+    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, max_events)
+    remaining = redis_client.zrange(zset_key, 0, -1)
+    assert remaining == [b"a", b"b", b"c"]
+
+
+def test_zset_trim_no_popped_members(repo_config):
+    """Ensure function handles case where zpopmin returns empty list."""
+    redis_client = _make_redis_client(repo_config)
+    store = EGValkeyOnlineStore()
+    zset_key = b"test:zset_trim:no_popped"
+    entity_key_bytes = b"entity:6"
+    redis_client.zadd(zset_key, {b"k1": 1, b"k2": 2})
+
+    original_zpopmin = redis_client.zpopmin
+    redis_client.zpopmin = lambda *a, **kw: []
+    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, 1)
+    assert redis_client.exists(zset_key)
+    redis_client.zpopmin = original_zpopmin
+
+
+def test_zset_trim_delete_all_members(repo_config):
+    """Ensure trimming can remove all members and delete empty ZSET."""
+    redis_client = _make_redis_client(repo_config)
+    store = EGValkeyOnlineStore()
+    zset_key = b"test:zset_trim:delete_all"
+    entity_key_bytes = b"entity:7"
+    members = {b"x1": 1, b"x2": 2}
+
+    redis_client.zadd(zset_key, members)
+    for m in members:
+        redis_client.hset(
+            EGValkeyOnlineStore.hash_key_bytes(entity_key_bytes, m),
+            mapping={"v": m.decode()},
+        )
+
+    store._run_zset_trim(redis_client, zset_key, entity_key_bytes, 0)
+    assert not redis_client.exists(zset_key)
