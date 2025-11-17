@@ -54,6 +54,7 @@ func (feast *FeastServices) initCronJob() *batchv1.CronJob {
 func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 	appliedCronJob := feast.Handler.FeatureStore.Status.Applied.CronJob
 	cronJob.Labels = feast.getFeastTypeLabels(CronJobFeastType)
+
 	if appliedCronJob.Annotations != nil {
 		cronJob.Annotations = make(map[string]string, len(appliedCronJob.Annotations))
 		for k, v := range appliedCronJob.Annotations {
@@ -65,7 +66,8 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 		JobTemplate: batchv1.JobTemplateSpec{
 			Spec: batchv1.JobSpec{
 				Template: corev1.PodTemplateSpec{
-					Spec: feast.getCronJobPodSpec(),
+					ObjectMeta: metav1.ObjectMeta{},
+					Spec:       feast.getCronJobPodSpec(),
 				},
 			},
 		},
@@ -92,6 +94,16 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 	appliedJobSpec := appliedCronJob.JobSpec
 	if appliedJobSpec != nil {
 		jobSpec := &cronJob.Spec.JobTemplate.Spec
+
+		// apply PodTemplateAnnotations into the PodTemplate metadata if provided
+		if appliedJobSpec.PodTemplateAnnotations != nil {
+			if jobSpec.Template.Annotations == nil {
+				jobSpec.Template.Annotations = make(map[string]string, len(appliedJobSpec.PodTemplateAnnotations))
+			}
+			for k, v := range appliedJobSpec.PodTemplateAnnotations {
+				jobSpec.Template.Annotations[k] = v
+			}
+		}
 
 		if appliedJobSpec.ActiveDeadlineSeconds != nil {
 			jobSpec.ActiveDeadlineSeconds = appliedJobSpec.ActiveDeadlineSeconds
@@ -127,6 +139,7 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 			jobSpec.TTLSecondsAfterFinished = appliedJobSpec.TTLSecondsAfterFinished
 		}
 	}
+
 	feast.Handler.FeatureStore.Status.CronJob = cronJob.Name
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, cronJob, feast.Handler.Scheme)
 }
