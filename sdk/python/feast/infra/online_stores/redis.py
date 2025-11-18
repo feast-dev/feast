@@ -384,7 +384,20 @@ class RedisOnlineStore(OnlineStore):
                         self._run_cleanup_by_retained_events(
                             client, zset_key, entity_key_bytes, max_events
                         )
+run_cleanup_by_time = bool(ttl)
+run_cleanup_by_retained_events = max_events is not None and max_events > 0
 
+if run_event_time_cleanup or run_retained_events_cleanup:
+    for zset_key, entity_key_bytes in zsets_to_cleanup:
+        if run_event_time_cleanup:
+            self._run_cleanup_by_event_time(
+                client, zset_key, entity_key_bytes, ttl
+            )
+
+        if run_retained_events_cleanup:
+            self._run_cleanup_by_retained_events(
+                client, zset_key, entity_key_bytes, max_events
+            )
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
