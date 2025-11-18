@@ -1,11 +1,12 @@
-package onlinestore
+package utils
 
 import (
 	"fmt"
+	"math"
+
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"google.golang.org/protobuf/proto"
-	"math"
 )
 
 func UnmarshalStoredProto(valueStr []byte) (*types.Value, serving.FieldStatus, error) {

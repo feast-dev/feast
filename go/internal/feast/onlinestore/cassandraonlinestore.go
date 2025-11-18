@@ -481,7 +481,7 @@ func (c *CassandraOnlineStore) executeBatchV2(
 		if err != nil {
 			return nil, fmt.Errorf("could not read row in query for (entity key, feature name, value, event ts): %w", err)
 		}
-		deserializedValue, _, err = UnmarshalStoredProto(valueStr)
+		deserializedValue, _, err = utils.UnmarshalStoredProto(valueStr)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshaling stored proto: %w", err)
 		}
@@ -647,7 +647,7 @@ func (c *CassandraOnlineStore) executeBatch(
 		if err != nil {
 			return fmt.Errorf("could not read row in query for (entity key, feature name, value, event ts): %w", err)
 		}
-		deserializedValue, _, err = UnmarshalStoredProto(valueStr)
+		deserializedValue, _, err = utils.UnmarshalStoredProto(valueStr)
 		if err != nil {
 			return fmt.Errorf("error unmarshaling stored proto: %w", err)
 		}
@@ -936,7 +936,7 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs 
 						}
 					} else {
 						if valueStr, ok := readValues[featName]; ok {
-							val, status, err = UnmarshalStoredProto(valueStr.([]byte))
+							val, status, err = utils.UnmarshalStoredProto(valueStr.([]byte))
 							if err != nil {
 								errorsChannel <- err
 								return
