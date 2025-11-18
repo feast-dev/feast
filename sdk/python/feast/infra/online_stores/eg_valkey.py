@@ -388,12 +388,12 @@ class EGValkeyOnlineStore(OnlineStore):
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
                 if run_cleanup_by_event_time or run_cleanup_by_retained_events:
                     for zset_key, entity_key_bytes in zsets_to_cleanup:
-                        if run_cleanup_by_event_time:
+                        if run_cleanup_by_event_time and ttl:
                             self._run_cleanup_by_event_time(
                                 client, zset_key, entity_key_bytes, ttl
                             )
 
-                        if run_cleanup_by_retained_events:
+                        if run_cleanup_by_retained_events and max_events:
                             self._run_cleanup_by_retained_events(
                                 client, zset_key, entity_key_bytes, max_events
                             )
