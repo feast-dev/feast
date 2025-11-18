@@ -372,7 +372,7 @@ class EGValkeyOnlineStore(OnlineStore):
                     pipe.zadd(zset_key, {zset_member: zset_score})
                     if ttl:
                         pipe.expire(name=hash_key, time=ttl)
-                    num_cmds += 2
+                    num_cmds += 2 if not ttl else 3
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
                         pipe.execute()  # flush
