@@ -367,6 +367,7 @@ class EGValkeyOnlineStore(OnlineStore):
                     )
                     zset_score = EGValkeyOnlineStore.zset_score(sort_key_val)
                     zset_member = sort_key_bytes
+                    zsets_to_cleanup.add((zset_key, entity_key_bytes))
 
                     pipe.hset(hash_key, mapping=entity_hset)
                     pipe.zadd(zset_key, {zset_member: zset_score})
