@@ -86,7 +86,7 @@ func getBaseServiceRepoConfig(
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 
 	repoConfig := defaultRepoConfig(featureStore)
-	clientRepoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)
+	clientRepoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc, nil)
 	if err != nil {
 		return repoConfig, err
 	}
@@ -217,7 +217,7 @@ func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secre
 }
 
 func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) ([]byte, error) {
-	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, secretExtractionFunc)
+	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, secretExtractionFunc, feast)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -226,7 +226,8 @@ func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(
 
 func getClientRepoConfig(
 	featureStore *feastdevv1alpha1.FeatureStore,
-	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
+	feast *FeastServices) (RepoConfig, error) {
 	status := featureStore.Status
 	appliedServices := status.Applied.Services
 	clientRepoConfig, err := getRepoConfig(featureStore, secretExtractionFunc)
@@ -241,7 +242,7 @@ func getClientRepoConfig(
 		}
 		if appliedServices.OfflineStore != nil &&
 			appliedServices.OfflineStore.Server != nil && appliedServices.OfflineStore.Server.TLS.IsTLS() {
-			clientRepoConfig.OfflineStore.Cert = GetTlsPath(OfflineFeastType) + appliedServices.OfflineStore.Server.TLS.SecretKeyNames.TlsCrt
+			clientRepoConfig.OfflineStore.Cert = getCertificatePath(feast, OfflineFeastType, appliedServices.OfflineStore.Server.TLS.SecretKeyNames.TlsCrt)
 			clientRepoConfig.OfflineStore.Port = HttpsPort
 			clientRepoConfig.OfflineStore.Scheme = HttpsScheme
 		}
@@ -254,7 +255,7 @@ func getClientRepoConfig(
 		}
 		if appliedServices.OnlineStore != nil &&
 			appliedServices.OnlineStore.Server != nil && appliedServices.OnlineStore.Server.TLS.IsTLS() {
-			clientRepoConfig.OnlineStore.Cert = GetTlsPath(OnlineFeastType) + appliedServices.OnlineStore.Server.TLS.SecretKeyNames.TlsCrt
+			clientRepoConfig.OnlineStore.Cert = getCertificatePath(feast, OnlineFeastType, appliedServices.OnlineStore.Server.TLS.SecretKeyNames.TlsCrt)
 			clientRepoConfig.OnlineStore.Path = HttpsScheme + onlinePath
 		}
 	}
@@ -264,9 +265,9 @@ func getClientRepoConfig(
 			Path:         status.ServiceHostnames.Registry,
 		}
 		if localRegistryTls(featureStore) {
-			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Local.Server.TLS.SecretKeyNames.TlsCrt
+			clientRepoConfig.Registry.Cert = getCertificatePath(feast, RegistryFeastType, appliedServices.Registry.Local.Server.TLS.SecretKeyNames.TlsCrt)
 		} else if remoteRegistryTls(featureStore) {
-			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Remote.TLS.CertName
+			clientRepoConfig.Registry.Cert = getCertificatePath(feast, RegistryFeastType, appliedServices.Registry.Remote.TLS.CertName)
 		}
 	}
 
@@ -414,4 +415,18 @@ var defaultOfflineStoreConfig = OfflineStoreConfig{
 
 var defaultAuthzConfig = AuthzConfig{
 	Type: NoAuthAuthType,
+}
+
+// getCertificatePath returns the appropriate certificate path based on whether a custom CA bundle is available
+func getCertificatePath(feast *FeastServices, feastType FeastServiceType, certFileName string) string {
+	// Check if custom CA bundle is available
+	if feast != nil {
+		customCaBundle := feast.GetCustomCertificatesBundle()
+		if customCaBundle.IsDefined {
+			// Use custom CA bundle path when available (for RHOAI/ODH deployments)
+			return tlsPathCustomCABundle
+		}
+	}
+	// Fall back to individual service certificate path
+	return GetTlsPath(feastType) + certFileName
 }

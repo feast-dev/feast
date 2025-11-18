@@ -62,12 +62,14 @@ REGISTRY_STORE_CLASS_FOR_TYPE = {
     "S3RegistryStore": "feast.infra.registry.s3.S3RegistryStore",
     "FileRegistryStore": "feast.infra.registry.file.FileRegistryStore",
     "AzureRegistryStore": "feast.infra.registry.contrib.azure.azure_registry_store.AzBlobRegistryStore",
+    "HDFSRegistryStore": "feast.infra.registry.contrib.hdfs.hdfs_registry_store.HDFSRegistryStore",
 }
 
 REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "gs": "GCSRegistryStore",
     "s3": "S3RegistryStore",
     "file": "FileRegistryStore",
+    "hdfs": "HDFSRegistryStore",
     "": "FileRegistryStore",
 }
 
@@ -143,7 +145,7 @@ def get_registry_store_class_from_scheme(registry_path: str):
     if uri.scheme not in REGISTRY_STORE_CLASS_FOR_SCHEME:
         raise Exception(
             f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
-            f"Supported schemes are file, s3 and gs."
+            f"Supported schemes are file, s3, gs and hdfs."
         )
     else:
         registry_store_type = REGISTRY_STORE_CLASS_FOR_SCHEME[uri.scheme]
@@ -219,6 +221,13 @@ class Registry(BaseRegistry):
             else False
         )
 
+        self.cache_mode = (
+            registry_config.cache_mode if registry_config is not None else "sync"
+        )
+
+        self._file_mtime = None
+        self._file_path = None
+
         if registry_config:
             registry_store_type = registry_config.registry_store_type
             registry_path = registry_config.path
@@ -235,6 +244,13 @@ class Registry(BaseRegistry):
                     else 0
                 )
             )
+
+            from feast.infra.registry.file import FileRegistryStore
+
+            if isinstance(self._registry_store, FileRegistryStore):
+                self._file_path = self._registry_store._filepath
+                if self._file_path.exists():
+                    self._file_mtime = self._file_path.stat().st_mtime
 
             try:
                 registry_proto = self._registry_store.get_registry_proto()
@@ -881,6 +897,11 @@ class Registry(BaseRegistry):
         """Commits the state of the registry cache to the remote registry store."""
         if self.cached_registry_proto:
             self._registry_store.update_registry_proto(self.cached_registry_proto)
+            if self._file_path is not None and self._file_path.exists():
+                try:
+                    self._file_mtime = self._file_path.stat().st_mtime
+                except (OSError, FileNotFoundError):
+                    pass
 
     def refresh(self, project: Optional[str] = None):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
@@ -937,6 +958,23 @@ class Registry(BaseRegistry):
         Returns: Returns a RegistryProto object which represents the state of the registry
         """
         with self._refresh_lock:
+            # For file-based registries in sync mode, check file modification time
+            # to detect changes immediately, not just based on TTL
+            file_modified = False
+            if (
+                allow_cache
+                and self.cache_mode == "sync"
+                and self._file_path is not None
+                and self._file_path.exists()
+            ):
+                try:
+                    current_mtime = self._file_path.stat().st_mtime
+                    if self._file_mtime is None or current_mtime > self._file_mtime:
+                        file_modified = True
+                        self._file_mtime = current_mtime
+                except (OSError, FileNotFoundError):
+                    file_modified = True
+
             expired = (self.cached_registry_proto_created is None) or (
                 self.cached_registry_proto_ttl.total_seconds()
                 > 0  # 0 ttl means infinity
@@ -949,12 +987,25 @@ class Registry(BaseRegistry):
                 )
             )
 
-            if allow_cache and not expired:
+            # Refresh if expired or file was modified (for sync mode with file registry)
+            if allow_cache and not expired and not file_modified:
                 return self.cached_registry_proto
-            logger.info("Registry cache expired, so refreshing")
+
+            if file_modified:
+                logger.info("Registry file modified, so refreshing")
+            else:
+                logger.info("Registry cache expired, so refreshing")
+
             registry_proto = self._registry_store.get_registry_proto()
             self.cached_registry_proto = registry_proto
             self.cached_registry_proto_created = _utc_now()
+
+            if self._file_path is not None and self._file_path.exists():
+                try:
+                    self._file_mtime = self._file_path.stat().st_mtime
+                except (OSError, FileNotFoundError):
+                    pass
+
             return registry_proto
 
     def _check_conflicting_feature_view_names(self, feature_view: BaseFeatureView):

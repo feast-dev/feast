@@ -1,5 +1,98 @@
 # Changelog
 
+# [0.57.0](https://github.com/feast-dev/feast/compare/v0.56.0...v0.57.0) (2025-11-13)
+
+
+### Bug Fixes
+
+* Improve trino to feast type mapping with (real,varchar,timestamp,decimal) ([#5691](https://github.com/feast-dev/feast/issues/5691)) ([f855ad2](https://github.com/feast-dev/feast/commit/f855ad245f1800cb5e591ad0370903f361641037))
+* Materialize API - ODFV views not looked-up (thinks views non existant)  - crashes materialize ([#5716](https://github.com/feast-dev/feast/issues/5716)) ([1b050b3](https://github.com/feast-dev/feast/commit/1b050b32fefd1190044087dec504acdcb43a51d5))
+* Support historical feature retrieval with start_date/end_date in RemoteOfflineStore ([#5703](https://github.com/feast-dev/feast/issues/5703)) ([ad32756](https://github.com/feast-dev/feast/commit/ad3275654226f614fa4a40411440d16634f6971c))
+* Thread safe Clickhouse offline store ([#5710](https://github.com/feast-dev/feast/issues/5710)) ([5f446ed](https://github.com/feast-dev/feast/commit/5f446ede403e778264e6a44266ba72e1174e1db9))
+
+
+### Features
+
+* Add annotations to cronjob CRDs ([#5701](https://github.com/feast-dev/feast/issues/5701)) ([be6e6c2](https://github.com/feast-dev/feast/commit/be6e6c2752df669d030ed2c8b66dd2229448490e))
+* Add batch commit mode for MySQL OnlineStore ([#5699](https://github.com/feast-dev/feast/issues/5699)) ([3cfe4eb](https://github.com/feast-dev/feast/commit/3cfe4ebfa9de589fa03c020cadcb4d9de504affa))
+* Add possibility to materialize only latest values, to increase performance ([#5713](https://github.com/feast-dev/feast/issues/5713)) ([8d77b72](https://github.com/feast-dev/feast/commit/8d77b7287b9dea11acad56fed1dada453150785c))
+* Support table format: Iceberg, Delta, and Hudi ([#5650](https://github.com/feast-dev/feast/issues/5650)) ([2915ad1](https://github.com/feast-dev/feast/commit/2915ad18735ee4f749c2e63a6bbf0dd2a922bc96))
+
+# [0.56.0](https://github.com/feast-dev/feast/compare/v0.55.0...v0.56.0) (2025-10-27)
+
+
+### Bug Fixes
+
+* Add mode field to Transformation proto for proper serialization ([2390d2e](https://github.com/feast-dev/feast/commit/2390d2ea654e299fc74f697212542b755f3b4938))
+* Date wise remote offline store historical data retrieval  ([#5686](https://github.com/feast-dev/feast/issues/5686)) ([949ba3d](https://github.com/feast-dev/feast/commit/949ba3dae420f82f493018113d1fd6de9e130a56))
+* Fix STRING type handling in on-demand feature views ([#5669](https://github.com/feast-dev/feast/issues/5669)) ([dfbb743](https://github.com/feast-dev/feast/commit/dfbb7433f059e6f0d1d4ef6c0ef65b63dac1c1ff))
+* Fixed torch install issue in CI ([366e5a8](https://github.com/feast-dev/feast/commit/366e5a8c8f8093eda840b667849c6d2e45fa56bb))
+* ODFV not getting counted in resource count ([1d640b6](https://github.com/feast-dev/feast/commit/1d640b6c8136c47a78887e4490a5b7ae677b7c99))
+* Skip tag updates if user do not have permissions ([#5673](https://github.com/feast-dev/feast/issues/5673)) ([0a951ce](https://github.com/feast-dev/feast/commit/0a951ce8d7f9b31490fa279339eacd444d2d2434))
+
+
+### Features
+
+* Add document of Go feature server. ([#5697](https://github.com/feast-dev/feast/issues/5697)) ([cbd1dde](https://github.com/feast-dev/feast/commit/cbd1dde9a0a6e5a3ec7e3520b6613d3818bcd842))
+* Add flexible commandArgs support for complete Feast CLI control ([#5678](https://github.com/feast-dev/feast/issues/5678)) ([6414924](https://github.com/feast-dev/feast/commit/64149246c1925e9f3dcac60d9ab629225c232261))
+* Add HDFS as a feature registry ([#5655](https://github.com/feast-dev/feast/issues/5655)) ([4c65872](https://github.com/feast-dev/feast/commit/4c65872ee6cf7e14ed14c8a8a7e141126027e575))
+* Add nodeSelector to service config ([#5675](https://github.com/feast-dev/feast/issues/5675)) ([9728cde](https://github.com/feast-dev/feast/commit/9728cde4d3cf4d22a790d3a3af2eba705b7a56d3))
+* Add OTEL based observability to the Go Feature Server ([#5685](https://github.com/feast-dev/feast/issues/5685)) ([f4afdad](https://github.com/feast-dev/feast/commit/f4afdad27c7fe92e9778e29ad08e4b227a3c17a4))
+* Added health endpoint for the UI ([#5665](https://github.com/feast-dev/feast/issues/5665)) ([3aec5d5](https://github.com/feast-dev/feast/commit/3aec5d5fd24540d10f07e79c081c2658ca35678c))
+* Added kuberay support ([e0b698d](https://github.com/feast-dev/feast/commit/e0b698d7b8733c8177ca053bc89defb01ebeb538))
+* Added support for filtering multi-projects ([#5688](https://github.com/feast-dev/feast/issues/5688)) ([eb0a86e](https://github.com/feast-dev/feast/commit/eb0a86eb81defb5ccb2407a0d5f2b2425bcb61c1))
+* Batch Embedding at scale for RAG with Ray ([cc2a46d](https://github.com/feast-dev/feast/commit/cc2a46d54c413ed52a9bf568588dd06096592c1f))
+* Optimize SQL entity handling without creating temporary tables ([#5695](https://github.com/feast-dev/feast/issues/5695)) ([aa2c838](https://github.com/feast-dev/feast/commit/aa2c8386253181145c4f314187e0873b96b2be59))
+* Support aggregation in odfv ([#5666](https://github.com/feast-dev/feast/issues/5666)) ([564e965](https://github.com/feast-dev/feast/commit/564e9651dabea5458a77a8889920749cb1a6a5ed))
+* Support cache_mode for registries ([021e9ea](https://github.com/feast-dev/feast/commit/021e9ea759bfee0292c5f7c804119ed9a15d6a58))
+
+# [0.55.0](https://github.com/feast-dev/feast/compare/v0.54.0...v0.55.0) (2025-10-14)
+
+
+### Bug Fixes
+
+* Added unix_timestamp_val in _serialize_val ([#5659](https://github.com/feast-dev/feast/issues/5659)) ([35a8423](https://github.com/feast-dev/feast/commit/35a84237bb15c5582ffa432f13fe5e4948a1c19c))
+* BatchFeatureView transformation should persist in Registry Ser/Deserialization ([3364bad](https://github.com/feast-dev/feast/commit/3364bad2be06556d20f6ff509068372c5f880561))
+* Check if DynamoDB table exists before create ([#5658](https://github.com/feast-dev/feast/issues/5658)) ([e7fd506](https://github.com/feast-dev/feast/commit/e7fd506f7320b0e3d9d62d247387ec21c1fe8c0f))
+* Fix the link to Expedia in the Go Feature Server readme. ([3ed0163](https://github.com/feast-dev/feast/commit/3ed01636d8476d2abc93c1396d33a877241a3091))
+
+
+### Features
+
+* Add Claude instructions ([#5651](https://github.com/feast-dev/feast/issues/5651)) ([4807a52](https://github.com/feast-dev/feast/commit/4807a524129535ab26e76879cf95fc6513dbec74))
+* Groups and Namespaces based authorization, for Users and Service Accounts ([#5619](https://github.com/feast-dev/feast/issues/5619)) ([da6257c](https://github.com/feast-dev/feast/commit/da6257c757b2286f030acb31ea505090cf472442))
+
+# [0.54.0](https://github.com/feast-dev/feast/compare/v0.53.0...v0.54.0) (2025-09-30)
+
+
+### Bug Fixes
+
+* Column quoting in query of `PostgreSQLOfflineStore.pull_all_from_table_or_query` ([#5621](https://github.com/feast-dev/feast/issues/5621)) ([e8eae71](https://github.com/feast-dev/feast/commit/e8eae71a3141748df7e7460bcf95cf0943a69e75))
+* Correct column list polars materialization engine ([#5595](https://github.com/feast-dev/feast/issues/5595)) ([39aeb0c](https://github.com/feast-dev/feast/commit/39aeb0c443f43844978678f258567bea851f0e15))
+* Fix Go feature server entitykey serialization for version 3 ([#5622](https://github.com/feast-dev/feast/issues/5622)) ([5ab18a6](https://github.com/feast-dev/feast/commit/5ab18a6a2ad77723a823e9a0f28b7b2f3d3f06ce))
+* Fix hostname resolution for spark tests ([#5610](https://github.com/feast-dev/feast/issues/5610)) ([8f0e22d](https://github.com/feast-dev/feast/commit/8f0e22d839860d331f835e35f56272b965fd34eb))
+* Fixed filtering based on data_source for ODFVs ([#5593](https://github.com/feast-dev/feast/issues/5593)) ([c3e6c56](https://github.com/feast-dev/feast/commit/c3e6c56239377384dcd9e062b1cf910e2b0e173e))
+* Fixed project_description to set in registry and UI ([#5602](https://github.com/feast-dev/feast/issues/5602)) ([02c3006](https://github.com/feast-dev/feast/commit/02c300662387ef2c4c2c24543217c9c9b10000fa))
+* Fixed Registry Cache Refresh Issues ([#5604](https://github.com/feast-dev/feast/issues/5604)) ([3c7a022](https://github.com/feast-dev/feast/commit/3c7a022ec72defe9673b4ef9b72ba785fc090684))
+* Fixed tls issue when running both grpc and rest servers ([#5617](https://github.com/feast-dev/feast/issues/5617)) ([51c16b1](https://github.com/feast-dev/feast/commit/51c16b1f448c26ded0a41e0404fd0311f2cdb6d7))
+* Fixed transaction handling with SQLite registry ([#5588](https://github.com/feast-dev/feast/issues/5588)) ([0052754](https://github.com/feast-dev/feast/commit/00527540499adb03e53ea0ba30866e71664dbca6))
+* Update the deprecated functions in Go feature server. ([#5632](https://github.com/feast-dev/feast/issues/5632)) ([a24e06e](https://github.com/feast-dev/feast/commit/a24e06e0b6e84fa8c3aafb338ff75e2156a02138))
+* Updated python packages conflicting with kserve dependencies ([#5580](https://github.com/feast-dev/feast/issues/5580)) ([d56baf4](https://github.com/feast-dev/feast/commit/d56baf4aca917a2965a4d77e06462138a7b52de0))
+
+
+### Features
+
+* Add 'featureView' in global search api result for features. ([#5626](https://github.com/feast-dev/feast/issues/5626)) ([76590bf](https://github.com/feast-dev/feast/commit/76590bf4424f20f8fdb9ef7882fc24b2af0f88cc))
+* Add aggregation in OnDemandFeatureView ([#5629](https://github.com/feast-dev/feast/issues/5629)) ([8715ae8](https://github.com/feast-dev/feast/commit/8715ae85a94c62b5a58e233cb850b12b0c403208))
+* Added codeflare-sdk to requirements ([#5640](https://github.com/feast-dev/feast/issues/5640)) ([51a0ee6](https://github.com/feast-dev/feast/commit/51a0ee61719ef893a2d2165a0a38edc1734034a2))
+* Added RemoteDatasetProxy that executes Ray Data operations remotely ([7128024](https://github.com/feast-dev/feast/commit/7128024db08c0f8b880de5bdd614545339ced1b1))
+* Added support for image search ([#5577](https://github.com/feast-dev/feast/issues/5577)) ([56c5910](https://github.com/feast-dev/feast/commit/56c59108a5d9ffdc35eaf31960556be894c2a38d))
+* Enable ingestion without event timestamp ([#5625](https://github.com/feast-dev/feast/issues/5625)) ([eb51f00](https://github.com/feast-dev/feast/commit/eb51f005dddba8aedd528032d62d966166c028eb))
+* Feast dataframe phase1 ([#5611](https://github.com/feast-dev/feast/issues/5611)) ([2ce4198](https://github.com/feast-dev/feast/commit/2ce4198cfb41f0395a3d56ae20e2bef193617f88))
+* Feast dataframe phase2 ([#5612](https://github.com/feast-dev/feast/issues/5612)) ([1d08786](https://github.com/feast-dev/feast/commit/1d0878663cd93f0123a1a150cf306e1923d1aca5))
+* Feast Namespaces registry for client ConfigMaps availability ([#5599](https://github.com/feast-dev/feast/issues/5599)) ([728589a](https://github.com/feast-dev/feast/commit/728589a80735b4b5641fbbccbe6092bb4b5ed1fa))
+* Support hdfs:// uris in to_remote_storage for Spark offline store ([#5635](https://github.com/feast-dev/feast/issues/5635)) ([5e4b9fd](https://github.com/feast-dev/feast/commit/5e4b9fd5ca490bcd52710fa8691ad5fa6f5680dc))
+
 # [0.53.0](https://github.com/feast-dev/feast/compare/v0.52.0...v0.53.0) (2025-08-30)
 
 

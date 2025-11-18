@@ -67,10 +67,10 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     with open("/var/feast/feature_store.yaml") as f:
-        feast_config = yaml.load(f, Loader=yaml.Loader)
+        feast_config = yaml.safe_load(f)
 
         with open("/var/feast/materialization_config.yaml") as b:
-            materialization_cfg = yaml.load(b, Loader=yaml.Loader)
+            materialization_cfg = yaml.safe_load(b)
 
             config = RepoConfig(**feast_config)
             store = FeatureStore(config=config)

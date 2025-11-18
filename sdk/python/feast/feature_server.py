@@ -5,6 +5,7 @@ import threading
 import time
 import traceback
 from contextlib import asynccontextmanager
+from datetime import datetime
 from importlib import resources as importlib_resources
 from typing import Any, Dict, List, Optional, Union
 
@@ -73,9 +74,10 @@ class PushFeaturesRequest(BaseModel):
 
 
 class MaterializeRequest(BaseModel):
-    start_ts: str
-    end_ts: str
+    start_ts: Optional[str] = None
+    end_ts: Optional[str] = None
     feature_views: Optional[List[str]] = None
+    disable_event_timestamp: bool = False
 
 
 class MaterializeIncrementalRequest(BaseModel):
@@ -118,27 +120,26 @@ class SaveDocumentRequest(BaseModel):
     data: dict
 
 
-def _get_features(
+async def _get_features(
     request: Union[GetOnlineFeaturesRequest, GetOnlineDocumentsRequest],
     store: "feast.FeatureStore",
 ):
     if request.feature_service:
-        feature_service = store.get_feature_service(
-            request.feature_service, allow_cache=True
+        feature_service = await run_in_threadpool(
+            store.get_feature_service, request.feature_service, allow_cache=True
         )
         assert_permissions(
             resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
         )
         features = feature_service  # type: ignore
     else:
-        all_feature_views, all_on_demand_feature_views = (
-            utils._get_feature_views_to_use(
-                store.registry,
-                store.project,
-                request.features,
-                allow_cache=True,
-                hide_dummy_entity=False,
-            )
+        all_feature_views, all_on_demand_feature_views = await run_in_threadpool(
+            utils._get_feature_views_to_use,
+            store.registry,
+            store.project,
+            request.features,
+            allow_cache=True,
+            hide_dummy_entity=False,
         )
         for feature_view in all_feature_views:
             assert_permissions(
@@ -228,7 +229,7 @@ def get_app(
     )
     async def get_online_features(request: GetOnlineFeaturesRequest) -> Dict[str, Any]:
         # Initialize parameters for FeatureStore.get_online_features(...) call
-        features = await run_in_threadpool(_get_features, request, store)
+        features = await _get_features(request, store)
 
         read_params = dict(
             features=features,
@@ -263,7 +264,7 @@ def get_app(
             "This endpoint is in alpha and will be moved to /get-online-features when stable."
         )
         # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
-        features = await run_in_threadpool(_get_features, request, store)
+        features = await _get_features(request, store)
 
         read_params = dict(features=features, query=request.query, top_k=request.top_k)
         if request.api_version == 2 and request.query_string is not None:
@@ -340,26 +341,40 @@ def get_app(
         else:
             store.push(**push_params)
 
-    def _get_feast_object(
+    async def _get_feast_object(
         feature_view_name: str, allow_registry_cache: bool
     ) -> FeastObject:
+        # FIXME: this logic repeated at least 3 times in the codebase - should be centralized
+        # in logging, in server and in feature_store (Python SDK)
         try:
-            return store.get_stream_feature_view(  # type: ignore
-                feature_view_name, allow_registry_cache=allow_registry_cache
+            return await run_in_threadpool(
+                store.get_feature_view,
+                feature_view_name,
+                allow_registry_cache=allow_registry_cache,
             )
         except FeatureViewNotFoundException:
-            return store.get_feature_view(  # type: ignore
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
+            try:
+                return await run_in_threadpool(
+                    store.get_on_demand_feature_view,
+                    feature_view_name,
+                    allow_registry_cache=allow_registry_cache,
+                )
+            except FeatureViewNotFoundException:
+                return await run_in_threadpool(
+                    store.get_stream_feature_view,
+                    feature_view_name,
+                    allow_registry_cache=allow_registry_cache,
+                )
 
     @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
-    def write_to_online_store(request: WriteToFeatureStoreRequest) -> None:
+    async def write_to_online_store(request: WriteToFeatureStoreRequest) -> None:
         df = pd.DataFrame(request.df)
         feature_view_name = request.feature_view_name
         allow_registry_cache = request.allow_registry_cache
-        resource = _get_feast_object(feature_view_name, allow_registry_cache)
+        resource = await _get_feast_object(feature_view_name, allow_registry_cache)
         assert_permissions(resource=resource, actions=[AuthzedAction.WRITE_ONLINE])
-        store.write_to_online_store(
+        await run_in_threadpool(
+            store.write_to_online_store,
             feature_view_name=feature_view_name,
             df=df,
             allow_registry_cache=allow_registry_cache,
@@ -426,27 +441,49 @@ def get_app(
         return Response(content=content, media_type="text/html")
 
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
-    def materialize(request: MaterializeRequest) -> None:
+    async def materialize(request: MaterializeRequest) -> None:
         for feature_view in request.feature_views or []:
+            resource = await _get_feast_object(feature_view, True)
             assert_permissions(
-                resource=_get_feast_object(feature_view, True),
+                resource=resource,
                 actions=[AuthzedAction.WRITE_ONLINE],
             )
-        store.materialize(
-            utils.make_tzaware(parser.parse(request.start_ts)),
-            utils.make_tzaware(parser.parse(request.end_ts)),
+
+        if request.disable_event_timestamp:
+            # Query all available data and use current datetime as event timestamp
+            now = datetime.now()
+            start_date = datetime(
+                1970, 1, 1
+            )  # Beginning of time to capture all historical data
+            end_date = now
+        else:
+            if not request.start_ts or not request.end_ts:
+                raise ValueError(
+                    "start_ts and end_ts are required when disable_event_timestamp is False"
+                )
+            start_date = utils.make_tzaware(parser.parse(request.start_ts))
+            end_date = utils.make_tzaware(parser.parse(request.end_ts))
+
+        await run_in_threadpool(
+            store.materialize,
+            start_date,
+            end_date,
             request.feature_views,
+            disable_event_timestamp=request.disable_event_timestamp,
         )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
-    def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
+    async def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
         for feature_view in request.feature_views or []:
+            resource = await _get_feast_object(feature_view, True)
             assert_permissions(
-                resource=_get_feast_object(feature_view, True),
+                resource=resource,
                 actions=[AuthzedAction.WRITE_ONLINE],
             )
-        store.materialize_incremental(
-            utils.make_tzaware(parser.parse(request.end_ts)), request.feature_views
+        await run_in_threadpool(
+            store.materialize_incremental,
+            utils.make_tzaware(parser.parse(request.end_ts)),
+            request.feature_views,
         )
 
     @app.exception_handler(Exception)

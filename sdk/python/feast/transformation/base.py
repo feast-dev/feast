@@ -90,10 +90,14 @@ class Transformation(ABC):
         self.owner = owner
 
     def to_proto(self) -> Union[UserDefinedFunctionProto, SubstraitTransformationProto]:
+        mode_str = (
+            self.mode.value if isinstance(self.mode, TransformationMode) else self.mode
+        )
         return UserDefinedFunctionProto(
             name=self.udf.__name__,
             body=dill.dumps(self.udf, recurse=True),
             body_text=self.udf_string,
+            mode=mode_str,
         )
 
     def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> "Transformation":

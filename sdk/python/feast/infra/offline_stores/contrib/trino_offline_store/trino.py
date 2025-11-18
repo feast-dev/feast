@@ -372,6 +372,8 @@ class TrinoOfflineStore(OfflineStore):
         )
 
         # Generate the Trino SQL query from the query context
+        if type(entity_df) is str:
+            table_reference = f"({entity_df})"
         query = offline_utils.build_point_in_time_query(
             query_context,
             left_table_query_string=table_reference,
@@ -454,9 +456,7 @@ def _upload_entity_df_and_get_entity_schema(
 ) -> Dict[str, np.dtype]:
     """Uploads a Pandas entity dataframe into a Trino table and returns the resulting table"""
     if type(entity_df) is str:
-        client.execute_query(f"CREATE TABLE {table_name} AS ({entity_df})")
-
-        results = client.execute_query(f"SELECT * FROM {table_name} LIMIT 1")
+        results = client.execute_query(f"SELECT * FROM ({entity_df}) LIMIT 1")
 
         limited_entity_df = pd.DataFrame(
             data=results.data, columns=results.columns_names

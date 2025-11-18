@@ -2,8 +2,8 @@ from typing import Union
 
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.backends.base import DataFrameBackend
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
-from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.nodes import (
     LocalAggregationNode,
     LocalDedupNode,
@@ -70,8 +70,13 @@ class LocalFeatureBuilder(FeatureBuilder):
 
     def build_transformation_node(self, view, input_nodes):
         transform_config = view.feature_transformation
+        transformation_fn = (
+            transform_config.udf
+            if hasattr(transform_config, "udf")
+            else transform_config
+        )
         node = LocalTransformationNode(
-            "transform", transform_config, self.backend, inputs=input_nodes
+            "transform", transformation_fn, self.backend, inputs=input_nodes
         )
         self.nodes.append(node)
         return node

@@ -83,11 +83,28 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 install-python-dependencies-ci: ## Install Python CI dependencies in system environment using uv
 	# Install CPU-only torch first to prevent CUDA dependency issues
 	pip uninstall torch torchvision -y || true
-	pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
-	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	@if [ "$$(uname -s)" = "Linux" ]; then \
+		echo "Installing dependencies with torch CPU index for Linux..."; \
+		uv pip sync --system --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+	else \
+		echo "Installing dependencies from PyPI for macOS..."; \
+		uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+	fi
 	uv pip install --system --no-deps -e .
 
-# Used by multicloud/Dockerfile.dev
+# Used in github actions/ci
+install-hadoop-dependencies-ci: ## Install Hadoop dependencies
+	@if [ ! -f $$HOME/hadoop-3.4.2.tar.gz ]; then \
+		echo "Downloading Hadoop tarball..."; \
+		wget -q https://dlcdn.apache.org/hadoop/common/hadoop-3.4.2/hadoop-3.4.2.tar.gz -O $$HOME/hadoop-3.4.2.tar.gz; \
+	else \
+		echo "Using cached Hadoop tarball"; \
+	fi
+	@if [ ! -d $$HOME/hadoop ]; then \
+		echo "Extracting Hadoop tarball..."; \
+		tar -xzf $$HOME/hadoop-3.4.2.tar.gz -C $$HOME; \
+		mv $$HOME/hadoop-3.4.2 $$HOME/hadoop; \
+	fi
 install-python-ci-dependencies: ## Install Python CI dependencies in system environment using piptools
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
@@ -146,6 +163,9 @@ test-python-integration: ## Run Python integration tests (CI)
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
+	HADOOP_HOME=$$HOME/hadoop \
+	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
+	HADOOP_USER_NAME=root \
 	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
@@ -620,6 +640,11 @@ build-feature-server-dev-docker: ## Build Feature Server Dev Docker image
 		-t $(REGISTRY)/feature-server:$(VERSION) \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
 
+build-feature-server-dev-docker_on_mac: ## Build Feature Server Dev Docker image on Mac
+	docker buildx build --platform linux/amd64 \
+		-t $(REGISTRY)/feature-server:$(VERSION) \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
 push-feature-server-dev-docker: ## Push Feature Server Dev Docker image
 	docker push $(REGISTRY)/feature-server:$(VERSION)
 
@@ -713,20 +738,25 @@ compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
 			--go-grpc_out=$(ROOT_DIR)/go/protos \
 			--go-grpc_opt=module=github.com/feast-dev/feast/go/protos $(ROOT_DIR)/protos/feast/$(folder)/*.proto; ) true
 
-#install-go-ci-dependencies:
-	# go install golang.org/x/tools/cmd/goimports
-	# python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+install-go-ci-dependencies:
+	go install golang.org/x/tools/cmd/goimports
+	uv pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
 
 .PHONY: build-go
 build-go: compile-protos-go ## Build Go code
 	go build -o feast ./go/main.go
 
-.PHONY: install-feast-ci-locally
-install-feast-ci-locally: ## Install Feast CI dependencies locally
-	uv pip install -e ".[ci]"
+
+## Assume the uv will create an .venv folder for itself.
+## The unit test funcions will call the Python "feast" command to initialze a feast repo.
+.PHONY: install-feast-locally
+install-feast-locally: ## Install Feast locally
+	uv pip install -e "."
+	@export PATH=$(ROOT_DIR)/.venv/bin:$$PATH
+	@echo $$PATH
 
 .PHONY: test-go
-test-go: compile-protos-go install-feast-ci-locally compile-protos-python ## Run Go tests
+test-go: compile-protos-python compile-protos-go install-go-ci-dependencies install-feast-locally  ## Run Go tests
 	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 
 .PHONY: format-go

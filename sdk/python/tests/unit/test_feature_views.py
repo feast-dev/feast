@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import pandas as pd
 import pytest
 from typeguard import TypeCheckError
 
@@ -18,7 +19,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewSpec as FeatureViewSpecProto,
 )
 from feast.protos.feast.types.Value_pb2 import ValueType
-from feast.types import Float32
+from feast.types import Float32, Int64, String
 from feast.utils import _utc_now, make_tzaware
 
 
@@ -298,3 +299,234 @@ def test_feature_view_from_proto_with_cycle():
         ValueError, match="Cycle detected while deserializing FeatureView: fv_a"
     ):
         FeatureView.from_proto(proto_a)
+
+
+def test_batch_feature_view_serialization_deserialization():
+    """
+    Test that BatchFeatureView with transformations correctly serializes to proto
+    and deserializes back preserving both type and transformation.
+    """
+
+    def transform_udf(df: pd.DataFrame) -> pd.DataFrame:
+        df["output_feature"] = df["input_feature"] * 2 + 10
+        return df
+
+    file_source = FileSource(
+        name="test-source",
+        path="test_data.parquet",
+        timestamp_field="event_timestamp",
+    )
+
+    entity = Entity(name="test_entity", join_keys=["entity_id"])
+
+    original_bfv = BatchFeatureView(
+        name="test_batch_feature_view",
+        entities=[entity],
+        schema=[
+            Field(name="entity_id", dtype=String),
+            Field(name="input_feature", dtype=Int64),
+            Field(name="output_feature", dtype=Int64),
+        ],
+        source=file_source,
+        ttl=timedelta(days=1),
+        online=True,
+        description="Test batch feature view with transformation",
+        tags={"team": "data_science", "env": "test"},
+        owner="test_owner",
+        udf=transform_udf,
+        mode="python",
+    )
+
+    # Verify the original has the transformation
+    assert hasattr(original_bfv, "feature_transformation")
+    assert original_bfv.feature_transformation is not None
+    assert original_bfv.feature_transformation.udf == transform_udf
+
+    # Serialize to proto
+    proto = original_bfv.to_proto()
+
+    # Verify proto has the transformation field
+    assert proto.spec.HasField("feature_transformation")
+    assert proto.spec.feature_transformation.HasField("user_defined_function")
+    assert (
+        proto.spec.feature_transformation.user_defined_function.name == "transform_udf"
+    )
+    assert proto.spec.feature_transformation.user_defined_function.body != b""
+
+    # Deserialize from proto using FeatureView.from_proto()
+    # This should return a BatchFeatureView, not a generic FeatureView
+    deserialized = FeatureView.from_proto(proto)
+
+    # Verify the type is preserved
+    assert isinstance(deserialized, BatchFeatureView), (
+        f"Expected BatchFeatureView but got {type(deserialized).__name__}. "
+        "Type should be preserved during deserialization."
+    )
+
+    # Verify basic attributes
+    assert deserialized.name == "test_batch_feature_view"
+    assert deserialized.description == "Test batch feature view with transformation"
+    assert deserialized.tags == {"team": "data_science", "env": "test"}
+    assert deserialized.owner == "test_owner"
+    assert deserialized.ttl == timedelta(days=1)
+    assert deserialized.online is True
+
+    # Verify the transformation is preserved
+    assert hasattr(deserialized, "feature_transformation")
+    assert deserialized.feature_transformation is not None
+
+    # Verify the UDF is functional by testing it
+    test_df = pd.DataFrame({"input_feature": [1, 2, 3]})
+    result_df = deserialized.feature_transformation.udf(test_df)
+    expected_df = pd.DataFrame(
+        {"input_feature": [1, 2, 3], "output_feature": [12, 14, 16]}
+    )
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+    # Test round-trip: serialize again and verify consistency
+    second_proto = deserialized.to_proto()
+    second_deserialized = FeatureView.from_proto(second_proto)
+
+    assert isinstance(second_deserialized, BatchFeatureView)
+    assert second_deserialized.name == original_bfv.name
+    assert second_deserialized.feature_transformation is not None
+
+
+def test_transformation_mode_serialization():
+    """
+    Test that transformation mode is properly serialized to proto and deserialized back.
+    This verifies the fix for the mode field in Transformation.proto.
+    """
+    from feast.transformation.mode import TransformationMode
+    from feast.transformation.pandas_transformation import PandasTransformation
+    from feast.transformation.python_transformation import PythonTransformation
+
+    def simple_udf(df: pd.DataFrame) -> pd.DataFrame:
+        df["output"] = df["input"] * 2
+        return df
+
+    file_source = FileSource(
+        name="test-source",
+        path="test_data.parquet",
+        timestamp_field="event_timestamp",
+    )
+
+    entity = Entity(name="test_entity", join_keys=["entity_id"])
+
+    # Test different transformation modes
+    test_cases = [
+        ("python", TransformationMode.PYTHON, PythonTransformation),
+        ("pandas", TransformationMode.PANDAS, PandasTransformation),
+    ]
+
+    for mode_str, mode_enum, transformation_class in test_cases:
+        # Create BatchFeatureView with the transformation
+        bfv = BatchFeatureView(
+            name=f"test_bfv_{mode_str}",
+            entities=[entity],
+            schema=[
+                Field(name="entity_id", dtype=String),
+                Field(name="input", dtype=Int64),
+                Field(name="output", dtype=Int64),
+            ],
+            source=file_source,
+            ttl=timedelta(days=1),
+            mode=mode_str,
+            udf=simple_udf,
+        )
+
+        # Serialize to proto
+        proto = bfv.to_proto()
+
+        # Verify mode is in the proto
+        assert proto.spec.HasField("feature_transformation")
+        assert proto.spec.feature_transformation.HasField("user_defined_function")
+        udf_proto = proto.spec.feature_transformation.user_defined_function
+        assert udf_proto.mode == mode_str, (
+            f"Expected mode '{mode_str}' in proto, got '{udf_proto.mode}'"
+        )
+
+        # Deserialize from proto
+        deserialized = FeatureView.from_proto(proto)
+
+        # Verify mode is preserved
+        assert isinstance(deserialized, BatchFeatureView)
+        # Mode can be either string or enum, so compare values
+        deserialized_mode_str = (
+            deserialized.mode.value
+            if isinstance(deserialized.mode, TransformationMode)
+            else deserialized.mode
+        )
+        assert deserialized_mode_str == mode_str, (
+            f"Expected mode '{mode_str}' after deserialization, got '{deserialized_mode_str}'"
+        )
+        assert deserialized.feature_transformation is not None
+        assert deserialized.feature_transformation.mode == mode_enum, (
+            f"Expected transformation mode {mode_enum} after deserialization, "
+            f"got {deserialized.feature_transformation.mode}"
+        )
+
+
+def test_mode_serialization_without_transformation():
+    """
+    Test that mode is properly serialized in FeatureViewSpec proto.
+    This tests the scenario where mode is set on the FeatureView level,
+    ensuring it's stored in the proto independently of the transformation.
+    """
+    from feast.transformation.mode import TransformationMode
+
+    def simple_udf(df: pd.DataFrame) -> pd.DataFrame:
+        df["output"] = df["feature1"] * 2
+        return df
+
+    file_source = FileSource(
+        name="test-source",
+        path="test_data.parquet",
+        timestamp_field="event_timestamp",
+    )
+
+    entity = Entity(name="test_entity", join_keys=["entity_id"])
+
+    test_modes = ["python", "pandas"]
+
+    for mode_str in test_modes:
+        bfv = BatchFeatureView(
+            name=f"test_bfv_mode_in_spec_{mode_str}",
+            entities=[entity],
+            schema=[
+                Field(name="entity_id", dtype=String),
+                Field(name="feature1", dtype=Int64),
+                Field(name="output", dtype=Int64),
+            ],
+            source=file_source,
+            ttl=timedelta(days=1),
+            mode=mode_str,
+            udf=simple_udf,
+        )
+
+        assert bfv.mode == mode_str
+        proto = bfv.to_proto()
+        assert proto.spec.mode == mode_str, (
+            f"Expected mode '{mode_str}' in FeatureViewSpec proto, got '{proto.spec.mode}'"
+        )
+        deserialized = FeatureView.from_proto(proto)
+        assert isinstance(deserialized, FeatureView)
+
+        # With UDF, should deserialize as BatchFeatureView
+        assert isinstance(deserialized, BatchFeatureView), (
+            f"Expected BatchFeatureView, got {type(deserialized).__name__}"
+        )
+
+        # Verify mode is preserved from FeatureViewSpec proto
+        deserialized_mode_str = (
+            deserialized.mode.value
+            if isinstance(deserialized.mode, TransformationMode)
+            else deserialized.mode
+        )
+        assert deserialized_mode_str == mode_str, (
+            f"Expected mode '{mode_str}' after deserialization, got '{deserialized_mode_str}'"
+        )
+
+        assert deserialized.feature_transformation is not None, (
+            "Expected transformation to be present"
+        )

@@ -2,6 +2,24 @@
 
 The Ray compute engine is a distributed compute implementation that leverages [Ray](https://www.ray.io/) for executing feature pipelines including transformations, aggregations, joins, and materializations. It provides scalable and efficient distributed processing for both `materialize()` and `get_historical_features()` operations.
 
+## Quick Start with Ray Template
+
+### Ray RAG Template - Batch Embedding at Scale
+
+For RAG (Retrieval-Augmented Generation) applications with distributed embedding generation:
+
+```bash
+feast init -t ray_rag my_rag_project
+cd my_rag_project/feature_repo
+```
+
+The Ray RAG template demonstrates:
+- **Parallel Embedding Generation**: Uses Ray compute engine to generate embeddings across multiple workers
+- **Vector Search Integration**: Works with Milvus for semantic similarity search
+- **Complete RAG Pipeline**: Data → Embeddings → Search workflow
+
+The Ray compute engine automatically distributes the embedding generation across available workers, making it ideal for processing large datasets efficiently.
+
 ## Overview
 
 The Ray compute engine provides:
@@ -62,11 +80,22 @@ batch_engine:
 | `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
 | `target_partition_size_mb` | int | 64 | Target partition size (MB) |
 | `window_size_for_joins` | string | "1H" | Time window for distributed joins |
-| `ray_address` | string | None | Ray cluster address (None = local Ray) |
+| `ray_address` | string | None | Ray cluster address (triggers REMOTE mode) |
+| `use_kuberay` | boolean | None | Enable KubeRay mode (overrides ray_address) |
+| `kuberay_conf` | dict | None | **KubeRay configuration dict** with keys: `cluster_name` (required), `namespace` (default: "default"), `auth_token`, `auth_server`, `skip_tls` (default: false) |
+| `enable_ray_logging` | boolean | false | Enable Ray progress bars and logging |
 | `enable_distributed_joins` | boolean | true | Enable distributed joins for large datasets |
 | `staging_location` | string | None | Remote path for batch materialization jobs |
-| `ray_conf` | dict | None | Ray configuration parameters |
-| `execution_timeout_seconds` | int | None | Timeout for job execution in seconds |
+| `ray_conf` | dict | None | Ray configuration parameters (memory, CPU limits) |
+
+### Mode Detection Precedence
+
+The Ray compute engine automatically detects the execution mode:
+
+1. **Environment Variables** → KubeRay mode (if `FEAST_RAY_USE_KUBERAY=true`)
+2. **Config `kuberay_conf`** → KubeRay mode
+3. **Config `ray_address`** → Remote mode
+4. **Default** → Local mode
 
 ## Usage Examples
 
@@ -354,6 +383,8 @@ batch_engine:
 
 ### With Feature Transformations
 
+#### On-Demand Transformations
+
 ```python
 from feast import FeatureView, Field
 from feast.types import Float64
@@ -371,6 +402,29 @@ def trips_per_hour(features_df):
 features = store.get_historical_features(
     entity_df=entity_df,
     features=["trips_per_hour:trips_per_hour"]
+)
+```
+
+#### Ray Native Transformations
+
+For distributed transformations that leverage Ray's dataset and parallel processing capabilities, use `mode="ray"` in your `BatchFeatureView`:
+
+```python
+# Feature view with Ray transformation mode
+document_embeddings_view = BatchFeatureView(
+    name="document_embeddings",
+    entities=[document],
+    mode="ray",  # Enable Ray native transformation
+    ttl=timedelta(days=365),
+    schema=[
+        Field(name="document_id", dtype=String),
+        Field(name="embedding", dtype=Array(Float32), vector_index=True),
+        Field(name="movie_name", dtype=String),
+        Field(name="movie_director", dtype=String),
+    ],
+    source=movies_source,
+    udf=generate_embeddings_ray_native,
+    online=True,
 )
 ```
 

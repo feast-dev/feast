@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: 'quay.io/sclorg/redis-7-c9s'
+          image: 'quay.io/sclorg/redis-7-c9s@sha256:ce07d358cea749e67bcc77f73b2c5244d771ac0781ed20d7ebb2ba271c169173'
           ports:
             - containerPort: 6379
           env:
