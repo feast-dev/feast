@@ -380,16 +380,23 @@ class EGValkeyOnlineStore(OnlineStore):
                         num_cmds = 0
                 if num_cmds:
                     pipe.execute()  # flush any remaining data in the last batch
+                run_cleanup_by_event_time = bool(ttl)
+                run_cleanup_by_retained_events = (
+                    max_events is not None and max_events > 0
+                )
+
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
-                for zset_key, entity_key_bytes in zsets_to_cleanup:
-                    if ttl:
-                        self._run_cleanup_by_event_time(
-                            client, zset_key, entity_key_bytes, ttl
-                        )
-                    if max_events and max_events > 0:
-                        self._run_cleanup_by_retained_events(
-                            client, zset_key, entity_key_bytes, max_events
-                        )
+                if run_cleanup_by_event_time or run_cleanup_by_retained_events:
+                    for zset_key, entity_key_bytes in zsets_to_cleanup:
+                        if run_cleanup_by_event_time:
+                            self._run_cleanup_by_event_time(
+                                client, zset_key, entity_key_bytes, ttl
+                            )
+
+                        if run_cleanup_by_retained_events:
+                            self._run_cleanup_by_retained_events(
+                                client, zset_key, entity_key_bytes, max_events
+                            )
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
