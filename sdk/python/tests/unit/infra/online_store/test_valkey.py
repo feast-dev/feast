@@ -474,6 +474,7 @@ def _make_redis_client(repo_config):
     host, port = connection_string.split(":")
     return Valkey(host=host, port=int(port), decode_responses=False)
 
+
 @pytest.mark.docker
 def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
     """Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs."""
@@ -510,6 +511,7 @@ def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
     )
     assert not redis_client.exists(zset_key), "ZSET should be deleted when empty"
 
+
 @pytest.mark.docker
 def test_ttl_cleanup_no_expired_members(repo_config):
     """Ensure TTL cleanup is a no-op when there are no expired members."""
@@ -532,6 +534,7 @@ def test_ttl_cleanup_no_expired_members(repo_config):
     assert active_member in remaining
     assert redis_client.exists(active_hash)
 
+
 @pytest.mark.docker
 def test_ttl_cleanup_empty_zset(repo_config):
     """Ensure cleanup safely returns when ZSET has no members."""
@@ -546,6 +549,7 @@ def test_ttl_cleanup_empty_zset(repo_config):
 
     store._run_cleanup_by_event_time(redis_client, zset_key, entity_key_bytes, 10)
     assert not redis_client.exists(zset_key)
+
 
 @pytest.mark.docker
 def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
@@ -579,6 +583,7 @@ def test_zset_trim_removes_old_members_and_deletes_empty_index(repo_config):
     )
     assert not redis_client.exists(zset_key)
 
+
 @pytest.mark.docker
 def test_zset_trim_no_trim_needed(repo_config):
     """Ensure no-op when ZSET size <= max_events."""
@@ -596,6 +601,7 @@ def test_zset_trim_no_trim_needed(repo_config):
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert remaining == [b"a", b"b", b"c"]
 
+
 @pytest.mark.docker
 def test_zset_trim_no_popped_members(repo_config):
     """Ensure function handles case where zpopmin returns empty list."""
@@ -610,6 +616,7 @@ def test_zset_trim_no_popped_members(repo_config):
     store._run_cleanup_by_retained_events(redis_client, zset_key, entity_key_bytes, 1)
     assert redis_client.exists(zset_key)
     redis_client.zpopmin = original_zpopmin
+
 
 @pytest.mark.docker
 def test_zset_trim_delete_all_members(repo_config):
