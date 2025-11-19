@@ -450,7 +450,7 @@ class RedisOnlineStore(OnlineStore):
                     ttl = online_store_config.key_ttl_seconds
                     if ttl:
                         pipe.expire(name=redis_key_bin, time=ttl)
-            results = pipe.execute()
+                results = pipe.execute()
             if progress:
                 progress(len(results))
 

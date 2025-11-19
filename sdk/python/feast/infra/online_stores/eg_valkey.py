@@ -455,7 +455,7 @@ class EGValkeyOnlineStore(OnlineStore):
                     ttl = online_store_config.key_ttl_seconds
                     if ttl:
                         pipe.expire(name=valkey_key_bin, time=ttl)
-            results = pipe.execute()
+                results = pipe.execute()
             if progress:
                 progress(len(results))
 
