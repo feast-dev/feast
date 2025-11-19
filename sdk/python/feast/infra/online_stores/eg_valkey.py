@@ -13,8 +13,9 @@
 # limitations under the License.
 import json
 import logging
+import math
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import (
     Any,
@@ -325,7 +326,7 @@ class EGValkeyOnlineStore(OnlineStore):
                 # Picking an arbitrary number to start with and will be tuned after perf testing
                 # TODO : Make this a config as this can be different for different users based on payload size etc..
                 num_cmds_per_pipeline_execute = 3000
-                ttl = online_store_config.key_ttl_seconds
+                ttl_feature_view = table.ttl
                 max_events = None
                 if table.tags:
                     tag_value = table.tags.get("max_retained_events")
@@ -337,6 +338,13 @@ class EGValkeyOnlineStore(OnlineStore):
                                 f"Invalid max_retained_events tag value: {tag_value}"
                             )
                 for entity_key, values, timestamp, _ in data:
+                    ttl = None
+                    if ttl_feature_view:
+                        ttl = EGValkeyOnlineStore._get_ttl(ttl_feature_view, timestamp)
+                    # Negative TTL means already expired, skip this row
+                    if ttl < 0:
+                        continue
+
                     entity_key_bytes = _redis_key(
                         project,
                         entity_key,
@@ -371,9 +379,12 @@ class EGValkeyOnlineStore(OnlineStore):
 
                     pipe.hset(hash_key, mapping=entity_hset)
                     pipe.zadd(zset_key, {zset_member: zset_score})
-                    if ttl:
+                    num_cmds += 2
+
+                    if ttl is not None:
                         pipe.expire(name=hash_key, time=ttl)
-                    num_cmds += 2 if not ttl else 3
+                        num_cmds += 1
+
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
                         pipe.execute()  # flush
@@ -481,6 +492,20 @@ class EGValkeyOnlineStore(OnlineStore):
         """
         sk = EntityKeyProto(join_keys=[sort_key_name], entity_values=[sort_val])
         return serialize_entity_key(sk, entity_key_serialization_version=v)
+
+    @staticmethod
+    def _get_ttl(
+            ttl_feature_view: timedelta,
+            timestamp: datetime,
+    ) -> int:
+        if ttl_feature_view > timedelta():
+            ttl_offset = ttl_feature_view
+        else:
+            return 0
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        ttl_remaining = timestamp - utils._utc_now() + ttl_offset
+        return math.ceil(ttl_remaining.total_seconds())
 
     def _run_cleanup_by_event_time(
         self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int

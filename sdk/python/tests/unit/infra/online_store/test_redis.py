@@ -417,7 +417,7 @@ def _create_sorted_feature_view_with_timestamp_as_sortkey():
             timestamp_field="event_timestamp",
         ),
         entities=[Entity(name="driver_id")],
-        ttl=timedelta(seconds=10),
+        ttl=timedelta(seconds=1000),
         sort_keys=[
             SortKey(
                 name="event_timestamp",
@@ -454,7 +454,7 @@ def _create_sorted_feature_view_with_multiple_sortkeys(n=10):
             timestamp_field="event_timestamp",
         ),
         entities=[Entity(name="driver_id")],
-        ttl=timedelta(seconds=10),
+        ttl=timedelta(seconds=100),
         sort_keys=[
             SortKey(
                 name="rating",
@@ -495,7 +495,7 @@ def _create_sorted_feature_view_with_non_numeric_sortkey(n=10):
             timestamp_field="event_timestamp",
         ),
         entities=[Entity(name="driver_id")],
-        ttl=timedelta(seconds=10),
+        ttl=timedelta(seconds=100),
         sort_keys=[
             SortKey(
                 name="rating",
@@ -531,7 +531,7 @@ def _create_sorted_feature_view_with_float_as_sortkey(n=10):
             timestamp_field="event_timestamp",
         ),
         entities=[Entity(name="driver_id")],
-        ttl=timedelta(seconds=10),
+        ttl=timedelta(seconds=1000),
         sort_keys=[
             SortKey(
                 name="rating",
