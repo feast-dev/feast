@@ -32,6 +32,7 @@ from typing import (
 
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
+from redis.exceptions import RedisError
 
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -382,27 +383,52 @@ class RedisOnlineStore(OnlineStore):
 
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
-                        pipe.execute()  # flush
+                        try:
+                            pipe.execute()  # flush
+                        except RedisError as e:
+                            logger.exception(
+                                "Error executing Redis pipeline batch for feature view %s",
+                                feature_view,
+                            )
+                            raise
                         num_cmds = 0
                 if num_cmds:
-                    pipe.execute()  # flush any remaining data in the last batch
+                    # flush any remaining data in the last batch
+                    try:
+                        pipe.execute()
+                    except RedisError:
+                        logger.exception(
+                            "Error executing Redis pipeline batch for feature view %s",
+                            feature_view,
+                        )
+                        raise
 
-                run_cleanup_by_event_time = bool(ttl) and is_sort_key_timestamp
+                run_cleanup_by_event_time = (ttl is not None) and is_sort_key_timestamp
                 run_cleanup_by_retained_events = (
                     max_events is not None and max_events > 0
                 )
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
-                if is_sort_key_timestamp:
-                    if run_cleanup_by_event_time or run_cleanup_by_retained_events:
-                        for zset_key, entity_key_bytes in zsets_to_cleanup:
-                            if run_cleanup_by_event_time and ttl:
+                if run_cleanup_by_event_time or run_cleanup_by_retained_events:
+                    for zset_key, entity_key_bytes in zsets_to_cleanup:
+                        if run_cleanup_by_event_time:
+                            try:
                                 self._run_cleanup_by_event_time(
                                     client, zset_key, entity_key_bytes, ttl
                                 )
+                            except Exception:
+                                logger.exception(
+                                    "Failed TTL cleanup by event time for zset %r", zset_key
+                                )
 
-                            if run_cleanup_by_retained_events and max_events:
+                        if run_cleanup_by_retained_events:
+                            try:
                                 self._run_cleanup_by_retained_events(
                                     client, zset_key, entity_key_bytes, max_events
+                                )
+                            except Exception:
+                                logger.exception(
+                                    "Failed cleanup by retained events for zset %r",
+                                    zset_key,
                                 )
             else:
                 # check if a previous record under the key bin exists
