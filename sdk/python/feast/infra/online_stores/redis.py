@@ -309,6 +309,8 @@ class RedisOnlineStore(OnlineStore):
                     )
 
                 sort_key_type = table.sort_keys[0].value_type
+                is_sort_key_timestamp = sort_key_type == ValueType.UNIX_TIMESTAMP
+
                 if sort_key_type in (ValueType.STRING, ValueType.BYTES, ValueType.BOOL):
                     raise TypeError(
                         f"Unsupported sort key type {sort_key_type.name}. Only numerics or timestamp type is supported as a sort key."
@@ -385,22 +387,23 @@ class RedisOnlineStore(OnlineStore):
                 if num_cmds:
                     pipe.execute()  # flush any remaining data in the last batch
 
-                run_cleanup_by_event_time = bool(ttl)
+                run_cleanup_by_event_time = (bool(ttl) and is_sort_key_timestamp)
                 run_cleanup_by_retained_events = (
                     max_events is not None and max_events > 0
                 )
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
-                if run_cleanup_by_event_time or run_cleanup_by_retained_events:
-                    for zset_key, entity_key_bytes in zsets_to_cleanup:
-                        if run_cleanup_by_event_time and ttl:
-                            self._run_cleanup_by_event_time(
-                                client, zset_key, entity_key_bytes, ttl
-                            )
+                if is_sort_key_timestamp:
+                    if run_cleanup_by_event_time or run_cleanup_by_retained_events:
+                        for zset_key, entity_key_bytes in zsets_to_cleanup:
+                            if run_cleanup_by_event_time and ttl:
+                                self._run_cleanup_by_event_time(
+                                    client, zset_key, entity_key_bytes, ttl
+                                )
 
-                        if run_cleanup_by_retained_events and max_events:
-                            self._run_cleanup_by_retained_events(
-                                client, zset_key, entity_key_bytes, max_events
-                            )
+                            if run_cleanup_by_retained_events and max_events:
+                                self._run_cleanup_by_retained_events(
+                                    client, zset_key, entity_key_bytes, max_events
+                                )
 
             else:
                 # check if a previous record under the key bin exists
@@ -506,8 +509,8 @@ class RedisOnlineStore(OnlineStore):
     ):
         now = int(time.time())
         cutoff = now - ttl_seconds
-        old_members = client.zrangebyscore(
-            zset_key, 0, cutoff
+        old_members = client.zrange(
+            zset_key, 0, cutoff, byscore=True
         )  # Limitation: This works only when the sorted set score is timestamp.
         if not old_members:
             return

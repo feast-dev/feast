@@ -316,6 +316,8 @@ class EGValkeyOnlineStore(OnlineStore):
                     )
 
                 sort_key_type = table.sort_keys[0].value_type
+                is_sort_key_timestamp = sort_key_type == ValueType.UNIX_TIMESTAMP
+
                 if sort_key_type in (ValueType.STRING, ValueType.BYTES, ValueType.BOOL):
                     raise TypeError(
                         f"Unsupported sort key type {sort_key_type.name}. Only numerics or timestamp type is supported as a sort key."
@@ -391,7 +393,7 @@ class EGValkeyOnlineStore(OnlineStore):
                         num_cmds = 0
                 if num_cmds:
                     pipe.execute()  # flush any remaining data in the last batch
-                run_cleanup_by_event_time = bool(ttl)
+                run_cleanup_by_event_time = (bool(ttl) and is_sort_key_timestamp)
                 run_cleanup_by_retained_events = (
                     max_events is not None and max_events > 0
                 )
@@ -512,8 +514,8 @@ class EGValkeyOnlineStore(OnlineStore):
     ):
         now = int(time.time())
         cutoff = now - ttl_seconds
-        old_members = client.zrangebyscore(
-            zset_key, 0, cutoff
+        old_members = client.zrange(
+            zset_key, 0, cutoff, byscore=True
         )  # Limitation: This works only when the sorted set score is timestamp.
         if not old_members:
             return
