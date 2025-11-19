@@ -392,7 +392,7 @@ class EGValkeyOnlineStore(OnlineStore):
                         # TODO: May be add retries with backoff
                         try:
                             pipe.execute()  # flush
-                        except ValkeyError as e:
+                        except ValkeyError:
                             logger.exception(
                                 "Error executing Valkey pipeline batch for feature view %s",
                                 feature_view,
@@ -424,7 +424,8 @@ class EGValkeyOnlineStore(OnlineStore):
                                 )
                             except Exception:
                                 logger.exception(
-                                    "Failed TTL cleanup by event time for zset %r", zset_key
+                                    "Failed TTL cleanup by event time for zset %r",
+                                    zset_key,
                                 )
 
                         if run_cleanup_by_retained_events:
@@ -434,7 +435,7 @@ class EGValkeyOnlineStore(OnlineStore):
                                 )
                             except Exception:
                                 logger.exception(
-                                    "Failed cleanup by retained events for zset %r",
+                                    "Failed TTL cleanup by retained events for zset %r",
                                     zset_key,
                                 )
             else:
