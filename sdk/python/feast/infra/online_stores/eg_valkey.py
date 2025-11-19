@@ -344,7 +344,7 @@ class EGValkeyOnlineStore(OnlineStore):
                     if ttl_feature_view:
                         ttl = EGValkeyOnlineStore._get_ttl(ttl_feature_view, timestamp)
                     # Negative TTL means already expired, skip this row
-                    if ttl < 0:
+                    if ttl and ttl < 0:
                         continue
 
                     entity_key_bytes = _redis_key(
