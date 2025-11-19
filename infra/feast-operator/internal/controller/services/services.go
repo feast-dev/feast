@@ -141,6 +141,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployClient(); err != nil {
 		return err
 	}
+	if err := feast.deployNamespaceRegistry(); err != nil {
+		return err
+	}
 	if err := feast.deployCronJob(); err != nil {
 		return err
 	}
@@ -409,6 +412,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
+	feast.applyNodeSelector(podSpec)
 
 	return nil
 }
@@ -665,7 +669,39 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 		if len(svc.Annotations) == 0 {
 			svc.Annotations = map[string]string{}
 		}
-		svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+
+		// For registry services, we need special handling based on which services are enabled
+		if feastType == RegistryFeastType && feast.isRegistryServer() {
+			grpcEnabled := feast.isRegistryGrpcEnabled()
+			restEnabled := feast.isRegistryRestEnabled()
+
+			if grpcEnabled && restEnabled {
+				// Both services enabled: Only set TLS annotation on gRPC service to ensure
+				// OpenShift creates certificate with gRPC service name as CN (not REST service name)
+				// The certificate will include both hostnames as SANs
+				if !isRestService {
+					grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
+					svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+
+					// Add Subject Alternative Names (SANs) for both services
+					grpcHostname := grpcSvcName + "." + svc.Namespace + ".svc.cluster.local"
+					restHostname := feast.GetFeastRestServiceName(RegistryFeastType) + "." + svc.Namespace + ".svc.cluster.local"
+					svc.Annotations["service.beta.openshift.io/serving-cert-sans"] = grpcHostname + "," + restHostname
+				}
+				// REST service should not have the annotation - it will use the same certificate
+				// from the gRPC service secret (mounted in the pod)
+			} else if grpcEnabled && !restEnabled {
+				// Only gRPC enabled: Use gRPC service name
+				grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
+				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+			} else if !grpcEnabled && restEnabled {
+				// Only REST enabled: Use REST service name
+				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+			}
+		} else {
+			// Standard behavior for non-registry services
+			svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+		}
 	}
 
 	var port int32 = HttpPort
@@ -762,6 +798,56 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 		return serviceConfigs.LogLevel
 	}
 	return nil
+}
+
+func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *map[string]string {
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.ContainerConfigs.OptionalCtrConfigs.NodeSelector
+	}
+	return nil
+}
+
+func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
+	// Merge node selectors from all services
+	mergedNodeSelector := make(map[string]string)
+
+	// Check all service types for node selector configuration
+	allServiceTypes := append(feastServerTypes, UIFeastType)
+	for _, feastType := range allServiceTypes {
+		if selector := feast.getNodeSelectorForType(feastType); selector != nil && len(*selector) > 0 {
+			for k, v := range *selector {
+				mergedNodeSelector[k] = v
+			}
+		}
+	}
+
+	// If no service has node selector configured, we're done
+	if len(mergedNodeSelector) == 0 {
+		return
+	}
+
+	// Merge with any existing node selectors (from ops team or other sources)
+	// This preserves pre-existing selectors while adding operator requirements
+	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, mergedNodeSelector)
+	podSpec.NodeSelector = finalNodeSelector
+}
+
+// mergeNodeSelectors merges existing and operator node selectors
+// Existing selectors are preserved, operator selectors can override existing keys
+func (feast *FeastServices) mergeNodeSelectors(existing, operator map[string]string) map[string]string {
+	merged := make(map[string]string)
+
+	// Start with existing selectors (from ops team or other sources)
+	for k, v := range existing {
+		merged[k] = v
+	}
+
+	// Add/override with operator selectors
+	for k, v := range operator {
+		merged[k] = v
+	}
+
+	return merged
 }
 
 // GetObjectMeta returns the feast k8s object metadata with type

@@ -28,9 +28,9 @@ import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
 
 const EntityOverviewTab = () => {
-  let { entityName } = useParams();
+  let { entityName, projectName } = useParams();
   const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
+  const registryQuery = useLoadRegistry(registryUrl, projectName);
 
   const eName = entityName === undefined ? "" : entityName;
   const { isLoading, isSuccess, isError, data } = useLoadEntity(eName);

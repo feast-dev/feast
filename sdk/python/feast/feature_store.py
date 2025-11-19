@@ -543,7 +543,7 @@ class FeatureStore:
 
     def delete_feature_view(self, name: str):
         """
-        Deletes a feature view.
+        Deletes a feature view of any kind (FeatureView, OnDemandFeatureView, StreamFeatureView).
 
         Args:
             name: Name of feature view.
@@ -1073,6 +1073,17 @@ class FeatureStore:
 
         self._registry.commit()
 
+        # Refresh the registry cache to ensure that changes are immediately visible
+        # This is especially important for UI and other clients that may be reading
+        # from the registry, as it ensures they see the updated state without waiting
+        # for the cache TTL to expire.
+        #
+        # Behavior by cache_mode:
+        # - sync mode: Immediate consistency - refresh after apply
+        # - thread mode: Eventual consistency - skip refresh, background thread handles it
+        if self.config.registry.cache_mode == "sync":
+            self.refresh_registry()
+
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
         tables: List[FeatureView] = []
@@ -1542,6 +1553,7 @@ class FeatureStore:
         start_date: datetime,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
+        disable_event_timestamp: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -1555,6 +1567,7 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
+            disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
 
         Examples:
             Materialize all features into the online store over the interval
@@ -1609,6 +1622,7 @@ class FeatureStore:
                 registry=self._registry,
                 project=self.project,
                 tqdm_builder=tqdm_builder,
+                disable_event_timestamp=disable_event_timestamp,
             )
 
             self._registry.apply_materialization(

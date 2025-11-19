@@ -1,6 +1,6 @@
 # Feast Python / Go Feature Server Helm Charts
 
-Current chart version is `0.53.0`
+Current chart version is `0.57.0`
 
 ## Installation
 
@@ -35,13 +35,14 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| commandArgs | list | `[]` | Override the default command arguments for complete control over CLI options If not specified, falls back to legacy behavior based on feast_mode Example for UI mode with custom options: commandArgs:   - "feast"   - "--log-level"   - "INFO"   - "ui"   - "--root_path"   - "/feast"   - "--registry_ttl_sec"   - "300"   - "-h"   - "0.0.0.0"   - "-p"   - "8888" |
 | extraEnvs | list | `[]` | Additional environment variables to be set in the container |
 | feast_mode | string | `"online"` | Feast supported deployment modes - online (default), offline, ui and registry |
 | feature_store_yaml_base64 | string | `""` | [required] a base64 encoded version of feature_store.yaml |
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"quay.io/feastdev/feature-server"` | Docker image for Feature Server repository |
-| image.tag | string | `"0.53.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
+| image.tag | string | `"0.57.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
 | imagePullSecrets | list | `[]` |  |
 | livenessProbe.initialDelaySeconds | int | `30` |  |
 | livenessProbe.periodSeconds | int | `30` |  |

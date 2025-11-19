@@ -2,7 +2,7 @@ package logging
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -114,11 +114,11 @@ func TestLogAndFlushToFile(t *testing.T) {
 	))
 
 	require.Eventually(t, func() bool {
-		files, _ := ioutil.ReadDir(sink.path)
+		files, _ := os.ReadDir(sink.path)
 		return len(files) > 0
 	}, 60*time.Second, 100*time.Millisecond)
 
-	files, _ := ioutil.ReadDir(sink.path)
+	files, _ := os.ReadDir(sink.path)
 
 	pf, err := file.OpenParquetFile(filepath.Join(sink.path, files[0].Name()), false)
 	assert.Nil(t, err)

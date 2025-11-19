@@ -155,6 +155,13 @@ class PythonTransformation(Transformation):
 
         return True
 
+    def __reduce__(self):
+        """Support for pickle/dill serialization."""
+        return (
+            self.__class__,
+            (self.udf, self.udf_string, self.singleton),
+        )
+
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
         return PythonTransformation(

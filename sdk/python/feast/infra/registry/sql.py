@@ -15,6 +15,7 @@ from sqlalchemy import (  # type: ignore
     MetaData,
     String,
     Table,
+    Text,
     create_engine,
     delete,
     insert,
@@ -209,7 +210,7 @@ feast_metadata = Table(
     metadata,
     Column("project_id", String(255), primary_key=True),
     Column("metadata_key", String(50), primary_key=True),
-    Column("metadata_value", String(50), nullable=False),
+    Column("metadata_value", Text, nullable=False),
     Column("last_updated_timestamp", BigInteger, nullable=False),
 )
 
@@ -232,9 +233,6 @@ class SqlRegistryConfig(RegistryConfig):
 
     sqlalchemy_config_kwargs: Dict[str, Any] = {"echo": False}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
-
-    cache_mode: StrictStr = "sync"
-    """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
 
     thread_pool_executor_worker_count: StrictInt = 0
     """ int: Number of worker threads to use for asynchronous caching in SQL Registry. If set to 0, it doesn't use ThreadPoolExecutor. """
@@ -268,17 +266,17 @@ class SqlRegistry(CachingRegistry):
             registry_config.thread_pool_executor_worker_count
         )
         self.purge_feast_metadata = registry_config.purge_feast_metadata
+        super().__init__(
+            project=project,
+            cache_ttl_seconds=registry_config.cache_ttl_seconds,
+            cache_mode=registry_config.cache_mode,
+        )
         # Sync feast_metadata to projects table
         # when purge_feast_metadata is set to True, Delete data from
         # feast_metadata table and list_project_metadata will not return any data
         self._sync_feast_metadata_to_projects_table()
         if not self.purge_feast_metadata:
             self._maybe_init_project_metadata(project)
-        super().__init__(
-            project=project,
-            cache_ttl_seconds=registry_config.cache_ttl_seconds,
-            cache_mode=registry_config.cache_mode,
-        )
 
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: dict = {}
@@ -326,6 +324,7 @@ class SqlRegistry(CachingRegistry):
             entities,
             data_sources,
             feature_views,
+            stream_feature_views,
             feature_services,
             on_demand_feature_views,
             saved_datasets,
@@ -845,18 +844,6 @@ class SqlRegistry(CachingRegistry):
             project_name = project.name
             last_updated_timestamp = project.last_updated_timestamp
 
-            try:
-                cached_project = self.get_project(project_name, True)
-            except ProjectObjectNotFoundException:
-                cached_project = None
-
-            allow_cache = False
-
-            if cached_project is not None:
-                allow_cache = (
-                    last_updated_timestamp <= cached_project.last_updated_timestamp
-                )
-
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
 
@@ -871,7 +858,7 @@ class SqlRegistry(CachingRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project_name, allow_cache)  # type: ignore
+                objs: List[Any] = lister(project_name, allow_cache=False)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
@@ -1020,6 +1007,9 @@ class SqlRegistry(CachingRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(update_datetime, project, conn)
 
+        if self.cache_mode == "sync":
+            self.refresh()
+
     def _maybe_init_project_metadata(self, project):
         # Initialize project metadata if needed
         with self.write_engine.begin() as conn:
@@ -1062,6 +1052,8 @@ class SqlRegistry(CachingRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(_utc_now(), project, conn)
 
+            if self.cache_mode == "sync":
+                self.refresh()
             return rows.rowcount
 
     def _get_object(

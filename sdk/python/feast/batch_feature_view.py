@@ -57,7 +57,6 @@ class BatchFeatureView(FeatureView):
     """
 
     name: str
-    mode: Union[TransformationMode, str]
     entities: List[str]
     ttl: Optional[timedelta]
     source: DataSource
@@ -136,6 +135,7 @@ class BatchFeatureView(FeatureView):
             schema=schema,
             source=source,  # type: ignore[arg-type]
             sink_source=sink_source,
+            mode=mode,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
@@ -145,7 +145,8 @@ class BatchFeatureView(FeatureView):
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
             TransformationMode.SQL,
-        ) or self.mode in ("pandas", "python", "sql"):
+            TransformationMode.RAY,
+        ) or self.mode in ("pandas", "python", "sql", "ray"):
             return Transformation(
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )

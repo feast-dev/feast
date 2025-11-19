@@ -22,8 +22,12 @@ from unittest import mock
 
 import grpc_testing
 import pandas as pd
+import pyarrow.fs as fs
 import pytest
 from pytest_lazyfixture import lazy_fixture
+from testcontainers.core.container import DockerContainer
+from testcontainers.core.network import Network
+from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
 
@@ -273,9 +277,65 @@ def sqlite_registry():
     registry_config = SqlRegistryConfig(
         registry_type="sql",
         path="sqlite://",
+        cache_ttl_seconds=2,
+        cache_mode="sync",
     )
 
     yield SqlRegistry(registry_config, "project", None)
+
+
+@pytest.fixture(scope="function")
+def hdfs_registry():
+    HADOOP_NAMENODE_IMAGE = "bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8"
+    HADOOP_DATANODE_IMAGE = "bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8"
+    HDFS_CLUSTER_NAME = "feast-hdfs-cluster"
+    HADOOP_NAMENODE_WAIT_LOG = "namenode.NameNode: NameNode RPC up"
+    HADOOP_DATANODE_WAIT_LOG = "datanode.DataNode: .*successfully registered with NN"
+    with Network() as network:
+        namenode = None
+        datanode = None
+
+        try:
+            namenode = (
+                DockerContainer(HADOOP_NAMENODE_IMAGE)
+                .with_network(network)
+                .with_env("CLUSTER_NAME", HDFS_CLUSTER_NAME)
+                .with_exposed_ports(8020)
+                .with_network_aliases("namenode")
+                .with_kwargs(hostname="namenode")
+                .start()
+            )
+            wait_for_logs(namenode, HADOOP_NAMENODE_WAIT_LOG, timeout=120)
+            namenode_ip = namenode.get_container_host_ip()
+            namenode_port = int(namenode.get_exposed_port(8020))
+
+            datanode = (
+                DockerContainer(HADOOP_DATANODE_IMAGE)
+                .with_network(network)
+                .with_exposed_ports(9867)
+                .with_env("CLUSTER_NAME", HDFS_CLUSTER_NAME)
+                .with_env("CORE_CONF_fs_defaultFS", "hdfs://namenode:8020")
+                .with_network_aliases("datanode")
+                .with_kwargs(hostname="datanode")
+                .start()
+            )
+
+            wait_for_logs(datanode, HADOOP_DATANODE_WAIT_LOG, timeout=120)
+
+            hdfs = fs.HadoopFileSystem(host=namenode_ip, port=namenode_port)
+            hdfs.create_dir("/feast")
+            registry_path = f"hdfs://{namenode_ip}:{namenode_port}/feast/registry.db"
+            with hdfs.open_output_stream(registry_path) as f:
+                f.write(b"")
+
+            registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
+            reg = Registry("project", registry_config, None)
+            yield reg
+        finally:
+            if datanode:
+                datanode.stop()
+            if namenode:
+                namenode.stop()
 
 
 class GrpcMockChannel:
@@ -347,6 +407,10 @@ else:
         pytest.param(
             lazy_fixture("mock_remote_registry"),
             marks=pytest.mark.rbac_remote_integration_test,
+        ),
+        pytest.param(
+            lazy_fixture("hdfs_registry"),
+            marks=pytest.mark.xdist_group(name="hdfs_registry"),
         ),
     ]
 
@@ -1156,11 +1220,10 @@ def test_registry_cache(test_registry):
     registry_data_sources_cached = test_registry.list_data_sources(
         project, allow_cache=True
     )
-    # Not refreshed cache, so cache miss
-    assert len(registry_feature_views_cached) == 0
-    assert len(registry_data_sources_cached) == 0
+    assert len(registry_feature_views_cached) == 1
+    assert len(registry_data_sources_cached) == 1
+
     test_registry.refresh(project)
-    # Now objects exist
     registry_feature_views_cached = test_registry.list_feature_views(
         project, allow_cache=True, tags=fv1.tags
     )

@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
-	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
@@ -23,6 +23,8 @@ import (
 	"github.com/rs/zerolog/log"
 	//redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
+
+var tracer = otel.Tracer("github.com/feast-dev/feast/go/onlinestore")
 
 type redisType int
 
@@ -211,8 +213,8 @@ func (r *RedisOnlineStore) buildRedisKeys(entityKeys []*types.EntityKey) ([]*[]b
 }
 
 func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
-	//span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
-	//defer span.Finish()
+	ctx, span := tracer.Start(ctx, "redis.OnlineRead")
+	defer span.End()
 
 	featureCount := len(featureNames)
 	featureViewIndices, indicesFeatureView, index := r.buildFeatureViewIndices(featureViewNames, featureNames)
@@ -337,27 +339,4 @@ func buildRedisKey(project string, entityKey *types.EntityKey, entityKeySerializ
 	}
 	fullKey := append(*serKey, []byte(project)...)
 	return &fullKey, nil
-}
-
-func serializeValue(value interface{}, entityKeySerializationVersion int64) (*[]byte, types.ValueType_Enum, error) {
-	// TODO: Implement support for other types (at least the major types like ints, strings, bytes)
-	switch x := (value).(type) {
-	case *types.Value_StringVal:
-		valueString := []byte(x.StringVal)
-		return &valueString, types.ValueType_STRING, nil
-	case *types.Value_BytesVal:
-		return &x.BytesVal, types.ValueType_BYTES, nil
-	case *types.Value_Int32Val:
-		valueBuffer := make([]byte, 4)
-		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int32Val))
-		return &valueBuffer, types.ValueType_INT32, nil
-	case *types.Value_Int64Val:
-		valueBuffer := make([]byte, 8)
-		binary.LittleEndian.PutUint64(valueBuffer, uint64(x.Int64Val))
-		return &valueBuffer, types.ValueType_INT64, nil
-	case nil:
-		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
-	default:
-		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
-	}
 }
