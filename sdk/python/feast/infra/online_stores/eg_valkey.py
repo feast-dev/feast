@@ -393,7 +393,7 @@ class EGValkeyOnlineStore(OnlineStore):
                         num_cmds = 0
                 if num_cmds:
                     pipe.execute()  # flush any remaining data in the last batch
-                run_cleanup_by_event_time = (bool(ttl) and is_sort_key_timestamp)
+                run_cleanup_by_event_time = bool(ttl) and is_sort_key_timestamp
                 run_cleanup_by_retained_events = (
                     max_events is not None and max_events > 0
                 )
@@ -497,8 +497,8 @@ class EGValkeyOnlineStore(OnlineStore):
 
     @staticmethod
     def _get_ttl(
-            ttl_feature_view: timedelta,
-            timestamp: datetime,
+        ttl_feature_view: timedelta,
+        timestamp: datetime,
     ) -> int:
         if ttl_feature_view > timedelta():
             ttl_offset = ttl_feature_view
