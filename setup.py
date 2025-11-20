@@ -134,6 +134,7 @@ HAZELCAST_REQUIRED = [
 IBIS_REQUIRED = [
     "ibis-framework>=9.0.0,<10",
     "ibis-substrait>=4.0.0",
+    "substrait<0.25.0",  # TODO: remove this once we upgrade protobuf 
 ]
 
 GRPCIO_REQUIRED = [

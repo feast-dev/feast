@@ -5576,10 +5576,12 @@ starlette==0.50.0 \
     # via
     #   fastapi
     #   mcp
-substrait==0.25.0 \
-    --hash=sha256:090feda0f1a6e996ce0baf2d64635ff4b9b2cae58542c7cf3f818ff5e88a2924 \
-    --hash=sha256:29ed969f8685109c06abab45dc557c661871c16d289d3fea146e30c36e80be78
-    # via ibis-substrait
+substrait==0.24.2 \
+    --hash=sha256:743cc352e96b0927b2cd37cd5a8fdac0a96a68df9600bd104fc36aebd222a836 \
+    --hash=sha256:d1d475833566fa9d67eed3273456883c0568486ccced92b524b31709d2817e19
+    # via
+    #   feast (setup.py)
+    #   ibis-substrait
 sympy==1.14.0 \
     --hash=sha256:d3d3fe8df1e5a0b42f0e7bdf50541697dbe7d23746e894990c030e2b05e72517 \
     --hash=sha256:e091cc3e99d2141a0ba2847328f5479b05d94a6635cb96148ccb3f34671bd8f5
