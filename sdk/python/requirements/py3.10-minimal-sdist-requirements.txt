@@ -2842,7 +2842,9 @@ starlette==0.50.0 \
 substrait==0.24.2 \
     --hash=sha256:743cc352e96b0927b2cd37cd5a8fdac0a96a68df9600bd104fc36aebd222a836 \
     --hash=sha256:d1d475833566fa9d67eed3273456883c0568486ccced92b524b31709d2817e19
-    # via ibis-substrait
+    # via
+    #   feast (setup.py)
+    #   ibis-substrait
 tabulate==0.9.0 \
     --hash=sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c \
     --hash=sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f
