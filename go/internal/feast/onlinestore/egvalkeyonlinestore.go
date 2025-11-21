@@ -355,6 +355,7 @@ func (v *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	return results, nil
 }
 
+// valkeyBatchHMGET executes HMGET in pipelined batches for a single feature view.
 func valkeyBatchHMGET(
 	ctx context.Context,
 	client valkey.Client,
@@ -367,7 +368,7 @@ func valkeyBatchHMGET(
 	eIdx int,
 ) error {
 	for start := 0; start < len(members); start += PIPELINE_BATCH_SIZE {
-		end := max(start+PIPELINE_BATCH_SIZE, len(members))
+		end := min(start+PIPELINE_BATCH_SIZE, len(members))
 		batch := members[start:end]
 
 		// Build all HMGET commands for this batch
@@ -384,76 +385,70 @@ func valkeyBatchHMGET(
 			memberKey := base64.StdEncoding.EncodeToString(sortKeyBytes)
 			cmdRes := multi[i]
 
+			// If hash key is missing or HMGET failed: skip this ZSET member entirely.
 			if err := cmdRes.Error(); err != nil {
-				for _, col := range grp.columnIndexes {
-					results[eIdx][col].Values = append(results[eIdx][col].Values, nil)
-					results[eIdx][col].Statuses = append(results[eIdx][col].Statuses, serving.FieldStatus_NOT_FOUND)
-					results[eIdx][col].EventTimestamps = append(results[eIdx][col].EventTimestamps, timestamppb.Timestamp{})
-				}
 				continue
 			}
 
 			arr, err := cmdRes.ToArray()
-			if err != nil {
-				for _, col := range grp.columnIndexes {
-					results[eIdx][col].Values = append(results[eIdx][col].Values, nil)
-					results[eIdx][col].Statuses = append(results[eIdx][col].Statuses, serving.FieldStatus_NOT_FOUND)
-					results[eIdx][col].EventTimestamps = append(results[eIdx][col].EventTimestamps, timestamppb.Timestamp{})
-				}
+			if err != nil || len(arr) == 0 {
 				continue
 			}
 
-			// Last field in `fields` is the timestamp key
-			eventTS := timestamppb.Timestamp{}
+			featureFieldCount := len(grp.featNames)
+
+			allNil := true
+			for fi := 0; fi < featureFieldCount && fi < len(arr)-1; fi++ {
+				if !arr[fi].IsNil() {
+					allNil = false
+					break
+				}
+			}
+			if allNil {
+				continue
+			}
+
+			// Decode timestamp (last field)
+			var eventTS timestamppb.Timestamp
 			if len(arr) > 0 {
 				tsVal := arr[len(arr)-1]
 				if !tsVal.IsNil() {
 					tsStr, err := tsVal.ToString()
-					if err != nil {
-						log.Warn().
-							Err(err).
-							Str("feature_view", fv).
-							Msg("OnlineReadRange: failed to read timestamp from Valkey; using zero timestamp")
-					} else {
+					if err == nil {
 						eventTS = utils.DecodeTimestamp(tsStr)
 					}
 				}
 			}
 
-			// For each feature column in this FV group, decode its value
+			// Decode each feature
 			for iCol, col := range grp.columnIndexes {
-				// index within arr for this feature
 				fieldIdx := iCol
+
+				if fieldIdx >= len(arr)-1 {
+					continue
+				}
+
+				fvResp := arr[fieldIdx]
 
 				var (
 					val    interface{}
 					status serving.FieldStatus
 				)
 
-				if fieldIdx < len(arr)-1 {
-					fvResp := arr[fieldIdx]
-					if fvResp.IsNil() {
-						val = nil
-						status = serving.FieldStatus_NULL_VALUE
-					} else {
-						strVal, err := fvResp.ToString()
-						if err != nil {
-							log.Warn().
-								Err(err).
-								Str("feature_view", fv).
-								Str("feature_name", grp.featNames[iCol]).
-								Str("member", memberKey).
-								Msg("OnlineReadRange: failed to read feature value from Valkey, marking as NOT_FOUND")
-							val = nil
-							status = serving.FieldStatus_NOT_FOUND
-						} else {
-							raw := interface{}(strVal)
-							val, status = utils.DecodeFeatureValue(raw, fv, grp.featNames[iCol], memberKey)
-						}
-					}
-				} else {
+				if fvResp.IsNil() {
 					val = nil
-					status = serving.FieldStatus_NOT_FOUND
+					status = serving.FieldStatus_NULL_VALUE
+				} else {
+					strVal, err := fvResp.ToString()
+					if err != nil {
+						continue
+					}
+					raw := interface{}(strVal)
+					val, status = utils.DecodeFeatureValue(raw, fv, grp.featNames[iCol], memberKey)
+
+					if status == serving.FieldStatus_NULL_VALUE {
+						val = nil
+					}
 				}
 
 				results[eIdx][col].Values = append(results[eIdx][col].Values, val)
@@ -473,9 +468,6 @@ func (v *ValkeyOnlineStore) OnlineReadRange(
 	if groupedRefs == nil || len(groupedRefs.EntityKeys) == 0 {
 		return nil, fmt.Errorf("no entity keys provided")
 	}
-	if len(groupedRefs.SortKeyFilters) == 0 {
-		return nil, fmt.Errorf("no sort key filters provided")
-	}
 
 	featureNames := groupedRefs.FeatureNames
 	featureViewNames := groupedRefs.FeatureViewNames
@@ -485,13 +477,18 @@ func (v *ValkeyOnlineStore) OnlineReadRange(
 		groupedRefs.SortKeyFilters,
 		groupedRefs.IsReverseSortOrder,
 	)
-
-	minScore, maxScore := utils.GetScoreRange(groupedRefs.SortKeyFilters)
-
-	if len(groupedRefs.SortKeyFilters) > 1 {
-		log.Warn().
-			Int("sort_key_count", len(groupedRefs.SortKeyFilters)).
-			Msg("OnlineReadRange: more than one sort key filter provided; only the first will be used")
+	var minScore, maxScore string
+	if len(groupedRefs.SortKeyFilters) == 0 {
+		// No predicate on sort key: fetch all, subject to Limit.
+		minScore = "-inf"
+		maxScore = "+inf"
+	} else {
+		minScore, maxScore = utils.GetScoreRange(groupedRefs.SortKeyFilters)
+		if len(groupedRefs.SortKeyFilters) > 1 {
+			log.Warn().
+				Int("sort_key_count", len(groupedRefs.SortKeyFilters)).
+				Msg("OnlineReadRange: more than one sort key filter provided; only the first will be used")
+		}
 	}
 
 	//group features by feature view
@@ -552,23 +549,35 @@ func (v *ValkeyOnlineStore) OnlineReadRange(
 		for fv := range fvGroups {
 
 			zkey := utils.BuildZsetKey(fv, entityKeyBin)
-			zr := v.client.B().
-				Zrange().
-				Key(zkey).
-				Min(minScore).
-				Max(maxScore).
-				Byscore()
 
 			var cmd valkey.Completed
-			if limit > 0 {
-				if effectiveReverse {
-					cmd = zr.Rev().Limit(0, limit).Build()
-				} else {
+
+			if effectiveReverse {
+				// Reverse sort order: use BYSCORE + REV and swap min/max
+				zr := v.client.B().
+					Zrange().
+					Key(zkey).
+					Min(maxScore).
+					Max(minScore).
+					Byscore().
+					Rev()
+
+				if limit > 0 {
 					cmd = zr.Limit(0, limit).Build()
+				} else {
+					cmd = zr.Build()
 				}
 			} else {
-				if effectiveReverse {
-					cmd = zr.Rev().Build()
+				// Forward sort order: normal min/max BYSCORE
+				zr := v.client.B().
+					Zrange().
+					Key(zkey).
+					Min(minScore).
+					Max(maxScore).
+					Byscore()
+
+				if limit > 0 {
+					cmd = zr.Limit(0, limit).Build()
 				} else {
 					cmd = zr.Build()
 				}
