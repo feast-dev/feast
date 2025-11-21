@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from feast.aggregation import Aggregation
-from feast.infra.tiling.base import get_ir_metadata_for_aggregation
+from feast.aggregation.tiling.base import get_ir_metadata_for_aggregation
 
 
 def apply_sawtooth_window_tiling(

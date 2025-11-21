@@ -360,8 +360,8 @@ class RayAggregationNode(DAGNode):
         3. Convert to windowed aggregations
         4. Convert pandas → Ray Dataset
         """
-        from feast.infra.tiling.orchestrator import apply_sawtooth_window_tiling
-        from feast.infra.tiling.tile_subtraction import (
+        from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+        from feast.aggregation.tiling.tile_subtraction import (
             convert_cumulative_to_windowed,
             deduplicate_keep_latest,
         )

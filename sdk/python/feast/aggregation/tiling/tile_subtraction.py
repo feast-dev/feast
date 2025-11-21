@@ -11,7 +11,7 @@ from typing import List
 import pandas as pd
 
 from feast.aggregation import Aggregation
-from feast.infra.tiling.base import get_ir_metadata_for_aggregation
+from feast.aggregation.tiling.base import get_ir_metadata_for_aggregation
 
 
 def convert_cumulative_to_windowed(
