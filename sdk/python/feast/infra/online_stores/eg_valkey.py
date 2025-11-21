@@ -384,7 +384,7 @@ class EGValkeyOnlineStore(OnlineStore):
                     pipe.zadd(zset_key, {zset_member: zset_score})
                     num_cmds += 2
 
-                    if ttl is not None:
+                    if ttl:
                         pipe.expire(name=hash_key, time=ttl)
                         num_cmds += 1
 
