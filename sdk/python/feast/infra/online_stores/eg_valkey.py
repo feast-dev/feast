@@ -13,7 +13,9 @@
 # limitations under the License.
 import json
 import logging
-from datetime import datetime, timezone
+import math
+import time
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import (
     Any,
@@ -30,6 +32,7 @@ from typing import (
 
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
+from valkey.exceptions import ValkeyError
 
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -300,6 +303,10 @@ class EGValkeyOnlineStore(OnlineStore):
         feature_view = table.name
         ts_key = f"_ts:{feature_view}"
         keys = []
+        # Track all ZSET keys touched in this batch for TTL cleanup & trimming
+        zsets_to_cleanup: set[Tuple[bytes, bytes]] = (
+            set()
+        )  # (zset_key, entity_key_bytes)
         # pipelining optimization: send multiple commands to valkey server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
             if isinstance(table, SortedFeatureView):
@@ -310,6 +317,8 @@ class EGValkeyOnlineStore(OnlineStore):
                     )
 
                 sort_key_type = table.sort_keys[0].value_type
+                is_sort_key_timestamp = sort_key_type == ValueType.UNIX_TIMESTAMP
+
                 if sort_key_type in (ValueType.STRING, ValueType.BYTES, ValueType.BOOL):
                     raise TypeError(
                         f"Unsupported sort key type {sort_key_type.name}. Only numerics or timestamp type is supported as a sort key."
@@ -319,8 +328,26 @@ class EGValkeyOnlineStore(OnlineStore):
                 num_cmds = 0
                 # Picking an arbitrary number to start with and will be tuned after perf testing
                 # TODO : Make this a config as this can be different for different users based on payload size etc..
-                num_cmds_per_pipeline_execute = 3000
+                num_cmds_per_pipeline_execute = 200
+                ttl_feature_view = table.ttl
+                max_events = None
+                if table.tags:
+                    tag_value = table.tags.get("max_retained_events")
+                    if tag_value is not None:
+                        try:
+                            max_events = int(tag_value)
+                        except Exception:
+                            logger.warning(
+                                f"Invalid max_retained_events tag value: {tag_value}"
+                            )
                 for entity_key, values, timestamp, _ in data:
+                    ttl = None
+                    if ttl_feature_view:
+                        ttl = EGValkeyOnlineStore._get_ttl(ttl_feature_view, timestamp)
+                    # Negative TTL means already expired, skip this row
+                    if ttl and ttl < 0:
+                        continue
+
                     entity_key_bytes = _redis_key(
                         project,
                         entity_key,
@@ -351,17 +378,66 @@ class EGValkeyOnlineStore(OnlineStore):
                     )
                     zset_score = EGValkeyOnlineStore.zset_score(sort_key_val)
                     zset_member = sort_key_bytes
+                    zsets_to_cleanup.add((zset_key, entity_key_bytes))
 
                     pipe.hset(hash_key, mapping=entity_hset)
                     pipe.zadd(zset_key, {zset_member: zset_score})
-
                     num_cmds += 2
+
+                    if ttl:
+                        pipe.expire(name=hash_key, time=ttl)
+                        num_cmds += 1
+
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
-                        pipe.execute()  # flush
+                        try:
+                            pipe.execute()  # flush
+                        except ValkeyError:
+                            logger.exception(
+                                "Error executing Valkey pipeline batch for feature view %s",
+                                feature_view,
+                            )
+                            raise
                         num_cmds = 0
                 if num_cmds:
-                    pipe.execute()  # flush any remaining data in the last batch
+                    # flush any remaining data in the last batch
+                    try:
+                        pipe.execute()
+                    except ValkeyError:
+                        logger.exception(
+                            "Error executing Valkey pipeline batch for feature view %s",
+                            feature_view,
+                        )
+                        raise
+                run_cleanup_by_event_time = (ttl is not None) and is_sort_key_timestamp
+                run_cleanup_by_retained_events = (
+                    max_events is not None and max_events > 0
+                )
+
+                # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
+                if run_cleanup_by_event_time or run_cleanup_by_retained_events:
+                    for zset_key, entity_key_bytes in zsets_to_cleanup:
+                        if run_cleanup_by_event_time and ttl:
+                            try:
+                                self._run_cleanup_by_event_time(
+                                    client, zset_key, entity_key_bytes, ttl
+                                )
+                            except Exception:
+                                logger.exception(
+                                    "Failed TTL cleanup by event time for zset %r",
+                                    zset_key,
+                                )
+
+                        if run_cleanup_by_retained_events and max_events:
+                            try:
+                                self._run_cleanup_by_retained_events(
+                                    client, zset_key, entity_key_bytes, max_events
+                                )
+                            except Exception:
+                                logger.exception(
+                                    "Failed TTL cleanup by retained events for zset %r",
+                                    zset_key,
+                                )
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
@@ -407,7 +483,7 @@ class EGValkeyOnlineStore(OnlineStore):
                     ttl = online_store_config.key_ttl_seconds
                     if ttl:
                         pipe.expire(name=valkey_key_bin, time=ttl)
-            results = pipe.execute()
+                results = pipe.execute()
             if progress:
                 progress(len(results))
 
@@ -446,6 +522,67 @@ class EGValkeyOnlineStore(OnlineStore):
         """
         sk = EntityKeyProto(join_keys=[sort_key_name], entity_values=[sort_val])
         return serialize_entity_key(sk, entity_key_serialization_version=v)
+
+    @staticmethod
+    def _get_ttl(
+        ttl_feature_view: timedelta,
+        timestamp: datetime,
+    ) -> int:
+        if ttl_feature_view > timedelta():
+            ttl_offset = ttl_feature_view
+        else:
+            return 0
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        ttl_remaining = timestamp - utils._utc_now() + ttl_offset
+        return math.ceil(ttl_remaining.total_seconds())
+
+    def _run_cleanup_by_event_time(
+        self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
+    ):
+        now = int(time.time())
+        cutoff = now - ttl_seconds
+        old_members = client.zrange(
+            zset_key, 0, cutoff, byscore=True
+        )  # Limitation: This works only when the sorted set score is timestamp.
+        if not old_members:
+            return
+
+        with client.pipeline(transaction=False) as pipe:
+            for sort_key_bytes in old_members:
+                hash_key = EGValkeyOnlineStore.hash_key_bytes(
+                    entity_key_bytes, sort_key_bytes
+                )
+                pipe.delete(hash_key)
+                pipe.zrem(zset_key, sort_key_bytes)
+            pipe.execute()
+
+        if client.zcard(zset_key) == 0:
+            client.delete(zset_key)
+
+    def _run_cleanup_by_retained_events(
+        self, client, zset_key: bytes, entity_key_bytes: bytes, max_events: int
+    ):
+        current_size = client.zcard(zset_key)
+        if current_size <= max_events:
+            return
+        num_to_remove = current_size - max_events
+
+        # Remove oldest entries atomically
+        popped = client.zpopmin(zset_key, num_to_remove)
+        if not popped:
+            return
+
+        with client.pipeline(transaction=False) as pipe:
+            for sort_key_bytes, _score in popped:
+                hash_key = EGValkeyOnlineStore.hash_key_bytes(
+                    entity_key_bytes, sort_key_bytes
+                )
+                pipe.delete(hash_key)
+            pipe.execute()
+
+        if client.zcard(zset_key) == 0:
+            client.delete(zset_key)
 
     def _generate_valkey_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]
