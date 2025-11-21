@@ -78,11 +78,13 @@ class MaterializeRequest(BaseModel):
     end_ts: Optional[str] = None
     feature_views: Optional[List[str]] = None
     disable_event_timestamp: bool = False
+    full_feature_names: bool = False
 
 
 class MaterializeIncrementalRequest(BaseModel):
     end_ts: str
     feature_views: Optional[List[str]] = None
+    full_feature_names: bool = False
 
 
 class GetOnlineFeaturesRequest(BaseModel):
@@ -470,6 +472,7 @@ def get_app(
             end_date,
             request.feature_views,
             disable_event_timestamp=request.disable_event_timestamp,
+            full_feature_names=request.full_feature_names,
         )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
@@ -484,6 +487,7 @@ def get_app(
             store.materialize_incremental,
             utils.make_tzaware(parser.parse(request.end_ts)),
             request.feature_views,
+            full_feature_names=request.full_feature_names,
         )
 
     @app.exception_handler(Exception)
