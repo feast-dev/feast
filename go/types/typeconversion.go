@@ -3,9 +3,10 @@ package types
 import (
 	"encoding/base64"
 	"fmt"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"math"
 	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
@@ -18,6 +19,8 @@ func ProtoTypeToArrowType(sample *types.Value) (arrow.DataType, error) {
 		return nil, nil
 	}
 	switch sample.Val.(type) {
+	case *types.Value_NullVal:
+		return nil, nil
 	case *types.Value_BytesVal:
 		return arrow.BinaryTypes.Binary, nil
 	case *types.Value_StringVal:
@@ -463,12 +466,20 @@ func RepeatedProtoValuesToArrowArray(repeatedValues []*types.RepeatedValue, allo
 	var protoValue *types.Value
 	var err error
 
-	// Find the first non-nil proto value in repeatedValues
-	for _, rv := range repeatedValues {
-		if rv != nil && len(rv.Val) > 0 {
-			for _, val := range rv.Val {
+	// Determine Arrow type from first usable proto value
+	for _, repeatedValue := range repeatedValues {
+		if repeatedValue != nil && len(repeatedValue.Val) > 0 {
+			for _, val := range repeatedValue.Val {
 				if val != nil && val.Val != nil {
+					t, err := ProtoTypeToArrowType(val)
+					if err != nil {
+						return nil, err
+					}
+					if t == nil {
+						continue
+					}
 					protoValue = val
+					valueType = t
 					break
 				}
 			}
@@ -478,15 +489,11 @@ func RepeatedProtoValuesToArrowArray(repeatedValues []*types.RepeatedValue, allo
 		}
 	}
 
+	// Case 1: we have a concrete Arrow type
 	if protoValue != nil {
-		// Determine the value type from the first non-nil proto value
-		valueType, err = ProtoTypeToArrowType(protoValue)
-		if err != nil {
-			return nil, err
-		}
-
 		listBuilder := array.NewListBuilder(allocator, valueType)
 		defer listBuilder.Release()
+
 		valueBuilder := listBuilder.ValueBuilder()
 
 		for _, repeatedValue := range repeatedValues {
@@ -495,44 +502,42 @@ func RepeatedProtoValuesToArrowArray(repeatedValues []*types.RepeatedValue, allo
 				continue
 			}
 
-			if len(repeatedValue.Val) == 0 && repeatedValue.Val == nil {
-				return nil, fmt.Errorf("represent it as an empty array instead of nil")
-			}
 			listBuilder.Append(true)
+
+			if len(repeatedValue.Val) == 0 {
+				continue
+			}
 
 			err = CopyProtoValuesToArrowArray(valueBuilder, repeatedValue.Val)
 			if err != nil {
 				return nil, fmt.Errorf("error copying proto values to arrow array: %v", err)
 			}
 		}
+
 		return listBuilder.NewArray(), nil
+	}
 
-	} else {
-		if len(repeatedValues) == 0 {
-			return array.NewNull(0), nil
-		} else {
-			nullListBuilder := array.NewListBuilder(allocator, arrow.Null)
-			defer nullListBuilder.Release()
-			nullValueBuilder := nullListBuilder.ValueBuilder()
-			for _, repeatedVal := range repeatedValues {
+	// Case 2: all values are null or empty; build Null list array
+	if len(repeatedValues) == 0 {
+		return array.NewNull(0), nil
+	}
 
-				if repeatedVal == nil {
-					nullListBuilder.AppendNull()
-					continue
-				}
+	nullListBuilder := array.NewListBuilder(allocator, arrow.Null)
+	defer nullListBuilder.Release()
+	nullValueBuilder := nullListBuilder.ValueBuilder()
 
-				if len(repeatedVal.Val) == 0 && repeatedVal.Val == nil {
-					return nil, fmt.Errorf("represent it as an empty array instead of nil")
-				}
-
-				nullListBuilder.Append(true)
-				for range repeatedVal.Val {
-					nullValueBuilder.AppendNull()
-				}
-			}
-			return nullListBuilder.NewArray(), nil
+	for _, repeatedValue := range repeatedValues {
+		if repeatedValue == nil {
+			nullListBuilder.AppendNull()
+			continue
+		}
+		nullListBuilder.Append(true)
+		for range repeatedValue.Val {
+			nullValueBuilder.AppendNull()
 		}
 	}
+
+	return nullListBuilder.NewArray(), nil
 }
 
 func InterfaceToProtoValue(val interface{}) (*types.Value, error) {

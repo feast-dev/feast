@@ -112,7 +112,7 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 			if err != nil {
 				return nil, errors.New("error could not resolve row in query (entity key, feature name, value, event ts)")
 			}
-			if value, _, err = UnmarshalStoredProto(valueString); err != nil {
+			if value, _, err = utils.UnmarshalStoredProto(valueString); err != nil {
 				return nil, errors.New("error converting parsed value to types.Value")
 			}
 			rowIdx := entityNameToEntityIndex[utils.HashSerializedEntityKey(&entity_key)]
