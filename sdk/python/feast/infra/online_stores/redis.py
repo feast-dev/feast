@@ -384,7 +384,7 @@ class RedisOnlineStore(OnlineStore):
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
                         try:
-                            pipe.execute()  # flush
+                            results = pipe.execute()  # flush
                         except RedisError:
                             logger.exception(
                                 "Error executing Redis pipeline batch for feature view %s",
@@ -395,7 +395,7 @@ class RedisOnlineStore(OnlineStore):
                 if num_cmds:
                     # flush any remaining data in the last batch
                     try:
-                        pipe.execute()
+                        results = pipe.execute()
                     except RedisError:
                         logger.exception(
                             "Error executing Redis pipeline batch for feature view %s",

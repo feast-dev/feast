@@ -391,7 +391,7 @@ class EGValkeyOnlineStore(OnlineStore):
                     if num_cmds >= num_cmds_per_pipeline_execute:
                         # TODO: May be add retries with backoff
                         try:
-                            pipe.execute()  # flush
+                            results = pipe.execute()  # flush
                         except ValkeyError:
                             logger.exception(
                                 "Error executing Valkey pipeline batch for feature view %s",
@@ -402,7 +402,7 @@ class EGValkeyOnlineStore(OnlineStore):
                 if num_cmds:
                     # flush any remaining data in the last batch
                     try:
-                        pipe.execute()
+                        results = pipe.execute()
                     except ValkeyError:
                         logger.exception(
                             "Error executing Valkey pipeline batch for feature view %s",
