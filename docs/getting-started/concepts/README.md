@@ -28,6 +28,10 @@
 [stream-feature-view.md](stream-feature-view.md)
 {% endcontent-ref %}
 
+{% content-ref url="tiling.md" %}
+[tiling.md](tiling.md)
+{% endcontent-ref %}
+
 {% content-ref url="feature-retrieval.md" %}
 [feature-retrieval.md](feature-retrieval.md)
 {% endcontent-ref %}
