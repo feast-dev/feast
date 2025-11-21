@@ -1,9 +1,36 @@
+# Copyright 2025 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from typing import Optional
 
 from pydantic import StrictBool, StrictInt
 
 from feast.repo_config import FeastConfigBaseModel
 
+class OfflinePushBatchingConfig(FeastConfigBaseModel):
+    """ Optional configuration for batching offline writes via the `/push` endpoint.
+
+    Write attempts via `/push` to the offline store are buffered
+    in memory and flushed either when either one of the batch size threshold or the batch interval duration is reached. """
+
+    enabled: StrictBool = False
+    """Whether or not to batch writes to offline store via push endpoint."""
+
+    batch_size: StrictInt = 100
+    """The maximum batch size for offline writes. """
+
+    batch_interval_seconds: StrictInt = 1
+    """The batch interval between offline writes. """
 
 class FeatureLoggingConfig(FeastConfigBaseModel):
     enabled: StrictBool = False
@@ -32,3 +59,6 @@ class BaseFeatureServerConfig(FeastConfigBaseModel):
 
     feature_logging: Optional[FeatureLoggingConfig] = None
     """ Feature logging configuration """
+
+    offline_push_batching: Optional[OfflinePushBatchingConfig] = None
+    """ Offline write batching configuration for the HTTP /push endpoint """

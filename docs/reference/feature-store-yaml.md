@@ -25,6 +25,23 @@ online_store:
   * **project\_id**  — Optional parameter for the datastore online store. Sets the GCP project id used by Feast, if not set Feast will use the default GCP project id in the local environment.
 * **project** — Defines a namespace for the entire feature store. Can be used to isolate multiple deployments in a single installation of Feast.
 
+### feature_server
+
+The `feature_server` block configures the Python Feature Server when it is used
+to serve online features and handle `/push` requests. This section is optional
+and only applies when running the Python feature server.
+
+An example configuration:
+
+```yaml
+feature_server:
+  type: local
+  offline_write_batching: # Enables batching of offline writes processed by /push. Online writes are unaffected.
+    enabled: true 
+    batch_size: 100 # Maximum number of buffered rows before writing to the offline store.
+    batch_interval_seconds: 5 # Maximum time rows may remain buffered before a forced flush.
+```
+
 ## Providers
 
 The `provider` field defines the environment in which Feast will execute data flows. As a result, it also determines the default values for other fields.
