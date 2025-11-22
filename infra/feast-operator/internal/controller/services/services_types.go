@@ -280,6 +280,8 @@ type RegistryConfig struct {
 	RegistryType       RegistryConfigType     `yaml:"registry_type,omitempty"`
 	Cert               string                 `yaml:"cert,omitempty"`
 	S3AdditionalKwargs *map[string]string     `yaml:"s3_additional_kwargs,omitempty"`
+	CacheTTLSeconds    *int32                 `yaml:"cache_ttl_seconds,omitempty"`
+	CacheMode          *string                `yaml:"cache_mode,omitempty"`
 	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
 }
 

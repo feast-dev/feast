@@ -662,6 +662,9 @@ _Appears in:_
 | `path` _string_ |  |
 | `pvc` _[PvcConfig](#pvcconfig)_ |  |
 | `s3_additional_kwargs` _map[string]string_ |  |
+| `cache_ttl_seconds` _integer_ | CacheTTLSeconds defines the TTL (in seconds) for the registry cache. |
+| `cache_mode` _string_ | CacheMode defines the registry cache update strategy.
+Allowed values are "sync" and "thread". |
 
 
 #### RegistryPersistence
