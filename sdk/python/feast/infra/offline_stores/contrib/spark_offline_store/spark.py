@@ -588,20 +588,23 @@ def _compute_non_entity_dates(
     feature_views: List[FeatureView], kwargs: Dict[str, Any]
 ) -> Tuple[datetime, datetime]:
     # Why: bounds the scan window when no entity_df is provided using explicit dates or max TTL fallback.
-    start_date: Optional[datetime] = kwargs.get("start_date")
-    end_date: Optional[datetime] = kwargs.get("end_date") or datetime.now(timezone.utc)
+    start_date_opt = cast(Optional[datetime], kwargs.get("start_date"))
+    end_date_opt = cast(Optional[datetime], kwargs.get("end_date"))
+    end_date: datetime = end_date_opt or datetime.now(timezone.utc)
 
-    if start_date is None:
+    if start_date_opt is None:
         max_ttl_seconds = 0
         for fv in feature_views:
             if fv.ttl and isinstance(fv.ttl, timedelta):
                 max_ttl_seconds = max(max_ttl_seconds, int(fv.ttl.total_seconds()))
-        start_date = (
+        start_date: datetime = (
             end_date - timedelta(seconds=max_ttl_seconds)
             if max_ttl_seconds > 0
             else end_date - timedelta(days=30)
         )
-    return start_date, end_date
+    else:
+        start_date = start_date_opt
+    return (start_date, end_date)
 
 
 def _gather_all_entities(
@@ -684,7 +687,9 @@ def _entity_schema_keys_from(
     all_entities: List[str], event_timestamp_col: str
 ) -> KeysView[str]:
     # Why: pass a KeysView[str] to PIT query builder to match entity_df branch typing.
-    return cast(KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys())
+    return cast(
+        KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys()
+    )
 
 
 def _get_entity_df_event_timestamp_range(
