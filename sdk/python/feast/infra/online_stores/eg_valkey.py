@@ -328,7 +328,7 @@ class EGValkeyOnlineStore(OnlineStore):
                 num_cmds = 0
                 # Picking an arbitrary number to start with and will be tuned after perf testing
                 # TODO : Make this a config as this can be different for different users based on payload size etc..
-                num_cmds_per_pipeline_execute = 200
+                num_cmds_per_pipeline_execute = 500
                 ttl_feature_view = table.ttl
                 max_events = None
                 if table.tags:
