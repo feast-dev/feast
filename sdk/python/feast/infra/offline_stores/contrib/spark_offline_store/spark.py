@@ -181,25 +181,11 @@ class SparkOfflineStore(OfflineStore):
         # This makes date-range retrievals possible without enumerating entities upfront; sources remain bounded by time.
         non_entity_mode = entity_df is None
         if non_entity_mode:
-            start_date: Optional[datetime] = kwargs.get("start_date")
-            end_date: Optional[datetime] = kwargs.get("end_date")
-
-            end_date = end_date or datetime.now(timezone.utc)
-            if start_date is None:
-                max_ttl_seconds = 0
-                for fv in feature_views:
-                    if fv.ttl and isinstance(fv.ttl, timedelta):
-                        max_ttl_seconds = max(
-                            max_ttl_seconds, int(fv.ttl.total_seconds())
-                        )
-                start_date = (
-                    end_date - timedelta(seconds=max_ttl_seconds)
-                    if max_ttl_seconds > 0
-                    else end_date - timedelta(days=30)
-                )
+            # Why: derive bounded time window without requiring entities; uses max TTL fallback to constrain scans.
+            start_date, end_date = _compute_non_entity_dates(feature_views, kwargs)
+            entity_df_event_timestamp_range = (start_date, end_date)
 
             # Build query contexts so we can reuse entity names and per-view table info consistently.
-            entity_df_event_timestamp_range = (start_date, end_date)
             fv_query_contexts = offline_utils.get_feature_view_query_context(
                 feature_refs,
                 feature_views,
@@ -209,60 +195,25 @@ class SparkOfflineStore(OfflineStore):
             )
 
             # Collect the union of entity columns required across all feature views.
-            all_entities: List[str] = []
-            for ctx in fv_query_contexts:
-                for e in ctx.entities:
-                    if e not in all_entities:
-                        all_entities.append(e)
+            all_entities = _gather_all_entities(fv_query_contexts)
 
             # Build a UNION DISTINCT of per-feature-view entity projections, time-bounded and partition-pruned.
-            start_date_str = _format_datetime(start_date)
-            end_date_str = _format_datetime(end_date)
-            per_view_selects: List[str] = []
-            for fv, ctx, date_format in zip(
-                feature_views, fv_query_contexts, date_partition_column_formats
-            ):
-                from_expression = fv.batch_source.get_table_query_string()
-                timestamp_field = fv.batch_source.timestamp_field or "event_timestamp"
-                date_partition_column = fv.batch_source.date_partition_column
-                partition_clause = ""
-                if date_partition_column:
-                    partition_clause = (
-                        f" AND {date_partition_column} >= '{start_date.strftime(date_format)}'"
-                        f" AND {date_partition_column} <= '{end_date.strftime(date_format)}'"
-                    )
-                # Select all required entity columns, filling missing ones with NULL to keep UNION schemas aligned.
-                select_entities = []
-                ctx_entities_set = set(ctx.entities)
-                for col in all_entities:
-                    if col in ctx_entities_set:
-                        # Cast entity columns to STRING to guarantee UNION schema alignment across sources.
-                        select_entities.append(f"CAST({col} AS STRING) AS {col}")
-                    else:
-                        select_entities.append(f"CAST(NULL AS STRING) AS {col}")
-
-                per_view_selects.append(
-                    f"""
-                    SELECT DISTINCT {", ".join(select_entities)}
-                    FROM {from_expression}
-                    WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){partition_clause}
-                    """
-                )
-
-            union_query = "\nUNION DISTINCT\n".join(
-                [s.strip() for s in per_view_selects]
-            )
-            spark_session.sql(
-                f"CREATE OR REPLACE TEMPORARY VIEW {tmp_entity_df_table_name} AS {union_query}"
+            _create_temp_entity_union_view(
+                spark_session=spark_session,
+                tmp_view_name=tmp_entity_df_table_name,
+                feature_views=feature_views,
+                fv_query_contexts=fv_query_contexts,
+                start_date=start_date,
+                end_date=end_date,
+                date_partition_column_formats=date_partition_column_formats,
             )
 
             # Add a stable as-of timestamp column for PIT joins.
-            left_table_query_string = f"(SELECT *, TIMESTAMP('{_format_datetime(end_date)}') AS entity_ts FROM {tmp_entity_df_table_name})"
-            event_timestamp_col = "entity_ts"
-            # Why: Keep type consistent with entity_df branch (dict KeysView[str]) to satisfy typing and downstream usage.
-            entity_schema_keys = cast(
-                KeysView[str],
-                {k: None for k in (all_entities + [event_timestamp_col])}.keys(),
+            left_table_query_string, event_timestamp_col = _make_left_table_query(
+                end_date=end_date, tmp_view_name=tmp_entity_df_table_name
+            )
+            entity_schema_keys = _entity_schema_keys_from(
+                all_entities=all_entities, event_timestamp_col=event_timestamp_col
             )
         else:
             entity_schema = _get_entity_schema(
@@ -631,6 +582,109 @@ def get_spark_session_or_start_new_with_repoconfig(
         spark_session = spark_builder.getOrCreate()
     spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
     return spark_session
+
+
+def _compute_non_entity_dates(
+    feature_views: List[FeatureView], kwargs: Dict[str, Any]
+) -> Tuple[datetime, datetime]:
+    # Why: bounds the scan window when no entity_df is provided using explicit dates or max TTL fallback.
+    start_date: Optional[datetime] = kwargs.get("start_date")
+    end_date: Optional[datetime] = kwargs.get("end_date") or datetime.now(timezone.utc)
+
+    if start_date is None:
+        max_ttl_seconds = 0
+        for fv in feature_views:
+            if fv.ttl and isinstance(fv.ttl, timedelta):
+                max_ttl_seconds = max(max_ttl_seconds, int(fv.ttl.total_seconds()))
+        start_date = (
+            end_date - timedelta(seconds=max_ttl_seconds)
+            if max_ttl_seconds > 0
+            else end_date - timedelta(days=30)
+        )
+    return start_date, end_date
+
+
+def _gather_all_entities(
+    fv_query_contexts: List[offline_utils.FeatureViewQueryContext],
+) -> List[str]:
+    # Why: ensure a unified entity set across feature views to align UNION schemas.
+    all_entities: List[str] = []
+    for ctx in fv_query_contexts:
+        for e in ctx.entities:
+            if e not in all_entities:
+                all_entities.append(e)
+    return all_entities
+
+
+def _create_temp_entity_union_view(
+    spark_session: SparkSession,
+    tmp_view_name: str,
+    feature_views: List[FeatureView],
+    fv_query_contexts: List[offline_utils.FeatureViewQueryContext],
+    start_date: datetime,
+    end_date: datetime,
+    date_partition_column_formats: List[Optional[str]],
+) -> None:
+    # Why: derive distinct entity keys observed in the time window without requiring an entity_df upfront.
+    start_date_str = _format_datetime(start_date)
+    end_date_str = _format_datetime(end_date)
+
+    # Compute the unified entity set to align schemas in the UNION.
+    all_entities = _gather_all_entities(fv_query_contexts)
+
+    per_view_selects: List[str] = []
+    for fv, ctx, date_format in zip(
+        feature_views, fv_query_contexts, date_partition_column_formats
+    ):
+        assert isinstance(fv.batch_source, SparkSource)
+        from_expression = fv.batch_source.get_table_query_string()
+        timestamp_field = fv.batch_source.timestamp_field or "event_timestamp"
+        date_partition_column = fv.batch_source.date_partition_column
+        partition_clause = ""
+        if date_partition_column and date_format:
+            partition_clause = (
+                f" AND {date_partition_column} >= '{start_date.strftime(date_format)}'"
+                f" AND {date_partition_column} <= '{end_date.strftime(date_format)}'"
+            )
+
+        # Fill missing entity columns with NULL and cast to STRING to keep UNION schemas aligned.
+        select_entities: List[str] = []
+        ctx_entities_set = set(ctx.entities)
+        for col in all_entities:
+            if col in ctx_entities_set:
+                select_entities.append(f"CAST({col} AS STRING) AS {col}")
+            else:
+                select_entities.append(f"CAST(NULL AS STRING) AS {col}")
+
+        per_view_selects.append(
+            f"""
+            SELECT DISTINCT {", ".join(select_entities)}
+            FROM {from_expression}
+            WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){partition_clause}
+            """
+        )
+
+    union_query = "\nUNION DISTINCT\n".join([s.strip() for s in per_view_selects])
+    spark_session.sql(
+        f"CREATE OR REPLACE TEMPORARY VIEW {tmp_view_name} AS {union_query}"
+    )
+
+
+def _make_left_table_query(end_date: datetime, tmp_view_name: str) -> Tuple[str, str]:
+    # Why: use a stable as-of timestamp for PIT joins when no entity timestamps are provided.
+    event_timestamp_col = "entity_ts"
+    left_table_query_string = (
+        f"(SELECT *, TIMESTAMP('{_format_datetime(end_date)}') AS {event_timestamp_col} "
+        f"FROM {tmp_view_name})"
+    )
+    return left_table_query_string, event_timestamp_col
+
+
+def _entity_schema_keys_from(
+    all_entities: List[str], event_timestamp_col: str
+) -> KeysView[str]:
+    # Why: pass a KeysView[str] to PIT query builder to match entity_df branch typing.
+    return cast(KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys())
 
 
 def _get_entity_df_event_timestamp_range(
