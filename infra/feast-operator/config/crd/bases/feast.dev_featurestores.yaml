@@ -436,6 +436,13 @@ spec:
                         description: podReplacementPolicy specifies when to create
                           replacement Pods.
                         type: string
+                      podTemplateAnnotations:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+                          metadata.
+                        type: object
                       suspend:
                         description: suspend specifies whether the Job controller
                           should create Pods or not.
@@ -4420,6 +4427,13 @@ spec:
                             description: podReplacementPolicy specifies when to create
                               replacement Pods.
                             type: string
+                          podTemplateAnnotations:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+                              metadata.
+                            type: object
                           suspend:
                             description: suspend specifies whether the Job controller
                               should create Pods or not.

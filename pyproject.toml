@@ -84,6 +84,7 @@ hbase = ["happybase>=1.2.0,<3"]
 ibis = [
     "ibis-framework>=9.0.0,<=9.5.0",
     "ibis-substrait>=4.0.0",
+    "substrait<0.25.0",  # TODO: remove this once we upgrade protobuf 
     "poetry-core<2",
     "poetry-dynamic-versioning",
 ]

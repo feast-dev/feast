@@ -157,6 +157,11 @@ type FeastCronJob struct {
 
 // JobSpec describes how the job execution will look like.
 type JobSpec struct {
+	// PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+	// metadata. This is separate from the CronJob-level annotations and must be
+	// set explicitly by users if they want annotations on the PodTemplate.
+	PodTemplateAnnotations map[string]string `json:"podTemplateAnnotations,omitempty"`
+
 	// Specifies the maximum desired number of pods the job should
 	// run at any given time. The actual number of pods running in steady state will
 	// be less than this number when ((.spec.completions - .status.successful) < .spec.parallelism),
