@@ -142,9 +142,16 @@ def serialize_entity_key(
             "Serialization of entity key with version < 3 is removed. Please use version 3 by setting entity_key_serialization_version=3."
             "To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md"
         )
-    sorted_keys, sorted_values = zip(
-        *sorted(zip(entity_key.join_keys, entity_key.entity_values))
-    )
+
+    sorted_keys: List[str]
+    sorted_values: List[ValueProto]
+    if not entity_key.join_keys:
+        sorted_keys = []
+        sorted_values = []
+    else:
+        pairs = sorted(zip(entity_key.join_keys, entity_key.entity_values))
+        sorted_keys = [k for k, _ in pairs]
+        sorted_values = [v for _, v in pairs]
 
     output: List[bytes] = []
     if entity_key_serialization_version > 2:
