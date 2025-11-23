@@ -37,7 +37,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.utils import _get_requested_feature_views_to_features_dict
+from feast.utils import _get_requested_feature_views_to_features_dict, make_tzaware
 
 # DaskRetrievalJob will cast string objects to string[pyarrow] from dask version 2023.7.1
 # This is not the desired behavior for our use case, so we set the convert-string option to False
@@ -152,7 +152,9 @@ class DaskOfflineStore(OfflineStore):
 
         if non_entity_mode:
             # Default end_date to current time (UTC) to keep behavior predictable without extra parameters.
-            end_date = end_date or datetime.now(timezone.utc)
+            end_date = (
+                make_tzaware(end_date) if end_date else datetime.now(timezone.utc)
+            )
 
             # When start_date is not provided, choose a conservative lower bound using max TTL, otherwise fall back.
             if start_date is None:
@@ -167,6 +169,7 @@ class DaskOfflineStore(OfflineStore):
                 else:
                     # Keep default window bounded to avoid unbounded scans by default.
                     start_date = end_date - timedelta(days=30)
+            start_date = make_tzaware(start_date)
 
             # Minimal synthetic entity_df: one timestamp row; join keys are not materialized here on purpose to avoid
             # accidental dependence on specific feature view schemas at this layer.
@@ -178,7 +181,7 @@ class DaskOfflineStore(OfflineStore):
                 entity_df, dd.DataFrame
             ):
                 raise ValueError(
-                    f"Please provide an entity_df of type {type(pd.DataFrame)} or dask.dataframe instead of type {type(entity_df)}"
+                    f"Please provide an entity_df of type pd.DataFrame or dask.dataframe.DataFrame instead of type {type(entity_df)}"
                 )
         entity_df_event_timestamp_col = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL  # local modifiable copy of global variable
         if entity_df_event_timestamp_col not in entity_df.columns:
@@ -296,15 +299,11 @@ class DaskOfflineStore(OfflineStore):
                     full_feature_names,
                 )
 
-                # df_to_join = _merge(entity_df_with_features, df_to_join, join_keys)
-
                 # In non-entity mode, if the synthetic entity_df lacks join keys, cross join to build a snapshot
                 # of all entities as-of the requested timestamp, then rely on TTL and deduplication to select
                 # the appropriate latest rows per entity.
                 current_join_keys = join_keys
-                if non_entity_mode and any(
-                    k not in entity_df_with_features.columns for k in join_keys
-                ):
+                if non_entity_mode:
                     current_join_keys = []
 
                 df_to_join = _merge(
