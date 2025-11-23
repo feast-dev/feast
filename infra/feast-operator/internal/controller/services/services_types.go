@@ -51,9 +51,10 @@ const (
 	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
 	caBundleName       = "odh-trusted-ca-bundle"
 
-	DefaultOfflineStorageRequest  = "20Gi"
-	DefaultOnlineStorageRequest   = "5Gi"
-	DefaultRegistryStorageRequest = "5Gi"
+	DefaultOfflineStorageRequest        = "20Gi"
+	DefaultOnlineStorageRequest         = "5Gi"
+	DefaultRegistryStorageRequest       = "5Gi"
+	MetricsPort                   int32 = 8000
 
 	AuthzFeastType    FeastServiceType = "authorization"
 	OfflineFeastType  FeastServiceType = "offline"
