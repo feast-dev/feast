@@ -1331,6 +1331,7 @@ class FeatureStore:
         feature_view: OnDemandFeatureView,
         start_date: datetime,
         end_date: datetime,
+        full_feature_names: bool,
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
@@ -1428,6 +1429,7 @@ class FeatureStore:
         retrieval_job = self.get_historical_features(
             entity_df=entity_df,
             features=source_features_from_projections,
+            full_feature_names=full_feature_names,
         )
         input_df = retrieval_job.to_df()
         transformed_df = self._transform_on_demand_feature_view_df(
@@ -1439,6 +1441,7 @@ class FeatureStore:
         self,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
+        full_feature_names: bool = False,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1453,6 +1456,8 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
+            full_feature_names (bool): If True, feature names will be prefixed with the corresponding
+                feature view name.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -1498,7 +1503,12 @@ class FeatureStore:
                     print(
                         f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
                     )
-                    self._materialize_odfv(feature_view, odfv_start_date, end_date)
+                    self._materialize_odfv(
+                        feature_view,
+                        odfv_start_date,
+                        end_date,
+                        full_feature_names=full_feature_names,
+                    )
                 continue
 
             start_date = feature_view.most_recent_end_time
@@ -1554,6 +1564,7 @@ class FeatureStore:
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
         disable_event_timestamp: bool = False,
+        full_feature_names: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -1568,6 +1579,8 @@ class FeatureStore:
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
             disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
+            full_feature_names (bool): If True, feature names will be prefixed with the corresponding
+                feature view name.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -1603,7 +1616,12 @@ class FeatureStore:
                     print(
                         f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
                     )
-                    self._materialize_odfv(feature_view, start_date, end_date)
+                    self._materialize_odfv(
+                        feature_view,
+                        start_date,
+                        end_date,
+                        full_feature_names=full_feature_names,
+                    )
                 continue
             provider = self._get_provider()
             print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")

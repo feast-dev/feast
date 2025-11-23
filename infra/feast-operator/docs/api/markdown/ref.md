@@ -280,6 +280,9 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `podTemplateAnnotations` _object (keys:string, values:string)_ | PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+metadata. This is separate from the CronJob-level annotations and must be
+set explicitly by users if they want annotations on the PodTemplate. |
 | `parallelism` _integer_ | Specifies the maximum desired number of pods the job should
 run at any given time. The actual number of pods running in steady state will
 be less than this number when ((.spec.completions - .status.successful) < .spec.parallelism),
