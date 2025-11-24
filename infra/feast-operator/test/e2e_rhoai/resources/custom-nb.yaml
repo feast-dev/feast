@@ -56,6 +56,8 @@ spec:
           value: {{.FeastVerison}}
         - name: OPENAI_API_KEY
           value: {{.OpenAIAPIKey}}
+        - name: NAMESPACE
+          value: {{.Namespace}}
         image: {{.NotebookImage}}
         command: {{.Command}}
         imagePullPolicy: Always
