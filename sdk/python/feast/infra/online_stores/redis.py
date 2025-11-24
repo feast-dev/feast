@@ -403,17 +403,22 @@ class RedisOnlineStore(OnlineStore):
                         )
                         raise
 
-                run_cleanup_by_event_time = (ttl is not None) and is_sort_key_timestamp
-                run_cleanup_by_retained_events = (
-                    max_events is not None and max_events > 0
+                ttl_feature_view_seconds = (
+                    int(ttl_feature_view.total_seconds()) if ttl_feature_view else None
                 )
+
+                run_cleanup_by_event_time = (ttl_feature_view_seconds is not None) and is_sort_key_timestamp
+                run_cleanup_by_retained_events = (
+                        max_events is not None and max_events > 0
+                )
+
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
                 if run_cleanup_by_event_time or run_cleanup_by_retained_events:
                     for zset_key, entity_key_bytes in zsets_to_cleanup:
-                        if run_cleanup_by_event_time and ttl:
+                        if run_cleanup_by_event_time and ttl_feature_view_seconds:
                             try:
                                 self._run_cleanup_by_event_time(
-                                    client, zset_key, entity_key_bytes, ttl
+                                    client, zset_key, entity_key_bytes, ttl_feature_view_seconds
                                 )
                             except Exception:
                                 logger.exception(
