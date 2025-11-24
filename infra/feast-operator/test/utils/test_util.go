@@ -475,7 +475,7 @@ func DeleteNamespace(namespace string, testDir string) error {
 func RunTestApplyAndMaterializeFunc(testDir string, namespace string, feastCRName string, feastDeploymentName string) func() {
 	return func() {
 		ApplyFeastInfraManifestsAndVerify(namespace, testDir)
-		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName)
+		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName, "test/testdata/feast_integration_test_crs/feast.yaml")
 		VerifyApplyFeatureStoreDefinitions(namespace, feastCRName, feastDeploymentName)
 		VerifyFeastMethods(namespace, feastDeploymentName, testDir)
 	}
@@ -637,10 +637,10 @@ func validateFeatureStoreYaml(namespace, deployment string) {
 }
 
 // apply and verifies the Feast deployment becomes available, the CR status is "Ready
-func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentName string, feastCRName string) {
+func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentName string, feastCRName string, feastYAMLFilePath string) {
 	By("Applying Feast yaml for secrets and Feature store CR")
 	cmd := exec.Command("kubectl", "apply", "-n", namespace,
-		"-f", "test/testdata/feast_integration_test_crs/feast.yaml")
+		"-f", feastYAMLFilePath)
 	_, err := Run(cmd, testDir)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	checkDeployment(namespace, feastDeploymentName)
@@ -692,4 +692,61 @@ func ReplaceNamespaceInYamlFilesInPlace(filePaths []string, existingNamespace st
 		}
 	}
 	return nil
+}
+
+func ApplyFeastPermissions(fileName string, registryFilePath string, namespace string, podNamePrefix string) {
+	By("Applying Feast permissions to the Feast registry pod")
+
+	// 1. Get the pod by prefix
+	By(fmt.Sprintf("Finding pod with prefix %q in namespace %q", podNamePrefix, namespace))
+	pod, err := getPodByPrefix(namespace, podNamePrefix)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	ExpectWithOffset(1, pod).NotTo(BeNil())
+
+	podName := pod.Name
+	fmt.Printf("Found pod: %s\n", podName)
+
+	cmd := exec.Command(
+		"oc", "cp",
+		fileName, // local source file
+		fmt.Sprintf("%s/%s:%s", namespace, podName, registryFilePath), // remote destination
+		"-c", "registry",
+	)
+
+	_, err = Run(cmd, "/test/e2e_rhoai")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	fmt.Printf("Successfully copied file to pod: %s\n", podName)
+
+	// Run `feast apply` inside the pod to apply updated permissions
+	By("Running feast apply inside the Feast registry pod")
+	cmd = exec.Command(
+		"oc", "exec", podName,
+		"-n", namespace,
+		"-c", "registry",
+		"--",
+		"bash", "-c",
+		"cd /feast-data/credit_scoring_local/feature_repo && feast apply",
+	)
+	_, err = Run(cmd, "/test/e2e_rhoai")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	fmt.Println("Feast permissions apply executed successfully")
+
+	By("Validating that Feast permission has been applied")
+
+	cmd = exec.Command(
+		"oc", "exec", podName,
+		"-n", namespace,
+		"-c", "registry",
+		"--",
+		"feast", "permissions", "list",
+	)
+
+	output, err := Run(cmd, "/test/e2e_rhoai")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	// Change "feast-auth" if your permission name is different
+	ExpectWithOffset(1, output).To(ContainSubstring("feast-auth"), "Expected permission 'feast-auth' to exist")
+
+	fmt.Println("Verified: Feast permission 'feast-auth' exists")
 }
