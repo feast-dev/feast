@@ -303,6 +303,8 @@ class RedisOnlineStore(OnlineStore):
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
             if isinstance(table, SortedFeatureView):
+                logger.info(f"Using SortedFeatureView: {table.name}")
+
                 if len(table.sort_keys) != 1:
                     raise ValueError(
                         f"Only one sort key is supported for Range query use cases in Redis, "
@@ -406,12 +408,13 @@ class RedisOnlineStore(OnlineStore):
                 ttl_feature_view_seconds = (
                     int(ttl_feature_view.total_seconds()) if ttl_feature_view else None
                 )
-
+                """
                 run_cleanup_by_event_time = (ttl_feature_view_seconds is not None) and is_sort_key_timestamp
                 run_cleanup_by_retained_events = (
                         max_events is not None and max_events > 0
                 )
 
+                
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
                 if run_cleanup_by_event_time or run_cleanup_by_retained_events:
                     for zset_key, entity_key_bytes in zsets_to_cleanup:
@@ -436,6 +439,7 @@ class RedisOnlineStore(OnlineStore):
                                     "Failed TTL cleanup by retained events for zset %r",
                                     zset_key,
                                 )
+                """
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
