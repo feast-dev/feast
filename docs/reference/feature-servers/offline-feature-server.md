@@ -17,7 +17,7 @@ See [this](../../how-to-guides/running-feast-in-production.md#id-4.2.-deploy-fea
 
 The Offline feature server can be deployed with a slight modification of the FeatureStore CR -
 ```yaml
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
   name: sample-offline-server

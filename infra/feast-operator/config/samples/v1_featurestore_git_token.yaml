@@ -5,7 +5,7 @@ metadata:
 stringData:
   TOKEN: xxxxxxxxxxx
 ---
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
   name: sample-git-token

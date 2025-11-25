@@ -37,7 +37,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	routev1 "github.com/openshift/api/route/v1"
 
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller"
@@ -53,7 +53,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
-	utilruntime.Must(feastdevv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(feastdevv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

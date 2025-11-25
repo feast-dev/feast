@@ -19,7 +19,7 @@ package services
 import (
 	"context"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -34,9 +34,9 @@ var _ = Describe("TLS Config", func() {
 	Context("When reconciling a FeatureStore", func() {
 		scheme := runtime.NewScheme()
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-		utilruntime.Must(feastdevv1alpha1.AddToScheme(scheme))
+		utilruntime.Must(feastdevv1.AddToScheme(scheme))
 
-		secretKeyNames := feastdevv1alpha1.SecretKeyNames{
+		secretKeyNames := feastdevv1.SecretKeyNames{
 			TlsCrt: "tls.crt",
 			TlsKey: "tls.key",
 		}
@@ -53,11 +53,11 @@ var _ = Describe("TLS Config", func() {
 					FeatureStore: minimalFeatureStore(),
 				},
 			}
-			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.RegistryServerConfigs{
-							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+			feast.Handler.FeatureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1.ServerConfigs{},
 						},
 					},
 				},
@@ -84,11 +84,11 @@ var _ = Describe("TLS Config", func() {
 			// registry service w/ openshift tls
 			testSetIsOpenShift()
 			feast.Handler.FeatureStore = minimalFeatureStore()
-			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.RegistryServerConfigs{
-							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+			feast.Handler.FeatureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1.ServerConfigs{},
 						},
 					},
 				},
@@ -183,22 +183,22 @@ var _ = Describe("TLS Config", func() {
 
 			// registry service w/ tls and in an openshift cluster
 			feast.Handler.FeatureStore = minimalFeatureStore()
-			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					Server: &feastdevv1alpha1.ServerConfigs{
-						TLS: &feastdevv1alpha1.TlsConfigs{},
+			feast.Handler.FeatureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Server: &feastdevv1.ServerConfigs{
+						TLS: &feastdevv1.TlsConfigs{},
 					},
 				},
-				UI: &feastdevv1alpha1.ServerConfigs{
-					TLS: &feastdevv1alpha1.TlsConfigs{},
+				UI: &feastdevv1.ServerConfigs{
+					TLS: &feastdevv1.TlsConfigs{},
 				},
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.RegistryServerConfigs{
-							ServerConfigs: feastdevv1alpha1.ServerConfigs{
-								TLS: &feastdevv1alpha1.TlsConfigs{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1.ServerConfigs{
+								TLS: &feastdevv1.TlsConfigs{
 									SecretRef: &corev1.LocalObjectReference{},
-									SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+									SecretKeyNames: feastdevv1.SecretKeyNames{
 										TlsCrt: "test.crt",
 									},
 								},
@@ -238,21 +238,21 @@ var _ = Describe("TLS Config", func() {
 			// all services w/ tls and in an openshift cluster
 			feast.Handler.FeatureStore = minimalFeatureStoreWithAllServers()
 			disable := true
-			feast.Handler.FeatureStore.Spec.Services.OnlineStore = &feastdevv1alpha1.OnlineStore{
-				Server: &feastdevv1alpha1.ServerConfigs{
-					TLS: &feastdevv1alpha1.TlsConfigs{
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					TLS: &feastdevv1.TlsConfigs{
 						Disable: &disable,
 					},
 				},
 			}
-			feast.Handler.FeatureStore.Spec.Services.UI.TLS = &feastdevv1alpha1.TlsConfigs{
+			feast.Handler.FeatureStore.Spec.Services.UI.TLS = &feastdevv1.TlsConfigs{
 				Disable: &disable,
 			}
-			feast.Handler.FeatureStore.Spec.Services.Registry = &feastdevv1alpha1.Registry{
-				Local: &feastdevv1alpha1.LocalRegistryConfig{
-					Server: &feastdevv1alpha1.RegistryServerConfigs{
-						ServerConfigs: feastdevv1alpha1.ServerConfigs{
-							TLS: &feastdevv1alpha1.TlsConfigs{
+			feast.Handler.FeatureStore.Spec.Services.Registry = &feastdevv1.Registry{
+				Local: &feastdevv1.LocalRegistryConfig{
+					Server: &feastdevv1.RegistryServerConfigs{
+						ServerConfigs: feastdevv1.ServerConfigs{
+							TLS: &feastdevv1.TlsConfigs{
 								Disable: &disable,
 							},
 						},
@@ -340,11 +340,11 @@ var _ = Describe("TLS Config", func() {
 			feast.Handler.FeatureStore = minimalFeatureStore()
 			restEnabled := true
 			grpcEnabled := false
-			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.RegistryServerConfigs{
-							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+			feast.Handler.FeatureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1.ServerConfigs{},
 							RestAPI:       &restEnabled,
 							GRPC:          &grpcEnabled,
 						},

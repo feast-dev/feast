@@ -6,6 +6,12 @@ resources:
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patches:
+- path: patches/v1alpha1_deprecated.yaml
+  target:
+    group: apiextensions.k8s.io
+    version: v1
+    kind: CustomResourceDefinition
+    name: featurestores.feast.dev
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
 #+kubebuilder:scaffold:crdkustomizewebhookpatch

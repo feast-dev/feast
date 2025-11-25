@@ -1,11 +1,11 @@
-apiVersion: operators.coreos.com/v1alpha1
+apiVersion: operators.coreos.com/v1
 kind: ClusterServiceVersion
 metadata:
   annotations:
     alm-examples: |-
       [
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample"
@@ -15,7 +15,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample-remote-servers"
@@ -36,7 +36,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample-ui"
@@ -50,8 +50,8 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-11-13T20:26:23Z"
-    operators.operatorframework.io/builder: operator-sdk-v1.38.0
+    createdAt: "2025-12-09T13:20:27Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.39.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.57.0
   namespace: placeholder
@@ -63,7 +63,7 @@ spec:
       displayName: Feature Store
       kind: FeatureStore
       name: featurestores.feast.dev
-      version: v1alpha1
+      version: v1
   description: Feast (Feature Store) is an open source feature store for machine learning.
   displayName: Feast Operator
   icon:

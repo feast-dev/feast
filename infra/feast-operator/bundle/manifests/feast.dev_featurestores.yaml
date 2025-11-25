@@ -23,7 +23,7 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
-    name: v1alpha1
+    name: v1
     schema:
       openAPIV3Schema:
         description: FeatureStore is the Schema for the featurestores API
@@ -436,6 +436,13 @@ spec:
                         description: podReplacementPolicy specifies when to create
                           replacement Pods.
                         type: string
+                      podTemplateAnnotations:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+                          metadata.
+                        type: object
                       suspend:
                         description: suspend specifies whether the Job controller
                           should create Pods or not.
@@ -1642,6 +1649,21 @@ spec:
                                 description: RegistryFilePersistence configures the
                                   file-based persistence for the registry service
                                 properties:
+                                  cache_mode:
+                                    description: |-
+                                      CacheMode defines the registry cache update strategy.
+                                      Allowed values are "sync" and "thread".
+                                    enum:
+                                    - none
+                                    - sync
+                                    - thread
+                                    type: string
+                                  cache_ttl_seconds:
+                                    description: CacheTTLSeconds defines the TTL (in
+                                      seconds) for the registry cache.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
                                   path:
                                     type: string
                                   pvc:
@@ -4420,6 +4442,13 @@ spec:
                             description: podReplacementPolicy specifies when to create
                               replacement Pods.
                             type: string
+                          podTemplateAnnotations:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+                              metadata.
+                            type: object
                           suspend:
                             description: suspend specifies whether the Job controller
                               should create Pods or not.
@@ -5647,6 +5676,21 @@ spec:
                                       the file-based persistence for the registry
                                       service
                                     properties:
+                                      cache_mode:
+                                        description: |-
+                                          CacheMode defines the registry cache update strategy.
+                                          Allowed values are "sync" and "thread".
+                                        enum:
+                                        - none
+                                        - sync
+                                        - thread
+                                        type: string
+                                      cache_ttl_seconds:
+                                        description: CacheTTLSeconds defines the TTL
+                                          (in seconds) for the registry cache.
+                                        format: int32
+                                        minimum: 0
+                                        type: integer
                                       path:
                                         type: string
                                       pvc:
@@ -8134,6 +8178,35 @@ spec:
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: FeatureStore is the Schema for the featurestores API (deprecated,
+          use v1 instead)
+        properties:
+          apiVersion:
+            description: APIVersion defines the versioned schema of this representation
+              of an object.
+            type: string
+          kind:
+            description: Kind is a string value representing the REST resource this
+              object represents.
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: FeatureStoreSpec defines the desired state of FeatureStore
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            description: FeatureStoreStatus defines the observed state of FeatureStore
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+        type: object
+    served: false
+    storage: false
     subresources:
       status: {}
 status:

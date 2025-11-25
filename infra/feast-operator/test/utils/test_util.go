@@ -16,7 +16,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	v1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 )
 
 const (
@@ -46,7 +46,7 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	}
 
 	// Parse the JSON into FeatureStore
-	var resource v1alpha1.FeatureStore
+	var resource v1.FeatureStore
 	if err := json.Unmarshal(out.Bytes(), &resource); err != nil {
 		return fmt.Errorf("failed to parse the resource JSON. Error: %v", err)
 	}
@@ -206,7 +206,7 @@ func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (boo
 		}
 
 		// Parse the JSON into a map
-		var registryConfig v1alpha1.Registry
+		var registryConfig v1.Registry
 		if err := json.Unmarshal([]byte(result), &registryConfig); err != nil {
 			return false, err // Return false on JSON parsing failure
 		}
@@ -429,7 +429,18 @@ func DeleteOperatorDeployment(testDir string) {
 func DeployPreviousVersionOperator() {
 	var err error
 
-	cmd := exec.Command("kubectl", "apply", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
+	// Clean up existing CRD first to avoid version conflicts
+	// This is necessary because the existing CRD might have versions in storedVersions
+	// that the previous version's CRD doesn't support
+	By("Cleaning up existing CRD to avoid version conflicts")
+	cmd := exec.Command("kubectl", "delete", "crd", "featurestores.feast.dev", "--ignore-not-found=true")
+	_, err = Run(cmd, "/test/upgrade")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	// Wait a moment for CRD deletion to complete
+	time.Sleep(2 * time.Second)
+
+	cmd = exec.Command("kubectl", "apply", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
 	_, err = Run(cmd, "/test/upgrade")
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -447,6 +458,7 @@ func GetSimplePreviousVerCR() string {
 }
 
 // GetRemoteRegistryPreviousVerCR - Get The previous version remote registry CR for tests
+// Note: Previous version (v0.57.0) uses v1alpha1 API, so we use v1alpha1_* file names
 func GetRemoteRegistryPreviousVerCR() string {
 	return fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/test/testdata/feast_integration_test_crs/v1alpha1_remote_registry_featurestore.yaml", feastversion.FeastVersion)
 }
