@@ -23,7 +23,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -50,21 +50,21 @@ func (feast *FeastServices) setTlsDefaults() error {
 func (feast *FeastServices) setOpenshiftTls() error {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	if feast.offlineOpenshiftTls() {
-		appliedServices.OfflineStore.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+		appliedServices.OfflineStore.Server.TLS = &feastdevv1.TlsConfigs{
 			SecretRef: &corev1.LocalObjectReference{
 				Name: feast.initFeastSvc(OfflineFeastType).Name + tlsNameSuffix,
 			},
 		}
 	}
 	if feast.onlineOpenshiftTls() {
-		appliedServices.OnlineStore.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+		appliedServices.OnlineStore.Server.TLS = &feastdevv1.TlsConfigs{
 			SecretRef: &corev1.LocalObjectReference{
 				Name: feast.initFeastSvc(OnlineFeastType).Name + tlsNameSuffix,
 			},
 		}
 	}
 	if feast.uiOpenshiftTls() {
-		appliedServices.UI.TLS = &feastdevv1alpha1.TlsConfigs{
+		appliedServices.UI.TLS = &feastdevv1.TlsConfigs{
 			SecretRef: &corev1.LocalObjectReference{
 				Name: feast.initFeastSvc(UIFeastType).Name + tlsNameSuffix,
 			},
@@ -77,21 +77,21 @@ func (feast *FeastServices) setOpenshiftTls() error {
 		if grpcEnabled && restEnabled {
 			// Both services enabled: Use gRPC service name as primary certificate
 			// The certificate will include both hostnames as SANs via service annotations
-			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+			appliedServices.Registry.Local.Server.TLS = &feastdevv1.TlsConfigs{
 				SecretRef: &corev1.LocalObjectReference{
 					Name: feast.initFeastSvc(RegistryFeastType).Name + tlsNameSuffix,
 				},
 			}
 		} else if grpcEnabled && !restEnabled {
 			// Only gRPC enabled: Use gRPC service name
-			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+			appliedServices.Registry.Local.Server.TLS = &feastdevv1.TlsConfigs{
 				SecretRef: &corev1.LocalObjectReference{
 					Name: feast.initFeastSvc(RegistryFeastType).Name + tlsNameSuffix,
 				},
 			}
 		} else if !grpcEnabled && restEnabled {
 			// Only REST enabled: Use REST service name
-			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+			appliedServices.Registry.Local.Server.TLS = &feastdevv1.TlsConfigs{
 				SecretRef: &corev1.LocalObjectReference{
 					Name: feast.initFeastRestSvc(RegistryFeastType).Name + tlsNameSuffix,
 				},
@@ -100,7 +100,7 @@ func (feast *FeastServices) setOpenshiftTls() error {
 	} else if remote, err := feast.remoteRegistryOpenshiftTls(); remote {
 		// if the remote registry reference is using openshift's service serving certificates, we can use the injected service CA bundle configMap
 		if appliedServices.Registry.Remote.TLS == nil {
-			appliedServices.Registry.Remote.TLS = &feastdevv1alpha1.TlsRemoteRegistryConfigs{
+			appliedServices.Registry.Remote.TLS = &feastdevv1.TlsRemoteRegistryConfigs{
 				ConfigMapRef: corev1.LocalObjectReference{
 					Name: feast.initCaConfigMap().Name,
 				},
@@ -135,7 +135,7 @@ func (feast *FeastServices) isOpenShiftTls(feastType FeastServiceType) (isOpenSh
 	return
 }
 
-func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) *feastdevv1alpha1.TlsConfigs {
+func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) *feastdevv1.TlsConfigs {
 	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
 		return serviceConfigs.TLS
 	}
@@ -234,7 +234,7 @@ func (feast *FeastServices) mountTlsConfig(feastType FeastServiceType, podSpec *
 	}
 }
 
-func mountTlsRemoteRegistryConfig(podSpec *corev1.PodSpec, tls *feastdevv1alpha1.TlsRemoteRegistryConfigs) {
+func mountTlsRemoteRegistryConfig(podSpec *corev1.PodSpec, tls *feastdevv1.TlsRemoteRegistryConfigs) {
 	if tls != nil {
 		volName := string(RegistryFeastType) + tlsNameSuffix
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
@@ -312,14 +312,14 @@ func (feast *FeastServices) GetCustomCertificatesBundle() CustomCertificatesBund
 	return customCertificatesBundle
 }
 
-func getPortStr(tls *feastdevv1alpha1.TlsConfigs) string {
+func getPortStr(tls *feastdevv1.TlsConfigs) string {
 	if tls.IsTLS() {
 		return strconv.Itoa(HttpsPort)
 	}
 	return strconv.Itoa(HttpPort)
 }
 
-func tlsDefaults(tls *feastdevv1alpha1.TlsConfigs) {
+func tlsDefaults(tls *feastdevv1.TlsConfigs) {
 	if tls.IsTLS() {
 		if len(tls.SecretKeyNames.TlsCrt) == 0 {
 			tls.SecretKeyNames.TlsCrt = "tls.crt"
@@ -330,11 +330,11 @@ func tlsDefaults(tls *feastdevv1alpha1.TlsConfigs) {
 	}
 }
 
-func localRegistryTls(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func localRegistryTls(featureStore *feastdevv1.FeatureStore) bool {
 	return IsRegistryServer(featureStore) && featureStore.Status.Applied.Services.Registry.Local.Server.TLS.IsTLS()
 }
 
-func remoteRegistryTls(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func remoteRegistryTls(featureStore *feastdevv1.FeatureStore) bool {
 	return isRemoteRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Remote.TLS != nil
 }
 

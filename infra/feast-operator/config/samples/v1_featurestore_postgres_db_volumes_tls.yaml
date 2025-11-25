@@ -33,7 +33,7 @@ stringData:
     sslcert_path: /var/lib/postgresql/certs/tls.crt
     sslrootcert_path: /var/lib/postgresql/certs/ca.crt
 ---
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
   name: sample-db-ssl

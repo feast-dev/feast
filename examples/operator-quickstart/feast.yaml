@@ -13,7 +13,7 @@ stringData:
         echo: false
         pool_pre_ping: true
 ---
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
   name: example

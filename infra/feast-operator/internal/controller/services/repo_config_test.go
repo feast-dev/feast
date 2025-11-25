@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 )
 
 var projectName = "test-project"
@@ -56,11 +56,11 @@ var _ = Describe("Repo Config", func() {
 			By("Having the local registry resource")
 			featureStore = minimalFeatureStore()
 			testPath := "/test/file.db"
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Persistence: &feastdevv1.RegistryPersistence{
+							FilePersistence: &feastdevv1.RegistryFilePersistence{
 								Path: testPath,
 							},
 						},
@@ -82,10 +82,10 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
 
 			By("Adding an offlineStore with PVC")
-			featureStore.Spec.Services.OfflineStore = &feastdevv1alpha1.OfflineStore{
-				Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-					FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
-						PvcConfig: &feastdevv1alpha1.PvcConfig{
+			featureStore.Spec.Services.OfflineStore = &feastdevv1.OfflineStore{
+				Persistence: &feastdevv1.OfflineStorePersistence{
+					FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
+						PvcConfig: &feastdevv1.PvcConfig{
 							MountPath: "/testing",
 						},
 					},
@@ -105,10 +105,10 @@ var _ = Describe("Repo Config", func() {
 
 			By("Having the remote registry resource")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				Registry: &feastdevv1alpha1.Registry{
-					Remote: &feastdevv1alpha1.RemoteRegistryConfig{
-						FeastRef: &feastdevv1alpha1.FeatureStoreRef{
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						FeastRef: &feastdevv1.FeatureStoreRef{
 							Name: "registry",
 						},
 					},
@@ -124,25 +124,25 @@ var _ = Describe("Repo Config", func() {
 
 			By("Having the all the file services")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-						FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OfflineStore: &feastdevv1.OfflineStore{
+					Persistence: &feastdevv1.OfflineStorePersistence{
+						FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
 							Type: "duckdb",
 						},
 					},
 				},
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-						FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Persistence: &feastdevv1.OnlineStorePersistence{
+						FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
 							Path: "/data/online.db",
 						},
 					},
 				},
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Persistence: &feastdevv1.RegistryPersistence{
+							FilePersistence: &feastdevv1.RegistryFilePersistence{
 								Path: "/data/registry.db",
 							},
 						},
@@ -172,14 +172,14 @@ var _ = Describe("Repo Config", func() {
 
 			By("Having kubernetes authorization")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-				KubernetesAuthz: &feastdevv1alpha1.KubernetesAuthz{},
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				KubernetesAuthz: &feastdevv1.KubernetesAuthz{},
 			}
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{},
-				OnlineStore:  &feastdevv1alpha1.OnlineStore{},
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{},
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OfflineStore: &feastdevv1.OfflineStore{},
+				OnlineStore:  &feastdevv1.OnlineStore{},
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{},
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
@@ -196,8 +196,8 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.Registry).To(Equal(defaultRegistryConfig(featureStore)))
 
 			By("Having oidc authorization")
-			featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-				OidcAuthz: &feastdevv1alpha1.OidcAuthz{
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				OidcAuthz: &feastdevv1.OidcAuthz{
 					SecretRef: corev1.LocalObjectReference{
 						Name: "oidc-secret",
 					},
@@ -231,10 +231,10 @@ var _ = Describe("Repo Config", func() {
 
 			By("Having the all the db services")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-						DBPersistence: &feastdevv1alpha1.OfflineStoreDBStorePersistence{
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OfflineStore: &feastdevv1.OfflineStore{
+					Persistence: &feastdevv1.OfflineStorePersistence{
+						DBPersistence: &feastdevv1.OfflineStoreDBStorePersistence{
 							Type: string(OfflineDBPersistenceSnowflakeConfigType),
 							SecretRef: corev1.LocalObjectReference{
 								Name: "offline-test-secret",
@@ -242,9 +242,9 @@ var _ = Describe("Repo Config", func() {
 						},
 					},
 				},
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-						DBPersistence: &feastdevv1alpha1.OnlineStoreDBStorePersistence{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Persistence: &feastdevv1.OnlineStorePersistence{
+						DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
 							Type: string(OnlineDBPersistenceSnowflakeConfigType),
 							SecretRef: corev1.LocalObjectReference{
 								Name: "online-test-secret",
@@ -252,10 +252,10 @@ var _ = Describe("Repo Config", func() {
 						},
 					},
 				},
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							DBPersistence: &feastdevv1alpha1.RegistryDBStorePersistence{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Persistence: &feastdevv1.RegistryPersistence{
+							DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 								Type: string(RegistryDBPersistenceSnowflakeConfigType),
 								SecretRef: corev1.LocalObjectReference{
 									Name: "registry-test-secret",
@@ -297,8 +297,8 @@ var _ = Describe("Repo Config", func() {
 		featureStore := minimalFeatureStore()
 
 		By("Having invalid server oidc authorization")
-		featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-			OidcAuthz: &feastdevv1alpha1.OidcAuthz{
+		featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+			OidcAuthz: &feastdevv1.OidcAuthz{
 				SecretRef: corev1.LocalObjectReference{
 					Name: "oidc-secret",
 				},
@@ -324,8 +324,8 @@ var _ = Describe("Repo Config", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Having invalid client oidc authorization")
-		featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-			OidcAuthz: &feastdevv1alpha1.OidcAuthz{
+		featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+			OidcAuthz: &feastdevv1.OidcAuthz{
 				SecretRef: corev1.LocalObjectReference{
 					Name: "oidc-secret",
 				},
@@ -356,28 +356,28 @@ var _ = Describe("Repo Config", func() {
 var emptyOfflineStoreConfig = OfflineStoreConfig{}
 var emptyRegistryConfig = RegistryConfig{}
 
-func minimalFeatureStore() *feastdevv1alpha1.FeatureStore {
-	return &feastdevv1alpha1.FeatureStore{
+func minimalFeatureStore() *feastdevv1.FeatureStore {
+	return &feastdevv1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: feastdevv1alpha1.FeatureStoreSpec{
+		Spec: feastdevv1.FeatureStoreSpec{
 			FeastProject: projectName,
 		},
 	}
 }
 
-func minimalFeatureStoreWithAllServers() *feastdevv1alpha1.FeatureStore {
+func minimalFeatureStoreWithAllServers() *feastdevv1.FeatureStore {
 	feast := minimalFeatureStore()
 	// onlineStore configured by default
-	feast.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OfflineStore: &feastdevv1alpha1.OfflineStore{
-			Server: &feastdevv1alpha1.ServerConfigs{},
+	feast.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OfflineStore: &feastdevv1.OfflineStore{
+			Server: &feastdevv1.ServerConfigs{},
 		},
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{},
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{},
 			},
 		},
-		UI: &feastdevv1alpha1.ServerConfigs{},
+		UI: &feastdevv1.ServerConfigs{},
 	}
 	return feast
 }
@@ -464,50 +464,50 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 	Context("in getClientRepoConfig", func() {
 		It("should use individual service certificate paths when no custom CA bundle", func() {
 			// Create a feature store with TLS enabled
-			featureStore := &feastdevv1alpha1.FeatureStore{
-				Status: feastdevv1alpha1.FeatureStoreStatus{
-					ServiceHostnames: feastdevv1alpha1.ServiceHostnames{
+			featureStore := &feastdevv1.FeatureStore{
+				Status: feastdevv1.FeatureStoreStatus{
+					ServiceHostnames: feastdevv1.ServiceHostnames{
 						OfflineStore: "offline.example.com:443",
 						OnlineStore:  "online.example.com:443",
 						Registry:     "registry.example.com:443",
 					},
-					Applied: feastdevv1alpha1.FeatureStoreSpec{
-						Services: &feastdevv1alpha1.FeatureStoreServices{
-							OfflineStore: &feastdevv1alpha1.OfflineStore{
-								Server: &feastdevv1alpha1.ServerConfigs{
-									TLS: &feastdevv1alpha1.TlsConfigs{
+					Applied: feastdevv1.FeatureStoreSpec{
+						Services: &feastdevv1.FeatureStoreServices{
+							OfflineStore: &feastdevv1.OfflineStore{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
 										SecretRef: &corev1.LocalObjectReference{Name: "offline-tls"},
-										SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+										SecretKeyNames: feastdevv1.SecretKeyNames{
 											TlsCrt: "tls.crt",
 										},
 									},
 								},
 							},
-							OnlineStore: &feastdevv1alpha1.OnlineStore{
-								Server: &feastdevv1alpha1.ServerConfigs{
-									TLS: &feastdevv1alpha1.TlsConfigs{
+							OnlineStore: &feastdevv1.OnlineStore{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
 										SecretRef: &corev1.LocalObjectReference{Name: "online-tls"},
-										SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+										SecretKeyNames: feastdevv1.SecretKeyNames{
 											TlsCrt: "tls.crt",
 										},
 									},
 								},
 							},
-							UI: &feastdevv1alpha1.ServerConfigs{
-								TLS: &feastdevv1alpha1.TlsConfigs{
+							UI: &feastdevv1.ServerConfigs{
+								TLS: &feastdevv1.TlsConfigs{
 									SecretRef: &corev1.LocalObjectReference{Name: "ui-tls"},
-									SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+									SecretKeyNames: feastdevv1.SecretKeyNames{
 										TlsCrt: "tls.crt",
 									},
 								},
 							},
-							Registry: &feastdevv1alpha1.Registry{
-								Local: &feastdevv1alpha1.LocalRegistryConfig{
-									Server: &feastdevv1alpha1.RegistryServerConfigs{
-										ServerConfigs: feastdevv1alpha1.ServerConfigs{
-											TLS: &feastdevv1alpha1.TlsConfigs{
+							Registry: &feastdevv1.Registry{
+								Local: &feastdevv1.LocalRegistryConfig{
+									Server: &feastdevv1.RegistryServerConfigs{
+										ServerConfigs: feastdevv1.ServerConfigs{
+											TLS: &feastdevv1.TlsConfigs{
 												SecretRef: &corev1.LocalObjectReference{Name: "registry-tls"},
-												SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+												SecretKeyNames: feastdevv1.SecretKeyNames{
 													TlsCrt: "tls.crt",
 												},
 											},
@@ -533,51 +533,51 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 		It("should use custom CA bundle path when available", func() {
 			// This test would require a full FeastServices setup with custom CA bundle
 			// For now, we verify the function signature and basic behavior
-			featureStore := &feastdevv1alpha1.FeatureStore{
-				Status: feastdevv1alpha1.FeatureStoreStatus{
-					ServiceHostnames: feastdevv1alpha1.ServiceHostnames{
+			featureStore := &feastdevv1.FeatureStore{
+				Status: feastdevv1.FeatureStoreStatus{
+					ServiceHostnames: feastdevv1.ServiceHostnames{
 						OfflineStore: "offline.example.com:443",
 						OnlineStore:  "online.example.com:443",
 						Registry:     "registry.example.com:443",
 						UI:           "ui.example.com:443",
 					},
-					Applied: feastdevv1alpha1.FeatureStoreSpec{
-						Services: &feastdevv1alpha1.FeatureStoreServices{
-							OfflineStore: &feastdevv1alpha1.OfflineStore{
-								Server: &feastdevv1alpha1.ServerConfigs{
-									TLS: &feastdevv1alpha1.TlsConfigs{
+					Applied: feastdevv1.FeatureStoreSpec{
+						Services: &feastdevv1.FeatureStoreServices{
+							OfflineStore: &feastdevv1.OfflineStore{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
 										SecretRef: &corev1.LocalObjectReference{Name: "offline-tls"},
-										SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+										SecretKeyNames: feastdevv1.SecretKeyNames{
 											TlsCrt: "tls.crt",
 										},
 									},
 								},
 							},
-							OnlineStore: &feastdevv1alpha1.OnlineStore{
-								Server: &feastdevv1alpha1.ServerConfigs{
-									TLS: &feastdevv1alpha1.TlsConfigs{
+							OnlineStore: &feastdevv1.OnlineStore{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
 										SecretRef: &corev1.LocalObjectReference{Name: "online-tls"},
-										SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+										SecretKeyNames: feastdevv1.SecretKeyNames{
 											TlsCrt: "tls.crt",
 										},
 									},
 								},
 							},
-							UI: &feastdevv1alpha1.ServerConfigs{
-								TLS: &feastdevv1alpha1.TlsConfigs{
+							UI: &feastdevv1.ServerConfigs{
+								TLS: &feastdevv1.TlsConfigs{
 									SecretRef: &corev1.LocalObjectReference{Name: "ui-tls"},
-									SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+									SecretKeyNames: feastdevv1.SecretKeyNames{
 										TlsCrt: "tls.crt",
 									},
 								},
 							},
-							Registry: &feastdevv1alpha1.Registry{
-								Local: &feastdevv1alpha1.LocalRegistryConfig{
-									Server: &feastdevv1alpha1.RegistryServerConfigs{
-										ServerConfigs: feastdevv1alpha1.ServerConfigs{
-											TLS: &feastdevv1alpha1.TlsConfigs{
+							Registry: &feastdevv1.Registry{
+								Local: &feastdevv1.LocalRegistryConfig{
+									Server: &feastdevv1.RegistryServerConfigs{
+										ServerConfigs: feastdevv1.ServerConfigs{
+											TLS: &feastdevv1.TlsConfigs{
 												SecretRef: &corev1.LocalObjectReference{Name: "registry-tls"},
-												SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+												SecretKeyNames: feastdevv1.SecretKeyNames{
 													TlsCrt: "tls.crt",
 												},
 											},
