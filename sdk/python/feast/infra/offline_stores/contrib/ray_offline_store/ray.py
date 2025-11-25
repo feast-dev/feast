@@ -1203,7 +1203,9 @@ def _compute_non_entity_dates_ray(
     end_date_opt: Optional[datetime],
 ) -> Tuple[datetime, datetime]:
     # Why: derive bounded time window when no entity_df is provided using explicit dates or max TTL fallback
-    end_date = make_tzaware(end_date_opt) if end_date_opt else make_tzaware(datetime.utcnow())
+    end_date = (
+        make_tzaware(end_date_opt) if end_date_opt else make_tzaware(datetime.utcnow())
+    )
     if start_date_opt is None:
         max_ttl_seconds = 0
         for fv in feature_views:
@@ -1211,7 +1213,9 @@ def _compute_non_entity_dates_ray(
                 try:
                     ttl_val = fv.ttl
                     if isinstance(ttl_val, timedelta):
-                        max_ttl_seconds = max(max_ttl_seconds, int(ttl_val.total_seconds()))
+                        max_ttl_seconds = max(
+                            max_ttl_seconds, int(ttl_val.total_seconds())
+                        )
                 except Exception:
                     pass
         start_date = (
@@ -1323,7 +1327,9 @@ def _align_and_union_entities_ray(
     entity_ds = aligned[0]
     for ds in aligned[1:]:
         entity_ds = entity_ds.union(ds)
-    return entity_ds.map_batches(_make_distinct_by_keys(all_join_keys), batch_format="pandas")
+    return entity_ds.map_batches(
+        _make_distinct_by_keys(all_join_keys), batch_format="pandas"
+    )
 
 
 def _add_asof_ts_ray(ds: Dataset, end_date: datetime) -> Dataset:
