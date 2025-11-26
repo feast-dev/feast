@@ -964,6 +964,29 @@ class FeatureStore:
             services_to_update,
         )
 
+        # Handle dual registration for online_enabled FeatureViews
+        online_enabled_views = [
+            view for view in views_to_update
+            if hasattr(view, 'online_enabled') and view.online_enabled
+        ]
+
+        for fv in online_enabled_views:
+            # Create OnDemandFeatureView for online serving with same transformation
+            if hasattr(fv, 'feature_transformation') and fv.feature_transformation:
+                # Create ODFV with same transformation logic
+                online_fv = OnDemandFeatureView(
+                    name=f"{fv.name}_online",
+                    sources=fv.source_views or [],  # Use source views for ODFV
+                    schema=fv.schema or [],
+                    feature_transformation=fv.feature_transformation,  # Same transformation!
+                    description=f"Online serving for {fv.name}",
+                    tags=dict(fv.tags or {}, **{"generated_from": fv.name, "dual_registration": "true"}),
+                    owner=fv.owner,
+                )
+
+                # Add to ODFVs to be registered
+                odfvs_to_update.append(online_fv)
+
         # Add all objects to the registry and update the provider's infrastructure.
         for project in projects_to_update:
             self._registry.apply_project(project, commit=False)
