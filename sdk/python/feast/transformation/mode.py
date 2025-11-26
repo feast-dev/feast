@@ -9,3 +9,10 @@ class TransformationMode(Enum):
     RAY = "ray"
     SQL = "sql"
     SUBSTRAIT = "substrait"
+
+
+class TransformationTiming(Enum):
+    ON_READ = "on_read"        # Execute during get_online_features()
+    ON_WRITE = "on_write"      # Execute during materialization, cache results
+    BATCH = "batch"            # Scheduled batch processing
+    STREAMING = "streaming"    # Real-time stream processing

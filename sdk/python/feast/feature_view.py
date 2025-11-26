@@ -39,7 +39,8 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2 as FeatureTransformationProto,
 )
-from feast.transformation.mode import TransformationMode
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode, TransformationTiming
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
@@ -107,6 +108,9 @@ class FeatureView(BaseFeatureView):
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
+    feature_transformation: Optional[Transformation]
+    when: Optional[Union[TransformationTiming, str]]
+    online_enabled: bool
 
     def __init__(
         self,
@@ -123,6 +127,9 @@ class FeatureView(BaseFeatureView):
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
+        feature_transformation: Optional[Transformation] = None,
+        when: Optional[Union[TransformationTiming, str]] = None,
+        online_enabled: bool = False,
     ):
         """
         Creates a FeatureView object.
@@ -148,6 +155,12 @@ class FeatureView(BaseFeatureView):
                 primary maintainer.
             mode (optional): The transformation mode for feature transformations. Only meaningful
                 when transformations are applied. Choose from TransformationMode enum values.
+            feature_transformation (optional): The transformation object containing the UDF and
+                mode for this feature view. Used for derived feature views.
+            when (optional): The timing for when transformation should execute. Choose from
+                TransformationTiming enum values (on_read, on_write, batch, streaming).
+            online_enabled (optional): Whether to enable dual registration for both batch
+                materialization and online serving with Feature Server.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -157,6 +170,11 @@ class FeatureView(BaseFeatureView):
         self.ttl = ttl
         schema = schema or []
         self.mode = mode
+        # Don't override feature_transformation if it's already set by subclass (e.g., BatchFeatureView)
+        if not hasattr(self, 'feature_transformation') or self.feature_transformation is None:
+            self.feature_transformation = feature_transformation
+        self.when = when
+        self.online_enabled = online_enabled
 
         # Normalize source
         self.stream_source = None
