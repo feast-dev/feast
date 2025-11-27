@@ -6,21 +6,25 @@ dual registration, training-serving consistency, and backward compatibility.
 """
 
 import pytest
-from datetime import timedelta
-from feast.transformation.base import transformation, is_online_compatible, ONLINE_COMPATIBLE_MODES, BATCH_ONLY_MODES
-from feast.transformation.mode import TransformationMode, TransformationTiming
-from feast.field import Field
-from feast.types import Float64, String, Int64
+
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.transformation.base import Transformation
-import pandas as pd
+from feast.field import Field
+from feast.transformation.base import (
+    BATCH_ONLY_MODES,
+    ONLINE_COMPATIBLE_MODES,
+    Transformation,
+    is_online_compatible,
+    transformation,
+)
+from feast.transformation.mode import TransformationMode, TransformationTiming
+from feast.types import Float64, Int64, String
 
 
 def create_dummy_source():
     """Helper to create a dummy source for tests"""
     from feast.infra.offline_stores.file_source import FileSource
+
     return FileSource(path="test.parquet", timestamp_field="event_timestamp")
 
 
@@ -29,6 +33,7 @@ class TestUnifiedTransformation:
 
     def test_backward_compatibility_string_mode(self):
         """Test that old @transformation(mode=string) still works"""
+
         @transformation(mode="python")
         def old_transform(df):
             return df
@@ -38,6 +43,7 @@ class TestUnifiedTransformation:
 
     def test_backward_compatibility_enum_mode(self):
         """Test that old @transformation(mode=enum) still works"""
+
         @transformation(mode=TransformationMode.PANDAS)
         def old_transform(df):
             return df
@@ -55,7 +61,7 @@ class TestUnifiedTransformation:
             online=True,
             sources=[create_dummy_source()],
             schema=[Field(name="total", dtype=Float64)],
-            entities=[driver]
+            entities=[driver],
         )
         def enhanced_transform(inputs):
             return [{"total": inp.get("a", 0) + inp.get("b", 0)} for inp in inputs]
@@ -63,17 +69,18 @@ class TestUnifiedTransformation:
         assert isinstance(enhanced_transform, FeatureView)
         assert enhanced_transform.feature_transformation is not None
         assert enhanced_transform.when == "on_write"
-        assert enhanced_transform.online_enabled == True
+        assert enhanced_transform.online_enabled
         assert enhanced_transform.mode == "python"
 
     def test_enhanced_decorator_with_enum_mode(self):
         """Test enhanced decorator works with TransformationMode enum"""
+
         @transformation(
             mode=TransformationMode.PANDAS,
             when="batch",
             online=False,
             sources=[create_dummy_source()],
-            schema=[Field(name="result", dtype=Int64)]
+            schema=[Field(name="result", dtype=Int64)],
         )
         def enum_mode_transform(df):
             return df
@@ -85,44 +92,40 @@ class TestUnifiedTransformation:
         """Test that missing required parameters raise ValueError"""
         # Missing when
         with pytest.raises(ValueError, match="'when' parameter is required"):
+
             @transformation(
-                mode="python",
-                online=True,
-                sources=[create_dummy_source()],
-                schema=[]
+                mode="python", online=True, sources=[create_dummy_source()], schema=[]
             )
             def missing_when(inputs):
                 return inputs
 
         # Missing online
         with pytest.raises(ValueError, match="'online' parameter is required"):
+
             @transformation(
                 mode="python",
                 when="on_write",
                 sources=[create_dummy_source()],
-                schema=[]
+                schema=[],
             )
             def missing_online(inputs):
                 return inputs
 
         # Missing sources
         with pytest.raises(ValueError, match="'sources' parameter is required"):
-            @transformation(
-                mode="python",
-                when="on_write",
-                online=True,
-                schema=[]
-            )
+
+            @transformation(mode="python", when="on_write", online=True, schema=[])
             def missing_sources(inputs):
                 return inputs
 
         # Missing schema
         with pytest.raises(ValueError, match="'schema' parameter is required"):
+
             @transformation(
                 mode="python",
                 when="on_write",
                 online=True,
-                sources=[create_dummy_source()]
+                sources=[create_dummy_source()],
             )
             def missing_schema(inputs):
                 return inputs
@@ -130,6 +133,7 @@ class TestUnifiedTransformation:
     def test_invalid_mode_validation(self):
         """Test that invalid mode raises ValueError"""
         with pytest.raises(ValueError, match="Invalid mode 'invalid_mode'"):
+
             @transformation(mode="invalid_mode")
             def invalid_mode_transform(inputs):
                 return inputs
@@ -137,12 +141,13 @@ class TestUnifiedTransformation:
     def test_invalid_timing_validation(self):
         """Test that invalid timing raises ValueError"""
         with pytest.raises(ValueError, match="Invalid timing 'invalid_timing'"):
+
             @transformation(
                 mode="python",
                 when="invalid_timing",
                 online=False,
                 sources=[create_dummy_source()],
-                schema=[]
+                schema=[],
             )
             def invalid_timing_transform(inputs):
                 return inputs
@@ -151,48 +156,52 @@ class TestUnifiedTransformation:
         """Test online compatibility validation"""
         # SQL can't run online
         with pytest.raises(ValueError, match="cannot run online in Feature Server"):
+
             @transformation(
                 mode="sql",
                 when="on_write",
                 online=True,
                 sources=[create_dummy_source()],
-                schema=[]
+                schema=[],
             )
             def sql_online_transform(inputs):
                 return "SELECT * FROM table"
 
         # Ray can't run online
         with pytest.raises(ValueError, match="cannot run online in Feature Server"):
+
             @transformation(
                 mode="ray",
                 when="on_write",
                 online=True,
                 sources=[create_dummy_source()],
-                schema=[]
+                schema=[],
             )
             def ray_online_transform(inputs):
                 return inputs
 
         # Spark can't run online
         with pytest.raises(ValueError, match="cannot run online in Feature Server"):
+
             @transformation(
                 mode="spark",
                 when="on_write",
                 online=True,
                 sources=[create_dummy_source()],
-                schema=[]
+                schema=[],
             )
             def spark_online_transform(inputs):
                 return inputs
 
     def test_valid_online_modes(self):
         """Test that python and pandas can run online"""
+
         @transformation(
             mode="python",
             when="on_write",
             online=True,
             sources=[create_dummy_source()],
-            schema=[]
+            schema=[],
         )
         def python_online_transform(inputs):
             return inputs
@@ -202,7 +211,7 @@ class TestUnifiedTransformation:
             when="on_write",
             online=True,
             sources=[create_dummy_source()],
-            schema=[]
+            schema=[],
         )
         def pandas_online_transform(inputs):
             return inputs
@@ -212,12 +221,13 @@ class TestUnifiedTransformation:
 
     def test_training_serving_consistency(self):
         """Test that same UDF produces consistent results"""
+
         @transformation(
             mode="python",
             when="on_write",
             online=True,
             sources=[create_dummy_source()],
-            schema=[Field(name="doubled", dtype=Float64)]
+            schema=[Field(name="doubled", dtype=Float64)],
         )
         def consistent_transform(inputs):
             return [{"doubled": inp.get("value", 0) * 2} for inp in inputs]
@@ -235,13 +245,13 @@ class TestUnifiedTransformation:
         """Test online compatibility helper functions"""
         # Test online compatible modes
         for mode in ONLINE_COMPATIBLE_MODES:
-            assert is_online_compatible(mode) == True
-            assert is_online_compatible(mode.upper()) == True
+            assert is_online_compatible(mode)
+            assert is_online_compatible(mode.upper())
 
         # Test batch only modes
         for mode in BATCH_ONLY_MODES:
-            assert is_online_compatible(mode) == False
-            assert is_online_compatible(mode.upper()) == False
+            assert not is_online_compatible(mode)
+            assert not is_online_compatible(mode.upper())
 
     def test_transformation_timing_enum(self):
         """Test TransformationTiming enum values"""
@@ -264,18 +274,18 @@ class TestUnifiedTransformation:
             name="test_transform",
             description="Test description",
             tags={"env": "test"},
-            owner="test@example.com"
+            owner="test@example.com",
         )
         def full_featured_transform(inputs):
             return inputs
 
         fv = full_featured_transform
-        assert hasattr(fv, 'feature_transformation')
-        assert hasattr(fv, 'when')
-        assert hasattr(fv, 'online_enabled')
+        assert hasattr(fv, "feature_transformation")
+        assert hasattr(fv, "when")
+        assert hasattr(fv, "online_enabled")
         assert fv.feature_transformation is not None
         assert fv.when == "on_write"
-        assert fv.online_enabled == True
+        assert fv.online_enabled
         assert fv.name == "test_transform"
         assert fv.description == "Test description"
         assert fv.tags["env"] == "test"
@@ -283,13 +293,14 @@ class TestUnifiedTransformation:
 
     def test_mode_normalization(self):
         """Test that both enum and string modes are properly normalized"""
+
         # String mode
         @transformation(
             mode="PYTHON",  # Uppercase
             when="on_write",
             online=False,
             sources=[create_dummy_source()],
-            schema=[]
+            schema=[],
         )
         def string_mode_transform(inputs):
             return inputs
@@ -302,7 +313,7 @@ class TestUnifiedTransformation:
             when="on_write",
             online=False,
             sources=[create_dummy_source()],
-            schema=[]
+            schema=[],
         )
         def enum_mode_transform(inputs):
             return inputs
@@ -311,12 +322,13 @@ class TestUnifiedTransformation:
 
     def test_function_metadata_preservation(self):
         """Test that function metadata is preserved via functools.update_wrapper"""
+
         @transformation(
             mode="python",
             when="on_write",
             online=False,
             sources=[create_dummy_source()],
-            schema=[]
+            schema=[],
         )
         def documented_transform(inputs):
             """This is a test transformation function"""

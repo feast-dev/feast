@@ -171,7 +171,10 @@ class FeatureView(BaseFeatureView):
         schema = schema or []
         self.mode = mode
         # Don't override feature_transformation if it's already set by subclass (e.g., BatchFeatureView)
-        if not hasattr(self, 'feature_transformation') or self.feature_transformation is None:
+        if (
+            not hasattr(self, "feature_transformation")
+            or self.feature_transformation is None
+        ):
             self.feature_transformation = feature_transformation
         self.when = when
         self.online_enabled = online_enabled

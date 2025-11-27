@@ -5,17 +5,16 @@ Tests that online_enabled=True FeatureViews get automatically registered
 as both batch FeatureViews and OnDemandFeatureViews for serving.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
+from feast.entity import Entity
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.transformation.base import transformation, Transformation
-from feast.transformation.mode import TransformationMode
 from feast.field import Field
-from feast.types import Float64, Int64
-from feast.entity import Entity
 from feast.infra.offline_stores.file_source import FileSource
+from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.transformation.base import Transformation, transformation
+from feast.types import Float64
 
 
 class TestDualRegistration:
@@ -29,9 +28,7 @@ class TestDualRegistration:
 
         # Create transformation
         test_transformation = Transformation(
-            mode="python",
-            udf=lambda x: x,
-            udf_string="lambda x: x"
+            mode="python", udf=lambda x: x, udf_string="lambda x: x"
         )
 
         fv = FeatureView(
@@ -41,7 +38,7 @@ class TestDualRegistration:
             schema=[Field(name="feature1", dtype=Float64)],
             feature_transformation=test_transformation,
             when="on_write",
-            online_enabled=True
+            online_enabled=True,
         )
 
         # Mock registry and provider
@@ -49,7 +46,7 @@ class TestDualRegistration:
         mock_provider = Mock()
 
         # Create FeatureStore instance with mocked initialization
-        with patch.object(FeatureStore, '__init__', return_value=None):
+        with patch.object(FeatureStore, "__init__", return_value=None):
             fs = FeatureStore()
             fs._registry = mock_registry
             fs._provider = mock_provider
@@ -89,7 +86,9 @@ class TestDualRegistration:
         generated_odfv = None
 
         for view in applied_views:
-            if isinstance(view, FeatureView) and not isinstance(view, OnDemandFeatureView):
+            if isinstance(view, FeatureView) and not isinstance(
+                view, OnDemandFeatureView
+            ):
                 original_fv = view
             elif isinstance(view, OnDemandFeatureView):
                 generated_odfv = view
@@ -97,7 +96,7 @@ class TestDualRegistration:
         # Verify original FV
         assert original_fv is not None
         assert original_fv.name == "test_fv"
-        assert original_fv.online_enabled == True
+        assert original_fv.online_enabled
         assert original_fv.feature_transformation is not None
 
         # Verify generated ODFV
@@ -119,12 +118,12 @@ class TestDualRegistration:
             source=mock_source,
             entities=[driver],
             schema=[Field(name="feature1", dtype=Float64)],
-            online_enabled=False  # Disabled
+            online_enabled=False,  # Disabled
         )
 
         # Mock FeatureStore
         # Create FeatureStore instance with mocked initialization
-        with patch.object(FeatureStore, '__init__', return_value=None):
+        with patch.object(FeatureStore, "__init__", return_value=None):
             fs = FeatureStore()
             fs.config = Mock()
             fs.config.project = "test_project"
@@ -134,7 +133,9 @@ class TestDualRegistration:
         fs._make_inferences = Mock()
 
         applied_views = []
-        fs._registry.apply_feature_view.side_effect = lambda view, project, commit: applied_views.append(view)
+        fs._registry.apply_feature_view.side_effect = (
+            lambda view, project, commit: applied_views.append(view)
+        )
         fs._registry.apply_entity = Mock()
         fs._registry.apply_data_source = Mock()
         fs._registry.apply_feature_service = Mock()
@@ -168,7 +169,7 @@ class TestDualRegistration:
 
         # Mock FeatureStore
         # Create FeatureStore instance with mocked initialization
-        with patch.object(FeatureStore, '__init__', return_value=None):
+        with patch.object(FeatureStore, "__init__", return_value=None):
             fs = FeatureStore()
             fs.config = Mock()
             fs.config.project = "test_project"
@@ -178,7 +179,9 @@ class TestDualRegistration:
         fs._make_inferences = Mock()
 
         applied_views = []
-        fs._registry.apply_feature_view.side_effect = lambda view, project, commit: applied_views.append(view)
+        fs._registry.apply_feature_view.side_effect = (
+            lambda view, project, commit: applied_views.append(view)
+        )
         fs._registry.apply_entity = Mock()
         fs._registry.apply_data_source = Mock()
         fs._registry.apply_feature_service = Mock()
@@ -201,7 +204,9 @@ class TestDualRegistration:
         driver = Entity(name="driver", join_keys=["driver_id"])
 
         # Create FeatureView using enhanced decorator with dummy source
-        dummy_source = FileSource(path="test.parquet", timestamp_field="event_timestamp")
+        dummy_source = FileSource(
+            path="test.parquet", timestamp_field="event_timestamp"
+        )
 
         @transformation(
             mode="python",
@@ -210,19 +215,19 @@ class TestDualRegistration:
             sources=[dummy_source],
             schema=[Field(name="doubled", dtype=Float64)],
             entities=[driver],
-            name="doubling_transform"
+            name="doubling_transform",
         )
         def doubling_transform(inputs):
             return [{"doubled": inp.get("value", 0) * 2} for inp in inputs]
 
         # Verify it's a FeatureView with the right properties
         assert isinstance(doubling_transform, FeatureView)
-        assert doubling_transform.online_enabled == True
+        assert doubling_transform.online_enabled
         assert doubling_transform.feature_transformation is not None
 
         # Mock FeatureStore and apply
         # Create FeatureStore instance with mocked initialization
-        with patch.object(FeatureStore, '__init__', return_value=None):
+        with patch.object(FeatureStore, "__init__", return_value=None):
             fs = FeatureStore()
             fs.config = Mock()
             fs.config.project = "test_project"
@@ -232,7 +237,9 @@ class TestDualRegistration:
         fs._make_inferences = Mock()
 
         applied_views = []
-        fs._registry.apply_feature_view.side_effect = lambda view, project, commit: applied_views.append(view)
+        fs._registry.apply_feature_view.side_effect = (
+            lambda view, project, commit: applied_views.append(view)
+        )
         fs._registry.apply_entity = Mock()
         fs._registry.apply_data_source = Mock()
         fs._registry.apply_feature_service = Mock()
@@ -249,7 +256,9 @@ class TestDualRegistration:
         assert len(applied_views) == 2
 
         # Verify the ODFV has the same transformation
-        odfv = next((v for v in applied_views if isinstance(v, OnDemandFeatureView)), None)
+        odfv = next(
+            (v for v in applied_views if isinstance(v, OnDemandFeatureView)), None
+        )
         assert odfv is not None
         assert odfv.name == "doubling_transform_online"
 

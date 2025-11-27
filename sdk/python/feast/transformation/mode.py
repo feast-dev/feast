@@ -12,7 +12,7 @@ class TransformationMode(Enum):
 
 
 class TransformationTiming(Enum):
-    ON_READ = "on_read"        # Execute during get_online_features()
-    ON_WRITE = "on_write"      # Execute during materialization, cache results
-    BATCH = "batch"            # Scheduled batch processing
-    STREAMING = "streaming"    # Real-time stream processing
+    ON_READ = "on_read"  # Execute during get_online_features()
+    ON_WRITE = "on_write"  # Execute during materialization, cache results
+    BATCH = "batch"  # Scheduled batch processing
+    STREAMING = "streaming"  # Real-time stream processing
