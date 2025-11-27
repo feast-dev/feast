@@ -966,13 +966,14 @@ class FeatureStore:
 
         # Handle dual registration for online_enabled FeatureViews
         online_enabled_views = [
-            view for view in views_to_update
-            if hasattr(view, 'online_enabled') and view.online_enabled
+            view
+            for view in views_to_update
+            if hasattr(view, "online_enabled") and view.online_enabled
         ]
 
         for fv in online_enabled_views:
             # Create OnDemandFeatureView for online serving with same transformation
-            if hasattr(fv, 'feature_transformation') and fv.feature_transformation:
+            if hasattr(fv, "feature_transformation") and fv.feature_transformation:
                 # Create ODFV with same transformation logic
                 online_fv = OnDemandFeatureView(
                     name=f"{fv.name}_online",
@@ -980,7 +981,10 @@ class FeatureStore:
                     schema=fv.schema or [],
                     feature_transformation=fv.feature_transformation,  # Same transformation!
                     description=f"Online serving for {fv.name}",
-                    tags=dict(fv.tags or {}, **{"generated_from": fv.name, "dual_registration": "true"}),
+                    tags=dict(
+                        fv.tags or {},
+                        **{"generated_from": fv.name, "dual_registration": "true"},
+                    ),
                     owner=fv.owner,
                 )
 
