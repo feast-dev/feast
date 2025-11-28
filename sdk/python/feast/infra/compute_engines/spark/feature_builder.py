@@ -47,12 +47,20 @@ class SparkFeatureBuilder(FeatureBuilder):
         agg_specs = view.aggregations
         group_by_keys = view.entities
         timestamp_col = view.batch_source.timestamp_field
+
+        # Check if tiling is enabled for this view
+        enable_tiling = getattr(view, "enable_tiling", False)
+        hop_size = getattr(view, "tiling_hop_size", None)
+
         node = SparkAggregationNode(
             f"{view.name}:agg",
             agg_specs,
             group_by_keys,
             timestamp_col,
+            self.spark_session,
             inputs=[input_node],
+            enable_tiling=enable_tiling,
+            hop_size=hop_size,
         )
         self.nodes.append(node)
         return node

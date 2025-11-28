@@ -37,7 +37,7 @@ message StreamFeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 17
+// Next available id: 20
 message StreamFeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
@@ -92,5 +92,12 @@ message StreamFeatureViewSpec {
 
     // Oneof with {user_defined_function, on_demand_substrait_transformation}
     FeatureTransformationV2 feature_transformation = 17;
+
+    // Enable tiling for efficient window aggregation
+    bool enable_tiling = 18;
+
+    // Hop size for tiling (e.g., 5 minutes). Determines the granularity of pre-aggregated tiles.
+    // If not specified, defaults to 5 minutes. Only used when enable_tiling is true.
+    google.protobuf.Duration tiling_hop_size = 19;
 }
 
