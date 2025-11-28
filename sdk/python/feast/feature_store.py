@@ -979,7 +979,10 @@ class FeatureStore:
                 # Create ODFV with same transformation logic
                 online_fv = OnDemandFeatureView(
                     name=f"{fv.name}_online",
-                    sources=cast(List[Union[FeatureView, FeatureViewProjection, RequestSource]], fv.source_views or []),
+                    sources=cast(
+                        List[Union[FeatureView, FeatureViewProjection, RequestSource]],
+                        fv.source_views or [],
+                    ),
                     schema=fv.schema or [],
                     feature_transformation=fv.feature_transformation,  # Same transformation!
                     description=f"Online serving for {fv.name}",
