@@ -47,6 +47,7 @@ from feast.data_source import (
     KinesisSource,
     PushMode,
     PushSource,
+    RequestSource,
 )
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
@@ -62,6 +63,7 @@ from feast.errors import (
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view_projection import FeatureViewProjection
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -977,7 +979,7 @@ class FeatureStore:
                 # Create ODFV with same transformation logic
                 online_fv = OnDemandFeatureView(
                     name=f"{fv.name}_online",
-                    sources=fv.source_views or [],  # Use source views for ODFV
+                    sources=cast(List[Union[FeatureView, FeatureViewProjection, RequestSource]], fv.source_views or []),
                     schema=fv.schema or [],
                     feature_transformation=fv.feature_transformation,  # Same transformation!
                     description=f"Online serving for {fv.name}",
