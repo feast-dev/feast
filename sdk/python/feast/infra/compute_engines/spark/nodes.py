@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Callable, List, Optional, Union, cast
 
+import pandas as pd
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 
@@ -101,18 +102,150 @@ class SparkAggregationNode(DAGNode):
         aggregations: List[Aggregation],
         group_by_keys: List[str],
         timestamp_col: str,
+        spark_session: SparkSession,
         inputs=None,
+        enable_tiling: bool = False,
+        hop_size: Optional[timedelta] = None,
     ):
         super().__init__(name, inputs=inputs)
         self.aggregations = aggregations
         self.group_by_keys = group_by_keys
         self.timestamp_col = timestamp_col
+        self.spark_session = spark_session
+        self.enable_tiling = enable_tiling
+        self.hop_size = hop_size
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         input_value = self.get_single_input_value(context)
         input_value.assert_format(DAGFormat.SPARK)
         input_df: DataFrame = input_value.data
 
+        # Check if tiling is enabled and we have time-windowed aggregations
+        has_time_windows = any(agg.time_window for agg in self.aggregations)
+
+        if self.enable_tiling and has_time_windows:
+            return self._execute_tiled_aggregation(input_df)
+        else:
+            return self._execute_standard_aggregation(input_df)
+
+    def _execute_tiled_aggregation(self, input_df: DataFrame) -> DAGValue:
+        """
+        Execute aggregation using tiling.
+        """
+        entity_keys = self.group_by_keys
+
+        # Group aggregations by time window to process separately
+        from collections import defaultdict
+
+        aggs_by_window = defaultdict(list)
+        for agg in self.aggregations:
+            if agg.time_window is None:
+                raise ValueError(
+                    f"Tiling is enabled but aggregation on column '{agg.column}' has no time_window set. "
+                    f"Either set time_window for all aggregations or disable tiling by setting enable_tiling=False."
+                )
+            aggs_by_window[agg.time_window].append(agg)
+
+        from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+        from feast.aggregation.tiling.tile_subtraction import (
+            convert_cumulative_to_windowed,
+            deduplicate_keep_latest,
+        )
+
+        input_pdf = input_df.toPandas()
+
+        # Process each time window in pandas
+        windowed_pdfs = []
+        for time_window, window_aggs in aggs_by_window.items():
+            # Step 1: Generate cumulative tiles
+            tiles_pdf = apply_sawtooth_window_tiling(
+                df=input_pdf,
+                aggregations=window_aggs,
+                group_by_keys=entity_keys,
+                timestamp_col=self.timestamp_col,
+                window_size=time_window,
+                hop_size=self.hop_size or timedelta(minutes=5),
+            )
+
+            if tiles_pdf.empty:
+                continue
+
+            # Step 2: Convert to windowed aggregations
+            windowed_pdf = convert_cumulative_to_windowed(
+                tiles_df=tiles_pdf,
+                entity_keys=entity_keys,
+                timestamp_col=self.timestamp_col,
+                window_size=time_window,
+                aggregations=window_aggs,
+            )
+
+            if not windowed_pdf.empty:
+                windowed_pdfs.append(windowed_pdf)
+
+        if not windowed_pdfs:
+            # No results, return empty Spark DataFrame with correct schema
+            # Build expected columns: entity_keys + timestamp_col + feature columns
+            expected_columns = entity_keys + [self.timestamp_col]
+            for time_window, window_aggs in aggs_by_window.items():
+                for agg in window_aggs:
+                    feature_name = f"{agg.function}_{agg.column}_{int(time_window.total_seconds())}s"
+                    if feature_name not in expected_columns:
+                        expected_columns.append(feature_name)
+
+            empty_data = {}
+            for col in entity_keys:
+                empty_data[col] = pd.Series(dtype="string")
+            if self.timestamp_col in expected_columns:
+                empty_data[self.timestamp_col] = pd.Series(dtype="datetime64[ns]")
+            for col in expected_columns:
+                if col not in empty_data:
+                    empty_data[col] = pd.Series(dtype="float64")
+
+            empty_pdf = pd.DataFrame(empty_data)
+            final_df = self.spark_session.createDataFrame(empty_pdf)
+        else:
+            # Step 3: Join all windows in pandas (outer merge on entity keys + timestamp)
+            if len(windowed_pdfs) == 1:
+                final_pdf = windowed_pdfs[0]
+            else:
+                final_pdf = windowed_pdfs[0]
+                join_keys = entity_keys + [self.timestamp_col]
+                for pdf in windowed_pdfs[1:]:
+                    final_pdf = pd.merge(
+                        final_pdf,
+                        pdf,
+                        on=join_keys,
+                        how="outer",
+                        suffixes=("", "_dup"),
+                    )
+                    # Drop duplicate columns from merge
+                    final_pdf = final_pdf.loc[
+                        :, ~final_pdf.columns.str.endswith("_dup")
+                    ]
+
+            # Step 4: Deduplicate in pandas (keep latest timestamp per entity)
+            if self.timestamp_col in final_pdf.columns and not final_pdf.empty:
+                final_pdf = deduplicate_keep_latest(
+                    final_pdf, entity_keys, self.timestamp_col
+                )
+
+            # Step 5: Convert to Spark once at the end
+            final_df = self.spark_session.createDataFrame(final_pdf)
+
+        return DAGValue(
+            data=final_df,
+            format=DAGFormat.SPARK,
+            metadata={
+                "aggregated": True,
+                "tiled": True,
+                "window_sizes": [
+                    int(tw.total_seconds()) for tw in aggs_by_window.keys()
+                ],
+            },
+        )
+
+    def _execute_standard_aggregation(self, input_df: DataFrame) -> DAGValue:
+        """Execute standard Spark aggregation (existing logic)."""
         agg_exprs = []
         for agg in self.aggregations:
             func = getattr(F, agg.function)
