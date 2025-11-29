@@ -28,6 +28,7 @@ from feast.errors import (
 )
 from feast.importer import import_class
 from feast.permissions.auth.auth_type import AuthType
+from feast.repo_operations import is_valid_name
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -447,6 +448,7 @@ class RepoConfig(FeastBaseModel):
             online_config_class(**values["online_store"])
         except ValidationError as e:
             raise e
+
         return values
 
     @model_validator(mode="before")
@@ -502,13 +504,24 @@ class RepoConfig(FeastBaseModel):
 
     @field_validator("project")
     @classmethod
-    def _validate_project_name(cls, v: str) -> str:
-        from feast.repo_operations import is_valid_name
+    def _validate_project_name(cls, v: str, info: ValidationInfo) -> str:
+        sqlite_compatible = False
+
+        online_store = info.data.get("online_store") if info else None
+        if online_store is None or online_store == {}:
+            sqlite_compatible = True
+        elif isinstance(online_store, dict):
+            sqlite_compatible = online_store.get("type", "sqlite") == "sqlite"
 
         if not is_valid_name(v):
             raise ValueError(
                 f"Project name, {v}, should only have "
                 f"alphanumerical values, underscores, and hyphens but not start with an underscore or hyphen."
+            )
+
+        if sqlite_compatible and "-" in v:
+            raise ValueError(
+                "Project names for SQLite online stores cannot contain hyphens because they are used in table names."
             )
         return v
 
