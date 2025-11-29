@@ -28,7 +28,6 @@ from feast.errors import (
 )
 from feast.importer import import_class
 from feast.permissions.auth.auth_type import AuthType
-from feast.repo_operations import is_valid_name
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -505,6 +504,9 @@ class RepoConfig(FeastBaseModel):
     @field_validator("project")
     @classmethod
     def _validate_project_name(cls, v: str, info: ValidationInfo) -> str:
+        # Deferred import to avoid circular dependency during package initialization.
+        from feast.repo_operations import is_valid_name
+
         sqlite_compatible = False
 
         online_store = info.data.get("online_store") if info else None
