@@ -113,6 +113,7 @@ def test_spark_aggregation_node_executes_correctly(spark_session):
         aggregations=agg_specs,
         group_by_keys=["user_id"],
         timestamp_col="",
+        spark_session=spark_session,
     )
     node.add_input(MagicMock())
     node.inputs[0].name = "source"

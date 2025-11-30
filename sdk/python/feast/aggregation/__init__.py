@@ -1,3 +1,7 @@
+"""
+Aggregation module for Feast.
+"""
+
 from datetime import timedelta
 from typing import Optional
 
@@ -91,3 +95,6 @@ class Aggregation:
             return False
 
         return True
+
+
+__all__ = ["Aggregation"]
