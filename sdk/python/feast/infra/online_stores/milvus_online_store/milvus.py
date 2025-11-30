@@ -1,9 +1,10 @@
 import base64
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
-from pydantic import StrictStr
+from pydantic import StrictStr, model_validator
 from pymilvus import (
     CollectionSchema,
     DataType,
@@ -83,10 +84,38 @@ for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.BINARY_VECTOR
 
 
+class MultiTenancyMode(str, Enum):
+    NONE = "none"
+    DATABASE = "database"
+    COLLECTION_PREFIX = "collection"
+
+
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
     Configuration for the Milvus online store.
     NOTE: The class *must* end with the `OnlineStoreConfig` suffix.
+
+    Attributes:
+        type: Online store type selector.
+        path: Path to the local Milvus database file (for local mode).
+        host: Milvus server host (for remote mode).
+        port: Milvus server port (for remote mode).
+        index_type: Index type for vector fields (e.g., "FLAT", "IVF_FLAT").
+        metric_type: Distance metric type (e.g., "COSINE", "L2", "IP").
+        embedding_dim: Dimension of vector embeddings.
+        vector_enabled: Whether vector search is enabled.
+        text_search_enabled: Whether text search is enabled.
+        nlist: Number of cluster units for IVF index.
+        username: Username for authentication.
+        password: Password for authentication.
+        db_name: Database name for database-level multi-tenancy.
+            When specified, all collections will be created within this database,
+            providing logical isolation for multi-tenant environments.
+            If not specified, the default database is used.
+        collection_name_prefix: Optional prefix applied to all Milvus collections for
+            collection-level multi-tenancy. When set, the prefix is prepended to the
+            generated collection names, enabling multiple tenants to share the same
+            database while keeping their collections isolated.
     """
 
     type: Literal["milvus"] = "milvus"
@@ -101,6 +130,71 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     nlist: Optional[int] = 128
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
+    db_name: Optional[StrictStr] = ""
+    collection_name_prefix: Optional[StrictStr] = ""
+    multi_tenancy_mode: MultiTenancyMode = MultiTenancyMode.NONE
+
+    @model_validator(mode="before")
+    @classmethod
+    def _infer_mode(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(values)
+        mode = data.get("multi_tenancy_mode")
+        db_name = data.get("db_name") or ""
+        prefix = data.get("collection_name_prefix") or ""
+
+        if mode is None:
+            if db_name and prefix:
+                raise ValueError(
+                    "Invalid multi-tenancy configuration: db_name cannot be combined with collection_name_prefix when inferring multi_tenancy_mode"
+                )
+            if db_name:
+                data["multi_tenancy_mode"] = MultiTenancyMode.DATABASE
+            elif prefix:
+                data["multi_tenancy_mode"] = MultiTenancyMode.COLLECTION_PREFIX
+            else:
+                data["multi_tenancy_mode"] = MultiTenancyMode.NONE
+        return data
+
+    @model_validator(mode="after")
+    def _validate_mode(self) -> "MilvusOnlineStoreConfig":
+        mode = self.multi_tenancy_mode
+        db_name = self.db_name or ""
+        prefix = self.collection_name_prefix or ""
+
+        if mode == MultiTenancyMode.NONE:
+            if db_name:
+                raise ValueError(
+                    "ConfigError: Cannot specify db_name when multi_tenancy_mode=NONE"
+                )
+            if prefix:
+                raise ValueError(
+                    "ConfigError: collection_name_prefix is forbidden when multi_tenancy_mode=NONE"
+                )
+        elif mode == MultiTenancyMode.DATABASE:
+            if not db_name:
+                raise ValueError(
+                    "ConfigError: db_name is required when multi_tenancy_mode=DATABASE"
+                )
+            if prefix:
+                raise ValueError(
+                    "ConfigError: collection_name_prefix is forbidden when multi_tenancy_mode=DATABASE"
+                )
+            if self.path:
+                raise ValueError(
+                    "ConfigError: DATABASE multi-tenancy is not supported with local (Milvus Lite) mode."
+                )
+        elif mode == MultiTenancyMode.COLLECTION_PREFIX:
+            if not prefix:
+                raise ValueError(
+                    "ConfigError: collection_name_prefix is required when multi_tenancy_mode=COLLECTION_PREFIX"
+                )
+            if db_name:
+                raise ValueError(
+                    "ConfigError: db_name cannot be used with COLLECTION_PREFIX mode"
+                )
+        else:
+            raise ValueError(f"Invalid multi_tenancy_mode: {mode}")
+        return self
 
 
 class MilvusOnlineStore(OnlineStore):
@@ -126,30 +220,112 @@ class MilvusOnlineStore(OnlineStore):
             db_path = config.online_store.path
         return db_path
 
+    def _get_connection_params(
+        self, config: RepoConfig, include_db_name: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Get connection parameters for MilvusClient.
+
+        Args:
+            config: The RepoConfig containing online store configuration.
+            include_db_name: Whether to include db_name in the connection params.
+
+        Returns:
+            Dictionary of connection parameters for MilvusClient.
+        """
+        params: Dict[str, Any] = {
+            "uri": f"{config.online_store.host}:{config.online_store.port}",
+        }
+
+        # Add authentication token if credentials are provided
+        if config.online_store.username and config.online_store.password:
+            params["token"] = (
+                f"{config.online_store.username}:{config.online_store.password}"
+            )
+
+        # Add database name if requested and configured
+        if (
+            include_db_name
+            and config.online_store.multi_tenancy_mode == MultiTenancyMode.DATABASE
+        ):
+            params["db_name"] = config.online_store.db_name or ""
+
+        return params
+
     def _connect(self, config: RepoConfig) -> MilvusClient:
+        if (
+            config.online_store.multi_tenancy_mode == MultiTenancyMode.DATABASE
+            and not self.client
+        ):
+            self._ensure_database_exists(config)
         if not self.client:
+            db_name = config.online_store.db_name or ""
             if config.provider == "local" and config.online_store.path:
                 db_path = self._get_db_path(config)
                 print(f"Connecting to Milvus in local mode using {db_path}")
-                self.client = MilvusClient(db_path)
+                self.client = MilvusClient(db_path, db_name=db_name)
             else:
                 print(
                     f"Connecting to Milvus remotely at {config.online_store.host}:{config.online_store.port}"
                 )
-                self.client = MilvusClient(
-                    uri=f"{config.online_store.host}:{config.online_store.port}",
-                    token=f"{config.online_store.username}:{config.online_store.password}"
-                    if config.online_store.username and config.online_store.password
-                    else "",
-                )
+                if db_name:
+                    print(f"Using database: {db_name}")
+                conn_params = self._get_connection_params(config, include_db_name=True)
+                self.client = MilvusClient(**conn_params)
+                if (
+                    config.online_store.multi_tenancy_mode == MultiTenancyMode.DATABASE
+                    and hasattr(self.client, "using_database")
+                ):
+                    self.client.using_database(db_name)
         return self.client
+
+    def _ensure_database_exists(self, config: RepoConfig) -> None:
+        """
+        Ensure the configured database exists for database-level multi-tenancy.
+        Creates the database if it doesn't already exist.
+
+        Note: This is only needed for remote Milvus instances with db_name configured.
+        Local file-based Milvus (using path) doesn't support multiple databases.
+
+        Raises:
+            Exception: If database creation fails.
+        """
+        mode = config.online_store.multi_tenancy_mode
+        if mode == MultiTenancyMode.NONE:
+            return
+        if mode == MultiTenancyMode.COLLECTION_PREFIX:
+            return
+
+        db_name = config.online_store.db_name
+        if config.provider == "local" and config.online_store.path:
+            raise ValueError(
+                "ConfigError: DATABASE multi-tenancy is not supported with local (Milvus Lite) mode."
+            )
+
+        # For remote Milvus, we need to first connect without a db_name to create the database
+        conn_params = self._get_connection_params(config, include_db_name=False)
+        temp_client = MilvusClient(**conn_params)
+        try:
+            existing_dbs = temp_client.list_databases()
+            if db_name not in existing_dbs:
+                print(f"Creating database: {db_name}")
+                try:
+                    temp_client.create_database(db_name)
+                except Exception as e:
+                    raise Exception(
+                        f"Failed to create Milvus database '{db_name}': {e}"
+                    ) from e
+            if hasattr(temp_client, "using_database"):
+                temp_client.using_database(db_name)
+        finally:
+            temp_client.close()
 
     def _get_or_create_collection(
         self, config: RepoConfig, table: FeatureView
     ) -> Dict[str, Any]:
         self.client = self._connect(config)
         vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(config, table)
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
             composite_key_name = _get_composite_key_name(table)
@@ -315,7 +491,7 @@ class MilvusOnlineStore(OnlineStore):
         full_feature_names: bool = False,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(config, table)
         collection = self._get_or_create_collection(config, table)
 
         composite_key_name = _get_composite_key_name(table)
@@ -445,12 +621,14 @@ class MilvusOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
+        # Ensure database exists for database-level multi-tenancy
+        self._ensure_database_exists(config)
         self.client = self._connect(config)
         for table in tables_to_keep:
             self._collections = self._get_or_create_collection(config, table)
 
         for table in tables_to_delete:
-            collection_name = _table_id(config.project, table)
+            collection_name = _table_id(config, table)
             if self._collections.get(collection_name, None):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
@@ -468,7 +646,7 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self.client = self._connect(config)
         for table in tables:
-            collection_name = _table_id(config.project, table)
+            collection_name = _table_id(config, table)
             if self._collections.get(collection_name, None):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
@@ -506,7 +684,7 @@ class MilvusOnlineStore(OnlineStore):
             k.name: k.dtype for k in table.entity_columns
         }
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(config, table)
         collection = self._get_or_create_collection(config, table)
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
@@ -705,8 +883,12 @@ class MilvusOnlineStore(OnlineStore):
         return result_list
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _table_id(config: RepoConfig, table: FeatureView) -> str:
+    mode = getattr(config.online_store, "multi_tenancy_mode", MultiTenancyMode.NONE)
+    if mode == MultiTenancyMode.COLLECTION_PREFIX:
+        collection_prefix = config.online_store.collection_name_prefix
+        return f"{collection_prefix}_{config.project}_{table.name}"
+    return f"{config.project}_{table.name}"
 
 
 def _get_composite_key_name(table: FeatureView) -> str:
