@@ -170,9 +170,12 @@ def _get_column_names(
 
     from feast.feature_view import DUMMY_ENTITY_ID
 
-    join_keys = [
-        entity.join_key for entity in entities if entity.join_key != DUMMY_ENTITY_ID
-    ]
+    # Collect all join keys from all entities (supports multiple join keys per entity)
+    join_keys = []
+    for entity in entities:
+        for join_key in entity.join_keys:
+            if join_key != DUMMY_ENTITY_ID:
+                join_keys.append(join_key)
     if feature_view.batch_source.field_mapping is not None:
         reverse_field_mapping = {
             v: k for k, v in feature_view.batch_source.field_mapping.items()
