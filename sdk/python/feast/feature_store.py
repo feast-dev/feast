@@ -1825,7 +1825,11 @@ class FeatureStore:
                 entities = [
                     self.get_entity(entity) for entity in (feature_view.entities or [])
                 ]
-                join_keys = [entity.join_key for entity in entities if entity]
+                # Collect all join keys from all entities (supports multiple join keys per entity)
+                join_keys = []
+                for entity in entities:
+                    if entity:
+                        join_keys.extend(entity.join_keys)
                 join_keys = [k for k in join_keys if k in input_dict.keys()]
                 transformed_df = (
                     pd.DataFrame(transformed_data)
