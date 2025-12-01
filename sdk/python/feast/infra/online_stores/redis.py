@@ -542,25 +542,10 @@ class RedisOnlineStore(OnlineStore):
     def _run_cleanup_by_event_time(
         self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
     ):
-        now = int(time.time())
-        cutoff = now - ttl_seconds
-        old_members = client.zrange(
-            zset_key, 0, cutoff, byscore=True
-        )  # Limitation: This works only when the sorted set score is timestamp.
-        if not old_members:
-            return
+        cutoff = (int(time.time()) - ttl_seconds) * 1000
+        client.zremrangebyscore(zset_key, "-inf", cutoff)
 
-        with client.pipeline(transaction=False) as pipe:
-            for sort_key_bytes in old_members:
-                hash_key = RedisOnlineStore.hash_key_bytes(
-                    entity_key_bytes, sort_key_bytes
-                )
-                pipe.delete(hash_key)
-                pipe.zrem(zset_key, sort_key_bytes)
-            pipe.execute()
-
-        if client.zcard(zset_key) == 0:
-            client.delete(zset_key)
+        client.expire(zset_key, ttl_seconds)
 
     def _run_cleanup_by_retained_events(
         self, client, zset_key: bytes, entity_key_bytes: bytes, max_events: int
@@ -582,9 +567,6 @@ class RedisOnlineStore(OnlineStore):
                 )
                 pipe.delete(hash_key)
             pipe.execute()
-
-        if client.zcard(zset_key) == 0:
-            client.delete(zset_key)
 
     def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]

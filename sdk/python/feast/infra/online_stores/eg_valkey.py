@@ -411,7 +411,7 @@ class EGValkeyOnlineStore(OnlineStore):
                             feature_view,
                         )
                         raise
-                """
+
                 ttl_feature_view_seconds = (
                     int(ttl_feature_view.total_seconds()) if ttl_feature_view else None
                 )
@@ -423,18 +423,30 @@ class EGValkeyOnlineStore(OnlineStore):
                 
                 # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
                 if run_cleanup_by_event_time or run_cleanup_by_retained_events:
+                    cleanup_cmds = 0
+                    cleanup_cmds_per_execute = 500
+                    cutoff = (int(time.time()) - ttl_feature_view_seconds) * 1000
                     for zset_key, entity_key_bytes in zsets_to_cleanup:
-                        if run_cleanup_by_event_time and ttl_feature_view_seconds:
+                        self._run_cleanup_by_event_time(pipe,
+                            zset_key, ttl_feature_view_seconds, cutoff
+                        )
+                        cleanup_cmds += 2
+                        if cleanup_cmds >= cleanup_cmds_per_execute:
                             try:
-                                self._run_cleanup_by_event_time(
-                                    client, zset_key, entity_key_bytes, ttl_feature_view_seconds
-                                )
-                            except Exception:
-                                logger.exception(
-                                    "Failed TTL cleanup by event time for zset %r",
-                                    zset_key,
-                                )
-
+                                pipe.execute()
+                            except ValkeyError:
+                                logger.exception("Error executing Valkey cleanup pipeline for feature view %s",
+                                                 feature_view)
+                                raise
+                            cleanup_cmds = 0
+                    if cleanup_cmds:
+                        try:
+                            pipe.execute()
+                        except ValkeyError:
+                            logger.exception("Error executing Valkey cleanup pipeline for feature view %s",
+                                             feature_view)
+                            raise
+                """
                         if run_cleanup_by_retained_events and max_events:
                             try:
                                 self._run_cleanup_by_retained_events(
@@ -546,27 +558,11 @@ class EGValkeyOnlineStore(OnlineStore):
         return math.ceil(ttl_remaining.total_seconds())
 
     def _run_cleanup_by_event_time(
-        self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
+        self, pipe, zset_key: bytes, ttl_seconds: int, cutoff
     ):
-        now = int(time.time())
-        cutoff = now - ttl_seconds
-        old_members = client.zrange(
-            zset_key, 0, cutoff, byscore=True
-        )  # Limitation: This works only when the sorted set score is timestamp.
-        if not old_members:
-            return
+        pipe.zremrangebyscore(zset_key, "-inf", cutoff)
 
-        with client.pipeline(transaction=False) as pipe:
-            for sort_key_bytes in old_members:
-                hash_key = EGValkeyOnlineStore.hash_key_bytes(
-                    entity_key_bytes, sort_key_bytes
-                )
-                pipe.delete(hash_key)
-                pipe.zrem(zset_key, sort_key_bytes)
-            pipe.execute()
-
-        if client.zcard(zset_key) == 0:
-            client.delete(zset_key)
+        pipe.expire(zset_key, ttl_seconds)
 
     def _run_cleanup_by_retained_events(
         self, client, zset_key: bytes, entity_key_bytes: bytes, max_events: int
@@ -588,9 +584,6 @@ class EGValkeyOnlineStore(OnlineStore):
                 )
                 pipe.delete(hash_key)
             pipe.execute()
-
-        if client.zcard(zset_key) == 0:
-            client.delete(zset_key)
 
     def _generate_valkey_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]
