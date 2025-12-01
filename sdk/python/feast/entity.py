@@ -33,9 +33,9 @@ class Entity:
     Attributes:
         name: The unique name of the entity.
         value_type: The type of the entity, such as string or float.
-        join_key: A property that uniquely identifies different entities within the
-            collection. The join_key property is typically used for joining entities
-            with their associated features. If not specified, defaults to the name.
+        join_keys: A list of properties that uniquely identify different entities within the
+            collection. The join_keys are typically used for joining entities
+            with their associated features. If not specified, defaults to [name].
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the entity, typically the email of the primary maintainer.
@@ -45,7 +45,7 @@ class Entity:
 
     name: str
     value_type: ValueType
-    join_key: str
+    join_keys: List[str]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -68,10 +68,10 @@ class Entity:
         Args:
             name: The unique name of the entity.
             join_keys (optional): A list of properties that uniquely identifies different entities
-                within the collection. This currently only supports a list of size one, but is
-                intended to eventually support multiple join keys.
-            value_type (optional): The type of the entity, such as string or float. If not specified,
-                it will be inferred from the schema of the underlying data source.
+                within the collection. Now supports multiple join keys for complex entity
+                relationships. If not specified, defaults to [name].
+            value_type (optional): The type of the entity, such as string or float. If not
+                specified, it will be inferred from the schema of the underlying data source.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the entity, typically the email of the primary maintainer.
@@ -89,17 +89,11 @@ class Entity:
             )
         self.value_type = value_type or ValueType.UNKNOWN
 
-        if join_keys and len(join_keys) > 1:
-            # TODO(felixwang9817): When multiple join keys are supported, add a `join_keys` attribute
-            # and deprecate the `join_key` attribute.
-            raise ValueError(
-                "An entity may only have a single join key. "
-                "Multiple join keys will be supported in the future."
-            )
-        elif join_keys and len(join_keys) == 1:
-            self.join_key = join_keys[0]
+        # Handle join keys - support multiple join keys now
+        if join_keys:
+            self.join_keys = join_keys.copy()
         else:
-            self.join_key = self.name
+            self.join_keys = [self.name]
 
         self.description = description
         self.tags = tags if tags is not None else {}
@@ -107,12 +101,28 @@ class Entity:
         self.created_timestamp = None
         self.last_updated_timestamp = None
 
+    @property
+    def join_key(self) -> str:
+        """
+        Returns the first join key for backward compatibility.
+
+        Deprecated: Use join_keys instead for multiple join key support.
+        This property will be removed in Feast 0.57.0.
+        """
+        warnings.warn(
+            "The 'join_key' property is deprecated and will be removed in Feast 0.57.0. "
+            "Use 'join_keys' instead for multiple join key support.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.join_keys[0] if self.join_keys else self.name
+
     def __repr__(self):
         return (
             f"Entity(\n"
             f"    name={self.name!r},\n"
             f"    value_type={self.value_type!r},\n"
-            f"    join_key={self.join_key!r},\n"
+            f"    join_keys={self.join_keys!r},\n"
             f"    description={self.description!r},\n"
             f"    tags={self.tags!r},\n"
             f"    owner={self.owner!r},\n"
@@ -122,7 +132,7 @@ class Entity:
         )
 
     def __hash__(self) -> int:
-        return hash((self.name, self.join_key))
+        return hash((self.name, tuple(self.join_keys)))
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
@@ -131,7 +141,7 @@ class Entity:
         if (
             self.name != other.name
             or self.value_type != other.value_type
-            or self.join_key != other.join_key
+            or self.join_keys != other.join_keys
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
@@ -170,9 +180,24 @@ class Entity:
         Returns:
             An Entity object based on the entity protobuf.
         """
+        # Handle backward compatibility: prioritize join_keys, fall back to join_key
+        if entity_proto.spec.join_keys:
+            join_keys_list = list(entity_proto.spec.join_keys)
+        elif entity_proto.spec.join_key:
+            warnings.warn(
+                f"Entity '{entity_proto.spec.name}' uses deprecated single join_key field "
+                "in protobuf. Future versions should use the join_keys field instead. "
+                "This compatibility will be removed in Feast 0.57.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            join_keys_list = [entity_proto.spec.join_key]
+        else:
+            join_keys_list = None
+
         entity = cls(
             name=entity_proto.spec.name,
-            join_keys=[entity_proto.spec.join_key],
+            join_keys=join_keys_list,
             value_type=ValueType(entity_proto.spec.value_type),
             description=entity_proto.spec.description,
             tags=dict(entity_proto.spec.tags),
@@ -204,7 +229,8 @@ class Entity:
         spec = EntitySpecProto(
             name=self.name,
             value_type=self.value_type.value,
-            join_key=self.join_key,
+            join_key=self.join_key,  # For backward compatibility - first join key
+            join_keys=self.join_keys,  # New field supporting multiple join keys
             description=self.description,
             tags=self.tags,
             owner=self.owner,
