@@ -150,8 +150,8 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 
 ##@ Tests
 
-test-python-unit: ## Run Python unit tests
-	python -m pytest -n 8 --color=yes sdk/python/tests
+test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
+	python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
 
 test-python-integration: ## Run Python integration tests (CI)
 	python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
