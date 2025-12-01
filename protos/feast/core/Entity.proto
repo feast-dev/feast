@@ -45,6 +45,7 @@ message EntitySpecV2 {
     string description = 3;
 
     // Join key for the entity (i.e. name of the column the entity maps to).
+    // Deprecated: Use join_keys instead for multiple join key support.
     string join_key = 4;
 
     // User defined metadata
@@ -52,6 +53,11 @@ message EntitySpecV2 {
 
     // Owner of the entity.
     string owner = 10;
+
+    // Join keys for the entity (i.e. names of the columns the entity maps to).
+    // This supports multiple join keys. For backward compatibility, if this field
+    // is empty, the single join_key field will be used.
+    repeated string join_keys = 11;
 }
 
 message EntityMeta {
