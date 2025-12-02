@@ -417,12 +417,10 @@ class EGValkeyOnlineStore(OnlineStore):
                 )
                 
                 run_cleanup_by_event_time = (ttl_feature_view_seconds is not None) and is_sort_key_timestamp
-                run_cleanup_by_retained_events = (
-                    max_events is not None and max_events > 0
-                )
-                
-                # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
-                if run_cleanup_by_event_time or run_cleanup_by_retained_events:
+
+                # AFTER batch flush: run TTL cleanup
+                if run_cleanup_by_event_time:
+                    logger.info(f"Number of zsets to clean: {len(zsets_to_cleanup)}")
                     cleanup_cmds = 0
                     cleanup_cmds_per_execute = 500
                     cutoff = (int(time.time()) - ttl_feature_view_seconds) * 1000
@@ -446,18 +444,7 @@ class EGValkeyOnlineStore(OnlineStore):
                             logger.exception("Error executing Valkey cleanup pipeline for feature view %s",
                                              feature_view)
                             raise
-                """
-                        if run_cleanup_by_retained_events and max_events:
-                            try:
-                                self._run_cleanup_by_retained_events(
-                                    client, zset_key, entity_key_bytes, max_events
-                                )
-                            except Exception:
-                                logger.exception(
-                                    "Failed TTL cleanup by retained events for zset %r",
-                                    zset_key,
-                                )
-                """
+                    logger.info("Finished cleaning zsets")
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
@@ -561,29 +548,7 @@ class EGValkeyOnlineStore(OnlineStore):
         self, pipe, zset_key: bytes, ttl_seconds: int, cutoff
     ):
         pipe.zremrangebyscore(zset_key, "-inf", cutoff)
-
         pipe.expire(zset_key, ttl_seconds)
-
-    def _run_cleanup_by_retained_events(
-        self, client, zset_key: bytes, entity_key_bytes: bytes, max_events: int
-    ):
-        current_size = client.zcard(zset_key)
-        if current_size <= max_events:
-            return
-        num_to_remove = current_size - max_events
-
-        # Remove oldest entries atomically
-        popped = client.zpopmin(zset_key, num_to_remove)
-        if not popped:
-            return
-
-        with client.pipeline(transaction=False) as pipe:
-            for sort_key_bytes, _score in popped:
-                hash_key = EGValkeyOnlineStore.hash_key_bytes(
-                    entity_key_bytes, sort_key_bytes
-                )
-                pipe.delete(hash_key)
-            pipe.execute()
 
     def _generate_valkey_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]

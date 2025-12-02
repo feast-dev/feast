@@ -408,38 +408,34 @@ class RedisOnlineStore(OnlineStore):
                 ttl_feature_view_seconds = (
                     int(ttl_feature_view.total_seconds()) if ttl_feature_view else None
                 )
-                """
+
                 run_cleanup_by_event_time = (ttl_feature_view_seconds is not None) and is_sort_key_timestamp
-                run_cleanup_by_retained_events = (
-                        max_events is not None and max_events > 0
-                )
 
-                
-                # AFTER batch flush: run TTL cleanup + trimming for all zsets touched
-                if run_cleanup_by_event_time or run_cleanup_by_retained_events:
+                # AFTER batch flush: run TTL cleanup
+                if run_cleanup_by_event_time:
+                    cleanup_cmds = 0
+                    cleanup_cmds_per_execute = 500
+                    cutoff = (int(time.time()) - ttl_feature_view_seconds) * 1000
                     for zset_key, entity_key_bytes in zsets_to_cleanup:
-                        if run_cleanup_by_event_time and ttl_feature_view_seconds:
+                        self._run_cleanup_by_event_time(pipe,
+                                                        zset_key, ttl_feature_view_seconds, cutoff
+                                                        )
+                        cleanup_cmds += 2
+                        if cleanup_cmds >= cleanup_cmds_per_execute:
                             try:
-                                self._run_cleanup_by_event_time(
-                                    client, zset_key, entity_key_bytes, ttl_feature_view_seconds
-                                )
-                            except Exception:
-                                logger.exception(
-                                    "Failed TTL cleanup by event time for zset %r",
-                                    zset_key,
-                                )
-
-                        if run_cleanup_by_retained_events and max_events:
-                            try:
-                                self._run_cleanup_by_retained_events(
-                                    client, zset_key, entity_key_bytes, max_events
-                                )
-                            except Exception:
-                                logger.exception(
-                                    "Failed TTL cleanup by retained events for zset %r",
-                                    zset_key,
-                                )
-                """
+                                pipe.execute()
+                            except RedisError:
+                                logger.exception("Error executing Redis cleanup pipeline for feature view %s",
+                                                 feature_view)
+                                raise
+                            cleanup_cmds = 0
+                    if cleanup_cmds:
+                        try:
+                            pipe.execute()
+                        except RedisError:
+                            logger.exception("Error executing Redis cleanup pipeline for feature view %s",
+                                             feature_view)
+                            raise
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
@@ -540,33 +536,10 @@ class RedisOnlineStore(OnlineStore):
         return math.ceil(ttl_remaining.total_seconds())
 
     def _run_cleanup_by_event_time(
-        self, client, zset_key: bytes, entity_key_bytes: bytes, ttl_seconds: int
+            self, pipe, zset_key: bytes, ttl_seconds: int, cutoff
     ):
-        cutoff = (int(time.time()) - ttl_seconds) * 1000
-        client.zremrangebyscore(zset_key, "-inf", cutoff)
-
-        client.expire(zset_key, ttl_seconds)
-
-    def _run_cleanup_by_retained_events(
-        self, client, zset_key: bytes, entity_key_bytes: bytes, max_events: int
-    ):
-        current_size = client.zcard(zset_key)
-        if current_size <= max_events:
-            return
-        num_to_remove = current_size - max_events
-
-        # Remove oldest entries atomically
-        popped = client.zpopmin(zset_key, num_to_remove)
-        if not popped:
-            return
-
-        with client.pipeline(transaction=False) as pipe:
-            for sort_key_bytes, _score in popped:
-                hash_key = RedisOnlineStore.hash_key_bytes(
-                    entity_key_bytes, sort_key_bytes
-                )
-                pipe.delete(hash_key)
-            pipe.execute()
+        pipe.zremrangebyscore(zset_key, "-inf", cutoff)
+        pipe.expire(zset_key, ttl_seconds)
 
     def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]
