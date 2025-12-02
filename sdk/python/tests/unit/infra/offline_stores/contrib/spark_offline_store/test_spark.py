@@ -339,3 +339,168 @@ def _mock_entity():
             value_type=ValueType.INT64,
         )
     ]
+
+
+@patch(
+    "feast.infra.offline_stores.contrib.spark_offline_store.spark.get_spark_session_or_start_new_with_repoconfig"
+)
+def test_get_historical_features_non_entity_with_date_range(mock_get_spark_session):
+    mock_spark_session = MagicMock()
+    # Return a DataFrame for any sql call; last call is used by RetrievalJob
+    final_df = MagicMock()
+    expected_pdf = pd.DataFrame([{"feature1": 1.0, "feature2": 2.0}])
+    final_df.toPandas.return_value = expected_pdf
+    mock_spark_session.sql.return_value = final_df
+    mock_get_spark_session.return_value = mock_spark_session
+
+    test_repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=SparkOfflineStoreConfig(type="spark"),
+    )
+
+    test_data_source1 = SparkSource(
+        name="test_nested_batch_source1",
+        description="test_nested_batch_source",
+        table="offline_store_database_name.offline_store_table_name1",
+        timestamp_field="nested_timestamp",
+        field_mapping={
+            "event_header.event_published_datetime_utc": "nested_timestamp",
+        },
+        date_partition_column="effective_date",
+        date_partition_column_format="%Y%m%d",
+    )
+
+    test_data_source2 = SparkSource(
+        name="test_nested_batch_source2",
+        description="test_nested_batch_source",
+        table="offline_store_database_name.offline_store_table_name2",
+        timestamp_field="nested_timestamp",
+        field_mapping={
+            "event_header.event_published_datetime_utc": "nested_timestamp",
+        },
+        date_partition_column="effective_date",
+    )
+
+    test_feature_view1 = FeatureView(
+        name="test_feature_view1",
+        entities=_mock_entity(),
+        schema=[
+            Field(name="feature1", dtype=Float32),
+        ],
+        source=test_data_source1,
+    )
+
+    test_feature_view2 = FeatureView(
+        name="test_feature_view2",
+        entities=_mock_entity(),
+        schema=[
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=test_data_source2,
+    )
+
+    mock_registry = MagicMock()
+    start_date = datetime(2021, 1, 1)
+    end_date = datetime(2021, 1, 2)
+    retrieval_job = SparkOfflineStore.get_historical_features(
+        config=test_repo_config,
+        feature_views=[test_feature_view2, test_feature_view1],
+        feature_refs=["test_feature_view2:feature2", "test_feature_view1:feature1"],
+        entity_df=None,
+        registry=mock_registry,
+        project="test_project",
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    # Verify query bounded by end_date correctly in both date formats from the two sources
+    query = retrieval_job.query
+    assert "effective_date <= '2021-01-02'" in query
+    assert "effective_date <= '20210102'" in query
+
+    # Verify data: the mocked Spark DataFrame flows through to Pandas
+    pdf = retrieval_job._to_df_internal()
+    assert pdf.equals(expected_pdf)
+
+
+@patch(
+    "feast.infra.offline_stores.contrib.spark_offline_store.spark.get_spark_session_or_start_new_with_repoconfig"
+)
+def test_get_historical_features_non_entity_with_only_end_date(mock_get_spark_session):
+    mock_spark_session = MagicMock()
+    final_df = MagicMock()
+    expected_pdf = pd.DataFrame([{"feature1": 10.0, "feature2": 20.0}])
+    final_df.toPandas.return_value = expected_pdf
+    mock_spark_session.sql.return_value = final_df
+    mock_get_spark_session.return_value = mock_spark_session
+
+    test_repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=SparkOfflineStoreConfig(type="spark"),
+    )
+
+    test_data_source1 = SparkSource(
+        name="test_nested_batch_source1",
+        description="test_nested_batch_source",
+        table="offline_store_database_name.offline_store_table_name1",
+        timestamp_field="nested_timestamp",
+        field_mapping={
+            "event_header.event_published_datetime_utc": "nested_timestamp",
+        },
+        date_partition_column="effective_date",
+        date_partition_column_format="%Y%m%d",
+    )
+
+    test_data_source2 = SparkSource(
+        name="test_nested_batch_source2",
+        description="test_nested_batch_source",
+        table="offline_store_database_name.offline_store_table_name2",
+        timestamp_field="nested_timestamp",
+        field_mapping={
+            "event_header.event_published_datetime_utc": "nested_timestamp",
+        },
+        date_partition_column="effective_date",
+    )
+
+    test_feature_view1 = FeatureView(
+        name="test_feature_view1",
+        entities=_mock_entity(),
+        schema=[
+            Field(name="feature1", dtype=Float32),
+        ],
+        source=test_data_source1,
+    )
+
+    test_feature_view2 = FeatureView(
+        name="test_feature_view2",
+        entities=_mock_entity(),
+        schema=[
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=test_data_source2,
+    )
+
+    mock_registry = MagicMock()
+    end_date = datetime(2021, 1, 2)
+    retrieval_job = SparkOfflineStore.get_historical_features(
+        config=test_repo_config,
+        feature_views=[test_feature_view2, test_feature_view1],
+        feature_refs=["test_feature_view2:feature2", "test_feature_view1:feature1"],
+        entity_df=None,
+        registry=mock_registry,
+        project="test_project",
+        end_date=end_date,
+    )
+
+    # Verify query bounded by end_date correctly for both sources
+    query = retrieval_job.query
+    assert "effective_date <= '2021-01-02'" in query
+    assert "effective_date <= '20210102'" in query
+
+    # Verify data: mocked DataFrame flows to Pandas
+    pdf = retrieval_job._to_df_internal()
+    assert pdf.equals(expected_pdf)
