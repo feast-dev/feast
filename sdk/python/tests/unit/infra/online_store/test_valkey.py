@@ -314,7 +314,7 @@ def _create_sorted_feature_view_with_non_numeric_sortkey(n=10):
     return fv, _make_rows()
 
 
-def  _make_rows(n=10):
+def _make_rows(n=10):
     """Generate 10 rows split between driver_id 1 (first 5) and 2 (rest),
     with rating = i + 0.5 and an event_timestamp spanning ~15 minutes."""
     return [
