@@ -444,6 +444,13 @@ spec:
                         description: podReplacementPolicy specifies when to create
                           replacement Pods.
                         type: string
+                      podTemplateAnnotations:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+                          metadata.
+                        type: object
                       suspend:
                         description: suspend specifies whether the Job controller
                           should create Pods or not.
@@ -1650,6 +1657,21 @@ spec:
                                 description: RegistryFilePersistence configures the
                                   file-based persistence for the registry service
                                 properties:
+                                  cache_mode:
+                                    description: |-
+                                      CacheMode defines the registry cache update strategy.
+                                      Allowed values are "sync" and "thread".
+                                    enum:
+                                    - none
+                                    - sync
+                                    - thread
+                                    type: string
+                                  cache_ttl_seconds:
+                                    description: CacheTTLSeconds defines the TTL (in
+                                      seconds) for the registry cache.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
                                   path:
                                     type: string
                                   pvc:
@@ -4428,6 +4450,13 @@ spec:
                             description: podReplacementPolicy specifies when to create
                               replacement Pods.
                             type: string
+                          podTemplateAnnotations:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+                              metadata.
+                            type: object
                           suspend:
                             description: suspend specifies whether the Job controller
                               should create Pods or not.
@@ -5655,6 +5684,21 @@ spec:
                                       the file-based persistence for the registry
                                       service
                                     properties:
+                                      cache_mode:
+                                        description: |-
+                                          CacheMode defines the registry cache update strategy.
+                                          Allowed values are "sync" and "thread".
+                                        enum:
+                                        - none
+                                        - sync
+                                        - thread
+                                        type: string
+                                      cache_ttl_seconds:
+                                        description: CacheTTLSeconds defines the TTL
+                                          (in seconds) for the registry cache.
+                                        format: int32
+                                        minimum: 0
+                                        type: integer
                                       path:
                                         type: string
                                       pvc:

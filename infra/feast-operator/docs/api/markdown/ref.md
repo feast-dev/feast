@@ -280,6 +280,9 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `podTemplateAnnotations` _object (keys:string, values:string)_ | PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+metadata. This is separate from the CronJob-level annotations and must be
+set explicitly by users if they want annotations on the PodTemplate. |
 | `parallelism` _integer_ | Specifies the maximum desired number of pods the job should
 run at any given time. The actual number of pods running in steady state will
 be less than this number when ((.spec.completions - .status.successful) < .spec.parallelism),
@@ -659,6 +662,9 @@ _Appears in:_
 | `path` _string_ |  |
 | `pvc` _[PvcConfig](#pvcconfig)_ |  |
 | `s3_additional_kwargs` _map[string]string_ |  |
+| `cache_ttl_seconds` _integer_ | CacheTTLSeconds defines the TTL (in seconds) for the registry cache. |
+| `cache_mode` _string_ | CacheMode defines the registry cache update strategy.
+Allowed values are "sync" and "thread". |
 
 
 #### RegistryPersistence

@@ -157,6 +157,11 @@ type FeastCronJob struct {
 
 // JobSpec describes how the job execution will look like.
 type JobSpec struct {
+	// PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+	// metadata. This is separate from the CronJob-level annotations and must be
+	// set explicitly by users if they want annotations on the PodTemplate.
+	PodTemplateAnnotations map[string]string `json:"podTemplateAnnotations,omitempty"`
+
 	// Specifies the maximum desired number of pods the job should
 	// run at any given time. The actual number of pods running in steady state will
 	// be less than this number when ((.spec.completions - .status.successful) < .spec.parallelism),
@@ -416,6 +421,17 @@ type RegistryFilePersistence struct {
 	Path               string             `json:"path,omitempty"`
 	PvcConfig          *PvcConfig         `json:"pvc,omitempty"`
 	S3AdditionalKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
+
+	// CacheTTLSeconds defines the TTL (in seconds) for the registry cache.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	CacheTTLSeconds *int32 `json:"cache_ttl_seconds,omitempty"`
+
+	// CacheMode defines the registry cache update strategy.
+	// Allowed values are "sync" and "thread".
+	// +kubebuilder:validation:Enum=none;sync;thread
+	// +optional
+	CacheMode *string `json:"cache_mode,omitempty"`
 }
 
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
