@@ -329,7 +329,7 @@ def _create_sorted_feature_view_with_timestamp_as_sortkey():
             timestamp_field="event_timestamp",
         ),
         entities=[Entity(name="driver_id")],
-        ttl=timedelta(seconds=1000),
+        ttl=timedelta(minutes=1000),
         sort_keys=[
             SortKey(
                 name="event_timestamp",
@@ -431,43 +431,6 @@ def _create_sorted_feature_view_with_non_numeric_sortkey(n=10):
             ),
         ],
     )
-    return fv, _make_rows()
-
-
-def _create_sorted_feature_view_with_float_as_sortkey(n=10):
-    fv = SortedFeatureView(
-        name="driver_stats_float",
-        source=FileSource(
-            name="my_file_source",
-            path="test.parquet",
-            timestamp_field="event_timestamp",
-        ),
-        entities=[Entity(name="driver_id")],
-        ttl=timedelta(seconds=1000),
-        sort_keys=[
-            SortKey(
-                name="rating",
-                value_type=ValueType.FLOAT,
-                default_sort_order=SortOrder.DESC,
-            )
-        ],
-        schema=[
-            Field(
-                name="driver_id",
-                dtype=Int32,
-            ),
-            Field(name="event_timestamp", dtype=UnixTimestamp),
-            Field(
-                name="trip_id",
-                dtype=Int32,
-            ),
-            Field(
-                name="rating",
-                dtype=Float32,
-            ),
-        ],
-    )
-
     return fv, _make_rows()
 
 
