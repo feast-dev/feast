@@ -431,7 +431,8 @@ class EGValkeyOnlineStore(OnlineStore):
                         cleanup_cmds += 2
                         if cleanup_cmds >= cleanup_cmds_per_execute:
                             try:
-                                pipe.execute()
+                                results = pipe.execute()
+                                logger.info(f"Number of members per zset cleaned: {results}")
                             except ValkeyError:
                                 logger.exception("Error executing Valkey cleanup pipeline for feature view %s",
                                                  feature_view)
