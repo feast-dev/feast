@@ -16,24 +16,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.types.Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
-import sys
-
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
-else:
-    import typing_extensions
+import typing
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class Field(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -47,7 +45,7 @@ class Field(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     VALUE_FIELD_NUMBER: builtins.int
@@ -55,11 +53,12 @@ class Field(google.protobuf.message.Message):
     DESCRIPTION_FIELD_NUMBER: builtins.int
     name: builtins.str
     value: feast.types.Value_pb2.ValueType.Enum.ValueType
+    description: builtins.str
+    """Description of the field."""
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """Tags for user defined metadata on a field"""
-    description: builtins.str
-    """Description of the field."""
+
     def __init__(
         self,
         *,
@@ -68,6 +67,6 @@ class Field(google.protobuf.message.Message):
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         description: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "name", b"name", "tags", b"tags", "value", b"value"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["description", b"description", "name", b"name", "tags", b"tags", "value", b"value"]) -> None: ...
 
 global___Field = Field

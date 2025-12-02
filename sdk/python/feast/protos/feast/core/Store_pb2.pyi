@@ -16,6 +16,7 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
+
 import builtins
 import collections.abc
 import google.protobuf.descriptor
@@ -32,6 +33,7 @@ else:
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class Store(google.protobuf.message.Message):
     """Store provides a location where Feast reads and writes feature values.
     Feature values will be written to the Store in the form of FeatureRow elements.
@@ -45,7 +47,7 @@ class Store(google.protobuf.message.Message):
         ValueType = typing.NewType("ValueType", builtins.int)
         V: typing_extensions.TypeAlias = ValueType
 
-    class _StoreTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Store._StoreType.ValueType], builtins.type):  # noqa: F821
+    class _StoreTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Store._StoreType.ValueType], builtins.type):
         DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
         INVALID: Store._StoreType.ValueType  # 0
         REDIS: Store._StoreType.ValueType  # 1
@@ -76,6 +78,7 @@ class Store(google.protobuf.message.Message):
     """
     REDIS_CLUSTER: Store.StoreType.ValueType  # 4
 
+    @typing.final
     class RedisConfig(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -107,8 +110,9 @@ class Store(google.protobuf.message.Message):
             flush_frequency_seconds: builtins.int = ...,
             ssl: builtins.bool = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["flush_frequency_seconds", b"flush_frequency_seconds", "host", b"host", "initial_backoff_ms", b"initial_backoff_ms", "max_retries", b"max_retries", "port", b"port", "ssl", b"ssl"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["flush_frequency_seconds", b"flush_frequency_seconds", "host", b"host", "initial_backoff_ms", b"initial_backoff_ms", "max_retries", b"max_retries", "port", b"port", "ssl", b"ssl"]) -> None: ...
 
+    @typing.final
     class RedisClusterConfig(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -116,7 +120,7 @@ class Store(google.protobuf.message.Message):
             ValueType = typing.NewType("ValueType", builtins.int)
             V: typing_extensions.TypeAlias = ValueType
 
-        class _ReadFromEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Store.RedisClusterConfig._ReadFrom.ValueType], builtins.type):  # noqa: F821
+        class _ReadFromEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Store.RedisClusterConfig._ReadFrom.ValueType], builtins.type):
             DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
             MASTER: Store.RedisClusterConfig._ReadFrom.ValueType  # 0
             MASTER_PREFERRED: Store.RedisClusterConfig._ReadFrom.ValueType  # 1
@@ -166,8 +170,9 @@ class Store(google.protobuf.message.Message):
             fallback_prefix: builtins.str = ...,
             read_from: global___Store.RedisClusterConfig.ReadFrom.ValueType = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["connection_string", b"connection_string", "enable_fallback", b"enable_fallback", "fallback_prefix", b"fallback_prefix", "flush_frequency_seconds", b"flush_frequency_seconds", "initial_backoff_ms", b"initial_backoff_ms", "key_prefix", b"key_prefix", "max_retries", b"max_retries", "read_from", b"read_from"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["connection_string", b"connection_string", "enable_fallback", b"enable_fallback", "fallback_prefix", b"fallback_prefix", "flush_frequency_seconds", b"flush_frequency_seconds", "initial_backoff_ms", b"initial_backoff_ms", "key_prefix", b"key_prefix", "max_retries", b"max_retries", "read_from", b"read_from"]) -> None: ...
 
+    @typing.final
     class Subscription(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -200,7 +205,7 @@ class Store(google.protobuf.message.Message):
             name: builtins.str = ...,
             exclude: builtins.bool = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["exclude", b"exclude", "name", b"name", "project", b"project"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["exclude", b"exclude", "name", b"name", "project", b"project"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     TYPE_FIELD_NUMBER: builtins.int
@@ -214,6 +219,7 @@ class Store(google.protobuf.message.Message):
     @property
     def subscriptions(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Store.Subscription]:
         """Feature sets to subscribe to."""
+
     @property
     def redis_config(self) -> global___Store.RedisConfig: ...
     @property
@@ -227,8 +233,8 @@ class Store(google.protobuf.message.Message):
         redis_config: global___Store.RedisConfig | None = ...,
         redis_cluster_config: global___Store.RedisClusterConfig | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["config", b"config", "redis_cluster_config", b"redis_cluster_config", "redis_config", b"redis_config"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["config", b"config", "name", b"name", "redis_cluster_config", b"redis_cluster_config", "redis_config", b"redis_config", "subscriptions", b"subscriptions", "type", b"type"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["config", b"config"]) -> typing_extensions.Literal["redis_config", "redis_cluster_config"] | None: ...
+    def HasField(self, field_name: typing.Literal["config", b"config", "redis_cluster_config", b"redis_cluster_config", "redis_config", b"redis_config"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["config", b"config", "name", b"name", "redis_cluster_config", b"redis_cluster_config", "redis_config", b"redis_config", "subscriptions", b"subscriptions", "type", b"type"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["config", b"config"]) -> typing.Literal["redis_config", "redis_cluster_config"] | None: ...
 
 global___Store = Store
