@@ -159,94 +159,6 @@ def test_valkey_online_write_batch_with_timestamp_as_sortkey(
     assert trip_id_drivers == [4, 3, 2, 9, 8, 7]
 
 
-@pytest.mark.docker
-def test_valkey_online_write_batch_with_float_as_sortkey(
-    repo_config: RepoConfig,
-    valkey_online_store: EGValkeyOnlineStore,
-):
-    (
-        feature_view,
-        data,
-    ) = _create_sorted_feature_view_with_float_as_sortkey()
-
-    valkey_online_store.online_write_batch(
-        config=repo_config,
-        table=feature_view,
-        data=data,
-        progress=None,
-    )
-
-    connection_string = repo_config.online_store.connection_string
-    connection_string_split = connection_string.split(":")
-    conn_dict = {}
-    conn_dict["host"] = connection_string_split[0]
-    conn_dict["port"] = connection_string_split[1]
-
-    r = Valkey(**conn_dict)
-
-    pipe = r.pipeline(transaction=True)
-
-    entity_key_driver_1 = EntityKeyProto(
-        join_keys=["driver_id"],
-        entity_values=[ValueProto(int32_val=1)],
-    )
-
-    redis_key_bin_driver_1 = _redis_key(
-        repo_config.project,
-        entity_key_driver_1,
-        entity_key_serialization_version=repo_config.entity_key_serialization_version,
-    )
-
-    zset_key_driver_1 = valkey_online_store.zset_key_bytes(
-        feature_view.name, redis_key_bin_driver_1
-    )
-
-    entity_key_driver_2 = EntityKeyProto(
-        join_keys=["driver_id"],
-        entity_values=[ValueProto(int32_val=2)],
-    )
-    redis_key_bin_driver_2 = _redis_key(
-        repo_config.project,
-        entity_key_driver_2,
-        entity_key_serialization_version=repo_config.entity_key_serialization_version,
-    )
-
-    zset_key_driver_2 = valkey_online_store.zset_key_bytes(
-        feature_view.name, redis_key_bin_driver_2
-    )
-
-    driver_1_zset_members = r.zrange(zset_key_driver_1, 0, -1, withscores=True)
-    driver_2_zset_members = r.zrange(zset_key_driver_2, 0, -1, withscores=True)
-
-    assert len(driver_1_zset_members) == 5
-    assert len(driver_2_zset_members) == 5
-
-    # Get trips for driver 1 where ratings between 2.5 and 4.5
-    # Get trips for driver 2 where ratings between 7.5 and 9.5
-    driver_1_trips = r.zrangebyscore(zset_key_driver_1, 2.5, 4.5)
-    driver_2_trips = r.zrangebyscore(zset_key_driver_2, 7.5, 9.5)
-
-    # Look up features for trips for driver 1
-    for id in driver_1_trips:
-        hash_key = valkey_online_store.hash_key_bytes(redis_key_bin_driver_1, id)
-        pipe.hgetall(hash_key)
-
-    # Look up features for trips for driver 2
-    for id in driver_2_trips:
-        hash_key = valkey_online_store.hash_key_bytes(redis_key_bin_driver_2, id)
-        pipe.hgetall(hash_key)
-
-    features_list = pipe.execute()
-
-    trip_id_feature_name = _mmh3(f"{feature_view.name}:trip_id")
-    trip_id_drivers = []
-    for feature_dict in features_list:
-        val = ValueProto()
-        val.ParseFromString(feature_dict[trip_id_feature_name])
-        trip_id_drivers.append(val.int32_val)
-    assert trip_id_drivers == [2, 3, 4, 7, 8, 9]
-
-
 def test_multiple_sort_keys_not_supported(
     repo_config_without_docker_connection_string: RepoConfig,
     valkey_online_store: EGValkeyOnlineStore,
@@ -278,7 +190,7 @@ def test_non_numeric_sort_key_not_supported(
     ) = _create_sorted_feature_view_with_non_numeric_sortkey()
 
     with pytest.raises(
-        TypeError, match=r"Unsupported sort key type STRING. Only numerics or timestamp"
+        TypeError, match=r"Unsupported sort key type STRING. Only timestamp"
     ):
         valkey_online_store.online_write_batch(
             config=repo_config_without_docker_connection_string,

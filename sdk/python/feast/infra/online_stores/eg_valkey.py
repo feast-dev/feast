@@ -321,9 +321,9 @@ class EGValkeyOnlineStore(OnlineStore):
                 sort_key_type = table.sort_keys[0].value_type
                 is_sort_key_timestamp = sort_key_type == ValueType.UNIX_TIMESTAMP
 
-                if sort_key_type in (ValueType.STRING, ValueType.BYTES, ValueType.BOOL):
+                if sort_key_type not in (ValueType.UNIX_TIMESTAMP,):
                     raise TypeError(
-                        f"Unsupported sort key type {sort_key_type.name}. Only numerics or timestamp type is supported as a sort key."
+                        f"Unsupported sort key type {sort_key_type.name}. Only timestamp type is supported as a sort key."
                     )
 
                 sort_key_name = table.sort_keys[0].name
@@ -412,7 +412,7 @@ class EGValkeyOnlineStore(OnlineStore):
                 ) and is_sort_key_timestamp
 
                 # AFTER batch flush: run TTL cleanup
-                if run_cleanup_by_event_time:
+                if run_cleanup_by_event_time and ttl_feature_view_seconds:
                     cleanup_cmds = 0
                     cleanup_cmds_per_execute = 500
                     cutoff = (int(time.time()) - ttl_feature_view_seconds) * 1000
