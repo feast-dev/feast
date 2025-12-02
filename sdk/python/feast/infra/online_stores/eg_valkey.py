@@ -413,7 +413,6 @@ class EGValkeyOnlineStore(OnlineStore):
 
                 # AFTER batch flush: run TTL cleanup
                 if run_cleanup_by_event_time:
-                    logger.info(f"Number of zsets to clean: {len(zsets_to_cleanup)}")
                     cleanup_cmds = 0
                     cleanup_cmds_per_execute = 500
                     cutoff = (int(time.time()) - ttl_feature_view_seconds) * 1000
@@ -424,10 +423,7 @@ class EGValkeyOnlineStore(OnlineStore):
                         cleanup_cmds += 2
                         if cleanup_cmds >= cleanup_cmds_per_execute:
                             try:
-                                results = pipe.execute()
-                                logger.info(
-                                    f"Number of members per zset cleaned: {results}"
-                                )
+                                pipe.execute()
                             except ValkeyError:
                                 logger.exception(
                                     "Error executing Valkey cleanup pipeline for feature view %s",
@@ -444,7 +440,6 @@ class EGValkeyOnlineStore(OnlineStore):
                                 feature_view,
                             )
                             raise
-                    logger.info("Finished cleaning zsets")
             else:
                 # check if a previous record under the key bin exists
                 # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
