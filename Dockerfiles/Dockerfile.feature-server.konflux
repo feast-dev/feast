@@ -11,16 +11,6 @@ RUN dnf upgrade -y ncurses ncurses-base ncurses-libs perl-Errno perl-interpreter
 COPY prebuild-power.sh /prebuild-power.sh
 RUN chmod +x /prebuild-power.sh
 
-# Prefetched artifacts
-RUN cp /cachi2/output/deps/generic/duckdb-v1.1.3.tar.gz /tmp/ && \
-    cp /cachi2/output/deps/generic/apache-arrow-17.0.0.tar.gz /tmp/
-
-# Extract (Power only)
-RUN if [ "$(uname -m)" = "ppc64le" ]; then \
-        tar -xzf /tmp/duckdb-v1.1.3.tar.gz -C /tmp && \
-        tar -xzf /tmp/apache-arrow-17.0.0.tar.gz -C /tmp; \
-    fi
-
 # Run prebuild script conditionally (Power only)
 RUN if [ "$(uname -m)" = "ppc64le" ]; then \
         echo "Power architecture detected. Running prebuild script..."; \
