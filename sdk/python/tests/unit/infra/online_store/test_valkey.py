@@ -496,6 +496,7 @@ def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
 
     with redis_client.pipeline(transaction=False) as pipe:
         store._run_cleanup_by_event_time(pipe, zset_key, ttl_seconds, cutoff)
+        pipe.execute()
 
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert active_member in remaining
