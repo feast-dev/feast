@@ -367,5 +367,67 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			testConfig.Registry.S3AdditionalKwargs = nil
 			Expect(repoConfig).To(Equal(&testConfig))
 		})
+
+		It("should propagate registry file cache settings into repo config", func() {
+			By("Reconciling the created resource with registry cache settings")
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			// update the FeatureStore to set cache settings on registry file persistence
+			resource := &feastdevv1alpha1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			ttl := int32(300)
+			mode := "thread"
+			resource.Spec.Services.Registry.Local.Persistence.FilePersistence.CacheTTLSeconds = &ttl
+			resource.Spec.Services.Registry.Local.Persistence.FilePersistence.CacheMode = &mode
+			err = k8sClient.Update(ctx, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// fetch updated resource and deployment
+			resource = &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			feast := services.FeastServices{
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
+			}
+
+			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+
+			env := getFeatureStoreYamlEnvVar(services.GetRegistryContainer(*deploy).Env)
+			Expect(env).NotTo(BeNil())
+
+			// decode feature_store.yaml and verify registry cache settings
+			envByte, err := base64.StdEncoding.DecodeString(env.Value)
+			Expect(err).NotTo(HaveOccurred())
+			repoConfig := &services.RepoConfig{}
+			err = yaml.Unmarshal(envByte, repoConfig)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(repoConfig.Registry.CacheTTLSeconds).NotTo(BeNil())
+			Expect(*repoConfig.Registry.CacheTTLSeconds).To(Equal(ttl))
+			Expect(repoConfig.Registry.CacheMode).NotTo(BeNil())
+			Expect(*repoConfig.Registry.CacheMode).To(Equal(mode))
+		})
 	})
 })
