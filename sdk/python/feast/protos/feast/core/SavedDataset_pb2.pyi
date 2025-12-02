@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.core.DataSource_pb2
@@ -23,18 +24,15 @@ import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
 import google.protobuf.timestamp_pb2
-import sys
-
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
-else:
-    import typing_extensions
+import typing
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class SavedDatasetSpec(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -48,7 +46,7 @@ class SavedDatasetSpec(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
@@ -62,21 +60,24 @@ class SavedDatasetSpec(google.protobuf.message.Message):
     """Name of the dataset. Must be unique since it's possible to overwrite dataset by name"""
     project: builtins.str
     """Name of Feast project that this Dataset belongs to."""
-    @property
-    def features(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
-        """list of feature references with format "<view name>:<feature name>" """
-    @property
-    def join_keys(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
-        """entity columns + request columns from all feature views used during retrieval"""
     full_feature_names: builtins.bool
     """Whether full feature names are used in stored data"""
-    @property
-    def storage(self) -> global___SavedDatasetStorage: ...
     feature_service_name: builtins.str
     """Optional and only populated if generated from a feature service fetch"""
     @property
+    def features(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+        """list of feature references with format "<view name>:<feature name>" """
+
+    @property
+    def join_keys(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+        """entity columns + request columns from all feature views used during retrieval"""
+
+    @property
+    def storage(self) -> global___SavedDatasetStorage: ...
+    @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
+
     def __init__(
         self,
         *,
@@ -89,11 +90,12 @@ class SavedDatasetSpec(google.protobuf.message.Message):
         feature_service_name: builtins.str = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["storage", b"storage"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_service_name", b"feature_service_name", "features", b"features", "full_feature_names", b"full_feature_names", "join_keys", b"join_keys", "name", b"name", "project", b"project", "storage", b"storage", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["storage", b"storage"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["feature_service_name", b"feature_service_name", "features", b"features", "full_feature_names", b"full_feature_names", "join_keys", b"join_keys", "name", b"name", "project", b"project", "storage", b"storage", "tags", b"tags"]) -> None: ...
 
 global___SavedDatasetSpec = SavedDatasetSpec
 
+@typing.final
 class SavedDatasetStorage(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -133,12 +135,13 @@ class SavedDatasetStorage(google.protobuf.message.Message):
         custom_storage: feast.core.DataSource_pb2.DataSource.CustomSourceOptions | None = ...,
         athena_storage: feast.core.DataSource_pb2.DataSource.AthenaOptions | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["athena_storage", b"athena_storage", "bigquery_storage", b"bigquery_storage", "custom_storage", b"custom_storage", "file_storage", b"file_storage", "kind", b"kind", "redshift_storage", b"redshift_storage", "snowflake_storage", b"snowflake_storage", "spark_storage", b"spark_storage", "trino_storage", b"trino_storage"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["athena_storage", b"athena_storage", "bigquery_storage", b"bigquery_storage", "custom_storage", b"custom_storage", "file_storage", b"file_storage", "kind", b"kind", "redshift_storage", b"redshift_storage", "snowflake_storage", b"snowflake_storage", "spark_storage", b"spark_storage", "trino_storage", b"trino_storage"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["file_storage", "bigquery_storage", "redshift_storage", "snowflake_storage", "trino_storage", "spark_storage", "custom_storage", "athena_storage"] | None: ...
+    def HasField(self, field_name: typing.Literal["athena_storage", b"athena_storage", "bigquery_storage", b"bigquery_storage", "custom_storage", b"custom_storage", "file_storage", b"file_storage", "kind", b"kind", "redshift_storage", b"redshift_storage", "snowflake_storage", b"snowflake_storage", "spark_storage", b"spark_storage", "trino_storage", b"trino_storage"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["athena_storage", b"athena_storage", "bigquery_storage", b"bigquery_storage", "custom_storage", b"custom_storage", "file_storage", b"file_storage", "kind", b"kind", "redshift_storage", b"redshift_storage", "snowflake_storage", b"snowflake_storage", "spark_storage", b"spark_storage", "trino_storage", b"trino_storage"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["kind", b"kind"]) -> typing.Literal["file_storage", "bigquery_storage", "redshift_storage", "snowflake_storage", "trino_storage", "spark_storage", "custom_storage", "athena_storage"] | None: ...
 
 global___SavedDatasetStorage = SavedDatasetStorage
 
+@typing.final
 class SavedDatasetMeta(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -149,15 +152,19 @@ class SavedDatasetMeta(google.protobuf.message.Message):
     @property
     def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time when this saved dataset is created"""
+
     @property
     def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time when this saved dataset is last updated"""
+
     @property
     def min_event_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Min timestamp in the dataset (needed for retrieval)"""
+
     @property
     def max_event_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Max timestamp in the dataset (needed for retrieval)"""
+
     def __init__(
         self,
         *,
@@ -166,11 +173,12 @@ class SavedDatasetMeta(google.protobuf.message.Message):
         min_event_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         max_event_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "max_event_timestamp", b"max_event_timestamp", "min_event_timestamp", b"min_event_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "max_event_timestamp", b"max_event_timestamp", "min_event_timestamp", b"min_event_timestamp"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "max_event_timestamp", b"max_event_timestamp", "min_event_timestamp", b"min_event_timestamp"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "max_event_timestamp", b"max_event_timestamp", "min_event_timestamp", b"min_event_timestamp"]) -> None: ...
 
 global___SavedDatasetMeta = SavedDatasetMeta
 
+@typing.final
 class SavedDataset(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -186,7 +194,7 @@ class SavedDataset(google.protobuf.message.Message):
         spec: global___SavedDatasetSpec | None = ...,
         meta: global___SavedDatasetMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
 
 global___SavedDataset = SavedDataset

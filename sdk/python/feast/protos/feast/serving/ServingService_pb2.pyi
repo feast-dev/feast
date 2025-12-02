@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.types.Value_pb2
@@ -38,7 +39,7 @@ class _FieldStatus:
     ValueType = typing.NewType("ValueType", builtins.int)
     V: typing_extensions.TypeAlias = ValueType
 
-class _FieldStatusEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_FieldStatus.ValueType], builtins.type):  # noqa: F821
+class _FieldStatusEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_FieldStatus.ValueType], builtins.type):
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
     INVALID: _FieldStatus.ValueType  # 0
     """Status is unset for this field."""
@@ -79,6 +80,7 @@ allowable range.
 """
 global___FieldStatus = FieldStatus
 
+@typing.final
 class GetFeastServingInfoRequest(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -88,6 +90,7 @@ class GetFeastServingInfoRequest(google.protobuf.message.Message):
 
 global___GetFeastServingInfoRequest = GetFeastServingInfoRequest
 
+@typing.final
 class GetFeastServingInfoResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -99,10 +102,11 @@ class GetFeastServingInfoResponse(google.protobuf.message.Message):
         *,
         version: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["version", b"version"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["version", b"version"]) -> None: ...
 
 global___GetFeastServingInfoResponse = GetFeastServingInfoResponse
 
+@typing.final
 class FeatureReferenceV2(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -118,18 +122,21 @@ class FeatureReferenceV2(google.protobuf.message.Message):
         feature_view_name: builtins.str = ...,
         feature_name: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_name", b"feature_name", "feature_view_name", b"feature_view_name"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["feature_name", b"feature_name", "feature_view_name", b"feature_view_name"]) -> None: ...
 
 global___FeatureReferenceV2 = FeatureReferenceV2
 
+@typing.final
 class GetOnlineFeaturesRequestV2(google.protobuf.message.Message):
     """ToDo (oleksii): remove this message (since it's not used) and move EntityRow on package level"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class EntityRow(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+        @typing.final
         class FieldsEntry(google.protobuf.message.Message):
             DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -144,8 +151,8 @@ class GetOnlineFeaturesRequestV2(google.protobuf.message.Message):
                 key: builtins.str = ...,
                 value: feast.types.Value_pb2.Value | None = ...,
             ) -> None: ...
-            def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
-            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+            def HasField(self, field_name: typing.Literal["value", b"value"]) -> builtins.bool: ...
+            def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
         TIMESTAMP_FIELD_NUMBER: builtins.int
         FIELDS_FIELD_NUMBER: builtins.int
@@ -154,35 +161,39 @@ class GetOnlineFeaturesRequestV2(google.protobuf.message.Message):
             """Request timestamp of this row. This value will be used,
             together with maxAge, to determine feature staleness.
             """
+
         @property
         def fields(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.Value]:
             """Map containing mapping of entity name to entity value."""
+
         def __init__(
             self,
             *,
             timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
             fields: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.Value] | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["timestamp", b"timestamp"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["fields", b"fields", "timestamp", b"timestamp"]) -> None: ...
+        def HasField(self, field_name: typing.Literal["timestamp", b"timestamp"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing.Literal["fields", b"fields", "timestamp", b"timestamp"]) -> None: ...
 
     FEATURES_FIELD_NUMBER: builtins.int
     ENTITY_ROWS_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
+    project: builtins.str
+    """Optional field to specify project name override. If specified, uses the
+    given project for retrieval. Overrides the projects specified in
+    Feature References if both are specified.
+    """
     @property
     def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureReferenceV2]:
         """List of features that are being retrieved"""
+
     @property
     def entity_rows(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___GetOnlineFeaturesRequestV2.EntityRow]:
         """List of entity rows, containing entity id and timestamp data.
         Used during retrieval of feature rows and for joining feature
         rows into a final dataset
         """
-    project: builtins.str
-    """Optional field to specify project name override. If specified, uses the
-    given project for retrieval. Overrides the projects specified in
-    Feature References if both are specified.
-    """
+
     def __init__(
         self,
         *,
@@ -190,10 +201,11 @@ class GetOnlineFeaturesRequestV2(google.protobuf.message.Message):
         entity_rows: collections.abc.Iterable[global___GetOnlineFeaturesRequestV2.EntityRow] | None = ...,
         project: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["entity_rows", b"entity_rows", "features", b"features", "project", b"project"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["entity_rows", b"entity_rows", "features", b"features", "project", b"project"]) -> None: ...
 
 global___GetOnlineFeaturesRequestV2 = GetOnlineFeaturesRequestV2
 
+@typing.final
 class FeatureList(google.protobuf.message.Message):
     """In JSON "val" field can be omitted"""
 
@@ -207,13 +219,15 @@ class FeatureList(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[builtins.str] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___FeatureList = FeatureList
 
+@typing.final
 class GetOnlineFeaturesRequest(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class EntitiesEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -228,9 +242,10 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: feast.types.Value_pb2.RepeatedValue | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def HasField(self, field_name: typing.Literal["value", b"value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
+    @typing.final
     class RequestContextEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -245,8 +260,8 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: feast.types.Value_pb2.RepeatedValue | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        def HasField(self, field_name: typing.Literal["value", b"value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing.Literal["key", b"key", "value", b"value"]) -> None: ...
 
     FEATURE_SERVICE_FIELD_NUMBER: builtins.int
     FEATURES_FIELD_NUMBER: builtins.int
@@ -254,6 +269,7 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
     FULL_FEATURE_NAMES_FIELD_NUMBER: builtins.int
     REQUEST_CONTEXT_FIELD_NUMBER: builtins.int
     feature_service: builtins.str
+    full_feature_names: builtins.bool
     @property
     def features(self) -> global___FeatureList: ...
     @property
@@ -261,13 +277,14 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         """The entity data is specified in a columnar format
         A map of entity name -> list of values
         """
-    full_feature_names: builtins.bool
+
     @property
     def request_context(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.RepeatedValue]:
         """Context for OnDemand Feature Transformation
         (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
         A map of variable name -> list of values
         """
+
     def __init__(
         self,
         *,
@@ -277,15 +294,17 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         full_feature_names: builtins.bool = ...,
         request_context: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["feature_service", b"feature_service", "features", b"features", "kind", b"kind"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities", "feature_service", b"feature_service", "features", b"features", "full_feature_names", b"full_feature_names", "kind", b"kind", "request_context", b"request_context"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["feature_service", "features"] | None: ...
+    def HasField(self, field_name: typing.Literal["feature_service", b"feature_service", "features", b"features", "kind", b"kind"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["entities", b"entities", "feature_service", b"feature_service", "features", b"features", "full_feature_names", b"full_feature_names", "kind", b"kind", "request_context", b"request_context"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["kind", b"kind"]) -> typing.Literal["feature_service", "features"] | None: ...
 
 global___GetOnlineFeaturesRequest = GetOnlineFeaturesRequest
 
+@typing.final
 class GetOnlineFeaturesResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class FeatureVector(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -305,11 +324,12 @@ class GetOnlineFeaturesResponse(google.protobuf.message.Message):
             statuses: collections.abc.Iterable[global___FieldStatus.ValueType] | None = ...,
             event_timestamps: collections.abc.Iterable[google.protobuf.timestamp_pb2.Timestamp] | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["event_timestamps", b"event_timestamps", "statuses", b"statuses", "values", b"values"]) -> None: ...
+        def ClearField(self, field_name: typing.Literal["event_timestamps", b"event_timestamps", "statuses", b"statuses", "values", b"values"]) -> None: ...
 
     METADATA_FIELD_NUMBER: builtins.int
     RESULTS_FIELD_NUMBER: builtins.int
     STATUS_FIELD_NUMBER: builtins.int
+    status: builtins.bool
     @property
     def metadata(self) -> global___GetOnlineFeaturesResponseMetadata: ...
     @property
@@ -317,7 +337,7 @@ class GetOnlineFeaturesResponse(google.protobuf.message.Message):
         """Length of "results" array should match length of requested features.
         We also preserve the same order of features here as in metadata.feature_names
         """
-    status: builtins.bool
+
     def __init__(
         self,
         *,
@@ -325,11 +345,12 @@ class GetOnlineFeaturesResponse(google.protobuf.message.Message):
         results: collections.abc.Iterable[global___GetOnlineFeaturesResponse.FeatureVector] | None = ...,
         status: builtins.bool = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["metadata", b"metadata"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["metadata", b"metadata", "results", b"results", "status", b"status"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["metadata", b"metadata"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["metadata", b"metadata", "results", b"results", "status", b"status"]) -> None: ...
 
 global___GetOnlineFeaturesResponse = GetOnlineFeaturesResponse
 
+@typing.final
 class GetOnlineFeaturesResponseMetadata(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -341,7 +362,7 @@ class GetOnlineFeaturesResponseMetadata(google.protobuf.message.Message):
         *,
         feature_names: global___FeatureList | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["feature_names", b"feature_names"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_names", b"feature_names"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["feature_names", b"feature_names"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["feature_names", b"feature_names"]) -> None: ...
 
 global___GetOnlineFeaturesResponseMetadata = GetOnlineFeaturesResponseMetadata
