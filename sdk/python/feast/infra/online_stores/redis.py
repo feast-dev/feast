@@ -325,16 +325,7 @@ class RedisOnlineStore(OnlineStore):
                 # TODO : Make this a config as this can be different for different users based on payload size etc..
                 num_cmds_per_pipeline_execute = 500
                 ttl_feature_view = table.ttl
-                max_events = None
-                if table.tags:
-                    tag_value = table.tags.get("max_retained_events")
-                    if tag_value is not None:
-                        try:
-                            max_events = int(tag_value)
-                        except Exception:
-                            logger.warning(
-                                f"Invalid max_retained_events tag value: {tag_value}"
-                            )
+
                 for entity_key, values, timestamp, _ in data:
                     ttl = None
                     if ttl_feature_view:
@@ -409,7 +400,9 @@ class RedisOnlineStore(OnlineStore):
                     int(ttl_feature_view.total_seconds()) if ttl_feature_view else None
                 )
 
-                run_cleanup_by_event_time = (ttl_feature_view_seconds is not None) and is_sort_key_timestamp
+                run_cleanup_by_event_time = (
+                    ttl_feature_view_seconds is not None
+                ) and is_sort_key_timestamp
 
                 # AFTER batch flush: run TTL cleanup
                 if run_cleanup_by_event_time:
@@ -417,24 +410,28 @@ class RedisOnlineStore(OnlineStore):
                     cleanup_cmds_per_execute = 500
                     cutoff = (int(time.time()) - ttl_feature_view_seconds) * 1000
                     for zset_key, entity_key_bytes in zsets_to_cleanup:
-                        self._run_cleanup_by_event_time(pipe,
-                                                        zset_key, ttl_feature_view_seconds, cutoff
-                                                        )
+                        self._run_cleanup_by_event_time(
+                            pipe, zset_key, ttl_feature_view_seconds, cutoff
+                        )
                         cleanup_cmds += 2
                         if cleanup_cmds >= cleanup_cmds_per_execute:
                             try:
                                 pipe.execute()
                             except RedisError:
-                                logger.exception("Error executing Redis cleanup pipeline for feature view %s",
-                                                 feature_view)
+                                logger.exception(
+                                    "Error executing Redis cleanup pipeline for feature view %s",
+                                    feature_view,
+                                )
                                 raise
                             cleanup_cmds = 0
                     if cleanup_cmds:
                         try:
                             pipe.execute()
                         except RedisError:
-                            logger.exception("Error executing Redis cleanup pipeline for feature view %s",
-                                             feature_view)
+                            logger.exception(
+                                "Error executing Redis cleanup pipeline for feature view %s",
+                                feature_view,
+                            )
                             raise
             else:
                 # check if a previous record under the key bin exists
@@ -536,7 +533,7 @@ class RedisOnlineStore(OnlineStore):
         return math.ceil(ttl_remaining.total_seconds())
 
     def _run_cleanup_by_event_time(
-            self, pipe, zset_key: bytes, ttl_seconds: int, cutoff
+        self, pipe, zset_key: bytes, ttl_seconds: int, cutoff
     ):
         pipe.zremrangebyscore(zset_key, "-inf", cutoff)
         pipe.expire(zset_key, ttl_seconds)

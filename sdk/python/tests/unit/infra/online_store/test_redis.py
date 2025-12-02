@@ -597,7 +597,7 @@ def _make_redis_client(repo_config):
 
 @pytest.mark.docker
 def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
-    #Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs.
+    # Ensure TTL cleanup removes expired members, hashes, and deletes empty ZSETs.
     redis_client = _make_redis_client(repo_config)
     store = RedisOnlineStore()
     zset_key = b"test:ttl_cleanup:zset"
@@ -608,15 +608,15 @@ def test_ttl_cleanup_removes_expired_members_and_index(repo_config):
     expired_member = f"member:{expired_ts_ms}".encode()
     active_member = f"member:{active_ts_ms}".encode()
 
-    redis_client.zadd(zset_key, {expired_member: expired_ts_ms, active_member: active_ts_ms})
+    redis_client.zadd(
+        zset_key, {expired_member: expired_ts_ms, active_member: active_ts_ms}
+    )
 
     cutoff = (int(time.time()) - ttl_seconds) * 1000
 
     with redis_client.pipeline(transaction=False) as pipe:
-        store._run_cleanup_by_event_time(
-            pipe, zset_key, ttl_seconds, cutoff
-        )
-        results = pipe.execute()
+        store._run_cleanup_by_event_time(pipe, zset_key, ttl_seconds, cutoff)
+        pipe.execute()
 
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert active_member in remaining
@@ -642,10 +642,8 @@ def test_ttl_cleanup_no_expired_members(repo_config):
     cutoff = (int(time.time()) - ttl_seconds) * 1000
 
     with redis_client.pipeline(transaction=False) as pipe:
-        store._run_cleanup_by_event_time(
-            pipe, zset_key, ttl_seconds, cutoff
-        )
-        results = pipe.execute()
+        store._run_cleanup_by_event_time(pipe, zset_key, ttl_seconds, cutoff)
+        pipe.execute()
 
     remaining = redis_client.zrange(zset_key, 0, -1)
     assert active_member in remaining

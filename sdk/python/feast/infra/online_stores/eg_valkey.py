@@ -332,16 +332,7 @@ class EGValkeyOnlineStore(OnlineStore):
                 # TODO : Make this a config as this can be different for different users based on payload size etc..
                 num_cmds_per_pipeline_execute = 500
                 ttl_feature_view = table.ttl
-                max_events = None
-                if table.tags:
-                    tag_value = table.tags.get("max_retained_events")
-                    if tag_value is not None:
-                        try:
-                            max_events = int(tag_value)
-                        except Exception:
-                            logger.warning(
-                                f"Invalid max_retained_events tag value: {tag_value}"
-                            )
+
                 for entity_key, values, timestamp, _ in data:
                     ttl = None
                     if ttl_feature_view:
@@ -415,8 +406,10 @@ class EGValkeyOnlineStore(OnlineStore):
                 ttl_feature_view_seconds = (
                     int(ttl_feature_view.total_seconds()) if ttl_feature_view else None
                 )
-                
-                run_cleanup_by_event_time = (ttl_feature_view_seconds is not None) and is_sort_key_timestamp
+
+                run_cleanup_by_event_time = (
+                    ttl_feature_view_seconds is not None
+                ) and is_sort_key_timestamp
 
                 # AFTER batch flush: run TTL cleanup
                 if run_cleanup_by_event_time:
@@ -425,25 +418,31 @@ class EGValkeyOnlineStore(OnlineStore):
                     cleanup_cmds_per_execute = 500
                     cutoff = (int(time.time()) - ttl_feature_view_seconds) * 1000
                     for zset_key, entity_key_bytes in zsets_to_cleanup:
-                        self._run_cleanup_by_event_time(pipe,
-                            zset_key, ttl_feature_view_seconds, cutoff
+                        self._run_cleanup_by_event_time(
+                            pipe, zset_key, ttl_feature_view_seconds, cutoff
                         )
                         cleanup_cmds += 2
                         if cleanup_cmds >= cleanup_cmds_per_execute:
                             try:
                                 results = pipe.execute()
-                                logger.info(f"Number of members per zset cleaned: {results}")
+                                logger.info(
+                                    f"Number of members per zset cleaned: {results}"
+                                )
                             except ValkeyError:
-                                logger.exception("Error executing Valkey cleanup pipeline for feature view %s",
-                                                 feature_view)
+                                logger.exception(
+                                    "Error executing Valkey cleanup pipeline for feature view %s",
+                                    feature_view,
+                                )
                                 raise
                             cleanup_cmds = 0
                     if cleanup_cmds:
                         try:
                             pipe.execute()
                         except ValkeyError:
-                            logger.exception("Error executing Valkey cleanup pipeline for feature view %s",
-                                             feature_view)
+                            logger.exception(
+                                "Error executing Valkey cleanup pipeline for feature view %s",
+                                feature_view,
+                            )
                             raise
                     logger.info("Finished cleaning zsets")
             else:
