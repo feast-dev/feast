@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -183,7 +183,7 @@ def test_redis_online_write_batch_with_timestamp_as_sortkey(
     (
         feature_view,
         data,
-    ) = _create_sorted_feature_view_with_timestamp_as_sortkey()
+    ) = _create_sorted_feature_view_with_timestamp_as_sortkey(0)
 
     redis_online_store.online_write_batch(
         config=repo_config,
@@ -266,6 +266,64 @@ def test_redis_online_write_batch_with_timestamp_as_sortkey(
     assert trip_id_drivers == [4, 3, 2, 9, 8, 7]
 
 
+@pytest.mark.docker
+def test_valkey_online_write_batch_deletes_existing_expired_members(
+    repo_config: RepoConfig,
+    redis_online_store: RedisOnlineStore,
+):
+    (
+        feature_view,
+        data,
+    ) = _create_sorted_feature_view_with_timestamp_as_sortkey(1)
+
+    del data[-5:]
+
+    connection_string = repo_config.online_store.connection_string
+    connection_string_split = connection_string.split(":")
+    conn_dict = {}
+    conn_dict["host"] = connection_string_split[0]
+    conn_dict["port"] = connection_string_split[1]
+
+    r = Redis(**conn_dict)
+
+    entity_key_driver_1 = EntityKeyProto(
+        join_keys=["driver_id"],
+        entity_values=[ValueProto(int32_val=1)],
+    )
+
+    redis_key_bin_driver_1 = _redis_key(
+        repo_config.project,
+        entity_key_driver_1,
+        entity_key_serialization_version=repo_config.entity_key_serialization_version,
+    )
+
+    zset_key_driver_1 = redis_online_store.zset_key_bytes(
+        feature_view.name, redis_key_bin_driver_1
+    )
+
+    ttl_seconds = 3600
+    now_ms = int(time.time() * 1000)
+
+    expired_ts_ms = now_ms - (ttl_seconds) * 1000
+    expired_member = f"member:{expired_ts_ms}".encode()
+    r.zadd(zset_key_driver_1, {expired_member: expired_ts_ms})
+
+    driver_1_zset_members_before_online_batch = r.zrange(
+        zset_key_driver_1, 0, -1, withscores=True
+    )
+    assert len(driver_1_zset_members_before_online_batch) == 1
+
+    redis_online_store.online_write_batch(
+        config=repo_config,
+        table=feature_view,
+        data=data,
+        progress=None,
+    )
+
+    driver_1_zset_members = r.zrange(zset_key_driver_1, 0, -1, withscores=True)
+    assert len(driver_1_zset_members) == 5
+
+
 @pytest.fixture
 def repo_config_before(redis_online_store_config):
     return RepoConfig(
@@ -320,16 +378,16 @@ def test_non_numeric_sort_key_not_supported(
         )
 
 
-def _create_sorted_feature_view_with_timestamp_as_sortkey():
+def _create_sorted_feature_view_with_timestamp_as_sortkey(i):
     fv = SortedFeatureView(
-        name="driver_stats",
+        name=f"driver_stats_{i}",
         source=FileSource(
             name="my_file_source",
             path="test.parquet",
             timestamp_field="event_timestamp",
         ),
         entities=[Entity(name="driver_id")],
-        ttl=timedelta(minutes=1000),
+        ttl=timedelta(seconds=1000),
         sort_keys=[
             SortKey(
                 name="event_timestamp",
@@ -437,6 +495,8 @@ def _create_sorted_feature_view_with_non_numeric_sortkey(n=10):
 def _make_rows(n=10):
     """Generate 10 rows split between driver_id 1 (first 5) and 2 (rest),
     with rating = i + 0.5 and an event_timestamp spanning ~15 minutes."""
+    now = int(time.time())  # constant for this call
+    base_ts = now - 15 * 60
     return [
         (
             EntityKeyProto(
@@ -448,16 +508,9 @@ def _make_rows(n=10):
             {
                 "trip_id": ValueProto(int32_val=i),
                 "rating": ValueProto(float_val=i + 0.5),
-                "event_timestamp": ValueProto(
-                    unix_timestamp_val=int(
-                        (
-                            (datetime.utcnow() - timedelta(minutes=15))
-                            + timedelta(minutes=i)
-                        ).timestamp()
-                    )
-                ),
+                "event_timestamp": ValueProto(unix_timestamp_val=base_ts + i * 60),
             },
-            datetime.utcnow(),
+            datetime.fromtimestamp(base_ts + i * 60, tz=timezone.utc),
             None,
         )
         for i in range(n)
