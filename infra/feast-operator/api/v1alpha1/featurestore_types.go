@@ -421,6 +421,17 @@ type RegistryFilePersistence struct {
 	Path               string             `json:"path,omitempty"`
 	PvcConfig          *PvcConfig         `json:"pvc,omitempty"`
 	S3AdditionalKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
+
+	// CacheTTLSeconds defines the TTL (in seconds) for the registry cache.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	CacheTTLSeconds *int32 `json:"cache_ttl_seconds,omitempty"`
+
+	// CacheMode defines the registry cache update strategy.
+	// Allowed values are "sync" and "thread".
+	// +kubebuilder:validation:Enum=none;sync;thread
+	// +optional
+	CacheMode *string `json:"cache_mode,omitempty"`
 }
 
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
