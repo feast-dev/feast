@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import dill
 import pandas as pd
@@ -326,12 +326,16 @@ class RayAggregationNode(DAGNode):
         group_by_keys: List[str],
         timestamp_col: str,
         config: RayComputeEngineConfig,
+        enable_tiling: bool = False,
+        hop_size: Optional[timedelta] = None,
     ):
         super().__init__(name)
         self.aggregations = aggregations
         self.group_by_keys = group_by_keys
         self.timestamp_col = timestamp_col
         self.config = config
+        self.enable_tiling = enable_tiling
+        self.hop_size = hop_size
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the aggregation operation."""
@@ -339,6 +343,120 @@ class RayAggregationNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
+        # Check if tiling should be used
+        has_time_windows = any(agg.time_window for agg in self.aggregations)
+        if self.enable_tiling and has_time_windows:
+            return self._execute_tiled_aggregation(dataset)
+        else:
+            return self._execute_standard_aggregation(dataset)
+
+    def _execute_tiled_aggregation(self, dataset: Dataset) -> DAGValue:
+        """
+        Execute tiled aggregation.
+
+        Flow:
+        1. Convert Ray Dataset → pandas
+        2. Generate cumulative tiles
+        3. Convert to windowed aggregations
+        4. Convert pandas → Ray Dataset
+        """
+        from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+        from feast.aggregation.tiling.tile_subtraction import (
+            convert_cumulative_to_windowed,
+            deduplicate_keep_latest,
+        )
+
+        ray_wrapper = get_ray_wrapper()
+
+        input_pdf = dataset.to_pandas()
+
+        for agg in self.aggregations:
+            if agg.time_window is None:
+                raise ValueError(
+                    f"Tiling is enabled but aggregation on column '{agg.column}' has no time_window set. "
+                    f"Either set time_window for all aggregations or disable tiling by setting enable_tiling=False."
+                )
+
+        # Group aggregations by time window
+        window_to_aggs: Dict[timedelta, List[Aggregation]] = {}
+        for agg in self.aggregations:
+            if agg.time_window:
+                if agg.time_window not in window_to_aggs:
+                    window_to_aggs[agg.time_window] = []
+                window_to_aggs[agg.time_window].append(agg)
+
+        # Process each time window in pandas
+        windowed_pdfs = []
+        for window_size, window_aggs in window_to_aggs.items():
+            # Step 1: Generate cumulative tiles
+            tiles_pdf = apply_sawtooth_window_tiling(
+                df=input_pdf,
+                aggregations=window_aggs,
+                group_by_keys=self.group_by_keys,
+                timestamp_col=self.timestamp_col,
+                window_size=window_size,
+                hop_size=self.hop_size or timedelta(minutes=5),
+            )
+
+            if tiles_pdf.empty:
+                continue
+
+            # Step 2: Convert to windowed aggregations
+            windowed_pdf = convert_cumulative_to_windowed(
+                tiles_df=tiles_pdf,
+                entity_keys=self.group_by_keys,
+                timestamp_col=self.timestamp_col,
+                window_size=window_size,
+                aggregations=window_aggs,
+            )
+
+            if not windowed_pdf.empty:
+                windowed_pdfs.append(windowed_pdf)
+
+        if not windowed_pdfs:
+            # No results, return empty Ray Dataset
+            aggregated_dataset = ray_wrapper.from_pandas(pd.DataFrame())
+        else:
+            # Step 3: Join all windows in pandas (outer merge on entity keys + timestamp)
+            if len(windowed_pdfs) == 1:
+                final_pdf = windowed_pdfs[0]
+            else:
+                final_pdf = windowed_pdfs[0]
+                join_keys = self.group_by_keys + [self.timestamp_col]
+                for pdf in windowed_pdfs[1:]:
+                    final_pdf = pd.merge(
+                        final_pdf,
+                        pdf,
+                        on=join_keys,
+                        how="outer",
+                        suffixes=("", "_dup"),
+                    )
+                    # Drop duplicate columns from merge
+                    final_pdf = final_pdf.loc[
+                        :, ~final_pdf.columns.str.endswith("_dup")
+                    ]
+
+            # Step 4: Deduplicate in pandas (keep latest timestamp per entity)
+            if self.timestamp_col in final_pdf.columns and not final_pdf.empty:
+                final_pdf = deduplicate_keep_latest(
+                    final_pdf, self.group_by_keys, self.timestamp_col
+                )
+
+            aggregated_dataset = ray_wrapper.from_pandas(final_pdf)
+
+        return DAGValue(
+            data=aggregated_dataset,
+            format=DAGFormat.RAY,
+            metadata={
+                "aggregated": True,
+                "aggregations": len(self.aggregations),
+                "group_by_keys": self.group_by_keys,
+                "tiled": True,
+            },
+        )
+
+    def _execute_standard_aggregation(self, dataset: Dataset) -> DAGValue:
+        """Execute standard aggregation without tiling."""
         # Convert aggregations to Ray's groupby format
         agg_dict = {}
         for agg in self.aggregations:

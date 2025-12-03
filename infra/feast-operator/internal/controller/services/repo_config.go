@@ -127,6 +127,13 @@ func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secr
 			repoConfig.Registry.RegistryType = RegistryFileConfigType
 			repoConfig.Registry.Path = getActualPath(filePersistence.Path, filePersistence.PvcConfig)
 			repoConfig.Registry.S3AdditionalKwargs = filePersistence.S3AdditionalKwargs
+			if filePersistence.CacheTTLSeconds != nil {
+				repoConfig.Registry.CacheTTLSeconds = filePersistence.CacheTTLSeconds
+			}
+			if filePersistence.CacheMode != nil {
+				repoConfig.Registry.CacheMode = filePersistence.CacheMode
+			}
+
 		} else if dbPersistence != nil && len(dbPersistence.Type) > 0 {
 			repoConfig.Registry.Path = ""
 			repoConfig.Registry.RegistryType = RegistryConfigType(dbPersistence.Type)
@@ -137,6 +144,31 @@ func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secr
 			parametersMap, err := secretExtractionFunc(dbPersistence.Type, dbPersistence.SecretRef.Name, secretKeyName)
 			if err != nil {
 				return err
+			}
+
+			// Extract typed cache settings from DB parameters to avoid inline map conflicts
+			if ttlVal, ok := parametersMap["cache_ttl_seconds"]; ok {
+				switch v := ttlVal.(type) {
+				case int:
+					ttl := int32(v)
+					repoConfig.Registry.CacheTTLSeconds = &ttl
+				case int32:
+					ttl := v
+					repoConfig.Registry.CacheTTLSeconds = &ttl
+				case int64:
+					ttl := int32(v)
+					repoConfig.Registry.CacheTTLSeconds = &ttl
+				case float64:
+					ttl := int32(v)
+					repoConfig.Registry.CacheTTLSeconds = &ttl
+				}
+				delete(parametersMap, "cache_ttl_seconds")
+			}
+			if modeVal, ok := parametersMap["cache_mode"]; ok {
+				if modeStr, ok := modeVal.(string); ok {
+					repoConfig.Registry.CacheMode = &modeStr
+				}
+				delete(parametersMap, "cache_mode")
 			}
 
 			err = mergeStructWithDBParametersMap(&parametersMap, &repoConfig.Registry)

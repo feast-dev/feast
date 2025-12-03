@@ -10,6 +10,8 @@ spec:
         persistence:
           file:
             path: s3://bucket/registry.db
+            cache_ttl_seconds: 60
+            cache_mode: sync
             s3_additional_kwargs:
               ServerSideEncryption: AES256
               ACL: bucket-owner-full-control
