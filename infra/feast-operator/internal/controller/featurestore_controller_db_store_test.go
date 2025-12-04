@@ -39,7 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
 
@@ -150,7 +150,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Namespace: "default",
 		}
 
-		featurestore := &feastdevv1alpha1.FeatureStore{}
+		featurestore := &feastdevv1.FeatureStore{}
 		offlineType := services.OfflineDBPersistenceSnowflakeConfigType
 		onlineType := services.OnlineDBPersistenceCassandraConfigType
 		registryType := services.RegistryDBPersistenceSQLConfigType
@@ -208,24 +208,24 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			err = k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{}, withEnvFrom())
-				resource.Spec.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{
-					DBPersistence: &feastdevv1alpha1.OfflineStoreDBStorePersistence{
+				resource.Spec.Services.OfflineStore.Persistence = &feastdevv1.OfflineStorePersistence{
+					DBPersistence: &feastdevv1.OfflineStoreDBStorePersistence{
 						Type: string(offlineType),
 						SecretRef: corev1.LocalObjectReference{
 							Name: "offline-store-secret",
 						},
 					},
 				}
-				resource.Spec.Services.OnlineStore.Persistence = &feastdevv1alpha1.OnlineStorePersistence{
-					DBPersistence: &feastdevv1alpha1.OnlineStoreDBStorePersistence{
+				resource.Spec.Services.OnlineStore.Persistence = &feastdevv1.OnlineStorePersistence{
+					DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
 						Type: string(onlineType),
 						SecretRef: corev1.LocalObjectReference{
 							Name: "online-store-secret",
 						},
 					},
 				}
-				resource.Spec.Services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{
-					DBPersistence: &feastdevv1alpha1.RegistryDBStorePersistence{
+				resource.Spec.Services.Registry.Local.Persistence = &feastdevv1.RegistryPersistence{
+					DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 						Type: string(registryType),
 						SecretRef: corev1.LocalObjectReference{
 							Name: "registry-store-secret",
@@ -250,7 +250,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			err = k8sClient.Get(ctx, registrySecretNamespacedName, registrySecret)
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -267,7 +267,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 
 		It("should fail reconciling the resource", func() {
 			By("Referring to a secret that doesn't exist")
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -287,14 +287,14 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(err.Error()).To(Equal("secrets \"invalid_secret\" not found"))
 
 			By("Referring to a secret with a key that doesn't exist")
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = "invalid.secret.key"
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -306,7 +306,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(err.Error()).To(Equal("secret key invalid.secret.key doesn't exist in secret online-store-secret"))
 
 			By("Referring to a secret that contains parameter named type with invalid value")
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -319,7 +319,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = ""
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -343,7 +343,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -392,42 +392,42 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(feast.GetFeastServiceName(services.RegistryFeastType) + "." + resource.Namespace + domain))
 
 			Expect(resource.Status.Conditions).NotTo(BeEmpty())
-			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
+			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.DeploymentNotAvailableReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.DeploymentNotAvailableMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.DeploymentNotAvailableReason))
+			Expect(cond.Type).To(Equal(feastdevv1.ReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.DeploymentNotAvailableMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.RegistryReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.RegistryReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.RegistryReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.RegistryReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ClientReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ClientReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.ClientReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.ClientReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.ClientReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.ClientReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OfflineStoreReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OfflineStoreReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.OfflineStoreReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.OfflineStoreReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.OfflineStoreReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.OfflineStoreReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OnlineStoreReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.OnlineStoreReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.OnlineStoreReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.OnlineStoreReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.OnlineStoreReadyMessage))
 
-			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.PendingPhase))
+			Expect(resource.Status.Phase).To(Equal(feastdevv1.PendingPhase))
 
 			// check deployment
 			deploy := &appsv1.Deployment{}
@@ -451,7 +451,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.RegistryFeastType].TargetHttpPort))))
 
 			By("Referring to a secret that contains parameter named type")
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -464,7 +464,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = ""
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -475,7 +475,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(err).To(Not(HaveOccurred()))
 
 			By("Referring to a secret that contains parameter named registry_type")
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -495,7 +495,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "registry-store-secret"}
 			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretKeyName = ""
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -517,7 +517,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -582,7 +582,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			testConfig := &services.RepoConfig{
 				Project:                       feastProject,
 				Provider:                      services.LocalProviderType,
-				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
+				EntityKeySerializationVersion: feastdevv1.SerializationVersion,
 				OfflineStore: services.OfflineStoreConfig{
 					Type:         services.OfflineDBPersistenceSnowflakeConfigType,
 					DBParameters: unmarshallYamlString(snowflakeYamlString),
@@ -663,7 +663,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			clientConfig := &services.RepoConfig{
 				Project:                       feastProject,
 				Provider:                      services.LocalProviderType,
-				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
+				EntityKeySerializationVersion: feastdevv1.SerializationVersion,
 				OfflineStore:                  offlineRemote,
 				OnlineStore: services.OnlineStoreConfig{
 					Path: fmt.Sprintf("http://feast-%s-online.default.svc.cluster.local:80", resourceName),
@@ -688,7 +688,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			feast.Handler.FeatureStore = resource
