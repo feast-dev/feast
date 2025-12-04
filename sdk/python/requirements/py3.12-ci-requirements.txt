@@ -2391,9 +2391,9 @@ matplotlib-inline==0.2.1 \
     # via
     #   ipykernel
     #   ipython
-mcp==1.12.4 \
-    --hash=sha256:0765585e9a3a5916a3c3ab8659330e493adc7bd8b2ca6120c2d7a0c43e034ca5 \
-    --hash=sha256:7aa884648969fab8e78b89399d59a683202972e12e6bc9a1c88ce7eda7743789
+mcp==1.23.0 \
+    --hash=sha256:5a645cf111ed329f4619f2629a3f15d9aabd7adc2ea09d600d31467b51ecb64f \
+    --hash=sha256:84e0c29316d0a8cf0affd196fd000487ac512aa3f771b63b2ea864e22961772b
     # via fastapi-mcp
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
