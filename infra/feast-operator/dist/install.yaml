@@ -1049,6 +1049,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          metrics:
+                            description: Metrics exposes Prometheus-compatible metrics
+                              for the Feast server when enabled.
+                            type: boolean
                           nodeSelector:
                             additionalProperties:
                               type: string
@@ -1508,6 +1512,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          metrics:
+                            description: Metrics exposes Prometheus-compatible metrics
+                              for the Feast server when enabled.
+                            type: boolean
                           nodeSelector:
                             additionalProperties:
                               type: string
@@ -1993,6 +2001,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              metrics:
+                                description: Metrics exposes Prometheus-compatible
+                                  metrics for the Feast server when enabled.
+                                type: boolean
                               nodeSelector:
                                 additionalProperties:
                                   type: string
@@ -2492,6 +2504,10 @@ spec:
                         - error
                         - critical
                         type: string
+                      metrics:
+                        description: Metrics exposes Prometheus-compatible metrics
+                          for the Feast server when enabled.
+                        type: boolean
                       nodeSelector:
                         additionalProperties:
                           type: string
@@ -5065,6 +5081,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              metrics:
+                                description: Metrics exposes Prometheus-compatible
+                                  metrics for the Feast server when enabled.
+                                type: boolean
                               nodeSelector:
                                 additionalProperties:
                                   type: string
@@ -5532,6 +5552,10 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              metrics:
+                                description: Metrics exposes Prometheus-compatible
+                                  metrics for the Feast server when enabled.
+                                type: boolean
                               nodeSelector:
                                 additionalProperties:
                                   type: string
@@ -6029,6 +6053,10 @@ spec:
                                     - error
                                     - critical
                                     type: string
+                                  metrics:
+                                    description: Metrics exposes Prometheus-compatible
+                                      metrics for the Feast server when enabled.
+                                    type: boolean
                                   nodeSelector:
                                     additionalProperties:
                                       type: string
@@ -6538,6 +6566,10 @@ spec:
                             - error
                             - critical
                             type: string
+                          metrics:
+                            description: Metrics exposes Prometheus-compatible metrics
+                              for the Feast server when enabled.
+                            type: boolean
                           nodeSelector:
                             additionalProperties:
                               type: string

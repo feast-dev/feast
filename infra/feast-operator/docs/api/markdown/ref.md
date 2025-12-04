@@ -702,6 +702,7 @@ _Appears in:_
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |
+| `metrics` _boolean_ | Metrics exposes Prometheus-compatible metrics for the Feast server when enabled. |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the feast container.
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
@@ -765,6 +766,7 @@ _Appears in:_
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |
+| `metrics` _boolean_ | Metrics exposes Prometheus-compatible metrics for the Feast server when enabled. |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the feast container.
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
