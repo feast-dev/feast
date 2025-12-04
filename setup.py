@@ -302,24 +302,18 @@ README_FILE = os.path.join(repo_root, "README.md")
 with open(README_FILE, "r", encoding="utf8") as f:
     LONG_DESCRIPTION = f.read()
 
-# Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
-# Regex modified from default tag regex in:
-# https://github.com/pypa/setuptools_scm/blob/2a1b46d38fb2b8aeac09853e660bcd0d7c1bc7be/src/setuptools_scm/config.py#L9
-TAG_REGEX = re.compile(
-    r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
-)
+# Hardcoded version for v0.54-branch quick fix
+FIXED_VERSION = "0.54.1"
 
-# Only set use_scm_version if git executable exists (setting this variable causes pip to use git under the hood)
-if shutil.which("git"):
-    use_scm_version = {"root": ".", "relative_to": __file__, "tag_regex": TAG_REGEX}
-else:
-    use_scm_version = None
+# Only set use_scm_version if git executable exists and we're not using a fixed version
+use_scm_version = None
 
 PYTHON_CODE_PREFIX = "sdk/python"
 
 
 setup(
     name=NAME,
+    version=FIXED_VERSION if FIXED_VERSION else None,
     author=AUTHOR,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
