@@ -4,15 +4,143 @@
 
 ## Overview
 
-On Demand Feature Views (ODFVs) allow data scientists to use existing features and request-time data to transform and 
-create new features. Users define transformation logic that is executed during both historical and online retrieval. 
-Additionally, ODFVs provide flexibility in applying transformations either during data ingestion (at write time) or 
+On Demand Feature Views (ODFVs) allow data scientists to use existing features and request-time data to transform and
+create new features. Users define transformation logic that is executed during both historical and online retrieval.
+Additionally, ODFVs provide flexibility in applying transformations either during data ingestion (at write time) or
 during feature retrieval (at read time), controlled via the `write_to_online_store` parameter.
 
-By setting `write_to_online_store=True`, transformations are applied during data ingestion, and the transformed 
-features are stored in the online store. This can improve online feature retrieval performance by reducing computation 
-during reads. Conversely, if `write_to_online_store=False` (the default if omitted), transformations are applied during 
+By setting `write_to_online_store=True`, transformations are applied during data ingestion, and the transformed
+features are stored in the online store. This can improve online feature retrieval performance by reducing computation
+during reads. Conversely, if `write_to_online_store=False` (the default if omitted), transformations are applied during
 feature retrieval.
+
+## Transformation Execution Architecture
+
+Feast provides four distinct execution timings for transformations:
+
+### Execution Contexts
+
+**Python Feature Server** (for real-time, low-latency operations):
+- **`ON_READ`**: Execute during feature retrieval
+- **`ON_WRITE`**: Execute during data ingestion to feature server
+
+**Compute Engines** (for large-scale processing):
+- **`BATCH`**: Execute on Spark/Ray/etc. for scheduled batch processing
+- **`STREAMING`**: Execute on Flink/Spark Streaming/etc. for real-time streams
+
+### Feature Storage Patterns
+
+**Stateful Features**: Values stored in online database
+- Batch-computed features (`when="batch"`)
+- Stream-computed features (`when="streaming"`)
+- Feature server materialized features (`when="on_write"`)
+- Base features modified on-read
+
+**Stateless Features**: Computed at request time
+- Pure request-time computation (`when="on_read"` with only request sources)
+
+### Recommended Patterns
+
+#### 1. Large-Scale Batch Features (Compute Engine)
+
+```python
+@transformation(
+    mode="spark",
+    when="batch",        # Execute on Spark for large datasets
+    sources=[driver_hourly_stats_view],
+    schema=[Field(name="base_efficiency_score", dtype=Float64)],
+    entities=[driver_entity],
+    name="driver_base_features"
+)
+def compute_base_features(df: DataFrame) -> DataFrame:
+    """Pre-compute base features on Spark."""
+    from pyspark.sql import functions as F
+    return df.withColumn("base_efficiency_score",
+                        F.col("conv_rate") * F.col("acc_rate"))
+# Executes on Spark, results stored in online DB
+```
+
+#### 2. Feature Server Materialization (Python)
+
+```python
+@transformation(
+    mode="pandas",
+    when="on_write",     # Execute in Python feature server during ingestion
+    sources=[driver_hourly_stats_view],
+    schema=[Field(name="quick_score", dtype=Float64)],
+    entities=[driver_entity],
+    name="driver_quick_features"
+)
+def compute_quick_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Fast computation in feature server."""
+    result = pd.DataFrame()
+    result["quick_score"] = df["conv_rate"] * 1.1
+    return result
+# Executes in Python feature server, stores to online DB
+```
+
+#### 3. Real-Time Stream Processing (Compute Engine)
+
+```python
+@transformation(
+    mode="spark",
+    when="streaming",    # Execute on Spark Streaming for real-time streams
+    sources=[kafka_driver_events],
+    schema=[Field(name="real_time_efficiency", dtype=Float64)],
+    entities=[driver_entity],
+    name="driver_streaming_features"
+)
+def compute_streaming_features(df: DataFrame) -> DataFrame:
+    """Process real-time streams on Spark."""
+    from pyspark.sql import functions as F
+    return df.withColumn("real_time_efficiency",
+                        F.col("events_per_minute") / F.col("trips_per_hour"))
+# Executes on Spark Streaming, continuously updates online DB
+```
+
+#### 4. On-Read Adjustments (Feature Server)
+
+```python
+@transformation(
+    mode="python",
+    when="on_read",      # Execute in feature server during retrieval
+    sources=[driver_base_features_view, request_source],
+    schema=[Field(name="context_adjusted_score", dtype=Float64)]
+)
+def adjust_for_context(inputs: dict) -> dict:
+    """Adjust stored features based on request context."""
+    base_score = inputs["base_efficiency_score"][0]  # From online DB (stateful)
+    context_factor = inputs["time_of_day"] / 24.0     # From request (dynamic)
+
+    return {
+        "context_adjusted_score": base_score * context_factor
+    }
+# Executes in Python feature server, uses stored + request data
+```
+
+#### 5. Pure Request-Time Features (Feature Server)
+
+```python
+@transformation(
+    mode="python",
+    when="on_read",      # Execute in feature server during retrieval
+    sources=[request_source],  # Only request data (stateless)
+    schema=[Field(name="request_derived_feature", dtype=Float64)]
+)
+def compute_from_request(inputs: dict) -> dict:
+    """Compute features purely from request data."""
+    return {
+        "request_derived_feature": inputs["user_age"] * inputs["session_length"]
+    }
+# Executes in Python feature server at request time
+```
+
+### Benefits of Layered Architecture
+
+1. **Performance**: Core features pre-computed and stored
+2. **Flexibility**: Can adjust stored features based on context
+3. **Cost Efficiency**: Expensive computations done once during materialization
+4. **Real-time Capability**: Request-specific adjustments applied during serving
 
 ### Why Use On Demand Feature Views?
 
@@ -302,6 +430,90 @@ This approach allows for a hybrid workflow where you can:
 3. Still use the Feature Server to execute transformations during API calls when needed
 
 Even when features are materialized with transformations skipped (`transform_on_write=False`), the feature server can still apply transformations during API calls for any missing values or for features that require real-time computation.
+
+## Comparison: @on_demand_feature_view vs @transformation
+
+### Original Approach with @on_demand_feature_view
+
+```python
+from feast.on_demand_feature_view import on_demand_feature_view
+from feast import Field, RequestSource
+from feast.types import Float64
+import pandas as pd
+
+# Define request source
+request_source = RequestSource(
+    name="vals_to_add",
+    schema=[Field(name="val_to_add", dtype=Int64)]
+)
+
+@on_demand_feature_view(
+    sources=[driver_hourly_stats_view, request_source],
+    schema=[Field(name="conv_rate_plus_val1", dtype=Float64)],
+    mode="pandas",
+    write_to_online_store=False  # Transform on read
+)
+def transformed_conv_rate_original(features_df: pd.DataFrame) -> pd.DataFrame:
+    """Original ODFV approach."""
+    df = pd.DataFrame()
+    df["conv_rate_plus_val1"] = features_df["conv_rate"] + features_df["val_to_add"]
+    return df
+```
+
+### New Unified Approach with @transformation
+
+```python
+from feast.transformation import transformation
+from feast import Field, RequestSource
+from feast.types import Float64
+import pandas as pd
+
+@transformation(
+    mode="pandas",
+    when="on_read",  # Equivalent to write_to_online_store=False
+    sources=[driver_hourly_stats_view, request_source],
+    schema=[Field(name="conv_rate_plus_val1", dtype=Float64)],
+    name="transformed_conv_rate_unified"
+)
+def transformed_conv_rate_unified(df: pd.DataFrame) -> pd.DataFrame:
+    """New unified approach."""
+    result = pd.DataFrame()
+    result["conv_rate_plus_val1"] = df["conv_rate"] + df["val_to_add"]
+    return result
+```
+
+### Parameter Mapping
+
+| @on_demand_feature_view | @transformation | Description |
+|------------------------|-----------------|-------------|
+| `mode="pandas"` | `mode="pandas"` | Use Pandas for transformation |
+| `mode="python"` | `mode="python"` | Use native Python for transformation |
+| `write_to_online_store=False` | `when="on_read"` | Transform during feature retrieval |
+| `write_to_online_store=True` | `when="on_write"` | Transform during data ingestion |
+| `sources=[...]` | `sources=[...]` | Source feature views and request sources |
+| `schema=[...]` | `schema=[...]` | Output feature schema |
+| N/A | `online=True` | Enable dual registration (FeatureView + ODFV) |
+| N/A | `entities=[...]` | Entities for auto-created feature views |
+
+### Benefits of the Unified Approach
+
+1. **Consistent API**: Same decorator works for regular FeatureViews, StreamFeatureViews, and OnDemandFeatureViews
+2. **Training-Serving Consistency**: `online=True` automatically creates both training and serving versions
+3. **Flexible Timing**: Easy to switch between `on_read` and `on_write` execution
+4. **Future-Proof**: New transformation modes and execution engines are automatically supported
+
+### When to Use Each Approach
+
+**Use @on_demand_feature_view when:**
+- You only need ODFVs (no training/batch use case)
+- You prefer explicit, specialized APIs
+- You're working with existing ODFV patterns
+
+**Use @transformation when:**
+- You need the same transformation for training and serving
+- You want a unified transformation system
+- You plan to change execution timing or modes
+- You're starting new feature development
 
 ## CLI Commands
 There are new CLI commands to manage on demand feature views:

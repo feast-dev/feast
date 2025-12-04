@@ -47,6 +47,7 @@ from feast.data_source import (
     KinesisSource,
     PushMode,
     PushSource,
+    RequestSource,
 )
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
@@ -62,6 +63,7 @@ from feast.errors import (
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view_projection import FeatureViewProjection
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -963,6 +965,36 @@ class FeatureStore:
             sfvs_to_update,
             services_to_update,
         )
+
+        # Handle dual registration for online_enabled FeatureViews
+        online_enabled_views = [
+            view
+            for view in views_to_update
+            if hasattr(view, "online_enabled") and view.online_enabled
+        ]
+
+        for fv in online_enabled_views:
+            # Create OnDemandFeatureView for online serving with same transformation
+            if hasattr(fv, "feature_transformation") and fv.feature_transformation:
+                # Create ODFV with same transformation logic
+                online_fv = OnDemandFeatureView(
+                    name=f"{fv.name}_online",
+                    sources=cast(
+                        List[Union[FeatureView, FeatureViewProjection, RequestSource]],
+                        fv.source_views or [],
+                    ),
+                    schema=fv.schema or [],
+                    feature_transformation=fv.feature_transformation,  # Same transformation!
+                    description=f"Online serving for {fv.name}",
+                    tags=dict(
+                        fv.tags or {},
+                        **{"generated_from": fv.name, "dual_registration": "true"},
+                    ),
+                    owner=fv.owner,
+                )
+
+                # Add to ODFVs to be registered
+                odfvs_to_update.append(online_fv)
 
         # Add all objects to the registry and update the provider's infrastructure.
         for project in projects_to_update:
