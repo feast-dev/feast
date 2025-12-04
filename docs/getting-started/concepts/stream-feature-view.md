@@ -9,7 +9,7 @@
 ### Key Capabilities
 - **Real-time Feature Generation**: Supports defining features that are continuously updated from a streaming source.
 
-- **Transformations**: Apply transformation logic (e.g., `feature_transformation` or `udf`) to raw data source.
+- **Transformations**: Apply transformation logic using the unified `@transformation` decorator with `when="streaming"` for compute engine execution.
 
 - **Aggregations**: Define time-windowed aggregations (e.g., `sum`, `avg`) over event-timestamped data.
 
