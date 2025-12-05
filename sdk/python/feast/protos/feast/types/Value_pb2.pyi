@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import google.protobuf.descriptor
@@ -36,7 +37,7 @@ class _Null:
     ValueType = typing.NewType("ValueType", builtins.int)
     V: typing_extensions.TypeAlias = ValueType
 
-class _NullEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_Null.ValueType], builtins.type):  # noqa: F821
+class _NullEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_Null.ValueType], builtins.type):
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
     NULL: _Null.ValueType  # 0
 
@@ -45,6 +46,7 @@ class Null(_Null, metaclass=_NullEnumTypeWrapper): ...
 NULL: Null.ValueType  # 0
 global___Null = Null
 
+@typing.final
 class ValueType(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -52,7 +54,7 @@ class ValueType(google.protobuf.message.Message):
         ValueType = typing.NewType("ValueType", builtins.int)
         V: typing_extensions.TypeAlias = ValueType
 
-    class _EnumEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[ValueType._Enum.ValueType], builtins.type):  # noqa: F821
+    class _EnumEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[ValueType._Enum.ValueType], builtins.type):
         DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
         INVALID: ValueType._Enum.ValueType  # 0
         BYTES: ValueType._Enum.ValueType  # 1
@@ -99,6 +101,7 @@ class ValueType(google.protobuf.message.Message):
 
 global___ValueType = ValueType
 
+@typing.final
 class Value(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -127,6 +130,7 @@ class Value(google.protobuf.message.Message):
     float_val: builtins.float
     bool_val: builtins.bool
     unix_timestamp_val: builtins.int
+    null_val: global___Null.ValueType
     @property
     def bytes_list_val(self) -> global___BytesList: ...
     @property
@@ -143,7 +147,6 @@ class Value(google.protobuf.message.Message):
     def bool_list_val(self) -> global___BoolList: ...
     @property
     def unix_timestamp_list_val(self) -> global___Int64List: ...
-    null_val: global___Null.ValueType
     def __init__(
         self,
         *,
@@ -165,12 +168,13 @@ class Value(google.protobuf.message.Message):
         unix_timestamp_list_val: global___Int64List | None = ...,
         null_val: global___Null.ValueType = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_val", b"int64_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_val", b"string_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_val", b"int64_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_val", b"string_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["val", b"val"]) -> typing_extensions.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val"] | None: ...
+    def HasField(self, field_name: typing.Literal["bool_list_val", b"bool_list_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_val", b"int64_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_val", b"string_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["bool_list_val", b"bool_list_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_val", b"int64_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_val", b"string_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["val", b"val"]) -> typing.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val"] | None: ...
 
 global___Value = Value
 
+@typing.final
 class BytesList(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -182,10 +186,11 @@ class BytesList(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[builtins.bytes] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___BytesList = BytesList
 
+@typing.final
 class StringList(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -197,10 +202,11 @@ class StringList(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[builtins.str] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___StringList = StringList
 
+@typing.final
 class Int32List(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -212,10 +218,11 @@ class Int32List(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[builtins.int] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___Int32List = Int32List
 
+@typing.final
 class Int64List(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -227,10 +234,11 @@ class Int64List(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[builtins.int] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___Int64List = Int64List
 
+@typing.final
 class DoubleList(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -242,10 +250,11 @@ class DoubleList(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[builtins.float] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___DoubleList = DoubleList
 
+@typing.final
 class FloatList(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -257,10 +266,11 @@ class FloatList(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[builtins.float] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___FloatList = FloatList
 
+@typing.final
 class BoolList(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -272,10 +282,11 @@ class BoolList(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[builtins.bool] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___BoolList = BoolList
 
+@typing.final
 class RepeatedValue(google.protobuf.message.Message):
     """This is to avoid an issue of being unable to specify `repeated value` in oneofs or maps
     In JSON "val" field can be omitted
@@ -291,6 +302,6 @@ class RepeatedValue(google.protobuf.message.Message):
         *,
         val: collections.abc.Iterable[global___Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["val", b"val"]) -> None: ...
 
 global___RepeatedValue = RepeatedValue
