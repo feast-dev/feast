@@ -19,6 +19,9 @@ metadata:
   name: credit-scoring
   namespace: test-ns-feast
 spec:
+  authz:
+    kubernetes:
+      roles: []
   feastProject: credit_scoring_local
   feastProjectDir:
     git:
