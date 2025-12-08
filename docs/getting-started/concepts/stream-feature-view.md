@@ -13,4 +13,6 @@
 
 - **Aggregations**: Define time-windowed aggregations (e.g., `sum`, `avg`) over event-timestamped data.
 
+- **⚡ Tiling with Intermediate Representations**: Enable efficient pre-aggregation with correct merging semantics for holistic aggregations like `avg` and `std`. This provides faster queries while maintaining mathematical accuracy. [Learn more about tiling](tiling.md) 
+
 - **Feature resolution & execution**: Automatically resolves and executes dependent views during materialization or retrieval.

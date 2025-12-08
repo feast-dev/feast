@@ -64,7 +64,7 @@ var _ = Describe("Feast PreUpgrade scenario Testing", Ordered, func() {
 		ApplyFeastInfraManifestsAndVerify(namespace, testDir)
 
 		By("Applying and validating the credit-scoring FeatureStore CR")
-		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName)
+		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName, "test/testdata/feast_integration_test_crs/feast.yaml")
 	}
 
 	// This context ensures the Feast CR setup is functional prior to any upgrade

@@ -216,3 +216,127 @@ func GetOCUser(testDir string) string {
 	output, _ := Run(cmd, testDir)
 	return strings.TrimSpace(string(output))
 }
+
+// SetNamespaceContext sets the kubectl namespace context to the specified namespace
+func SetNamespaceContext(namespace, testDir string) error {
+	cmd := exec.Command("kubectl", "config", "set-context", "--current", "--namespace", namespace)
+	output, err := Run(cmd, testDir)
+	if err != nil {
+		return fmt.Errorf("failed to set namespace context to %s: %w\nOutput: %s", namespace, err, output)
+	}
+	return nil
+}
+
+// CreateNotebookConfigMap creates a ConfigMap containing the notebook file and feature repo
+func CreateNotebookConfigMap(namespace, configMapName, notebookFile, featureRepoPath, testDir string) error {
+	cmd := exec.Command("kubectl", "create", "configmap", configMapName,
+		"--from-file="+notebookFile,
+		"--from-file="+featureRepoPath)
+	output, err := Run(cmd, testDir)
+	if err != nil {
+		return fmt.Errorf("failed to create ConfigMap %s: %w\nOutput: %s", configMapName, err, output)
+	}
+	return nil
+}
+
+// CreateNotebookPVC creates a PersistentVolumeClaim for the notebook
+func CreateNotebookPVC(pvcFile, testDir string) error {
+	cmd := exec.Command("kubectl", "apply", "-f", pvcFile)
+	_, err := Run(cmd, testDir)
+	if err != nil {
+		return fmt.Errorf("failed to create PVC from %s: %w", pvcFile, err)
+	}
+	return nil
+}
+
+// CreateNotebookRoleBinding creates a rolebinding for the user in the specified namespace
+func CreateNotebookRoleBinding(namespace, rolebindingName, username, testDir string) error {
+	cmd := exec.Command("kubectl", "create", "rolebinding", rolebindingName,
+		"-n", namespace,
+		"--role=admin",
+		"--user="+username)
+	_, err := Run(cmd, testDir)
+	if err != nil {
+		return fmt.Errorf("failed to create rolebinding %s: %w", rolebindingName, err)
+	}
+	return nil
+}
+
+// BuildNotebookCommand builds the command array for executing a notebook with papermill
+func BuildNotebookCommand(notebookName, testDir string) []string {
+	return []string{
+		"/bin/sh",
+		"-c",
+		fmt.Sprintf(
+			"pip install papermill && "+
+				"mkdir -p /opt/app-root/src/feature_repo && "+
+				"cp -rL /opt/app-root/notebooks/* /opt/app-root/src/feature_repo/ && "+
+				"oc login --token=%s --server=%s --insecure-skip-tls-verify=true && "+
+				"(papermill /opt/app-root/notebooks/%s /opt/app-root/src/output.ipynb --kernel python3 && "+
+				"echo '✅ Notebook executed successfully' || "+
+				"(echo '❌ Notebook execution failed' && "+
+				"cp /opt/app-root/src/output.ipynb /opt/app-root/src/failed_output.ipynb && "+
+				"echo '📄 Copied failed notebook to failed_output.ipynb')) && "+
+				"jupyter nbconvert --to notebook --stdout /opt/app-root/src/output.ipynb || echo '⚠️ nbconvert failed' && "+
+				"sleep 100; exit 0",
+			GetOCToken(testDir),
+			GetOCServer(testDir),
+			notebookName,
+		),
+	}
+}
+
+// GetNotebookParams builds and returns NotebookTemplateParams from environment variables and configuration
+func GetNotebookParams(namespace, configMapName, notebookPVC, notebookName, testDir string) NotebookTemplateParams {
+	username := GetOCUser(testDir)
+	command := BuildNotebookCommand(notebookName, testDir)
+
+	getEnv := func(key string) string {
+		val, _ := os.LookupEnv(key)
+		return val
+	}
+
+	return NotebookTemplateParams{
+		Namespace:             namespace,
+		IngressDomain:         GetIngressDomain(testDir),
+		OpenDataHubNamespace:  getEnv("APPLICATIONS_NAMESPACE"),
+		NotebookImage:         getEnv("NOTEBOOK_IMAGE"),
+		NotebookConfigMapName: configMapName,
+		NotebookPVC:           notebookPVC,
+		Username:              username,
+		OC_TOKEN:              GetOCToken(testDir),
+		OC_SERVER:             GetOCServer(testDir),
+		NotebookFile:          notebookName,
+		Command:               "[\"" + strings.Join(command, "\",\"") + "\"]",
+		PipIndexUrl:           getEnv("PIP_INDEX_URL"),
+		PipTrustedHost:        getEnv("PIP_TRUSTED_HOST"),
+		FeastVerison:          getEnv("FEAST_VERSION"),
+		OpenAIAPIKey:          getEnv("OPENAI_API_KEY"),
+	}
+}
+
+// SetupNotebookEnvironment performs all the setup steps required for notebook testing
+func SetupNotebookEnvironment(namespace, configMapName, notebookFile, featureRepoPath, pvcFile, rolebindingName, testDir string) error {
+	// Set namespace context
+	if err := SetNamespaceContext(namespace, testDir); err != nil {
+		return fmt.Errorf("failed to set namespace context: %w", err)
+	}
+
+	// Create config map
+	if err := CreateNotebookConfigMap(namespace, configMapName, notebookFile, featureRepoPath, testDir); err != nil {
+		return fmt.Errorf("failed to create config map: %w", err)
+	}
+
+	// Create PVC
+	if err := CreateNotebookPVC(pvcFile, testDir); err != nil {
+		return fmt.Errorf("failed to create PVC: %w", err)
+	}
+
+	// Create rolebinding
+	username := GetOCUser(testDir)
+	if err := CreateNotebookRoleBinding(namespace, rolebindingName, username, testDir); err != nil {
+		return fmt.Errorf("failed to create rolebinding: %w", err)
+	}
+
+	return nil
+}

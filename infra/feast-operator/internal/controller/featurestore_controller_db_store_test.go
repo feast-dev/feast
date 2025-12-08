@@ -574,6 +574,11 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			dbParametersMap := unmarshallYamlString(sqlTypeYamlString)
 			copyMap := services.CopyMap(dbParametersMap)
 			delete(dbParametersMap, "path")
+			// Expect cache_ttl_seconds to be mapped into Registry.CacheTTLSeconds
+			ttlVal, ok := copyMap["cache_ttl_seconds"].(int)
+			Expect(ok).To(BeTrue())
+			ttl := int32(ttlVal)
+			delete(dbParametersMap, "cache_ttl_seconds")
 			testConfig := &services.RepoConfig{
 				Project:                       feastProject,
 				Provider:                      services.LocalProviderType,
@@ -583,9 +588,10 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 					DBParameters: unmarshallYamlString(snowflakeYamlString),
 				},
 				Registry: services.RegistryConfig{
-					Path:         copyMap["path"].(string),
-					RegistryType: services.RegistryDBPersistenceSQLConfigType,
-					DBParameters: dbParametersMap,
+					Path:            copyMap["path"].(string),
+					RegistryType:    services.RegistryDBPersistenceSQLConfigType,
+					CacheTTLSeconds: &ttl,
+					DBParameters:    dbParametersMap,
 				},
 				OnlineStore: services.OnlineStoreConfig{
 					Type:         onlineType,
