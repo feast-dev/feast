@@ -78,7 +78,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
 from feast.project import Project
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -796,7 +795,9 @@ class FeatureStore:
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
         new_infra_proto = new_infra.to_proto()
-        infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto, project=self.project)
+        infra_diff = diff_infra_protos(
+            current_infra_proto, new_infra_proto, project=self.project
+        )
 
         return registry_diff, infra_diff, new_infra
 
