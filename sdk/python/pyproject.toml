@@ -13,3 +13,7 @@ default-section = "third-party"
 files = ["feast","tests"]
 ignore_missing_imports = true
 exclude = ["feast/embedded_go/lib"]
+
+[[tool.mypy.overrides]]
+module = "transformers.*"
+follow_imports = "skip"
