@@ -1048,6 +1048,11 @@ func (in *ServerConfigs) DeepCopyInto(out *ServerConfigs) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.Metrics != nil {
+		in, out := &in.Metrics, &out.Metrics
+		*out = new(bool)
+		**out = **in
+	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
 		*out = make([]v1.VolumeMount, len(*in))

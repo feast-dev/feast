@@ -78,7 +78,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
 from feast.project import Project
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -792,12 +791,13 @@ class FeatureStore:
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
         self._registry.refresh(project=self.project)
-        current_infra_proto = InfraProto()
-        current_infra_proto.CopyFrom(self._registry.proto().infra)
+        current_infra_proto = self._registry.get_infra(self.project).to_proto()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
         new_infra_proto = new_infra.to_proto()
-        infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
+        infra_diff = diff_infra_protos(
+            current_infra_proto, new_infra_proto, project=self.project
+        )
 
         return registry_diff, infra_diff, new_infra
 
@@ -2046,9 +2046,17 @@ class FeatureStore:
         source_columns = [column for column, _ in column_names_and_types]
         input_columns = df.columns.values.tolist()
 
-        if set(input_columns) != set(source_columns):
+        input_columns_set = set(input_columns)
+        source_columns_set = set(source_columns)
+
+        if input_columns_set != source_columns_set:
+            missing_expected_columns = sorted(source_columns_set - input_columns_set)
+            extra_unexpected_columns = sorted(input_columns_set - source_columns_set)
+
             raise ValueError(
-                f"The input dataframe has columns {set(input_columns)} but the batch source has columns {set(source_columns)}."
+                "The input dataframe columns do not match the batch source columns. "
+                f"missing_expected_columns: {missing_expected_columns}, "
+                f"extra_unexpected_columns: {extra_unexpected_columns}."
             )
 
         if reorder_columns:
