@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
@@ -654,10 +654,10 @@ type ServiceHostnames struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:storageversion
 // +kubebuilder:resource:shortName=feast
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
-// +kubebuilder:deprecatedversion:warning="feast.dev/v1alpha1 FeatureStore is deprecated, use feast.dev/v1 instead"
 
 // FeatureStore is the Schema for the featurestores API
 type FeatureStore struct {

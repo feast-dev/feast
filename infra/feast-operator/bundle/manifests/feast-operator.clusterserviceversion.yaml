@@ -5,7 +5,7 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample"
@@ -15,7 +15,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample-remote-servers"
@@ -36,7 +36,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample-ui"
@@ -63,7 +63,7 @@ spec:
       displayName: Feature Store
       kind: FeatureStore
       name: featurestores.feast.dev
-      version: v1alpha1
+      version: v1
   description: Feast (Feature Store) is an open source feature store for machine learning.
   displayName: Feast Operator
   icon:

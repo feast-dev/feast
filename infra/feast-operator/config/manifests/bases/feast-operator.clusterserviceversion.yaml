@@ -14,7 +14,7 @@ spec:
       displayName: Feature Store
       kind: FeatureStore
       name: featurestores.feast.dev
-      version: v1alpha1
+      version: v1
   description: Feast (Feature Store) is an open source feature store for machine learning.
   displayName: Feast Operator
   icon:

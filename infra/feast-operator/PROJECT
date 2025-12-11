@@ -17,6 +17,13 @@ resources:
   controller: true
   domain: feast.dev
   kind: FeatureStore
+  path: github.com/feast-dev/feast/infra/feast-operator/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: feast.dev
+  kind: FeatureStore
   path: github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1
   version: v1alpha1
 version: "3"
