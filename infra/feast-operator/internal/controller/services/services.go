@@ -470,6 +470,13 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 				ContainerPort: getTargetPort(feastType, tls),
 				Protocol:      corev1.ProtocolTCP,
 			})
+			if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
+				container.Ports = append(container.Ports, corev1.ContainerPort{
+					Name:          "metrics",
+					ContainerPort: MetricsPort,
+					Protocol:      corev1.ProtocolTCP,
+				})
+			}
 		}
 
 		container.StartupProbe = &corev1.Probe{
@@ -565,6 +572,10 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	}
 
 	deploySettings := FeastServiceConstants[feastType]
+	deploySettings.Args = append([]string{}, deploySettings.Args...)
+	if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
+		deploySettings.Args = append([]string{deploySettings.Args[0], "--metrics"}, deploySettings.Args[1:]...)
+	}
 	targetPort := deploySettings.TargetHttpPort
 	tls := feast.getTlsConfigs(feastType)
 
@@ -732,6 +743,15 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 		},
 	}
 
+	if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
+		svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{
+			Name:       "metrics",
+			Port:       MetricsPort,
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(int(MetricsPort)),
+		})
+	}
+
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, svc, feast.Handler.Scheme)
 }
 
@@ -798,6 +818,18 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 		return serviceConfigs.LogLevel
 	}
 	return nil
+}
+
+func (feast *FeastServices) isMetricsEnabled(feastType FeastServiceType) bool {
+	if feastType != OnlineFeastType {
+		return false
+	}
+
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil && serviceConfigs.Metrics != nil {
+		return *serviceConfigs.Metrics
+	}
+
+	return false
 }
 
 func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *map[string]string {
@@ -1100,7 +1132,9 @@ func (feast *FeastServices) initRoute(feastType FeastServiceType) *routev1.Route
 }
 
 func applyCtrConfigs(container *corev1.Container, containerConfigs feastdevv1alpha1.ContainerConfigs) {
-	container.Image = *containerConfigs.DefaultCtrConfigs.Image
+	if containerConfigs.DefaultCtrConfigs.Image != nil {
+		container.Image = *containerConfigs.DefaultCtrConfigs.Image
+	}
 	// apply optional container configs
 	if containerConfigs.OptionalCtrConfigs.Env != nil {
 		container.Env = envOverride(container.Env, *containerConfigs.OptionalCtrConfigs.Env)
