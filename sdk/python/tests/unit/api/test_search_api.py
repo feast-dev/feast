@@ -774,7 +774,7 @@ class TestSearchAPI:
 
     def test_search_matched_tag_fuzzy_match(self, search_test_app):
         """Test that matched_tag field is present when a tag matches via fuzzy matching"""
-        # Search for "te" which should fuzzy match tag key "team" 
+        # Search for "te" which should fuzzy match tag key "team"
         # "te" vs "team": overlap={'t','e'}/union={'t','e','a','m'} = 2/4 = 50% (below threshold)
         # Try "tea" which should fuzzy match "team" better
         # "tea" vs "team": overlap={'t','e','a'}/union={'t','e','a','m'} = 3/4 = 75% (above threshold)
