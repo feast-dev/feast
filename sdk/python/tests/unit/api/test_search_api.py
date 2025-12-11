@@ -742,7 +742,6 @@ class TestSearchAPI:
 
         data = response.json()
         results = data["results"]
-        print(results)
 
         # Find results that matched via tags (match_score = 60)
         tag_matched_results = [
@@ -830,11 +829,6 @@ class TestSearchAPI:
 
             logger.debug(
                 f"Found {len(fuzzy_tag_matched_results)} results with fuzzy matched_tag: {[r['name'] + ' -> ' + str(r.get('matched_tag', 'N/A')) + ' (score: ' + str(r.get('match_score', 'N/A')) + ')' for r in fuzzy_tag_matched_results]}"
-            )
-        else:
-            # If no fuzzy matches found, log for debugging but don't fail
-            logger.debug(
-                "No fuzzy tag matches found - this may be expected depending on test data and fuzzy matching threshold"
             )
 
     def test_search_sorting_functionality(self, shared_search_responses):
