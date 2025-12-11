@@ -48,9 +48,10 @@ class ValueType(enum.Enum):
     BOOL_LIST = 17
     UNIX_TIMESTAMP_LIST = 18
     NULL = 19
-    PDF_BYTES = 20
-    IMAGE_BYTES = 21
-
+    MAP = 20
+    MAP_LIST = 21
+    PDF_BYTES = 22
+    IMAGE_BYTES = 23
 
 ListType = Union[
     Type[BoolList],
@@ -61,3 +62,4 @@ ListType = Union[
     Type[Int64List],
     Type[StringList],
 ]
+

@@ -45,6 +45,8 @@ from feast.protos.feast.types.Value_pb2 import (
     Int32List,
     Int64List,
     StringList,
+    Map,
+    MapList,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, ValueType
@@ -73,7 +75,13 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     if val_attr is None:
         return None
     val = getattr(field_value_proto, val_attr)
-
+    
+    # Handle Map and MapList types FIRST (before generic list processing)
+    if val_attr == "map_val":
+        return _handle_map_value(val)
+    elif val_attr == "map_list_val":
+        return _handle_map_list_value(val)
+    
     # If it's a _LIST type extract the list.
     if hasattr(val, "val"):
         val = list(val.val)
@@ -97,6 +105,27 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
 
     return val
 
+def _handle_map_value(map_message) -> Dict[str, Any]:
+    """Handle Map proto message containing map<string, Value> val."""
+    result = {}
+
+    for key, value in map_message.val.items():
+        # Recursively handle the Value message
+        result[key] = feast_value_type_to_python_type(value)
+
+    return result
+
+
+def _handle_map_list_value(map_list_message) -> List[Dict[str, Any]]:
+    """Handle MapList proto message containing repeated Map val."""
+    result = []
+
+    for map_item in map_list_message.val:
+        # Handle each Map in the list
+        processed_map = _handle_map_value(map_item)
+        result.append(processed_map)
+
+    return result
 
 def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
     value_type_to_pandas_type: Dict[ValueType, str] = {
@@ -109,7 +138,7 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
         ValueType.BOOL: "bool",
         ValueType.UNIX_TIMESTAMP: "datetime64[ns]",
     }
-    if value_type.name.endswith("_LIST"):
+    if value_type.name == "MAP" or value_type.name.endswith("_LIST"):
         return "object"
     if value_type in value_type_to_pandas_type:
         return value_type_to_pandas_type[value_type]
@@ -178,6 +207,9 @@ def python_type_to_feast_value_type(
         actual_type = type(value).__name__.lower()
         if actual_type == "str":
             return ValueType.STRING
+        # Check if it's a dictionary (could be a Map)
+        elif actual_type == "dict":
+            return ValueType.MAP
         # If it's a different type wrapped in object, try to infer from the value
         elif actual_type in type_map:
             return type_map[actual_type]
@@ -187,6 +219,9 @@ def python_type_to_feast_value_type(
         return ValueType[item_type.name + "_LIST"]
 
     if isinstance(value, (list, np.ndarray)):
+        # Check if it's a list of maps
+        if value and isinstance(value[0], dict):
+            return ValueType.MAP_LIST
         # if the value's type is "ndarray" and we couldn't infer from "value.dtype"
         # this is most probably array of "object",
         # so we need to iterate over objects and try to infer type of each item
@@ -221,6 +256,10 @@ def python_type_to_feast_value_type(
         if common_item_value_type is None:
             return ValueType.UNKNOWN
         return ValueType[common_item_value_type.name + "_LIST"]
+
+    # Check if it's a dictionary (Map type)
+    if isinstance(value, dict):
+        return ValueType.MAP
 
     raise ValueError(
         f"Value with native type {type_name} cannot be converted into Feast value type"
@@ -372,9 +411,22 @@ def _python_value_to_proto_value(
     Returns:
         List of Feast Value Proto
     """
+    # Handle Map and MapList types first
+    if feast_value_type == ValueType.MAP:
+        return [
+            ProtoValue(map_val=_python_dict_to_map_proto(value)) if value is not None else ProtoValue()
+            for value in values
+        ]
+
+    if feast_value_type == ValueType.MAP_LIST:
+        return [
+            ProtoValue(map_list_val=_python_list_to_map_list_proto(value)) if value is not None else ProtoValue()
+            for value in values
+        ]
+
     # ToDo: make a better sample for type checks (more than one element)
     sample = next(filter(_non_empty_value, values), None)  # first not empty value
-
+    
     # Detect list type and handle separately
     if "list" in feast_value_type.name.lower():
         # Feature can be list but None is still valid
@@ -512,6 +564,45 @@ def _python_value_to_proto_value(
     raise Exception(f"Unsupported data type: ${str(type(values[0]))}")
 
 
+def _python_dict_to_map_proto(python_dict: Dict[str, Any]) -> Map:
+    """Convert a Python dictionary to a Map proto message."""
+    map_proto = Map()
+    for key, value in python_dict.items():
+        # Handle None values explicitly
+        if value is None:
+            map_proto.val[key].CopyFrom(ProtoValue())  # Empty ProtoValue represents None
+            continue
+
+        if isinstance(value, dict):
+            # Nested map
+            nested_map_proto = _python_dict_to_map_proto(value)
+            map_proto.val[key].CopyFrom(ProtoValue(map_val=nested_map_proto))
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            # List of maps (MapList)
+            map_list_proto = _python_list_to_map_list_proto(value)
+            map_proto.val[key].CopyFrom(ProtoValue(map_list_val=map_list_proto))
+        else:
+            # Handle scalar values and regular lists
+            # Let python_values_to_proto_values infer the type
+            proto_values = python_values_to_proto_values([value], ValueType.UNKNOWN)
+            map_proto.val[key].CopyFrom(proto_values[0])
+    return map_proto
+
+
+def _python_list_to_map_list_proto(python_list: List[Dict[str, Any]]) -> MapList:
+    """Convert a Python list of dictionaries to a MapList proto message."""
+    map_list_proto = MapList()
+
+    for item in python_list:
+        if isinstance(item, dict):
+            map_proto = _python_dict_to_map_proto(item)
+            map_list_proto.val.append(map_proto)
+        else:
+            raise ValueError(f"MapList can only contain dictionaries, got {type(item)}")
+
+    return map_list_proto
+
+
 def python_values_to_proto_values(
     values: List[Any], feature_type: ValueType = ValueType.UNKNOWN
 ) -> List[ProtoValue]:
@@ -555,6 +646,8 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "string_list_val": ValueType.STRING_LIST,
     "bytes_list_val": ValueType.BYTES_LIST,
     "bool_list_val": ValueType.BOOL_LIST,
+    "map_val": ValueType.MAP,
+    "map_list_val": ValueType.MAP_LIST,
 }
 
 VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
@@ -1177,3 +1270,4 @@ def convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series:
             return item
 
     return series.apply(convert_array_item)
+
