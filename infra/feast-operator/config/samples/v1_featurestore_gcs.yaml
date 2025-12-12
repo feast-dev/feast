@@ -19,7 +19,7 @@ stringData:
     xxxx
     xxxxx
 ---
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
   name: gcs
