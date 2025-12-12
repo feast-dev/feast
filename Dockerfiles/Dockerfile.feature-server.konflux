@@ -4,8 +4,7 @@ FROM registry.access.redhat.com/ubi9/python-311@sha256:9d3578927c6168e364f963b64
 USER 0
 
 # Upgrade base packages for consistency across all arches
-RUN dnf upgrade -y ncurses ncurses-base ncurses-libs perl-Errno perl-interpreter perl-libs \
-    && dnf clean all
+RUN dnf upgrade -y --refresh && dnf clean all
 
 # Copy Power prebuild script
 COPY prebuild-power.sh /prebuild-power.sh
