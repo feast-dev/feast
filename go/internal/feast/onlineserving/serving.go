@@ -255,7 +255,7 @@ func GetEntityMaps(requestedFeatureViews []*FeatureViewAndRefs, entities []*mode
 		}
 
 		for _, entityName := range featureView.EntityNames {
-			joinKey := entitiesByName[entityName].JoinKey
+			joinKey := entitiesByName[entityName].JoinKey()
 			entityNameToJoinKeyMap[entityName] = joinKey
 
 			if alias, ok := joinKeyToAliasMap[joinKey]; ok {
