@@ -72,6 +72,7 @@ type FeatureStoreReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.3/pkg/reconcile
 func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
 	logger := log.FromContext(ctx)
+	logger.Info("Reconciling FeatureStore", "request", req)
 
 	cr := &feastdevv1alpha1.FeatureStore{}
 	err := r.Get(ctx, req.NamespacedName, cr)
