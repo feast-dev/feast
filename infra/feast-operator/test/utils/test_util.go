@@ -26,6 +26,7 @@ const (
 	FeastPrefix              = "feast-"
 	FeatureStoreName         = "simple-feast-setup"
 	FeastResourceName        = FeastPrefix + FeatureStoreName
+	FeatureStoreResourceName = "featurestores.feast.dev"
 )
 
 // dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
@@ -33,7 +34,7 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	// Wait 10 seconds to lets the feature store status update
 	time.Sleep(1 * time.Minute)
 
-	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace, "-o", "json")
+	cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace, "-o", "json")
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -179,7 +180,16 @@ func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (boo
 	startTime := time.Now()
 
 	for time.Since(startTime) < timeout {
-		cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
+		// First check if the resource exists
+		checkCmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace)
+		if err := checkCmd.Run(); err != nil {
+			// Resource doesn't exist yet, retry
+			fmt.Printf("FeatureStore %s/%s does not exist yet, waiting...\n", namespace, featureStoreName)
+			time.Sleep(interval)
+			continue
+		}
+
+		cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace,
 			"-o=jsonpath='{.status.applied.services.registry}'")
 
 		output, err := cmd.Output()
