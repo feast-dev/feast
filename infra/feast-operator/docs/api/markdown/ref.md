@@ -1,12 +1,12 @@
 # API Reference
 
 ## Packages
-- [feast.dev/v1alpha1](#feastdevv1alpha1)
+- [feast.dev/v1](#feastdevv1)
 
 
-## feast.dev/v1alpha1
+## feast.dev/v1
 
-Package v1alpha1 contains API Schema definitions for the  v1alpha1 API group
+Package v1 contains API Schema definitions for the v1 API group
 
 ### Resource Types
 - [FeatureStore](#featurestore)
@@ -166,7 +166,7 @@ FeatureStore is the Schema for the featurestores API
 
 | Field | Description |
 | --- | --- |
-| `apiVersion` _string_ | `feast.dev/v1alpha1`
+| `apiVersion` _string_ | `feast.dev/v1`
 | `kind` _string_ | `FeatureStore`
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
 | `spec` _[FeatureStoreSpec](#featurestorespec)_ |  |

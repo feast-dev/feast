@@ -25,7 +25,7 @@ import (
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -46,7 +46,7 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 			Name:      resourceName,
 			Namespace: "default",
 		}
-		featurestore := &feastdevv1alpha1.FeatureStore{}
+		featurestore := &feastdevv1.FeatureStore{}
 		onlineStorePath := "/data/online.db"
 		registryPath := "/data/registry.db"
 
@@ -55,20 +55,20 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreVolumeResource(resourceName, image, pullPolicy)
-				resource.Spec.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{
-					FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
+				resource.Spec.Services.OfflineStore.Persistence = &feastdevv1.OfflineStorePersistence{
+					FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
 						Type: offlineType,
 					},
 				}
-				resource.Spec.Services.OnlineStore.Persistence = &feastdevv1alpha1.OnlineStorePersistence{
-					FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
+				resource.Spec.Services.OnlineStore.Persistence = &feastdevv1.OnlineStorePersistence{
+					FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
 						Path: onlineStorePath,
 					},
 				}
-				resource.Spec.Services.Registry = &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+				resource.Spec.Services.Registry = &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Persistence: &feastdevv1.RegistryPersistence{
+							FilePersistence: &feastdevv1.RegistryFilePersistence{
 								Path: registryPath,
 							},
 						},
@@ -78,7 +78,7 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 			}
 		})
 		AfterEach(func() {
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -99,7 +99,7 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -108,7 +108,7 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: resource,
+					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
 				},
 			}
 
@@ -158,7 +158,7 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 	})
 })
 
-func createFeatureStoreVolumeResource(resourceName string, image string, pullPolicy corev1.PullPolicy) *feastdevv1alpha1.FeatureStore {
+func createFeatureStoreVolumeResource(resourceName string, image string, pullPolicy corev1.PullPolicy) *feastdevv1.FeatureStore {
 	volume := corev1.Volume{
 		Name: "test-volume",
 		VolumeSource: corev1.VolumeSource{
@@ -170,40 +170,40 @@ func createFeatureStoreVolumeResource(resourceName string, image string, pullPol
 		MountPath: "/data",
 	}
 
-	return &feastdevv1alpha1.FeatureStore{
+	return &feastdevv1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
 			Namespace: "default",
 		},
-		Spec: feastdevv1alpha1.FeatureStoreSpec{
+		Spec: feastdevv1.FeatureStoreSpec{
 			FeastProject: feastProject,
-			Services: &feastdevv1alpha1.FeatureStoreServices{
+			Services: &feastdevv1.FeatureStoreServices{
 				Volumes: []corev1.Volume{volume},
-				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					Server: &feastdevv1alpha1.ServerConfigs{
-						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{},
+				OfflineStore: &feastdevv1.OfflineStore{
+					Server: &feastdevv1.ServerConfigs{
+						ContainerConfigs: feastdevv1.ContainerConfigs{},
 					},
 				},
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					Server: &feastdevv1alpha1.ServerConfigs{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Server: &feastdevv1.ServerConfigs{
 						VolumeMounts: []corev1.VolumeMount{volumeMount},
-						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
-							DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+						ContainerConfigs: feastdevv1.ContainerConfigs{
+							DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
 								Image: &image,
 							},
-							OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+							OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 								ImagePullPolicy: &pullPolicy,
 								Resources:       &corev1.ResourceRequirements{},
 							},
 						},
 					},
 				},
-				UI: &feastdevv1alpha1.ServerConfigs{
-					ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
-						DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+				UI: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
 							Image: &image,
 						},
-						OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 							ImagePullPolicy: &pullPolicy,
 							Resources:       &corev1.ResourceRequirements{},
 						},

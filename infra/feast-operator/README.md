@@ -13,15 +13,17 @@ This is a K8s Operator that can be used to deploy and manage **Feast**, an open 
 
 ## To deploy an Operator release on a cluster
 
-Users can just run `kubectl apply -f <URL for YAML BUNDLE>` to install the project, i.e.:
+Users can deploy the operator using Server-Side Apply to avoid CRD annotation size limits:
 
 ```sh
 ## Install the latest release -
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
 
 ## OR, install a specific version -
-# kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
+# kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
 ```
+
+> **NOTE**: Server-Side Apply (`--server-side`) is required because the CRD includes both v1alpha1 and v1 API versions, making it too large for the standard `kubectl apply` annotation limit. If you encounter annotation size errors, use `--server-side --force-conflicts` flags.
 ##### Feast Operator Demo Videos
 [![](https://img.youtube.com/vi/48cb4AHxPR4/0.jpg)](https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX)
 

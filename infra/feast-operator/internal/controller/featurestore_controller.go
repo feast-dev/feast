@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 	"time"
 
@@ -36,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/authz"
 	feasthandler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
@@ -66,6 +68,37 @@ type FeatureStoreReconciler struct {
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
 
+// convertV1ToV1Alpha1 converts a v1 FeatureStore to v1alpha1 for internal use
+// Since both types have identical structures, we use JSON marshaling/unmarshaling
+func convertV1ToV1Alpha1(v1Obj *feastdevv1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	// Use JSON marshaling/unmarshaling since both types have identical JSON structure
+	v1alpha1Obj := &feastdevv1alpha1.FeatureStore{
+		ObjectMeta: v1Obj.ObjectMeta,
+	}
+
+	// Copy spec and status using JSON as intermediate format
+	specData, err := json.Marshal(v1Obj.Spec)
+	if err != nil {
+		// If marshaling fails, return object with just metadata
+		return v1alpha1Obj
+	}
+	if err := json.Unmarshal(specData, &v1alpha1Obj.Spec); err != nil {
+		// If unmarshaling fails, return object with just metadata
+		return v1alpha1Obj
+	}
+	statusData, err := json.Marshal(v1Obj.Status)
+	if err != nil {
+		// If marshaling fails, return object with spec but no status
+		return v1alpha1Obj
+	}
+	if err := json.Unmarshal(statusData, &v1alpha1Obj.Status); err != nil {
+		// If unmarshaling fails, return object with spec but no status
+		return v1alpha1Obj
+	}
+
+	return v1alpha1Obj
+}
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // For more details, check Reconcile and its Result here:
@@ -73,8 +106,11 @@ type FeatureStoreReconciler struct {
 func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
 	logger := log.FromContext(ctx)
 
-	cr := &feastdevv1alpha1.FeatureStore{}
-	err := r.Get(ctx, req.NamespacedName, cr)
+	// Try to get as v1 first (storage version), then fall back to v1alpha1
+	var cr *feastdevv1alpha1.FeatureStore
+	var originalV1Obj *feastdevv1.FeatureStore
+	v1Obj := &feastdevv1.FeatureStore{}
+	err := r.Get(ctx, req.NamespacedName, v1Obj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// CR deleted since request queued, child objects getting GC'd, no requeue
@@ -91,9 +127,33 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}
 			return ctrl.Result{}, nil
 		}
-		// error fetching FeatureStore instance, requeue and try again
-		logger.Error(err, "Unable to get FeatureStore CR")
-		return ctrl.Result{}, err
+		// Try v1alpha1 if v1 fails
+		v1alpha1Obj := &feastdevv1alpha1.FeatureStore{}
+		err = r.Get(ctx, req.NamespacedName, v1alpha1Obj)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// CR deleted since request queued, child objects getting GC'd, no requeue
+				logger.V(1).Info("FeatureStore CR not found, has been deleted")
+				// Clean up namespace registry entry even if the CR is not found
+				if err := r.cleanupNamespaceRegistry(ctx, &feastdevv1alpha1.FeatureStore{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      req.NamespacedName.Name,
+						Namespace: req.NamespacedName.Namespace,
+					},
+				}); err != nil {
+					logger.Error(err, "Failed to clean up namespace registry entry for deleted FeatureStore")
+					// Don't return error here as the CR is already deleted
+				}
+				return ctrl.Result{}, nil
+			}
+			logger.Error(err, "Unable to get FeatureStore CR")
+			return ctrl.Result{}, err
+		}
+		cr = v1alpha1Obj
+	} else {
+		// Convert v1 to v1alpha1 for internal use
+		originalV1Obj = v1Obj
+		cr = convertV1ToV1Alpha1(v1Obj)
 	}
 	currentStatus := cr.Status.DeepCopy()
 
@@ -109,7 +169,27 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	result, recErr = r.deployFeast(ctx, cr)
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
-		if err = r.Client.Status().Update(ctx, cr); err != nil {
+		// Update status - need to update in the original version (v1 if it was v1, v1alpha1 if it was v1alpha1)
+		var statusObj client.Object
+		if originalV1Obj != nil {
+			// Convert back to v1 for status update
+			originalV1Obj.Status = feastdevv1.FeatureStoreStatus{}
+			statusData, err := json.Marshal(cr.Status)
+			if err != nil {
+				logger.Error(err, "Failed to marshal status for v1 conversion")
+				statusObj = cr
+			} else {
+				if err := json.Unmarshal(statusData, &originalV1Obj.Status); err != nil {
+					logger.Error(err, "Failed to unmarshal status for v1 conversion")
+					statusObj = cr
+				} else {
+					statusObj = originalV1Obj
+				}
+			}
+		} else {
+			statusObj = cr
+		}
+		if err = r.Client.Status().Update(ctx, statusObj); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.Info("FeatureStore object modified, retry syncing status")
 				// Re-queue and preserve existing recErr
@@ -220,7 +300,7 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 // SetupWithManager sets up the controller with the Manager.
 func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	bldr := ctrl.NewControllerManagedBy(mgr).
-		For(&feastdevv1alpha1.FeatureStore{}).
+		For(&feastdevv1.FeatureStore{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
@@ -229,7 +309,12 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&batchv1.CronJob{}).
+		Watches(&feastdevv1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests)).
 		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests))
+
+	// Also watch v1alpha1 for backwards compatibility
+	bldr = bldr.Watches(&feastdevv1alpha1.FeatureStore{}, &handler.EnqueueRequestForObject{})
+
 	if services.IsOpenShift() {
 		bldr = bldr.Owns(&routev1.Route{})
 	}
@@ -255,7 +340,18 @@ func (r *FeatureStoreReconciler) cleanupNamespaceRegistry(ctx context.Context, c
 // if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.
 func (r *FeatureStoreReconciler) mapFeastRefsToFeastRequests(ctx context.Context, object client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
-	feastRef := object.(*feastdevv1alpha1.FeatureStore)
+
+	// Handle both v1 and v1alpha1 versions
+	var feastRef *feastdevv1alpha1.FeatureStore
+	switch obj := object.(type) {
+	case *feastdevv1.FeatureStore:
+		feastRef = convertV1ToV1Alpha1(obj)
+	case *feastdevv1alpha1.FeatureStore:
+		feastRef = obj
+	default:
+		logger.Error(nil, "Unexpected object type in mapFeastRefsToFeastRequests")
+		return nil
+	}
 
 	// list all FeatureStores in the cluster
 	var feastList feastdevv1alpha1.FeatureStoreList

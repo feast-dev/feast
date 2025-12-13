@@ -26,6 +26,7 @@ const (
 	FeastPrefix              = "feast-"
 	FeatureStoreName         = "simple-feast-setup"
 	FeastResourceName        = FeastPrefix + FeatureStoreName
+	FeatureStoreResourceName = "featurestores.feast.dev"
 )
 
 // dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
@@ -33,7 +34,7 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	// Wait 10 seconds to lets the feature store status update
 	time.Sleep(1 * time.Minute)
 
-	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace, "-o", "json")
+	cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace, "-o", "json")
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -174,12 +175,21 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 }
 
 func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (bool, error) {
-	timeout := time.Second * 30
+	timeout := 5 * time.Minute
 	interval := time.Second * 2 // Poll every 2 seconds
 	startTime := time.Now()
 
 	for time.Since(startTime) < timeout {
-		cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
+		// First check if the resource exists
+		checkCmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace)
+		if err := checkCmd.Run(); err != nil {
+			// Resource doesn't exist yet, retry
+			fmt.Printf("FeatureStore %s/%s does not exist yet, waiting...\n", namespace, featureStoreName)
+			time.Sleep(interval)
+			continue
+		}
+
+		cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace,
 			"-o=jsonpath='{.status.applied.services.registry}'")
 
 		output, err := cmd.Output()
@@ -429,7 +439,17 @@ func DeleteOperatorDeployment(testDir string) {
 func DeployPreviousVersionOperator() {
 	var err error
 
-	cmd := exec.Command("kubectl", "apply", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
+	// Delete existing CRD first to avoid version conflicts when downgrading
+	// The old operator version may not have v1, but the cluster might have v1 in status.storedVersions
+	By("Deleting existing CRD to allow downgrade to previous version")
+	cmd := exec.Command("kubectl", "delete", "crd", "featurestores.feast.dev", "--ignore-not-found=true")
+	_, err = Run(cmd, "/test/upgrade")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	// Wait a bit for CRD deletion to complete
+	time.Sleep(2 * time.Second)
+
+	cmd = exec.Command("kubectl", "apply", "--server-side", "--force-conflicts", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
 	_, err = Run(cmd, "/test/upgrade")
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
