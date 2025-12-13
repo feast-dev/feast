@@ -53,6 +53,7 @@ class ValueType(enum.Enum):
     PDF_BYTES = 22
     IMAGE_BYTES = 23
 
+
 ListType = Union[
     Type[BoolList],
     Type[BytesList],
@@ -62,4 +63,3 @@ ListType = Union[
     Type[Int64List],
     Type[StringList],
 ]
-

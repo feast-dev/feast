@@ -2,15 +2,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from feast.protos.feast.types.Value_pb2 import Map, MapList
 from feast.type_map import (
-    feast_value_type_to_python_type,
-    python_values_to_proto_values,
-    python_type_to_feast_value_type,
     _python_dict_to_map_proto,
     _python_list_to_map_list_proto,
+    feast_value_type_to_python_type,
+    python_type_to_feast_value_type,
+    python_values_to_proto_values,
 )
 from feast.value_type import ValueType
-from feast.protos.feast.types.Value_pb2 import Value as ProtoValue, Map, MapList
 
 
 def test_null_unix_timestamp():
@@ -119,13 +119,10 @@ class TestMapTypes:
         """Test nested MAP type conversion."""
         test_dict = {
             "level1": {
-                "level2": {
-                    "key": "deep_value",
-                    "number": 42
-                },
-                "simple": "value"
+                "level2": {"key": "deep_value", "number": 42},
+                "simple": "value",
             },
-            "top_level": "top_value"
+            "top_level": "top_value",
         }
 
         protos = python_values_to_proto_values([test_dict], ValueType.MAP)
@@ -145,7 +142,7 @@ class TestMapTypes:
             "float_val": 3.14,
             "bool_val": True,
             "list_val": [1, 2, 3],
-            "string_list_val": ["a", "b", "c"]
+            "string_list_val": ["a", "b", "c"],
         }
 
         protos = python_values_to_proto_values([test_dict], ValueType.MAP)
@@ -191,7 +188,7 @@ class TestMapTypes:
         test_list = [
             {"name": "John", "age": 30},
             {"name": "Jane", "age": 25},
-            {"name": "Bob", "score": 85.5}
+            {"name": "Bob", "score": 85.5},
         ]
 
         protos = python_values_to_proto_values([test_list], ValueType.MAP_LIST)
@@ -209,14 +206,8 @@ class TestMapTypes:
     def test_map_list_with_nested_maps(self):
         """Test MAP_LIST with nested maps."""
         test_list = [
-            {
-                "user": {"name": "John", "details": {"city": "NYC"}},
-                "score": 100
-            },
-            {
-                "user": {"name": "Jane", "details": {"city": "SF"}},
-                "score": 95
-            }
+            {"user": {"name": "John", "details": {"city": "NYC"}}, "score": 100},
+            {"user": {"name": "Jane", "details": {"city": "SF"}}, "score": 95},
         ]
 
         protos = python_values_to_proto_values([test_list], ValueType.MAP_LIST)
@@ -232,7 +223,7 @@ class TestMapTypes:
         """Test MAP_LIST where maps contain lists."""
         test_list = [
             {"name": "John", "hobbies": ["reading", "swimming"]},
-            {"name": "Jane", "scores": [95, 87, 92]}
+            {"name": "Jane", "scores": [95, 87, 92]},
         ]
 
         protos = python_values_to_proto_values([test_list], ValueType.MAP_LIST)
@@ -293,7 +284,7 @@ class TestMapTypes:
         test_dicts = [
             {"name": "Alice", "age": 30},
             {"name": "Bob", "age": 25},
-            {"name": "Charlie", "city": "NYC"}
+            {"name": "Charlie", "city": "NYC"},
         ]
 
         protos = python_values_to_proto_values(test_dicts, ValueType.MAP)
@@ -306,11 +297,7 @@ class TestMapTypes:
 
     def test_multiple_map_list_values(self):
         """Test conversion of multiple MAP_LIST values."""
-        test_lists = [
-            [{"id": 1}, {"id": 2}],
-            [{"id": 3}, {"id": 4}],
-            []
-        ]
+        test_lists = [[{"id": 1}, {"id": 2}], [{"id": 3}, {"id": 4}], []]
 
         protos = python_values_to_proto_values(test_lists, ValueType.MAP_LIST)
         converted_values = [feast_value_type_to_python_type(proto) for proto in protos]
@@ -324,10 +311,7 @@ class TestMapTypes:
         """Test MAP containing MAP_LIST as a value."""
         test_dict = {
             "metadata": {"version": "1.0"},
-            "items": [
-                {"name": "item1", "count": 5},
-                {"name": "item2", "count": 3}
-            ]
+            "items": [{"name": "item1", "count": 5}, {"name": "item2", "count": 3}],
         }
 
         protos = python_values_to_proto_values([test_dict], ValueType.MAP)
@@ -338,11 +322,14 @@ class TestMapTypes:
         assert converted["items"][0]["name"] == "item1"
         assert converted["items"][1]["count"] == 3
 
-    @pytest.mark.parametrize("invalid_value", [
-        [{"key": "value"}, "not_a_dict", {"another": "dict"}],
-        ["string1", "string2"],
-        [1, 2, 3]
-    ])
+    @pytest.mark.parametrize(
+        "invalid_value",
+        [
+            [{"key": "value"}, "not_a_dict", {"another": "dict"}],
+            ["string1", "string2"],
+            [1, 2, 3],
+        ],
+    )
     def test_map_list_with_invalid_items(self, invalid_value):
         """Test that MAP_LIST with non-dict items raises appropriate errors."""
         with pytest.raises((ValueError, TypeError)):
@@ -371,14 +358,8 @@ class TestMapTypes:
             "integer": 42,
             "float": 3.14159,
             "boolean": True,
-            "nested": {
-                "inner_string": "world",
-                "inner_list": [1, 2, 3]
-            },
-            "list_of_maps": [
-                {"item": "first"},
-                {"item": "second"}
-            ]
+            "nested": {"inner_string": "world", "inner_list": [1, 2, 3]},
+            "list_of_maps": [{"item": "first"}, {"item": "second"}],
         }
 
         # Convert to proto and back
@@ -390,9 +371,11 @@ class TestMapTypes:
         assert converted["integer"] == original_map["integer"]
         assert converted["float"] == original_map["float"]
         assert converted["boolean"] == original_map["boolean"]
-        assert converted["nested"]["inner_string"] == original_map["nested"]["inner_string"]
+        assert (
+            converted["nested"]["inner_string"]
+            == original_map["nested"]["inner_string"]
+        )
         assert converted["nested"]["inner_list"] == original_map["nested"]["inner_list"]
         assert len(converted["list_of_maps"]) == len(original_map["list_of_maps"])
         assert converted["list_of_maps"][0]["item"] == "first"
         assert converted["list_of_maps"][1]["item"] == "second"
-

@@ -44,9 +44,9 @@ from feast.protos.feast.types.Value_pb2 import (
     FloatList,
     Int32List,
     Int64List,
-    StringList,
     Map,
     MapList,
+    StringList,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, ValueType
@@ -75,13 +75,13 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     if val_attr is None:
         return None
     val = getattr(field_value_proto, val_attr)
-    
+
     # Handle Map and MapList types FIRST (before generic list processing)
     if val_attr == "map_val":
         return _handle_map_value(val)
     elif val_attr == "map_list_val":
         return _handle_map_list_value(val)
-    
+
     # If it's a _LIST type extract the list.
     if hasattr(val, "val"):
         val = list(val.val)
@@ -105,6 +105,7 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
 
     return val
 
+
 def _handle_map_value(map_message) -> Dict[str, Any]:
     """Handle Map proto message containing map<string, Value> val."""
     result = {}
@@ -126,6 +127,7 @@ def _handle_map_list_value(map_list_message) -> List[Dict[str, Any]]:
         result.append(processed_map)
 
     return result
+
 
 def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
     value_type_to_pandas_type: Dict[ValueType, str] = {
@@ -414,19 +416,23 @@ def _python_value_to_proto_value(
     # Handle Map and MapList types first
     if feast_value_type == ValueType.MAP:
         return [
-            ProtoValue(map_val=_python_dict_to_map_proto(value)) if value is not None else ProtoValue()
+            ProtoValue(map_val=_python_dict_to_map_proto(value))
+            if value is not None
+            else ProtoValue()
             for value in values
         ]
 
     if feast_value_type == ValueType.MAP_LIST:
         return [
-            ProtoValue(map_list_val=_python_list_to_map_list_proto(value)) if value is not None else ProtoValue()
+            ProtoValue(map_list_val=_python_list_to_map_list_proto(value))
+            if value is not None
+            else ProtoValue()
             for value in values
         ]
 
     # ToDo: make a better sample for type checks (more than one element)
     sample = next(filter(_non_empty_value, values), None)  # first not empty value
-    
+
     # Detect list type and handle separately
     if "list" in feast_value_type.name.lower():
         # Feature can be list but None is still valid
@@ -570,7 +576,9 @@ def _python_dict_to_map_proto(python_dict: Dict[str, Any]) -> Map:
     for key, value in python_dict.items():
         # Handle None values explicitly
         if value is None:
-            map_proto.val[key].CopyFrom(ProtoValue())  # Empty ProtoValue represents None
+            map_proto.val[key].CopyFrom(
+                ProtoValue()
+            )  # Empty ProtoValue represents None
             continue
 
         if isinstance(value, dict):
@@ -1270,4 +1278,3 @@ def convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series:
             return item
 
     return series.apply(convert_array_item)
-

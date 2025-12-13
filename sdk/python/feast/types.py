@@ -290,4 +290,3 @@ def from_feast_type(
         ]
 
     raise ValueError(f"Could not convert feast type {feast_type} to ValueType.")
-
