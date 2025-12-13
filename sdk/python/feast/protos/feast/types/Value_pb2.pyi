@@ -72,6 +72,8 @@ class ValueType(google.protobuf.message.Message):
         BOOL_LIST: ValueType._Enum.ValueType  # 17
         UNIX_TIMESTAMP_LIST: ValueType._Enum.ValueType  # 18
         NULL: ValueType._Enum.ValueType  # 19
+        MAP: ValueType._Enum.ValueType  # 20
+        MAP_LIST: ValueType._Enum.ValueType  # 21
 
     class Enum(_Enum, metaclass=_EnumEnumTypeWrapper): ...
     INVALID: ValueType.Enum.ValueType  # 0
@@ -92,6 +94,8 @@ class ValueType(google.protobuf.message.Message):
     BOOL_LIST: ValueType.Enum.ValueType  # 17
     UNIX_TIMESTAMP_LIST: ValueType.Enum.ValueType  # 18
     NULL: ValueType.Enum.ValueType  # 19
+    MAP: ValueType.Enum.ValueType  # 20
+    MAP_LIST: ValueType.Enum.ValueType  # 21
 
     def __init__(
         self,
@@ -119,6 +123,8 @@ class Value(google.protobuf.message.Message):
     BOOL_LIST_VAL_FIELD_NUMBER: builtins.int
     UNIX_TIMESTAMP_LIST_VAL_FIELD_NUMBER: builtins.int
     NULL_VAL_FIELD_NUMBER: builtins.int
+    MAP_VAL_FIELD_NUMBER: builtins.int
+    MAP_LIST_VAL_FIELD_NUMBER: builtins.int
     bytes_val: builtins.bytes
     string_val: builtins.str
     int32_val: builtins.int
@@ -144,6 +150,10 @@ class Value(google.protobuf.message.Message):
     @property
     def unix_timestamp_list_val(self) -> global___Int64List: ...
     null_val: global___Null.ValueType
+    @property
+    def map_val(self) -> global___Map: ...
+    @property
+    def map_list_val(self) -> global___MapList: ...
     def __init__(
         self,
         *,
@@ -164,10 +174,12 @@ class Value(google.protobuf.message.Message):
         bool_list_val: global___BoolList | None = ...,
         unix_timestamp_list_val: global___Int64List | None = ...,
         null_val: global___Null.ValueType = ...,
+        map_val: global___Map | None = ...,
+        map_list_val: global___MapList | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_val", b"int64_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_val", b"string_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_val", b"int64_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_val", b"string_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["val", b"val"]) -> typing_extensions.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_val", b"int64_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_val", b"string_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_val", b"int64_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_val", b"string_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["val", b"val"]) -> typing_extensions.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val", "map_val", "map_list_val"] | None: ...
 
 global___Value = Value
 
@@ -275,6 +287,53 @@ class BoolList(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
 
 global___BoolList = BoolList
+
+class Map(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class ValEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        @property
+        def value(self) -> global___Value: ...
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: global___Value | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+    VAL_FIELD_NUMBER: builtins.int
+    @property
+    def val(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, global___Value]: ...
+    def __init__(
+        self,
+        *,
+        val: collections.abc.Mapping[builtins.str, global___Value] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+
+global___Map = Map
+
+class MapList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    VAL_FIELD_NUMBER: builtins.int
+    @property
+    def val(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Map]: ...
+    def __init__(
+        self,
+        *,
+        val: collections.abc.Iterable[global___Map] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+
+global___MapList = MapList
 
 class RepeatedValue(google.protobuf.message.Message):
     """This is to avoid an issue of being unable to specify `repeated value` in oneofs or maps
