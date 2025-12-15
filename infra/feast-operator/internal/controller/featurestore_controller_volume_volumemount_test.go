@@ -108,7 +108,7 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 

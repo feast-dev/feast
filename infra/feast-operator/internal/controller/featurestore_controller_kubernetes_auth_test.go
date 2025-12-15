@@ -104,7 +104,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 			Expect(resource.Status).NotTo(BeNil())
@@ -221,7 +221,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			// check Feast Role
 			feastRole := &rbacv1.Role{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      authz.GetFeastRoleName(convertV1ToV1Alpha1ForTests(resource)),
+				Name:      authz.GetFeastRoleName(resource),
 				Namespace: resource.Namespace,
 			},
 				feastRole)
@@ -241,7 +241,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			// check RoleBinding
 			roleBinding := &rbacv1.RoleBinding{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      authz.GetFeastRoleName(convertV1ToV1Alpha1ForTests(resource)),
+				Name:      authz.GetFeastRoleName(resource),
 				Namespace: resource.Namespace,
 			},
 				roleBinding)
@@ -283,7 +283,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			feast.Handler.FeatureStore = convertV1ToV1Alpha1ForTests(resource)
+			feast.Handler.FeatureStore = resource
 
 			// check new Roles
 			for _, roleName := range rolesNew {
@@ -321,7 +321,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			feast.Handler.FeatureStore = convertV1ToV1Alpha1ForTests(resource)
+			feast.Handler.FeatureStore = resource
 
 			// check no Roles
 			for _, roleName := range roles {
@@ -337,7 +337,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			// check no RoleBinding
 			roleBinding = &rbacv1.RoleBinding{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      authz.GetFeastRoleName(convertV1ToV1Alpha1ForTests(resource)),
+				Name:      authz.GetFeastRoleName(resource),
 				Namespace: resource.Namespace,
 			},
 				roleBinding)
@@ -385,7 +385,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
