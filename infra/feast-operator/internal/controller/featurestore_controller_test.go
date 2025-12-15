@@ -130,7 +130,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -319,7 +319,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -394,7 +394,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Update feast object with the refreshed resource
-			feast.Handler.FeatureStore = convertV1ToV1Alpha1ForTests(resource)
+			feast.Handler.FeatureStore = resource
 
 			testConfig.Project = resourceNew.Spec.FeastProject
 			Expect(deploy.Spec.Strategy.Type).To(Equal(appsv1.RollingUpdateDeploymentStrategyType))
@@ -434,7 +434,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -565,7 +565,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 			Expect(resource.Status).NotTo(BeNil())
@@ -724,7 +724,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -854,7 +854,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Update feast object with the refreshed resource
-			feast.Handler.FeatureStore = convertV1ToV1Alpha1ForTests(resource)
+			feast.Handler.FeatureStore = resource
 
 			testConfig.Project = resourceNew.Spec.FeastProject
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
@@ -912,7 +912,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -1124,7 +1124,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -1305,7 +1305,7 @@ var _ = Describe("FeatureStore Controller", func() {
 						Client:       controllerReconciler.Client,
 						Context:      ctx,
 						Scheme:       controllerReconciler.Scheme,
-						FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+						FeatureStore: resource,
 					},
 				}
 
@@ -1382,7 +1382,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 

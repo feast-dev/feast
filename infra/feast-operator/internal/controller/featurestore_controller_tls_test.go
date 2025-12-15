@@ -127,7 +127,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -224,7 +224,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -390,7 +390,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			feast.Handler.FeatureStore = convertV1ToV1Alpha1ForTests(resource)
+			feast.Handler.FeatureStore = resource
 
 			// check registry
 			deploy = &appsv1.Deployment{}
@@ -511,7 +511,7 @@ var _ = Describe("Test mountCustomCABundle functionality", func() {
 				Client:       controllerReconciler.Client,
 				Context:      ctx,
 				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+				FeatureStore: resource,
 			},
 		}
 
@@ -554,7 +554,7 @@ var _ = Describe("Test mountCustomCABundle functionality", func() {
 				Client:       controllerReconciler.Client,
 				Context:      ctx,
 				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+				FeatureStore: resource,
 			},
 		}
 

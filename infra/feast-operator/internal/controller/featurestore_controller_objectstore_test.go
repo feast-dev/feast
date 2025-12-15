@@ -114,7 +114,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 			Expect(resource.Status).NotTo(BeNil())
@@ -211,7 +211,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			feast.Handler.FeatureStore = convertV1ToV1Alpha1ForTests(resource)
+			feast.Handler.FeatureStore = resource
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).NotTo(Equal(&s3AdditionalKwargs))
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).To(Equal(&newS3AdditionalKwargs))
@@ -267,7 +267,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
@@ -345,7 +345,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			feast.Handler.FeatureStore = convertV1ToV1Alpha1ForTests(resource)
+			feast.Handler.FeatureStore = resource
 
 			// check registry config
 			err = k8sClient.Get(ctx, types.NamespacedName{
@@ -402,7 +402,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Client:       controllerReconciler.Client,
 					Context:      ctx,
 					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: convertV1ToV1Alpha1ForTests(resource),
+					FeatureStore: resource,
 				},
 			}
 
