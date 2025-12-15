@@ -9,6 +9,7 @@ import (
 	"text/template"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -339,4 +340,33 @@ func SetupNotebookEnvironment(namespace, configMapName, notebookFile, featureRep
 	}
 
 	return nil
+}
+
+// RunNotebookTest performs all the setup steps, creates a notebook, and monitors its execution.
+// This function encapsulates the common notebook test workflow used across multiple test files.
+func RunNotebookTest(namespace, configMapName, notebookFile, featureRepoPath, pvcFile, rolebindingName, notebookPVC, notebookName, testDir string) {
+	// Execute common setup steps
+	By(fmt.Sprintf("Setting namespace context to : %s", namespace))
+	Expect(SetNamespaceContext(namespace, testDir)).To(Succeed())
+	fmt.Printf("Successfully set namespace context to: %s\n", namespace)
+
+	By(fmt.Sprintf("Creating Config map: %s", configMapName))
+	Expect(CreateNotebookConfigMap(namespace, configMapName, notebookFile, featureRepoPath, testDir)).To(Succeed())
+	fmt.Printf("ConfigMap %s created successfully\n", configMapName)
+
+	By(fmt.Sprintf("Creating Persistent volume claim: %s", notebookPVC))
+	Expect(CreateNotebookPVC(pvcFile, testDir)).To(Succeed())
+	fmt.Printf("Persistent Volume Claim %s created successfully\n", notebookPVC)
+
+	By(fmt.Sprintf("Creating rolebinding %s for the user", rolebindingName))
+	Expect(CreateNotebookRoleBinding(namespace, rolebindingName, GetOCUser(testDir), testDir)).To(Succeed())
+	fmt.Printf("Created rolebinding %s successfully\n", rolebindingName)
+
+	// Build notebook parameters and create notebook
+	nbParams := GetNotebookParams(namespace, configMapName, notebookPVC, notebookName, testDir)
+	By("Creating Jupyter Notebook")
+	Expect(CreateNotebook(nbParams)).To(Succeed(), "Failed to create notebook")
+
+	By("Monitoring notebook logs")
+	Expect(MonitorNotebookPod(namespace, "jupyter-nb-", notebookName)).To(Succeed(), "Notebook execution failed")
 }
