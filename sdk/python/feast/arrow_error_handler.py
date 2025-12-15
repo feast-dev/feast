@@ -30,6 +30,9 @@ def arrow_server_error_handling_decorator(func):
         except Exception as e:
             if isinstance(e, FeastError):
                 raise fl.FlightError(e.to_error_detail())
+            # Re-raise non-Feast exceptions so Arrow Flight returns a proper error
+            # instead of allowing the server method to return None.
+            raise e
 
     return wrapper
 
