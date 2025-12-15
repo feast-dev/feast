@@ -3,7 +3,7 @@ If you haven't already, check out the quickstart guide on Feast's website (http:
 uses this repo. A quick view of what's in this repository's `feature_repo/` directory:
 
 * `data/` contains raw demo parquet data
-* `feature_repo/example_repo.py` contains demo feature definitions
+* `feature_repo/feature_definitions.py` contains demo feature definitions
 * `feature_repo/feature_store.yaml` contains a demo setup configuring where data sources are
 * `feature_repo/test_workflow.py` showcases how to run all key Feast commands, including defining, retrieving, and pushing features. 
 
