@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	routev1 "github.com/openshift/api/route/v1"
 
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
@@ -151,7 +151,7 @@ func (feast *FeastServices) Deploy() error {
 	return nil
 }
 
-func (feast *FeastServices) validateRegistryPersistence(registryPersistence *feastdevv1alpha1.RegistryPersistence) error {
+func (feast *FeastServices) validateRegistryPersistence(registryPersistence *feastdevv1.RegistryPersistence) error {
 	if registryPersistence != nil {
 		dbPersistence := registryPersistence.DBPersistence
 
@@ -172,7 +172,7 @@ func (feast *FeastServices) validateRegistryPersistence(registryPersistence *fea
 	return nil
 }
 
-func (feast *FeastServices) validateOnlineStorePersistence(onlinePersistence *feastdevv1alpha1.OnlineStorePersistence) error {
+func (feast *FeastServices) validateOnlineStorePersistence(onlinePersistence *feastdevv1.OnlineStorePersistence) error {
 	if onlinePersistence != nil {
 		dbPersistence := onlinePersistence.DBPersistence
 
@@ -193,7 +193,7 @@ func (feast *FeastServices) validateOnlineStorePersistence(onlinePersistence *fe
 	return nil
 }
 
-func (feast *FeastServices) validateOfflineStorePersistence(offlinePersistence *feastdevv1alpha1.OfflineStorePersistence) error {
+func (feast *FeastServices) validateOfflineStorePersistence(offlinePersistence *feastdevv1.OfflineStorePersistence) error {
 	if offlinePersistence != nil {
 		filePersistence := offlinePersistence.FilePersistence
 		dbPersistence := offlinePersistence.DBPersistence
@@ -359,7 +359,7 @@ func (feast *FeastServices) createRoute(feastType FeastServiceType) error {
 	return nil
 }
 
-func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, feastType FeastServiceType) error {
+func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType FeastServiceType) error {
 	logger := log.FromContext(feast.Handler.Context)
 	pvc, err := feast.createNewPVC(pvcCreate, feastType)
 	if err != nil {
@@ -501,7 +501,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 	}
 }
 
-func getContainer(name, workingDir string, cmd []string, containerConfigs feastdevv1alpha1.ContainerConfigs, fsYamlB64 string) *corev1.Container {
+func getContainer(name, workingDir string, cmd []string, containerConfigs feastdevv1.ContainerConfigs, fsYamlB64 string) *corev1.Container {
 	container := &corev1.Container{
 		Name:    name,
 		Command: cmd,
@@ -779,7 +779,7 @@ func (feast *FeastServices) setServiceAccount(sa *corev1.ServiceAccount) error {
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, sa, feast.Handler.Scheme)
 }
 
-func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, feastType FeastServiceType) (*corev1.PersistentVolumeClaim, error) {
+func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1.PvcCreate, feastType FeastServiceType) (*corev1.PersistentVolumeClaim, error) {
 	pvc := feast.initPVC(feastType)
 
 	pvc.Spec = corev1.PersistentVolumeClaimSpec{
@@ -792,7 +792,7 @@ func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, 
 	return pvc, controllerutil.SetControllerReference(feast.Handler.FeatureStore, pvc, feast.Handler.Scheme)
 }
 
-func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastdevv1alpha1.ServerConfigs {
+func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastdevv1.ServerConfigs {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	switch feastType {
 	case OfflineFeastType:
@@ -904,11 +904,11 @@ func (feast *FeastServices) GetDeployment() (appsv1.Deployment, error) {
 }
 
 // GetFeastServiceName returns the feast service object name based on service type
-func GetFeastServiceName(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastServiceType) string {
+func GetFeastServiceName(featureStore *feastdevv1.FeatureStore, feastType FeastServiceType) string {
 	return GetFeastName(featureStore) + "-" + string(feastType)
 }
 
-func GetFeastName(featureStore *feastdevv1alpha1.FeatureStore) string {
+func GetFeastName(featureStore *feastdevv1.FeatureStore) string {
 	return handler.FeastPrefix + featureStore.Name
 }
 
@@ -925,7 +925,7 @@ func (feast *FeastServices) getLabels() map[string]string {
 }
 
 func (feast *FeastServices) setServiceHostnames() error {
-	feast.Handler.FeatureStore.Status.ServiceHostnames = feastdevv1alpha1.ServiceHostnames{}
+	feast.Handler.FeatureStore.Status.ServiceHostnames = feastdevv1.ServiceHostnames{}
 	domain := svcDomain + ":"
 	if feast.isOfflineServer() {
 		objMeta := feast.initFeastSvc(OfflineFeastType)
@@ -984,7 +984,7 @@ func (feast *FeastServices) setRemoteRegistryURL() error {
 		// referenced/remote registry must use the local registry server option and be in a 'Ready' state.
 		if remoteFeast != nil &&
 			remoteFeast.isRegistryServer() &&
-			apimeta.IsStatusConditionTrue(remoteFeast.Handler.FeatureStore.Status.Conditions, feastdevv1alpha1.RegistryReadyType) &&
+			apimeta.IsStatusConditionTrue(remoteFeast.Handler.FeatureStore.Status.Conditions, feastdevv1.RegistryReadyType) &&
 			len(remoteFeast.Handler.FeatureStore.Status.ServiceHostnames.Registry) > 0 {
 			// Check if gRPC server is enabled
 			if !remoteFeast.isRegistryGrpcEnabled() {
@@ -1006,7 +1006,7 @@ func (feast *FeastServices) getRemoteRegistryFeastHandler() (*FeastServices, err
 		if nsName == crNsName {
 			return nil, errors.New("FeatureStore '" + crNsName.Name + "' can't reference itself in `spec.services.registry.remote.feastRef`")
 		}
-		remoteFeastObj := &feastdevv1alpha1.FeatureStore{}
+		remoteFeastObj := &feastdevv1.FeatureStore{}
 		if err := feast.Handler.Client.Get(feast.Handler.Context, nsName, remoteFeastObj); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil, errors.New("Referenced FeatureStore '" + feastRemoteRef.Name + "' was not found")
@@ -1131,7 +1131,7 @@ func (feast *FeastServices) initRoute(feastType FeastServiceType) *routev1.Route
 	return route
 }
 
-func applyCtrConfigs(container *corev1.Container, containerConfigs feastdevv1alpha1.ContainerConfigs) {
+func applyCtrConfigs(container *corev1.Container, containerConfigs feastdevv1.ContainerConfigs) {
 	if containerConfigs.DefaultCtrConfigs.Image != nil {
 		container.Image = *containerConfigs.DefaultCtrConfigs.Image
 	}
@@ -1158,7 +1158,7 @@ func (feast *FeastServices) mountPvcConfigs(podSpec *corev1.PodSpec) {
 	}
 }
 
-func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *feastdevv1alpha1.PvcConfig, feastType FeastServiceType) {
+func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *feastdevv1.PvcConfig, feastType FeastServiceType) {
 	if podSpec != nil && pvcConfig != nil {
 		volName := feast.initPVC(feastType).Name
 		pvcName := volName
@@ -1229,21 +1229,21 @@ func mountEmptyDirVolume(podSpec *corev1.PodSpec) {
 	}
 }
 
-func getTargetPort(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) int32 {
+func getTargetPort(feastType FeastServiceType, tls *feastdevv1.TlsConfigs) int32 {
 	if tls.IsTLS() {
 		return FeastServiceConstants[feastType].TargetHttpsPort
 	}
 	return FeastServiceConstants[feastType].TargetHttpPort
 }
 
-func getTargetRestPort(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) int32 {
+func getTargetRestPort(feastType FeastServiceType, tls *feastdevv1.TlsConfigs) int32 {
 	if tls.IsTLS() {
 		return FeastServiceConstants[feastType].TargetRestHttpsPort
 	}
 	return FeastServiceConstants[feastType].TargetRestHttpPort
 }
 
-func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) corev1.ProbeHandler {
+func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *feastdevv1.TlsConfigs) corev1.ProbeHandler {
 	targetPort := getTargetPort(feastType, tls)
 
 	if feastType == RegistryFeastType {

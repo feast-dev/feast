@@ -2,12 +2,10 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 
 	. "github.com/onsi/ginkgo/v2"
 
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/gomega"
@@ -170,29 +168,4 @@ func withEnvFrom() *[]corev1.EnvFromSource {
 		},
 	}
 
-}
-
-// convertV1ToV1Alpha1ForTests converts a v1 FeatureStore to v1alpha1 for use with services package
-// This is needed because the services package still uses v1alpha1 internally
-func convertV1ToV1Alpha1ForTests(v1Obj *feastdevv1.FeatureStore) *feastdevv1alpha1.FeatureStore {
-	v1alpha1Obj := &feastdevv1alpha1.FeatureStore{
-		ObjectMeta: v1Obj.ObjectMeta,
-	}
-
-	specData, err := json.Marshal(v1Obj.Spec)
-	if err != nil {
-		return v1alpha1Obj
-	}
-	if err := json.Unmarshal(specData, &v1alpha1Obj.Spec); err != nil {
-		return v1alpha1Obj
-	}
-	statusData, err := json.Marshal(v1Obj.Status)
-	if err != nil {
-		return v1alpha1Obj
-	}
-	if err := json.Unmarshal(statusData, &v1alpha1Obj.Status); err != nil {
-		return v1alpha1Obj
-	}
-
-	return v1alpha1Obj
 }
