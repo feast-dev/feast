@@ -2,7 +2,7 @@
 A quick view of what's in this repository:
 
 * `data/` contains raw demo parquet data
-* `example_repo.py` contains demo feature definitions
+* `feature_definitions.py` contains demo feature definitions
 * `feature_store.yaml` contains a demo setup configuring where data sources are
 * `test_workflow.py` showcases how to run all key Feast commands, including defining, retrieving, and pushing features. 
 

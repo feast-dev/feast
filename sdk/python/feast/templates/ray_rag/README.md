@@ -16,7 +16,7 @@ RAG (Retrieval-Augmented Generation) template using Feast with Ray for distribut
 ray_rag/
 ├── feature_repo/
 │   ├── feature_store.yaml      # Ray + Milvus configuration
-│   ├── example_repo.py         # Feature definitions with Ray UDF
+│   ├── feature_definitions.py  # Feature definitions with Ray UDF
 │   ├── test_workflow.py        # End-to-end demo
 │   └── data/                   
 │       └── raw_movies.parquet  # Sample IMDB dataset (10 movies)

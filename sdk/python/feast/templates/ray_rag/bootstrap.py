@@ -74,7 +74,7 @@ def bootstrap():
         pq.write_table(table, parquet_file)
         print(f"   ✅ Created sample dataset with {len(sample_data)} movies")
 
-    example_py_file = repo_path / "example_repo.py"
+    example_py_file = repo_path / "feature_definitions.py"
     replace_str_in_file(example_py_file, "%PROJECT_NAME%", str(project_name))
 
     print("🚀 Ray RAG template initialized successfully!")
