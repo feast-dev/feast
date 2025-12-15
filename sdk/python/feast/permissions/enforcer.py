@@ -72,19 +72,14 @@ def enforce_policy(
                 if evaluator.is_decided():
                     grant, explanations = evaluator.grant()
                     if not grant:
-                        if not filter_only:
-                            logger.error(f"Permission denied: {','.join(explanations)}")
-                            raise FeastPermissionError(",".join(explanations))
-                        elif filter_only and not p.name_patterns:
-                            logger.error(f"Permission denied: {','.join(explanations)}")
-                            raise FeastPermissionError(",".join(explanations))
-                        else:
+                        if filter_only and p.name_patterns:
                             continue
-                    if grant:
-                        logger.debug(
-                            f"Permission granted for {type(resource).__name__}:{resource.name}"
-                        )
-                        _permitted_resources.append(resource)
+                        logger.error(f"Permission denied: {','.join(explanations)}")
+                        raise FeastPermissionError(",".join(explanations))
+                    logger.debug(
+                        f"Permission granted for {type(resource).__name__}:{resource.name}"
+                    )
+                    _permitted_resources.append(resource)
                     break
         else:
             if not filter_only:
