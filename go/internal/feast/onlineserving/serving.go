@@ -272,7 +272,9 @@ func ValidateEntityValues(joinKeyValues map[string]*prototypes.RepeatedValue,
 	requestData map[string]*prototypes.RepeatedValue,
 	expectedJoinKeysSet map[string]interface{}) (int, error) {
 	numRows := -1
-
+	if err := validateJoinKeys(joinKeyValues, expectedJoinKeysSet); err != nil {
+		return -1, errors.New("valueError: " + err.Error())
+	}
 	for joinKey, values := range joinKeyValues {
 		if _, ok := expectedJoinKeysSet[joinKey]; !ok {
 			requestData[joinKey] = values
@@ -645,6 +647,17 @@ func getQualifiedFeatureName(viewName string, featureName string, fullFeatureNam
 	} else {
 		return featureName
 	}
+}
+
+func validateJoinKeys(
+	joinKeyValues map[string]*prototypes.RepeatedValue,
+	expectedJoinKeysSet map[string]interface{}) error {
+	for joinKey, _ := range joinKeyValues {
+		if _, ok := expectedJoinKeysSet[joinKey]; !ok {
+			return fmt.Errorf("Invalid entity join key. key=%s", joinKey)
+		}
+	}
+	return nil
 }
 
 type featureNameCollisionError struct {

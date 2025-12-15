@@ -13,7 +13,7 @@ stringData:
         echo: false
         pool_pre_ping: true
 ---
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
   name: credit-scoring
@@ -29,6 +29,17 @@ spec:
       persistence:
         file:
           type: duckdb
+      server:
+        envFrom:
+        - secretRef:
+            name: postgres-secret
+        env:
+        - name: MPLCONFIGDIR
+          value: /tmp
+        resources:
+          requests:
+            cpu: 150m
+            memory: 128Mi
     onlineStore:
       persistence:
         store:
@@ -53,3 +64,8 @@ spec:
             type: sql
             secretRef:
               name: feast-data-stores
+        server:
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          restAPI: true

@@ -421,6 +421,17 @@ type RegistryFilePersistence struct {
 	Path               string             `json:"path,omitempty"`
 	PvcConfig          *PvcConfig         `json:"pvc,omitempty"`
 	S3AdditionalKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
+
+	// CacheTTLSeconds defines the TTL (in seconds) for the registry cache.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	CacheTTLSeconds *int32 `json:"cache_ttl_seconds,omitempty"`
+
+	// CacheMode defines the registry cache update strategy.
+	// Allowed values are "sync" and "thread".
+	// +kubebuilder:validation:Enum=none;sync;thread
+	// +optional
+	CacheMode *string `json:"cache_mode,omitempty"`
 }
 
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
@@ -504,6 +515,8 @@ type ServerConfigs struct {
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
 	LogLevel *string `json:"logLevel,omitempty"`
+	// Metrics exposes Prometheus-compatible metrics for the Feast server when enabled.
+	Metrics *bool `json:"metrics,omitempty"`
 	// VolumeMounts defines the list of volumes that should be mounted into the feast container.
 	// This allows attaching persistent storage, config files, secrets, or other resources
 	// required by the Feast components. Ensure that each volume mount has a corresponding
@@ -644,6 +657,7 @@ type ServiceHostnames struct {
 // +kubebuilder:resource:shortName=feast
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:deprecatedversion:warning="v1alpha1 is deprecated and will be removed in a future release. Please migrate to v1."
 
 // FeatureStore is the Schema for the featurestores API
 type FeatureStore struct {
