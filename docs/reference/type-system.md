@@ -4,6 +4,7 @@
 
 Feast uses an internal type system to provide guarantees on training and serving data.
 Feast currently supports eight primitive types - `INT32`, `INT64`, `FLOAT32`, `FLOAT64`, `STRING`, `BYTES`, `BOOL`, and `UNIX_TIMESTAMP` - and the corresponding array types.
+Map type is also supported using a key of `STRING` type and any supported feast type as a value.  
 Null types are not supported, although the `UNIX_TIMESTAMP` type is nullable.
 The type system is controlled by [`Value.proto`](https://github.com/feast-dev/feast/blob/master/protos/feast/types/Value.proto) in protobuf and by [`types.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/types.py) in Python.
 Type conversion logic can be found in [`type_map.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/type_map.py).
