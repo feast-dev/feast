@@ -30,7 +30,7 @@ stringData:
     user: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
 ---
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
   name: sample-db-persistence

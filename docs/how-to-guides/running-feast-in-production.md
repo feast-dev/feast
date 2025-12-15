@@ -227,7 +227,7 @@ kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<ve
 3. Deploy a Feature Store
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1alpha1_featurestore.yaml
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1_featurestore.yaml
 ```
 Verify the status
 ```
@@ -238,7 +238,7 @@ sample   Ready    2m21s
 
 The above will install a simple [FeatureStore CR](../../infra/feast-operator/docs/api/markdown/ref.md) like the following. By default, it will run the [Online Store feature server](../reference/feature-servers/python-feature-server.md) -
 ```yaml
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
   name: sample

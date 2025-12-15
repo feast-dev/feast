@@ -2,9 +2,11 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 
 	. "github.com/onsi/ginkgo/v2"
 
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -95,31 +97,31 @@ func deleteEnvFromSecretAndConfigMap() {
 	Expect(err).ToNot(HaveOccurred())
 }
 
-func createFeatureStoreResource(resourceName string, image string, pullPolicy corev1.PullPolicy, envVars *[]corev1.EnvVar, envFromVar *[]corev1.EnvFromSource) *feastdevv1alpha1.FeatureStore {
-	return &feastdevv1alpha1.FeatureStore{
+func createFeatureStoreResource(resourceName string, image string, pullPolicy corev1.PullPolicy, envVars *[]corev1.EnvVar, envFromVar *[]corev1.EnvFromSource) *feastdevv1.FeatureStore {
+	return &feastdevv1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
 			Namespace: "default",
 		},
-		Spec: feastdevv1alpha1.FeatureStoreSpec{
+		Spec: feastdevv1.FeatureStoreSpec{
 			FeastProject: feastProject,
-			Services: &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					Server: &feastdevv1alpha1.ServerConfigs{
-						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
-							OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+			Services: &feastdevv1.FeatureStoreServices{
+				OfflineStore: &feastdevv1.OfflineStore{
+					Server: &feastdevv1.ServerConfigs{
+						ContainerConfigs: feastdevv1.ContainerConfigs{
+							OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 								EnvFrom: envFromVar,
 							},
 						},
 					},
 				},
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					Server: &feastdevv1alpha1.ServerConfigs{
-						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
-							DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Server: &feastdevv1.ServerConfigs{
+						ContainerConfigs: feastdevv1.ContainerConfigs{
+							DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
 								Image: &image,
 							},
-							OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+							OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 								Env:             envVars,
 								EnvFrom:         envFromVar,
 								ImagePullPolicy: &pullPolicy,
@@ -128,19 +130,19 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 						},
 					},
 				},
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.RegistryServerConfigs{
-							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1.ServerConfigs{},
 						},
 					},
 				},
-				UI: &feastdevv1alpha1.ServerConfigs{
-					ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
-						DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+				UI: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
 							Image: &image,
 						},
-						OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 							Env:             envVars,
 							EnvFrom:         envFromVar,
 							ImagePullPolicy: &pullPolicy,
@@ -168,4 +170,29 @@ func withEnvFrom() *[]corev1.EnvFromSource {
 		},
 	}
 
+}
+
+// convertV1ToV1Alpha1ForTests converts a v1 FeatureStore to v1alpha1 for use with services package
+// This is needed because the services package still uses v1alpha1 internally
+func convertV1ToV1Alpha1ForTests(v1Obj *feastdevv1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	v1alpha1Obj := &feastdevv1alpha1.FeatureStore{
+		ObjectMeta: v1Obj.ObjectMeta,
+	}
+
+	specData, err := json.Marshal(v1Obj.Spec)
+	if err != nil {
+		return v1alpha1Obj
+	}
+	if err := json.Unmarshal(specData, &v1alpha1Obj.Spec); err != nil {
+		return v1alpha1Obj
+	}
+	statusData, err := json.Marshal(v1Obj.Status)
+	if err != nil {
+		return v1alpha1Obj
+	}
+	if err := json.Unmarshal(statusData, &v1alpha1Obj.Status); err != nil {
+		return v1alpha1Obj
+	}
+
+	return v1alpha1Obj
 }
