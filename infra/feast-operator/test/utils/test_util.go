@@ -16,7 +16,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 )
 
 const (
@@ -47,7 +47,7 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	}
 
 	// Parse the JSON into FeatureStore
-	var resource v1alpha1.FeatureStore
+	var resource feastdevv1.FeatureStore
 	if err := json.Unmarshal(out.Bytes(), &resource); err != nil {
 		return fmt.Errorf("failed to parse the resource JSON. Error: %v", err)
 	}
@@ -216,7 +216,7 @@ func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (boo
 		}
 
 		// Parse the JSON into a map
-		var registryConfig v1alpha1.Registry
+		var registryConfig feastdevv1.Registry
 		if err := json.Unmarshal([]byte(result), &registryConfig); err != nil {
 			return false, err // Return false on JSON parsing failure
 		}
