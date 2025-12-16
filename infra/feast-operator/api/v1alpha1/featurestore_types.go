@@ -657,6 +657,7 @@ type ServiceHostnames struct {
 // +kubebuilder:resource:shortName=feast
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:deprecatedversion:warning="v1alpha1 is deprecated and will be removed in a future release. Please migrate to v1."
 
 // FeatureStore is the Schema for the featurestores API
 type FeatureStore struct {

@@ -1,8 +1,7 @@
-# runs an optional remote server container & creates a k8s service for each supported feast component
-apiVersion: feast.dev/v1alpha1
+apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
-  name: sample-remote-servers
+  name: simple-feast-setup
 spec:
   feastProject: my_project
   services:
@@ -12,3 +11,4 @@ spec:
       local:
         server: {}
     ui: {}
+

@@ -1,5 +1,34 @@
 # Changelog
 
+# [0.58.0](https://github.com/feast-dev/feast/compare/v0.57.0...v0.58.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* Add java proto ([#5719](https://github.com/feast-dev/feast/issues/5719)) ([fc3ea20](https://github.com/feast-dev/feast/commit/fc3ea208e0d37d1083fda261fd374c87fa4da17c))
+* Add possibility to force full features names for materialize ops ([#5728](https://github.com/feast-dev/feast/issues/5728)) ([55c9c36](https://github.com/feast-dev/feast/commit/55c9c36a5cc385869d2c7671a5629da1ba282d47))
+* Fixed file registry cache sync ([09505d4](https://github.com/feast-dev/feast/commit/09505d4ae79f5ca5b452c9c5e41a56e1f7d3d136))
+* Handle hyphon in sqlite project name ([#5575](https://github.com/feast-dev/feast/issues/5575)) ([#5749](https://github.com/feast-dev/feast/issues/5749)) ([b8346ff](https://github.com/feast-dev/feast/commit/b8346ff58c0d78deff52b2a864772dc23741ea75))
+* Pinned substrait to fix protobuf issue ([d0ef4da](https://github.com/feast-dev/feast/commit/d0ef4da05dc91893b14b10b888b3c458fd389ce5))
+* Set TLS certificate annotation only on gRPC service ([#5715](https://github.com/feast-dev/feast/issues/5715)) ([75d13db](https://github.com/feast-dev/feast/commit/75d13db1ea536bd4759dbb719190a266b6466b24))
+* SQLite online store deletes tables from other projects in shared registry scenarios ([#5766](https://github.com/feast-dev/feast/issues/5766)) ([fabce76](https://github.com/feast-dev/feast/commit/fabce765804a8577ef31fb83525adc5df5748c44))
+* Validate not existing entity join keys for preventing panic ([0b93559](https://github.com/feast-dev/feast/commit/0b935595b7e296f1d51a52c42b750a470ea10ceb))
+
+
+### Features
+
+* Add annotations for pod templates ([534e647](https://github.com/feast-dev/feast/commit/534e647f40567a8d632fb562f1e58057b1c61c3e))
+* Add Pytorch template ([#5780](https://github.com/feast-dev/feast/issues/5780)) ([6afd353](https://github.com/feast-dev/feast/commit/6afd353425027fe7de561092306c390ea1ad0d19))
+* Add support for extra options for stream source ([#5618](https://github.com/feast-dev/feast/issues/5618)) ([18956c2](https://github.com/feast-dev/feast/commit/18956c2765ebc4c92ca8afc7e02aca8b7dfc339d))
+* Added matched_tag field search api results with fuzzy search capabilities ([#5769](https://github.com/feast-dev/feast/issues/5769)) ([4a9ffae](https://github.com/feast-dev/feast/commit/4a9ffae3d2c7449670d9dddb8b3b341ee00ffc29))
+* Added support for enabling metrics in Feast Operator ([#5317](https://github.com/feast-dev/feast/issues/5317)) ([#5748](https://github.com/feast-dev/feast/issues/5748)) ([a8498c2](https://github.com/feast-dev/feast/commit/a8498c2c43439024cd9516eae8e1733b3f69b577))
+* Configure CacheTTLSecondscache,CacheMode for file-based registry in Feast Operator([#5708](https://github.com/feast-dev/feast/issues/5708)) ([#5744](https://github.com/feast-dev/feast/issues/5744)) ([f25f83b](https://github.com/feast-dev/feast/commit/f25f83b3e4d324a9b52cd2e90036c3d25f25ee80))
+* Implemented Tiling Support for Time-Windowed Aggregations ([#5724](https://github.com/feast-dev/feast/issues/5724)) ([7a99166](https://github.com/feast-dev/feast/commit/7a991660817ffcbe3059b0141f42f15e5f7d5b04))
+* Offline Store historical features retrieval based on datetime range for spark ([#5720](https://github.com/feast-dev/feast/issues/5720)) ([27ec8ec](https://github.com/feast-dev/feast/commit/27ec8ec26b2884d09df3ee3e648b96824e1f2b4c))
+* Offline Store historical features retrieval based on datetime range in dask ([#5717](https://github.com/feast-dev/feast/issues/5717)) ([a16582a](https://github.com/feast-dev/feast/commit/a16582a82914b015095f60a61a3a722c9c82bb63))
+* Production ready feast operator with v1 apiversion ([#5771](https://github.com/feast-dev/feast/issues/5771)) ([49359c6](https://github.com/feast-dev/feast/commit/49359c6227601bc31ee08fdc4f4208fb6d101755))
+* Support for Map value data type ([#5768](https://github.com/feast-dev/feast/issues/5768)) ([#5772](https://github.com/feast-dev/feast/issues/5772)) ([b99a8a9](https://github.com/feast-dev/feast/commit/b99a8a9aeafba912a6ceea8658f5efeae90b245d))
+
 # [0.57.0](https://github.com/feast-dev/feast/compare/v0.56.0...v0.57.0) (2025-11-13)
 
 
