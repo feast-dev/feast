@@ -2,7 +2,6 @@ import pathlib
 import random
 from datetime import datetime, timedelta
 
-import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -26,7 +25,6 @@ def create_sentiment_data(num_samples: int = 1000) -> pd.DataFrame:
         "My phone battery died right when I needed it most",
         "Loving the new album that just dropped today",
         "Can't believe how long this line is taking",
-
         # Product reviews / opinions
         "This phone has incredible battery life and camera quality",
         "The delivery was late and packaging was damaged",
@@ -38,7 +36,6 @@ def create_sentiment_data(num_samples: int = 1000) -> pd.DataFrame:
         "Returned this item, didn't work as advertised",
         "Decent product but could be better for the cost",
         "Exceeded my expectations, will buy again",
-
         # General experiences
         "Learning something new always makes me happy",
         "Dealing with technical issues is draining my energy",
@@ -50,7 +47,6 @@ def create_sentiment_data(num_samples: int = 1000) -> pd.DataFrame:
         "Nothing special planned, just a quiet evening",
         "Great presentation today, audience was engaged",
         "Feeling overwhelmed with all these deadlines",
-
         # News / current events style
         "The new policy changes will benefit small businesses",
         "This decision could have negative environmental impact",
@@ -61,19 +57,20 @@ def create_sentiment_data(num_samples: int = 1000) -> pd.DataFrame:
         "Public opinion remains divided on this issue",
         "Significant improvements in the healthcare system",
         "Concerns raised about the new regulations",
-        "Standard quarterly results meeting projections"
+        "Standard quarterly results meeting projections",
     ]
 
     # Try to use BERTweet sentiment classifier, fallback to rule-based if not available
     try:
         from transformers import pipeline
+
         print("   🤖 Loading BERTweet sentiment classifier...")
 
         # Use BERTweet model specifically trained for Twitter sentiment
         sentiment_classifier = pipeline(
             "sentiment-analysis",
             model="finiteautomata/bertweet-base-sentiment-analysis",
-            return_all_scores=True
+            return_all_scores=True,
         )
         use_real_classifier = True
         print("   ✅ BERTweet sentiment classifier loaded successfully")
@@ -105,10 +102,16 @@ def create_sentiment_data(num_samples: int = 1000) -> pd.DataFrame:
         elif random.random() < 0.1:
             text = text + "..."
         elif random.random() < 0.08:
-            if any(word in text.lower() for word in ["amazing", "love", "great", "best", "happy", "excited"]):
+            if any(
+                word in text.lower()
+                for word in ["amazing", "love", "great", "best", "happy", "excited"]
+            ):
                 text = text + " 😊"
         elif random.random() < 0.08:
-            if any(word in text.lower() for word in ["terrible", "disappointed", "frustrated", "horrible"]):
+            if any(
+                word in text.lower()
+                for word in ["terrible", "disappointed", "frustrated", "horrible"]
+            ):
                 text = text + " 😞"
 
         # Get sentiment from real classifier or fallback
@@ -117,13 +120,17 @@ def create_sentiment_data(num_samples: int = 1000) -> pd.DataFrame:
                 predictions = sentiment_classifier(text)[0]
 
                 # Find highest confidence prediction
-                best_pred = max(predictions, key=lambda x: x['score'])
-                sentiment_label = best_pred['label'].upper()  # BERTweet returns 'POS', 'NEG', 'NEU'
-                sentiment_score = best_pred['score']
+                best_pred = max(predictions, key=lambda x: x["score"])
+                sentiment_label = best_pred[
+                    "label"
+                ].upper()  # BERTweet returns 'POS', 'NEG', 'NEU'
+                sentiment_score = best_pred["score"]
 
                 # Map BERTweet labels to our format
                 label_map = {"POS": "positive", "NEG": "negative", "NEU": "neutral"}
-                sentiment_label = label_map.get(sentiment_label, sentiment_label.lower())
+                sentiment_label = label_map.get(
+                    sentiment_label, sentiment_label.lower()
+                )
 
             except Exception as e:
                 print(f"   ⚠️  Classifier error for text {i}: {e}")
@@ -136,7 +143,7 @@ def create_sentiment_data(num_samples: int = 1000) -> pd.DataFrame:
         # Generate engineered features
         text_length = len(text)
         word_count = len(text.split())
-        exclamation_count = text.count('!')
+        exclamation_count = text.count("!")
         caps_ratio = sum(1 for c in text if c.isupper()) / len(text) if text else 0
         emoji_count = sum(1 for c in text if ord(c) > 127)  # Simple emoji detection
 
@@ -144,38 +151,46 @@ def create_sentiment_data(num_samples: int = 1000) -> pd.DataFrame:
         days_offset = random.randint(0, 30)
         hours_offset = random.randint(0, 23)
         minutes_offset = random.randint(0, 59)
-        event_timestamp = start_date + timedelta(days=days_offset, hours=hours_offset, minutes=minutes_offset)
+        event_timestamp = start_date + timedelta(
+            days=days_offset, hours=hours_offset, minutes=minutes_offset
+        )
 
-        data.append({
-            'text_id': f'text_{i:04d}',
-            'user_id': f'user_{random.randint(1, 100):03d}',
-            'text_content': text,
-            'sentiment_label': sentiment_label,
-            'sentiment_score': round(sentiment_score, 3),
-            'text_length': text_length,
-            'word_count': word_count,
-            'exclamation_count': exclamation_count,
-            'caps_ratio': round(caps_ratio, 3),
-            'emoji_count': emoji_count,
-            'event_timestamp': pd.Timestamp(event_timestamp, tz='UTC'),
-            'created': pd.Timestamp.now(tz='UTC').round('ms')
-        })
+        data.append(
+            {
+                "text_id": f"text_{i:04d}",
+                "user_id": f"user_{random.randint(1, 100):03d}",
+                "text_content": text,
+                "sentiment_label": sentiment_label,
+                "sentiment_score": round(sentiment_score, 3),
+                "text_length": text_length,
+                "word_count": word_count,
+                "exclamation_count": exclamation_count,
+                "caps_ratio": round(caps_ratio, 3),
+                "emoji_count": emoji_count,
+                "event_timestamp": pd.Timestamp(event_timestamp, tz="UTC"),
+                "created": pd.Timestamp.now(tz="UTC").round("ms"),
+            }
+        )
 
     df = pd.DataFrame(data)
 
     # Calculate user-level aggregations
-    user_stats = df.groupby('user_id').agg({
-        'sentiment_score': 'mean',
-        'text_id': 'count',
-        'text_length': 'mean'
-    }).rename(columns={
-        'sentiment_score': 'user_avg_sentiment',
-        'text_id': 'user_text_count',
-        'text_length': 'user_avg_text_length'
-    }).round(3).reset_index()
+    user_stats = (
+        df.groupby("user_id")
+        .agg({"sentiment_score": "mean", "text_id": "count", "text_length": "mean"})
+        .rename(
+            columns={
+                "sentiment_score": "user_avg_sentiment",
+                "text_id": "user_text_count",
+                "text_length": "user_avg_text_length",
+            }
+        )
+        .round(3)
+        .reset_index()
+    )
 
     # Merge user stats back to main dataframe
-    df = df.merge(user_stats, on='user_id', how='left')
+    df = df.merge(user_stats, on="user_id", how="left")
 
     return df
 
@@ -184,12 +199,41 @@ def _rule_based_sentiment(text: str) -> tuple[str, float]:
     """Fallback rule-based sentiment analysis when BERTweet is not available."""
     text_lower = text.lower()
 
-    positive_words = ["amazing", "love", "great", "excellent", "wonderful", "perfect",
-                     "outstanding", "fantastic", "best", "happy", "good", "awesome",
-                     "incredible", "beautiful", "excited", "enjoying"]
-    negative_words = ["terrible", "horrible", "awful", "worst", "bad", "disappointed",
-                     "frustrated", "angry", "sad", "broken", "failed", "poor",
-                     "draining", "overwhelming", "disappointing"]
+    positive_words = [
+        "amazing",
+        "love",
+        "great",
+        "excellent",
+        "wonderful",
+        "perfect",
+        "outstanding",
+        "fantastic",
+        "best",
+        "happy",
+        "good",
+        "awesome",
+        "incredible",
+        "beautiful",
+        "excited",
+        "enjoying",
+    ]
+    negative_words = [
+        "terrible",
+        "horrible",
+        "awful",
+        "worst",
+        "bad",
+        "disappointed",
+        "frustrated",
+        "angry",
+        "sad",
+        "broken",
+        "failed",
+        "poor",
+        "draining",
+        "overwhelming",
+        "disappointing",
+    ]
 
     positive_count = sum(1 for word in positive_words if word in text_lower)
     negative_count = sum(1 for word in negative_words if word in text_lower)
@@ -208,7 +252,7 @@ def bootstrap():
     raw_project_name = pathlib.Path(__file__).parent.absolute().name
 
     # Sanitize project name for SQLite compatibility (no hyphens allowed)
-    project_name = raw_project_name.replace('-', '_')
+    project_name = raw_project_name.replace("-", "_")
     if project_name != raw_project_name:
         print(f"   ℹ️  Project name sanitized: '{raw_project_name}' → '{project_name}'")
         print("   💡 SQLite table names cannot contain hyphens")
@@ -229,8 +273,8 @@ def bootstrap():
     pq.write_table(table, parquet_file)
 
     print(f"   ✅ Created sentiment dataset with {len(df)} samples")
-    print(f"   📊 Sentiment distribution:")
-    sentiment_counts = df['sentiment_label'].value_counts()
+    print("   📊 Sentiment distribution:")
+    sentiment_counts = df["sentiment_label"].value_counts()
     for sentiment, count in sentiment_counts.items():
         print(f"      - {sentiment.capitalize()}: {count} samples")
 
@@ -246,7 +290,7 @@ def bootstrap():
     print("\n🎯 To get started:")
     print(f"  1. cd {project_name}")
     print("  2. pip install -r requirements.txt")
-    print(f"  3. cd feature_repo")
+    print("  3. cd feature_repo")
     print("  4. feast apply")
     print("  5. feast materialize")
     print("  6. python test_workflow.py")

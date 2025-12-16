@@ -70,28 +70,46 @@ def fetch_historical_features_for_training(store: FeatureStore) -> pd.DataFrame:
     """Fetch historical features for model training with point-in-time correctness."""
     # Create entity DataFrame for training
     # In practice, this would come from your ML pipeline or data warehouse
-    entity_df = pd.DataFrame.from_dict({
-        "text_id": [
-            "text_0001", "text_0002", "text_0003", "text_0004", "text_0005",
-            "text_0010", "text_0015", "text_0020", "text_0025", "text_0030"
-        ],
-        "user_id": [
-            "user_001", "user_002", "user_001", "user_003", "user_002",
-            "user_001", "user_004", "user_003", "user_005", "user_001"
-        ],
-        "event_timestamp": [
-            datetime(2023, 6, 15, 10, 0, 0),
-            datetime(2023, 6, 15, 11, 30, 0),
-            datetime(2023, 6, 15, 14, 15, 0),
-            datetime(2023, 6, 16, 9, 45, 0),
-            datetime(2023, 6, 16, 13, 20, 0),
-            datetime(2023, 6, 17, 8, 30, 0),
-            datetime(2023, 6, 17, 16, 45, 0),
-            datetime(2023, 6, 18, 12, 10, 0),
-            datetime(2023, 6, 18, 15, 30, 0),
-            datetime(2023, 6, 19, 11, 0, 0),
-        ],
-    })
+    entity_df = pd.DataFrame.from_dict(
+        {
+            "text_id": [
+                "text_0001",
+                "text_0002",
+                "text_0003",
+                "text_0004",
+                "text_0005",
+                "text_0010",
+                "text_0015",
+                "text_0020",
+                "text_0025",
+                "text_0030",
+            ],
+            "user_id": [
+                "user_001",
+                "user_002",
+                "user_001",
+                "user_003",
+                "user_002",
+                "user_001",
+                "user_004",
+                "user_003",
+                "user_005",
+                "user_001",
+            ],
+            "event_timestamp": [
+                datetime(2023, 6, 15, 10, 0, 0),
+                datetime(2023, 6, 15, 11, 30, 0),
+                datetime(2023, 6, 15, 14, 15, 0),
+                datetime(2023, 6, 16, 9, 45, 0),
+                datetime(2023, 6, 16, 13, 20, 0),
+                datetime(2023, 6, 17, 8, 30, 0),
+                datetime(2023, 6, 17, 16, 45, 0),
+                datetime(2023, 6, 18, 12, 10, 0),
+                datetime(2023, 6, 18, 15, 30, 0),
+                datetime(2023, 6, 19, 11, 0, 0),
+            ],
+        }
+    )
 
     # Fetch historical features using the training feature service
     print("   📊 Retrieving training dataset with point-in-time correctness...")
@@ -113,7 +131,11 @@ def fetch_historical_features_for_training(store: FeatureStore) -> pd.DataFrame:
 
     print(f"   ✅ Retrieved {len(training_df)} training samples")
     print("   📋 Sample training data:")
-    print(training_df[["text_content", "sentiment_label", "text_length", "word_count"]].head(3))
+    print(
+        training_df[
+            ["text_content", "sentiment_label", "text_length", "word_count"]
+        ].head(3)
+    )
 
     return training_df
 
@@ -133,12 +155,14 @@ def simulate_model_training(training_data: pd.DataFrame):
 
     if not training_data.empty:
         # Simple statistics as a proxy for training
-        sentiment_dist = training_data['sentiment_label'].value_counts()
-        avg_text_length = training_data['text_length'].mean()
+        sentiment_dist = training_data["sentiment_label"].value_counts()
+        avg_text_length = training_data["text_length"].mean()
 
-        print(f"   📈 Sentiment distribution:")
+        print("   📈 Sentiment distribution:")
         for sentiment, count in sentiment_dist.items():
-            print(f"      {sentiment}: {count} samples ({count/len(training_data)*100:.1f}%)")
+            print(
+                f"      {sentiment}: {count} samples ({count / len(training_data) * 100:.1f}%)"
+            )
 
         print(f"   📏 Average text length: {avg_text_length:.1f} characters")
         print("   ✅ Model training simulation completed!")
@@ -170,9 +194,11 @@ def test_online_inference(store: FeatureStore):
 
     print("   📊 Retrieved online features:")
     for key, values in online_features.items():
-        if key in ['text_content']:
+        if key in ["text_content"]:
             # Truncate long text for display
-            display_values = [str(v)[:50] + "..." if len(str(v)) > 50 else str(v) for v in values]
+            display_values = [
+                str(v)[:50] + "..." if len(str(v)) > 50 else str(v) for v in values
+            ]
             print(f"      {key}: {display_values}")
         else:
             print(f"      {key}: {values}")
@@ -186,15 +212,15 @@ def test_on_demand_sentiment_prediction(store: FeatureStore):
     entity_rows = [
         {
             "input_text": "I love this product! It's absolutely amazing and works perfectly!",
-            "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest"
+            "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest",
         },
         {
             "input_text": "This is terrible quality. Completely disappointed with the purchase.",
-            "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest"
+            "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest",
         },
         {
             "input_text": "The product is okay. Nothing special but it does work as expected.",
-            "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest"
+            "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest",
         },
     ]
 
@@ -218,14 +244,18 @@ def test_on_demand_sentiment_prediction(store: FeatureStore):
             confidence = predictions["sentiment_confidence"][i]
             print(f"      Text: {text}")
             print(f"      Predicted: {sentiment} (confidence: {confidence:.3f})")
-            print(f"      Probabilities: P={predictions['positive_prob'][i]:.3f}, "
-                  f"N={predictions['negative_prob'][i]:.3f}, "
-                  f"Neu={predictions['neutral_prob'][i]:.3f}")
+            print(
+                f"      Probabilities: P={predictions['positive_prob'][i]:.3f}, "
+                f"N={predictions['negative_prob'][i]:.3f}, "
+                f"Neu={predictions['neutral_prob'][i]:.3f}"
+            )
             print()
 
     except Exception as e:
         print(f"   ⚠️  On-demand prediction failed: {e}")
-        print("   💡 This is expected if PyTorch/transformers dependencies are not installed")
+        print(
+            "   💡 This is expected if PyTorch/transformers dependencies are not installed"
+        )
         print("   📦 Install with: pip install torch transformers")
 
 
@@ -264,11 +294,15 @@ def evaluate_model_performance(store: FeatureStore):
 
     try:
         # Get a sample of historical data for evaluation
-        entity_df = pd.DataFrame({
-            "text_id": [f"text_{i:04d}" for i in range(1, 21)],
-            "user_id": [f"user_{(i % 5) + 1:03d}" for i in range(1, 21)],
-            "event_timestamp": [datetime.now() - timedelta(hours=i) for i in range(20)]
-        })
+        entity_df = pd.DataFrame(
+            {
+                "text_id": [f"text_{i:04d}" for i in range(1, 21)],
+                "user_id": [f"user_{(i % 5) + 1:03d}" for i in range(1, 21)],
+                "event_timestamp": [
+                    datetime.now() - timedelta(hours=i) for i in range(20)
+                ],
+            }
+        )
 
         # Fetch features and labels
         eval_df = store.get_historical_features(
@@ -280,17 +314,23 @@ def evaluate_model_performance(store: FeatureStore):
             ],
         ).to_df()
 
-        if not eval_df.empty and 'sentiment_label' in eval_df.columns:
+        if not eval_df.empty and "sentiment_label" in eval_df.columns:
             # Calculate basic performance metrics
-            sentiment_dist = eval_df['sentiment_label'].value_counts()
-            avg_score = eval_df['sentiment_score'].mean() if 'sentiment_score' in eval_df.columns else 0
+            sentiment_dist = eval_df["sentiment_label"].value_counts()
+            avg_score = (
+                eval_df["sentiment_score"].mean()
+                if "sentiment_score" in eval_df.columns
+                else 0
+            )
 
             print("   📈 Performance summary:")
             print(f"      Evaluation samples: {len(eval_df)}")
             print(f"      Average sentiment score: {avg_score:.3f}")
-            print(f"      Class distribution:")
+            print("      Class distribution:")
             for sentiment, count in sentiment_dist.items():
-                print(f"        {sentiment}: {count} ({count/len(eval_df)*100:.1f}%)")
+                print(
+                    f"        {sentiment}: {count} ({count / len(eval_df) * 100:.1f}%)"
+                )
 
             # In a real implementation, you would:
             # 1. Compare predicted vs actual labels
