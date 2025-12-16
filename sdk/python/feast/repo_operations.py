@@ -445,27 +445,37 @@ def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
         sys.exit(1)
 
 
-def init_repo(repo_name: str, template: str):
+def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
     import os
     from pathlib import Path
     from shutil import copytree
 
     from colorama import Fore, Style
 
+    # Validate project name
     if not is_valid_name(repo_name):
         raise BadParameter(
             message="Name should be alphanumeric values, underscores, and hyphens but not start with an underscore or hyphen",
             param_hint="PROJECT_DIRECTORY",
         )
-    repo_path = Path(os.path.join(Path.cwd(), repo_name))
-    repo_path.mkdir(exist_ok=True)
-    repo_config_path = repo_path / "feature_store.yaml"
+
+    # Determine where to create the repository
+    if repo_path:
+        # User specified a custom path
+        target_path = Path(repo_path).resolve()
+        target_path.mkdir(parents=True, exist_ok=True)
+        display_path = repo_path
+    else:
+        # Default behavior: create subdirectory with project name
+        target_path = Path(os.path.join(Path.cwd(), repo_name))
+        target_path.mkdir(exist_ok=True)
+        display_path = repo_name
+
+    repo_config_path = target_path / "feature_store.yaml"
 
     if repo_config_path.exists():
-        new_directory = os.path.relpath(repo_path, os.getcwd())
-
         print(
-            f"The directory {Style.BRIGHT + Fore.GREEN}{new_directory}{Style.RESET_ALL} contains an existing feature "
+            f"The directory {Style.BRIGHT + Fore.GREEN}{display_path}{Style.RESET_ALL} contains an existing feature "
             f"store repository that may cause a conflict"
         )
         print()
@@ -475,14 +485,14 @@ def init_repo(repo_name: str, template: str):
     template_path = str(Path(Path(__file__).parent / "templates" / template).absolute())
     if not os.path.exists(template_path):
         raise IOError(f"Could not find template {template}")
-    copytree(template_path, str(repo_path), dirs_exist_ok=True)
+    copytree(template_path, str(target_path), dirs_exist_ok=True)
 
     # Rename gitignore files back to .gitignore
-    for gitignore_path in repo_path.rglob("gitignore"):
+    for gitignore_path in target_path.rglob("gitignore"):
         gitignore_path.rename(gitignore_path.with_name(".gitignore"))
 
     # Seed the repository
-    bootstrap_path = repo_path / "bootstrap.py"
+    bootstrap_path = target_path / "bootstrap.py"
     if os.path.exists(bootstrap_path):
         import importlib.util
 
@@ -495,7 +505,7 @@ def init_repo(repo_name: str, template: str):
         os.remove(bootstrap_path)
 
     # Template the feature_store.yaml file
-    feature_store_yaml_path = repo_path / "feature_repo" / "feature_store.yaml"
+    feature_store_yaml_path = target_path / "feature_repo" / "feature_store.yaml"
     replace_str_in_file(
         feature_store_yaml_path, "project: my_project", f"project: {repo_name}"
     )
@@ -503,13 +513,13 @@ def init_repo(repo_name: str, template: str):
     # Remove the __pycache__ folder if it exists
     import shutil
 
-    shutil.rmtree(repo_path / "__pycache__", ignore_errors=True)
+    shutil.rmtree(target_path / "__pycache__", ignore_errors=True)
 
     import click
 
     click.echo()
     click.echo(
-        f"Creating a new Feast repository in {Style.BRIGHT + Fore.GREEN}{repo_path}{Style.RESET_ALL}."
+        f"Creating a new Feast repository in {Style.BRIGHT + Fore.GREEN}{target_path}{Style.RESET_ALL}."
     )
     click.echo()
 

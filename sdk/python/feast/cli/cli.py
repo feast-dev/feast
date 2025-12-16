@@ -412,13 +412,18 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "milvus",
             "ray",
             "ray_rag",
+            "pytorch_nlp",
         ],
         case_sensitive=False,
     ),
     help="Specify a template for the created project",
     default="local",
 )
-def init_command(project_directory, minimal: bool, template: str):
+@click.option(
+    "--repo-path",
+    help="Directory path where the repository will be created (default: create subdirectory with project name)",
+)
+def init_command(project_directory, minimal: bool, template: str, repo_path: str):
     """Create a new Feast repository"""
     if not project_directory:
         project_directory = generate_project_name()
@@ -426,7 +431,7 @@ def init_command(project_directory, minimal: bool, template: str):
     if minimal:
         template = "minimal"
 
-    init_repo(project_directory, template)
+    init_repo(project_directory, template, repo_path)
 
 
 @cli.command("listen")
