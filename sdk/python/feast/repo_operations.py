@@ -445,7 +445,7 @@ def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
         sys.exit(1)
 
 
-def init_repo(repo_name: str, template: str, repo_path: str = None):
+def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
     import os
     from pathlib import Path
     from shutil import copytree
