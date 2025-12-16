@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
@@ -53,43 +53,43 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			Name:      resourceName,
 			Namespace: "default",
 		}
-		featurestore := &feastdevv1alpha1.FeatureStore{}
+		featurestore := &feastdevv1.FeatureStore{}
 		localRef := corev1.LocalObjectReference{Name: "test"}
-		tlsConfigs := &feastdevv1alpha1.TlsConfigs{
+		tlsConfigs := &feastdevv1.TlsConfigs{
 			SecretRef: &localRef,
 		}
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind FeatureStore")
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &feastdevv1alpha1.FeatureStore{
+				resource := &feastdevv1.FeatureStore{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: feastdevv1alpha1.FeatureStoreSpec{
+					Spec: feastdevv1.FeatureStoreSpec{
 						FeastProject: feastProject,
-						Services: &feastdevv1alpha1.FeatureStoreServices{
-							OnlineStore: &feastdevv1alpha1.OnlineStore{
-								Server: &feastdevv1alpha1.ServerConfigs{
+						Services: &feastdevv1.FeatureStoreServices{
+							OnlineStore: &feastdevv1.OnlineStore{
+								Server: &feastdevv1.ServerConfigs{
 									TLS: tlsConfigs,
 								},
 							},
-							OfflineStore: &feastdevv1alpha1.OfflineStore{
-								Server: &feastdevv1alpha1.ServerConfigs{
+							OfflineStore: &feastdevv1.OfflineStore{
+								Server: &feastdevv1.ServerConfigs{
 									TLS: tlsConfigs,
 								},
 							},
-							Registry: &feastdevv1alpha1.Registry{
-								Local: &feastdevv1alpha1.LocalRegistryConfig{
-									Server: &feastdevv1alpha1.RegistryServerConfigs{
-										ServerConfigs: feastdevv1alpha1.ServerConfigs{
+							Registry: &feastdevv1.Registry{
+								Local: &feastdevv1.LocalRegistryConfig{
+									Server: &feastdevv1.RegistryServerConfigs{
+										ServerConfigs: feastdevv1.ServerConfigs{
 											TLS: tlsConfigs,
 										},
 									},
 								},
 							},
-							UI: &feastdevv1alpha1.ServerConfigs{
+							UI: &feastdevv1.ServerConfigs{
 								TLS: tlsConfigs,
 							},
 						},
@@ -99,7 +99,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			}
 		})
 		AfterEach(func() {
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -119,7 +119,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			feast := services.FeastServices{
@@ -145,42 +145,42 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(feast.GetFeastServiceName(services.RegistryFeastType) + "." + resource.Namespace + domainTls))
 
 			Expect(resource.Status.Conditions).NotTo(BeEmpty())
-			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
+			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.DeploymentNotAvailableReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.DeploymentNotAvailableMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.DeploymentNotAvailableReason))
+			Expect(cond.Type).To(Equal(feastdevv1.ReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.DeploymentNotAvailableMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.RegistryReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.RegistryReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.RegistryReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.RegistryReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ClientReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ClientReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.ClientReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.ClientReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.ClientReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.ClientReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OfflineStoreReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OfflineStoreReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.OfflineStoreReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.OfflineStoreReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.OfflineStoreReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.OfflineStoreReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OnlineStoreReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.OnlineStoreReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.OnlineStoreReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.OnlineStoreReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.OnlineStoreReadyMessage))
 
-			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.PendingPhase))
+			Expect(resource.Status.Phase).To(Equal(feastdevv1.PendingPhase))
 
 			// check deployment
 			deploy := &appsv1.Deployment{}
@@ -216,7 +216,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			feast := services.FeastServices{
@@ -338,7 +338,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			clientConfig := &services.RepoConfig{
 				Project:                       feastProject,
 				Provider:                      services.LocalProviderType,
-				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
+				EntityKeySerializationVersion: feastdevv1.SerializationVersion,
 				OfflineStore:                  offlineRemote,
 				OnlineStore: services.OnlineStoreConfig{
 					Path: fmt.Sprintf("https://feast-%s-online.default.svc.cluster.local:443", resourceName),
@@ -354,25 +354,25 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			resourceNew := resource.DeepCopy()
 			disable := true
 			remoteRegHost := "test.other-ns:443"
-			resourceNew.Spec = feastdevv1alpha1.FeatureStoreSpec{
+			resourceNew.Spec = feastdevv1.FeatureStoreSpec{
 				FeastProject: feastProject,
-				Services: &feastdevv1alpha1.FeatureStoreServices{
-					OnlineStore: &feastdevv1alpha1.OnlineStore{
-						Server: &feastdevv1alpha1.ServerConfigs{
-							TLS: &feastdevv1alpha1.TlsConfigs{
+				Services: &feastdevv1.FeatureStoreServices{
+					OnlineStore: &feastdevv1.OnlineStore{
+						Server: &feastdevv1.ServerConfigs{
+							TLS: &feastdevv1.TlsConfigs{
 								Disable: &disable,
 							},
 						},
 					},
-					OfflineStore: &feastdevv1alpha1.OfflineStore{
-						Server: &feastdevv1alpha1.ServerConfigs{
+					OfflineStore: &feastdevv1.OfflineStore{
+						Server: &feastdevv1.ServerConfigs{
 							TLS: tlsConfigs,
 						},
 					},
-					Registry: &feastdevv1alpha1.Registry{
-						Remote: &feastdevv1alpha1.RemoteRegistryConfig{
+					Registry: &feastdevv1.Registry{
+						Remote: &feastdevv1.RemoteRegistryConfig{
 							Hostname: &remoteRegHost,
-							TLS: &feastdevv1alpha1.TlsRemoteRegistryConfigs{
+							TLS: &feastdevv1.TlsRemoteRegistryConfigs{
 								ConfigMapRef: localRef,
 								CertName:     "remote.crt",
 							},
@@ -387,7 +387,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			feast.Handler.FeatureStore = resource
@@ -457,25 +457,25 @@ var _ = Describe("Test mountCustomCABundle functionality", func() {
 		Namespace: "default",
 	}
 
-	fs := &feastdevv1alpha1.FeatureStore{
+	fs := &feastdevv1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
 			Namespace: nsName.Namespace,
 		},
-		Spec: feastdevv1alpha1.FeatureStoreSpec{
+		Spec: feastdevv1.FeatureStoreSpec{
 			FeastProject: feastProject,
-			Services: &feastdevv1alpha1.FeatureStoreServices{
-				Registry:     &feastdevv1alpha1.Registry{Local: &feastdevv1alpha1.LocalRegistryConfig{Server: &feastdevv1alpha1.RegistryServerConfigs{ServerConfigs: feastdevv1alpha1.ServerConfigs{}}}},
-				OnlineStore:  &feastdevv1alpha1.OnlineStore{Server: &feastdevv1alpha1.ServerConfigs{}},
-				OfflineStore: &feastdevv1alpha1.OfflineStore{Server: &feastdevv1alpha1.ServerConfigs{}},
-				UI:           &feastdevv1alpha1.ServerConfigs{},
+			Services: &feastdevv1.FeatureStoreServices{
+				Registry:     &feastdevv1.Registry{Local: &feastdevv1.LocalRegistryConfig{Server: &feastdevv1.RegistryServerConfigs{ServerConfigs: feastdevv1.ServerConfigs{}}}},
+				OnlineStore:  &feastdevv1.OnlineStore{Server: &feastdevv1.ServerConfigs{}},
+				OfflineStore: &feastdevv1.OfflineStore{Server: &feastdevv1.ServerConfigs{}},
+				UI:           &feastdevv1.ServerConfigs{},
 			},
 		},
 	}
 
 	AfterEach(func() {
 		By("cleaning up FeatureStore and ConfigMap")
-		_ = k8sClient.Delete(ctx, &feastdevv1alpha1.FeatureStore{ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: nsName.Namespace}})
+		_ = k8sClient.Delete(ctx, &feastdevv1.FeatureStore{ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: nsName.Namespace}})
 		_ = k8sClient.Delete(ctx, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: configMapName, Namespace: nsName.Namespace}})
 	})
 
@@ -502,7 +502,7 @@ var _ = Describe("Test mountCustomCABundle functionality", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		resource := &feastdevv1alpha1.FeatureStore{}
+		resource := &feastdevv1.FeatureStore{}
 		err = k8sClient.Get(ctx, nsName, resource)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -545,7 +545,7 @@ var _ = Describe("Test mountCustomCABundle functionality", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		resource := &feastdevv1alpha1.FeatureStore{}
+		resource := &feastdevv1.FeatureStore{}
 		err = k8sClient.Get(ctx, nsName, resource)
 		Expect(err).NotTo(HaveOccurred())
 

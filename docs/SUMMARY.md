@@ -68,6 +68,7 @@
   * [Scaling Feast](how-to-guides/scaling-feast.md)
   * [Structuring Feature Repos](how-to-guides/structuring-repos.md)
 * [Running Feast in production (e.g. on Kubernetes)](how-to-guides/running-feast-in-production.md)
+* [Feast on Kubernetes](how-to-guides/feast-on-kubernetes.md)
 * [Customizing Feast](how-to-guides/customizing-feast/README.md)
   * [Adding a custom batch materialization engine](how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md)
   * [Adding a new offline store](how-to-guides/customizing-feast/adding-a-new-offline-store.md)

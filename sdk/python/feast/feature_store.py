@@ -78,7 +78,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
 from feast.project import Project
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -543,7 +542,7 @@ class FeatureStore:
 
     def delete_feature_view(self, name: str):
         """
-        Deletes a feature view.
+        Deletes a feature view of any kind (FeatureView, OnDemandFeatureView, StreamFeatureView).
 
         Args:
             name: Name of feature view.
@@ -792,12 +791,13 @@ class FeatureStore:
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
         self._registry.refresh(project=self.project)
-        current_infra_proto = InfraProto()
-        current_infra_proto.CopyFrom(self._registry.proto().infra)
+        current_infra_proto = self._registry.get_infra(self.project).to_proto()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
         new_infra_proto = new_infra.to_proto()
-        infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
+        infra_diff = diff_infra_protos(
+            current_infra_proto, new_infra_proto, project=self.project
+        )
 
         return registry_diff, infra_diff, new_infra
 
@@ -1331,6 +1331,7 @@ class FeatureStore:
         feature_view: OnDemandFeatureView,
         start_date: datetime,
         end_date: datetime,
+        full_feature_names: bool,
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
@@ -1428,6 +1429,7 @@ class FeatureStore:
         retrieval_job = self.get_historical_features(
             entity_df=entity_df,
             features=source_features_from_projections,
+            full_feature_names=full_feature_names,
         )
         input_df = retrieval_job.to_df()
         transformed_df = self._transform_on_demand_feature_view_df(
@@ -1439,6 +1441,7 @@ class FeatureStore:
         self,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
+        full_feature_names: bool = False,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1453,6 +1456,8 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
+            full_feature_names (bool): If True, feature names will be prefixed with the corresponding
+                feature view name.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -1498,7 +1503,12 @@ class FeatureStore:
                     print(
                         f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
                     )
-                    self._materialize_odfv(feature_view, odfv_start_date, end_date)
+                    self._materialize_odfv(
+                        feature_view,
+                        odfv_start_date,
+                        end_date,
+                        full_feature_names=full_feature_names,
+                    )
                 continue
 
             start_date = feature_view.most_recent_end_time
@@ -1554,6 +1564,7 @@ class FeatureStore:
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
         disable_event_timestamp: bool = False,
+        full_feature_names: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -1568,6 +1579,8 @@ class FeatureStore:
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
             disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
+            full_feature_names (bool): If True, feature names will be prefixed with the corresponding
+                feature view name.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -1603,7 +1616,12 @@ class FeatureStore:
                     print(
                         f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
                     )
-                    self._materialize_odfv(feature_view, start_date, end_date)
+                    self._materialize_odfv(
+                        feature_view,
+                        start_date,
+                        end_date,
+                        full_feature_names=full_feature_names,
+                    )
                 continue
             provider = self._get_provider()
             print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
@@ -2028,9 +2046,17 @@ class FeatureStore:
         source_columns = [column for column, _ in column_names_and_types]
         input_columns = df.columns.values.tolist()
 
-        if set(input_columns) != set(source_columns):
+        input_columns_set = set(input_columns)
+        source_columns_set = set(source_columns)
+
+        if input_columns_set != source_columns_set:
+            missing_expected_columns = sorted(source_columns_set - input_columns_set)
+            extra_unexpected_columns = sorted(input_columns_set - source_columns_set)
+
             raise ValueError(
-                f"The input dataframe has columns {set(input_columns)} but the batch source has columns {set(source_columns)}."
+                "The input dataframe columns do not match the batch source columns. "
+                f"missing_expected_columns: {missing_expected_columns}, "
+                f"extra_unexpected_columns: {extra_unexpected_columns}."
             )
 
         if reorder_columns:

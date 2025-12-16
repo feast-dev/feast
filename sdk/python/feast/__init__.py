@@ -9,6 +9,7 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
+from .aggregation import Aggregation
 from .batch_feature_view import BatchFeatureView
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
 from .dataframe import DataFrameEngine, FeastDataFrame
@@ -32,6 +33,7 @@ except PackageNotFoundError:
     pass
 
 __all__ = [
+    "Aggregation",
     "BatchFeatureView",
     "DataFrameEngine",
     "Entity",

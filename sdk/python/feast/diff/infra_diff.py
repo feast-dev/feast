@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Generic, Iterable, List, Tuple, TypeVar
+from typing import Generic, Iterable, List, Optional, Tuple, TypeVar
 
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.infra.infra_object import (
@@ -98,7 +98,9 @@ def tag_infra_proto_objects_for_keep_delete_add(
 
 
 def diff_infra_protos(
-    current_infra_proto: InfraProto, new_infra_proto: InfraProto
+    current_infra_proto: InfraProto,
+    new_infra_proto: InfraProto,
+    project: Optional[str] = None,
 ) -> InfraDiff:
     infra_diff = InfraDiff()
 
@@ -114,6 +116,19 @@ def diff_infra_protos(
         new_infra_objects = get_infra_object_protos_by_type(
             new_infra_proto, infra_object_class_type
         )
+
+        # Filter infra objects by project prefix when using shared online stores
+        # Table names include project prefix: {project}_{table_name}
+        if project:
+            project_prefix = f"{project}_"
+            current_infra_objects = [
+                obj
+                for obj in current_infra_objects
+                if obj.name.startswith(project_prefix)
+            ]
+            new_infra_objects = [
+                obj for obj in new_infra_objects if obj.name.startswith(project_prefix)
+            ]
         (
             infra_objects_to_keep,
             infra_objects_to_delete,

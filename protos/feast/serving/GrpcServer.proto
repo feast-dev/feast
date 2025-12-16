@@ -2,6 +2,8 @@ syntax = "proto3";
 
 import "feast/serving/ServingService.proto";
 
+option java_package = "feast.proto.serving";
+option java_outer_classname = "GrpcServerAPIProto";
 option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
 
 message PushRequest {

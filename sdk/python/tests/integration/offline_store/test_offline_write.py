@@ -66,10 +66,17 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
             "created": [ts, ts],
         },
     )
-    with pytest.raises(ValueError):
+    expected_missing = ["acc_rate", "avg_daily_trips"]
+    expected_extra = ["incorrect_schema"]
+
+    with pytest.raises(ValueError, match="missing_expected_columns") as excinfo:
         store.write_to_offline_store(
             driver_fv.name, expected_df, allow_registry_cache=False
         )
+
+    error_message = str(excinfo.value)
+    assert f"missing_expected_columns: {expected_missing}" in error_message
+    assert f"extra_unexpected_columns: {expected_extra}" in error_message
 
 
 @pytest.mark.integration

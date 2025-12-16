@@ -180,10 +180,10 @@ def test_parse_repo_with_future_annotations():
         repo_path = Path(temp_path / "my_project" / "feature_repo")
         assert result.returncode == 0
 
-        with open(repo_path / "example_repo.py", "r") as f:
+        with open(repo_path / "feature_definitions.py", "r") as f:
             existing_content = f.read()
 
-        with open(repo_path / "example_repo.py", "w") as f:
+        with open(repo_path / "feature_definitions.py", "w") as f:
             f.write("from __future__ import annotations" + "\n" + existing_content)
 
         repo_contents = parse_repo(repo_path)

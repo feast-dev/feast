@@ -153,7 +153,19 @@ def _get_column_names(
     """
     # if we have mapped fields, use the original field names in the call to the offline store
     timestamp_field = feature_view.batch_source.timestamp_field
-    feature_names = [feature.name for feature in feature_view.features]
+
+    # For feature views with aggregations, read INPUT columns from aggregations.
+    # This applies to StreamFeatureView, BatchFeatureView,
+    # or any FeatureView that has aggregations.
+    if hasattr(feature_view, "aggregations") and feature_view.aggregations:
+        # Extract unique input columns from aggregations, preserving order
+        feature_names = list(
+            dict.fromkeys(agg.column for agg in feature_view.aggregations)
+        )
+    else:
+        # For regular feature views, use the feature names
+        feature_names = [feature.name for feature in feature_view.features]
+
     created_timestamp_column = feature_view.batch_source.created_timestamp_column
 
     from feast.feature_view import DUMMY_ENTITY_ID

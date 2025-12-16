@@ -1,3 +1,4 @@
+
 /*
  * Copyright 2018 The Feast Authors
  *
@@ -42,6 +43,8 @@ message ValueType {
     BOOL_LIST = 17;
     UNIX_TIMESTAMP_LIST = 18;
     NULL = 19;
+    MAP = 20;
+    MAP_LIST = 21;
   }
 }
 
@@ -67,6 +70,8 @@ message Value {
     BoolList bool_list_val = 17;
     Int64List unix_timestamp_list_val = 18;
     Null null_val = 19;
+    Map map_val = 20;
+    MapList map_list_val = 21;
   }
 }
 
@@ -100,6 +105,14 @@ message FloatList {
 
 message BoolList {
   repeated bool val = 1;
+}
+
+message Map {
+  map<string, Value> val = 1;
+}
+
+message MapList {
+  repeated Map val = 1;
 }
 
 // This is to avoid an issue of being unable to specify `repeated value` in oneofs or maps

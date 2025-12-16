@@ -48,7 +48,7 @@ There are several options available to get Dragonfly up and running quickly. We 
 
 `feast apply`
 
-The `apply` command scans python files in the current directory (`example_repo.py` in this case) for feature view/entity definitions, registers the objects, and deploys infrastructure.
+The `apply` command scans python files in the current directory (`feature_definitions.py` in this case) for feature view/entity definitions, registers the objects, and deploys infrastructure.
 You should see the following output:
 
 ```

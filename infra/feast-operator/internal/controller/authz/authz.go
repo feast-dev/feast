@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -337,7 +337,7 @@ func (authz *FeastAuthorization) getFeastRoleName() string {
 	return GetFeastRoleName(authz.Handler.FeatureStore)
 }
 
-func GetFeastRoleName(featureStore *feastdevv1alpha1.FeatureStore) string {
+func GetFeastRoleName(featureStore *feastdevv1.FeatureStore) string {
 	return services.GetFeastName(featureStore)
 }
 
@@ -345,7 +345,7 @@ func (authz *FeastAuthorization) getFeastClusterRoleName() string {
 	return GetFeastClusterRoleName(authz.Handler.FeatureStore)
 }
 
-func GetFeastClusterRoleName(featureStore *feastdevv1alpha1.FeatureStore) string {
+func GetFeastClusterRoleName(featureStore *feastdevv1.FeatureStore) string {
 	// Use a shared ClusterRole name for all Feast instances
 	// This allows multiple FeatureStores to share the same Token Access Review permissions
 	return "feast-token-review-cluster-role"
@@ -355,7 +355,7 @@ func (authz *FeastAuthorization) getFeastClusterRoleBindingName() string {
 	return GetFeastClusterRoleBindingName(authz.Handler.FeatureStore)
 }
 
-func GetFeastClusterRoleBindingName(featureStore *feastdevv1alpha1.FeatureStore) string {
+func GetFeastClusterRoleBindingName(featureStore *feastdevv1.FeatureStore) string {
 	return services.GetFeastName(featureStore) + "-cluster-binding"
 }
 

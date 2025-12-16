@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,19 +22,19 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
-func createFeatureStore() *feastdevv1alpha1.FeatureStore {
-	return &feastdevv1alpha1.FeatureStore{
+func createFeatureStore() *feastdevv1.FeatureStore {
+	return &feastdevv1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
 			Namespace: namespaceName,
 		},
-		Spec: feastdevv1alpha1.FeatureStoreSpec{
+		Spec: feastdevv1.FeatureStoreSpec{
 			FeastProject: "test_project",
 		},
 	}
 }
 
-func attemptInvalidCreationAndAsserts(ctx context.Context, featurestore *feastdevv1alpha1.FeatureStore, matcher string) {
+func attemptInvalidCreationAndAsserts(ctx context.Context, featurestore *feastdevv1.FeatureStore, matcher string) {
 	By("Creating the resource")
 	logger := log.FromContext(ctx)
 	logger.Info("Creating", "FeatureStore", featurestore)
@@ -44,26 +44,26 @@ func attemptInvalidCreationAndAsserts(ctx context.Context, featurestore *feastde
 	Expect(err.Error()).Should(ContainSubstring(matcher))
 }
 
-func onlineStoreWithAbsolutePathForPvc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func onlineStoreWithAbsolutePathForPvc(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OnlineStore: &feastdevv1alpha1.OnlineStore{
-			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OnlineStore: &feastdevv1.OnlineStore{
+			Persistence: &feastdevv1.OnlineStorePersistence{
+				FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
 					Path:      "/data/online_store.db",
-					PvcConfig: &feastdevv1alpha1.PvcConfig{},
+					PvcConfig: &feastdevv1.PvcConfig{},
 				},
 			},
 		},
 	}
 	return fsCopy
 }
-func onlineStoreWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func onlineStoreWithRelativePathForEphemeral(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OnlineStore: &feastdevv1alpha1.OnlineStore{
-			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OnlineStore: &feastdevv1.OnlineStore{
+			Persistence: &feastdevv1.OnlineStorePersistence{
+				FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
 					Path: "data/online_store.db",
 				},
 			},
@@ -72,15 +72,15 @@ func onlineStoreWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.Feat
 	return fsCopy
 }
 
-func onlineStoreWithObjectStoreBucketForPvc(path string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func onlineStoreWithObjectStoreBucketForPvc(path string, featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OnlineStore: &feastdevv1alpha1.OnlineStore{
-			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OnlineStore: &feastdevv1.OnlineStore{
+			Persistence: &feastdevv1.OnlineStorePersistence{
+				FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
 					Path: path,
-					PvcConfig: &feastdevv1alpha1.PvcConfig{
-						Create:    &feastdevv1alpha1.PvcCreate{},
+					PvcConfig: &feastdevv1.PvcConfig{
+						Create:    &feastdevv1.PvcCreate{},
 						MountPath: "/data/online",
 					},
 				},
@@ -90,12 +90,12 @@ func onlineStoreWithObjectStoreBucketForPvc(path string, featureStore *feastdevv
 	return fsCopy
 }
 
-func offlineStoreWithUnmanagedFileType(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func offlineStoreWithUnmanagedFileType(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OfflineStore: &feastdevv1alpha1.OfflineStore{
-			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OfflineStore: &feastdevv1.OfflineStore{
+			Persistence: &feastdevv1.OfflineStorePersistence{
+				FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
 					Type: "unmanaged",
 				},
 			},
@@ -104,28 +104,28 @@ func offlineStoreWithUnmanagedFileType(featureStore *feastdevv1alpha1.FeatureSto
 	return fsCopy
 }
 
-func registryWithAbsolutePathForPvc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithAbsolutePathForPvc(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Persistence: &feastdevv1.RegistryPersistence{
+					FilePersistence: &feastdevv1.RegistryFilePersistence{
 						Path:      "/data/registry.db",
-						PvcConfig: &feastdevv1alpha1.PvcConfig{},
+						PvcConfig: &feastdevv1.PvcConfig{},
 					}},
 			},
 		},
 	}
 	return fsCopy
 }
-func registryWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithRelativePathForEphemeral(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Persistence: &feastdevv1.RegistryPersistence{
+					FilePersistence: &feastdevv1.RegistryFilePersistence{
 						Path: "data/online_store.db",
 					},
 				},
@@ -134,16 +134,16 @@ func registryWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.Feature
 	}
 	return fsCopy
 }
-func registryWithObjectStoreBucketForPvc(path string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithObjectStoreBucketForPvc(path string, featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Persistence: &feastdevv1.RegistryPersistence{
+					FilePersistence: &feastdevv1.RegistryFilePersistence{
 						Path: path,
-						PvcConfig: &feastdevv1alpha1.PvcConfig{
-							Create:    &feastdevv1alpha1.PvcCreate{},
+						PvcConfig: &feastdevv1.PvcConfig{
+							Create:    &feastdevv1.PvcCreate{},
 							MountPath: "/data/registry",
 						},
 					},
@@ -153,13 +153,13 @@ func registryWithObjectStoreBucketForPvc(path string, featureStore *feastdevv1al
 	}
 	return fsCopy
 }
-func registryWithS3AdditionalKeywordsForFile(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithS3AdditionalKeywordsForFile(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Persistence: &feastdevv1.RegistryPersistence{
+					FilePersistence: &feastdevv1.RegistryFilePersistence{
 						Path:               "/data/online_store.db",
 						S3AdditionalKwargs: &map[string]string{},
 					},
@@ -169,13 +169,13 @@ func registryWithS3AdditionalKeywordsForFile(featureStore *feastdevv1alpha1.Feat
 	}
 	return fsCopy
 }
-func registryWithS3AdditionalKeywordsForGsBucket(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithS3AdditionalKeywordsForGsBucket(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Persistence: &feastdevv1.RegistryPersistence{
+					FilePersistence: &feastdevv1.RegistryFilePersistence{
 						Path:               "gs://online_store.db",
 						S3AdditionalKwargs: &map[string]string{},
 					},
@@ -186,30 +186,30 @@ func registryWithS3AdditionalKeywordsForGsBucket(featureStore *feastdevv1alpha1.
 	return fsCopy
 }
 
-func pvcConfigWithNeitherRefNorCreate(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func pvcConfigWithNeitherRefNorCreate(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OfflineStore: &feastdevv1alpha1.OfflineStore{
-			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
-					PvcConfig: &feastdevv1alpha1.PvcConfig{},
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OfflineStore: &feastdevv1.OfflineStore{
+			Persistence: &feastdevv1.OfflineStorePersistence{
+				FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
+					PvcConfig: &feastdevv1.PvcConfig{},
 				},
 			},
 		},
 	}
 	return fsCopy
 }
-func pvcConfigWithBothRefAndCreate(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func pvcConfigWithBothRefAndCreate(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OfflineStore: &feastdevv1alpha1.OfflineStore{
-			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
-					PvcConfig: &feastdevv1alpha1.PvcConfig{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OfflineStore: &feastdevv1.OfflineStore{
+			Persistence: &feastdevv1.OfflineStorePersistence{
+				FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
+					PvcConfig: &feastdevv1.PvcConfig{
 						Ref: &corev1.LocalObjectReference{
 							Name: "pvc",
 						},
-						Create: &feastdevv1alpha1.PvcCreate{},
+						Create: &feastdevv1.PvcCreate{},
 					},
 				},
 			},
@@ -218,35 +218,35 @@ func pvcConfigWithBothRefAndCreate(featureStore *feastdevv1alpha1.FeatureStore) 
 	return fsCopy
 }
 
-func pvcConfigWithNoResources(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func pvcConfigWithNoResources(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OfflineStore: &feastdevv1alpha1.OfflineStore{
-			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
-					PvcConfig: &feastdevv1alpha1.PvcConfig{
-						Create:    &feastdevv1alpha1.PvcCreate{},
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OfflineStore: &feastdevv1.OfflineStore{
+			Persistence: &feastdevv1.OfflineStorePersistence{
+				FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
+					PvcConfig: &feastdevv1.PvcConfig{
+						Create:    &feastdevv1.PvcCreate{},
 						MountPath: "/data/offline",
 					},
 				},
 			},
 		},
-		OnlineStore: &feastdevv1alpha1.OnlineStore{
-			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
-					PvcConfig: &feastdevv1alpha1.PvcConfig{
-						Create:    &feastdevv1alpha1.PvcCreate{},
+		OnlineStore: &feastdevv1.OnlineStore{
+			Persistence: &feastdevv1.OnlineStorePersistence{
+				FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
+					PvcConfig: &feastdevv1.PvcConfig{
+						Create:    &feastdevv1.PvcCreate{},
 						MountPath: "/data/online",
 					},
 				},
 			},
 		},
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-						PvcConfig: &feastdevv1alpha1.PvcConfig{
-							Create:    &feastdevv1alpha1.PvcCreate{},
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Persistence: &feastdevv1.RegistryPersistence{
+					FilePersistence: &feastdevv1.RegistryFilePersistence{
+						PvcConfig: &feastdevv1.PvcConfig{
+							Create:    &feastdevv1.PvcCreate{},
 							MountPath: "/data/registry",
 						},
 					},
@@ -257,7 +257,7 @@ func pvcConfigWithNoResources(featureStore *feastdevv1alpha1.FeatureStore) *feas
 	return fsCopy
 }
 
-func pvcConfigWithResources(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func pvcConfigWithResources(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := pvcConfigWithNoResources(featureStore)
 	fsCopy.Spec.Services.OfflineStore.Persistence.FilePersistence.PvcConfig.Create.Resources = corev1.VolumeResourceRequirements{
 		Requests: corev1.ResourceList{
@@ -277,31 +277,31 @@ func pvcConfigWithResources(featureStore *feastdevv1alpha1.FeatureStore) *feastd
 	return fsCopy
 }
 
-func authzConfigWithKubernetes(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func authzConfigWithKubernetes(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
 	if fsCopy.Spec.AuthzConfig == nil {
-		fsCopy.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
+		fsCopy.Spec.AuthzConfig = &feastdevv1.AuthzConfig{}
 	}
-	fsCopy.Spec.AuthzConfig.KubernetesAuthz = &feastdevv1alpha1.KubernetesAuthz{
+	fsCopy.Spec.AuthzConfig.KubernetesAuthz = &feastdevv1.KubernetesAuthz{
 		Roles: []string{},
 	}
 	return fsCopy
 }
-func authzConfigWithOidc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func authzConfigWithOidc(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
 	if fsCopy.Spec.AuthzConfig == nil {
-		fsCopy.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
+		fsCopy.Spec.AuthzConfig = &feastdevv1.AuthzConfig{}
 	}
-	fsCopy.Spec.AuthzConfig.OidcAuthz = &feastdevv1alpha1.OidcAuthz{}
+	fsCopy.Spec.AuthzConfig.OidcAuthz = &feastdevv1.OidcAuthz{}
 	return fsCopy
 }
 
-func onlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func onlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OnlineStore: &feastdevv1alpha1.OnlineStore{
-			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-				DBPersistence: &feastdevv1alpha1.OnlineStoreDBStorePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OnlineStore: &feastdevv1.OnlineStore{
+			Persistence: &feastdevv1.OnlineStorePersistence{
+				DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
 					Type: dbPersistenceType,
 				},
 			},
@@ -310,12 +310,12 @@ func onlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *fe
 	return fsCopy
 }
 
-func offlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func offlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OfflineStore: &feastdevv1alpha1.OfflineStore{
-			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-				DBPersistence: &feastdevv1alpha1.OfflineStoreDBStorePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OfflineStore: &feastdevv1.OfflineStore{
+			Persistence: &feastdevv1.OfflineStorePersistence{
+				DBPersistence: &feastdevv1.OfflineStoreDBStorePersistence{
 					Type: dbPersistenceType,
 				},
 			},
@@ -324,13 +324,13 @@ func offlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *f
 	return fsCopy
 }
 
-func registryStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					DBPersistence: &feastdevv1alpha1.RegistryDBStorePersistence{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Persistence: &feastdevv1.RegistryPersistence{
+					DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 						Type: dbPersistenceType,
 					},
 				},
@@ -340,12 +340,12 @@ func registryStoreWithDBPersistenceType(dbPersistenceType string, featureStore *
 	return fsCopy
 }
 
-func registryWithRestAPIFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithRestAPIFalse(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{
 					RestAPI: boolPtr(false),
 				},
 			},
@@ -354,12 +354,12 @@ func registryWithRestAPIFalse(featureStore *feastdevv1alpha1.FeatureStore) *feas
 	return fsCopy
 }
 
-func registryWithOnlyRestAPI(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithOnlyRestAPI(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{
 					RestAPI: boolPtr(true),
 				},
 			},
@@ -368,12 +368,12 @@ func registryWithOnlyRestAPI(featureStore *feastdevv1alpha1.FeatureStore) *feast
 	return fsCopy
 }
 
-func registryWithOnlyGRPC(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithOnlyGRPC(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{
 					GRPC: boolPtr(true),
 				},
 			},
@@ -382,12 +382,12 @@ func registryWithOnlyGRPC(featureStore *feastdevv1alpha1.FeatureStore) *feastdev
 	return fsCopy
 }
 
-func registryWithBothAPIs(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithBothAPIs(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{
 					RestAPI: boolPtr(true),
 					GRPC:    boolPtr(true),
 				},
@@ -397,24 +397,24 @@ func registryWithBothAPIs(featureStore *feastdevv1alpha1.FeatureStore) *feastdev
 	return fsCopy
 }
 
-func registryWithNoAPIs(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithNoAPIs(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{},
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{},
 			},
 		},
 	}
 	return fsCopy
 }
 
-func registryWithBothFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithBothFalse(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{
 					RestAPI: boolPtr(false),
 					GRPC:    boolPtr(false),
 				},
@@ -424,12 +424,12 @@ func registryWithBothFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastde
 	return fsCopy
 }
 
-func registryWithGRPCFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func registryWithGRPCFalse(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{
 					GRPC: boolPtr(false),
 				},
 			},
@@ -438,9 +438,9 @@ func registryWithGRPCFalse(featureStore *feastdevv1alpha1.FeatureStore) *feastde
 	return fsCopy
 }
 
-func cronJobWithAnnotations(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func cronJobWithAnnotations(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.CronJob = &feastdevv1alpha1.FeastCronJob{
+	fsCopy.Spec.CronJob = &feastdevv1.FeastCronJob{
 		Annotations: map[string]string{
 			"test-annotation":    "test-value",
 			"another-annotation": "another-value",
@@ -450,18 +450,18 @@ func cronJobWithAnnotations(featureStore *feastdevv1alpha1.FeatureStore) *feastd
 	return fsCopy
 }
 
-func cronJobWithEmptyAnnotations(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func cronJobWithEmptyAnnotations(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.CronJob = &feastdevv1alpha1.FeastCronJob{
+	fsCopy.Spec.CronJob = &feastdevv1.FeastCronJob{
 		Annotations: map[string]string{},
 		Schedule:    "0 0 * * *",
 	}
 	return fsCopy
 }
 
-func cronJobWithoutAnnotations(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+func cronJobWithoutAnnotations(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
-	fsCopy.Spec.CronJob = &feastdevv1alpha1.FeastCronJob{
+	fsCopy.Spec.CronJob = &feastdevv1.FeastCronJob{
 		Schedule: "0 0 * * *",
 	}
 	return fsCopy
@@ -485,7 +485,7 @@ var typeNamespacedName = types.NamespacedName{
 	Namespace: "default",
 }
 
-func initContext() (context.Context, *feastdevv1alpha1.FeatureStore) {
+func initContext() (context.Context, *feastdevv1.FeatureStore) {
 	ctx := context.Background()
 
 	featurestore := createFeatureStore()
@@ -520,7 +520,7 @@ var _ = Describe("FeatureStore API", func() {
 		})
 
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidOnlineStoreDBStorePersistenceTypes))
+			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1.ValidOnlineStoreDBStorePersistenceTypes))
 		})
 	})
 
@@ -531,7 +531,7 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithUnmanagedFileType(featurestore), "Unsupported value")
 		})
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidOfflineStoreDBStorePersistenceTypes))
+			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1.ValidOfflineStoreDBStorePersistenceTypes))
 		})
 	})
 
@@ -553,7 +553,7 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, registryWithS3AdditionalKeywordsForGsBucket(featurestore), "Additional S3 settings are available only for S3 object store URIs")
 		})
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, registryStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidRegistryDBStorePersistenceTypes))
+			attemptInvalidCreationAndAsserts(ctx, registryStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1.ValidRegistryDBStorePersistenceTypes))
 		})
 	})
 
@@ -613,13 +613,13 @@ var _ = Describe("FeatureStore API", func() {
 
 		BeforeEach(func() {
 			By("verifying the custom resource FeatureStore is not there")
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
 		})
 		AfterEach(func() {
 			By("Cleaning up the test resource")
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			if err == nil {
 				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
@@ -680,13 +680,13 @@ var _ = Describe("FeatureStore API", func() {
 
 		BeforeEach(func() {
 			By("verifying the custom resource FeatureStore is not there")
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
 		})
 		AfterEach(func() {
 			By("Cleaning up the test resource")
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			if err == nil {
 				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())

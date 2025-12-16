@@ -40,12 +40,12 @@ var _ = Describe("controller", Ordered, func() {
 	applyAndMaterializeTest := "TestApplyAndMaterializeFeastDefinitions"
 
 	runTestDeploySimpleCRFunc := utils.GetTestDeploySimpleCRFunc("/test/e2e",
-		"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml",
+		"test/testdata/feast_integration_test_crs/v1_default_featurestore.yaml",
 		featureStoreName, feastResourceName, feastK8sResourceNames, namespace)
 
 	runTestWithRemoteRegistryFunction := utils.GetTestWithRemoteRegistryFunc("/test/e2e",
-		"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml",
-		"test/testdata/feast_integration_test_crs/v1alpha1_remote_registry_featurestore.yaml",
+		"test/testdata/feast_integration_test_crs/v1_default_featurestore.yaml",
+		"test/testdata/feast_integration_test_crs/v1_remote_registry_featurestore.yaml",
 		featureStoreName, feastResourceName, feastK8sResourceNames, namespace)
 
 	runTestApplyAndMaterializeFunc := utils.RunTestApplyAndMaterializeFunc("/test/e2e", namespace, "credit-scoring", utils.FeastPrefix+"credit-scoring")

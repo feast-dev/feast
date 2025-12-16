@@ -4,7 +4,7 @@ import (
 	"os"
 	"strconv"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -54,6 +54,7 @@ func (feast *FeastServices) initCronJob() *batchv1.CronJob {
 func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 	appliedCronJob := feast.Handler.FeatureStore.Status.Applied.CronJob
 	cronJob.Labels = feast.getFeastTypeLabels(CronJobFeastType)
+
 	if appliedCronJob.Annotations != nil {
 		cronJob.Annotations = make(map[string]string, len(appliedCronJob.Annotations))
 		for k, v := range appliedCronJob.Annotations {
@@ -65,7 +66,8 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 		JobTemplate: batchv1.JobTemplateSpec{
 			Spec: batchv1.JobSpec{
 				Template: corev1.PodTemplateSpec{
-					Spec: feast.getCronJobPodSpec(),
+					ObjectMeta: metav1.ObjectMeta{},
+					Spec:       feast.getCronJobPodSpec(),
 				},
 			},
 		},
@@ -92,6 +94,16 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 	appliedJobSpec := appliedCronJob.JobSpec
 	if appliedJobSpec != nil {
 		jobSpec := &cronJob.Spec.JobTemplate.Spec
+
+		// apply PodTemplateAnnotations into the PodTemplate metadata if provided
+		if appliedJobSpec.PodTemplateAnnotations != nil {
+			if jobSpec.Template.Annotations == nil {
+				jobSpec.Template.Annotations = make(map[string]string, len(appliedJobSpec.PodTemplateAnnotations))
+			}
+			for k, v := range appliedJobSpec.PodTemplateAnnotations {
+				jobSpec.Template.Annotations[k] = v
+			}
+		}
 
 		if appliedJobSpec.ActiveDeadlineSeconds != nil {
 			jobSpec.ActiveDeadlineSeconds = appliedJobSpec.ActiveDeadlineSeconds
@@ -127,6 +139,7 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 			jobSpec.TTLSecondsAfterFinished = appliedJobSpec.TTLSecondsAfterFinished
 		}
 	}
+
 	feast.Handler.FeatureStore.Status.CronJob = cronJob.Name
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, cronJob, feast.Handler.Scheme)
 }
@@ -259,7 +272,7 @@ func (feast *FeastServices) getCronJobRoleName() string {
 
 // defaults to a CronJob configuration that will never run. this default Job can be executed manually, however.
 // e.g. kubectl create job --from=cronjob/feast-sample feast-sample-job
-func setDefaultCronJobConfigs(feastCronJob *feastdevv1alpha1.FeastCronJob) {
+func setDefaultCronJobConfigs(feastCronJob *feastdevv1.FeastCronJob) {
 	if len(feastCronJob.Schedule) == 0 {
 		feastCronJob.Schedule = "@yearly"
 		if feastCronJob.Suspend == nil {
@@ -273,7 +286,7 @@ func setDefaultCronJobConfigs(feastCronJob *feastdevv1alpha1.FeastCronJob) {
 		}
 	}
 	if feastCronJob.ContainerConfigs == nil {
-		feastCronJob.ContainerConfigs = &feastdevv1alpha1.CronJobContainerConfigs{}
+		feastCronJob.ContainerConfigs = &feastdevv1.CronJobContainerConfigs{}
 	}
 	if feastCronJob.ContainerConfigs.Image == nil {
 		feastCronJob.ContainerConfigs.Image = getCronJobImage()

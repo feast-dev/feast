@@ -24,7 +24,7 @@ dependencies = [
     "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
     "pyarrow<=21.0.0",
-    "pydantic==2.10.6",
+    "pydantic>=2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -84,6 +84,7 @@ hbase = ["happybase>=1.2.0,<3"]
 ibis = [
     "ibis-framework>=9.0.0,<=9.5.0",
     "ibis-substrait>=4.0.0",
+    "substrait<0.25.0",  # TODO: remove this once we upgrade protobuf 
     "poetry-core<2",
     "poetry-dynamic-versioning",
 ]
@@ -98,7 +99,7 @@ image = [
     "scikit-learn>=1.0.0",
 ]
 milvus = [
-    "pymilvus==2.4.9",
+    "pymilvus==2.4.15",
     "milvus-lite==2.4.12",
     "feast[setuptools]"
 ]

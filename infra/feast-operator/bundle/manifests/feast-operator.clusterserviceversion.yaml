@@ -5,7 +5,7 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample"
@@ -15,7 +15,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample-remote-servers"
@@ -36,7 +36,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample-ui"
@@ -50,15 +50,20 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-11-13T20:26:23Z"
+    createdAt: "2025-12-16T17:51:22Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.57.0
+  name: feast-operator.v0.58.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: FeatureStore is the Schema for the featurestores API
+      displayName: Feature Store
+      kind: FeatureStore
+      name: featurestores.feast.dev
+      version: v1
     - description: FeatureStore is the Schema for the featurestores API
       displayName: Feature Store
       kind: FeatureStore
@@ -225,10 +230,10 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: quay.io/feastdev/feature-server:0.57.0
+                  value: quay.io/feastdev/feature-server:0.58.0
                 - name: RELATED_IMAGE_CRON_JOB
                   value: quay.io/openshift/origin-cli:4.17
-                image: quay.io/feastdev/feast-operator:0.57.0
+                image: quay.io/feastdev/feast-operator:0.58.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -318,8 +323,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: quay.io/feastdev/feature-server:0.57.0
+  - image: quay.io/feastdev/feature-server:0.58.0
     name: feature-server
   - image: quay.io/openshift/origin-cli:4.17
     name: cron-job
-  version: 0.57.0
+  version: 0.58.0

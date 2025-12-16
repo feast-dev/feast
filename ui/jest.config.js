@@ -1,4 +1,4 @@
-const transformNodeModules = ["@elastic/eui", "uuid"];
+const transformNodeModules = ["@elastic/eui", "uuid", "msw", "until-async"];
 
 module.exports = {
   roots: ["<rootDir>/src"],

@@ -6,6 +6,7 @@ from types import FunctionType
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import dill
+from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message
 from typeguard import typechecked
 
@@ -56,8 +57,9 @@ class StreamFeatureView(FeatureView):
             columns. If not specified, can be inferred from the underlying data source.
         source: The stream source of data where this group of features is stored.
         aggregations: List of aggregations registered with the stream feature view.
-        mode: The mode of execution.
         timestamp_field: Must be specified if aggregations are specified. Defines the timestamp column on which to aggregate windows.
+        enable_tiling: Enable tiling optimization for efficient windowed aggregations.
+        tiling_hop_size: Time interval between tiles (e.g., 5 minutes). Defaults to 5 minutes.
         online: A boolean indicating whether online retrieval, and write to online store is enabled for this feature view.
         offline: A boolean indicating whether offline retrieval, and write to offline store is enabled for this feature view.
         description: A human-readable description.
@@ -84,14 +86,16 @@ class StreamFeatureView(FeatureView):
     description: str
     tags: Dict[str, str]
     owner: str
-    aggregations: List[Aggregation]
     mode: Union[TransformationMode, str]
-    timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     feature_transformation: Optional[Transformation]
     stream_engine: Optional[Dict[str, Any]] = None
+    aggregations: List[Aggregation]
+    timestamp_field: str
+    enable_tiling: bool
+    tiling_hop_size: Optional[timedelta]
 
     def __init__(
         self,
@@ -114,6 +118,8 @@ class StreamFeatureView(FeatureView):
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
         stream_engine: Optional[Dict[str, Any]] = None,
+        enable_tiling: bool = False,
+        tiling_hop_size: Optional[timedelta] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -136,15 +142,33 @@ class StreamFeatureView(FeatureView):
                 "aggregations must have a timestamp field associated with them to perform the aggregations"
             )
 
-        self.aggregations = aggregations or []
         self.mode = mode
-        self.timestamp_field = timestamp_field or ""
         self.udf = udf
         self.udf_string = udf_string
+        self.aggregations = aggregations or []
+        self.timestamp_field = timestamp_field or ""
         self.feature_transformation = (
             feature_transformation or self.get_feature_transformation()
         )
         self.stream_engine = stream_engine
+        self.enable_tiling = enable_tiling
+        self.tiling_hop_size = tiling_hop_size
+
+        if enable_tiling and self.aggregations:
+            effective_hop_size = tiling_hop_size or timedelta(minutes=5)
+            time_windows = [
+                agg.time_window
+                for agg in self.aggregations
+                if agg.time_window is not None
+            ]
+            if time_windows:
+                min_window_size = min(time_windows)
+                if effective_hop_size >= min_window_size:
+                    raise ValueError(
+                        f"tiling_hop_size ({effective_hop_size}) must be smaller than "
+                        f"the minimum aggregation time_window ({min_window_size}). "
+                        f"If hop_size >= window_size, the tiling algorithm will produce incorrect results."
+                    )
 
         super().__init__(
             name=name,
@@ -240,6 +264,12 @@ class StreamFeatureView(FeatureView):
             self.mode.value if isinstance(self.mode, TransformationMode) else self.mode
         )
 
+        # Serialize tiling configuration
+        tiling_hop_size_duration = None
+        if self.tiling_hop_size is not None:
+            tiling_hop_size_duration = Duration()
+            tiling_hop_size_duration.FromTimedelta(self.tiling_hop_size)
+
         spec = StreamFeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -257,6 +287,8 @@ class StreamFeatureView(FeatureView):
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
             mode=mode,
+            enable_tiling=self.enable_tiling,
+            tiling_hop_size=tiling_hop_size_duration,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -311,6 +343,13 @@ class StreamFeatureView(FeatureView):
                 for agg_proto in sfv_proto.spec.aggregations
             ],
             timestamp_field=sfv_proto.spec.timestamp_field,
+            enable_tiling=sfv_proto.spec.enable_tiling,
+            tiling_hop_size=(
+                sfv_proto.spec.tiling_hop_size.ToTimedelta()
+                if sfv_proto.spec.HasField("tiling_hop_size")
+                and sfv_proto.spec.tiling_hop_size.ToNanoseconds() != 0
+                else None
+            ),
         )
 
         if batch_source:

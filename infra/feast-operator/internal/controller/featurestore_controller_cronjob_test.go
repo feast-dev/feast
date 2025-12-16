@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
@@ -45,24 +45,24 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			Name:      resourceName,
 			Namespace: "default",
 		}
-		featurestore := &feastdevv1alpha1.FeatureStore{}
+		featurestore := &feastdevv1.FeatureStore{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind FeatureStore")
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &feastdevv1alpha1.FeatureStore{
+				resource := &feastdevv1.FeatureStore{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: feastdevv1alpha1.FeatureStoreSpec{FeastProject: feastProject},
+					Spec: feastdevv1.FeatureStoreSpec{FeastProject: feastProject},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 		AfterEach(func() {
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -82,7 +82,7 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			feast := services.FeastServices{
@@ -100,12 +100,12 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			Expect(resource.Status.Applied.CronJob.Schedule).NotTo(BeEmpty())
 
 			Expect(resource.Status.Conditions).NotTo(BeEmpty())
-			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.CronJobReadyType)
+			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.CronJobReadyType)
 			Expect(cond).ToNot(BeNil())
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.CronJobReadyType))
+			Expect(cond.Type).To(Equal(feastdevv1.CronJobReadyType))
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.CronJobReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Message).To(Equal(feastdevv1.CronJobReadyMessage))
 
 			// check CronJob
 			cronJob := &batchv1.CronJob{}
@@ -137,7 +137,7 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -151,7 +151,7 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			replacementPolicy := batchv1.TerminatingOrFailed
 			always := corev1.PullAlways
 			startingDeadlineSeconds := int64(6)
-			resource.Spec.CronJob = &feastdevv1alpha1.FeastCronJob{
+			resource.Spec.CronJob = &feastdevv1.FeastCronJob{
 				Schedule:                   schedule,
 				StartingDeadlineSeconds:    &startingDeadlineSeconds,
 				TimeZone:                   &timeZone,
@@ -159,7 +159,7 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 				Suspend:                    &suspend,
 				SuccessfulJobsHistoryLimit: &int32Var,
 				FailedJobsHistoryLimit:     &int32Var,
-				ContainerConfigs: &feastdevv1alpha1.CronJobContainerConfigs{
+				ContainerConfigs: &feastdevv1.CronJobContainerConfigs{
 					Commands: []string{
 						"feast apply",
 						"feast feature-views list",
@@ -167,11 +167,11 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 						"feast on-demand-feature-views list",
 						"feast projects list",
 					},
-					ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
-						DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
 							Image: &image,
 						},
-						OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 							Env: &[]corev1.EnvVar{
 								{
 									Name:  "test",
@@ -182,7 +182,7 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 						},
 					},
 				},
-				JobSpec: &feastdevv1alpha1.JobSpec{
+				JobSpec: &feastdevv1.JobSpec{
 					Parallelism:             &int32Var,
 					Completions:             &int32Var,
 					ActiveDeadlineSeconds:   &int64Var,
@@ -223,12 +223,12 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			Expect(resource.Status.Applied.CronJob.FailedJobsHistoryLimit).To(Equal(&int32Var))
 
 			Expect(resource.Status.Conditions).NotTo(BeEmpty())
-			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.CronJobReadyType)
+			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.CronJobReadyType)
 			Expect(cond).ToNot(BeNil())
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.CronJobReadyType))
+			Expect(cond.Type).To(Equal(feastdevv1.CronJobReadyType))
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.CronJobReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Message).To(Equal(feastdevv1.CronJobReadyMessage))
 
 			// check CronJob
 			cronJob := &batchv1.CronJob{}
@@ -247,7 +247,7 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 	})
 })
 
-func checkCronJob(appliedFeastCronJob *feastdevv1alpha1.FeastCronJob, cronSpec batchv1.CronJobSpec) {
+func checkCronJob(appliedFeastCronJob *feastdevv1.FeastCronJob, cronSpec batchv1.CronJobSpec) {
 	Expect(appliedFeastCronJob).NotTo(BeNil())
 	Expect(appliedFeastCronJob.Schedule).To(Equal(cronSpec.Schedule))
 	if len(appliedFeastCronJob.ConcurrencyPolicy) > 0 {
@@ -272,7 +272,7 @@ func checkCronJob(appliedFeastCronJob *feastdevv1alpha1.FeastCronJob, cronSpec b
 	checkCronJobContainers(appliedFeastCronJob.ContainerConfigs, cronSpec.JobTemplate.Spec.Template.Spec)
 }
 
-func checkJobSpec(appliedFeastJobSpec *feastdevv1alpha1.JobSpec, jobSpec batchv1.JobSpec) {
+func checkJobSpec(appliedFeastJobSpec *feastdevv1.JobSpec, jobSpec batchv1.JobSpec) {
 	if appliedFeastJobSpec != nil {
 		if appliedFeastJobSpec.ActiveDeadlineSeconds != nil {
 			Expect(appliedFeastJobSpec.ActiveDeadlineSeconds).To(Equal(jobSpec.ActiveDeadlineSeconds))
@@ -310,7 +310,7 @@ func checkJobSpec(appliedFeastJobSpec *feastdevv1alpha1.JobSpec, jobSpec batchv1
 	}
 }
 
-func checkCronJobContainers(cronJobContainerConfigs *feastdevv1alpha1.CronJobContainerConfigs, podSpec corev1.PodSpec) {
+func checkCronJobContainers(cronJobContainerConfigs *feastdevv1.CronJobContainerConfigs, podSpec corev1.PodSpec) {
 	Expect(cronJobContainerConfigs).NotTo(BeNil())
 	Expect(cronJobContainerConfigs.Image).NotTo(BeNil())
 	Expect(cronJobContainerConfigs.Commands).NotTo(BeEmpty())
