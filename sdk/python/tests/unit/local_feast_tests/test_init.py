@@ -79,4 +79,5 @@ def test_postgres_template_registry_path_is_parameterized() -> None:
         / "feature_store.yaml"
     )
     contents = template_fs_yaml.read_text(encoding="utf-8")
-    assert "path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME" in contents
+    expected = "path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME"
+    assert expected in contents
