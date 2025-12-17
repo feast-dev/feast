@@ -17,18 +17,26 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -168,6 +176,37 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "FeatureStore")
 		os.Exit(1)
 	}
+
+	// Setup Notebook ConfigMap controller for OpenDataHub integration
+	// Default to kubeflow.org/v1 Notebook CRD (used by OpenDataHub)
+	notebookGVK := schema.GroupVersionKind{
+		Group:   "kubeflow.org",
+		Version: "v1",
+		Kind:    "Notebook",
+	}
+	// Validate Notebook CRD availability and skip controller setup if CRD is missing
+	crdExists, err := validateNotebookCRD(mgr.GetConfig(), notebookGVK)
+	if err != nil {
+		setupLog.Error(err, "Notebook CRD validation failed for feast specific configmap", "GVK", notebookGVK)
+		// If we can't verify (e.g., permission denied), set up controller anyway
+		// If CRD is confirmed missing, skip controller setup
+		if !crdExists {
+			setupLog.Info("Skipping Notebook ConfigMap controller setup - Notebook CRD not found")
+		} else {
+			setupLog.Info("Notebook ConfigMap controller will be set up anyway (could not verify CRD)")
+		}
+	}
+	if crdExists {
+		if err = (&controller.NotebookConfigMapReconciler{
+			Client:      mgr.GetClient(),
+			Scheme:      mgr.GetScheme(),
+			NotebookGVK: notebookGVK,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "NotebookConfigMap")
+			os.Exit(1)
+		}
+		setupLog.Info("Notebook ConfigMap controller setup completed successfully")
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -184,4 +223,49 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// validateNotebookCRD checks if the Notebook CRD exists in the cluster
+// Returns (crdExists bool, error) where crdExists is true if CRD exists, false if not found or unknown
+func validateNotebookCRD(config *rest.Config, gvk schema.GroupVersionKind) (bool, error) {
+	apiextensionsClientset, err := apiextensionsclient.NewForConfig(config)
+	if err != nil {
+		return false, fmt.Errorf("failed to create apiextensions client: %w", err)
+	}
+
+	// Construct CRD name from GVK (format: plural.group)
+	// For kubeflow.org/v1 Notebook, the CRD name is "notebooks.kubeflow.org"
+	// Simple heuristic: convert Kind to lowercase and add 's' for plural
+	plural := strings.ToLower(gvk.Kind) + "s"
+	crdName := plural + "." + gvk.Group
+
+	_, err = apiextensionsClientset.ApiextensionsV1().CustomResourceDefinitions().Get(
+		context.Background(),
+		crdName,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Not an error: integration is optional and controller setup will be skipped.
+			setupLog.Info(
+				"Notebook CRD not found; skipping Notebook ConfigMap controller setup",
+				"GVK", gvk,
+				"expectedCRD", crdName,
+			)
+			return false, nil
+		}
+		if apierrors.IsForbidden(err) {
+			// Can't verify - assume it might exist and let controller try
+			setupLog.Info(
+				"Unable to validate Notebook CRD (insufficient permissions), will attempt setup",
+				"CRD", crdName,
+				"GVK", gvk,
+			)
+			return true, nil // Return true to allow controller setup
+		}
+		return false, fmt.Errorf("failed to check Notebook CRD availability: %w", err)
+	}
+
+	setupLog.Info("Notebook CRD validated successfully", "CRD", crdName, "GVK", gvk)
+	return true, nil
 }
