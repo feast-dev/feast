@@ -17,4 +17,4 @@ limitations under the License.
 package feastversion
 
 // Feast release version. Keep on line #20, this is critical to release CI
-const FeastVersion = "0.57.0"
+const FeastVersion = "0.58.0"
