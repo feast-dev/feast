@@ -61,7 +61,7 @@ pip install grpcio==1.62.3
 echo "Entering Pyarrow source directory..."
 git clone https://github.com/apache/arrow.git
 cd arrow
-git checkout apache-arrow-21.0.0
+git checkout apache-arrow-17.0.0
 git submodule update --init --recursive
 cd cpp
 mkdir -p release && cd release
@@ -71,8 +71,6 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       -DARROW_PARQUET=ON \
       -DARROW_ORC=ON \
       -DARROW_FILESYSTEM=ON \
-      -DARROW_FLIGHT=ON \
-      -DARROW_FLIGHT_SQL=ON \
       -DARROW_WITH_LZ4=ON \
       -DARROW_WITH_ZSTD=ON \
       -DARROW_WITH_SNAPPY=ON \
