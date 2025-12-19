@@ -35,7 +35,7 @@ except ImportError:
 
 # Global references for static artifacts (set by feature server)
 _sentiment_model = None
-_lookup_tables = {}
+_lookup_tables: dict = {}
 
 # Configuration
 repo_path = Path(__file__).parent
