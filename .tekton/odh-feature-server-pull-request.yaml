@@ -17,6 +17,9 @@ metadata:
   name: odh-feature-server-on-pull-request
   namespace: rhoai-tenant
 spec:
+  timeouts:
+    pipeline: 10h
+    tasks: 8h
   params:
   - name: git-url
     value: '{{source_url}}'
@@ -36,21 +39,7 @@ spec:
   - name: path-context
     value: "sdk/python/feast/infra/feature_servers/multicloud"
   - name: hermetic
-    value: true
-  - name: prefetch-input
-    value: |
-      [{
-        "type": "pip", "path": ".",
-        "requirements_files": [
-          "sdk/python/feast/infra/feature_servers/multicloud/requirements.txt"
-        ],
-        "requirements_build_files": [
-          "sdk/python/requirements/py3.11-minimal-requirements.txt",
-          "sdk/python/requirements/py3.11-minimal-sdist-requirements.txt",
-          "sdk/python/requirements/py3.11-minimal-sdist-requirements-build.txt"
-        ],
-        "allow_binary": "true"
-      }]
+    value: false
   - name: build-source-image
     value: true
   - name: build-image-index
