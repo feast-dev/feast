@@ -247,7 +247,9 @@ def load_artifacts(app: FastAPI):
 def test_load_static_artifacts_success(mock_store_with_static_artifacts):
     """Test successful loading of static artifacts during server startup."""
     import asyncio
+
     from fastapi import FastAPI
+
     from feast.feature_server import load_static_artifacts
 
     app = FastAPI()
@@ -256,8 +258,8 @@ def test_load_static_artifacts_success(mock_store_with_static_artifacts):
     asyncio.run(load_static_artifacts(app, mock_store_with_static_artifacts))
 
     # Verify artifacts were loaded into app.state
-    assert hasattr(app.state, 'test_model')
-    assert hasattr(app.state, 'test_lookup_tables')
+    assert hasattr(app.state, "test_model")
+    assert hasattr(app.state, "test_lookup_tables")
     assert app.state.test_model == "test_model_loaded"
     assert app.state.test_lookup_tables == {"test_label": "test_value"}
 
@@ -265,7 +267,9 @@ def test_load_static_artifacts_success(mock_store_with_static_artifacts):
 def test_load_static_artifacts_no_file(tmp_path):
     """Test graceful handling when static_artifacts.py doesn't exist."""
     import asyncio
+
     from fastapi import FastAPI
+
     from feast.feature_server import load_static_artifacts
 
     app = FastAPI()
@@ -276,14 +280,16 @@ def test_load_static_artifacts_no_file(tmp_path):
     asyncio.run(load_static_artifacts(app, mock_store))
 
     # Should not have added test artifacts
-    assert not hasattr(app.state, 'test_model')
-    assert not hasattr(app.state, 'test_lookup_tables')
+    assert not hasattr(app.state, "test_model")
+    assert not hasattr(app.state, "test_lookup_tables")
 
 
 def test_load_static_artifacts_invalid_file(tmp_path):
     """Test graceful handling when static_artifacts.py has errors."""
     import asyncio
+
     from fastapi import FastAPI
+
     from feast.feature_server import load_static_artifacts
 
     # Create invalid static_artifacts.py
@@ -298,13 +304,15 @@ def test_load_static_artifacts_invalid_file(tmp_path):
     asyncio.run(load_static_artifacts(app, mock_store))
 
     # Should not have artifacts due to error
-    assert not hasattr(app.state, 'test_model')
+    assert not hasattr(app.state, "test_model")
 
 
 def test_load_static_artifacts_no_load_function(tmp_path):
     """Test handling when static_artifacts.py has no load_artifacts function."""
     import asyncio
+
     from fastapi import FastAPI
+
     from feast.feature_server import load_static_artifacts
 
     # Create static_artifacts.py without load_artifacts function
@@ -319,13 +327,12 @@ def test_load_static_artifacts_no_load_function(tmp_path):
     asyncio.run(load_static_artifacts(app, mock_store))
 
     # Should not have artifacts since no load_artifacts function
-    assert not hasattr(app.state, 'test_model')
+    assert not hasattr(app.state, "test_model")
 
 
 def test_static_artifacts_persist_across_requests(mock_store_with_static_artifacts):
     """Test that static artifacts persist across multiple requests."""
     from feast.feature_server import get_app
-    from fastapi.testclient import TestClient
 
     # Create app with static artifacts
     app = get_app(mock_store_with_static_artifacts)
@@ -333,8 +340,6 @@ def test_static_artifacts_persist_across_requests(mock_store_with_static_artifac
     # Simulate artifacts being loaded (normally done in lifespan)
     app.state.test_model = "persistent_model"
     app.state.test_lookup_tables = {"persistent": "data"}
-
-    client = TestClient(app)
 
     # Artifacts should be available and persistent
     assert app.state.test_model == "persistent_model"
@@ -348,7 +353,9 @@ def test_static_artifacts_persist_across_requests(mock_store_with_static_artifac
 def test_pytorch_nlp_template_artifacts_pattern(tmp_path):
     """Test the specific PyTorch NLP template static artifacts pattern."""
     import asyncio
+
     from fastapi import FastAPI
+
     from feast.feature_server import load_static_artifacts
 
     # Create PyTorch NLP template-style static_artifacts.py
@@ -389,8 +396,8 @@ def load_artifacts(app: FastAPI):
     asyncio.run(load_static_artifacts(app, mock_store))
 
     # Verify PyTorch NLP template artifacts
-    assert hasattr(app.state, 'sentiment_model')
-    assert hasattr(app.state, 'lookup_tables')
+    assert hasattr(app.state, "sentiment_model")
+    assert hasattr(app.state, "lookup_tables")
     assert app.state.sentiment_model == "mock_roberta_sentiment_model"
 
     # Verify lookup tables structure matches template

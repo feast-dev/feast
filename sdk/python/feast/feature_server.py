@@ -181,13 +181,15 @@ async def load_static_artifacts(app: FastAPI, store):
 
         if artifacts_file.exists():
             # Load and execute custom static artifacts loading
-            spec = importlib.util.spec_from_file_location("static_artifacts", artifacts_file)
+            spec = importlib.util.spec_from_file_location(
+                "static_artifacts", artifacts_file
+            )
             if spec and spec.loader:
                 artifacts_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(artifacts_module)
 
                 # Look for load_artifacts function
-                if hasattr(artifacts_module, 'load_artifacts'):
+                if hasattr(artifacts_module, "load_artifacts"):
                     load_func = artifacts_module.load_artifacts
                     if inspect.iscoroutinefunction(load_func):
                         await load_func(app)
@@ -258,7 +260,6 @@ def get_app(
             nonlocal active_timer
             active_timer = threading.Timer(registry_ttl_sec, async_refresh)
             active_timer.start()
-
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

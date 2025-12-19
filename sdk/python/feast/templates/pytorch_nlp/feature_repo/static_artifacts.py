@@ -14,7 +14,6 @@ Note: Feast is not optimized for large language models. For LLM inference,
 use dedicated model serving solutions like vLLM, TensorRT-LLM, or TGI.
 """
 
-import asyncio
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -38,7 +37,9 @@ def load_sentiment_model():
         logger.info("✅ Sentiment analysis model loaded successfully")
         return model
     except ImportError:
-        logger.warning("⚠️ Transformers not available, sentiment model will use fallback")
+        logger.warning(
+            "⚠️ Transformers not available, sentiment model will use fallback"
+        )
         return None
     except Exception as e:
         logger.warning(f"⚠️ Failed to load sentiment model: {e}")
@@ -49,7 +50,11 @@ def load_lookup_tables() -> Dict[str, Any]:
     """Load static lookup tables for feature engineering."""
     # Example: Load static mappings that are expensive to compute at request time
     return {
-        "sentiment_labels": {"LABEL_0": "negative", "LABEL_1": "neutral", "LABEL_2": "positive"},
+        "sentiment_labels": {
+            "LABEL_0": "negative",
+            "LABEL_1": "neutral",
+            "LABEL_2": "positive",
+        },
         "emoji_sentiment": {"😊": "positive", "😞": "negative", "😐": "neutral"},
         "domain_categories": {"twitter.com": "social", "news.com": "news"},
     }
@@ -63,6 +68,7 @@ def load_user_embeddings() -> Optional[Dict[str, Any]]:
     if embeddings_file.exists():
         try:
             import numpy as np
+
             embeddings = np.load(embeddings_file)
             logger.info(f"✅ Loaded user embeddings: {embeddings.shape}")
             return {"embeddings": embeddings}
@@ -93,6 +99,7 @@ def load_artifacts(app: FastAPI):
     # Also set global references for easier access from on-demand feature views
     try:
         import example_repo
+
         example_repo._sentiment_model = app.state.sentiment_model
         example_repo._lookup_tables = app.state.lookup_tables
         logger.info("✅ Global artifact references updated")

@@ -27,7 +27,7 @@ from feast.types import Array, Float32, Int64, String
 
 try:
     # Import static artifacts helpers (available when feature server loads artifacts)
-    from static_artifacts import get_sentiment_model, get_lookup_tables
+    from static_artifacts import get_lookup_tables, get_sentiment_model
 except ImportError:
     # Fallback for when static_artifacts.py is not available
     get_sentiment_model = None
@@ -165,7 +165,6 @@ def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
         import numpy as np
     except ImportError:
         # Fallback to dummy predictions if numpy isn't available
-        import array as np_fallback
 
         df = pd.DataFrame()
         df["predicted_sentiment"] = ["neutral"] * len(inputs)
@@ -184,11 +183,10 @@ def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
     lookup_tables = _lookup_tables
 
     # Use lookup table for label mapping (from static artifacts)
-    label_map = lookup_tables.get("sentiment_labels", {
-        "LABEL_0": "negative",
-        "LABEL_1": "neutral",
-        "LABEL_2": "positive"
-    })
+    label_map = lookup_tables.get(
+        "sentiment_labels",
+        {"LABEL_0": "negative", "LABEL_1": "neutral", "LABEL_2": "positive"},
+    )
 
     results = []
 
@@ -206,7 +204,9 @@ def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
 
                 # Get best prediction
                 best_pred = max(predictions, key=lambda x: x["score"])
-                predicted_sentiment = label_map.get(best_pred["label"], best_pred["label"])
+                predicted_sentiment = label_map.get(
+                    best_pred["label"], best_pred["label"]
+                )
                 confidence = best_pred["score"]
             else:
                 # Fallback when model is not available
@@ -217,25 +217,29 @@ def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
             # Generate dummy embeddings (in production, use pre-loaded embeddings)
             embedding = np.random.rand(384).tolist()
 
-            results.append({
-                "predicted_sentiment": predicted_sentiment,
-                "sentiment_confidence": np.float32(confidence),
-                "positive_prob": np.float32(scores.get("positive", 0.0)),
-                "negative_prob": np.float32(scores.get("negative", 0.0)),
-                "neutral_prob": np.float32(scores.get("neutral", 0.0)),
-                "text_embedding": [np.float32(x) for x in embedding],
-            })
+            results.append(
+                {
+                    "predicted_sentiment": predicted_sentiment,
+                    "sentiment_confidence": np.float32(confidence),
+                    "positive_prob": np.float32(scores.get("positive", 0.0)),
+                    "negative_prob": np.float32(scores.get("negative", 0.0)),
+                    "neutral_prob": np.float32(scores.get("neutral", 0.0)),
+                    "text_embedding": [np.float32(x) for x in embedding],
+                }
+            )
 
         except Exception:
             # Fallback for individual text processing errors
-            results.append({
-                "predicted_sentiment": "neutral",
-                "sentiment_confidence": np.float32(0.5),
-                "positive_prob": np.float32(0.33),
-                "negative_prob": np.float32(0.33),
-                "neutral_prob": np.float32(0.34),
-                "text_embedding": [np.float32(0.0)] * 384,
-            })
+            results.append(
+                {
+                    "predicted_sentiment": "neutral",
+                    "sentiment_confidence": np.float32(0.5),
+                    "positive_prob": np.float32(0.33),
+                    "negative_prob": np.float32(0.33),
+                    "neutral_prob": np.float32(0.34),
+                    "text_embedding": [np.float32(0.0)] * 384,
+                }
+            )
 
     return pd.DataFrame(results)
 
