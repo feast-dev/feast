@@ -11,12 +11,22 @@ thread_local = threading.local()
 def get_client(config: ClickhouseConfig) -> Client:
     # Clickhouse client is not thread-safe, so we need to create a separate instance for each thread.
     if not hasattr(thread_local, "clickhouse_client"):
-        thread_local.clickhouse_client = clickhouse_connect.get_client(
-            host=config.host,
-            port=config.port,
-            user=config.user,
-            password=config.password,
-            database=config.database,
-        )
+        if config.send_receive_timeout is not None:
+            thread_local.clickhouse_client = clickhouse_connect.get_client(
+                host=config.host,
+                port=config.port,
+                user=config.user,
+                password=config.password,
+                database=config.database,
+                send_receive_timeout=config.send_receive_timeout,
+            )
+        else:
+            thread_local.clickhouse_client = clickhouse_connect.get_client(
+                host=config.host,
+                port=config.port,
+                user=config.user,
+                password=config.password,
+                database=config.database,
+            )
 
     return thread_local.clickhouse_client
