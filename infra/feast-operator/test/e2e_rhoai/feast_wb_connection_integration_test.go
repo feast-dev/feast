@@ -22,6 +22,7 @@ package e2erhoai
 
 import (
 	"fmt"
+	"time"
 
 	utils "github.com/feast-dev/feast/infra/feast-operator/test/utils"
 	. "github.com/onsi/ginkgo/v2"
@@ -43,6 +44,60 @@ var _ = Describe("Feast Workbench Integration Connection Testing", Ordered, func
 		feastCRName         = "credit-scoring"
 	)
 
+	// Verify feast ConfigMap
+	verifyFeastConfigMap := func(authEnabled bool) {
+		feastConfigMapName := "jupyter-nb-kube-3aadmin-feast-config"
+		configMapKey := "credit_scoring_local"
+		By(fmt.Sprintf("Listing ConfigMaps and verifying %s exists with correct content", feastConfigMapName))
+
+		// Build expected content based on auth type
+		expectedContent := []string{
+			"project: credit_scoring_local",
+		}
+		if authEnabled {
+			expectedContent = append(expectedContent, "type: kubernetes")
+		} else {
+			expectedContent = append(expectedContent, "type: no_auth")
+		}
+
+		// First, list ConfigMaps and check if target ConfigMap exists
+		// Retry with polling since the ConfigMap may be created asynchronously
+		const maxRetries = 5
+		const retryInterval = 5 * time.Second
+		var configMapExists bool
+		var err error
+
+		for i := 0; i < maxRetries; i++ {
+			exists, listErr := utils.VerifyConfigMapExistsInList(namespace, feastConfigMapName)
+			if listErr != nil {
+				err = listErr
+				if i < maxRetries-1 {
+					fmt.Printf("Failed to list ConfigMaps, retrying in %v... (attempt %d/%d)\n", retryInterval, i+1, maxRetries)
+					time.Sleep(retryInterval)
+					continue
+				}
+			} else if exists {
+				configMapExists = true
+				fmt.Printf("ConfigMap %s found in ConfigMap list\n", feastConfigMapName)
+				break
+			}
+
+			if i < maxRetries-1 {
+				fmt.Printf("ConfigMap %s not found in list yet, retrying in %v... (attempt %d/%d)\n", feastConfigMapName, retryInterval, i+1, maxRetries)
+				time.Sleep(retryInterval)
+			}
+		}
+
+		if !configMapExists {
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to find ConfigMap %s in ConfigMap list after %d attempts: %v", feastConfigMapName, maxRetries, err))
+		}
+
+		// Once ConfigMap exists in list, verify content (project name and auth type)
+		err = utils.VerifyFeastConfigMapContent(namespace, feastConfigMapName, configMapKey, expectedContent)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to verify Feast ConfigMap %s content: %v", feastConfigMapName, err))
+		fmt.Printf("Feast ConfigMap %s verified successfully with project and auth type\n", feastConfigMapName)
+	}
+
 	// Parameterized test function that handles both auth and non-auth scenarios
 	runFeastWorkbenchIntegration := func(authEnabled bool) {
 		// Apply permissions only if auth is enabled
@@ -51,8 +106,15 @@ var _ = Describe("Feast Workbench Integration Connection Testing", Ordered, func
 			utils.ApplyFeastPermissions(permissionFile, "/feast-data/credit_scoring_local/feature_repo/permissions.py", namespace, feastDeploymentName)
 		}
 
-		// Use the shared RunNotebookTest function for common setup and execution
-		utils.RunNotebookTest(namespace, configMapName, notebookFile, "test/e2e_rhoai/resources/feature_repo", pvcFile, rolebindingName, notebookPVC, notebookName, testDir)
+		// Create notebook with all setup steps
+		// Pass feastProject parameter to set the opendatahub.io/feast-config annotation
+		utils.CreateNotebookTest(namespace, configMapName, notebookFile, "test/e2e_rhoai/resources/feature_repo", pvcFile, rolebindingName, notebookPVC, notebookName, testDir, "credit_scoring_local")
+
+		// Verify Feast ConfigMap was created with correct auth type
+		verifyFeastConfigMap(authEnabled)
+
+		// Monitor notebook execution
+		utils.MonitorNotebookTest(namespace, notebookName)
 	}
 
 	BeforeAll(func() {
