@@ -83,6 +83,60 @@ def test_get_client_returns_different_objects_for_separate_threads(
     )
 
 
+def test_clickhouse_config_parses_additional_client_args():
+    """
+    Test that ClickhouseConfig correctly parses additional_client_args from a dict,
+    simulating how it would be parsed from YAML by Pydantic.
+    """
+    # This simulates the dict that would come from yaml.safe_load()
+    raw_config = {
+        "host": "localhost",
+        "port": 8123,
+        "database": "default",
+        "user": "default",
+        "password": "password",
+        "additional_client_args": {
+            "send_receive_timeout": 60,
+            "compress": True,
+            "client_name": "feast_test",
+        },
+    }
+
+    # Pydantic should parse this dict into a ClickhouseConfig object
+    config = ClickhouseConfig(**raw_config)
+
+    # Verify all fields are correctly parsed
+    assert config.host == "localhost"
+    assert config.port == 8123
+    assert config.database == "default"
+    assert config.user == "default"
+    assert config.password == "password"
+
+    # Verify additional_client_args is correctly parsed as a dict
+    assert config.additional_client_args is not None
+    assert isinstance(config.additional_client_args, dict)
+    assert config.additional_client_args["send_receive_timeout"] == 60
+    assert config.additional_client_args["compress"] is True
+    assert config.additional_client_args["client_name"] == "feast_test"
+
+
+def test_clickhouse_config_handles_none_additional_client_args():
+    """
+    Test that ClickhouseConfig correctly handles when additional_client_args is not provided.
+    """
+    raw_config = {
+        "host": "localhost",
+        "port": 8123,
+        "database": "default",
+        "user": "default",
+        "password": "password",
+    }
+
+    config = ClickhouseConfig(**raw_config)
+
+    assert config.additional_client_args is None
+
+
 @pytest.fixture(scope="module")
 def clickhouse_container():
     """Start a ClickHouse container for integration testing."""
