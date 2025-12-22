@@ -499,8 +499,15 @@ def _group_feature_refs(
 
     # on demand view to on demand view proto
     on_demand_view_index: Dict[str, "OnDemandFeatureView"] = {}
+
+    # FIXME: broken for get_historical_features, for them, we need to treat ODFVs as ODFVs
+    # not like FVs (that's only convenient for online request)
     for view in all_on_demand_feature_views:
-        on_demand_view_index[view.projection.name_to_use()] = view
+        if view.projection and not view.write_to_online_store:
+            on_demand_view_index[view.projection.name_to_use()] = view
+        elif view.projection and view.write_to_online_store:
+            # we insert the ODFV view to FVs for ones that are written to the online store
+            view_index[view.projection.name_to_use()] = view
 
     # view name to feature names
     views_features = defaultdict(set)
