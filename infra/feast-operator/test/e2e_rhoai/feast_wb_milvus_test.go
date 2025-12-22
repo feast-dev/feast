@@ -32,11 +32,11 @@ var _ = Describe("Feast Jupyter Notebook Testing", Ordered, func() {
 		namespace       = "test-ns-feast-wb"
 		configMapName   = "feast-wb-cm"
 		rolebindingName = "rb-feast-test"
-		notebookFile    = "test/e2e_rhoai/resources/feast-test.ipynb"
+		notebookFile    = "test/e2e_rhoai/resources/feast-wb-milvus-test.ipynb"
 		pvcFile         = "test/e2e_rhoai/resources/pvc.yaml"
 		notebookPVC     = "jupyterhub-nb-kube-3aadmin-pvc"
 		testDir         = "/test/e2e_rhoai"
-		notebookName    = "feast-test.ipynb"
+		notebookName    = "feast-wb-milvus-test.ipynb"
 		feastMilvusTest = "TestFeastMilvusNotebook"
 	)
 
@@ -54,7 +54,12 @@ var _ = Describe("Feast Jupyter Notebook Testing", Ordered, func() {
 
 	Context("Feast Jupyter Notebook Test", func() {
 		It("Should create and run a "+feastMilvusTest+" successfully", func() {
-			utils.RunNotebookTest(namespace, configMapName, notebookFile, "test/e2e_rhoai/resources/feature_repo", pvcFile, rolebindingName, notebookPVC, notebookName, testDir)
+			// Create notebook with all setup steps
+			// Pass empty string for feastProject to keep annotation empty
+			utils.CreateNotebookTest(namespace, configMapName, notebookFile, "test/e2e_rhoai/resources/feature_repo", pvcFile, rolebindingName, notebookPVC, notebookName, testDir, "")
+
+			// Monitor notebook execution
+			utils.MonitorNotebookTest(namespace, notebookName)
 		})
 	})
 })
