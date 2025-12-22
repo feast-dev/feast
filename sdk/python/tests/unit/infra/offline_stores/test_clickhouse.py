@@ -118,7 +118,7 @@ def test_get_client_with_additional_params(clickhouse_container):
         user="default",
         password="password",
         database="default",
-        send_receive_timeout=60,
+        additional_client_args={"send_receive_timeout": 60},
     )
 
     # Get client and verify it works
