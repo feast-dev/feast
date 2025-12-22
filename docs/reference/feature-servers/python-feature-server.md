@@ -268,15 +268,13 @@ To start the feature server in TLS mode, you need to provide the private and pub
 feast serve --key /path/to/key.pem --cert /path/to/cert.pem
 ```
 
-# Static Artifacts Loading
+# [Alpha] Static Artifacts Loading
 
-## Overview
+**Warning**: This is an experimental feature. To our knowledge, this is stable, but there are still rough edges in the experience.
 
-Static artifacts loading allows you to load models, lookup tables, and other static resources once during feature server startup instead of loading them on each request. These artifacts are cached in memory and accessible to on-demand feature views.
+Static artifacts loading allows you to load models, lookup tables, and other static resources once during feature server startup instead of loading them on each request. This improves performance for on-demand feature views that require external resources.
 
-## Usage
-
-### Create Static Artifacts Module
+## Quick Example
 
 Create a `static_artifacts.py` file in your feature repository:
 
@@ -285,96 +283,32 @@ Create a `static_artifacts.py` file in your feature repository:
 from fastapi import FastAPI
 from transformers import pipeline
 
-def load_sentiment_model():
-    """Load sentiment analysis model."""
-    return pipeline(
-        "sentiment-analysis",
-        model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-        device="cpu"
-    )
-
-def load_lookup_tables():
-    """Load static lookup tables."""
-    return {
-        "sentiment_labels": {"LABEL_0": "negative", "LABEL_1": "neutral", "LABEL_2": "positive"},
-        "domain_categories": {"twitter.com": "social", "news.com": "news"},
-    }
-
 def load_artifacts(app: FastAPI):
     """Load static artifacts into app.state."""
-    app.state.sentiment_model = load_sentiment_model()
-    app.state.lookup_tables = load_lookup_tables()
+    app.state.sentiment_model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
     # Update global references for access from feature views
     import example_repo
     example_repo._sentiment_model = app.state.sentiment_model
-    example_repo._lookup_tables = app.state.lookup_tables
 ```
-
-### Use Artifacts in Feature Views
 
 Access pre-loaded artifacts in your on-demand feature views:
 
 ```python
 # example_repo.py
-import pandas as pd
-from feast.on_demand_feature_view import on_demand_feature_view
-
-# Global references for static artifacts
 _sentiment_model = None
-_lookup_tables: dict = {}
 
-@on_demand_feature_view(
-    sources=[text_input_request],
-    schema=[
-        Field(name="predicted_sentiment", dtype=String),
-        Field(name="sentiment_confidence", dtype=Float32),
-    ],
-)
+@on_demand_feature_view(...)
 def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
-    """Sentiment prediction using pre-loaded artifacts."""
-    global _sentiment_model, _lookup_tables
-
-    results = []
-    for text in inputs["input_text"]:
-        predictions = _sentiment_model(text)
-        label_map = _lookup_tables["sentiment_labels"]
-        best_pred = max(predictions, key=lambda x: x["score"])
-        predicted_sentiment = label_map[best_pred["label"]]
-        confidence = best_pred["score"]
-
-        results.append({
-            "predicted_sentiment": predicted_sentiment,
-            "sentiment_confidence": confidence,
-        })
-
-    return pd.DataFrame(results)
+    global _sentiment_model
+    return _sentiment_model(inputs["text"])
 ```
 
-### Start Feature Server
+## Documentation
 
-```bash
-feast serve
-```
+For comprehensive documentation, examples, and best practices, see the [Alpha Static Artifacts Loading](../alpha-static-artifacts.md) reference guide.
 
-The server will automatically load static artifacts during startup.
-
-## Supported Artifact Types
-
-- Small to medium ML models
-- Lookup tables and reference data
-- Configuration parameters
-- Pre-computed embeddings
-
-## Example Template
-
-The PyTorch NLP template demonstrates static artifacts loading:
-
-```bash
-feast init my-nlp-project -t pytorch_nlp
-cd my-nlp-project/feature_repo
-feast serve
-```
+The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/python/feast/templates/pytorch_nlp) provides a complete working example.
 
 # Online Feature Server Permissions and Access Control
 
