@@ -1,10 +1,15 @@
+import logging
 import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
+from testcontainers.clickhouse import ClickHouseContainer
+from testcontainers.core.waiting_utils import wait_for_logs
 
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 from feast.infra.utils.clickhouse.connection_utils import get_client, thread_local
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -76,3 +81,52 @@ def test_get_client_returns_different_objects_for_separate_threads(
     assert client_1a is not client_2, (
         "Different threads should get different client instances (not cached)"
     )
+
+
+@pytest.fixture(scope="module")
+def clickhouse_container():
+    """Start a ClickHouse container for integration testing."""
+    container = ClickHouseContainer(
+        username="default",
+        password="password",
+        dbname="default",
+    )
+    container.start()
+
+    log_string_to_wait_for = "Logging errors to"
+    waited = wait_for_logs(
+        container=container,
+        predicate=log_string_to_wait_for,
+        timeout=30,
+        interval=10,
+    )
+    logger.info("Waited for %s seconds until ClickHouse container was up", waited)
+
+    yield container
+    container.stop()
+
+
+def test_get_client_with_additional_params(clickhouse_container):
+    """
+    Test that get_client works with a real ClickHouse container and properly passes
+    additional settings like send_receive_timeout.
+    """
+    # Create config with custom send_receive_timeout
+    config = ClickhouseConfig(
+        host=clickhouse_container.get_container_host_ip(),
+        port=clickhouse_container.get_exposed_port(8123),
+        user="default",
+        password="password",
+        database="default",
+        send_receive_timeout=60,
+    )
+
+    # Get client and verify it works
+    client = get_client(config)
+
+    # Verify client is connected and functional by running a simple query
+    result = client.query("SELECT 1 AS test_value")
+    assert result.result_rows == [(1,)]
+
+    # Verify the send_receive_timeout was applied
+    assert client.timeout._read == 60
