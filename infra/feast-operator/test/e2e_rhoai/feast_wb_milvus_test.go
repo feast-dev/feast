@@ -52,34 +52,9 @@ var _ = Describe("Feast Jupyter Notebook Testing", Ordered, func() {
 		fmt.Printf("Namespace %s deleted successfully\n", namespace)
 	})
 
-	runNotebookTest := func() {
-		// Execute common setup steps
-		By(fmt.Sprintf("Setting namespace context to : %s", namespace))
-		Expect(utils.SetNamespaceContext(namespace, testDir)).To(Succeed())
-		fmt.Printf("Successfully set namespace context to: %s\n", namespace)
-
-		By(fmt.Sprintf("Creating Config map: %s", configMapName))
-		Expect(utils.CreateNotebookConfigMap(namespace, configMapName, notebookFile, "test/e2e_rhoai/resources/feature_repo", testDir)).To(Succeed())
-		fmt.Printf("ConfigMap %s created successfully\n", configMapName)
-
-		By(fmt.Sprintf("Creating Persistent volume claim: %s", notebookPVC))
-		Expect(utils.CreateNotebookPVC(pvcFile, testDir)).To(Succeed())
-		fmt.Printf("Persistent Volume Claim %s created successfully\n", notebookPVC)
-
-		By(fmt.Sprintf("Creating rolebinding %s for the user", rolebindingName))
-		Expect(utils.CreateNotebookRoleBinding(namespace, rolebindingName, utils.GetOCUser(testDir), testDir)).To(Succeed())
-		fmt.Printf("Created rolebinding %s successfully\n", rolebindingName)
-
-		// Build notebook parameters and create notebook
-		nbParams := utils.GetNotebookParams(namespace, configMapName, notebookPVC, notebookName, testDir)
-		By("Creating Jupyter Notebook")
-		Expect(utils.CreateNotebook(nbParams)).To(Succeed(), "Failed to create notebook")
-
-		By("Monitoring notebook logs")
-		Expect(utils.MonitorNotebookPod(namespace, "jupyter-nb-", notebookName)).To(Succeed(), "Notebook execution failed")
-	}
-
 	Context("Feast Jupyter Notebook Test", func() {
-		It("Should create and run a "+feastMilvusTest+" successfully", runNotebookTest)
+		It("Should create and run a "+feastMilvusTest+" successfully", func() {
+			utils.RunNotebookTest(namespace, configMapName, notebookFile, "test/e2e_rhoai/resources/feature_repo", pvcFile, rolebindingName, notebookPVC, notebookName, testDir)
+		})
 	})
 })
