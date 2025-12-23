@@ -7,9 +7,6 @@ dual registration, training-serving consistency, and backward compatibility.
 
 import pytest
 
-from feast.entity import Entity
-from feast.feature_view import FeatureView
-from feast.field import Field
 from feast.transformation.base import (
     BATCH_ONLY_MODES,
     ONLINE_COMPATIBLE_MODES,
@@ -18,7 +15,6 @@ from feast.transformation.base import (
     transformation,
 )
 from feast.transformation.mode import TransformationMode, TransformExecutionPattern
-from feast.types import Float64, Int64, String
 
 
 def create_dummy_source():
@@ -75,6 +71,7 @@ class TestUnifiedTransformation:
 
     def test_mode_parameter_validation(self):
         """Test that mode parameter validation works correctly"""
+
         # Test valid mode string
         @transformation(mode="python")
         def valid_mode_transform(inputs):

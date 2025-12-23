@@ -2,16 +2,12 @@ from __future__ import annotations
 
 import functools
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import dill
 
-from feast.entity import Entity
-from feast.field import Field
-
 if TYPE_CHECKING:
-    from feast.data_source import RequestSource
-    from feast.feature_view import FeatureView, FeatureViewProjection
+    pass
 from feast.protos.feast.core.Transformation_pb2 import (
     SubstraitTransformationV2 as SubstraitTransformationProto,
 )
@@ -22,7 +18,7 @@ from feast.transformation.factory import (
     TRANSFORMATION_CLASS_FOR_TYPE,
     get_transformation_class_from_type,
 )
-from feast.transformation.mode import TransformationMode, TransformExecutionPattern
+from feast.transformation.mode import TransformationMode
 
 # Online compatibility constants
 ONLINE_COMPATIBLE_MODES = {"python", "pandas"}

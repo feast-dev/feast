@@ -175,7 +175,10 @@ class FeatureView(BaseFeatureView):
         self.transform_when = transform_when
 
         # Auto-infer online setting based on transform_when pattern
-        if transform_when in [TransformExecutionPattern.BATCH_ON_READ, TransformExecutionPattern.BATCH_ON_WRITE]:
+        if transform_when in [
+            TransformExecutionPattern.BATCH_ON_READ,
+            TransformExecutionPattern.BATCH_ON_WRITE,
+        ]:
             if online is False:
                 raise ValueError(
                     f"Cannot set online=False with transform_when='{transform_when}'. "

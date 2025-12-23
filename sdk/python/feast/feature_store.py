@@ -977,7 +977,8 @@ class FeatureStore:
                     view.transform_when in ["batch_on_read", "batch_on_write"]
                     or (
                         hasattr(view.transform_when, "value")
-                        and view.transform_when.value in ["batch_on_read", "batch_on_write"]
+                        and view.transform_when.value
+                        in ["batch_on_read", "batch_on_write"]
                     )
                 )
                 and hasattr(view, "online")
