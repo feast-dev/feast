@@ -25,6 +25,18 @@ from feast import (
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Array, Float32, Int64, String
 
+try:
+    # Import static artifacts helpers (available when feature server loads artifacts)
+    from static_artifacts import get_lookup_tables, get_sentiment_model
+except ImportError:
+    # Fallback for when static_artifacts.py is not available
+    get_sentiment_model = None
+    get_lookup_tables = None
+
+# Global references for static artifacts (set by feature server)
+_sentiment_model = None
+_lookup_tables: dict = {}
+
 # Configuration
 repo_path = Path(__file__).parent
 data_path = repo_path / "data"
@@ -143,76 +155,67 @@ text_input_request = RequestSource(
 )
 def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
     """
-    Real-time sentiment prediction using pre-trained models.
+    Real-time sentiment prediction using pre-loaded static artifacts.
 
-    This function demonstrates how to integrate PyTorch/HuggingFace models
-    directly into Feast feature views for real-time inference.
+    This function demonstrates how to use static artifacts (pre-loaded models,
+    lookup tables) for efficient real-time inference. Models are loaded once
+    at feature server startup rather than on each request.
     """
     try:
         import numpy as np
-        from transformers import pipeline
     except ImportError:
-        # Fallback to dummy predictions if dependencies aren't available
+        # Fallback to dummy predictions if numpy isn't available
+
         df = pd.DataFrame()
         df["predicted_sentiment"] = ["neutral"] * len(inputs)
-        df["sentiment_confidence"] = np.array([0.5] * len(inputs), dtype=np.float32)
-        df["positive_prob"] = np.array([0.33] * len(inputs), dtype=np.float32)
-        df["negative_prob"] = np.array([0.33] * len(inputs), dtype=np.float32)
-        df["neutral_prob"] = np.array([0.34] * len(inputs), dtype=np.float32)
-        df["text_embedding"] = [[np.float32(0.0)] * 384] * len(inputs)
+        df["sentiment_confidence"] = [0.5] * len(inputs)
+        df["positive_prob"] = [0.33] * len(inputs)
+        df["negative_prob"] = [0.33] * len(inputs)
+        df["neutral_prob"] = [0.34] * len(inputs)
+        df["text_embedding"] = [[0.0] * 384] * len(inputs)
         return df
 
-    # Initialize model (in production, you'd want to cache this)
-    model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-    try:
-        # Use sentiment pipeline for convenience (force CPU to avoid MPS forking issues)
-        sentiment_pipeline = pipeline(
-            "sentiment-analysis",
-            model=model_name,
-            tokenizer=model_name,
-            return_all_scores=True,
-            device="cpu",  # Force CPU to avoid MPS forking issues on macOS
-        )
+    # Get pre-loaded static artifacts from global references
+    # These are loaded once at startup via static_artifacts.py
+    global _sentiment_model, _lookup_tables
 
-    except Exception:
-        # Fallback if model loading fails
-        df = pd.DataFrame()
-        df["predicted_sentiment"] = ["neutral"] * len(inputs)
-        df["sentiment_confidence"] = np.array([0.5] * len(inputs), dtype=np.float32)
-        df["positive_prob"] = np.array([0.33] * len(inputs), dtype=np.float32)
-        df["negative_prob"] = np.array([0.33] * len(inputs), dtype=np.float32)
-        df["neutral_prob"] = np.array([0.34] * len(inputs), dtype=np.float32)
-        df["text_embedding"] = [[np.float32(0.0)] * 384] * len(inputs)
-        return df
+    sentiment_model = _sentiment_model
+    lookup_tables = _lookup_tables
+
+    # Use lookup table for label mapping (from static artifacts)
+    label_map = lookup_tables.get(
+        "sentiment_labels",
+        {"LABEL_0": "negative", "LABEL_1": "neutral", "LABEL_2": "positive"},
+    )
 
     results = []
 
     for text in inputs["input_text"]:
         try:
-            # Get sentiment predictions
-            predictions = sentiment_pipeline(text)
+            if sentiment_model is not None:
+                # Use pre-loaded model for prediction
+                predictions = sentiment_model(text)
 
-            # Parse results (RoBERTa model returns LABEL_0, LABEL_1, LABEL_2)
-            label_map = {
-                "LABEL_0": "negative",
-                "LABEL_1": "neutral",
-                "LABEL_2": "positive",
-            }
+                # Parse results using static lookup tables
+                scores = {
+                    label_map.get(pred["label"], pred["label"]): pred["score"]
+                    for pred in predictions
+                }
 
-            scores = {
-                label_map.get(pred["label"], pred["label"]): pred["score"]
-                for pred in predictions
-            }
+                # Get best prediction
+                best_pred = max(predictions, key=lambda x: x["score"])
+                predicted_sentiment = label_map.get(
+                    best_pred["label"], best_pred["label"]
+                )
+                confidence = best_pred["score"]
+            else:
+                # Fallback when model is not available
+                predicted_sentiment = "neutral"
+                confidence = 0.5
+                scores = {"positive": 0.33, "negative": 0.33, "neutral": 0.34}
 
-            # Get best prediction
-            best_pred = max(predictions, key=lambda x: x["score"])
-            predicted_sentiment = label_map.get(best_pred["label"], best_pred["label"])
-            confidence = best_pred["score"]
-
-            # Get embeddings (simplified - dummy embeddings for demo)
-            # In a real implementation, you'd run the model to get embeddings
-            # For this demo, we'll create a dummy embedding
-            embedding = np.random.rand(384).tolist()  # DistilBERT size
+            # Generate dummy embeddings (in production, use pre-loaded embeddings)
+            embedding = np.random.rand(384).tolist()
 
             results.append(
                 {

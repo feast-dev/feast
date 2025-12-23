@@ -155,6 +155,52 @@ async def _get_features(
     return features
 
 
+async def load_static_artifacts(app: FastAPI, store):
+    """
+    Load static artifacts (models, lookup tables, etc.) into app.state.
+
+    This function can be extended to load various types of static artifacts:
+    - Small ML models (scikit-learn, small neural networks)
+    - Lookup tables and reference data
+    - Configuration parameters
+    - Pre-computed embeddings
+
+    Note: Not recommended for large language models - use dedicated
+    model serving solutions (vLLM, TGI, etc.) for those.
+    """
+    try:
+        # Import here to avoid loading heavy dependencies unless needed
+        import importlib.util
+        import inspect
+        from pathlib import Path
+
+        # Look for static artifacts loading in the feature repository
+        # This allows templates and users to define their own artifact loading
+        repo_path = Path(store.repo_path) if store.repo_path else Path.cwd()
+        artifacts_file = repo_path / "static_artifacts.py"
+
+        if artifacts_file.exists():
+            # Load and execute custom static artifacts loading
+            spec = importlib.util.spec_from_file_location(
+                "static_artifacts", artifacts_file
+            )
+            if spec and spec.loader:
+                artifacts_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(artifacts_module)
+
+                # Look for load_artifacts function
+                if hasattr(artifacts_module, "load_artifacts"):
+                    load_func = artifacts_module.load_artifacts
+                    if inspect.iscoroutinefunction(load_func):
+                        await load_func(app)
+                    else:
+                        load_func(app)
+                    logger.info("Loaded static artifacts from static_artifacts.py")
+    except Exception as e:
+        # Non-fatal error - feature server should still start
+        logger.warning(f"Failed to load static artifacts: {e}")
+
+
 def get_app(
     store: "feast.FeatureStore",
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
@@ -217,6 +263,9 @@ def get_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # Load static artifacts before initializing store
+        await load_static_artifacts(app, store)
+
         await store.initialize()
         async_refresh()
         yield
