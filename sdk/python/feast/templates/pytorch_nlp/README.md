@@ -157,7 +157,8 @@ my-sentiment-project/
 ├── README.md                     # This file
 └── feature_repo/
     ├── feature_store.yaml        # Feast configuration
-    ├── example_repo.py           # Feature definitions
+    ├── example_repo.py           # Feature definitions (uses pre-loaded artifacts)
+    ├── static_artifacts.py       # Static artifacts loading (models, lookup tables)
     ├── test_workflow.py          # Complete demo workflow
     └── data/                     # Generated sample data
         └── sentiment_data.parquet
@@ -204,6 +205,109 @@ offline_store:
 - ✅ **Self-contained** - All data in local files
 - ✅ **No external services** - No Redis/cloud required
 - ✅ **Perfect for demos** - Easy to share and understand
+
+## 🚀 Static Artifacts Loading
+
+This template demonstrates **static artifacts loading** - a performance optimization that loads models, lookup tables, and other artifacts once at feature server startup instead of on each request.
+
+### What are Static Artifacts?
+
+Static artifacts are pre-loaded resources that remain constant during server operation:
+- **Small ML models** (sentiment analysis, classification, small neural networks)
+- **Lookup tables and mappings** (label encoders, category mappings)
+- **Configuration data** (model parameters, feature mappings)
+- **Pre-computed embeddings** (user embeddings, item features)
+
+### Performance Benefits
+
+**Before (Per-Request Loading):**
+```python
+def sentiment_prediction(inputs):
+    # ❌ Model loads on every request - slow!
+    model = pipeline("sentiment-analysis", model="...")
+    return model(inputs["text"])
+```
+
+**After (Startup Loading):**
+```python
+# ✅ Model loads once at server startup
+def sentiment_prediction(inputs):
+    global _sentiment_model  # Pre-loaded model
+    return _sentiment_model(inputs["text"])
+```
+
+**Performance Impact:**
+- 🚀 **10-100x faster** inference (no model loading overhead)
+- 💾 **Lower memory usage** (shared model across requests)
+- ⚡ **Better scalability** (consistent response times)
+
+### How It Works
+
+1. **Startup**: Feast server loads `static_artifacts.py` during initialization
+2. **Loading**: `load_artifacts(app)` function stores models in `app.state`
+3. **Access**: On-demand feature views access pre-loaded artifacts via global references
+
+```python
+# static_artifacts.py - Define what to load
+def load_artifacts(app: FastAPI):
+    app.state.sentiment_model = load_sentiment_model()
+    app.state.lookup_tables = load_lookup_tables()
+
+    # Update global references for easy access
+    import example_repo
+    example_repo._sentiment_model = app.state.sentiment_model
+    example_repo._lookup_tables = app.state.lookup_tables
+
+# example_repo.py - Use pre-loaded artifacts
+_sentiment_model = None  # Set by static_artifacts.py
+
+def sentiment_prediction(inputs):
+    global _sentiment_model
+    if _sentiment_model is not None:
+        return _sentiment_model(inputs["text"])
+    else:
+        return fallback_predictions()
+```
+
+### Scope and Limitations
+
+**✅ Great for:**
+- Small to medium models (< 1GB)
+- Fast-loading models (sentiment analysis, classification)
+- Lookup tables and reference data
+- Configuration parameters
+- Pre-computed embeddings
+
+**❌ Not recommended for:**
+- **Large Language Models (LLMs)** - Use dedicated serving solutions like vLLM, TGI, or TensorRT-LLM
+- Models requiring GPU clusters
+- Frequently updated models
+- Models with complex initialization dependencies
+
+**Note:** Feast is optimized for feature serving, not large model inference. For production LLM workloads, use specialized model serving platforms.
+
+### Customizing Static Artifacts
+
+To add your own artifacts, modify `static_artifacts.py`:
+
+```python
+def load_custom_embeddings():
+    """Load pre-computed user embeddings."""
+    embeddings_file = Path(__file__).parent / "data" / "user_embeddings.npy"
+    if embeddings_file.exists():
+        import numpy as np
+        return {"embeddings": np.load(embeddings_file)}
+    return None
+
+def load_artifacts(app: FastAPI):
+    # Load your custom artifacts
+    app.state.custom_embeddings = load_custom_embeddings()
+    app.state.config_params = {"threshold": 0.7, "top_k": 10}
+
+    # Make them available to feature views
+    import example_repo
+    example_repo._custom_embeddings = app.state.custom_embeddings
+```
 
 ## 📚 Detailed Usage
 
@@ -409,20 +513,21 @@ def toxicity_detection(inputs: pd.DataFrame) -> pd.DataFrame:
 ### Performance Optimization
 
 **Current Architecture:**
-- Models load on each request (see `sentiment_prediction` function)
+- ✅ **Static artifacts loading** at server startup (see `static_artifacts.py`)
+- ✅ **Pre-loaded models** cached in memory for fast inference
 - CPU-only operation to avoid multiprocessing issues
 - SQLite-based storage for fast local access
 
-**TODO: Optimization Opportunities:**
-- **Startup-time Model Loading**: Load models once at server startup instead of per-request
-- **Custom Provider**: Implement model caching via custom Feast provider
-- **Model Serving Layer**: Use dedicated model servers (TorchServe, MLflow) for heavy models
+**Implemented Optimizations:**
+- **Startup-time Model Loading**: ✅ Models load once at server startup via `static_artifacts.py`
+- **Memory-efficient Caching**: ✅ Models stored in `app.state` and accessed via global references
+- **Fallback Handling**: ✅ Graceful degradation when artifacts fail to load
 
-**Production Optimizations:**
-1. **Model Caching**: Cache loaded models in memory to avoid repeated loading
-2. **Batch Inference**: Process multiple texts together for efficiency
-3. **Feature Materialization**: Pre-compute expensive features offline
-4. **Async Processing**: Use async patterns for real-time serving
+**Additional Production Optimizations:**
+1. **Batch Inference**: Process multiple texts together for efficiency
+2. **Feature Materialization**: Pre-compute expensive features offline
+3. **Async Processing**: Use async patterns for real-time serving
+4. **Model Serving Layer**: Use dedicated model servers (TorchServe, vLLM) for large models
 
 ### Production Configuration Examples
 
