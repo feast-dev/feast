@@ -13,12 +13,14 @@ metadata:
     notebooks.opendatahub.io/last-size-selection: Small
     opendatahub.io/link: https://jupyter-nb-kube-3aadmin-{{.Namespace}}.{{.IngressDomain}}/notebook/{{.Namespace}}/jupyter-nb-kube-3aadmin
     opendatahub.io/username: {{.Username}}
+    opendatahub.io/feast-config: {{.FeastProject}}
   generation: 1
   labels:
     app: jupyter-nb-kube-3aadmin
     opendatahub.io/dashboard: "true"
     opendatahub.io/odh-managed: "true"
     opendatahub.io/user: {{.Username}}
+    opendatahub.io/feast-integration: 'true'
   name: jupyter-nb-kube-3aadmin
   namespace: {{.Namespace}}
 spec:
