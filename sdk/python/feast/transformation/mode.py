@@ -11,8 +11,7 @@ class TransformationMode(Enum):
     SUBSTRAIT = "substrait"
 
 
-class TransformationTiming(Enum):
-    ON_READ = "on_read"  # Execute during get_online_features()
-    ON_WRITE = "on_write"  # Execute during materialization, cache results
-    BATCH = "batch"  # Scheduled batch processing
-    STREAMING = "streaming"  # Real-time stream processing
+class TransformExecutionPattern(Enum):
+    BATCH_ONLY = "batch_only"  # Pure batch: only in batch compute engine
+    BATCH_ON_READ = "batch_on_read"  # Batch + feature server on read (lazy)
+    BATCH_ON_WRITE = "batch_on_write"  # Batch + feature server on ingestion (eager)

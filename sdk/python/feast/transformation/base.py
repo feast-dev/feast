@@ -22,7 +22,7 @@ from feast.transformation.factory import (
     TRANSFORMATION_CLASS_FOR_TYPE,
     get_transformation_class_from_type,
 )
-from feast.transformation.mode import TransformationMode, TransformationTiming
+from feast.transformation.mode import TransformationMode, TransformExecutionPattern
 
 # Online compatibility constants
 ONLINE_COMPATIBLE_MODES = {"python", "pandas"}
@@ -143,13 +143,6 @@ class Transformation(ABC):
 
 def transformation(
     mode: Union[TransformationMode, str],  # Support both enum and string
-    when: Optional[str] = None,
-    online: Optional[bool] = None,
-    sources: Optional[
-        List[Union["FeatureView", "FeatureViewProjection", "RequestSource"]]
-    ] = None,
-    schema: Optional[List[Field]] = None,
-    entities: Optional[List[Entity]] = None,
     name: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
     description: Optional[str] = "",
@@ -173,24 +166,6 @@ def transformation(
                 valid_modes = [m.value for m in TransformationMode]
                 raise ValueError(f"Invalid mode '{mode}'. Valid options: {valid_modes}")
 
-        # Validate timing if provided
-        if when is not None:
-            try:
-                TransformationTiming(when.lower())  # Validate timing string
-            except ValueError:
-                valid_timings = [t.value for t in TransformationTiming]
-                raise ValueError(
-                    f"Invalid timing '{when}'. Valid options: {valid_timings}"
-                )
-
-        # Validate online compatibility
-        if online and not is_online_compatible(mode_str):
-            compatible_modes = list(ONLINE_COMPATIBLE_MODES)
-            raise ValueError(
-                f"Mode '{mode_str}' cannot run online in Feature Server. "
-                f"Use {compatible_modes} for online transformations."
-            )
-
         # Create transformation object
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)
@@ -204,67 +179,8 @@ def transformation(
             udf_string=udf_string,
         )
 
-        # If FeatureView parameters are provided, create and return FeatureView
-        if any(
-            param is not None for param in [when, online, sources, schema, entities]
-        ):
-            # Import FeatureView here to avoid circular imports
-            from feast.feature_view import FeatureView
-
-            # Validate required parameters when creating FeatureView
-            if when is None:
-                raise ValueError(
-                    "'when' parameter is required when creating FeatureView"
-                )
-            if online is None:
-                raise ValueError(
-                    "'online' parameter is required when creating FeatureView"
-                )
-            if sources is None:
-                raise ValueError(
-                    "'sources' parameter is required when creating FeatureView"
-                )
-            if schema is None:
-                raise ValueError(
-                    "'schema' parameter is required when creating FeatureView"
-                )
-
-            # Handle source parameter correctly for FeatureView constructor
-            if not sources:
-                raise ValueError("At least one source must be provided for FeatureView")
-            elif len(sources) == 1:
-                # Single source - pass directly (works for DataSource or FeatureView)
-                source_param = sources[0]
-            else:
-                # Multiple sources - pass as list (must be List[FeatureView])
-                from feast.feature_view import FeatureView as FV
-
-                for src in sources:
-                    if not isinstance(src, (FV, type(src).__name__ == "FeatureView")):
-                        raise ValueError(
-                            "Multiple sources must be FeatureViews, not DataSources"
-                        )
-                source_param = sources
-
-            # Create FeatureView with transformation
-            fv = FeatureView(
-                name=name or user_function.__name__,
-                source=source_param,
-                entities=entities or [],
-                schema=schema,
-                feature_transformation=transformation_obj,
-                when=when,
-                online_enabled=online,
-                description=description,
-                tags=tags,
-                owner=owner,
-                mode=mode_str,
-            )
-            functools.update_wrapper(wrapper=fv, wrapped=user_function)
-            return fv
-        else:
-            # Backward compatibility: return Transformation object
-            functools.update_wrapper(wrapper=transformation_obj, wrapped=user_function)
-            return transformation_obj
+        # Return Transformation object with function metadata preserved
+        functools.update_wrapper(wrapper=transformation_obj, wrapped=user_function)
+        return transformation_obj
 
     return decorator

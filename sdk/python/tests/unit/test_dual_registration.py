@@ -1,7 +1,7 @@
 """
 Unit tests for dual registration functionality in FeatureStore.
 
-Tests that online_enabled=True FeatureViews get automatically registered
+Tests that online=True FeatureViews get automatically registered
 as both batch FeatureViews and OnDemandFeatureViews for serving.
 """
 
@@ -20,9 +20,9 @@ from feast.types import Float64
 class TestDualRegistration:
     """Test dual registration functionality"""
 
-    def test_online_enabled_creates_odfv(self):
-        """Test that online_enabled=True creates an OnDemandFeatureView"""
-        # Create a FeatureView with online_enabled=True
+    def test_online_creates_odfv(self):
+        """Test that online=True creates an OnDemandFeatureView"""
+        # Create a FeatureView with online=True
         driver = Entity(name="driver", join_keys=["driver_id"])
         mock_source = FileSource(path="test.parquet", timestamp_field="ts")
 
@@ -37,8 +37,8 @@ class TestDualRegistration:
             entities=[driver],
             schema=[Field(name="feature1", dtype=Float64)],
             feature_transformation=test_transformation,
-            when="on_write",
-            online_enabled=True,
+            transform_when="batch_on_write",
+            # online=True auto-inferred from transform_when
         )
 
         # Mock registry and provider
@@ -96,7 +96,7 @@ class TestDualRegistration:
         # Verify original FV
         assert original_fv is not None
         assert original_fv.name == "test_fv"
-        assert original_fv.online_enabled
+        assert original_fv.online
         assert original_fv.feature_transformation is not None
 
         # Verify generated ODFV
@@ -109,7 +109,7 @@ class TestDualRegistration:
         assert generated_odfv.tags["dual_registration"] == "true"
 
     def test_no_dual_registration_when_online_disabled(self):
-        """Test that online_enabled=False does not create ODFV"""
+        """Test that online=False does not create ODFV"""
         driver = Entity(name="driver", join_keys=["driver_id"])
         mock_source = FileSource(path="test.parquet", timestamp_field="ts")
 
@@ -118,7 +118,7 @@ class TestDualRegistration:
             source=mock_source,
             entities=[driver],
             schema=[Field(name="feature1", dtype=Float64)],
-            online_enabled=False,  # Disabled
+            online=False,  # Disabled
         )
 
         # Mock FeatureStore
@@ -163,7 +163,7 @@ class TestDualRegistration:
             source=mock_source,
             entities=[driver],
             schema=[Field(name="feature1", dtype=Float64)],
-            online_enabled=True,  # Enabled
+            online=True,  # Enabled
             # No feature_transformation
         )
 
@@ -199,31 +199,35 @@ class TestDualRegistration:
         assert isinstance(applied_views[0], FeatureView)
         assert not isinstance(applied_views[0], OnDemandFeatureView)
 
-    def test_enhanced_decorator_with_dual_registration(self):
-        """Test end-to-end: enhanced @transformation decorator -> dual registration"""
+    def test_separate_transformation_and_feature_view_with_dual_registration(self):
+        """Test: create separate transformation and FeatureView -> dual registration"""
         driver = Entity(name="driver", join_keys=["driver_id"])
 
-        # Create FeatureView using enhanced decorator with dummy source
+        # Create transformation separately
+        @transformation(mode="python", name="doubling_transform")
+        def doubling_transform_func(inputs):
+            return [{"doubled": inp.get("value", 0) * 2} for inp in inputs]
+
+        # Create FeatureView with transformation and dual registration settings
         dummy_source = FileSource(
             path="test.parquet", timestamp_field="event_timestamp"
         )
 
-        @transformation(
-            mode="python",
-            when="on_write",
-            online=True,
-            sources=[dummy_source],
-            schema=[Field(name="doubled", dtype=Float64)],
-            entities=[driver],
+        fv = FeatureView(
             name="doubling_transform",
+            source=dummy_source,
+            entities=[driver],
+            schema=[Field(name="doubled", dtype=Float64)],
+            feature_transformation=doubling_transform_func,
+            transform_when="batch_on_write",
+            # online=True auto-inferred from transform_when
         )
-        def doubling_transform(inputs):
-            return [{"doubled": inp.get("value", 0) * 2} for inp in inputs]
 
         # Verify it's a FeatureView with the right properties
-        assert isinstance(doubling_transform, FeatureView)
-        assert doubling_transform.online_enabled
-        assert doubling_transform.feature_transformation is not None
+        assert isinstance(fv, FeatureView)
+        assert fv.online  # Auto-inferred
+        assert fv.transform_when == "batch_on_write"
+        assert fv.feature_transformation is not None
 
         # Mock FeatureStore and apply
         # Create FeatureStore instance with mocked initialization
@@ -250,7 +254,7 @@ class TestDualRegistration:
         fs._provider.teardown_infra = Mock()
 
         # Apply the FeatureView
-        fs.apply(doubling_transform)
+        fs.apply(fv)
 
         # Should create both original FV and ODFV
         assert len(applied_views) == 2
@@ -266,7 +270,7 @@ class TestDualRegistration:
         test_input = [{"value": 5}]
         expected_output = [{"doubled": 10}]
 
-        original_udf = doubling_transform.feature_transformation.udf
+        original_udf = fv.feature_transformation.udf
         odfv_udf = odfv.feature_transformation.udf
 
         assert original_udf(test_input) == expected_output
