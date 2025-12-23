@@ -966,14 +966,26 @@ class FeatureStore:
             services_to_update,
         )
 
-        # Handle dual registration for online_enabled FeatureViews
-        online_enabled_views = [
+        # Handle dual registration for FeatureViews with online transform execution
+        dual_registration_views = [
             view
             for view in views_to_update
-            if hasattr(view, "online_enabled") and view.online_enabled
+            if (
+                hasattr(view, "transform_when")
+                and view.transform_when
+                and (
+                    view.transform_when in ["batch_on_read", "batch_on_write"]
+                    or (
+                        hasattr(view.transform_when, "value")
+                        and view.transform_when.value in ["batch_on_read", "batch_on_write"]
+                    )
+                )
+                and hasattr(view, "online")
+                and view.online
+            )
         ]
 
-        for fv in online_enabled_views:
+        for fv in dual_registration_views:
             # Create OnDemandFeatureView for online serving with same transformation
             if hasattr(fv, "feature_transformation") and fv.feature_transformation:
                 # Create ODFV with same transformation logic
