@@ -500,9 +500,9 @@ def _group_feature_refs(
     # on demand view to on demand view proto
     on_demand_view_index: Dict[str, "OnDemandFeatureView"] = {}
     for view in all_on_demand_feature_views:
-        if view.projection and not view.write_to_online_store:
+        if view.projection and not getattr(view, 'write_to_online_store', True):
             on_demand_view_index[view.projection.name_to_use()] = view
-        elif view.projection and view.write_to_online_store:
+        elif view.projection and getattr(view, 'write_to_online_store', True):
             # we insert the ODFV view to FVs for ones that are written to the online store
             view_index[view.projection.name_to_use()] = view
 
@@ -687,51 +687,81 @@ def _augment_response_with_on_demand_transforms(
     odfv_result_names = set()
     for odfv_name, _feature_refs in odfv_feature_refs.items():
         odfv = requested_odfv_map[odfv_name]
-        if not odfv.write_to_online_store:
+        # For unified FeatureViews with transformations, always execute transforms
+        # For OnDemandFeatureViews, check write_to_online_store setting
+        should_transform = (
+            hasattr(odfv, 'feature_transformation') and odfv.feature_transformation is not None
+        ) or not getattr(odfv, 'write_to_online_store', True)
+
+        if should_transform:
             # Apply aggregations if configured.
-            if odfv.aggregations:
-                if odfv.mode == "python":
+            aggregations = getattr(odfv, 'aggregations', [])
+            mode_attr = getattr(odfv, 'mode', 'pandas')
+            # Handle TransformationMode enum values
+            mode = mode_attr.value if hasattr(mode_attr, 'value') else mode_attr
+            entities = getattr(odfv, 'entities', [])
+            if aggregations:
+                if mode == "python":
                     if initial_response_dict is None:
                         initial_response_dict = initial_response.to_dict()
                     initial_response_dict = _apply_aggregations_to_response(
                         initial_response_dict,
-                        odfv.aggregations,
-                        odfv.entities,
-                        odfv.mode,
+                        aggregations,
+                        entities,
+                        mode,
                     )
-                elif odfv.mode in {"pandas", "substrait"}:
+                elif mode in {"pandas", "substrait"}:
                     if initial_response_arrow is None:
                         initial_response_arrow = initial_response.to_arrow()
                     initial_response_arrow = _apply_aggregations_to_response(
                         initial_response_arrow,
-                        odfv.aggregations,
-                        odfv.entities,
-                        odfv.mode,
+                        aggregations,
+                        entities,
+                        mode,
                     )
 
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
             # TODO: Fix to make it work for having both aggregation and transformation
             #  ticket: https://github.com/feast-dev/feast/issues/5689
-            elif odfv.mode == "python":
+            elif mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
-                    initial_response_dict
-                )
-            elif odfv.mode in {"pandas", "substrait"}:
+                # Use feature_transformation for unified FeatureViews
+                if hasattr(odfv, 'feature_transformation') and odfv.feature_transformation:
+                    transformed_features_dict = odfv.feature_transformation.udf(initial_response_dict)
+                else:
+                    # Fallback to OnDemandFeatureView method
+                    transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
+                        initial_response_dict
+                    )
+            elif mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
                     initial_response_arrow = initial_response.to_arrow()
-                transformed_features_arrow = odfv.transform_arrow(
-                    initial_response_arrow, full_feature_names
-                )
+                # Use feature_transformation for unified FeatureViews
+                if hasattr(odfv, 'feature_transformation') and odfv.feature_transformation:
+                    if mode == "pandas":
+                        df = initial_response_arrow.to_pandas()
+                        transformed_df = odfv.feature_transformation.udf(df)
+                        import pyarrow as pa
+                        transformed_features_arrow = pa.Table.from_pandas(transformed_df)
+                    else:
+                        # For substrait mode, fallback to OnDemandFeatureView method
+                        transformed_features_arrow = odfv.transform_arrow(
+                            initial_response_arrow, full_feature_names
+                        )
+                else:
+                    # Fallback to OnDemandFeatureView method
+                    transformed_features_arrow = odfv.transform_arrow(
+                        initial_response_arrow, full_feature_names
+                    )
             else:
                 raise Exception(
-                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
+                    f"Invalid OnDemandFeatureMode: {mode}. Expected one of 'pandas', 'python', or 'substrait'."
                 )
 
             transformed_features = (
                 transformed_features_dict
-                if odfv.mode == "python"
+                if mode == "python"
                 else transformed_features_arrow
             )
             transformed_columns = (
@@ -742,7 +772,7 @@ def _augment_response_with_on_demand_transforms(
             selected_subset = [f for f in transformed_columns if f in _feature_refs]
 
             proto_values = []
-            schema_dict = {k.name: k.dtype for k in odfv.schema}
+            schema_dict = {k.name: k.dtype for k in getattr(odfv, 'schema', [])}
             for selected_feature in selected_subset:
                 feature_vector = transformed_features[selected_feature]
                 selected_feature_type = schema_dict.get(selected_feature, None)
@@ -1185,11 +1215,21 @@ def _get_feature_views_to_use(
             od_fvs_to_use.append(
                 fv.with_projection(copy.copy(projection)) if projection else fv
             )
+        elif hasattr(fv, 'feature_transformation') and fv.feature_transformation is not None:
+            # Handle unified FeatureViews with transformations like OnDemandFeatureViews
+            od_fvs_to_use.append(
+                fv.with_projection(copy.copy(projection)) if projection else fv
+            )
 
-            for source_projection in fv.source_feature_view_projections.values():
-                source_fv = registry.get_any_feature_view(
-                    source_projection.name, project, allow_cache
-                )
+            # For unified FeatureViews, source FeatureViews are stored in source_views property
+            source_views = fv.source_views if hasattr(fv, 'source_views') and fv.source_views else []
+            for source_fv in source_views:
+                # source_fv is already a FeatureView object for unified FeatureViews
+                if hasattr(source_fv, 'name'):
+                    # If it's a FeatureView, get it from registry to ensure it's up to date
+                    source_fv = registry.get_any_feature_view(
+                        source_fv.name, project, allow_cache
+                    )
                 # TODO better way to handler dummy entities
                 if (
                     hide_dummy_entity
@@ -1200,9 +1240,8 @@ def _get_feature_views_to_use(
                     source_fv.entity_columns = []  # type: ignore[attr-defined]
 
                 if source_fv not in fvs_to_use:
-                    fvs_to_use.append(
-                        source_fv.with_projection(copy.copy(source_projection))
-                    )
+                    # For unified FeatureViews, add source views without complex projection handling
+                    fvs_to_use.append(source_fv)
         else:
             if (
                 hide_dummy_entity
@@ -1340,8 +1379,10 @@ def _prepare_entities_to_read_from_online_store(
                 for entity_name in entities_for_odfv
             ]
         odfv_entities.extend(entities_for_odfv)
-        for source in on_demand_feature_view.source_request_sources:
-            source_schema = on_demand_feature_view.source_request_sources[source].schema
+        # Check if the feature view has source_request_sources (OnDemandFeatureView attribute)
+        source_request_sources = getattr(on_demand_feature_view, 'source_request_sources', {})
+        for source in source_request_sources:
+            source_schema = source_request_sources[source].schema
             for column in source_schema:
                 request_source_keys.append(column.name)
 

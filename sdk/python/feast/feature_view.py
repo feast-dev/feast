@@ -40,7 +40,7 @@ from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2 as FeatureTransformationProto,
 )
 from feast.transformation.base import Transformation
-from feast.transformation.mode import TransformationMode, TransformExecutionPattern
+from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
@@ -109,7 +109,6 @@ class FeatureView(BaseFeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
     feature_transformation: Optional[Transformation]
-    transform_when: Optional[Union["TransformExecutionPattern", str]]
 
     def __init__(
         self,
@@ -127,7 +126,6 @@ class FeatureView(BaseFeatureView):
         owner: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
         feature_transformation: Optional[Transformation] = None,
-        transform_when: Optional[Union["TransformExecutionPattern", str]] = None,
     ):
         """
         Creates a FeatureView object.
@@ -155,8 +153,6 @@ class FeatureView(BaseFeatureView):
                 when transformations are applied. Choose from TransformationMode enum values.
             feature_transformation (optional): The transformation object containing the UDF and
                 mode for this feature view. Used for derived feature views.
-            transform_when (optional): The timing for when transformation should execute. Choose from
-                TransformExecutionPattern enum values (batch_only, batch_on_read, batch_on_write).
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -172,30 +168,8 @@ class FeatureView(BaseFeatureView):
             or self.feature_transformation is None
         ):
             self.feature_transformation = feature_transformation
-        self.transform_when = transform_when
-
-        # Auto-infer online setting based on transform_when pattern
-        if transform_when in [
-            TransformExecutionPattern.BATCH_ON_READ,
-            TransformExecutionPattern.BATCH_ON_WRITE,
-        ]:
-            if online is False:
-                raise ValueError(
-                    f"Cannot set online=False with transform_when='{transform_when}'. "
-                    f"Online execution patterns require online=True."
-                )
-            self.online = True  # Auto-infer online=True
-        elif transform_when == "batch_on_read" or transform_when == "batch_on_write":
-            # Handle string values as well
-            if online is False:
-                raise ValueError(
-                    f"Cannot set online=False with transform_when='{transform_when}'. "
-                    f"Online execution patterns require online=True."
-                )
-            self.online = True  # Auto-infer online=True
-        else:
-            # For batch_only or None, respect the provided online setting
-            self.online = online
+        # Set online setting to provided value
+        self.online = online
 
         # Normalize source
         self.stream_source = None
