@@ -903,6 +903,34 @@ class FeatureStore:
             for ob in objects
             if isinstance(ob, OnDemandFeatureView) and ob.write_to_online_store
         ]
+
+        # Add deprecation warnings for specialized feature view types
+        for ob in objects:
+            if isinstance(ob, BatchFeatureView):
+                warnings.warn(
+                    f"BatchFeatureView '{ob.name}' is deprecated. "
+                    "Use FeatureView with feature_transformation parameters instead. "
+                    "See documentation for migration guide.",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+            elif isinstance(ob, StreamFeatureView):
+                warnings.warn(
+                    f"StreamFeatureView '{ob.name}' is deprecated. "
+                    "Use FeatureView with feature_transformation parameters instead. "
+                    "See documentation for migration guide.",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+            elif isinstance(ob, OnDemandFeatureView):
+                warnings.warn(
+                    f"OnDemandFeatureView '{ob.name}' is deprecated. "
+                    "Use FeatureView with feature_transformation parameters instead. "
+                    "See documentation for migration guide.",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
         data_sources_set_to_update = {
             ob for ob in objects if isinstance(ob, DataSource)
@@ -966,21 +994,13 @@ class FeatureStore:
             services_to_update,
         )
 
-        # Handle dual registration for FeatureViews with online transform execution
+        # Handle dual registration for FeatureViews with transformations and online serving
         dual_registration_views = [
             view
             for view in views_to_update
             if (
-                hasattr(view, "transform_when")
-                and view.transform_when
-                and (
-                    view.transform_when in ["batch_on_read", "batch_on_write"]
-                    or (
-                        hasattr(view.transform_when, "value")
-                        and view.transform_when.value
-                        in ["batch_on_read", "batch_on_write"]
-                    )
-                )
+                hasattr(view, "feature_transformation")
+                and view.feature_transformation is not None
                 and hasattr(view, "online")
                 and view.online
             )
@@ -1148,6 +1168,7 @@ class FeatureStore:
         full_feature_names: bool = False,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        transform: bool = True,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -1179,6 +1200,7 @@ class FeatureStore:
                 Required when entity_df is not provided.
             end_date (Optional[datetime]): End date for the timestamp range when retrieving features without entity_df.
                 Required when entity_df is not provided. By default, the current time is used.
+            transform: If True, apply feature transformations. If False, skip transformations for performance.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -1259,6 +1281,9 @@ class FeatureStore:
             kwargs["start_date"] = start_date
         if end_date is not None:
             kwargs["end_date"] = end_date
+        # For now, we pass transform as a hint but providers may not use it yet
+        # Future provider implementations should use this to control transformation execution
+        kwargs["transform"] = transform
 
         job = provider.get_historical_features(
             self.config,
@@ -1910,6 +1935,65 @@ class FeatureStore:
         else:
             raise Exception("Unsupported OnDemandFeatureView mode")
 
+    def _apply_unified_transformation(
+        self, feature_view: FeatureView, df: pd.DataFrame
+    ) -> pd.DataFrame:
+        """
+        Apply transformations for a unified FeatureView with feature_transformation.
+
+        Args:
+            feature_view: The FeatureView containing the transformation
+            df: The input dataframe to transform
+
+        Returns:
+            Transformed dataframe
+        """
+        transformation = feature_view.feature_transformation
+        if not transformation:
+            return df
+
+        if transformation.mode.value == "pandas":
+            # Apply pandas transformation
+            return transformation.udf(df)
+        elif transformation.mode.value == "python":
+            # Convert pandas DataFrame to dict for python mode
+            input_dict = df.to_dict(orient="list")
+            transformed_dict = transformation.udf(input_dict)
+            return pd.DataFrame(transformed_dict)
+        else:
+            raise Exception(f"Unsupported transformation mode: {transformation.mode.value}")
+
+    def _validate_transformed_schema(
+        self, feature_view: FeatureView, df: pd.DataFrame
+    ) -> None:
+        """
+        Validate that the input dataframe matches the expected transformed schema.
+        This is used when transform=False to ensure pre-transformed data has the correct structure.
+
+        Args:
+            feature_view: The FeatureView with expected schema
+            df: The dataframe to validate
+
+        Raises:
+            ValueError: If schema validation fails
+        """
+        if not hasattr(feature_view, 'schema') or not feature_view.schema:
+            return  # No schema to validate against
+
+        expected_columns = {field.name for field in feature_view.schema}
+        actual_columns = set(df.columns)
+
+        missing_columns = expected_columns - actual_columns
+        extra_columns = actual_columns - expected_columns
+
+        if missing_columns or extra_columns:
+            error_msg = "Schema validation failed for pre-transformed data"
+            if missing_columns:
+                error_msg += f". Missing columns: {sorted(missing_columns)}"
+            if extra_columns:
+                error_msg += f". Extra columns: {sorted(extra_columns)}"
+            raise ValueError(error_msg)
+
     def _validate_vector_features(self, feature_view, df: pd.DataFrame) -> None:
         """
         Validates vector features in the DataFrame against the feature view specifications.
@@ -1959,13 +2043,21 @@ class FeatureStore:
         if df is not None:
             self._validate_vector_features(feature_view, df)
 
-        # # Apply transformations if this is an OnDemandFeatureView with write_to_online_store=True
-        if (
-            isinstance(feature_view, OnDemandFeatureView)
-            and feature_view.write_to_online_store
-            and transform_on_write
-        ):
-            df = self._transform_on_demand_feature_view_df(feature_view, df)
+        # Apply transformations if enabled and the feature view has transformations
+        if transform_on_write and df is not None:
+            # Handle OnDemandFeatureView (legacy)
+            if (
+                isinstance(feature_view, OnDemandFeatureView)
+                and feature_view.write_to_online_store
+            ):
+                df = self._transform_on_demand_feature_view_df(feature_view, df)
+            # Handle unified FeatureView with feature_transformation
+            elif hasattr(feature_view, 'feature_transformation') and feature_view.feature_transformation:
+                df = self._apply_unified_transformation(feature_view, df)
+
+        # Schema validation when transform=False
+        elif not transform_on_write and df is not None and hasattr(feature_view, 'feature_transformation') and feature_view.feature_transformation:
+            self._validate_transformed_schema(feature_view, df)
 
         return feature_view, df
 
@@ -1975,7 +2067,7 @@ class FeatureStore:
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
-        transform_on_write: bool = True,
+        transform: bool = True,
     ):
         """
         Persists a dataframe to the online store.
@@ -1985,7 +2077,7 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
-            transform_on_write (optional): Whether to transform the data before pushing.
+            transform (optional): Whether to transform the data before pushing.
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
@@ -1993,7 +2085,7 @@ class FeatureStore:
             df=df,
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
-            transform_on_write=transform_on_write,
+            transform_on_write=transform,
         )
 
         # Validate that the dataframe has meaningful feature data
@@ -2021,6 +2113,7 @@ class FeatureStore:
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
+        transform: bool = True,
     ):
         """
         Persists a dataframe to the online store asynchronously.
@@ -2030,6 +2123,7 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
+            transform (optional): Whether to transform the data before pushing.
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
@@ -2037,6 +2131,7 @@ class FeatureStore:
             df=df,
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
+            transform_on_write=transform,
         )
 
         # Validate that the dataframe has meaningful feature data
@@ -2110,6 +2205,7 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
+        transform: bool = True,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -2130,6 +2226,7 @@ class FeatureStore:
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+            transform: If True, apply feature transformations. If False, skip transformations and validation.
 
         Returns:
             OnlineResponse containing the feature data in records.
@@ -2154,6 +2251,8 @@ class FeatureStore:
         """
         provider = self._get_provider()
 
+        # For now, we pass transform as a hint but providers may not use it yet
+        # Future provider implementations should use this to control transformation execution
         return provider.get_online_features(
             config=self.config,
             features=features,
@@ -2171,6 +2270,7 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
+        transform: bool = True,
     ) -> OnlineResponse:
         """
         [Alpha] Retrieves the latest online feature data asynchronously.
@@ -2191,6 +2291,7 @@ class FeatureStore:
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+            transform: If True, apply feature transformations. If False, skip transformations and validation.
 
         Returns:
             OnlineResponse containing the feature data in records.
@@ -2200,6 +2301,8 @@ class FeatureStore:
         """
         provider = self._get_provider()
 
+        # For now, we pass transform as a hint but providers may not use it yet
+        # Future provider implementations should use this to control transformation execution
         return await provider.get_online_features_async(
             config=self.config,
             features=features,
