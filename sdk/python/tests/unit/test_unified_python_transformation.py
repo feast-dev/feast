@@ -5,18 +5,15 @@ Converted from test_on_demand_python_transformation.py to use the new
 unified transformation system with FeatureView + feature_transformation
 instead of OnDemandFeatureView.
 """
+
 import os
 import platform
-import re
-import sqlite3
-import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta
 from typing import Any
 
 import pandas as pd
-import pytest
 
 from feast import (
     Entity,
@@ -30,16 +27,13 @@ from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.feature_view import DUMMY_ENTITY_FIELD
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.nlp_test_data import create_document_chunks_df
 from feast.transformation.base import transformation
 from feast.types import (
     Array,
     Bool,
-    Bytes,
     Float32,
     Float64,
     Int64,
-    PdfBytes,
     String,
     UnixTimestamp,
     ValueType,
@@ -87,13 +81,6 @@ class TestUnifiedPythonTransformation(unittest.TestCase):
                 path=driver_stats_path,
                 timestamp_field="event_timestamp",
                 created_timestamp_column="created",
-            )
-            input_request_source = RequestSource(
-                name="counter_source",
-                schema=[
-                    Field(name="counter", dtype=Int64),
-                    Field(name="input_datetime", dtype=UnixTimestamp),
-                ],
             )
 
             driver_stats_fv = FeatureView(
@@ -499,7 +486,9 @@ class TestUnifiedPythonTransformationAllDataTypes(unittest.TestCase):
             sink_source = FileSource(name="sink-source", path="sink.parquet")
             python_view = FeatureView(
                 name="python_view",
-                source=[driver_stats_fv],  # Note: RequestSource integration needs different approach
+                source=[
+                    driver_stats_fv
+                ],  # Note: RequestSource integration needs different approach
                 sink_source=sink_source,
                 schema=[
                     Field(name="highest_achieved_rank", dtype=String),
@@ -527,7 +516,9 @@ class TestUnifiedPythonTransformationAllDataTypes(unittest.TestCase):
 
             pandas_view = FeatureView(
                 name="pandas_view",
-                source=[driver_stats_fv],  # Note: RequestSource integration needs different approach
+                source=[
+                    driver_stats_fv
+                ],  # Note: RequestSource integration needs different approach
                 sink_source=sink_source,
                 schema=[
                     Field(name="conv_rate_plus_val1", dtype=Float64),
@@ -749,7 +740,9 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
             return {"driver_name_lower": []}
 
         # Create dummy driver FeatureView as source
-        driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        driver = Entity(
+            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
 
         driver_stats_source = FileSource(
             name="dummy_source",
@@ -778,8 +771,18 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
         # The error behavior may differ in the unified approach
         # This test validates that type errors are still caught appropriately
         try:
-            store.apply([driver, request_source, driver_stats_source, driver_stats_fv, invalid_view])
-            print("✅ Invalid transformation test completed - validation behavior may vary")
+            store.apply(
+                [
+                    driver,
+                    request_source,
+                    driver_stats_source,
+                    driver_stats_fv,
+                    invalid_view,
+                ]
+            )
+            print(
+                "✅ Invalid transformation test completed - validation behavior may vary"
+            )
         except TypeError as e:
             assert "Failed to infer type" in str(e) or "empty" in str(e)
         except Exception as e:

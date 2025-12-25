@@ -5,18 +5,18 @@ Converted from test_on_demand_feature_view_aggregation.py to demonstrate
 aggregation functionality working with the new unified transformation system.
 """
 
-import pyarrow as pa
-import pandas as pd
-import pytest
 from typing import Any, Dict
 
+import pandas as pd
+import pyarrow as pa
+
 from feast.aggregation import Aggregation
-from feast.utils import _apply_aggregations_to_response
-from feast.transformation.base import transformation
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
+from feast.transformation.base import transformation
 from feast.types import Float32, Int64
+from feast.utils import _apply_aggregations_to_response
 
 
 def test_aggregation_python_mode():
@@ -113,9 +113,7 @@ def test_unified_transformation_with_aggregation_python():
         ]
 
         # Apply aggregations using the utility function
-        result = _apply_aggregations_to_response(
-            inputs, aggs, ["driver_id"], "python"
-        )
+        result = _apply_aggregations_to_response(inputs, aggs, ["driver_id"], "python")
         return result
 
     # Create unified FeatureView with aggregation transformation
@@ -168,16 +166,16 @@ def test_unified_transformation_with_aggregation_pandas():
     def pandas_aggregation_transform(inputs: pd.DataFrame) -> pd.DataFrame:
         """Pandas transformation that performs aggregation using groupby."""
         # Perform aggregation using pandas groupby
-        result = inputs.groupby("driver_id").agg({
-            "trips": "sum",
-            "revenue": "mean"
-        }).reset_index()
+        result = (
+            inputs.groupby("driver_id")
+            .agg({"trips": "sum", "revenue": "mean"})
+            .reset_index()
+        )
 
         # Rename columns to match expected output
-        result = result.rename(columns={
-            "trips": "sum_trips",
-            "revenue": "mean_revenue"
-        })
+        result = result.rename(
+            columns={"trips": "sum_trips", "revenue": "mean_revenue"}
+        )
 
         return result
 
@@ -195,11 +193,13 @@ def test_unified_transformation_with_aggregation_pandas():
     )
 
     # Test the transformation directly
-    test_data = pd.DataFrame({
-        "driver_id": [1, 1, 2, 2],
-        "trips": [10, 20, 15, 25],
-        "revenue": [100.0, 200.0, 150.0, 250.0],
-    })
+    test_data = pd.DataFrame(
+        {
+            "driver_id": [1, 1, 2, 2],
+            "trips": [10, 20, 15, 25],
+            "revenue": [100.0, 200.0, 150.0, 250.0],
+        }
+    )
 
     result = unified_pandas_aggregation_view.feature_transformation.udf(test_data)
 
@@ -325,7 +325,7 @@ def test_unified_transformation_aggregation_with_write():
     )
 
     # Verify online setting
-    assert unified_write_aggregation_view.online == True
+    assert unified_write_aggregation_view.online
 
     # Test the transformation
     test_data = {
