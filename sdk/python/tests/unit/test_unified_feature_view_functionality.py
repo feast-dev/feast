@@ -5,11 +5,11 @@ Converted from test_on_demand_feature_view.py to use the new
 unified transformation system with FeatureView + feature_transformation
 instead of OnDemandFeatureView.
 """
+
 import datetime
 from typing import Any, Dict, List
 
 import pandas as pd
-import pytest
 
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -51,8 +51,9 @@ def python_writes_test_udf(features_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 def test_hash():
     """Test that unified FeatureViews with same transformations hash the same way."""
-    import tempfile
     import os
+    import tempfile
+
     with tempfile.TemporaryDirectory() as temp_dir:
         test_path = os.path.join(temp_dir, "test.parquet")
         sink_path = os.path.join(temp_dir, "sink.parquet")
@@ -189,7 +190,9 @@ def test_python_native_transformation_mode():
     )
 
     assert unified_feature_view_python_native.feature_transformation is not None
-    assert unified_feature_view_python_native.feature_transformation.mode.value == "python"
+    assert (
+        unified_feature_view_python_native.feature_transformation.mode.value == "python"
+    )
 
     # Test that transformation works
     test_input = {"feature1": [0], "feature2": [1]}
@@ -274,15 +277,15 @@ def test_unified_feature_view_writes_functionality():
     )
 
     # Test that online setting is preserved
-    assert unified_feature_view.online == True
+    assert unified_feature_view.online
 
     # Test proto serialization preserves this setting
     proto = unified_feature_view.to_proto()
-    assert proto.spec.online == True
+    assert proto.spec.online
 
     try:
         reserialized_proto = FeatureView.from_proto(proto)
-        assert reserialized_proto.online == True
+        assert reserialized_proto.online
         print("✅ Write functionality test completed successfully")
     except Exception as e:
         print(f"Proto write functionality behavior may vary: {e}")
@@ -370,7 +373,7 @@ def test_function_call_syntax():
     assert unified_fv.feature_transformation is not None
 
     # Test that transformation has the expected name (if set)
-    if hasattr(transform_features, 'name'):
+    if hasattr(transform_features, "name"):
         assert transform_features.name == "transform_features"
 
     # Test proto serialization

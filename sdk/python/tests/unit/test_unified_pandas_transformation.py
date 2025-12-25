@@ -3,7 +3,6 @@ import tempfile
 from datetime import datetime, timedelta
 
 import pandas as pd
-import pytest
 
 from feast import (
     Entity,
@@ -51,7 +50,9 @@ def test_unified_pandas_transformation():
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
         driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
-        driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        driver = Entity(
+            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
 
         driver_stats_source = FileSource(
             name="driver_hourly_stats_source",
@@ -83,17 +84,19 @@ def test_unified_pandas_transformation():
         # Create FeatureView with transformation for online execution
         sink_source_path = os.path.join(data_dir, "sink.parquet")
         # Create an empty DataFrame for the sink source to avoid file validation errors
-        empty_sink_df = pd.DataFrame({
-            "conv_rate_plus_acc": [0.0],
-            "event_timestamp": [datetime.now()],
-            "created": [datetime.now()]
-        })
+        empty_sink_df = pd.DataFrame(
+            {
+                "conv_rate_plus_acc": [0.0],
+                "event_timestamp": [datetime.now()],
+                "created": [datetime.now()],
+            }
+        )
         empty_sink_df.to_parquet(path=sink_source_path, allow_truncated_timestamps=True)
         sink_source = FileSource(
             name="sink-source",
             path=sink_source_path,
             timestamp_field="event_timestamp",
-            created_timestamp_column="created"
+            created_timestamp_column="created",
         )
         unified_pandas_view = FeatureView(
             name="unified_pandas_view",
@@ -159,7 +162,9 @@ def test_unified_pandas_transformation_returning_all_data_types():
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
         driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
-        driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        driver = Entity(
+            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
 
         driver_stats_source = FileSource(
             name="driver_hourly_stats_source",
@@ -189,7 +194,7 @@ def test_unified_pandas_transformation_returning_all_data_types():
         def all_types_transform(inputs: pd.DataFrame) -> pd.DataFrame:
             df = pd.DataFrame()
             df["float32_output"] = inputs["conv_rate"] + 1.0
-            df["float64_output"] = inputs["acc_rate"].astype('float64') + 2.0
+            df["float64_output"] = inputs["acc_rate"].astype("float64") + 2.0
             df["int64_output"] = inputs["avg_daily_trips"] + 10
             df["string_output"] = inputs["string_feature"] + "_transformed"
             df["bool_output"] = ~inputs["bool_feature"]
@@ -198,17 +203,23 @@ def test_unified_pandas_transformation_returning_all_data_types():
 
         sink_source_path = os.path.join(data_dir, "sink.parquet")
         # Create empty DataFrame for the sink source to avoid file validation errors
-        empty_sink_df = pd.DataFrame({
-            "float32_output": [1.0], "float64_output": [2.0], "int64_output": [10],
-            "string_output": ["test"], "bool_output": [True],
-            "event_timestamp": [datetime.now()], "created": [datetime.now()]
-        })
+        empty_sink_df = pd.DataFrame(
+            {
+                "float32_output": [1.0],
+                "float64_output": [2.0],
+                "int64_output": [10],
+                "string_output": ["test"],
+                "bool_output": [True],
+                "event_timestamp": [datetime.now()],
+                "created": [datetime.now()],
+            }
+        )
         empty_sink_df.to_parquet(path=sink_source_path, allow_truncated_timestamps=True)
         sink_source = FileSource(
             name="sink-source",
             path=sink_source_path,
             timestamp_field="event_timestamp",
-            created_timestamp_column="created"
+            created_timestamp_column="created",
         )
         unified_all_types_view = FeatureView(
             name="unified_all_types_view",
@@ -224,7 +235,9 @@ def test_unified_pandas_transformation_returning_all_data_types():
             feature_transformation=all_types_transform,
         )
 
-        store.apply([driver, driver_stats_source, driver_stats_fv, unified_all_types_view])
+        store.apply(
+            [driver, driver_stats_source, driver_stats_fv, unified_all_types_view]
+        )
 
         entity_rows = [{"driver_id": 1001}]
         store.write_to_online_store(
@@ -246,9 +259,18 @@ def test_unified_pandas_transformation_returning_all_data_types():
         ).to_df()
 
         # Verify the transformations
-        assert online_response["float32_output"].iloc[0] == online_response["conv_rate"].iloc[0] + 1.0
-        assert online_response["string_output"].iloc[0] == online_response["string_feature"].iloc[0] + "_transformed"
-        assert online_response["bool_output"].iloc[0] != online_response["bool_feature"].iloc[0]
+        assert (
+            online_response["float32_output"].iloc[0]
+            == online_response["conv_rate"].iloc[0] + 1.0
+        )
+        assert (
+            online_response["string_output"].iloc[0]
+            == online_response["string_feature"].iloc[0] + "_transformed"
+        )
+        assert (
+            online_response["bool_output"].iloc[0]
+            != online_response["bool_feature"].iloc[0]
+        )
 
 
 def test_invalid_unified_pandas_transformation_raises_type_error_on_apply():
@@ -266,16 +288,20 @@ def test_invalid_unified_pandas_transformation_raises_type_error_on_apply():
             )
         )
 
-        driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        driver = Entity(
+            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
 
         dummy_stats_path = os.path.join(data_dir, "dummy.parquet")
         # Create dummy parquet file for the source to avoid file validation errors
-        dummy_df = pd.DataFrame({
-            "driver_id": [1001],
-            "conv_rate": [0.5],
-            "event_timestamp": [datetime.now()],
-            "created": [datetime.now()]
-        })
+        dummy_df = pd.DataFrame(
+            {
+                "driver_id": [1001],
+                "conv_rate": [0.5],
+                "event_timestamp": [datetime.now()],
+                "created": [datetime.now()],
+            }
+        )
         dummy_df.to_parquet(path=dummy_stats_path, allow_truncated_timestamps=True)
         driver_stats_source = FileSource(
             name="driver_hourly_stats_source",
@@ -300,17 +326,19 @@ def test_invalid_unified_pandas_transformation_raises_type_error_on_apply():
 
         sink_source_path = os.path.join(data_dir, "sink.parquet")
         # Create empty DataFrame for the sink source to avoid file validation errors
-        empty_sink_df = pd.DataFrame({
-            "invalid_output": ["test"],
-            "event_timestamp": [datetime.now()],
-            "created": [datetime.now()]
-        })
+        empty_sink_df = pd.DataFrame(
+            {
+                "invalid_output": ["test"],
+                "event_timestamp": [datetime.now()],
+                "created": [datetime.now()],
+            }
+        )
         empty_sink_df.to_parquet(path=sink_source_path, allow_truncated_timestamps=True)
         sink_source = FileSource(
             name="sink-source",
             path=sink_source_path,
             timestamp_field="event_timestamp",
-            created_timestamp_column="created"
+            created_timestamp_column="created",
         )
         invalid_view = FeatureView(
             name="invalid_view",

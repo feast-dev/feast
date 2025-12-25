@@ -912,7 +912,7 @@ class FeatureStore:
                     "Use FeatureView with feature_transformation parameters instead. "
                     "See documentation for migration guide.",
                     DeprecationWarning,
-                    stacklevel=2
+                    stacklevel=2,
                 )
             elif isinstance(ob, StreamFeatureView):
                 warnings.warn(
@@ -920,7 +920,7 @@ class FeatureStore:
                     "Use FeatureView with feature_transformation parameters instead. "
                     "See documentation for migration guide.",
                     DeprecationWarning,
-                    stacklevel=2
+                    stacklevel=2,
                 )
             elif isinstance(ob, OnDemandFeatureView):
                 warnings.warn(
@@ -928,7 +928,7 @@ class FeatureStore:
                     "Use FeatureView with feature_transformation parameters instead. "
                     "See documentation for migration guide.",
                     DeprecationWarning,
-                    stacklevel=2
+                    stacklevel=2,
                 )
 
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
@@ -1961,7 +1961,9 @@ class FeatureStore:
             transformed_dict = transformation.udf(input_dict)
             return pd.DataFrame(transformed_dict)
         else:
-            raise Exception(f"Unsupported transformation mode: {transformation.mode.value}")
+            raise Exception(
+                f"Unsupported transformation mode: {transformation.mode.value}"
+            )
 
     def _validate_transformed_schema(
         self, feature_view: FeatureView, df: pd.DataFrame
@@ -1977,7 +1979,7 @@ class FeatureStore:
         Raises:
             ValueError: If schema validation fails
         """
-        if not hasattr(feature_view, 'schema') or not feature_view.schema:
+        if not hasattr(feature_view, "schema") or not feature_view.schema:
             return  # No schema to validate against
 
         expected_columns = {field.name for field in feature_view.schema}
@@ -2052,11 +2054,19 @@ class FeatureStore:
             ):
                 df = self._transform_on_demand_feature_view_df(feature_view, df)
             # Handle unified FeatureView with feature_transformation
-            elif hasattr(feature_view, 'feature_transformation') and feature_view.feature_transformation:
+            elif (
+                hasattr(feature_view, "feature_transformation")
+                and feature_view.feature_transformation
+            ):
                 df = self._apply_unified_transformation(feature_view, df)
 
         # Schema validation when transform=False
-        elif not transform_on_write and df is not None and hasattr(feature_view, 'feature_transformation') and feature_view.feature_transformation:
+        elif (
+            not transform_on_write
+            and df is not None
+            and hasattr(feature_view, "feature_transformation")
+            and feature_view.feature_transformation
+        ):
             self._validate_transformed_schema(feature_view, df)
 
         return feature_view, df
