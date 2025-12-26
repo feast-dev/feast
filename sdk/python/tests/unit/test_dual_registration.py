@@ -37,8 +37,7 @@ class TestDualRegistration:
             entities=[driver],
             schema=[Field(name="feature1", dtype=Float64)],
             feature_transformation=test_transformation,
-            transform_when="batch_on_write",
-            # online=True auto-inferred from transform_when
+            online=True,  # Explicitly set online=True for unified FeatureViews
         )
 
         # Mock registry and provider
@@ -219,14 +218,12 @@ class TestDualRegistration:
             entities=[driver],
             schema=[Field(name="doubled", dtype=Float64)],
             feature_transformation=doubling_transform_func,
-            transform_when="batch_on_write",
-            # online=True auto-inferred from transform_when
+            online=True,  # Explicitly set online=True for unified FeatureViews
         )
 
         # Verify it's a FeatureView with the right properties
         assert isinstance(fv, FeatureView)
-        assert fv.online  # Auto-inferred
-        assert fv.transform_when == "batch_on_write"
+        assert fv.online  # Explicitly set
         assert fv.feature_transformation is not None
 
         # Mock FeatureStore and apply
