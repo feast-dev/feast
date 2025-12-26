@@ -1953,7 +1953,11 @@ class FeatureStore:
             return df
 
         # Handle TransformationMode enum values
-        mode = transformation.mode.value if hasattr(transformation.mode, 'value') else transformation.mode
+        mode = (
+            transformation.mode.value
+            if hasattr(transformation.mode, "value")
+            else transformation.mode
+        )
 
         if mode == "pandas":
             # Apply pandas transformation
@@ -1964,9 +1968,7 @@ class FeatureStore:
             transformed_dict = transformation.udf(input_dict)
             return pd.DataFrame(transformed_dict)
         else:
-            raise Exception(
-                f"Unsupported transformation mode: {mode}"
-            )
+            raise Exception(f"Unsupported transformation mode: {mode}")
 
     def _validate_transformed_schema(
         self, feature_view: FeatureView, df: pd.DataFrame
@@ -2061,7 +2063,9 @@ class FeatureStore:
                 hasattr(feature_view, "feature_transformation")
                 and feature_view.feature_transformation
             ):
-                df = self._apply_unified_transformation(cast(FeatureView, feature_view), df)
+                df = self._apply_unified_transformation(
+                    cast(FeatureView, feature_view), df
+                )
 
         # Schema validation when transform=False
         elif (
