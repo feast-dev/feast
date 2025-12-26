@@ -21,7 +21,6 @@ from feast.transformation.factory import (
 from feast.transformation.mode import TransformationMode
 
 
-
 class Transformation(ABC):
     """
     Base Transformation class. Can be used to define transformations that can be applied to FeatureViews.

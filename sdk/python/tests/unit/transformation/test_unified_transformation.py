@@ -107,7 +107,6 @@ class TestUnifiedTransformation:
 
         assert actual_output == expected_output
 
-
     def test_transformation_attributes(self):
         """Test that Transformation gets all the attributes"""
 

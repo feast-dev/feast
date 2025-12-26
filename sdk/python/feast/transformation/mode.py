@@ -9,5 +9,3 @@ class TransformationMode(Enum):
     RAY = "ray"
     SQL = "sql"
     SUBSTRAIT = "substrait"
-
-
