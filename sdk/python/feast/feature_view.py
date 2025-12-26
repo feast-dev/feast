@@ -39,6 +39,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2 as FeatureTransformationProto,
 )
+from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
 from feast.value_type import ValueType
@@ -107,6 +108,7 @@ class FeatureView(BaseFeatureView):
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
+    feature_transformation: Optional[Transformation]
 
     def __init__(
         self,
@@ -123,6 +125,7 @@ class FeatureView(BaseFeatureView):
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
+        feature_transformation: Optional[Transformation] = None,
     ):
         """
         Creates a FeatureView object.
@@ -148,6 +151,8 @@ class FeatureView(BaseFeatureView):
                 primary maintainer.
             mode (optional): The transformation mode for feature transformations. Only meaningful
                 when transformations are applied. Choose from TransformationMode enum values.
+            feature_transformation (optional): The transformation object containing the UDF and
+                mode for this feature view. Used for derived feature views.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -157,6 +162,14 @@ class FeatureView(BaseFeatureView):
         self.ttl = ttl
         schema = schema or []
         self.mode = mode
+        # Don't override feature_transformation if it's already set by subclass (e.g., BatchFeatureView)
+        if (
+            not hasattr(self, "feature_transformation")
+            or self.feature_transformation is None
+        ):
+            self.feature_transformation = feature_transformation
+        # Set online setting to provided value
+        self.online = online
 
         # Normalize source
         self.stream_source = None
@@ -259,7 +272,7 @@ class FeatureView(BaseFeatureView):
             owner=owner,
             source=self.batch_source,
         )
-        self.online = online
+        # Note: self.online is now set by auto-inference logic above
         self.offline = offline
         self.mode = mode
         self.materialization_intervals = []

@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import functools
 from abc import ABC
-from typing import Any, Callable, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import dill
 
+if TYPE_CHECKING:
+    pass
 from feast.protos.feast.core.Transformation_pb2 import (
     SubstraitTransformationV2 as SubstraitTransformationProto,
 )
@@ -117,7 +121,7 @@ class Transformation(ABC):
 
 
 def transformation(
-    mode: Union[TransformationMode, str],
+    mode: Union[TransformationMode, str],  # Support both enum and string
     name: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
     description: Optional[str] = "",
@@ -130,10 +134,22 @@ def transformation(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
+        # Validate mode (handle both enum and string)
+        if isinstance(mode, TransformationMode):
+            mode_str = mode.value
+        else:
+            mode_str = mode.lower()  # Normalize to lowercase
+            try:
+                TransformationMode(mode_str)  # Validate mode string
+            except ValueError:
+                valid_modes = [m.value for m in TransformationMode]
+                raise ValueError(f"Invalid mode '{mode}'. Valid options: {valid_modes}")
+
+        # Create transformation object
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)
         transformation_obj = Transformation(
-            mode=mode,
+            mode=mode_str,
             name=name or user_function.__name__,
             tags=tags,
             description=description,
@@ -141,6 +157,8 @@ def transformation(
             udf=user_function,
             udf_string=udf_string,
         )
+
+        # Return Transformation object with function metadata preserved
         functools.update_wrapper(wrapper=transformation_obj, wrapped=user_function)
         return transformation_obj
 
