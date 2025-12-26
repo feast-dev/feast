@@ -8,13 +8,10 @@ dual registration, training-serving consistency, and backward compatibility.
 import pytest
 
 from feast.transformation.base import (
-    BATCH_ONLY_MODES,
-    ONLINE_COMPATIBLE_MODES,
     Transformation,
-    is_online_compatible,
     transformation,
 )
-from feast.transformation.mode import TransformationMode, TransformExecutionPattern
+from feast.transformation.mode import TransformationMode
 
 
 def create_dummy_source():
@@ -110,23 +107,6 @@ class TestUnifiedTransformation:
 
         assert actual_output == expected_output
 
-    def test_online_compatibility_functions(self):
-        """Test online compatibility helper functions"""
-        # Test online compatible modes
-        for mode in ONLINE_COMPATIBLE_MODES:
-            assert is_online_compatible(mode)
-            assert is_online_compatible(mode.upper())
-
-        # Test batch only modes
-        for mode in BATCH_ONLY_MODES:
-            assert not is_online_compatible(mode)
-            assert not is_online_compatible(mode.upper())
-
-    def test_transform_execution_pattern_enum(self):
-        """Test TransformExecutionPattern enum values"""
-        assert TransformExecutionPattern.BATCH_ONLY.value == "batch_only"
-        assert TransformExecutionPattern.BATCH_ON_READ.value == "batch_on_read"
-        assert TransformExecutionPattern.BATCH_ON_WRITE.value == "batch_on_write"
 
     def test_transformation_attributes(self):
         """Test that Transformation gets all the attributes"""

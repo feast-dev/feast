@@ -20,22 +20,6 @@ from feast.transformation.factory import (
 )
 from feast.transformation.mode import TransformationMode
 
-# Online compatibility constants
-ONLINE_COMPATIBLE_MODES = {"python", "pandas"}
-BATCH_ONLY_MODES = {"sql", "spark_sql", "spark", "ray", "substrait"}
-
-
-def is_online_compatible(mode: str) -> bool:
-    """
-    Check if a transformation mode can run online in Feature Server.
-
-    Args:
-        mode: The transformation mode string
-
-    Returns:
-        True if the mode can run in Feature Server, False if batch-only
-    """
-    return mode.lower() in ONLINE_COMPATIBLE_MODES
 
 
 class Transformation(ABC):
