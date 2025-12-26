@@ -204,54 +204,7 @@ feature_vector = fs.get_online_features(
 ```
 
 ### 4.2. Deploy Feast feature servers on Kubernetes
-
-To deploy a Feast feature server on Kubernetes, you should use the included [feast-operator](../../infra/feast-operator).
-
-{% embed url="https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX" %}
-
-**Basic steps**
-1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-2. Install the Operator
-
-
-Install the latest release
-```sh
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
-```
-
-OR, install a specific version -
-```
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
-```
-
-3. Deploy a Feature Store
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1_featurestore.yaml
-```
-Verify the status
-```
-$ kubectl get feast
-NAME     STATUS   AGE
-sample   Ready    2m21s
-```
-
-The above will install a simple [FeatureStore CR](../../infra/feast-operator/docs/api/markdown/ref.md) like the following. By default, it will run the [Online Store feature server](../reference/feature-servers/python-feature-server.md) -
-```yaml
-apiVersion: feast.dev/v1
-kind: FeatureStore
-metadata:
-  name: sample
-spec:
-  feastProject: my_project
-```
-> _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
-
-For first-time Operator users, it may be a good exercise to try the [Feast Operator Quickstart](../../examples/operator-quickstart). The quickstart will demonstrate some of the Operator's built-in features, e.g. git repos, `feast apply` jobs, etc.
-
-{% hint style="success" %} Important note: Scaling a Feature Store Deployment should only be done if the configured data store(s) will support it.
-
-Please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md). {% endhint %}
+See [Feast on Kubernetes](./feast-on-kubernetes.md).
 
 ## 5. Using environment variables in your yaml configuration
 
