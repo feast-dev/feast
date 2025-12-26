@@ -1237,9 +1237,7 @@ def _make_filter_range(timestamp_field: str, start_date: datetime, end_date: dat
     return _filter_range
 
 
-def _make_select_distinct_entity_timestamps(
-    join_keys: List[str], timestamp_field: str
-):
+def _make_select_distinct_entity_timestamps(join_keys: List[str], timestamp_field: str):
     # Why: factory function for distinct (entity_keys, event_timestamp) projection in Ray map_batches
     # This preserves multiple transactions per entity ID with different timestamps for proper PIT joins
     def _select_distinct_entity_timestamps(batch: pd.DataFrame) -> pd.DataFrame:
