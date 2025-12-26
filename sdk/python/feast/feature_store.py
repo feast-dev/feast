@@ -1276,7 +1276,7 @@ class FeatureStore:
         provider = self._get_provider()
 
         # Optional kwargs
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if start_date is not None:
             kwargs["start_date"] = start_date
         if end_date is not None:
@@ -1769,7 +1769,7 @@ class FeatureStore:
                     fv.name,
                     df,
                     allow_registry_cache=allow_registry_cache,
-                    transform_on_write=transform_on_write,
+                    transform=transform_on_write,
                 )
             if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
                 self.write_to_offline_store(
@@ -1952,17 +1952,20 @@ class FeatureStore:
         if not transformation:
             return df
 
-        if transformation.mode.value == "pandas":
+        # Handle TransformationMode enum values
+        mode = transformation.mode.value if hasattr(transformation.mode, 'value') else transformation.mode
+
+        if mode == "pandas":
             # Apply pandas transformation
             return transformation.udf(df)
-        elif transformation.mode.value == "python":
+        elif mode == "python":
             # Convert pandas DataFrame to dict for python mode
             input_dict = df.to_dict(orient="list")
             transformed_dict = transformation.udf(input_dict)
             return pd.DataFrame(transformed_dict)
         else:
             raise Exception(
-                f"Unsupported transformation mode: {transformation.mode.value}"
+                f"Unsupported transformation mode: {mode}"
             )
 
     def _validate_transformed_schema(
@@ -2058,7 +2061,7 @@ class FeatureStore:
                 hasattr(feature_view, "feature_transformation")
                 and feature_view.feature_transformation
             ):
-                df = self._apply_unified_transformation(feature_view, df)
+                df = self._apply_unified_transformation(cast(FeatureView, feature_view), df)
 
         # Schema validation when transform=False
         elif (
@@ -2067,7 +2070,7 @@ class FeatureStore:
             and hasattr(feature_view, "feature_transformation")
             and feature_view.feature_transformation
         ):
-            self._validate_transformed_schema(feature_view, df)
+            self._validate_transformed_schema(cast(FeatureView, feature_view), df)
 
         return feature_view, df
 

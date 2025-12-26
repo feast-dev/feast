@@ -737,9 +737,7 @@ def _augment_response_with_on_demand_transforms(
                     )
                 else:
                     # Fallback to OnDemandFeatureView method
-                    transformed_features_dict: Dict[str, List[Any]] = (
-                        odfv.transform_dict(initial_response_dict)
-                    )
+                    transformed_features_dict = odfv.transform_dict(initial_response_dict)
             elif mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
                     initial_response_arrow = initial_response.to_arrow()
