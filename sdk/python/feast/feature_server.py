@@ -380,7 +380,7 @@ def get_app(
             feature_view_name=feature_view_name,
             df=df,
             allow_registry_cache=allow_registry_cache,
-            transform_on_write=request.transform_on_write,
+            transform=request.transform_on_write,
         )
 
     @app.get("/health")
