@@ -224,6 +224,7 @@ def test_materialize_request_model():
     assert req2.start_ts == "2021-01-01T00:00:00"
     assert req2.end_ts == "2021-01-02T00:00:00"
 
+
 def _enable_offline_batching_config(
     fs, enabled: bool = True, batch_size: int = 1, batch_interval_seconds: int = 60
 ):
@@ -460,6 +461,7 @@ def test_offline_batcher_interval_flush(mock_fs_factory):
     kwargs = fs.push.call_args.kwargs
     assert kwargs["to"] == PushMode.OFFLINE
     assert len(kwargs["df"]) == 2
+
 
 # Static Artifacts Tests
 @pytest.fixture
