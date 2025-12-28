@@ -158,6 +158,7 @@
   * [Registry server](reference/feature-servers/registry-server.md)
 * [\[Beta\] Web UI](reference/alpha-web-ui.md)
 * [\[Beta\] On demand feature view](reference/beta-on-demand-feature-view.md)
+* [\[Alpha\] Static Artifacts Loading](reference/alpha-static-artifacts.md)
 * [\[Alpha\] Vector Database](reference/alpha-vector-database.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)
 * [\[Alpha\] Streaming feature computation with Denormalized](reference/denormalized.md)

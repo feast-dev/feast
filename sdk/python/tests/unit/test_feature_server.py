@@ -224,7 +224,6 @@ def test_materialize_request_model():
     assert req2.start_ts == "2021-01-01T00:00:00"
     assert req2.end_ts == "2021-01-02T00:00:00"
 
-
 def _enable_offline_batching_config(
     fs, enabled: bool = True, batch_size: int = 1, batch_interval_seconds: int = 60
 ):
@@ -461,3 +460,203 @@ def test_offline_batcher_interval_flush(mock_fs_factory):
     kwargs = fs.push.call_args.kwargs
     assert kwargs["to"] == PushMode.OFFLINE
     assert len(kwargs["df"]) == 2
+
+# Static Artifacts Tests
+@pytest.fixture
+def mock_store_with_static_artifacts(tmp_path):
+    """Create a mock store with static_artifacts.py file for testing."""
+    # Create static_artifacts.py file
+    static_artifacts_content = '''
+from fastapi import FastAPI
+from fastapi.logger import logger
+
+def load_test_model():
+    """Mock model loading for testing."""
+    logger.info("Loading test model...")
+    return "test_model_loaded"
+
+def load_test_lookup_tables():
+    """Mock lookup tables for testing."""
+    return {"test_label": "test_value"}
+
+def load_artifacts(app: FastAPI):
+    """Load test static artifacts."""
+    app.state.test_model = load_test_model()
+    app.state.test_lookup_tables = load_test_lookup_tables()
+    logger.info("✅ Test static artifacts loaded")
+'''
+
+    # Write static_artifacts.py to temp directory
+    artifacts_file = tmp_path / "static_artifacts.py"
+    artifacts_file.write_text(static_artifacts_content)
+
+    # Create mock store
+    mock_store = MagicMock()
+    mock_store.repo_path = str(tmp_path)
+    return mock_store
+
+
+def test_load_static_artifacts_success(mock_store_with_static_artifacts):
+    """Test successful loading of static artifacts during server startup."""
+    import asyncio
+
+    from fastapi import FastAPI
+
+    from feast.feature_server import load_static_artifacts
+
+    app = FastAPI()
+
+    # Load static artifacts
+    asyncio.run(load_static_artifacts(app, mock_store_with_static_artifacts))
+
+    # Verify artifacts were loaded into app.state
+    assert hasattr(app.state, "test_model")
+    assert hasattr(app.state, "test_lookup_tables")
+    assert app.state.test_model == "test_model_loaded"
+    assert app.state.test_lookup_tables == {"test_label": "test_value"}
+
+
+def test_load_static_artifacts_no_file(tmp_path):
+    """Test graceful handling when static_artifacts.py doesn't exist."""
+    import asyncio
+
+    from fastapi import FastAPI
+
+    from feast.feature_server import load_static_artifacts
+
+    app = FastAPI()
+    mock_store = MagicMock()
+    mock_store.repo_path = str(tmp_path)  # Empty directory
+
+    # Should not raise an exception
+    asyncio.run(load_static_artifacts(app, mock_store))
+
+    # Should not have added test artifacts
+    assert not hasattr(app.state, "test_model")
+    assert not hasattr(app.state, "test_lookup_tables")
+
+
+def test_load_static_artifacts_invalid_file(tmp_path):
+    """Test graceful handling when static_artifacts.py has errors."""
+    import asyncio
+
+    from fastapi import FastAPI
+
+    from feast.feature_server import load_static_artifacts
+
+    # Create invalid static_artifacts.py
+    artifacts_file = tmp_path / "static_artifacts.py"
+    artifacts_file.write_text("raise ValueError('Test error')")
+
+    app = FastAPI()
+    mock_store = MagicMock()
+    mock_store.repo_path = str(tmp_path)
+
+    # Should handle the error gracefully
+    asyncio.run(load_static_artifacts(app, mock_store))
+
+    # Should not have artifacts due to error
+    assert not hasattr(app.state, "test_model")
+
+
+def test_load_static_artifacts_no_load_function(tmp_path):
+    """Test handling when static_artifacts.py has no load_artifacts function."""
+    import asyncio
+
+    from fastapi import FastAPI
+
+    from feast.feature_server import load_static_artifacts
+
+    # Create static_artifacts.py without load_artifacts function
+    artifacts_file = tmp_path / "static_artifacts.py"
+    artifacts_file.write_text("TEST_CONSTANT = 'test'")
+
+    app = FastAPI()
+    mock_store = MagicMock()
+    mock_store.repo_path = str(tmp_path)
+
+    # Should handle gracefully
+    asyncio.run(load_static_artifacts(app, mock_store))
+
+    # Should not have artifacts since no load_artifacts function
+    assert not hasattr(app.state, "test_model")
+
+
+def test_static_artifacts_persist_across_requests(mock_store_with_static_artifacts):
+    """Test that static artifacts persist across multiple requests."""
+    from feast.feature_server import get_app
+
+    # Create app with static artifacts
+    app = get_app(mock_store_with_static_artifacts)
+
+    # Simulate artifacts being loaded (normally done in lifespan)
+    app.state.test_model = "persistent_model"
+    app.state.test_lookup_tables = {"persistent": "data"}
+
+    # Artifacts should be available and persistent
+    assert app.state.test_model == "persistent_model"
+    assert app.state.test_lookup_tables["persistent"] == "data"
+
+    # After simulated requests, artifacts should still be there
+    assert app.state.test_model == "persistent_model"
+    assert app.state.test_lookup_tables["persistent"] == "data"
+
+
+def test_pytorch_nlp_template_artifacts_pattern(tmp_path):
+    """Test the specific PyTorch NLP template static artifacts pattern."""
+    import asyncio
+
+    from fastapi import FastAPI
+
+    from feast.feature_server import load_static_artifacts
+
+    # Create PyTorch NLP template-style static_artifacts.py
+    pytorch_artifacts_content = '''
+from fastapi import FastAPI
+from fastapi.logger import logger
+
+def load_sentiment_model():
+    """Mock sentiment analysis model loading."""
+    logger.info("Loading sentiment analysis model...")
+    return "mock_roberta_sentiment_model"
+
+def load_lookup_tables():
+    """Load lookup tables for sentiment mapping."""
+    return {
+        "sentiment_labels": {"LABEL_0": "negative", "LABEL_1": "neutral", "LABEL_2": "positive"},
+        "emoji_sentiment": {"😊": "positive", "😞": "negative", "😐": "neutral"},
+    }
+
+def load_artifacts(app: FastAPI):
+    """Load all static artifacts for PyTorch NLP template."""
+    app.state.sentiment_model = load_sentiment_model()
+    app.state.lookup_tables = load_lookup_tables()
+
+    # Update global references (simulating example_repo.py pattern)
+    # In real template, this would be: import example_repo; example_repo._sentiment_model = ...
+    logger.info("✅ PyTorch NLP static artifacts loaded successfully")
+'''
+
+    artifacts_file = tmp_path / "static_artifacts.py"
+    artifacts_file.write_text(pytorch_artifacts_content)
+
+    # Test loading
+    app = FastAPI()
+    mock_store = MagicMock()
+    mock_store.repo_path = str(tmp_path)
+
+    asyncio.run(load_static_artifacts(app, mock_store))
+
+    # Verify PyTorch NLP template artifacts
+    assert hasattr(app.state, "sentiment_model")
+    assert hasattr(app.state, "lookup_tables")
+    assert app.state.sentiment_model == "mock_roberta_sentiment_model"
+
+    # Verify lookup tables structure matches template
+    lookup_tables = app.state.lookup_tables
+    assert "sentiment_labels" in lookup_tables
+    assert "emoji_sentiment" in lookup_tables
+    assert lookup_tables["sentiment_labels"]["LABEL_0"] == "negative"
+    assert lookup_tables["sentiment_labels"]["LABEL_1"] == "neutral"
+    assert lookup_tables["sentiment_labels"]["LABEL_2"] == "positive"
+    assert lookup_tables["emoji_sentiment"]["😊"] == "positive"

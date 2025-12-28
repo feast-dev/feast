@@ -43,16 +43,6 @@ var _ = Describe("Feast Workbench Integration Connection Testing", Ordered, func
 		feastCRName         = "credit-scoring"
 	)
 
-	// Create and monitor notebook
-	createAndMonitorNotebook := func() {
-		nbParams := utils.GetNotebookParams(namespace, configMapName, notebookPVC, notebookName, testDir)
-		By("Creating Jupyter Notebook")
-		Expect(utils.CreateNotebook(nbParams)).To(Succeed(), "Failed to create notebook")
-
-		By("Monitoring notebook logs")
-		Expect(utils.MonitorNotebookPod(namespace, "jupyter-nb-", notebookName)).To(Succeed(), "Notebook execution failed")
-	}
-
 	// Parameterized test function that handles both auth and non-auth scenarios
 	runFeastWorkbenchIntegration := func(authEnabled bool) {
 		// Apply permissions only if auth is enabled
@@ -61,24 +51,8 @@ var _ = Describe("Feast Workbench Integration Connection Testing", Ordered, func
 			utils.ApplyFeastPermissions(permissionFile, "/feast-data/credit_scoring_local/feature_repo/permissions.py", namespace, feastDeploymentName)
 		}
 
-		By(fmt.Sprintf("Setting namespace context to : %s", namespace))
-		Expect(utils.SetNamespaceContext(namespace, testDir)).To(Succeed())
-		fmt.Printf("Successfully set namespace context to: %s\n", namespace)
-
-		By(fmt.Sprintf("Creating Config map: %s", configMapName))
-		Expect(utils.CreateNotebookConfigMap(namespace, configMapName, notebookFile, "test/e2e_rhoai/resources/feature_repo", testDir)).To(Succeed())
-		fmt.Printf("ConfigMap %s created successfully\n", configMapName)
-
-		By(fmt.Sprintf("Creating Persistent volume claim: %s", notebookPVC))
-		Expect(utils.CreateNotebookPVC(pvcFile, testDir)).To(Succeed())
-		fmt.Printf("Persistent Volume Claim %s created successfully\n", notebookPVC)
-
-		By(fmt.Sprintf("Creating rolebinding %s for the user", rolebindingName))
-		Expect(utils.CreateNotebookRoleBinding(namespace, rolebindingName, utils.GetOCUser(testDir), testDir)).To(Succeed())
-		fmt.Printf("Created rolebinding %s successfully\n", rolebindingName)
-
-		// Create and monitor notebook for execution status
-		createAndMonitorNotebook()
+		// Use the shared RunNotebookTest function for common setup and execution
+		utils.RunNotebookTest(namespace, configMapName, notebookFile, "test/e2e_rhoai/resources/feature_repo", pvcFile, rolebindingName, notebookPVC, notebookName, testDir)
 	}
 
 	BeforeAll(func() {
