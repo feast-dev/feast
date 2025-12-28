@@ -50,6 +50,7 @@ def pull_latest_from_table_or_query_ibis(
     data_source_writer: Callable[[pyarrow.Table, DataSource, str], None],
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
+    staging_location_s3_url_style: Optional[str] = None,
 ) -> RetrievalJob:
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     if created_timestamp_column:
@@ -87,6 +88,7 @@ def pull_latest_from_table_or_query_ibis(
         data_source_writer=data_source_writer,
         staging_location=staging_location,
         staging_location_endpoint_override=staging_location_endpoint_override,
+        staging_location_s3_url_style=staging_location_s3_url_style,
         repo_path=str(config.repo_path),
     )
 
@@ -153,6 +155,7 @@ def get_historical_features_ibis(
     full_feature_names: bool = False,
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
+    staging_location_s3_url_style: Optional[str] = None,
     event_expire_timestamp_fn=None,
 ) -> RetrievalJob:
     entity_schema = _get_entity_schema(
@@ -250,6 +253,7 @@ def get_historical_features_ibis(
         data_source_writer=data_source_writer,
         staging_location=staging_location,
         staging_location_endpoint_override=staging_location_endpoint_override,
+        staging_location_s3_url_style=staging_location_s3_url_style,
         repo_path=str(config.repo_path),
     )
 
@@ -267,6 +271,7 @@ def pull_all_from_table_or_query_ibis(
     end_date: Optional[datetime] = None,
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
+    staging_location_s3_url_style: Optional[str] = None,
 ) -> RetrievalJob:
     timestamp_fields = [timestamp_field]
     if created_timestamp_column:
@@ -304,6 +309,7 @@ def pull_all_from_table_or_query_ibis(
         data_source_writer=data_source_writer,
         staging_location=staging_location,
         staging_location_endpoint_override=staging_location_endpoint_override,
+        staging_location_s3_url_style=staging_location_s3_url_style,
         repo_path=str(config.repo_path),
     )
 
@@ -487,6 +493,7 @@ class IbisRetrievalJob(RetrievalJob):
         staging_location,
         staging_location_endpoint_override,
         repo_path,
+        staging_location_s3_url_style=None,
     ) -> None:
         super().__init__()
         self.table = table
@@ -498,6 +505,7 @@ class IbisRetrievalJob(RetrievalJob):
         self.data_source_writer = data_source_writer
         self.staging_location = staging_location
         self.staging_location_endpoint_override = staging_location_endpoint_override
+        self.staging_location_s3_url_style = staging_location_s3_url_style
         self.repo_path = repo_path
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
@@ -538,7 +546,11 @@ class IbisRetrievalJob(RetrievalJob):
     def to_remote_storage(self) -> List[str]:
         path = self.staging_location + f"/{str(uuid.uuid4())}"
 
-        storage_options = {"AWS_ENDPOINT_URL": self.staging_location_endpoint_override}
+        storage_options = {}
+        if self.staging_location_endpoint_override:
+            storage_options["AWS_ENDPOINT_URL"] = self.staging_location_endpoint_override
+        if self.staging_location_s3_url_style:
+            storage_options["AWS_S3_URL_STYLE"] = self.staging_location_s3_url_style
 
         self.table.to_delta(path, storage_options=storage_options)
 

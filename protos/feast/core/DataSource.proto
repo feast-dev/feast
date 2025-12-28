@@ -111,6 +111,10 @@ message DataSource {
 
     // override AWS S3 storage endpoint with custom S3 endpoint
     string s3_endpoint_override  = 3;
+
+    // S3 URL style for path-based access (required for MinIO, LocalStack, etc.)
+    // Valid values: "path" or "vhost" (virtual-hosted style, default)
+    string s3_url_style = 4;
   }
 
   // Defines options for DataSource that sources features from a BigQuery Query

@@ -186,6 +186,7 @@ class DeltaS3FileSourceCreator(FileDataSourceCreator):
             "AWS_ACCESS_KEY_ID": self.minio.access_key,
             "AWS_SECRET_ACCESS_KEY": self.minio.secret_key,
             "AWS_ENDPOINT_URL": self.endpoint_url,
+            "AWS_S3_URL_STYLE": "path",
         }
 
         path = f"s3://test/{str(uuid.uuid4())}/{destination_name}"
@@ -199,6 +200,7 @@ class DeltaS3FileSourceCreator(FileDataSourceCreator):
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
             s3_endpoint_override=self.endpoint_url,
+            s3_url_style="path",
         )
 
     def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
@@ -206,6 +208,7 @@ class DeltaS3FileSourceCreator(FileDataSourceCreator):
             path=f"s3://test/{str(uuid.uuid4())}",
             file_format=DeltaFormat(),
             s3_endpoint_override=self.endpoint_url,
+            s3_url_style="path",
         )
 
     # LoggingDestination is parquet-only
@@ -364,6 +367,7 @@ class DuckDBDeltaS3DataSourceCreator(DeltaS3FileSourceCreator):
         self.duckdb_offline_store_config = DuckDBOfflineStoreConfig(
             staging_location="s3://test/staging",
             staging_location_endpoint_override=self.endpoint_url,
+            staging_location_s3_url_style="path",
         )
         return self.duckdb_offline_store_config
 

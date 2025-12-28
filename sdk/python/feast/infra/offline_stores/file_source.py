@@ -42,6 +42,7 @@ class FileSource(DataSource):
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         s3_endpoint_override: Optional[str] = None,
+        s3_url_style: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -61,6 +62,8 @@ class FileSource(DataSource):
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
             s3_endpoint_override (optional): Overrides AWS S3 enpoint with custom S3 storage
+            s3_url_style (optional): S3 URL style for path-based access. Valid values: "path" or "vhost".
+                Required for S3-compatible storage like MinIO or LocalStack.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the file source, typically the email of the primary
@@ -76,6 +79,7 @@ class FileSource(DataSource):
             file_format=file_format,
             uri=path,
             s3_endpoint_override=s3_endpoint_override,
+            s3_url_style=s3_url_style,
         )
 
         super().__init__(
@@ -102,6 +106,7 @@ class FileSource(DataSource):
             and self.file_options.file_format == other.file_options.file_format
             and self.file_options.s3_endpoint_override
             == other.file_options.s3_endpoint_override
+            and self.file_options.s3_url_style == other.file_options.s3_url_style
         )
 
     @property
@@ -119,6 +124,11 @@ class FileSource(DataSource):
         """Returns the s3 endpoint override of this file data source."""
         return self.file_options.s3_endpoint_override
 
+    @property
+    def s3_url_style(self) -> Optional[str]:
+        """Returns the s3 URL style of this file data source."""
+        return self.file_options.s3_url_style
+
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         return FileSource(
@@ -129,6 +139,7 @@ class FileSource(DataSource):
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
+            s3_url_style=data_source.file_options.s3_url_style or None,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -201,6 +212,8 @@ class FileSource(DataSource):
             storage_options = {
                 "AWS_ENDPOINT_URL": str(self.s3_endpoint_override),
             }
+            if self.s3_url_style:
+                storage_options["AWS_S3_URL_STYLE"] = self.s3_url_style
 
             schema = (
                 DeltaTable(self.path, storage_options=storage_options)
@@ -235,18 +248,21 @@ class FileOptions:
     Attributes:
         uri: File source url, e.g. s3:// or local file.
         s3_endpoint_override: Custom s3 endpoint (used only with s3 uri).
+        s3_url_style: S3 URL style for path-based access ("path" or "vhost").
         file_format: File source format, e.g. parquet.
     """
 
     uri: str
     file_format: Optional[FileFormat]
     s3_endpoint_override: str
+    s3_url_style: str
 
     def __init__(
         self,
         uri: str,
         file_format: Optional[FileFormat],
         s3_endpoint_override: Optional[str],
+        s3_url_style: Optional[str] = None,
     ):
         """
         Initializes a FileOptions object.
@@ -255,10 +271,12 @@ class FileOptions:
             uri: File source url, e.g. s3:// or local file.
             file_format (optional): File source format, e.g. parquet.
             s3_endpoint_override (optional): Custom s3 endpoint (used only with s3 uri).
+            s3_url_style (optional): S3 URL style for path-based access ("path" or "vhost").
         """
         self.uri = uri
         self.file_format = file_format
         self.s3_endpoint_override = s3_endpoint_override or ""
+        self.s3_url_style = s3_url_style or ""
 
     @classmethod
     def from_proto(cls, file_options_proto: DataSourceProto.FileOptions):
@@ -275,6 +293,7 @@ class FileOptions:
             file_format=FileFormat.from_proto(file_options_proto.file_format),
             uri=file_options_proto.uri,
             s3_endpoint_override=file_options_proto.s3_endpoint_override,
+            s3_url_style=file_options_proto.s3_url_style or None,
         )
         return file_options
 
@@ -291,6 +310,7 @@ class FileOptions:
             ),
             uri=self.uri,
             s3_endpoint_override=self.s3_endpoint_override,
+            s3_url_style=self.s3_url_style,
         )
 
         return file_options_proto
@@ -306,10 +326,12 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
         path: str,
         file_format: FileFormat = ParquetFormat(),
         s3_endpoint_override: Optional[str] = None,
+        s3_url_style: Optional[str] = None,
     ):
         self.file_options = FileOptions(
             file_format=file_format,
             s3_endpoint_override=s3_endpoint_override,
+            s3_url_style=s3_url_style,
             uri=path,
         )
 
@@ -320,6 +342,7 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
             path=file_options.uri,
             file_format=file_options.file_format,
             s3_endpoint_override=file_options.s3_endpoint_override,
+            s3_url_style=file_options.s3_url_style or None,
         )
 
     def to_proto(self) -> SavedDatasetStorageProto:
@@ -330,6 +353,7 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
             path=self.file_options.uri,
             file_format=self.file_options.file_format,
             s3_endpoint_override=self.file_options.s3_endpoint_override,
+            s3_url_style=self.file_options.s3_url_style or None,
         )
 
     @staticmethod
@@ -341,6 +365,7 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
             if data_source.file_format
             else ParquetFormat(),
             s3_endpoint_override=data_source.s3_endpoint_override,
+            s3_url_style=data_source.s3_url_style,
         )
 
 
@@ -349,6 +374,7 @@ class FileLoggingDestination(LoggingDestination):
 
     path: str
     s3_endpoint_override: str
+    s3_url_style: str
     partition_by: Optional[List[str]]
 
     def __init__(
@@ -356,10 +382,12 @@ class FileLoggingDestination(LoggingDestination):
         *,
         path: str,
         s3_endpoint_override="",
+        s3_url_style: str = "",
         partition_by: Optional[List[str]] = None,
     ):
         self.path = path
         self.s3_endpoint_override = s3_endpoint_override
+        self.s3_url_style = s3_url_style
         self.partition_by = partition_by
 
     @classmethod
@@ -367,6 +395,7 @@ class FileLoggingDestination(LoggingDestination):
         return FileLoggingDestination(
             path=config_proto.file_destination.path,
             s3_endpoint_override=config_proto.file_destination.s3_endpoint_override,
+            s3_url_style=config_proto.file_destination.s3_url_style or "",
             partition_by=list(config_proto.file_destination.partition_by)
             if config_proto.file_destination.partition_by
             else None,
@@ -377,6 +406,7 @@ class FileLoggingDestination(LoggingDestination):
             file_destination=LoggingConfigProto.FileDestination(
                 path=self.path,
                 s3_endpoint_override=self.s3_endpoint_override,
+                s3_url_style=self.s3_url_style,
                 partition_by=self.partition_by,
             )
         )
@@ -386,4 +416,5 @@ class FileLoggingDestination(LoggingDestination):
             path=self.path,
             file_format=ParquetFormat(),
             s3_endpoint_override=self.s3_endpoint_override,
+            s3_url_style=self.s3_url_style or None,
         )
