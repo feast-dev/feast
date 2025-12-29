@@ -64,6 +64,7 @@ from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.feature_view_projection import FeatureViewProjection
+from feast.schema_utils import should_apply_transformation
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -1168,7 +1169,6 @@ class FeatureStore:
         full_feature_names: bool = False,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        transform: bool = True,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -1200,7 +1200,6 @@ class FeatureStore:
                 Required when entity_df is not provided.
             end_date (Optional[datetime]): End date for the timestamp range when retrieving features without entity_df.
                 Required when entity_df is not provided. By default, the current time is used.
-            transform: If True, apply feature transformations. If False, skip transformations for performance.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -1281,9 +1280,8 @@ class FeatureStore:
             kwargs["start_date"] = start_date
         if end_date is not None:
             kwargs["end_date"] = end_date
-        # For now, we pass transform as a hint but providers may not use it yet
-        # Future provider implementations should use this to control transformation execution
-        kwargs["transform"] = transform
+        # Note: Transformation execution is now handled automatically by providers
+        # based on feature view configurations and request patterns
 
         job = provider.get_historical_features(
             self.config,
@@ -2084,7 +2082,6 @@ class FeatureStore:
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
-        transform: bool = True,
     ):
         """
         Persists a dataframe to the online store.
@@ -2094,15 +2091,32 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
-            transform (optional): Whether to transform the data before pushing.
         """
+
+        # Get feature view to enable schema-based transformation detection
+        registry = self._get_registry_and_project()[0]
+        feature_view = cast(
+            FeatureView,
+            registry.get_feature_view(
+                feature_view_name, self.project, allow_cache=allow_registry_cache
+            ),
+        )
+
+        # Determine input data for schema detection
+        input_data = df if df is not None else inputs
+
+        # Use schema-based auto-detection to determine whether to apply transformations
+        transform_on_write = should_apply_transformation(feature_view, input_data)
+        if transform_on_write is None:
+            # Fallback to default behavior if auto-detection is inconclusive
+            transform_on_write = True
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
             feature_view_name=feature_view_name,
             df=df,
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
-            transform_on_write=transform,
+            transform_on_write=transform_on_write,
         )
 
         # Validate that the dataframe has meaningful feature data
@@ -2130,7 +2144,6 @@ class FeatureStore:
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
-        transform: bool = True,
     ):
         """
         Persists a dataframe to the online store asynchronously.
@@ -2140,15 +2153,32 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
-            transform (optional): Whether to transform the data before pushing.
         """
+
+        # Get feature view to enable schema-based transformation detection
+        registry = self._get_registry_and_project()[0]
+        feature_view = cast(
+            FeatureView,
+            registry.get_feature_view(
+                feature_view_name, self.project, allow_cache=allow_registry_cache
+            ),
+        )
+
+        # Determine input data for schema detection
+        input_data = df if df is not None else inputs
+
+        # Use schema-based auto-detection to determine whether to apply transformations
+        transform_on_write = should_apply_transformation(feature_view, input_data)
+        if transform_on_write is None:
+            # Fallback to default behavior if auto-detection is inconclusive
+            transform_on_write = True
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
             feature_view_name=feature_view_name,
             df=df,
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
-            transform_on_write=transform,
+            transform_on_write=transform_on_write,
         )
 
         # Validate that the dataframe has meaningful feature data
@@ -2222,7 +2252,6 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
-        transform: bool = True,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -2243,7 +2272,6 @@ class FeatureStore:
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
-            transform: If True, apply feature transformations. If False, skip transformations and validation.
 
         Returns:
             OnlineResponse containing the feature data in records.
@@ -2287,7 +2315,6 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
-        transform: bool = True,
     ) -> OnlineResponse:
         """
         [Alpha] Retrieves the latest online feature data asynchronously.
@@ -2308,7 +2335,6 @@ class FeatureStore:
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
-            transform: If True, apply feature transformations. If False, skip transformations and validation.
 
         Returns:
             OnlineResponse containing the feature data in records.
