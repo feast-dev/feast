@@ -64,7 +64,6 @@ from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.feature_view_projection import FeatureViewProjection
-from feast.schema_utils import should_apply_transformation
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -92,6 +91,7 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
+from feast.schema_utils import should_apply_transformation
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
