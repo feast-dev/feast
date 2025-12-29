@@ -7,26 +7,22 @@ whether incoming data matches input schemas (raw data) or output schemas
 """
 
 import unittest
-from datetime import timedelta
-from typing import Dict, List, Any
 
 import pandas as pd
-import pytest
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.schema_utils import (
-    should_apply_transformation,
+    extract_column_names,
     get_input_schema_columns,
     get_output_schema_columns,
-    extract_column_names,
+    should_apply_transformation,
     validate_transformation_compatibility,
 )
-from feast.transformation.base import Transformation, transformation
-from feast.types import Float64, Int64, String
+from feast.transformation.base import transformation
+from feast.types import Int64
 
 
 class TestSchemaDetection(unittest.TestCase):
@@ -38,10 +34,7 @@ class TestSchemaDetection(unittest.TestCase):
         self.driver = Entity(name="driver", join_keys=["driver_id"])
 
         # Create test source
-        self.source = FileSource(
-            path="test.parquet",
-            timestamp_field="event_timestamp"
-        )
+        self.source = FileSource(path="test.parquet", timestamp_field="event_timestamp")
 
         # Create transformation
         @transformation(mode="python")
@@ -106,7 +99,9 @@ class TestSchemaDetection(unittest.TestCase):
         input_data = {"driver": 1, "event_timestamp": "2023-01-01"}
 
         result = should_apply_transformation(self.feature_view, input_data)
-        self.assertTrue(result, "Should apply transformation when data matches input schema")
+        self.assertTrue(
+            result, "Should apply transformation when data matches input schema"
+        )
 
     def test_should_apply_transformation_output_schema_match(self):
         """Test detection when data matches output schema (should not transform)."""
@@ -114,14 +109,18 @@ class TestSchemaDetection(unittest.TestCase):
         output_data = {"driver": 1, "doubled_value": 10}
 
         result = should_apply_transformation(self.feature_view, output_data)
-        self.assertFalse(result, "Should not apply transformation when data matches output schema")
+        self.assertFalse(
+            result, "Should not apply transformation when data matches output schema"
+        )
 
     def test_should_apply_transformation_no_transformation(self):
         """Test detection when feature view has no transformation."""
         input_data = {"driver_id": 1, "value": 5}
 
         result = should_apply_transformation(self.feature_view_no_transform, input_data)
-        self.assertIsNone(result, "Should return None when no transformation is configured")
+        self.assertIsNone(
+            result, "Should return None when no transformation is configured"
+        )
 
     def test_should_apply_transformation_ambiguous_case(self):
         """Test detection when data matches both input and output schemas."""
@@ -131,7 +130,7 @@ class TestSchemaDetection(unittest.TestCase):
             "driver_id": 1,
             "value": 5,
             "doubled_value": 10,
-            "event_timestamp": "2023-01-01"
+            "event_timestamp": "2023-01-01",
         }
 
         result = should_apply_transformation(self.feature_view, ambiguous_data)
@@ -143,28 +142,34 @@ class TestSchemaDetection(unittest.TestCase):
         unknown_data = {"unknown_field": 123}
 
         result = should_apply_transformation(self.feature_view, unknown_data)
-        self.assertIsNone(result, "Should return None when data doesn't match any schema")
+        self.assertIsNone(
+            result, "Should return None when data doesn't match any schema"
+        )
 
     def test_should_apply_transformation_dataframe_input(self):
         """Test detection with pandas DataFrame input."""
         # DataFrame with input schema
-        input_df = pd.DataFrame({
-            "driver_id": [1, 2],
-            "value": [5, 10],
-            "event_timestamp": ["2023-01-01", "2023-01-02"]
-        })
+        input_df = pd.DataFrame(
+            {
+                "driver_id": [1, 2],
+                "value": [5, 10],
+                "event_timestamp": ["2023-01-01", "2023-01-02"],
+            }
+        )
 
         result = should_apply_transformation(self.feature_view, input_df)
-        self.assertTrue(result, "Should apply transformation for DataFrame matching input schema")
+        self.assertTrue(
+            result, "Should apply transformation for DataFrame matching input schema"
+        )
 
         # DataFrame with output schema
-        output_df = pd.DataFrame({
-            "driver_id": [1, 2],
-            "doubled_value": [10, 20]
-        })
+        output_df = pd.DataFrame({"driver_id": [1, 2], "doubled_value": [10, 20]})
 
         result = should_apply_transformation(self.feature_view, output_df)
-        self.assertFalse(result, "Should not apply transformation for DataFrame matching output schema")
+        self.assertFalse(
+            result,
+            "Should not apply transformation for DataFrame matching output schema",
+        )
 
     def test_should_apply_transformation_subset_matching(self):
         """Test detection with subset schema matching (superset data)."""
@@ -173,11 +178,13 @@ class TestSchemaDetection(unittest.TestCase):
             "driver_id": 1,
             "value": 5,
             "event_timestamp": "2023-01-01",
-            "extra_field": "extra_value"
+            "extra_field": "extra_value",
         }
 
         result = should_apply_transformation(self.feature_view, superset_input_data)
-        self.assertTrue(result, "Should apply transformation when data is superset of input schema")
+        self.assertTrue(
+            result, "Should apply transformation when data is superset of input schema"
+        )
 
     def test_validate_transformation_compatibility(self):
         """Test transformation compatibility validation."""
@@ -196,7 +203,9 @@ class TestSchemaDetection(unittest.TestCase):
         errors = validate_transformation_compatibility(
             self.feature_view, invalid_input_data
         )
-        self.assertGreater(len(errors), 0, "Should have errors for missing input columns")
+        self.assertGreater(
+            len(errors), 0, "Should have errors for missing input columns"
+        )
         self.assertIn("value", str(errors))
         self.assertIn("event_timestamp", str(errors))
 
@@ -206,7 +215,9 @@ class TestSchemaDetection(unittest.TestCase):
         errors = validate_transformation_compatibility(
             self.feature_view, input_data, invalid_transformed_data
         )
-        self.assertGreater(len(errors), 0, "Should have errors for missing output columns")
+        self.assertGreater(
+            len(errors), 0, "Should have errors for missing output columns"
+        )
         self.assertIn("doubled_value", str(errors))
 
 
@@ -215,8 +226,8 @@ class TestOnDemandFeatureViewSchemaDetection(unittest.TestCase):
 
     def setUp(self):
         """Set up ODFV test fixtures."""
-        from feast.on_demand_feature_view import on_demand_feature_view
         from feast.data_source import RequestSource
+        from feast.on_demand_feature_view import on_demand_feature_view
 
         # Create request source
         self.request_source = RequestSource(
@@ -230,7 +241,7 @@ class TestOnDemandFeatureViewSchemaDetection(unittest.TestCase):
         @on_demand_feature_view(
             sources=[self.request_source],
             schema=[Field(name="output_value", dtype=Int64)],
-            mode="python"
+            mode="python",
         )
         def test_odfv(inputs):
             return {"output_value": inputs["input_value"][0] * 3}
@@ -254,14 +265,18 @@ class TestOnDemandFeatureViewSchemaDetection(unittest.TestCase):
         input_data = {"input_value": 5}
 
         result = should_apply_transformation(self.odfv, input_data)
-        self.assertTrue(result, "Should apply transformation for ODFV input schema match")
+        self.assertTrue(
+            result, "Should apply transformation for ODFV input schema match"
+        )
 
     def test_should_apply_transformation_odfv_output_match(self):
         """Test ODFV transformation detection with output match."""
         output_data = {"output_value": 15}
 
         result = should_apply_transformation(self.odfv, output_data)
-        self.assertFalse(result, "Should not apply transformation for ODFV output schema match")
+        self.assertFalse(
+            result, "Should not apply transformation for ODFV output schema match"
+        )
 
 
 if __name__ == "__main__":

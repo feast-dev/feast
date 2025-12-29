@@ -11,17 +11,16 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 import pandas as pd
 import pyarrow as pa
-from pyarrow import Table
 
-from feast.field import Field
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.transformation.base import Transformation
 
 logger = logging.getLogger(__name__)
 
 
-def get_input_schema_columns(feature_view: Union[FeatureView, OnDemandFeatureView]) -> Set[str]:
+def get_input_schema_columns(
+    feature_view: Union[FeatureView, OnDemandFeatureView],
+) -> Set[str]:
     """
     Extract expected input column names from a feature view.
 
@@ -35,7 +34,7 @@ def get_input_schema_columns(feature_view: Union[FeatureView, OnDemandFeatureVie
         Set of expected input column names
     """
     if isinstance(feature_view, FeatureView):
-        if feature_view.source and hasattr(feature_view.source, 'schema'):
+        if feature_view.source and hasattr(feature_view.source, "schema"):
             # Use source schema for FeatureViews
             schema_columns = set()
             for field in feature_view.source.schema:
@@ -45,13 +44,16 @@ def get_input_schema_columns(feature_view: Union[FeatureView, OnDemandFeatureVie
             # For sources without explicit schema, use entity columns + timestamp
             schema_columns = set()
             for entity in feature_view.entities:
-                if hasattr(entity, 'join_keys'):
+                if hasattr(entity, "join_keys"):
                     # Entity object
                     schema_columns.update(entity.join_keys)
                 elif isinstance(entity, str):
                     # Entity name string
                     schema_columns.add(entity)
-            if hasattr(feature_view.source, 'timestamp_field') and feature_view.source.timestamp_field:
+            if (
+                hasattr(feature_view.source, "timestamp_field")
+                and feature_view.source.timestamp_field
+            ):
                 schema_columns.add(feature_view.source.timestamp_field)
             return schema_columns
 
@@ -59,7 +61,10 @@ def get_input_schema_columns(feature_view: Union[FeatureView, OnDemandFeatureVie
         # Use input request schema for ODFVs
         if feature_view.source_request_sources:
             schema_columns = set()
-            for source_name, request_source in feature_view.source_request_sources.items():
+            for (
+                source_name,
+                request_source,
+            ) in feature_view.source_request_sources.items():
                 for field in request_source.schema:
                     schema_columns.add(field.name)
             return schema_columns
@@ -67,7 +72,9 @@ def get_input_schema_columns(feature_view: Union[FeatureView, OnDemandFeatureVie
     return set()
 
 
-def get_output_schema_columns(feature_view: Union[FeatureView, OnDemandFeatureView]) -> Set[str]:
+def get_output_schema_columns(
+    feature_view: Union[FeatureView, OnDemandFeatureView],
+) -> Set[str]:
     """
     Extract expected output column names from a feature view.
 
@@ -87,7 +94,7 @@ def get_output_schema_columns(feature_view: Union[FeatureView, OnDemandFeatureVi
 
     # Add entity columns (present in both input and output)
     for entity in feature_view.entities:
-        if hasattr(entity, 'join_keys'):
+        if hasattr(entity, "join_keys"):
             # Entity object
             schema_columns.update(entity.join_keys)
         elif isinstance(entity, str):
@@ -98,7 +105,9 @@ def get_output_schema_columns(feature_view: Union[FeatureView, OnDemandFeatureVi
     return schema_columns
 
 
-def extract_column_names(data: Union[pd.DataFrame, pa.Table, Dict[str, Any], List[Dict[str, Any]]]) -> Set[str]:
+def extract_column_names(
+    data: Union[pd.DataFrame, pa.Table, Dict[str, Any], List[Dict[str, Any]]],
+) -> Set[str]:
     """
     Extract column names from various data formats.
 
@@ -129,7 +138,7 @@ def extract_column_names(data: Union[pd.DataFrame, pa.Table, Dict[str, Any], Lis
 def should_apply_transformation(
     feature_view: Union[FeatureView, OnDemandFeatureView],
     data: Union[pd.DataFrame, pa.Table, Dict[str, Any], List[Dict[str, Any]]],
-    require_exact_match: bool = False
+    require_exact_match: bool = False,
 ) -> Optional[bool]:
     """
     Automatically determine if transformation should be applied based on data schema.
@@ -149,7 +158,7 @@ def should_apply_transformation(
         None if auto-detection is inconclusive
     """
     # Only apply auto-detection if feature view has a transformation
-    transformation = getattr(feature_view, 'feature_transformation', None)
+    transformation = getattr(feature_view, "feature_transformation", None)
     if not transformation:
         return None
 
@@ -162,38 +171,52 @@ def should_apply_transformation(
     output_columns = get_output_schema_columns(feature_view)
 
     if not input_columns and not output_columns:
-        logger.warning(f"Could not determine input/output schemas for {feature_view.name}")
+        logger.warning(
+            f"Could not determine input/output schemas for {feature_view.name}"
+        )
         return None
 
     # Check input schema match
     input_match = _check_schema_match(data_columns, input_columns, require_exact_match)
 
     # Check output schema match
-    output_match = _check_schema_match(data_columns, output_columns, require_exact_match)
+    output_match = _check_schema_match(
+        data_columns, output_columns, require_exact_match
+    )
 
     # Decision logic
     if input_match and not output_match:
         # Data matches input schema but not output - needs transformation
-        logger.info(f"Auto-detected: applying transformation for {feature_view.name} (input schema match)")
+        logger.info(
+            f"Auto-detected: applying transformation for {feature_view.name} (input schema match)"
+        )
         return True
 
     elif output_match and not input_match:
         # Data matches output schema but not input - already transformed
-        logger.info(f"Auto-detected: skipping transformation for {feature_view.name} (output schema match)")
+        logger.info(
+            f"Auto-detected: skipping transformation for {feature_view.name} (output schema match)"
+        )
         return False
 
     elif input_match and output_match:
         # Ambiguous case - data matches both schemas
-        logger.warning(f"Ambiguous schema match for {feature_view.name} - data matches both input and output schemas")
+        logger.warning(
+            f"Ambiguous schema match for {feature_view.name} - data matches both input and output schemas"
+        )
         return None
 
     else:
         # Data doesn't clearly match either schema
-        logger.warning(f"Schema mismatch for {feature_view.name} - data doesn't match input or output schemas clearly")
+        logger.warning(
+            f"Schema mismatch for {feature_view.name} - data doesn't match input or output schemas clearly"
+        )
         return None
 
 
-def _check_schema_match(data_columns: Set[str], schema_columns: Set[str], require_exact_match: bool) -> bool:
+def _check_schema_match(
+    data_columns: Set[str], schema_columns: Set[str], require_exact_match: bool
+) -> bool:
     """
     Check if data columns match a schema.
 
@@ -219,7 +242,9 @@ def _check_schema_match(data_columns: Set[str], schema_columns: Set[str], requir
 def validate_transformation_compatibility(
     feature_view: Union[FeatureView, OnDemandFeatureView],
     input_data: Union[pd.DataFrame, pa.Table, Dict[str, Any], List[Dict[str, Any]]],
-    transformed_data: Union[pd.DataFrame, pa.Table, Dict[str, Any], List[Dict[str, Any]]] = None
+    transformed_data: Union[
+        pd.DataFrame, pa.Table, Dict[str, Any], List[Dict[str, Any]]
+    ] = None,
 ) -> List[str]:
     """
     Validate that transformation input/output data is compatible with feature view schemas.
@@ -241,7 +266,9 @@ def validate_transformation_compatibility(
     if expected_input_columns:
         missing_input_columns = expected_input_columns - input_columns
         if missing_input_columns:
-            errors.append(f"Input data missing required columns: {sorted(missing_input_columns)}")
+            errors.append(
+                f"Input data missing required columns: {sorted(missing_input_columns)}"
+            )
 
     # Validate transformed data if provided
     if transformed_data is not None:
@@ -251,6 +278,8 @@ def validate_transformation_compatibility(
         if expected_output_columns:
             missing_output_columns = expected_output_columns - output_columns
             if missing_output_columns:
-                errors.append(f"Transformed data missing required columns: {sorted(missing_output_columns)}")
+                errors.append(
+                    f"Transformed data missing required columns: {sorted(missing_output_columns)}"
+                )
 
     return errors
