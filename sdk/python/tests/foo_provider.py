@@ -22,6 +22,7 @@ from feast.data_source import DataSource
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.supported_async_methods import (
     ProviderAsyncMethods,
     SupportedAsyncMethods,
@@ -98,12 +99,14 @@ class FooProvider(Provider):
         self,
         config: RepoConfig,
         feature_views: List[FeatureView],
+        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        del on_demand_feature_views
         return RetrievalJob()
 
     def online_read(
