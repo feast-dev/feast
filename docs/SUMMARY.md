@@ -163,6 +163,7 @@
 * [\[Alpha\] Vector Database](reference/alpha-vector-database.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)
 * [\[Alpha\] Streaming feature computation with Denormalized](reference/denormalized.md)
+* [OpenLineage Integration](reference/openlineage.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
 * [Python API reference](http://rtd.feast.dev)
 * [Usage](reference/usage.md)
