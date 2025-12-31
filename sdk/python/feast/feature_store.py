@@ -111,12 +111,14 @@ class FeatureStore:
         repo_path: The path to the feature repo.
         _registry: The registry for the feature store.
         _provider: The provider for the feature store.
+        _openlineage_emitter: Optional OpenLineage emitter for lineage tracking.
     """
 
     config: RepoConfig
     repo_path: Path
     _registry: BaseRegistry
     _provider: Provider
+    _openlineage_emitter: Optional[Any] = None
 
     def __init__(
         self,
@@ -181,6 +183,30 @@ class FeatureStore:
             )
 
         self._provider = get_provider(self.config)
+
+        # Initialize OpenLineage emitter if configured
+        self._openlineage_emitter = self._init_openlineage_emitter()
+
+    def _init_openlineage_emitter(self) -> Optional[Any]:
+        """Initialize OpenLineage emitter if configured and enabled."""
+        try:
+            if (
+                hasattr(self.config, "openlineage")
+                and self.config.openlineage is not None
+                and self.config.openlineage.enabled
+            ):
+                from feast.openlineage import FeastOpenLineageEmitter
+
+                ol_config = self.config.openlineage.to_openlineage_config()
+                emitter = FeastOpenLineageEmitter(ol_config)
+                if emitter.is_enabled:
+                    return emitter
+        except ImportError:
+            # OpenLineage not installed, silently skip
+            pass
+        except Exception as e:
+            warnings.warn(f"Failed to initialize OpenLineage emitter: {e}")
+        return None
 
     def __repr__(self) -> str:
         return (
@@ -860,6 +886,23 @@ class FeatureStore:
             if progress_ctx:
                 progress_ctx.cleanup()
 
+        # Emit OpenLineage events for applied objects
+        self._emit_openlineage_apply_diffs(registry_diff)
+
+    def _emit_openlineage_apply_diffs(self, registry_diff: RegistryDiff):
+        """Emit OpenLineage events for objects applied via diffs."""
+        if self._openlineage_emitter is None:
+            return
+
+        # Collect all objects that were added or updated
+        objects: List[Any] = []
+        for feast_object_diff in registry_diff.feast_object_diffs:
+            if feast_object_diff.new_feast_object is not None:
+                objects.append(feast_object_diff.new_feast_object)
+
+        if objects:
+            self._emit_openlineage_apply(objects)
+
     def apply(
         self,
         objects: Union[
@@ -1133,6 +1176,18 @@ class FeatureStore:
         # - thread mode: Eventual consistency - skip refresh, background thread handles it
         if self.config.registry.cache_mode == "sync":
             self.refresh_registry()
+
+        # Emit OpenLineage events for applied objects
+        self._emit_openlineage_apply(objects)
+
+    def _emit_openlineage_apply(self, objects: List[Any]):
+        """Emit OpenLineage events for applied objects."""
+        if self._openlineage_emitter is None:
+            return
+        try:
+            self._openlineage_emitter.emit_apply(objects, self.project)
+        except Exception as e:
+            warnings.warn(f"Failed to emit OpenLineage apply events: {e}")
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
@@ -1543,81 +1598,97 @@ class FeatureStore:
             len(feature_views_to_materialize),
             self.config.online_store.type,
         )
-        # TODO paging large loads
-        for feature_view in feature_views_to_materialize:
-            if isinstance(feature_view, OnDemandFeatureView):
-                if feature_view.write_to_online_store:
-                    source_fvs = {
-                        self._get_feature_view(p.name)
-                        for p in feature_view.source_feature_view_projections.values()
-                    }
-                    max_ttl = timedelta(0)
-                    for fv in source_fvs:
-                        if fv.ttl and fv.ttl > max_ttl:
-                            max_ttl = fv.ttl
 
-                    if max_ttl.total_seconds() > 0:
-                        odfv_start_date = end_date - max_ttl
+        # Emit OpenLineage START event for incremental materialization
+        ol_run_id = self._emit_openlineage_materialize_start(
+            feature_views_to_materialize, None, end_date
+        )
+
+        try:
+            # TODO paging large loads
+            for feature_view in feature_views_to_materialize:
+                if isinstance(feature_view, OnDemandFeatureView):
+                    if feature_view.write_to_online_store:
+                        source_fvs = {
+                            self._get_feature_view(p.name)
+                            for p in feature_view.source_feature_view_projections.values()
+                        }
+                        max_ttl = timedelta(0)
+                        for fv in source_fvs:
+                            if fv.ttl and fv.ttl > max_ttl:
+                                max_ttl = fv.ttl
+
+                        if max_ttl.total_seconds() > 0:
+                            odfv_start_date = end_date - max_ttl
+                        else:
+                            odfv_start_date = end_date - timedelta(weeks=52)
+
+                        print(
+                            f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+                        )
+                        self._materialize_odfv(
+                            feature_view,
+                            odfv_start_date,
+                            end_date,
+                            full_feature_names=full_feature_names,
+                        )
+                    continue
+
+                start_date = feature_view.most_recent_end_time
+                if start_date is None:
+                    if feature_view.ttl is None:
+                        raise Exception(
+                            f"No start time found for feature view {feature_view.name}. materialize_incremental() requires"
+                            f" either a ttl to be set or for materialize() to have been run at least once."
+                        )
+                    elif feature_view.ttl.total_seconds() > 0:
+                        start_date = _utc_now() - feature_view.ttl
                     else:
-                        odfv_start_date = end_date - timedelta(weeks=52)
-
-                    print(
-                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
-                    )
-                    self._materialize_odfv(
-                        feature_view,
-                        odfv_start_date,
-                        end_date,
-                        full_feature_names=full_feature_names,
-                    )
-                continue
-
-            start_date = feature_view.most_recent_end_time
-            if start_date is None:
-                if feature_view.ttl is None:
-                    raise Exception(
-                        f"No start time found for feature view {feature_view.name}. materialize_incremental() requires"
-                        f" either a ttl to be set or for materialize() to have been run at least once."
-                    )
-                elif feature_view.ttl.total_seconds() > 0:
-                    start_date = _utc_now() - feature_view.ttl
-                else:
-                    # TODO(felixwang9817): Find the earliest timestamp for this specific feature
-                    # view from the offline store, and set the start date to that timestamp.
-                    print(
-                        f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
-                        "the start date will be set to 1 year before the current time."
-                    )
-                    start_date = _utc_now() - timedelta(weeks=52)
-            provider = self._get_provider()
-            print(
-                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
-                f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
-                f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
-            )
-
-            def tqdm_builder(length):
-                return tqdm(total=length, ncols=100)
-
-            start_date = utils.make_tzaware(start_date)
-            end_date = utils.make_tzaware(end_date) or _utc_now()
-
-            provider.materialize_single_feature_view(
-                config=self.config,
-                feature_view=feature_view,
-                start_date=start_date,
-                end_date=end_date,
-                registry=self._registry,
-                project=self.project,
-                tqdm_builder=tqdm_builder,
-            )
-            if not isinstance(feature_view, OnDemandFeatureView):
-                self._registry.apply_materialization(
-                    feature_view,
-                    self.project,
-                    start_date,
-                    end_date,
+                        # TODO(felixwang9817): Find the earliest timestamp for this specific feature
+                        # view from the offline store, and set the start date to that timestamp.
+                        print(
+                            f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
+                            "the start date will be set to 1 year before the current time."
+                        )
+                        start_date = _utc_now() - timedelta(weeks=52)
+                provider = self._get_provider()
+                print(
+                    f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
+                    f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
+                    f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
                 )
+
+                def tqdm_builder(length):
+                    return tqdm(total=length, ncols=100)
+
+                start_date = utils.make_tzaware(start_date)
+                end_date = utils.make_tzaware(end_date) or _utc_now()
+
+                provider.materialize_single_feature_view(
+                    config=self.config,
+                    feature_view=feature_view,
+                    start_date=start_date,
+                    end_date=end_date,
+                    registry=self._registry,
+                    project=self.project,
+                    tqdm_builder=tqdm_builder,
+                )
+                if not isinstance(feature_view, OnDemandFeatureView):
+                    self._registry.apply_materialization(
+                        feature_view,
+                        self.project,
+                        start_date,
+                        end_date,
+                    )
+
+            # Emit OpenLineage COMPLETE event
+            self._emit_openlineage_materialize_complete(
+                ol_run_id, feature_views_to_materialize
+            )
+        except Exception as e:
+            # Emit OpenLineage FAIL event
+            self._emit_openlineage_materialize_fail(ol_run_id, str(e))
+            raise
 
     def materialize(
         self,
@@ -1670,46 +1741,112 @@ class FeatureStore:
             len(feature_views_to_materialize),
             self.config.online_store.type,
         )
-        # TODO paging large loads
-        for feature_view in feature_views_to_materialize:
-            if isinstance(feature_view, OnDemandFeatureView):
-                if feature_view.write_to_online_store:
-                    print(
-                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
-                    )
-                    self._materialize_odfv(
-                        feature_view,
-                        start_date,
-                        end_date,
-                        full_feature_names=full_feature_names,
-                    )
-                continue
-            provider = self._get_provider()
-            print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
 
-            def tqdm_builder(length):
-                return tqdm(total=length, ncols=100)
+        # Emit OpenLineage START event
+        ol_run_id = self._emit_openlineage_materialize_start(
+            feature_views_to_materialize, start_date, end_date
+        )
 
-            start_date = utils.make_tzaware(start_date)
-            end_date = utils.make_tzaware(end_date)
+        try:
+            # TODO paging large loads
+            for feature_view in feature_views_to_materialize:
+                if isinstance(feature_view, OnDemandFeatureView):
+                    if feature_view.write_to_online_store:
+                        print(
+                            f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+                        )
+                        self._materialize_odfv(
+                            feature_view,
+                            start_date,
+                            end_date,
+                            full_feature_names=full_feature_names,
+                        )
+                    continue
+                provider = self._get_provider()
+                print(
+                    f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+                )
 
-            provider.materialize_single_feature_view(
-                config=self.config,
-                feature_view=feature_view,
-                start_date=start_date,
-                end_date=end_date,
-                registry=self._registry,
-                project=self.project,
-                tqdm_builder=tqdm_builder,
-                disable_event_timestamp=disable_event_timestamp,
+                def tqdm_builder(length):
+                    return tqdm(total=length, ncols=100)
+
+                start_date = utils.make_tzaware(start_date)
+                end_date = utils.make_tzaware(end_date)
+
+                provider.materialize_single_feature_view(
+                    config=self.config,
+                    feature_view=feature_view,
+                    start_date=start_date,
+                    end_date=end_date,
+                    registry=self._registry,
+                    project=self.project,
+                    tqdm_builder=tqdm_builder,
+                    disable_event_timestamp=disable_event_timestamp,
+                )
+
+                self._registry.apply_materialization(
+                    feature_view,
+                    self.project,
+                    start_date,
+                    end_date,
+                )
+
+            # Emit OpenLineage COMPLETE event
+            self._emit_openlineage_materialize_complete(
+                ol_run_id, feature_views_to_materialize
             )
+        except Exception as e:
+            # Emit OpenLineage FAIL event
+            self._emit_openlineage_materialize_fail(ol_run_id, str(e))
+            raise
 
-            self._registry.apply_materialization(
-                feature_view,
-                self.project,
-                start_date,
-                end_date,
+    def _emit_openlineage_materialize_start(
+        self,
+        feature_views: List[Any],
+        start_date: Optional[datetime],
+        end_date: datetime,
+    ) -> Optional[str]:
+        """Emit OpenLineage START event for materialization."""
+        if self._openlineage_emitter is None:
+            return None
+        try:
+            run_id, _ = self._openlineage_emitter.emit_materialize_start(
+                feature_views, start_date, end_date, self.project
             )
+            return run_id
+        except Exception as e:
+            warnings.warn(f"Failed to emit OpenLineage materialize start event: {e}")
+            return None
+
+    def _emit_openlineage_materialize_complete(
+        self,
+        run_id: Optional[str],
+        feature_views: List[Any],
+    ):
+        """Emit OpenLineage COMPLETE event for materialization."""
+        if self._openlineage_emitter is None or run_id is None:
+            return
+        try:
+            self._openlineage_emitter.emit_materialize_complete(
+                run_id, feature_views, self.project
+            )
+        except Exception as e:
+            warnings.warn(f"Failed to emit OpenLineage materialize complete event: {e}")
+
+    def _emit_openlineage_materialize_fail(
+        self,
+        run_id: Optional[str],
+        error_message: str,
+    ):
+        """Emit OpenLineage FAIL event for materialization."""
+        if self._openlineage_emitter is None or run_id is None:
+            return
+        try:
+            self._openlineage_emitter.emit_materialize_fail(
+                run_id, self.project, error_message
+            )
+        except Exception as e:
+            warnings.warn(f"Failed to emit OpenLineage materialize fail event: {e}")
 
     def _fvs_for_push_source_or_raise(
         self, push_source_name: str, allow_cache: bool
@@ -2178,7 +2315,7 @@ class FeatureStore:
         """
         provider = self._get_provider()
 
-        return provider.get_online_features(
+        response = provider.get_online_features(
             config=self.config,
             features=features,
             entity_rows=entity_rows,
@@ -2186,6 +2323,8 @@ class FeatureStore:
             project=self.project,
             full_feature_names=full_feature_names,
         )
+
+        return response
 
     async def get_online_features_async(
         self,
