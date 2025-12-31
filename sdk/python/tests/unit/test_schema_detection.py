@@ -84,6 +84,7 @@ class TestSchemaDetection(unittest.TestCase):
         """Test getting input schema columns from FeatureView."""
         input_columns = get_input_schema_columns(self.feature_view)
         # Note: FileSource without explicit schema falls back to entity names + timestamp
+        # Since entities are stored as strings, we use entity name rather than join keys
         expected_columns = {"driver", "event_timestamp"}
         self.assertEqual(input_columns, expected_columns)
 
@@ -151,7 +152,7 @@ class TestSchemaDetection(unittest.TestCase):
         # DataFrame with input schema
         input_df = pd.DataFrame(
             {
-                "driver_id": [1, 2],
+                "driver": [1, 2],
                 "value": [5, 10],
                 "event_timestamp": ["2023-01-01", "2023-01-02"],
             }
@@ -163,7 +164,7 @@ class TestSchemaDetection(unittest.TestCase):
         )
 
         # DataFrame with output schema
-        output_df = pd.DataFrame({"driver_id": [1, 2], "doubled_value": [10, 20]})
+        output_df = pd.DataFrame({"driver": [1, 2], "doubled_value": [10, 20]})
 
         result = should_apply_transformation(self.feature_view, output_df)
         self.assertFalse(
@@ -175,7 +176,7 @@ class TestSchemaDetection(unittest.TestCase):
         """Test detection with subset schema matching (superset data)."""
         # Data is superset of input schema (extra columns are ok)
         superset_input_data = {
-            "driver_id": 1,
+            "driver": 1,
             "value": 5,
             "event_timestamp": "2023-01-01",
             "extra_field": "extra_value",
@@ -189,8 +190,8 @@ class TestSchemaDetection(unittest.TestCase):
     def test_validate_transformation_compatibility(self):
         """Test transformation compatibility validation."""
         # Valid input data
-        input_data = {"driver_id": 1, "value": 5, "event_timestamp": "2023-01-01"}
-        transformed_data = {"driver_id": 1, "doubled_value": 10}
+        input_data = {"driver": 1, "value": 5, "event_timestamp": "2023-01-01"}
+        transformed_data = {"driver": 1, "doubled_value": 10}
 
         errors = validate_transformation_compatibility(
             self.feature_view, input_data, transformed_data
@@ -198,7 +199,7 @@ class TestSchemaDetection(unittest.TestCase):
         self.assertEqual(len(errors), 0, "Should have no errors for valid data")
 
         # Invalid input data (missing required column)
-        invalid_input_data = {"driver_id": 1}  # Missing value and timestamp
+        invalid_input_data = {"driver": 1}  # Missing value and timestamp
 
         errors = validate_transformation_compatibility(
             self.feature_view, invalid_input_data
@@ -206,11 +207,12 @@ class TestSchemaDetection(unittest.TestCase):
         self.assertGreater(
             len(errors), 0, "Should have errors for missing input columns"
         )
-        self.assertIn("value", str(errors))
+        # Only event_timestamp is required from the input schema (entity + timestamp)
+        # 'value' is not part of the detected input schema for sources without explicit schema
         self.assertIn("event_timestamp", str(errors))
 
         # Invalid transformed data (missing required output column)
-        invalid_transformed_data = {"driver_id": 1}  # Missing doubled_value
+        invalid_transformed_data = {"driver": 1}  # Missing doubled_value
 
         errors = validate_transformation_compatibility(
             self.feature_view, input_data, invalid_transformed_data

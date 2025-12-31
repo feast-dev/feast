@@ -93,14 +93,16 @@ def get_output_schema_columns(
         schema_columns.add(field.name)
 
     # Add entity columns (present in both input and output)
-    for entity in feature_view.entities:
-        if hasattr(entity, "join_keys"):
-            # Entity object
-            schema_columns.update(entity.join_keys)
-        elif isinstance(entity, str):
-            # Entity name string - need to get entity object from somewhere
-            # For now, we'll assume the entity name is the join key
-            schema_columns.add(entity)
+    # For OnDemandFeatureViews, we skip adding entity columns since they're not meaningful
+    if not isinstance(feature_view, OnDemandFeatureView):
+        for entity in feature_view.entities:
+            if hasattr(entity, "join_keys"):
+                # Entity object
+                schema_columns.update(entity.join_keys)
+            elif isinstance(entity, str):
+                # Entity name string - filter out dummy entities
+                if entity != "__dummy":
+                    schema_columns.add(entity)
 
     return schema_columns
 
