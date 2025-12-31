@@ -28,7 +28,7 @@ import pyarrow
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import pyspark
-from pydantic import StrictBool, StrictStr
+from pydantic import StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
@@ -67,9 +67,6 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
     staging_location: Optional[StrictStr] = None
     """ Remote path for batch materialization jobs"""
-
-    staging_allow_materialize: StrictBool = False
-    """ Enable use of staging_location during materialization to avoid driver OOM """
 
     region: Optional[StrictStr] = None
     """ AWS Region if applicable for s3-based staging locations"""
@@ -459,7 +456,6 @@ class SparkRetrievalJob(RetrievalJob):
         offline_store = getattr(self._config, "offline_store", None)
         return bool(
             isinstance(offline_store, SparkOfflineStoreConfig)
-            and getattr(offline_store, "staging_allow_materialize", False)
             and getattr(offline_store, "staging_location", None)
         )
 

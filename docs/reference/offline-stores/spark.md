@@ -34,7 +34,6 @@ offline_store:
         spark.sql.execution.arrow.pyspark.enabled: "true"
     # Optional: spill large materializations to the staging location instead of collecting in the driver
     staging_location: "s3://my-bucket/tmp/feast"
-    staging_allow_materialize: true
 online_store:
     path: data/online_store.db
 ```

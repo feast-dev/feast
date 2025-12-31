@@ -518,7 +518,6 @@ def test_to_arrow_uses_staging_when_enabled(monkeypatch, tmp_path):
         offline_store=SparkOfflineStoreConfig(
             type="spark",
             staging_location=str(tmp_path),
-            staging_allow_materialize=True,
         ),
     )
 
@@ -555,7 +554,6 @@ def test_to_arrow_normalizes_local_staging_paths(monkeypatch, tmp_path):
         offline_store=SparkOfflineStoreConfig(
             type="spark",
             staging_location=str(tmp_path / "local"),
-            staging_allow_materialize=True,
         ),
     )
 
@@ -590,8 +588,7 @@ def test_to_arrow_falls_back_to_pandas_when_staging_disabled(monkeypatch):
         provider="local",
         offline_store=SparkOfflineStoreConfig(
             type="spark",
-            staging_location="/tmp",
-            staging_allow_materialize=False,
+            staging_location=None,
         ),
     )
 
