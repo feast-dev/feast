@@ -1334,6 +1334,7 @@ class FeatureStore:
         job = provider.get_historical_features(
             self.config,
             feature_views,
+            on_demand_feature_views,
             _feature_refs,
             entity_df,
             self._registry,
