@@ -1767,7 +1767,6 @@ class FeatureStore:
                     fv.name,
                     df,
                     allow_registry_cache=allow_registry_cache,
-                    transform=transform_on_write,
                 )
             if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
                 self.write_to_offline_store(
@@ -2094,10 +2093,9 @@ class FeatureStore:
         """
 
         # Get feature view to enable schema-based transformation detection
-        registry = self._get_registry_and_project()[0]
         feature_view = cast(
             FeatureView,
-            registry.get_feature_view(
+            self._registry.get_feature_view(
                 feature_view_name, self.project, allow_cache=allow_registry_cache
             ),
         )
@@ -2156,10 +2154,9 @@ class FeatureStore:
         """
 
         # Get feature view to enable schema-based transformation detection
-        registry = self._get_registry_and_project()[0]
         feature_view = cast(
             FeatureView,
-            registry.get_feature_view(
+            self._registry.get_feature_view(
                 feature_view_name, self.project, allow_cache=allow_registry_cache
             ),
         )
