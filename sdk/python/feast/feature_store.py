@@ -127,6 +127,9 @@ warnings.simplefilter("once", DeprecationWarning)
 logger = logging.getLogger(__name__)
 
 
+logger = logging.getLogger(__name__)
+
+
 class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
