@@ -310,7 +310,6 @@ class RedisOnlineStore(OnlineStore):
                 # Build protobuf timestamp with nanos
                 ts = Timestamp()
                 ts.FromDatetime(aware_ts)
-                
                 # New timestamp in nanoseconds
                 new_total_nanos = ts.seconds * 1_000_000_000 + ts.nanos
                 
