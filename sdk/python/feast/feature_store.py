@@ -13,6 +13,7 @@
 # limitations under the License.
 import asyncio
 import itertools
+import logging
 import os
 import warnings
 from datetime import datetime, timedelta
@@ -33,7 +34,6 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
-from colorama import Fore, Style
 from fastapi.concurrency import run_in_threadpool
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -95,6 +95,9 @@ from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
 
 warnings.simplefilter("once", DeprecationWarning)
+
+
+logger = logging.getLogger(__name__)
 
 
 class FeatureStore:
@@ -1335,8 +1338,9 @@ class FeatureStore:
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No source feature views found."
+            logger.warning(
+                "ODFV %s materialization: No source feature views found.",
+                feature_view.name,
             )
             return
         start_date = utils.make_tzaware(start_date)
@@ -1363,20 +1367,24 @@ class FeatureStore:
         all_join_keys = {key for key in all_join_keys if key}
 
         if not all_join_keys:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No join keys found in source views. Cannot create entity_df. Skipping."
+            logger.warning(
+                "ODFV %s materialization: No join keys found in source views. Cannot create entity_df. Skipping.",
+                feature_view.name,
             )
             return
 
         if len(entity_timestamp_col_names) > 1:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: Found multiple timestamp columns in sources ({entity_timestamp_col_names}). This is not supported. Skipping."
+            logger.warning(
+                "ODFV %s materialization: Found multiple timestamp columns in sources (%s). This is not supported. Skipping.",
+                feature_view.name,
+                entity_timestamp_col_names,
             )
             return
 
         if not entity_timestamp_col_names:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No batch sources with timestamp columns found for sources. Skipping."
+            logger.warning(
+                "ODFV %s materialization: No batch sources with timestamp columns found for sources. Skipping.",
+                feature_view.name,
             )
             return
 
@@ -1405,8 +1413,9 @@ class FeatureStore:
                 all_source_dfs.append(df)
 
         if not all_source_dfs:
-            print(
-                f"No source data found for ODFV {feature_view.name} in the given time range. Skipping materialization."
+            logger.info(
+                "No source data found for ODFV %s in the given time range. Skipping materialization.",
+                feature_view.name,
             )
             return
 
@@ -1500,9 +1509,7 @@ class FeatureStore:
                     else:
                         odfv_start_date = end_date - timedelta(weeks=52)
 
-                    print(
-                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
-                    )
+                    logger.info("%s:", feature_view.name)
                     self._materialize_odfv(
                         feature_view,
                         odfv_start_date,
@@ -1523,16 +1530,17 @@ class FeatureStore:
                 else:
                     # TODO(felixwang9817): Find the earliest timestamp for this specific feature
                     # view from the offline store, and set the start date to that timestamp.
-                    print(
-                        f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
-                        "the start date will be set to 1 year before the current time."
+                    logger.info(
+                        "Since the ttl is 0 for feature view %s, the start date will be set to 1 year before the current time.",
+                        feature_view.name,
                     )
                     start_date = _utc_now() - timedelta(weeks=52)
             provider = self._get_provider()
-            print(
-                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
-                f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
-                f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
+            logger.info(
+                "%s from %s to %s:",
+                feature_view.name,
+                utils.make_tzaware(start_date.replace(microsecond=0)),
+                utils.make_tzaware(end_date.replace(microsecond=0)),
             )
 
             def tqdm_builder(length):
@@ -1613,9 +1621,7 @@ class FeatureStore:
         for feature_view in feature_views_to_materialize:
             if isinstance(feature_view, OnDemandFeatureView):
                 if feature_view.write_to_online_store:
-                    print(
-                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
-                    )
+                    logger.info("%s:", feature_view.name)
                     self._materialize_odfv(
                         feature_view,
                         start_date,
@@ -1624,7 +1630,7 @@ class FeatureStore:
                     )
                 continue
             provider = self._get_provider()
-            print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
+            logger.info("%s:", feature_view.name)
 
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
@@ -2776,7 +2782,7 @@ class FeatureStore:
 
             return exc
         else:
-            print(f"{t.shape[0]} rows were validated.")
+            logger.info("%s rows were validated.", t.shape[0])
 
         if cache_profile:
             self.apply(reference)
@@ -2907,17 +2913,19 @@ def _print_materialization_log(
     start_date, end_date, num_feature_views: int, online_store: str
 ):
     if start_date:
-        print(
-            f"Materializing {Style.BRIGHT + Fore.GREEN}{num_feature_views}{Style.RESET_ALL} feature views"
-            f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
-            f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}"
-            f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
+        logger.info(
+            "Materializing %s feature views from %s to %s into the %s online store.",
+            num_feature_views,
+            utils.make_tzaware(start_date.replace(microsecond=0)),
+            utils.make_tzaware(end_date.replace(microsecond=0)),
+            online_store,
         )
     else:
-        print(
-            f"Materializing {Style.BRIGHT + Fore.GREEN}{num_feature_views}{Style.RESET_ALL} feature views"
-            f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}"
-            f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
+        logger.info(
+            "Materializing %s feature views to %s into the %s online store.",
+            num_feature_views,
+            utils.make_tzaware(end_date.replace(microsecond=0)),
+            online_store,
         )
 
 
