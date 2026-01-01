@@ -229,7 +229,7 @@ def _enable_offline_batching_config(
     fs, enabled: bool = True, batch_size: int = 1, batch_interval_seconds: int = 60
 ):
     """
-        Attach a minimal feature_server.offline_push_batching config
+    Attach a minimal feature_server.offline_push_batching config
     to a mocked FeatureStore.
     """
     if not hasattr(fs, "config") or fs.config is None:
@@ -301,7 +301,9 @@ def test_push_batched_matrix(
 
     # use a multi-row payload to ensure we test non-trivial dfs
     resp = client.post("/push", json=push_body_many(push_mode, count=2, id_start=100))
-    assert resp.status_code == 200
+    needs_offline = push_mode in (PushMode.OFFLINE, PushMode.ONLINE_AND_OFFLINE)
+    expected_status = 202 if batching_enabled and needs_offline else 200
+    assert resp.status_code == expected_status
 
     # Collect calls
     sync_calls = fs.push.call_args_list
@@ -391,19 +393,19 @@ def test_offline_batches_are_separated_by_flags(mock_fs_factory):
 
     # 1) Default flags: allow_registry_cache=True, transform_on_write=True
     resp1 = client.post("/push", json=body_base)
-    assert resp1.status_code == 200
+    assert resp1.status_code == 202
 
     # 2) Different allow_registry_cache
     body_allow_false = dict(body_base)
     body_allow_false["allow_registry_cache"] = False
     resp2 = client.post("/push", json=body_allow_false)
-    assert resp2.status_code == 200
+    assert resp2.status_code == 202
 
     # 3) Different transform_on_write
     body_transform_false = dict(body_base)
     body_transform_false["transform_on_write"] = False
     resp3 = client.post("/push", json=body_transform_false)
-    assert resp3.status_code == 200
+    assert resp3.status_code == 202
 
     # Immediately after: no flush expected yet (interval-based)
     assert fs.push.call_count == 0
@@ -447,7 +449,7 @@ def test_offline_batcher_interval_flush(mock_fs_factory):
     resp = client.post(
         "/push", json=push_body_many(PushMode.OFFLINE, count=2, id_start=500)
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 202
 
     # Immediately after: no sync push yet (buffer only)
     assert fs.push.call_count == 0

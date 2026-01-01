@@ -23,7 +23,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from importlib import resources as importlib_resources
 from types import SimpleNamespace
-from typing import Any, DefaultDict, Dict, List, NamedTuple, Optional, Union
+from typing import Any, DefaultDict, Dict, List, NamedTuple, Optional, Set, Union
 
 import pandas as pd
 import psutil
@@ -395,7 +395,7 @@ def get_app(
         return response_dict
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
-    async def push(request: PushFeaturesRequest) -> None:
+    async def push(request: PushFeaturesRequest) -> Response:
         df = pd.DataFrame(request.df)
         actions = []
         if request.to == "offline":
@@ -470,6 +470,8 @@ def get_app(
         needs_online = to in (PushMode.ONLINE, PushMode.ONLINE_AND_OFFLINE)
         needs_offline = to in (PushMode.OFFLINE, PushMode.ONLINE_AND_OFFLINE)
 
+        status_code = status.HTTP_200_OK
+
         if offline_batcher is None or not needs_offline:
             await _push_with_to(to)
         else:
@@ -482,6 +484,9 @@ def get_app(
                 allow_registry_cache=request.allow_registry_cache,
                 transform_on_write=request.transform_on_write,
             )
+            status_code = status.HTTP_202_ACCEPTED
+
+        return Response(status_code=status_code)
 
     async def _get_feast_object(
         feature_view_name: str, allow_registry_cache: bool
@@ -851,6 +856,7 @@ class OfflineWriteBatcher:
             list
         )
         self._last_flush: DefaultDict[_OfflineBatchKey, float] = defaultdict(time.time)
+        self._inflight: Set[_OfflineBatchKey] = set()
 
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
@@ -889,15 +895,16 @@ class OfflineWriteBatcher:
         with self._lock:
             self._buffers[key].append(df)
             total_rows = sum(len(d) for d in self._buffers[key])
+            should_flush = total_rows >= self._cfg.batch_size
 
+        if should_flush:
             # Size-based flush
-            if total_rows >= self._cfg.batch_size:
-                logger.debug(
-                    "OfflineWriteBatcher size threshold reached for %s: %s rows",
-                    key,
-                    total_rows,
-                )
-                self._flush_locked(key)
+            logger.debug(
+                "OfflineWriteBatcher size threshold reached for %s: %s rows",
+                key,
+                total_rows,
+            )
+            self._flush(key)
 
     def flush_all(self) -> None:
         """
@@ -905,8 +912,8 @@ class OfflineWriteBatcher:
         """
         with self._lock:
             keys = list(self._buffers.keys())
-            for key in keys:
-                self._flush_locked(key)
+        for key in keys:
+            self._flush(key)
 
     def shutdown(self, timeout: float = 5.0) -> None:
         """
@@ -942,6 +949,7 @@ class OfflineWriteBatcher:
             now = time.time()
             try:
                 with self._lock:
+                    keys_to_flush: List[_OfflineBatchKey] = []
                     for key, dfs in list(self._buffers.items()):
                         if not dfs:
                             continue
@@ -955,38 +963,75 @@ class OfflineWriteBatcher:
                                 key,
                                 age,
                             )
-                            self._flush_locked(key)
+                            keys_to_flush.append(key)
+                for key in keys_to_flush:
+                    self._flush(key)
             except Exception:
                 logger.exception("Error in OfflineWriteBatcher background loop")
 
         logger.debug("OfflineWriteBatcher background loop exiting")
 
-    def _flush_locked(self, key: _OfflineBatchKey) -> None:
+    def _drain_locked(self, key: _OfflineBatchKey) -> Optional[List[pd.DataFrame]]:
         """
-        Flush a single buffer; caller must hold self._lock.
+        Drain a single buffer; caller must hold self._lock.
         """
+        if key in self._inflight:
+            return None
+
         dfs = self._buffers.get(key)
         if not dfs:
-            return
+            return None
 
-        batch_df = pd.concat(dfs, ignore_index=True)
-        self._buffers[key].clear()
-        self._last_flush[key] = time.time()
+        self._buffers[key] = []
+        self._inflight.add(key)
+        return dfs
 
-        logger.debug(
-            "Flushing offline batch for push_source=%s with %s rows",
-            key.push_source_name,
-            len(batch_df),
-        )
+    def _flush(self, key: _OfflineBatchKey) -> None:
+        """
+        Flush a single buffer. Extracts data under lock, then does I/O without lock.
+        """
+        while True:
+            with self._lock:
+                dfs = self._drain_locked(key)
 
-        # NOTE: offline writes are currently synchronous only, so we call directly
-        try:
-            self._store.push(
-                push_source_name=key.push_source_name,
-                df=batch_df,
-                allow_registry_cache=key.allow_registry_cache,
-                to=PushMode.OFFLINE,
-                transform_on_write=key.transform_on_write,
+            if not dfs:
+                return
+
+            batch_df = pd.concat(dfs, ignore_index=True)
+
+            # NOTE: offline writes are currently synchronous only, so we call directly
+            try:
+                self._store.push(
+                    push_source_name=key.push_source_name,
+                    df=batch_df,
+                    allow_registry_cache=key.allow_registry_cache,
+                    to=PushMode.OFFLINE,
+                    transform_on_write=key.transform_on_write,
+                )
+            except Exception:
+                logger.exception("Error flushing offline batch for %s", key)
+                with self._lock:
+                    self._buffers[key] = dfs + self._buffers[key]
+                    self._inflight.discard(key)
+                return
+
+            logger.debug(
+                "Flushing offline batch for push_source=%s with %s rows",
+                key.push_source_name,
+                len(batch_df),
             )
-        except Exception:
-            logger.exception("Error flushing offline batch for %s", key)
+
+            with self._lock:
+                self._last_flush[key] = time.time()
+                self._inflight.discard(key)
+                pending_rows = sum(len(d) for d in self._buffers.get(key, []))
+                should_flush = pending_rows >= self._cfg.batch_size
+
+            if not should_flush:
+                return
+
+            logger.debug(
+                "OfflineWriteBatcher size threshold reached for %s: %s rows",
+                key,
+                pending_rows,
+            )
