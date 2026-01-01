@@ -90,7 +90,6 @@ class SparkReadNode(DAGNode):
             else:
                 spark_df = self.spark_session.createDataFrame(arrow_table.to_pandas())
 
-
         return DAGValue(
             data=spark_df,
             format=DAGFormat.SPARK,
@@ -102,6 +101,7 @@ class SparkReadNode(DAGNode):
                 "end_date": self.end_time,
             },
         )
+
 
 class SparkAggregationNode(DAGNode):
     def __init__(
