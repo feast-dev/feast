@@ -1,7 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
-
 from feast.feature_store import FeatureStore
 from feast.infra.offline_stores.offline_store import RetrievalJob
 

@@ -22,11 +22,11 @@ from feast.data_source import DataSource
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.supported_async_methods import (
     ProviderAsyncMethods,
     SupportedAsyncMethods,
 )
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue
