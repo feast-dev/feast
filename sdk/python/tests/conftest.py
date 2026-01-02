@@ -36,28 +36,67 @@ from tests.data.data_creator import (
     create_document_dataset,
     create_image_dataset,
 )
-from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
-    IntegrationTestRepoConfig,
-)
-from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
-    AVAILABLE_OFFLINE_STORES,
-    AVAILABLE_ONLINE_STORES,
-    OFFLINE_STORE_TO_PROVIDER_CONFIG,
-    Environment,
-    TestData,
-    construct_test_environment,
-    construct_universal_feature_views,
-    construct_universal_test_data,
-)
-from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
-    FileDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.entities import (  # noqa: E402
-    customer,
-    driver,
-    location,
-)
-from tests.utils.auth_permissions_util import default_store
+try:
+    from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
+        IntegrationTestRepoConfig,
+    )
+    from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
+        AVAILABLE_OFFLINE_STORES,
+        AVAILABLE_ONLINE_STORES,
+        OFFLINE_STORE_TO_PROVIDER_CONFIG,
+        Environment,
+        TestData,
+        construct_test_environment,
+        construct_universal_feature_views,
+        construct_universal_test_data,
+    )
+    from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
+        FileDataSourceCreator,
+    )
+    from tests.integration.feature_repos.universal.entities import (  # noqa: E402
+        customer,
+        driver,
+        location,
+    )
+
+    _integration_test_deps_available = True
+except ModuleNotFoundError:
+    _integration_test_deps_available = False
+
+    IntegrationTestRepoConfig = None  # type: ignore[assignment]
+    AVAILABLE_OFFLINE_STORES = []  # type: ignore[assignment]
+    AVAILABLE_ONLINE_STORES = {}  # type: ignore[assignment]
+    OFFLINE_STORE_TO_PROVIDER_CONFIG = {}  # type: ignore[assignment]
+    Environment = Any  # type: ignore[assignment]
+    TestData = Any  # type: ignore[assignment]
+
+    def construct_test_environment(*args, **kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Integration test dependencies are not available")
+
+    def construct_universal_feature_views(*args, **kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Integration test dependencies are not available")
+
+    def construct_universal_test_data(*args, **kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Integration test dependencies are not available")
+
+    class FileDataSourceCreator:  # type: ignore[no-redef]
+        pass
+
+    def customer(*args, **kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Integration test dependencies are not available")
+
+    def driver(*args, **kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Integration test dependencies are not available")
+
+    def location(*args, **kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Integration test dependencies are not available")
+
+try:
+    from tests.utils.auth_permissions_util import default_store
+except ModuleNotFoundError:
+
+    def default_store(*args, **kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Auth test dependencies are not available")
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 from tests.utils.ssl_certifcates_util import (
     combine_trust_stores,
@@ -66,6 +105,8 @@ from tests.utils.ssl_certifcates_util import (
 )
 
 logger = logging.getLogger(__name__)
+
+os.environ.setdefault("IS_TEST", "True")
 
 level = logging.INFO
 logging.basicConfig(
@@ -85,7 +126,7 @@ for logger_name in logging.root.manager.loggerDict:  # type: ignore
 
 
 def pytest_configure(config):
-    if platform in ["darwin", "windows"]:
+    if platform == "darwin" or platform.startswith("win"):
         multiprocessing.set_start_method("spawn", force=True)
     else:
         multiprocessing.set_start_method("fork")
@@ -239,92 +280,92 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
     See more examples at https://docs.pytest.org/en/6.2.x/example/parametrize.html#paramexamples
 
-    We also utilize indirect parametrization here. Since `environment` is a fixture,
-    when we call metafunc.parametrize("environment", ..., indirect=True) we actually
-    parametrizing this "environment" fixture and not the test itself.
-    Moreover, by utilizing `_config_cache` we are able to share `environment` fixture between different tests.
-    In order for pytest to group tests together (and share environment fixture)
-    parameter should point to the same Python object (hence, we use _config_cache dict to store those objects).
     """
-    if "environment" in metafunc.fixturenames:
-        markers = {m.name: m for m in metafunc.definition.own_markers}
-        offline_stores = None
-        if "universal_offline_stores" in markers:
-            # Offline stores can be explicitly requested
-            if "only" in markers["universal_offline_stores"].kwargs:
-                offline_stores = [
-                    OFFLINE_STORE_TO_PROVIDER_CONFIG.get(store_name)
-                    for store_name in markers["universal_offline_stores"].kwargs["only"]
-                    if store_name in OFFLINE_STORE_TO_PROVIDER_CONFIG
-                ]
-            else:
-                offline_stores = AVAILABLE_OFFLINE_STORES
-        else:
-            # default offline store for testing online store dimension
-            offline_stores = [("local", FileDataSourceCreator)]
+    if "environment" not in metafunc.fixturenames:
+        return
 
-        online_stores = None
-        if "universal_online_stores" in markers:
-            # Online stores can be explicitly requested
-            if "only" in markers["universal_online_stores"].kwargs:
-                online_stores = [
-                    AVAILABLE_ONLINE_STORES.get(store_name)
-                    for store_name in markers["universal_online_stores"].kwargs["only"]
-                    if store_name in AVAILABLE_ONLINE_STORES
-                ]
-            else:
-                online_stores = AVAILABLE_ONLINE_STORES.values()
+    if not _integration_test_deps_available:
+        pytest.skip("Integration test dependencies are not available")
 
-        if online_stores is None:
-            # No online stores requested -> setting the default or first available
-            online_stores = [
-                AVAILABLE_ONLINE_STORES.get(
-                    "redis",
-                    AVAILABLE_ONLINE_STORES.get(
-                        "sqlite", next(iter(AVAILABLE_ONLINE_STORES.values()))
-                    ),
-                )
+    markers = {m.name: m for m in metafunc.definition.iter_markers()}
+
+    offline_stores = None
+    if "universal_offline_stores" in markers:
+        # Offline stores can be explicitly requested
+        if "only" in markers["universal_offline_stores"].kwargs:
+            offline_stores = [
+                OFFLINE_STORE_TO_PROVIDER_CONFIG.get(store_name)
+                for store_name in markers["universal_offline_stores"].kwargs["only"]
+                if store_name in OFFLINE_STORE_TO_PROVIDER_CONFIG
             ]
-
-        extra_dimensions: List[Dict[str, Any]] = [{}]
-
-        if "python_server" in metafunc.fixturenames:
-            extra_dimensions.extend([{"python_feature_server": True}])
-
-        configs = []
-        if offline_stores:
-            for provider, offline_store_creator in offline_stores:
-                for online_store, online_store_creator in online_stores:
-                    for dim in extra_dimensions:
-                        config = {
-                            "provider": provider,
-                            "offline_store_creator": offline_store_creator,
-                            "online_store": online_store,
-                            "online_store_creator": online_store_creator,
-                            **dim,
-                        }
-
-                        c = IntegrationTestRepoConfig(**config)
-
-                        if c not in _config_cache:
-                            marks = [
-                                pytest.mark.xdist_group(name=m)
-                                for m in c.offline_store_creator.xdist_groups()
-                            ]
-                            # Check if there are any test markers associated with the creator and add them.
-                            if c.offline_store_creator.test_markers():
-                                marks.extend(c.offline_store_creator.test_markers())
-
-                            _config_cache[c] = pytest.param(c, marks=marks)
-
-                        configs.append(_config_cache[c])
         else:
-            # No offline stores requested -> setting the default or first available
-            offline_stores = [("local", FileDataSourceCreator)]
+            offline_stores = AVAILABLE_OFFLINE_STORES
+    else:
+        # default offline store for testing online store dimension
+        offline_stores = [("local", FileDataSourceCreator)]
 
-        metafunc.parametrize(
-            "environment", configs, indirect=True, ids=[str(c) for c in configs]
-        )
+    online_stores = None
+    if "universal_online_stores" in markers:
+        # Online stores can be explicitly requested
+        if "only" in markers["universal_online_stores"].kwargs:
+            online_stores = [
+                AVAILABLE_ONLINE_STORES.get(store_name)
+                for store_name in markers["universal_online_stores"].kwargs["only"]
+                if store_name in AVAILABLE_ONLINE_STORES
+            ]
+        else:
+            online_stores = AVAILABLE_ONLINE_STORES.values()
+
+    if online_stores is None:
+        # No online stores requested -> setting the default or first available
+        online_stores = [
+            AVAILABLE_ONLINE_STORES.get(
+                "redis",
+                AVAILABLE_ONLINE_STORES.get(
+                    "sqlite", next(iter(AVAILABLE_ONLINE_STORES.values()))
+                ),
+            )
+        ]
+
+    extra_dimensions: List[Dict[str, Any]] = [{}]
+
+    if "python_server" in metafunc.fixturenames:
+        extra_dimensions.extend([{"python_feature_server": True}])
+
+    configs = []
+    if offline_stores:
+        for provider, offline_store_creator in offline_stores:
+            for online_store, online_store_creator in online_stores:
+                for dim in extra_dimensions:
+                    config = {
+                        "provider": provider,
+                        "offline_store_creator": offline_store_creator,
+                        "online_store": online_store,
+                        "online_store_creator": online_store_creator,
+                        **dim,
+                    }
+
+                    c = IntegrationTestRepoConfig(**config)
+
+                    if c not in _config_cache:
+                        marks = [
+                            pytest.mark.xdist_group(name=m)
+                            for m in c.offline_store_creator.xdist_groups()
+                        ]
+                        # Check if there are any test markers associated with the creator and add them.
+                        if c.offline_store_creator.test_markers():
+                            marks.extend(c.offline_store_creator.test_markers())
+
+                        _config_cache[c] = pytest.param(c, marks=marks)
+
+                    configs.append(_config_cache[c])
+    else:
+        # No offline stores requested -> setting the default or first available
+        offline_stores = [("local", FileDataSourceCreator)]
+
+    metafunc.parametrize(
+        "environment", configs, indirect=True, ids=[str(c) for c in configs]
+    )
 
 
 @pytest.fixture
