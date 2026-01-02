@@ -152,6 +152,104 @@ func checkIfConfigMapExists(namespace, configMapName string) error {
 	return nil
 }
 
+// ListConfigMaps lists all ConfigMaps in the given namespace
+func ListConfigMaps(namespace string) ([]string, error) {
+	cmd := exec.Command("kubectl", "get", "cm", "-n", namespace, "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("failed to list config maps in namespace %s. Error: %v. Stderr: %s",
+			namespace, err, stderr.String())
+	}
+
+	configMaps := strings.Split(strings.TrimSpace(out.String()), "\n")
+	// Filter out empty strings
+	var result []string
+	for _, cm := range configMaps {
+		if cm != "" {
+			result = append(result, cm)
+		}
+	}
+	return result, nil
+}
+
+// VerifyConfigMapExistsInList checks if a ConfigMap exists in the list of ConfigMaps
+func VerifyConfigMapExistsInList(namespace, configMapName string) (bool, error) {
+	configMaps, err := ListConfigMaps(namespace)
+	if err != nil {
+		return false, err
+	}
+
+	for _, cm := range configMaps {
+		if cm == configMapName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// VerifyFeastConfigMapExists verifies that a ConfigMap exists and contains the specified key/file
+func VerifyFeastConfigMapExists(namespace, configMapName, expectedKey string) error {
+	// First verify the ConfigMap exists
+	if err := checkIfConfigMapExists(namespace, configMapName); err != nil {
+		return fmt.Errorf("config map %s does not exist: %w", configMapName, err)
+	}
+
+	// Get the ConfigMap data to verify the key exists
+	cmd := exec.Command("kubectl", "get", "cm", configMapName, "-n", namespace, "-o", "jsonpath={.data."+expectedKey+"}")
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to get config map data for %s in namespace %s. Error: %v. Stderr: %s",
+			configMapName, namespace, err, stderr.String())
+	}
+
+	configContent := out.String()
+	if configContent == "" {
+		return fmt.Errorf("config map %s does not contain key %s", configMapName, expectedKey)
+	}
+
+	return nil
+}
+
+// VerifyFeastConfigMapContent verifies that a ConfigMap contains the expected feast configuration content
+// This assumes the ConfigMap and key already exist (use VerifyFeastConfigMapExists first)
+func VerifyFeastConfigMapContent(namespace, configMapName, expectedKey string, expectedContent []string) error {
+	// Get the ConfigMap data
+	cmd := exec.Command("kubectl", "get", "cm", configMapName, "-n", namespace, "-o", "jsonpath={.data."+expectedKey+"}")
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to get config map data for %s in namespace %s. Error: %v. Stderr: %s",
+			configMapName, namespace, err, stderr.String())
+	}
+
+	configContent := out.String()
+	if configContent == "" {
+		return fmt.Errorf("config map %s does not contain key %s", configMapName, expectedKey)
+	}
+
+	// Verify all expected content strings are present
+	for _, expected := range expectedContent {
+		if !strings.Contains(configContent, expected) {
+			return fmt.Errorf("config map %s content does not contain expected string: %s. Content:\n%s",
+				configMapName, expected, configContent)
+		}
+	}
+
+	return nil
+}
+
 // validates if a kubernetes service exists using the kubectl CLI.
 func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 	cmd := exec.Command("kubectl", "get", "service", serviceName, "-n", namespace)
