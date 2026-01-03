@@ -78,7 +78,9 @@ try:
     from tests.utils.auth_permissions_util import default_store
 except ModuleNotFoundError:
     default_store = None  # type: ignore[assignment]
+
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
+
 try:
     from tests.utils.ssl_certifcates_util import (
         combine_trust_stores,
@@ -276,6 +278,27 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     parameter should point to the same Python object (hence, we use _config_cache dict to store those objects).
     """
     if "environment" in metafunc.fixturenames:
+        if (
+            IntegrationTestRepoConfig is None
+            or AVAILABLE_OFFLINE_STORES is None
+            or AVAILABLE_ONLINE_STORES is None
+            or OFFLINE_STORE_TO_PROVIDER_CONFIG is None
+            or FileDataSourceCreator is None
+        ):
+            metafunc.parametrize(
+                "environment",
+                [
+                    pytest.param(
+                        None,
+                        marks=pytest.mark.skip(
+                            reason="Optional integration test dependencies are not installed"
+                        ),
+                    )
+                ],
+                indirect=True,
+                ids=["missing_optional_integration_deps"],
+            )
+            return
         markers = {m.name: m for m in metafunc.definition.own_markers}
         offline_stores = None
         if "universal_offline_stores" in markers:
