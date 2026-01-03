@@ -36,6 +36,8 @@ from tests.data.data_creator import (
     create_document_dataset,
     create_image_dataset,
 )
+from tests.utils.http_server import check_port_open, free_port  # noqa: E402
+
 try:
     from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
         IntegrationTestRepoConfig,
@@ -72,11 +74,12 @@ except ModuleNotFoundError:
     customer = None  # type: ignore[assignment]
     driver = None  # type: ignore[assignment]
     location = None  # type: ignore[assignment]
+
 try:
     from tests.utils.auth_permissions_util import default_store
 except ModuleNotFoundError:
     default_store = None  # type: ignore[assignment]
-from tests.utils.http_server import check_port_open, free_port  # noqa: E402
+
 try:
     from tests.utils.ssl_certifcates_util import (
         combine_trust_stores,
@@ -262,10 +265,10 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
     See more examples at https://docs.pytest.org/en/6.2.x/example/parametrize.html#paramexamples
 
-    We also utilize indirect parametrization here. Since `environment` is a fixture,
+    We also utilize indirect parametrization here. Since [environment](cci:1://file:///c:/Users/brass/OneDrive/Desktop/Work/App/Lanre/feast/sdk/python/tests/conftest.py:229:0-245:16) is a fixture,
     when we call metafunc.parametrize("environment", ..., indirect=True) we actually
     parametrizing this "environment" fixture and not the test itself.
-    Moreover, by utilizing `_config_cache` we are able to share `environment` fixture between different tests.
+    Moreover, by utilizing `_config_cache` we are able to share [environment](cci:1://file:///c:/Users/brass/OneDrive/Desktop/Work/App/Lanre/feast/sdk/python/tests/conftest.py:229:0-245:16) fixture between different tests.
     In order for pytest to group tests together (and share environment fixture)
     parameter should point to the same Python object (hence, we use _config_cache dict to store those objects).
     """
