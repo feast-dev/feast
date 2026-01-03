@@ -18,7 +18,7 @@ import random
 import tempfile
 from datetime import timedelta
 from multiprocessing import Process
-from sys import platform
+import sys
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, no_type_check
 from unittest import mock
@@ -126,7 +126,7 @@ for logger_name in logging.root.manager.loggerDict:  # type: ignore
 
 
 def pytest_configure(config):
-    if platform == "darwin" or platform.startswith("win"):
+    if sys.platform == "darwin" or sys.platform.startswith("win"):
         multiprocessing.set_start_method("spawn", force=True)
     else:
         multiprocessing.set_start_method("fork")
@@ -287,7 +287,9 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     if not _integration_test_deps_available:
         pytest.skip("Integration test dependencies are not available")
 
-    markers = {m.name: m for m in metafunc.definition.iter_markers()}
+    own_markers = getattr(metafunc.definition, "own_markers", None)
+    marker_iter = own_markers if own_markers is not None else metafunc.definition.iter_markers()
+    markers = {m.name: m for m in marker_iter}
 
     offline_stores = None
     if "universal_offline_stores" in markers:
