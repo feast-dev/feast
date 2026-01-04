@@ -173,9 +173,10 @@ class PostgreSQLSource(DataSource):
             For table-based sources: the table name (no alias needed).
             For query-based sources: "(query) AS alias".
 
-        Example:
-            >>> source = PostgreSQLSource(query="SELECT * FROM my_table", ...)
-            >>> entity_sql = f"SELECT id, ts FROM {source.get_table_query_string_with_alias()}"
+        Example::
+
+            source = PostgreSQLSource(query="SELECT * FROM my_table", ...)
+            entity_sql = f"SELECT id, ts FROM {source.get_table_query_string_with_alias()}"
             # Results in: "SELECT id, ts FROM (SELECT * FROM my_table) AS subquery"
         """
         if self._postgres_options._table:
