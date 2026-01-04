@@ -1057,9 +1057,9 @@ class TestPostgreSQLSourceQueryStringAlias:
         # This produces: SELECT id, ts FROM (SELECT id, ts FROM raw_data)
         # which is invalid in PostgreSQL (subquery needs alias)
         # sqlglot is lenient and may parse it, but PostgreSQL would reject it
-        assert (
-            "AS" not in entity_sql_without_alias
-        ), "get_table_query_string() should not add alias"
+        assert "AS" not in entity_sql_without_alias, (
+            "get_table_query_string() should not add alias"
+        )
 
         # Using the new method (with alias) produces valid SQL
         entity_sql_with_alias = (
