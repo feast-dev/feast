@@ -10,7 +10,7 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^4.5.5",
+    "astro": "^5.15.9",
     "d3": "^7.9.0",
     "shiki": "^1.29.2"
   }
