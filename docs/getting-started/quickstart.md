@@ -55,8 +55,7 @@ ride-sharing driver satisfaction prediction model. Feast solves several common i
    to be versioned, for example when running A/B tests on model versions.
    * Feast enables discovery of and collaboration on previously used features and enables versioning of sets of 
      features (via _feature services_).
-   * _(Experimental)_ Feast enables light-weight feature transformations so users can re-use transformation logic 
-     across online / offline use cases and across models.
+   * Feast supports feature transformations through a unified `@transformation` decorator that enables users to re-use transformation logic across online/offline use cases and models with different execution timing modes.
 
 ## Step 1: Install Feast
 
