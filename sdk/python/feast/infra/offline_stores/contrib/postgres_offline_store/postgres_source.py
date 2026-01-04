@@ -145,10 +145,43 @@ class PostgreSQLSource(DataSource):
             )
 
     def get_table_query_string(self) -> str:
+        """Returns a string that can be used to reference this table in SQL.
+
+        For query-based sources, returns the query wrapped in parentheses.
+
+        Note:
+            When using the returned string directly in a FROM clause with PostgreSQL,
+            you may need to add an alias if this is a query-based source. PostgreSQL
+            requires all subqueries in FROM clauses to have aliases. Consider using
+            get_table_query_string_with_alias() for automatic aliasing.
+        """
         if self._postgres_options._table:
             return f"{self._postgres_options._table}"
         else:
             return f"({self._postgres_options._query})"
+
+    def get_table_query_string_with_alias(self, alias: str = "subquery") -> str:
+        """Returns a string for use in FROM clause with alias for PostgreSQL compatibility.
+
+        PostgreSQL requires all subqueries in FROM clauses to have aliases. This method
+        automatically adds an alias when the source is query-based.
+
+        Args:
+            alias: The alias to use for query-based sources. Defaults to "subquery".
+
+        Returns:
+            For table-based sources: the table name (no alias needed).
+            For query-based sources: "(query) AS alias".
+
+        Example:
+            >>> source = PostgreSQLSource(query="SELECT * FROM my_table", ...)
+            >>> entity_sql = f"SELECT id, ts FROM {source.get_table_query_string_with_alias()}"
+            # Results in: "SELECT id, ts FROM (SELECT * FROM my_table) AS subquery"
+        """
+        if self._postgres_options._table:
+            return f"{self._postgres_options._table}"
+        else:
+            return f"({self._postgres_options._query}) AS {alias}"
 
 
 class PostgreSQLOptions:
