@@ -27,15 +27,29 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 
+def _build_s3_storage_options(
+    endpoint_override: Optional[str] = None,
+    s3_url_style: Optional[str] = None,
+) -> dict:
+    """Build storage_options dict for S3 access, only including set values."""
+    storage_options = {}
+    if endpoint_override:
+        storage_options["AWS_ENDPOINT_URL"] = endpoint_override
+    if s3_url_style:
+        storage_options["AWS_S3_URL_STYLE"] = s3_url_style
+    return storage_options
+
+
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
     assert isinstance(data_source, FileSource)
 
     if isinstance(data_source.file_format, ParquetFormat):
         return ibis.read_parquet(data_source.path)
     elif isinstance(data_source.file_format, DeltaFormat):
-        storage_options = {
-            "AWS_ENDPOINT_URL": data_source.s3_endpoint_override,
-        }
+        storage_options = _build_s3_storage_options(
+            endpoint_override=data_source.s3_endpoint_override,
+            s3_url_style=data_source.s3_url_style,
+        )
 
         return ibis.read_delta(data_source.path, storage_options=storage_options)
 
@@ -86,9 +100,10 @@ def _write_data_source(
             new_table = pyarrow.concat_tables([table, prev_table])
             ibis.memtable(new_table).to_parquet(file_options.uri)
     elif isinstance(data_source.file_format, DeltaFormat):
-        storage_options = {
-            "AWS_ENDPOINT_URL": str(data_source.s3_endpoint_override),
-        }
+        storage_options = _build_s3_storage_options(
+            endpoint_override=data_source.s3_endpoint_override,
+            s3_url_style=data_source.s3_url_style,
+        )
 
         if mode == "append":
             from deltalake import DeltaTable
@@ -120,6 +135,10 @@ class DuckDBOfflineStoreConfig(FeastConfigBaseModel):
 
     staging_location_endpoint_override: Optional[str] = None
 
+    # S3 URL style for path-based access (required for MinIO, LocalStack, etc.)
+    # Valid values: "path" or "vhost" (virtual-hosted style, default)
+    staging_location_s3_url_style: Optional[str] = None
+
 
 class DuckDBOfflineStore(OfflineStore):
     @staticmethod
@@ -146,6 +165,7 @@ class DuckDBOfflineStore(OfflineStore):
             data_source_writer=_write_data_source,
             staging_location=config.offline_store.staging_location,
             staging_location_endpoint_override=config.offline_store.staging_location_endpoint_override,
+            staging_location_s3_url_style=config.offline_store.staging_location_s3_url_style,
         )
 
     @staticmethod
@@ -170,6 +190,7 @@ class DuckDBOfflineStore(OfflineStore):
             data_source_writer=_write_data_source,
             staging_location=config.offline_store.staging_location,
             staging_location_endpoint_override=config.offline_store.staging_location_endpoint_override,
+            staging_location_s3_url_style=config.offline_store.staging_location_s3_url_style,
         )
 
     @staticmethod
@@ -196,6 +217,7 @@ class DuckDBOfflineStore(OfflineStore):
             data_source_writer=_write_data_source,
             staging_location=config.offline_store.staging_location,
             staging_location_endpoint_override=config.offline_store.staging_location_endpoint_override,
+            staging_location_s3_url_style=config.offline_store.staging_location_s3_url_style,
         )
 
     @staticmethod
