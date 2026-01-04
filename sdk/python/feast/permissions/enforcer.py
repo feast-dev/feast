@@ -43,9 +43,9 @@ def enforce_policy(
         # If no permissions are defined, deny access to all resources
         # This is a security measure to prevent unauthorized access
         logger.warning("No permissions defined - denying access to all resources")
-        if not filter_only:
-            raise FeastPermissionError("No permissions defined - access denied")
-        return []
+        raise FeastPermissionError(
+            "Permissions are not defined - access denied for all resources"
+        )
 
     _permitted_resources: list[FeastObject] = []
     for resource in resources:
@@ -71,17 +71,42 @@ def enforce_policy(
 
                 if evaluator.is_decided():
                     grant, explanations = evaluator.grant()
-                    if not grant and not filter_only:
+                    if not grant:
+                        if filter_only and p.name_patterns:
+                            continue
                         logger.error(f"Permission denied: {','.join(explanations)}")
                         raise FeastPermissionError(",".join(explanations))
-                    if grant:
-                        logger.debug(
-                            f"Permission granted for {type(resource).__name__}:{resource.name}"
-                        )
-                        _permitted_resources.append(resource)
+                    logger.debug(
+                        f"Permission granted for {type(resource).__name__}:{resource.name}"
+                    )
+                    _permitted_resources.append(resource)
                     break
         else:
-            message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
-            logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
-            raise FeastPermissionError(message)
+            if not filter_only:
+                message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
+                logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
+                raise FeastPermissionError(message)
+            else:
+                # filter_only=True: Check if there are permissions for this resource type
+                resource_type_permissions = [
+                    p
+                    for p in permissions
+                    if any(isinstance(resource, t) for t in p.types)  # type: ignore
+                ]
+                if not resource_type_permissions:
+                    # No permissions exist for this resource type - should raise error
+                    message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
+                    logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
+                    raise FeastPermissionError(message)
+                elif not any(p.name_patterns for p in resource_type_permissions):
+                    # Permissions exist for this resource type but no name_patterns - should raise error
+                    message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
+                    logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
+                    raise FeastPermissionError(message)
+                else:
+                    # Permissions exist for this resource type with name_patterns - filter out this resource
+                    logger.debug(
+                        f"Filtering out {type(resource).__name__}:{resource.name} - no matching permissions"
+                    )
+                    continue
     return _permitted_resources

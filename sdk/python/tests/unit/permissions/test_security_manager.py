@@ -15,7 +15,7 @@ from feast.permissions.user import User
 @pytest.mark.parametrize(
     "username, requested_actions, allowed, allowed_single, raise_error_in_assert, raise_error_in_permit, intra_communication_flag",
     [
-        (None, [], False, [False, False], [True, True], False, False),
+        (None, [], False, [False, False], [True, True], True, False),
         (None, [], True, [True, True], [False, False], False, True),
         (
             "r",
@@ -42,7 +42,7 @@ from feast.permissions.user import User
             False,
             [False, False],
             [True, True],
-            False,
+            True,
             False,
         ),
         ("r", [AuthzedAction.UPDATE], True, [True, True], [False, False], False, True),
@@ -52,7 +52,7 @@ from feast.permissions.user import User
             False,
             [False, False],
             [True, True],
-            False,
+            True,
             False,
         ),
         (
@@ -116,7 +116,7 @@ from feast.permissions.user import User
             False,
             [False, False],
             [True, True],
-            True,
+            False,
             False,
         ),
         (
@@ -134,7 +134,7 @@ from feast.permissions.user import User
             False,
             [False, True],
             [True, False],
-            True,
+            False,
             False,
         ),
         (
@@ -152,7 +152,7 @@ from feast.permissions.user import User
             False,
             [False, False],
             [True, True],
-            True,
+            False,
             False,
         ),
         (
