@@ -82,6 +82,7 @@ def pull_latest_from_table_or_query_ibis(
     return IbisRetrievalJob(
         table=table,
         on_demand_feature_views=[],
+        unified_feature_views=[],
         full_feature_names=False,
         metadata=None,
         data_source_writer=data_source_writer,
@@ -303,6 +304,7 @@ def pull_all_from_table_or_query_ibis(
     return IbisRetrievalJob(
         table=table,
         on_demand_feature_views=[],
+        unified_feature_views=[],
         full_feature_names=False,
         metadata=None,
         data_source_writer=data_source_writer,
