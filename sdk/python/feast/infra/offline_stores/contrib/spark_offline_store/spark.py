@@ -3,18 +3,20 @@ import tempfile
 import uuid
 import warnings
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
+    KeysView,
     List,
     Optional,
     Tuple,
     Union,
     cast,
 )
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from feast.saved_dataset import ValidationReference
@@ -23,6 +25,7 @@ import numpy as np
 import pandas
 import pandas as pd
 import pyarrow
+import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import pyspark
 from pydantic import StrictStr
@@ -151,10 +154,11 @@ class SparkOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pandas.DataFrame, str, pyspark.sql.DataFrame],
+        entity_df: Optional[Union[pandas.DataFrame, str, pyspark.sql.DataFrame]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         date_partition_column_formats = []
@@ -175,33 +179,75 @@ class SparkOfflineStore(OfflineStore):
         )
         tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
 
-        entity_schema = _get_entity_schema(
-            spark_session=spark_session,
-            entity_df=entity_df,
-        )
-        event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-            entity_schema=entity_schema,
-        )
-        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            event_timestamp_col,
-            spark_session,
-        )
-        _upload_entity_df(
-            spark_session=spark_session,
-            table_name=tmp_entity_df_table_name,
-            entity_df=entity_df,
-            event_timestamp_col=event_timestamp_col,
-        )
+        # Non-entity mode: synthesize a left table and timestamp range from start/end dates to avoid requiring entity_df.
+        # This makes date-range retrievals possible without enumerating entities upfront; sources remain bounded by time.
+        non_entity_mode = entity_df is None
+        if non_entity_mode:
+            # Why: derive bounded time window without requiring entities; uses max TTL fallback to constrain scans.
+            start_date, end_date = _compute_non_entity_dates(feature_views, kwargs)
+            entity_df_event_timestamp_range = (start_date, end_date)
 
-        expected_join_keys = offline_utils.get_expected_join_keys(
-            project=project, feature_views=feature_views, registry=registry
-        )
-        offline_utils.assert_expected_columns_in_entity_df(
-            entity_schema=entity_schema,
-            join_keys=expected_join_keys,
-            entity_df_event_timestamp_col=event_timestamp_col,
-        )
+            # Build query contexts so we can reuse entity names and per-view table info consistently.
+            fv_query_contexts = offline_utils.get_feature_view_query_context(
+                feature_refs,
+                feature_views,
+                registry,
+                project,
+                entity_df_event_timestamp_range,
+            )
+
+            # Collect the union of entity columns required across all feature views.
+            all_entities = _gather_all_entities(fv_query_contexts)
+
+            # Build a UNION DISTINCT of per-feature-view entity projections, time-bounded and partition-pruned.
+            _create_temp_entity_union_view(
+                spark_session=spark_session,
+                tmp_view_name=tmp_entity_df_table_name,
+                feature_views=feature_views,
+                fv_query_contexts=fv_query_contexts,
+                start_date=start_date,
+                end_date=end_date,
+                date_partition_column_formats=date_partition_column_formats,
+            )
+
+            # Add a stable as-of timestamp column for PIT joins.
+            left_table_query_string, event_timestamp_col = _make_left_table_query(
+                end_date=end_date, tmp_view_name=tmp_entity_df_table_name
+            )
+            entity_schema_keys = _entity_schema_keys_from(
+                all_entities=all_entities, event_timestamp_col=event_timestamp_col
+            )
+        else:
+            entity_schema = _get_entity_schema(
+                spark_session=spark_session,
+                entity_df=entity_df,
+            )
+            event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+                entity_schema=entity_schema,
+            )
+            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+                entity_df,
+                event_timestamp_col,
+                spark_session,
+            )
+            _upload_entity_df(
+                spark_session=spark_session,
+                table_name=tmp_entity_df_table_name,
+                entity_df=entity_df,
+                event_timestamp_col=event_timestamp_col,
+            )
+            left_table_query_string = tmp_entity_df_table_name
+            entity_schema_keys = cast(KeysView[str], entity_schema.keys())
+
+        if not non_entity_mode:
+            expected_join_keys = offline_utils.get_expected_join_keys(
+                project=project, feature_views=feature_views, registry=registry
+            )
+            offline_utils.assert_expected_columns_in_entity_df(
+                entity_schema=entity_schema,
+                join_keys=expected_join_keys,
+                entity_df_event_timestamp_col=event_timestamp_col,
+            )
 
         query_context = offline_utils.get_feature_view_query_context(
             feature_refs,
@@ -232,9 +278,9 @@ class SparkOfflineStore(OfflineStore):
             feature_view_query_contexts=cast(
                 List[offline_utils.FeatureViewQueryContext], spark_query_context
             ),
-            left_table_query_string=tmp_entity_df_table_name,
+            left_table_query_string=left_table_query_string,
             entity_df_event_timestamp_col=event_timestamp_col,
-            entity_df_columns=entity_schema.keys(),
+            entity_df_columns=entity_schema_keys,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
         )
@@ -248,7 +294,7 @@ class SparkOfflineStore(OfflineStore):
             ),
             metadata=RetrievalMetadata(
                 features=feature_refs,
-                keys=list(set(entity_schema.keys()) - {event_timestamp_col}),
+                keys=list(set(entity_schema_keys) - {event_timestamp_col}),
                 min_event_timestamp=entity_df_event_timestamp_range[0],
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
@@ -401,7 +447,42 @@ class SparkRetrievalJob(RetrievalJob):
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
+        if self._should_use_staging_for_arrow():
+            return self._to_arrow_via_staging()
+
         return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
+
+    def _should_use_staging_for_arrow(self) -> bool:
+        offline_store = getattr(self._config, "offline_store", None)
+        return bool(
+            isinstance(offline_store, SparkOfflineStoreConfig)
+            and getattr(offline_store, "staging_location", None)
+        )
+
+    def _to_arrow_via_staging(self) -> pyarrow.Table:
+        paths = self.to_remote_storage()
+        if not paths:
+            return pyarrow.table({})
+
+        parquet_paths = _filter_parquet_files(paths)
+        if not parquet_paths:
+            return pyarrow.table({})
+
+        normalized_paths = self._normalize_staging_paths(parquet_paths)
+        dataset = ds.dataset(normalized_paths, format="parquet")
+        return dataset.to_table()
+
+    def _normalize_staging_paths(self, paths: List[str]) -> List[str]:
+        """Normalize staging paths for PyArrow datasets."""
+        normalized = []
+        for path in paths:
+            if path.startswith("file://"):
+                normalized.append(path[len("file://") :])
+            elif "://" in path:
+                normalized.append(path)
+            else:
+                normalized.append(path)
+        return normalized
 
     def to_feast_df(
         self,
@@ -464,55 +545,53 @@ class SparkRetrievalJob(RetrievalJob):
 
     def to_remote_storage(self) -> List[str]:
         """Currently only works for local and s3-based staging locations"""
-        if self.supports_remote_storage_export():
-            sdf: pyspark.sql.DataFrame = self.to_spark_df()
-
-            if self._config.offline_store.staging_location.startswith("/"):
-                local_file_staging_location = os.path.abspath(
-                    self._config.offline_store.staging_location
-                )
-
-                # write to staging location
-                output_uri = os.path.join(
-                    str(local_file_staging_location), str(uuid.uuid4())
-                )
-                sdf.write.parquet(output_uri)
-
-                return _list_files_in_folder(output_uri)
-            elif self._config.offline_store.staging_location.startswith("s3://"):
-                from feast.infra.utils import aws_utils
-
-                spark_compatible_s3_staging_location = (
-                    self._config.offline_store.staging_location.replace(
-                        "s3://", "s3a://"
-                    )
-                )
-
-                # write to staging location
-                output_uri = os.path.join(
-                    str(spark_compatible_s3_staging_location), str(uuid.uuid4())
-                )
-                sdf.write.parquet(output_uri)
-
-                return aws_utils.list_s3_files(
-                    self._config.offline_store.region, output_uri
-                )
-            elif self._config.offline_store.staging_location.startswith("hdfs://"):
-                output_uri = os.path.join(
-                    self._config.offline_store.staging_location, str(uuid.uuid4())
-                )
-                sdf.write.parquet(output_uri)
-                spark_session = get_spark_session_or_start_new_with_repoconfig(
-                    store_config=self._config.offline_store
-                )
-                return _list_hdfs_files(spark_session, output_uri)
-            else:
-                raise NotImplementedError(
-                    "to_remote_storage is only implemented for file://, s3:// and hdfs:// uri schemes"
-                )
-
-        else:
+        if not self.supports_remote_storage_export():
             raise NotImplementedError()
+
+        sdf: pyspark.sql.DataFrame = self.to_spark_df()
+        staging_location = self._config.offline_store.staging_location
+
+        if staging_location.startswith("/"):
+            local_file_staging_location = os.path.abspath(staging_location)
+            output_uri = os.path.join(local_file_staging_location, str(uuid.uuid4()))
+            sdf.write.parquet(output_uri)
+            return _list_files_in_folder(output_uri)
+        elif staging_location.startswith("s3://"):
+            from feast.infra.utils import aws_utils
+
+            spark_compatible_s3_staging_location = staging_location.replace(
+                "s3://", "s3a://"
+            )
+            output_uri = os.path.join(
+                spark_compatible_s3_staging_location, str(uuid.uuid4())
+            )
+            sdf.write.parquet(output_uri)
+            s3_uri_for_listing = output_uri.replace("s3a://", "s3://", 1)
+            return aws_utils.list_s3_files(
+                self._config.offline_store.region, s3_uri_for_listing
+            )
+        elif staging_location.startswith("gs://"):
+            output_uri = os.path.join(staging_location, str(uuid.uuid4()))
+            sdf.write.parquet(output_uri)
+            return _list_gcs_files(output_uri)
+        elif staging_location.startswith(("wasbs://", "abfs://", "abfss://")) or (
+            staging_location.startswith("https://")
+            and ".blob.core.windows.net" in staging_location
+        ):
+            output_uri = os.path.join(staging_location, str(uuid.uuid4()))
+            sdf.write.parquet(output_uri)
+            return _list_azure_files(output_uri)
+        elif staging_location.startswith("hdfs://"):
+            output_uri = os.path.join(staging_location, str(uuid.uuid4()))
+            sdf.write.parquet(output_uri)
+            spark_session = get_spark_session_or_start_new_with_repoconfig(
+                store_config=self._config.offline_store
+            )
+            return _list_hdfs_files(spark_session, output_uri)
+        else:
+            raise NotImplementedError(
+                "to_remote_storage is only implemented for file://, s3://, gs://, azure, and hdfs uri schemes"
+            )
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
@@ -538,6 +617,114 @@ def get_spark_session_or_start_new_with_repoconfig(
         spark_session = spark_builder.getOrCreate()
     spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
     return spark_session
+
+
+def _compute_non_entity_dates(
+    feature_views: List[FeatureView], kwargs: Dict[str, Any]
+) -> Tuple[datetime, datetime]:
+    # Why: bounds the scan window when no entity_df is provided using explicit dates or max TTL fallback.
+    start_date_opt = cast(Optional[datetime], kwargs.get("start_date"))
+    end_date_opt = cast(Optional[datetime], kwargs.get("end_date"))
+    end_date: datetime = end_date_opt or datetime.now(timezone.utc)
+
+    if start_date_opt is None:
+        max_ttl_seconds = 0
+        for fv in feature_views:
+            if fv.ttl and isinstance(fv.ttl, timedelta):
+                max_ttl_seconds = max(max_ttl_seconds, int(fv.ttl.total_seconds()))
+        start_date: datetime = (
+            end_date - timedelta(seconds=max_ttl_seconds)
+            if max_ttl_seconds > 0
+            else end_date - timedelta(days=30)
+        )
+    else:
+        start_date = start_date_opt
+    return (start_date, end_date)
+
+
+def _gather_all_entities(
+    fv_query_contexts: List[offline_utils.FeatureViewQueryContext],
+) -> List[str]:
+    # Why: ensure a unified entity set across feature views to align UNION schemas.
+    all_entities: List[str] = []
+    for ctx in fv_query_contexts:
+        for e in ctx.entities:
+            if e not in all_entities:
+                all_entities.append(e)
+    return all_entities
+
+
+def _create_temp_entity_union_view(
+    spark_session: SparkSession,
+    tmp_view_name: str,
+    feature_views: List[FeatureView],
+    fv_query_contexts: List[offline_utils.FeatureViewQueryContext],
+    start_date: datetime,
+    end_date: datetime,
+    date_partition_column_formats: List[Optional[str]],
+) -> None:
+    # Why: derive distinct entity keys observed in the time window without requiring an entity_df upfront.
+    start_date_str = _format_datetime(start_date)
+    end_date_str = _format_datetime(end_date)
+
+    # Compute the unified entity set to align schemas in the UNION.
+    all_entities = _gather_all_entities(fv_query_contexts)
+
+    per_view_selects: List[str] = []
+    for fv, ctx, date_format in zip(
+        feature_views, fv_query_contexts, date_partition_column_formats
+    ):
+        assert isinstance(fv.batch_source, SparkSource)
+        from_expression = fv.batch_source.get_table_query_string()
+        timestamp_field = fv.batch_source.timestamp_field or "event_timestamp"
+        date_partition_column = fv.batch_source.date_partition_column
+        partition_clause = ""
+        if date_partition_column and date_format:
+            partition_clause = (
+                f" AND {date_partition_column} >= '{start_date.strftime(date_format)}'"
+                f" AND {date_partition_column} <= '{end_date.strftime(date_format)}'"
+            )
+
+        # Fill missing entity columns with NULL and cast to STRING to keep UNION schemas aligned.
+        select_entities: List[str] = []
+        ctx_entities_set = set(ctx.entities)
+        for col in all_entities:
+            if col in ctx_entities_set:
+                select_entities.append(f"CAST({col} AS STRING) AS {col}")
+            else:
+                select_entities.append(f"CAST(NULL AS STRING) AS {col}")
+
+        per_view_selects.append(
+            f"""
+            SELECT DISTINCT {", ".join(select_entities)}
+            FROM {from_expression}
+            WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){partition_clause}
+            """
+        )
+
+    union_query = "\nUNION DISTINCT\n".join([s.strip() for s in per_view_selects])
+    spark_session.sql(
+        f"CREATE OR REPLACE TEMPORARY VIEW {tmp_view_name} AS {union_query}"
+    )
+
+
+def _make_left_table_query(end_date: datetime, tmp_view_name: str) -> Tuple[str, str]:
+    # Why: use a stable as-of timestamp for PIT joins when no entity timestamps are provided.
+    event_timestamp_col = "entity_ts"
+    left_table_query_string = (
+        f"(SELECT *, TIMESTAMP('{_format_datetime(end_date)}') AS {event_timestamp_col} "
+        f"FROM {tmp_view_name})"
+    )
+    return left_table_query_string, event_timestamp_col
+
+
+def _entity_schema_keys_from(
+    all_entities: List[str], event_timestamp_col: str
+) -> KeysView[str]:
+    # Why: pass a KeysView[str] to PIT query builder to match entity_df branch typing.
+    return cast(
+        KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys()
+    )
 
 
 def _get_entity_df_event_timestamp_range(
@@ -637,6 +824,10 @@ def _list_files_in_folder(folder):
     return files
 
 
+def _filter_parquet_files(paths: List[str]) -> List[str]:
+    return [path for path in paths if path.endswith(".parquet")]
+
+
 def _list_hdfs_files(spark_session: SparkSession, uri: str) -> List[str]:
     jvm = spark_session._jvm
     jsc = spark_session._jsc
@@ -650,6 +841,81 @@ def _list_hdfs_files(spark_session: SparkSession, uri: str) -> List[str]:
     for f in statuses:
         if f.isFile():
             files.append(f.getPath().toString())
+    return files
+
+
+def _list_gcs_files(path: str) -> List[str]:
+    try:
+        from google.cloud import storage
+    except ImportError as e:
+        from feast.errors import FeastExtrasDependencyImportError
+
+        raise FeastExtrasDependencyImportError("gcp", str(e))
+
+    assert path.startswith("gs://"), "GCS path must start with gs://"
+    bucket_path = path[len("gs://") :]
+    if "/" in bucket_path:
+        bucket, prefix = bucket_path.split("/", 1)
+    else:
+        bucket, prefix = bucket_path, ""
+
+    client = storage.Client()
+    bucket_obj = client.bucket(bucket)
+    blobs = bucket_obj.list_blobs(prefix=prefix)
+
+    files = []
+    for blob in blobs:
+        if not blob.name.endswith("/"):
+            files.append(f"gs://{bucket}/{blob.name}")
+    return files
+
+
+def _list_azure_files(path: str) -> List[str]:
+    try:
+        from azure.identity import DefaultAzureCredential
+        from azure.storage.blob import BlobServiceClient
+    except ImportError as e:
+        from feast.errors import FeastExtrasDependencyImportError
+
+        raise FeastExtrasDependencyImportError("azure", str(e))
+
+    parsed = urlparse(path)
+    scheme = parsed.scheme
+
+    if scheme in ("wasbs", "abfs", "abfss"):
+        if "@" not in parsed.netloc:
+            raise ValueError("Azure staging URI must include container@account host")
+        container, account_host = parsed.netloc.split("@", 1)
+        account_url = f"https://{account_host}"
+        base = f"{scheme}://{container}@{account_host}"
+        prefix = parsed.path.lstrip("/")
+    else:
+        account_url = f"{parsed.scheme}://{parsed.netloc}"
+        container_and_prefix = parsed.path.lstrip("/").split("/", 1)
+        container = container_and_prefix[0]
+        base = f"{account_url}/{container}"
+        prefix = container_and_prefix[1] if len(container_and_prefix) > 1 else ""
+
+    credential = os.environ.get("AZURE_STORAGE_KEY") or os.environ.get(
+        "AZURE_STORAGE_ACCOUNT_KEY"
+    )
+    if credential:
+        client = BlobServiceClient(account_url=account_url, credential=credential)
+    else:
+        default_credential = DefaultAzureCredential(
+            exclude_shared_token_cache_credential=True
+        )
+        client = BlobServiceClient(
+            account_url=account_url, credential=default_credential
+        )
+
+    container_client = client.get_container_client(container)
+    blobs = container_client.list_blobs(name_starts_with=prefix if prefix else None)
+
+    files = []
+    for blob in blobs:
+        if not blob.name.endswith("/"):
+            files.append(f"{base}/{blob.name}")
     return files
 
 

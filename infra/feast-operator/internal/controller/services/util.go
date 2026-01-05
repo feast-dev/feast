@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,22 +22,22 @@ import (
 
 var isOpenShift = false
 
-func IsRegistryServer(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func IsRegistryServer(featureStore *feastdevv1.FeatureStore) bool {
 	return IsLocalRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Local.Server != nil
 }
 
-func IsLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func IsLocalRegistry(featureStore *feastdevv1.FeatureStore) bool {
 	appliedServices := featureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
 }
 
-func isRemoteRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func isRemoteRegistry(featureStore *feastdevv1.FeatureStore) bool {
 	appliedServices := featureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Remote != nil
 }
 
-func hasPvcConfig(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastServiceType) (*feastdevv1alpha1.PvcConfig, bool) {
-	var pvcConfig *feastdevv1alpha1.PvcConfig
+func hasPvcConfig(featureStore *feastdevv1.FeatureStore, feastType FeastServiceType) (*feastdevv1.PvcConfig, bool) {
+	var pvcConfig *feastdevv1.PvcConfig
 	services := featureStore.Status.Applied.Services
 	if services != nil {
 		switch feastType {
@@ -61,14 +61,14 @@ func hasPvcConfig(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastSe
 	return pvcConfig, pvcConfig != nil
 }
 
-func shouldCreatePvc(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastServiceType) (*feastdevv1alpha1.PvcCreate, bool) {
+func shouldCreatePvc(featureStore *feastdevv1.FeatureStore, feastType FeastServiceType) (*feastdevv1.PvcCreate, bool) {
 	if pvcConfig, ok := hasPvcConfig(featureStore, feastType); ok {
 		return pvcConfig.Create, pvcConfig.Create != nil
 	}
 	return nil, false
 }
 
-func shouldMountEmptyDir(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func shouldMountEmptyDir(featureStore *feastdevv1.FeatureStore) bool {
 	for _, feastType := range feastServerTypes {
 		if _, ok := hasPvcConfig(featureStore, feastType); !ok {
 			return true
@@ -77,26 +77,26 @@ func shouldMountEmptyDir(featureStore *feastdevv1alpha1.FeatureStore) bool {
 	return false
 }
 
-func getOfflineMountPath(featureStore *feastdevv1alpha1.FeatureStore) string {
+func getOfflineMountPath(featureStore *feastdevv1.FeatureStore) string {
 	if pvcConfig, ok := hasPvcConfig(featureStore, OfflineFeastType); ok {
 		return pvcConfig.MountPath
 	}
 	return EphemeralPath
 }
 
-func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
+func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 	// overwrite status.applied with every reconcile
 	cr.Spec.DeepCopyInto(&cr.Status.Applied)
 	cr.Status.FeastVersion = feastversion.FeastVersion
 
 	applied := &cr.Status.Applied
 	if applied.FeastProjectDir == nil {
-		applied.FeastProjectDir = &feastdevv1alpha1.FeastProjectDir{
-			Init: &feastdevv1alpha1.FeastInitOptions{},
+		applied.FeastProjectDir = &feastdevv1.FeastProjectDir{
+			Init: &feastdevv1.FeastInitOptions{},
 		}
 	}
 	if applied.Services == nil {
-		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
+		applied.Services = &feastdevv1.FeatureStoreServices{}
 	}
 	services := applied.Services
 
@@ -105,15 +105,15 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 		if services.Registry.Remote == nil {
 			// if local registry not set, apply an empty pointer struct
 			if services.Registry.Local == nil {
-				services.Registry.Local = &feastdevv1alpha1.LocalRegistryConfig{}
+				services.Registry.Local = &feastdevv1.LocalRegistryConfig{}
 			}
 			if services.Registry.Local.Persistence == nil {
-				services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{}
+				services.Registry.Local.Persistence = &feastdevv1.RegistryPersistence{}
 			}
 
 			if services.Registry.Local.Persistence.DBPersistence == nil {
 				if services.Registry.Local.Persistence.FilePersistence == nil {
-					services.Registry.Local.Persistence.FilePersistence = &feastdevv1alpha1.RegistryFilePersistence{}
+					services.Registry.Local.Persistence.FilePersistence = &feastdevv1.RegistryFilePersistence{}
 				}
 
 				if len(services.Registry.Local.Persistence.FilePersistence.Path) == 0 {
@@ -139,12 +139,12 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 
 	if services.OfflineStore != nil {
 		if services.OfflineStore.Persistence == nil {
-			services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{}
+			services.OfflineStore.Persistence = &feastdevv1.OfflineStorePersistence{}
 		}
 
 		if services.OfflineStore.Persistence.DBPersistence == nil {
 			if services.OfflineStore.Persistence.FilePersistence == nil {
-				services.OfflineStore.Persistence.FilePersistence = &feastdevv1alpha1.OfflineStoreFilePersistence{}
+				services.OfflineStore.Persistence.FilePersistence = &feastdevv1.OfflineStoreFilePersistence{}
 			}
 
 			if len(services.OfflineStore.Persistence.FilePersistence.Type) == 0 {
@@ -161,15 +161,15 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 
 	// default to onlineStore service deployment
 	if services.OnlineStore == nil {
-		services.OnlineStore = &feastdevv1alpha1.OnlineStore{}
+		services.OnlineStore = &feastdevv1.OnlineStore{}
 	}
 	if services.OnlineStore.Persistence == nil {
-		services.OnlineStore.Persistence = &feastdevv1alpha1.OnlineStorePersistence{}
+		services.OnlineStore.Persistence = &feastdevv1.OnlineStorePersistence{}
 	}
 
 	if services.OnlineStore.Persistence.DBPersistence == nil {
 		if services.OnlineStore.Persistence.FilePersistence == nil {
-			services.OnlineStore.Persistence.FilePersistence = &feastdevv1alpha1.OnlineStoreFilePersistence{}
+			services.OnlineStore.Persistence.FilePersistence = &feastdevv1.OnlineStoreFilePersistence{}
 		}
 
 		if len(services.OnlineStore.Persistence.FilePersistence.Path) == 0 {
@@ -180,7 +180,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	}
 
 	if services.OnlineStore.Server == nil {
-		services.OnlineStore.Server = &feastdevv1alpha1.ServerConfigs{}
+		services.OnlineStore.Server = &feastdevv1.ServerConfigs{}
 	}
 	setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
 
@@ -189,12 +189,12 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	}
 
 	if applied.CronJob == nil {
-		applied.CronJob = &feastdevv1alpha1.FeastCronJob{}
+		applied.CronJob = &feastdevv1.FeastCronJob{}
 	}
 	setDefaultCronJobConfigs(applied.CronJob)
 }
 
-func setDefaultCtrConfigs(defaultConfigs *feastdevv1alpha1.DefaultCtrConfigs) {
+func setDefaultCtrConfigs(defaultConfigs *feastdevv1.DefaultCtrConfigs) {
 	if defaultConfigs.Image == nil {
 		img := getFeatureServerImage()
 		defaultConfigs.Image = &img
@@ -209,7 +209,7 @@ func getFeatureServerImage() string {
 }
 
 func checkOfflineStoreFilePersistenceType(value string) error {
-	if slices.Contains(feastdevv1alpha1.ValidOfflineStoreFilePersistenceTypes, value) {
+	if slices.Contains(feastdevv1.ValidOfflineStoreFilePersistenceTypes, value) {
 		return nil
 	}
 	return fmt.Errorf("invalid file type %s for offline store", value)
@@ -224,7 +224,7 @@ func ensureRequestedStorage(resources *corev1.VolumeResourceRequirements, reques
 	}
 }
 
-func ensurePVCDefaults(pvc *feastdevv1alpha1.PvcConfig, feastType FeastServiceType) {
+func ensurePVCDefaults(pvc *feastdevv1.PvcConfig, feastType FeastServiceType) {
 	if pvc != nil {
 		var storageRequest string
 		switch feastType {
@@ -244,7 +244,7 @@ func ensurePVCDefaults(pvc *feastdevv1alpha1.PvcConfig, feastType FeastServiceTy
 	}
 }
 
-func defaultOnlineStorePath(featureStore *feastdevv1alpha1.FeatureStore) string {
+func defaultOnlineStorePath(featureStore *feastdevv1.FeatureStore) string {
 	if _, ok := hasPvcConfig(featureStore, OnlineFeastType); ok {
 		return DefaultOnlineStorePath
 	}
@@ -252,7 +252,7 @@ func defaultOnlineStorePath(featureStore *feastdevv1alpha1.FeatureStore) string 
 	return EphemeralPath + "/" + DefaultOnlineStorePath
 }
 
-func defaultRegistryPath(featureStore *feastdevv1alpha1.FeatureStore) string {
+func defaultRegistryPath(featureStore *feastdevv1.FeatureStore) string {
 	if _, ok := hasPvcConfig(featureStore, RegistryFeastType); ok {
 		return DefaultRegistryPath
 	}
@@ -261,21 +261,21 @@ func defaultRegistryPath(featureStore *feastdevv1alpha1.FeatureStore) string {
 }
 
 func checkOfflineStoreDBStorePersistenceType(value string) error {
-	if slices.Contains(feastdevv1alpha1.ValidOfflineStoreDBStorePersistenceTypes, value) {
+	if slices.Contains(feastdevv1.ValidOfflineStoreDBStorePersistenceTypes, value) {
 		return nil
 	}
 	return fmt.Errorf("invalid DB store type %s for offline store", value)
 }
 
 func checkOnlineStoreDBStorePersistenceType(value string) error {
-	if slices.Contains(feastdevv1alpha1.ValidOnlineStoreDBStorePersistenceTypes, value) {
+	if slices.Contains(feastdevv1.ValidOnlineStoreDBStorePersistenceTypes, value) {
 		return nil
 	}
 	return fmt.Errorf("invalid DB store type %s for online store", value)
 }
 
 func checkRegistryDBStorePersistenceType(value string) error {
-	if slices.Contains(feastdevv1alpha1.ValidRegistryDBStorePersistenceTypes, value) {
+	if slices.Contains(feastdevv1.ValidRegistryDBStorePersistenceTypes, value) {
 		return nil
 	}
 	return fmt.Errorf("invalid DB store type %s for registry", value)
@@ -438,19 +438,19 @@ func getContainerByType(feastType FeastServiceType, podSpec corev1.PodSpec) (int
 	return -1, nil
 }
 
-func GetRegistryVolume(featureStore *feastdevv1alpha1.FeatureStore, volumes []corev1.Volume) *corev1.Volume {
+func GetRegistryVolume(featureStore *feastdevv1.FeatureStore, volumes []corev1.Volume) *corev1.Volume {
 	return getVolumeByType(RegistryFeastType, featureStore, volumes)
 }
 
-func GetOnlineVolume(featureStore *feastdevv1alpha1.FeatureStore, volumes []corev1.Volume) *corev1.Volume {
+func GetOnlineVolume(featureStore *feastdevv1.FeatureStore, volumes []corev1.Volume) *corev1.Volume {
 	return getVolumeByType(OnlineFeastType, featureStore, volumes)
 }
 
-func GetOfflineVolume(featureStore *feastdevv1alpha1.FeatureStore, volumes []corev1.Volume) *corev1.Volume {
+func GetOfflineVolume(featureStore *feastdevv1.FeatureStore, volumes []corev1.Volume) *corev1.Volume {
 	return getVolumeByType(OfflineFeastType, featureStore, volumes)
 }
 
-func getVolumeByType(feastType FeastServiceType, featureStore *feastdevv1alpha1.FeatureStore, volumes []corev1.Volume) *corev1.Volume {
+func getVolumeByType(feastType FeastServiceType, featureStore *feastdevv1.FeatureStore, volumes []corev1.Volume) *corev1.Volume {
 	for _, v := range volumes {
 		if v.Name == GetFeastServiceName(featureStore, feastType) {
 			return &v
@@ -459,19 +459,19 @@ func getVolumeByType(feastType FeastServiceType, featureStore *feastdevv1alpha1.
 	return nil
 }
 
-func GetRegistryVolumeMount(featureStore *feastdevv1alpha1.FeatureStore, volumeMounts []corev1.VolumeMount) *corev1.VolumeMount {
+func GetRegistryVolumeMount(featureStore *feastdevv1.FeatureStore, volumeMounts []corev1.VolumeMount) *corev1.VolumeMount {
 	return getVolumeMountByType(RegistryFeastType, featureStore, volumeMounts)
 }
 
-func GetOnlineVolumeMount(featureStore *feastdevv1alpha1.FeatureStore, volumeMounts []corev1.VolumeMount) *corev1.VolumeMount {
+func GetOnlineVolumeMount(featureStore *feastdevv1.FeatureStore, volumeMounts []corev1.VolumeMount) *corev1.VolumeMount {
 	return getVolumeMountByType(OnlineFeastType, featureStore, volumeMounts)
 }
 
-func GetOfflineVolumeMount(featureStore *feastdevv1alpha1.FeatureStore, volumeMounts []corev1.VolumeMount) *corev1.VolumeMount {
+func GetOfflineVolumeMount(featureStore *feastdevv1.FeatureStore, volumeMounts []corev1.VolumeMount) *corev1.VolumeMount {
 	return getVolumeMountByType(OfflineFeastType, featureStore, volumeMounts)
 }
 
-func getVolumeMountByType(feastType FeastServiceType, featureStore *feastdevv1alpha1.FeatureStore, volumeMounts []corev1.VolumeMount) *corev1.VolumeMount {
+func getVolumeMountByType(feastType FeastServiceType, featureStore *feastdevv1.FeatureStore, volumeMounts []corev1.VolumeMount) *corev1.VolumeMount {
 	for _, vm := range volumeMounts {
 		if vm.Name == GetFeastServiceName(featureStore, feastType) {
 			return &vm

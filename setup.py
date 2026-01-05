@@ -165,7 +165,7 @@ QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
 GO_REQUIRED = ["cffi>=1.15.0"]
 
-MILVUS_REQUIRED = ["pymilvus"]
+MILVUS_REQUIRED = ["pymilvus==2.4.15", "milvus-lite==2.4.12", "setuptools>=60,<81"]
 
 TORCH_REQUIRED = [
     "torch>=2.7.0",
@@ -207,7 +207,7 @@ CI_REQUIRED = (
         "mock==2.0.0",
         "moto==4.2.14",
         "mypy>=1.4.1,<1.11.3",
-        "urllib3>=1.25.4,<3",
+        "urllib3>=2.6.0,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
         "pytest>=6.0.0,<8",

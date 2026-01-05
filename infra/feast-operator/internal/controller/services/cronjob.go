@@ -4,7 +4,7 @@ import (
 	"os"
 	"strconv"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -272,7 +272,7 @@ func (feast *FeastServices) getCronJobRoleName() string {
 
 // defaults to a CronJob configuration that will never run. this default Job can be executed manually, however.
 // e.g. kubectl create job --from=cronjob/feast-sample feast-sample-job
-func setDefaultCronJobConfigs(feastCronJob *feastdevv1alpha1.FeastCronJob) {
+func setDefaultCronJobConfigs(feastCronJob *feastdevv1.FeastCronJob) {
 	if len(feastCronJob.Schedule) == 0 {
 		feastCronJob.Schedule = "@yearly"
 		if feastCronJob.Suspend == nil {
@@ -286,7 +286,7 @@ func setDefaultCronJobConfigs(feastCronJob *feastdevv1alpha1.FeastCronJob) {
 		}
 	}
 	if feastCronJob.ContainerConfigs == nil {
-		feastCronJob.ContainerConfigs = &feastdevv1alpha1.CronJobContainerConfigs{}
+		feastCronJob.ContainerConfigs = &feastdevv1.CronJobContainerConfigs{}
 	}
 	if feastCronJob.ContainerConfigs.Image == nil {
 		feastCronJob.ContainerConfigs.Image = getCronJobImage()

@@ -24,7 +24,7 @@ dependencies = [
     "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
     "pyarrow<=21.0.0",
-    "pydantic==2.10.6",
+    "pydantic>=2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -99,7 +99,7 @@ image = [
     "scikit-learn>=1.0.0",
 ]
 milvus = [
-    "pymilvus==2.4.9",
+    "pymilvus==2.4.15",
     "milvus-lite==2.4.12",
     "feast[setuptools]"
 ]
@@ -147,7 +147,7 @@ ci = [
     "mock==2.0.0",
     "moto<5",
     "mypy>=1.4.1,<1.11.3",
-    "urllib3>=1.25.4,<3",
+    "urllib3>=2.6.0,<3",
     "psutil==5.9.0",
     "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
     "pytest>=6.0.0,<8",

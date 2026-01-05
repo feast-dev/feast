@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
@@ -55,7 +55,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Name:      resourceName,
 			Namespace: "default",
 		}
-		featurestore := &feastdevv1alpha1.FeatureStore{}
+		featurestore := &feastdevv1.FeatureStore{}
 		registryPath := "s3://bucket/registry.db"
 
 		s3AdditionalKwargs := map[string]string{
@@ -73,8 +73,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}, withEnvFrom())
 				resource.Spec.Services.UI = nil
 				resource.Spec.Services.OfflineStore = nil
-				resource.Spec.Services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+				resource.Spec.Services.Registry.Local.Persistence = &feastdevv1.RegistryPersistence{
+					FilePersistence: &feastdevv1.RegistryFilePersistence{
 						Path:               registryPath,
 						S3AdditionalKwargs: &s3AdditionalKwargs,
 					},
@@ -83,7 +83,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			}
 		})
 		AfterEach(func() {
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -105,7 +105,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -143,37 +143,37 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(feast.GetFeastServiceName(services.RegistryFeastType) + "." + resource.Namespace + domain))
 
 			Expect(resource.Status.Conditions).NotTo(BeEmpty())
-			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
+			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.DeploymentNotAvailableReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.DeploymentNotAvailableMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.DeploymentNotAvailableReason))
+			Expect(cond.Type).To(Equal(feastdevv1.ReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.DeploymentNotAvailableMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.AuthorizationReadyType)
 			Expect(cond).To(BeNil())
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.RegistryReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.RegistryReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.RegistryReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.RegistryReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ClientReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ClientReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.ClientReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.ClientReadyMessage))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1.ClientReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1.ClientReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OfflineStoreReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OfflineStoreReadyType)
 			Expect(cond).To(BeNil())
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OnlineStoreReadyType)
 			Expect(cond).NotTo(BeNil())
 
-			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.PendingPhase))
+			Expect(resource.Status.Phase).To(Equal(feastdevv1.PendingPhase))
 
 			// check deployment
 			deploy := &appsv1.Deployment{}
@@ -208,7 +208,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			feast.Handler.FeatureStore = resource
@@ -239,7 +239,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource := &feastdevv1alpha1.FeatureStore{}
+			resource := &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -342,7 +342,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			resource = &feastdevv1alpha1.FeatureStore{}
+			resource = &feastdevv1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			feast.Handler.FeatureStore = resource
@@ -366,6 +366,68 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			testConfig.Registry.S3AdditionalKwargs = nil
 			Expect(repoConfig).To(Equal(&testConfig))
+		})
+
+		It("should propagate registry file cache settings into repo config", func() {
+			By("Reconciling the created resource with registry cache settings")
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			// update the FeatureStore to set cache settings on registry file persistence
+			resource := &feastdevv1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			ttl := int32(300)
+			mode := "thread"
+			resource.Spec.Services.Registry.Local.Persistence.FilePersistence.CacheTTLSeconds = &ttl
+			resource.Spec.Services.Registry.Local.Persistence.FilePersistence.CacheMode = &mode
+			err = k8sClient.Update(ctx, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// fetch updated resource and deployment
+			resource = &feastdevv1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			feast := services.FeastServices{
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
+			}
+
+			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+
+			env := getFeatureStoreYamlEnvVar(services.GetRegistryContainer(*deploy).Env)
+			Expect(env).NotTo(BeNil())
+
+			// decode feature_store.yaml and verify registry cache settings
+			envByte, err := base64.StdEncoding.DecodeString(env.Value)
+			Expect(err).NotTo(HaveOccurred())
+			repoConfig := &services.RepoConfig{}
+			err = yaml.Unmarshal(envByte, repoConfig)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(repoConfig.Registry.CacheTTLSeconds).NotTo(BeNil())
+			Expect(*repoConfig.Registry.CacheTTLSeconds).To(Equal(ttl))
+			Expect(repoConfig.Registry.CacheMode).NotTo(BeNil())
+			Expect(*repoConfig.Registry.CacheMode).To(Equal(mode))
 		})
 	})
 })

@@ -9,6 +9,7 @@ import (
 	"text/template"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -28,6 +29,7 @@ type NotebookTemplateParams struct {
 	PipTrustedHost        string
 	FeastVerison          string
 	OpenAIAPIKey          string
+	FeastProject          string
 }
 
 // CreateNotebook renders a notebook manifest from a template and applies it using kubectl.
@@ -215,4 +217,171 @@ func GetOCUser(testDir string) string {
 	cmd := exec.Command("oc", "whoami")
 	output, _ := Run(cmd, testDir)
 	return strings.TrimSpace(string(output))
+}
+
+// SetNamespaceContext sets the kubectl namespace context to the specified namespace
+func SetNamespaceContext(namespace, testDir string) error {
+	cmd := exec.Command("kubectl", "config", "set-context", "--current", "--namespace", namespace)
+	output, err := Run(cmd, testDir)
+	if err != nil {
+		return fmt.Errorf("failed to set namespace context to %s: %w\nOutput: %s", namespace, err, output)
+	}
+	return nil
+}
+
+// CreateNotebookConfigMap creates a ConfigMap containing the notebook file and feature repo
+func CreateNotebookConfigMap(namespace, configMapName, notebookFile, featureRepoPath, testDir string) error {
+	cmd := exec.Command("kubectl", "create", "configmap", configMapName,
+		"--from-file="+notebookFile,
+		"--from-file="+featureRepoPath)
+	output, err := Run(cmd, testDir)
+	if err != nil {
+		return fmt.Errorf("failed to create ConfigMap %s: %w\nOutput: %s", configMapName, err, output)
+	}
+	return nil
+}
+
+// CreateNotebookPVC creates a PersistentVolumeClaim for the notebook
+func CreateNotebookPVC(pvcFile, testDir string) error {
+	cmd := exec.Command("kubectl", "apply", "-f", pvcFile)
+	_, err := Run(cmd, testDir)
+	if err != nil {
+		return fmt.Errorf("failed to create PVC from %s: %w", pvcFile, err)
+	}
+	return nil
+}
+
+// CreateNotebookRoleBinding creates a rolebinding for the user in the specified namespace
+func CreateNotebookRoleBinding(namespace, rolebindingName, username, testDir string) error {
+	cmd := exec.Command("kubectl", "create", "rolebinding", rolebindingName,
+		"-n", namespace,
+		"--role=admin",
+		"--user="+username)
+	_, err := Run(cmd, testDir)
+	if err != nil {
+		return fmt.Errorf("failed to create rolebinding %s: %w", rolebindingName, err)
+	}
+	return nil
+}
+
+// BuildNotebookCommand builds the command array for executing a notebook with papermill
+func BuildNotebookCommand(notebookName, testDir string) []string {
+	return []string{
+		"/bin/sh",
+		"-c",
+		fmt.Sprintf(
+			"pip install papermill && "+
+				"mkdir -p /opt/app-root/src/feature_repo && "+
+				"cp -rL /opt/app-root/notebooks/* /opt/app-root/src/feature_repo/ && "+
+				"oc login --token=%s --server=%s --insecure-skip-tls-verify=true && "+
+				"(papermill /opt/app-root/notebooks/%s /opt/app-root/src/output.ipynb --kernel python3 && "+
+				"echo '✅ Notebook executed successfully' || "+
+				"(echo '❌ Notebook execution failed' && "+
+				"cp /opt/app-root/src/output.ipynb /opt/app-root/src/failed_output.ipynb && "+
+				"echo '📄 Copied failed notebook to failed_output.ipynb')) && "+
+				"jupyter nbconvert --to notebook --stdout /opt/app-root/src/output.ipynb || echo '⚠️ nbconvert failed' && "+
+				"sleep 100; exit 0",
+			GetOCToken(testDir),
+			GetOCServer(testDir),
+			notebookName,
+		),
+	}
+}
+
+// GetNotebookParams builds and returns NotebookTemplateParams from environment variables and configuration
+// feastProject is optional - if provided, it will be set in the notebook annotation, otherwise it will be empty
+func GetNotebookParams(namespace, configMapName, notebookPVC, notebookName, testDir string, feastProject string) NotebookTemplateParams {
+	username := GetOCUser(testDir)
+	command := BuildNotebookCommand(notebookName, testDir)
+
+	getEnv := func(key string) string {
+		val, _ := os.LookupEnv(key)
+		return val
+	}
+
+	return NotebookTemplateParams{
+		Namespace:             namespace,
+		IngressDomain:         GetIngressDomain(testDir),
+		OpenDataHubNamespace:  getEnv("APPLICATIONS_NAMESPACE"),
+		NotebookImage:         getEnv("NOTEBOOK_IMAGE"),
+		NotebookConfigMapName: configMapName,
+		NotebookPVC:           notebookPVC,
+		Username:              username,
+		OC_TOKEN:              GetOCToken(testDir),
+		OC_SERVER:             GetOCServer(testDir),
+		NotebookFile:          notebookName,
+		Command:               "[\"" + strings.Join(command, "\",\"") + "\"]",
+		PipIndexUrl:           getEnv("PIP_INDEX_URL"),
+		PipTrustedHost:        getEnv("PIP_TRUSTED_HOST"),
+		FeastVerison:          getEnv("FEAST_VERSION"),
+		OpenAIAPIKey:          getEnv("OPENAI_API_KEY"),
+		FeastProject:          feastProject,
+	}
+}
+
+// SetupNotebookEnvironment performs all the setup steps required for notebook testing
+func SetupNotebookEnvironment(namespace, configMapName, notebookFile, featureRepoPath, pvcFile, rolebindingName, testDir string) error {
+	// Set namespace context
+	if err := SetNamespaceContext(namespace, testDir); err != nil {
+		return fmt.Errorf("failed to set namespace context: %w", err)
+	}
+
+	// Create config map
+	if err := CreateNotebookConfigMap(namespace, configMapName, notebookFile, featureRepoPath, testDir); err != nil {
+		return fmt.Errorf("failed to create config map: %w", err)
+	}
+
+	// Create PVC
+	if err := CreateNotebookPVC(pvcFile, testDir); err != nil {
+		return fmt.Errorf("failed to create PVC: %w", err)
+	}
+
+	// Create rolebinding
+	username := GetOCUser(testDir)
+	if err := CreateNotebookRoleBinding(namespace, rolebindingName, username, testDir); err != nil {
+		return fmt.Errorf("failed to create rolebinding: %w", err)
+	}
+
+	return nil
+}
+
+// CreateNotebookTest performs all the setup steps and creates a notebook.
+// This function handles namespace context, ConfigMap, PVC, rolebinding, and notebook creation.
+// feastProject is optional - if provided, it will be set in the notebook annotation, otherwise it will be empty
+func CreateNotebookTest(namespace, configMapName, notebookFile, featureRepoPath, pvcFile, rolebindingName, notebookPVC, notebookName, testDir string, feastProject string) {
+	// Execute common setup steps
+	By(fmt.Sprintf("Setting namespace context to : %s", namespace))
+	Expect(SetNamespaceContext(namespace, testDir)).To(Succeed())
+	fmt.Printf("Successfully set namespace context to: %s\n", namespace)
+
+	By(fmt.Sprintf("Creating Config map: %s", configMapName))
+	Expect(CreateNotebookConfigMap(namespace, configMapName, notebookFile, featureRepoPath, testDir)).To(Succeed())
+	fmt.Printf("ConfigMap %s created successfully\n", configMapName)
+
+	By(fmt.Sprintf("Creating Persistent volume claim: %s", notebookPVC))
+	Expect(CreateNotebookPVC(pvcFile, testDir)).To(Succeed())
+	fmt.Printf("Persistent Volume Claim %s created successfully\n", notebookPVC)
+
+	By(fmt.Sprintf("Creating rolebinding %s for the user", rolebindingName))
+	Expect(CreateNotebookRoleBinding(namespace, rolebindingName, GetOCUser(testDir), testDir)).To(Succeed())
+	fmt.Printf("Created rolebinding %s successfully\n", rolebindingName)
+
+	// Build notebook parameters and create notebook
+	nbParams := GetNotebookParams(namespace, configMapName, notebookPVC, notebookName, testDir, feastProject)
+	By("Creating Jupyter Notebook")
+	Expect(CreateNotebook(nbParams)).To(Succeed(), "Failed to create notebook")
+}
+
+// MonitorNotebookTest monitors the notebook execution and verifies completion.
+func MonitorNotebookTest(namespace, notebookName string) {
+	By("Monitoring notebook logs")
+	Expect(MonitorNotebookPod(namespace, "jupyter-nb-", notebookName)).To(Succeed(), "Notebook execution failed")
+}
+
+// RunNotebookTest performs all the setup steps, creates a notebook, and monitors its execution.
+// This function is kept for backward compatibility. For new tests, use CreateNotebookTest and MonitorNotebookTest separately.
+// feastProject is optional - if provided, it will be set in the notebook annotation, otherwise it will be empty
+func RunNotebookTest(namespace, configMapName, notebookFile, featureRepoPath, pvcFile, rolebindingName, notebookPVC, notebookName, testDir string, feastProject string) {
+	CreateNotebookTest(namespace, configMapName, notebookFile, featureRepoPath, pvcFile, rolebindingName, notebookPVC, notebookName, testDir, feastProject)
+	MonitorNotebookTest(namespace, notebookName)
 }

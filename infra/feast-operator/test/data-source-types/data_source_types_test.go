@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
 
@@ -23,16 +23,16 @@ var _ = Describe("FeatureStore Data Source Types", func() {
 	Context("When checking against the python code in feast.repo_config", func() {
 		It("should match defined registry persistence types in the operator", func() {
 			registryFilePersistenceTypes := []string{string(services.RegistryFileConfigType)}
-			registryPersistenceTypes := append(feastdevv1alpha1.ValidRegistryDBStorePersistenceTypes, registryFilePersistenceTypes...)
+			registryPersistenceTypes := append(feastdevv1.ValidRegistryDBStorePersistenceTypes, registryFilePersistenceTypes...)
 			checkPythonPersistenceTypes("registry.out", registryPersistenceTypes)
 		})
 		It("should match defined onlineStore persistence types in the operator", func() {
 			onlineFilePersistenceTypes := []string{string(services.OnlineSqliteConfigType)}
-			onlinePersistenceTypes := append(feastdevv1alpha1.ValidOnlineStoreDBStorePersistenceTypes, onlineFilePersistenceTypes...)
+			onlinePersistenceTypes := append(feastdevv1.ValidOnlineStoreDBStorePersistenceTypes, onlineFilePersistenceTypes...)
 			checkPythonPersistenceTypes("online-store.out", onlinePersistenceTypes)
 		})
 		It("should match defined offlineStore persistence types in the operator", func() {
-			offlinePersistenceTypes := append(feastdevv1alpha1.ValidOfflineStoreDBStorePersistenceTypes, feastdevv1alpha1.ValidOfflineStoreFilePersistenceTypes...)
+			offlinePersistenceTypes := append(feastdevv1.ValidOfflineStoreDBStorePersistenceTypes, feastdevv1.ValidOfflineStoreFilePersistenceTypes...)
 			checkPythonPersistenceTypes("offline-store.out", offlinePersistenceTypes)
 		})
 	})

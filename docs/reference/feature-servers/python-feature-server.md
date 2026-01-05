@@ -199,6 +199,26 @@ requests.post(
     "http://localhost:6566/push",
     data=json.dumps(push_data))
 ```
+#### Offline write batching for `/push`
+
+The Python feature server  supports configurable batching for the **offline**
+portion of writes executed via the `/push` endpoint.
+
+Only the offline part of a push is affected:
+
+- `to: "offline"` → **fully batched**
+- `to: "online_and_offline"` → **online written immediately**, **offline batched**
+- `to: "online"` → unaffected, always immediate
+
+Enable batching in your `feature_store.yaml`:
+
+```yaml
+feature_server:
+  type: local
+  offline_push_batching_enabled: true
+  offline_push_batching_batch_size: 1000
+  offline_push_batching_batch_interval_seconds: 10
+```
 
 ### Materializing features
 
@@ -267,6 +287,48 @@ To start the feature server in TLS mode, you need to provide the private and pub
 ```shell
 feast serve --key /path/to/key.pem --cert /path/to/cert.pem
 ```
+
+# [Alpha] Static Artifacts Loading
+
+**Warning**: This is an experimental feature. To our knowledge, this is stable, but there are still rough edges in the experience.
+
+Static artifacts loading allows you to load models, lookup tables, and other static resources once during feature server startup instead of loading them on each request. This improves performance for on-demand feature views that require external resources.
+
+## Quick Example
+
+Create a `static_artifacts.py` file in your feature repository:
+
+```python
+# static_artifacts.py
+from fastapi import FastAPI
+from transformers import pipeline
+
+def load_artifacts(app: FastAPI):
+    """Load static artifacts into app.state."""
+    app.state.sentiment_model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
+    # Update global references for access from feature views
+    import example_repo
+    example_repo._sentiment_model = app.state.sentiment_model
+```
+
+Access pre-loaded artifacts in your on-demand feature views:
+
+```python
+# example_repo.py
+_sentiment_model = None
+
+@on_demand_feature_view(...)
+def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
+    global _sentiment_model
+    return _sentiment_model(inputs["text"])
+```
+
+## Documentation
+
+For comprehensive documentation, examples, and best practices, see the [Alpha Static Artifacts Loading](../alpha-static-artifacts.md) reference guide.
+
+The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/python/feast/templates/pytorch_nlp) provides a complete working example.
 
 # Online Feature Server Permissions and Access Control
 

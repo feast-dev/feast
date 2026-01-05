@@ -1575,10 +1575,10 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
-"@feast-dev/feast-ui@0.56.0":
-  version "0.56.0"
-  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.56.0.tgz#69a08ce552a163ae37e5af5b363459a7615e7907"
-  integrity sha512-FkmT6oUzuEj/NKZ5+3aBmMVkNZ7CHB+58KW9YS7Gb8BoxjP97ALO8ERV6VONK+xLou2njubinKzzsBZwy5joIA==
+"@feast-dev/feast-ui@0.57.0":
+  version "0.57.0"
+  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.57.0.tgz#0877b7f7fb39dd5cc74aabd9e77b79ff043d5a0a"
+  integrity sha512-lNegnVW1HnRT3NB54vaEuaO8pNDU5xNI/tDJNfz8HSXmvJcZ5Xiz1c/go9sRskOClUMrC4xJN/kw9F7IVMsnCw==
   dependencies:
     "@elastic/datemath" "^5.0.3"
     "@elastic/eui" "^95.12.0"
@@ -7985,9 +7985,9 @@ node-emoji@^1.10.0:
     lodash "^4.17.21"
 
 node-forge@^1:
-  version "1.3.1"
-  resolved "https://registry.yarnpkg.com/node-forge/-/node-forge-1.3.1.tgz#be8da2af243b2417d5f646a770663a92b7e9ded3"
-  integrity sha512-dPEtOeMvF9VMcYV/1Wb8CPoVAXtp6MKMlcbAt4ddqmGqUJ6fQZFXkNZNkNlfevtNkGtaSoXf/vNNNSvgrdXwtA==
+  version "1.3.3"
+  resolved "https://registry.yarnpkg.com/node-forge/-/node-forge-1.3.3.tgz#0ad80f6333b3a0045e827ac20b7f735f93716751"
+  integrity sha512-rLvcdSyRCyouf6jcOIPe/BgwG/d7hKjzMKOas33/pHEr6gbq18IK9zV7DiPvzsz0oBJPme6qr6H6kGZuI9/DZg==
 
 node-int64@^0.4.0:
   version "0.4.0"

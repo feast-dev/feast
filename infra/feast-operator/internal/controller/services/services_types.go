@@ -18,7 +18,7 @@ package services
 
 import (
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	handler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,9 +51,10 @@ const (
 	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
 	caBundleName       = "odh-trusted-ca-bundle"
 
-	DefaultOfflineStorageRequest  = "20Gi"
-	DefaultOnlineStorageRequest   = "5Gi"
-	DefaultRegistryStorageRequest = "5Gi"
+	DefaultOfflineStorageRequest        = "20Gi"
+	DefaultOnlineStorageRequest         = "5Gi"
+	DefaultRegistryStorageRequest       = "5Gi"
+	MetricsPort                   int32 = 8000
 
 	AuthzFeastType    FeastServiceType = "authorization"
 	OfflineFeastType  FeastServiceType = "offline"
@@ -98,8 +99,8 @@ var (
 	DefaultImage          = "quay.io/feastdev/feature-server:" + feastversion.FeastVersion
 	DefaultCronJobImage   = "quay.io/openshift/origin-cli:4.17"
 	DefaultPVCAccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-	NameLabelKey          = feastdevv1alpha1.GroupVersion.Group + "/name"
-	ServiceTypeLabelKey   = feastdevv1alpha1.GroupVersion.Group + "/service-type"
+	NameLabelKey          = feastdevv1.GroupVersion.Group + "/name"
+	ServiceTypeLabelKey   = feastdevv1.GroupVersion.Group + "/service-type"
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
@@ -129,80 +130,80 @@ var (
 	FeastServiceConditions = map[FeastServiceType]map[metav1.ConditionStatus]metav1.Condition{
 		OfflineFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.OfflineStoreReadyType,
+				Type:    feastdevv1.OfflineStoreReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.OfflineStoreReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.OfflineStoreReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.OfflineStoreReadyType,
+				Type:   feastdevv1.OfflineStoreReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.OfflineStoreFailedReason,
+				Reason: feastdevv1.OfflineStoreFailedReason,
 			},
 		},
 		OnlineFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.OnlineStoreReadyType,
+				Type:    feastdevv1.OnlineStoreReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.OnlineStoreReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.OnlineStoreReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.OnlineStoreReadyType,
+				Type:   feastdevv1.OnlineStoreReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.OnlineStoreFailedReason,
+				Reason: feastdevv1.OnlineStoreFailedReason,
 			},
 		},
 		RegistryFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.RegistryReadyType,
+				Type:    feastdevv1.RegistryReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.RegistryReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.RegistryReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.RegistryReadyType,
+				Type:   feastdevv1.RegistryReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.RegistryFailedReason,
+				Reason: feastdevv1.RegistryFailedReason,
 			},
 		},
 		UIFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.UIReadyType,
+				Type:    feastdevv1.UIReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.UIReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.UIReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.UIReadyType,
+				Type:   feastdevv1.UIReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.UIFailedReason,
+				Reason: feastdevv1.UIFailedReason,
 			},
 		},
 		ClientFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.ClientReadyType,
+				Type:    feastdevv1.ClientReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.ClientReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.ClientReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.ClientReadyType,
+				Type:   feastdevv1.ClientReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.ClientFailedReason,
+				Reason: feastdevv1.ClientFailedReason,
 			},
 		},
 		CronJobFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.CronJobReadyType,
+				Type:    feastdevv1.CronJobReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.CronJobReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.CronJobReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.CronJobReadyType,
+				Type:   feastdevv1.CronJobReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.CronJobFailedReason,
+				Reason: feastdevv1.CronJobFailedReason,
 			},
 		},
 	}
@@ -280,6 +281,8 @@ type RegistryConfig struct {
 	RegistryType       RegistryConfigType     `yaml:"registry_type,omitempty"`
 	Cert               string                 `yaml:"cert,omitempty"`
 	S3AdditionalKwargs *map[string]string     `yaml:"s3_additional_kwargs,omitempty"`
+	CacheTTLSeconds    *int32                 `yaml:"cache_ttl_seconds,omitempty"`
+	CacheMode          *string                `yaml:"cache_mode,omitempty"`
 	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
 }
 

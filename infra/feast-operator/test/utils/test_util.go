@@ -16,7 +16,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 )
 
 const (
@@ -26,6 +26,7 @@ const (
 	FeastPrefix              = "feast-"
 	FeatureStoreName         = "simple-feast-setup"
 	FeastResourceName        = FeastPrefix + FeatureStoreName
+	FeatureStoreResourceName = "featurestores.feast.dev"
 )
 
 // dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
@@ -33,7 +34,7 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	// Wait 10 seconds to lets the feature store status update
 	time.Sleep(1 * time.Minute)
 
-	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace, "-o", "json")
+	cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace, "-o", "json")
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -46,7 +47,7 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	}
 
 	// Parse the JSON into FeatureStore
-	var resource v1alpha1.FeatureStore
+	var resource feastdevv1.FeatureStore
 	if err := json.Unmarshal(out.Bytes(), &resource); err != nil {
 		return fmt.Errorf("failed to parse the resource JSON. Error: %v", err)
 	}
@@ -151,6 +152,104 @@ func checkIfConfigMapExists(namespace, configMapName string) error {
 	return nil
 }
 
+// ListConfigMaps lists all ConfigMaps in the given namespace
+func ListConfigMaps(namespace string) ([]string, error) {
+	cmd := exec.Command("kubectl", "get", "cm", "-n", namespace, "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("failed to list config maps in namespace %s. Error: %v. Stderr: %s",
+			namespace, err, stderr.String())
+	}
+
+	configMaps := strings.Split(strings.TrimSpace(out.String()), "\n")
+	// Filter out empty strings
+	var result []string
+	for _, cm := range configMaps {
+		if cm != "" {
+			result = append(result, cm)
+		}
+	}
+	return result, nil
+}
+
+// VerifyConfigMapExistsInList checks if a ConfigMap exists in the list of ConfigMaps
+func VerifyConfigMapExistsInList(namespace, configMapName string) (bool, error) {
+	configMaps, err := ListConfigMaps(namespace)
+	if err != nil {
+		return false, err
+	}
+
+	for _, cm := range configMaps {
+		if cm == configMapName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// VerifyFeastConfigMapExists verifies that a ConfigMap exists and contains the specified key/file
+func VerifyFeastConfigMapExists(namespace, configMapName, expectedKey string) error {
+	// First verify the ConfigMap exists
+	if err := checkIfConfigMapExists(namespace, configMapName); err != nil {
+		return fmt.Errorf("config map %s does not exist: %w", configMapName, err)
+	}
+
+	// Get the ConfigMap data to verify the key exists
+	cmd := exec.Command("kubectl", "get", "cm", configMapName, "-n", namespace, "-o", "jsonpath={.data."+expectedKey+"}")
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to get config map data for %s in namespace %s. Error: %v. Stderr: %s",
+			configMapName, namespace, err, stderr.String())
+	}
+
+	configContent := out.String()
+	if configContent == "" {
+		return fmt.Errorf("config map %s does not contain key %s", configMapName, expectedKey)
+	}
+
+	return nil
+}
+
+// VerifyFeastConfigMapContent verifies that a ConfigMap contains the expected feast configuration content
+// This assumes the ConfigMap and key already exist (use VerifyFeastConfigMapExists first)
+func VerifyFeastConfigMapContent(namespace, configMapName, expectedKey string, expectedContent []string) error {
+	// Get the ConfigMap data
+	cmd := exec.Command("kubectl", "get", "cm", configMapName, "-n", namespace, "-o", "jsonpath={.data."+expectedKey+"}")
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to get config map data for %s in namespace %s. Error: %v. Stderr: %s",
+			configMapName, namespace, err, stderr.String())
+	}
+
+	configContent := out.String()
+	if configContent == "" {
+		return fmt.Errorf("config map %s does not contain key %s", configMapName, expectedKey)
+	}
+
+	// Verify all expected content strings are present
+	for _, expected := range expectedContent {
+		if !strings.Contains(configContent, expected) {
+			return fmt.Errorf("config map %s content does not contain expected string: %s. Content:\n%s",
+				configMapName, expected, configContent)
+		}
+	}
+
+	return nil
+}
+
 // validates if a kubernetes service exists using the kubectl CLI.
 func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 	cmd := exec.Command("kubectl", "get", "service", serviceName, "-n", namespace)
@@ -174,12 +273,21 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 }
 
 func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (bool, error) {
-	timeout := time.Second * 30
+	timeout := 5 * time.Minute
 	interval := time.Second * 2 // Poll every 2 seconds
 	startTime := time.Now()
 
 	for time.Since(startTime) < timeout {
-		cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
+		// First check if the resource exists
+		checkCmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace)
+		if err := checkCmd.Run(); err != nil {
+			// Resource doesn't exist yet, retry
+			fmt.Printf("FeatureStore %s/%s does not exist yet, waiting...\n", namespace, featureStoreName)
+			time.Sleep(interval)
+			continue
+		}
+
+		cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace,
 			"-o=jsonpath='{.status.applied.services.registry}'")
 
 		output, err := cmd.Output()
@@ -206,7 +314,7 @@ func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (boo
 		}
 
 		// Parse the JSON into a map
-		var registryConfig v1alpha1.Registry
+		var registryConfig feastdevv1.Registry
 		if err := json.Unmarshal([]byte(result), &registryConfig); err != nil {
 			return false, err // Return false on JSON parsing failure
 		}
@@ -429,7 +537,17 @@ func DeleteOperatorDeployment(testDir string) {
 func DeployPreviousVersionOperator() {
 	var err error
 
-	cmd := exec.Command("kubectl", "apply", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
+	// Delete existing CRD first to avoid version conflicts when downgrading
+	// The old operator version may not have v1, but the cluster might have v1 in status.storedVersions
+	By("Deleting existing CRD to allow downgrade to previous version")
+	cmd := exec.Command("kubectl", "delete", "crd", "featurestores.feast.dev", "--ignore-not-found=true")
+	_, err = Run(cmd, "/test/upgrade")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	// Wait a bit for CRD deletion to complete
+	time.Sleep(2 * time.Second)
+
+	cmd = exec.Command("kubectl", "apply", "--server-side", "--force-conflicts", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
 	_, err = Run(cmd, "/test/upgrade")
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -475,7 +593,7 @@ func DeleteNamespace(namespace string, testDir string) error {
 func RunTestApplyAndMaterializeFunc(testDir string, namespace string, feastCRName string, feastDeploymentName string) func() {
 	return func() {
 		ApplyFeastInfraManifestsAndVerify(namespace, testDir)
-		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName)
+		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName, "test/testdata/feast_integration_test_crs/feast.yaml")
 		VerifyApplyFeatureStoreDefinitions(namespace, feastCRName, feastDeploymentName)
 		VerifyFeastMethods(namespace, feastDeploymentName, testDir)
 	}
@@ -637,10 +755,10 @@ func validateFeatureStoreYaml(namespace, deployment string) {
 }
 
 // apply and verifies the Feast deployment becomes available, the CR status is "Ready
-func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentName string, feastCRName string) {
+func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentName string, feastCRName string, feastYAMLFilePath string) {
 	By("Applying Feast yaml for secrets and Feature store CR")
 	cmd := exec.Command("kubectl", "apply", "-n", namespace,
-		"-f", "test/testdata/feast_integration_test_crs/feast.yaml")
+		"-f", feastYAMLFilePath)
 	_, err := Run(cmd, testDir)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	checkDeployment(namespace, feastDeploymentName)
@@ -692,4 +810,61 @@ func ReplaceNamespaceInYamlFilesInPlace(filePaths []string, existingNamespace st
 		}
 	}
 	return nil
+}
+
+func ApplyFeastPermissions(fileName string, registryFilePath string, namespace string, podNamePrefix string) {
+	By("Applying Feast permissions to the Feast registry pod")
+
+	// 1. Get the pod by prefix
+	By(fmt.Sprintf("Finding pod with prefix %q in namespace %q", podNamePrefix, namespace))
+	pod, err := getPodByPrefix(namespace, podNamePrefix)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	ExpectWithOffset(1, pod).NotTo(BeNil())
+
+	podName := pod.Name
+	fmt.Printf("Found pod: %s\n", podName)
+
+	cmd := exec.Command(
+		"oc", "cp",
+		fileName, // local source file
+		fmt.Sprintf("%s/%s:%s", namespace, podName, registryFilePath), // remote destination
+		"-c", "registry",
+	)
+
+	_, err = Run(cmd, "/test/e2e_rhoai")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	fmt.Printf("Successfully copied file to pod: %s\n", podName)
+
+	// Run `feast apply` inside the pod to apply updated permissions
+	By("Running feast apply inside the Feast registry pod")
+	cmd = exec.Command(
+		"oc", "exec", podName,
+		"-n", namespace,
+		"-c", "registry",
+		"--",
+		"bash", "-c",
+		"cd /feast-data/credit_scoring_local/feature_repo && feast apply",
+	)
+	_, err = Run(cmd, "/test/e2e_rhoai")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	fmt.Println("Feast permissions apply executed successfully")
+
+	By("Validating that Feast permission has been applied")
+
+	cmd = exec.Command(
+		"oc", "exec", podName,
+		"-n", namespace,
+		"-c", "registry",
+		"--",
+		"feast", "permissions", "list",
+	)
+
+	output, err := Run(cmd, "/test/e2e_rhoai")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	// Change "feast-auth" if your permission name is different
+	ExpectWithOffset(1, output).To(ContainSubstring("feast-auth"), "Expected permission 'feast-auth' to exist")
+
+	fmt.Println("Verified: Feast permission 'feast-auth' exists")
 }

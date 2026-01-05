@@ -229,7 +229,8 @@ class SparkSource(DataSource):
         # If both the table query string and the actual query are null, we can load from file.
         spark_session = SparkSession.getActiveSession()
         if spark_session is None:
-            raise AssertionError("Could not find an active spark session.")
+            # Remote mode may not have an active session bound to the thread; create one on demand.
+            spark_session = SparkSession.builder.getOrCreate()
         try:
             df = self._load_dataframe_from_path(spark_session)
         except Exception:
