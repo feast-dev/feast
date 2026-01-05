@@ -529,7 +529,8 @@ def _group_feature_refs(
             # Redirect if:
             # 1. Feature exists in original view but online serving is disabled, OR
             # 2. Feature doesn't exist in original view at all
-            if feat_name in feature_names_in_original and not original_view.online:
+            if (feat_name in feature_names_in_original
+                and hasattr(original_view, 'online') and not original_view.online):
                 should_redirect = True
             elif feat_name not in feature_names_in_original:
                 should_redirect = True

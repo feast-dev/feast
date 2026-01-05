@@ -1019,7 +1019,7 @@ class FeatureStore:
 
                 # Create ODFV with same transformation logic and correct mode
                 # Include both FeatureViews and RequestSources in sources
-                sources_list = list(fv.source_views or [])
+                sources_list: List[Union[FeatureView, RequestSource]] = list(fv.source_views or [])
                 if hasattr(fv, "source_request_sources") and fv.source_request_sources:
                     sources_list.extend(fv.source_request_sources.values())
 
@@ -1293,9 +1293,9 @@ class FeatureStore:
 
         # Handle FeatureViews with feature_transformation for historical retrieval
         # These are supported by extracting their source views and applying transformations later
-        regular_feature_views = []
-        unified_transformation_views = []
-        source_feature_views = []
+        regular_feature_views: List[Union[FeatureView, OnDemandFeatureView]] = []
+        unified_transformation_views: List[Tuple[Union[FeatureView, OnDemandFeatureView], List[str]]] = []
+        source_feature_views: List[Union[FeatureView, OnDemandFeatureView]] = []
 
         # Separate FeatureViews with transformations from regular ones
         for fv, features_list in fvs:
