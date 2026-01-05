@@ -233,6 +233,9 @@ def get_historical_features_ibis(
 
     odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
 
+    # Extract unified FeatureViews with transformations
+    unified_fvs = FeatureView.get_requested_unified_fvs(feature_refs, project, registry)
+
     substrait_odfvs = [fv for fv in odfvs if fv.mode == "substrait"]
     for odfv in substrait_odfvs:
         res = odfv.transform_ibis(res, full_feature_names)
@@ -240,6 +243,7 @@ def get_historical_features_ibis(
     return IbisRetrievalJob(
         res,
         [fv for fv in odfvs if fv.mode != "substrait"],
+        unified_fvs,
         full_feature_names,
         metadata=RetrievalMetadata(
             features=feature_refs,
@@ -481,6 +485,7 @@ class IbisRetrievalJob(RetrievalJob):
         self,
         table,
         on_demand_feature_views,
+        unified_feature_views,
         full_feature_names,
         metadata,
         data_source_writer,
@@ -492,6 +497,9 @@ class IbisRetrievalJob(RetrievalJob):
         self.table = table
         self._on_demand_feature_views: List[OnDemandFeatureView] = (
             on_demand_feature_views
+        )
+        self._unified_feature_views: List[FeatureView] = (
+            unified_feature_views
         )
         self._full_feature_names = full_feature_names
         self._metadata = metadata
@@ -513,6 +521,10 @@ class IbisRetrievalJob(RetrievalJob):
     @property
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
+
+    @property
+    def unified_feature_views(self) -> List[FeatureView]:
+        return self._unified_feature_views
 
     def persist(
         self,

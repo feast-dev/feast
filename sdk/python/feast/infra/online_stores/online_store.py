@@ -176,6 +176,7 @@ class OnlineStore(ABC):
             feature_refs,
             requested_result_row_names,
             online_features_response,
+            provided_transformation_input_features,
         ) = utils._prepare_entities_to_read_from_online_store(
             registry=registry,
             project=project,
@@ -195,16 +196,26 @@ class OnlineStore(ABC):
 
             entity_key_protos = utils._get_entity_key_protos(table_entity_values)
 
+            # Filter out features that were provided as transformation inputs to avoid overriding request-time data
+            features_to_fetch = [
+                feature for feature in requested_features
+                if feature not in provided_transformation_input_features
+            ]
+
+            # Skip if no features need to be fetched from the store
+            if not features_to_fetch:
+                continue
+
             # Fetch data for Entities.
             read_rows = self.online_read(
                 config=config,
                 table=table,
                 entity_keys=entity_key_protos,
-                requested_features=requested_features,
+                requested_features=features_to_fetch,
             )
 
             feature_data = utils._convert_rows_to_protobuf(
-                requested_features, read_rows
+                features_to_fetch, read_rows
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
@@ -213,7 +224,7 @@ class OnlineStore(ABC):
                 idxs,
                 online_features_response,
                 full_feature_names,
-                requested_features,
+                features_to_fetch,
                 table,
                 output_len,
             )
@@ -264,6 +275,7 @@ class OnlineStore(ABC):
             feature_refs,
             requested_result_row_names,
             online_features_response,
+            provided_transformation_input_features,
         ) = utils._prepare_entities_to_read_from_online_store(
             registry=registry,
             project=project,
@@ -283,15 +295,25 @@ class OnlineStore(ABC):
 
             entity_key_protos = utils._get_entity_key_protos(table_entity_values)
 
+            # Filter out features that were provided as transformation inputs to avoid overriding request-time data
+            features_to_fetch = [
+                feature for feature in requested_features
+                if feature not in provided_transformation_input_features
+            ]
+
+            # Return empty if no features need to be fetched from the store
+            if not features_to_fetch:
+                return idxs, [], output_len, features_to_fetch
+
             # Fetch data for Entities.
             read_rows = await self.online_read_async(
                 config=config,
                 table=table,
                 entity_keys=entity_key_protos,
-                requested_features=requested_features,
+                requested_features=features_to_fetch,
             )
 
-            return idxs, read_rows, output_len
+            return idxs, read_rows, output_len, features_to_fetch
 
         all_responses = await asyncio.gather(
             *[
@@ -300,11 +322,23 @@ class OnlineStore(ABC):
             ]
         )
 
-        for (idxs, read_rows, output_len), (table, requested_features) in zip(
+        for response, (table, original_requested_features) in zip(
             all_responses, grouped_refs
         ):
+            # Handle different return formats for backward compatibility
+            if len(response) == 4:
+                idxs, read_rows, output_len, features_to_fetch = response
+            else:
+                # Handle case where no features were fetched (features_to_fetch was empty)
+                idxs, read_rows, output_len = response
+                features_to_fetch = []
+
+            # Skip processing if no features were fetched
+            if not features_to_fetch:
+                continue
+
             feature_data = utils._convert_rows_to_protobuf(
-                requested_features, read_rows
+                features_to_fetch, read_rows
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
@@ -313,7 +347,7 @@ class OnlineStore(ABC):
                 idxs,
                 online_features_response,
                 full_feature_names,
-                requested_features,
+                features_to_fetch,
                 table,
                 output_len,
             )

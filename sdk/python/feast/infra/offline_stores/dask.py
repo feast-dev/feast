@@ -59,6 +59,7 @@ class DaskRetrievalJob(RetrievalJob):
         full_feature_names: bool,
         repo_path: str,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
+        unified_feature_views: Optional[List[FeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
         """Initialize a lazy historical retrieval job"""
@@ -67,6 +68,7 @@ class DaskRetrievalJob(RetrievalJob):
         self.evaluation_function = evaluation_function
         self._full_feature_names = full_feature_names
         self._on_demand_feature_views = on_demand_feature_views or []
+        self._unified_feature_views = unified_feature_views or []
         self._metadata = metadata
         self.repo_path = repo_path
 
@@ -77,6 +79,10 @@ class DaskRetrievalJob(RetrievalJob):
     @property
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
+
+    @property
+    def unified_feature_views(self) -> List[FeatureView]:
+        return self._unified_feature_views
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
@@ -296,6 +302,7 @@ class DaskOfflineStore(OfflineStore):
             on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
                 feature_refs, project, registry
             ),
+            unified_feature_views=kwargs.get("unified_feature_views", []),
             metadata=RetrievalMetadata(
                 features=feature_refs,
                 keys=list(set(entity_df.columns) - {entity_df_event_timestamp_col}),

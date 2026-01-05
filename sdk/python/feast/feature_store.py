@@ -1010,21 +1010,38 @@ class FeatureStore:
         for fv in dual_registration_views:
             # Create OnDemandFeatureView for online serving with same transformation
             if hasattr(fv, "feature_transformation") and fv.feature_transformation:
-                # Create ODFV with same transformation logic
+                # Extract the transformation mode from the transformation
+                transformation_mode = fv.feature_transformation.mode
+                if hasattr(transformation_mode, "value"):
+                    mode_str = transformation_mode.value
+                else:
+                    mode_str = str(transformation_mode)
+
+                # Create ODFV with same transformation logic and correct mode
+                # Include both FeatureViews and RequestSources in sources
+                sources_list = list(fv.source_views or [])
+                if hasattr(fv, 'source_request_sources') and fv.source_request_sources:
+                    sources_list.extend(fv.source_request_sources.values())
+
+                # Disable online serving for the original FeatureView since we're creating an ODFV for online serving
+                fv.online = False
+
                 online_fv = OnDemandFeatureView(
                     name=f"{fv.name}_online",
                     sources=cast(
                         List[Union[FeatureView, FeatureViewProjection, RequestSource]],
-                        fv.source_views or [],
+                        sources_list,
                     ),
                     schema=fv.schema or [],
                     feature_transformation=fv.feature_transformation,  # Same transformation!
+                    mode=mode_str,  # Pass the correct transformation mode!
                     description=f"Online serving for {fv.name}",
                     tags=dict(
                         fv.tags or {},
                         **{"generated_from": fv.name, "dual_registration": "true"},
                     ),
                     owner=fv.owner,
+                    write_to_online_store=False,  # Always transform on-demand for unified FeatureViews
                 )
 
                 # Add to ODFVs to be registered
@@ -1250,7 +1267,7 @@ class FeatureStore:
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's not passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
-        fvs, odfvs = utils._group_feature_refs(
+        fvs, odfvs, _ = utils._group_feature_refs(
             _feature_refs,
             all_feature_views,
             all_on_demand_feature_views,
@@ -1274,19 +1291,59 @@ class FeatureStore:
         utils._validate_feature_refs(_feature_refs, full_feature_names)
         provider = self._get_provider()
 
+        # Handle FeatureViews with feature_transformation for historical retrieval
+        # These are supported by extracting their source views and applying transformations later
+        regular_feature_views = []
+        unified_transformation_views = []
+        source_feature_views = []
+
+        # Separate FeatureViews with transformations from regular ones
+        for (fv, features_list) in fvs:
+            if hasattr(fv, 'feature_transformation') and fv.feature_transformation is not None:
+                # FeatureView with transformation - collect for post-processing
+                unified_transformation_views.append((fv, features_list))
+
+                # Extract source FeatureViews from the transformation view
+                if hasattr(fv, 'source') and fv.source:
+                    # Handle both single source and list of sources
+                    sources = fv.source if isinstance(fv.source, list) else [fv.source]
+                    for src in sources:
+                        # Only add if it's actually a FeatureView, not a DataSource
+                        if isinstance(src, FeatureView) and src not in source_feature_views:
+                            source_feature_views.append(src)
+            else:
+                regular_feature_views.append(fv)
+
+        # Combine regular feature views with source feature views needed for transformations
+        # Do NOT include unified transformation views in the provider call as they would cause
+        # column selection errors - transformations will be applied post-retrieval
+        feature_views = regular_feature_views + source_feature_views
+
+        # Filter feature_refs to only include those that refer to feature_views being passed to provider
+        # Unified transformation feature refs will be handled post-retrieval
+        provider_feature_refs = []
+        for ref in _feature_refs:
+            fv_name = ref.split(":")[0] if ":" in ref else ref
+            for fv in feature_views:
+                if fv.name == fv_name:
+                    provider_feature_refs.append(ref)
+                    break
+
         # Optional kwargs
         kwargs: Dict[str, Any] = {}
         if start_date is not None:
             kwargs["start_date"] = start_date
         if end_date is not None:
             kwargs["end_date"] = end_date
-        # Note: Transformation execution is now handled automatically by providers
-        # based on feature view configurations and request patterns
+
+        # Pass unified feature views for transformation handling
+        unified_fvs = [fv for fv, _ in unified_transformation_views]
+        kwargs["unified_feature_views"] = unified_fvs
 
         job = provider.get_historical_features(
             self.config,
             feature_views,
-            _feature_refs,
+            provider_feature_refs,
             entity_df,
             self._registry,
             self.project,

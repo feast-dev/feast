@@ -270,11 +270,9 @@ def _convert_arrow_to_proto(
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
-    # Check for source_request_sources or source_feature_view_projections attributes to identify ODFVs
-    if (
-        getattr(feature_view, "source_request_sources", None) is not None
-        or getattr(feature_view, "source_feature_view_projections", None) is not None
-    ):
+    # Check for specific ODFV attributes to identify OnDemandFeatureView vs FeatureView
+    # OnDemandFeatureView has write_to_online_store, FeatureView does not
+    if hasattr(feature_view, "write_to_online_store"):
         return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
     else:
         return _convert_arrow_fv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
@@ -489,6 +487,7 @@ def _group_feature_refs(
 ) -> Tuple[
     List[Tuple[Union["FeatureView", "OnDemandFeatureView"], List[str]]],
     List[Tuple["OnDemandFeatureView", List[str]]],
+    List[str],
 ]:
     """Get list of feature views and corresponding feature names based on feature references"""
 
@@ -512,8 +511,52 @@ def _group_feature_refs(
     # on demand view name to feature names
     on_demand_view_features = defaultdict(set)
 
+    # Track redirected feature references
+    redirected_features: List[str] = []
+
     for ref in features:
-        view_name, feat_name = ref.split(":")
+        original_view_name, feat_name = ref.split(":")
+        view_name = original_view_name
+
+        # Handle unified FeatureViews with transformations - redirect to auto-generated OnDemandFeatureView
+        # Check if we need to redirect from original view to _online variant
+        should_redirect = False
+
+        if view_name in view_index:
+            original_view = view_index[view_name]
+            feature_names_in_original = [f.name for f in original_view.features]
+
+            # Redirect if:
+            # 1. Feature exists in original view but online serving is disabled, OR
+            # 2. Feature doesn't exist in original view at all
+            if feat_name in feature_names_in_original and not original_view.online:
+                should_redirect = True
+            elif feat_name not in feature_names_in_original:
+                should_redirect = True
+        elif view_name not in on_demand_view_index:
+            # View doesn't exist in either index, try _online variant
+            should_redirect = True
+
+        if should_redirect:
+            online_view_name = f"{view_name}_online"
+            if online_view_name in on_demand_view_index:
+                # Check if the feature exists in the _online variant's schema
+                online_view = on_demand_view_index[online_view_name]
+                feature_names_in_online = [f.name for f in online_view.features]
+                if feat_name in feature_names_in_online:
+                    view_name = online_view_name
+                    # Track the redirected feature reference
+                    redirected_features.append(f"{view_name}:{feat_name}")
+                else:
+                    # No redirection happened, keep original
+                    redirected_features.append(ref)
+            else:
+                # No redirection happened, keep original
+                redirected_features.append(ref)
+        else:
+            # No redirection happened, keep original
+            redirected_features.append(ref)
+
         if view_name in view_index:
             if hasattr(view_index[view_name], "write_to_online_store"):
                 tmp_feat_name = [
@@ -547,7 +590,7 @@ def _group_feature_refs(
         fvs_result.append((view_index[view_name], list(feature_names)))
     for view_name, feature_names in on_demand_view_features.items():
         odfvs_result.append((on_demand_view_index[view_name], list(feature_names)))
-    return fvs_result, odfvs_result
+    return fvs_result, odfvs_result, redirected_features
 
 
 def construct_response_feature_vector(
@@ -665,6 +708,7 @@ def _augment_response_with_on_demand_transforms(
             "customer_fv__daily_transactions").
     """
     from feast.online_response import OnlineResponse
+
 
     requested_odfv_map = {odfv.name: odfv for odfv in requested_on_demand_feature_views}
     requested_odfv_feature_names = requested_odfv_map.keys()
@@ -799,15 +843,20 @@ def _augment_response_with_on_demand_transforms(
                             f"Unexpected type for feature_type: {type(feature_type)}"
                         )
 
+                # Handle different types of feature_vector based on mode
+                if isinstance(feature_vector, list):
+                    values_for_proto = feature_vector
+                elif odfv.mode == "python":
+                    values_for_proto = [feature_vector]
+                elif hasattr(feature_vector, 'to_numpy'):
+                    # pandas Series/DataFrame column
+                    values_for_proto = feature_vector.to_numpy()
+                else:
+                    # Scalar value (e.g., float, int)
+                    values_for_proto = [feature_vector]
+
                 proto_values.append(
-                    python_values_to_proto_values(
-                        feature_vector
-                        if isinstance(feature_vector, list)
-                        else [feature_vector]
-                        if odfv.mode == "python"
-                        else feature_vector.to_numpy(),
-                        feature_type,
-                    )
+                    python_values_to_proto_values(values_for_proto, feature_type)
                 )
 
             odfv_result_names |= set(selected_subset)
@@ -1231,10 +1280,19 @@ def _get_feature_views_to_use(
             hasattr(fv, "feature_transformation")
             and fv.feature_transformation is not None
         ):
-            # Handle unified FeatureViews with transformations like OnDemandFeatureViews
-            od_fvs_to_use.append(
-                fv.with_projection(copy.copy(projection)) if projection else fv
-            )
+            # Handle unified FeatureViews with transformations by finding the generated OnDemandFeatureView
+            try:
+                # Look for the auto-generated OnDemandFeatureView for online serving
+                online_fv_name = f"{fv.name}_online"
+                online_fv = registry.get_on_demand_feature_view(online_fv_name, project, allow_cache)
+                od_fvs_to_use.append(
+                    online_fv.with_projection(copy.copy(projection)) if projection else online_fv
+                )
+            except Exception:
+                # Fallback to the original FeatureView if auto-generated ODFV not found
+                od_fvs_to_use.append(
+                    fv.with_projection(copy.copy(projection)) if projection else fv
+                )
 
             # For unified FeatureViews, source FeatureViews are stored in source_views property
             source_views = (
@@ -1307,6 +1365,7 @@ def _get_online_request_context(
     (
         grouped_refs,
         grouped_odfv_refs,
+        redirected_feature_refs,
     ) = _group_feature_refs(
         _feature_refs,
         requested_feature_views,
@@ -1341,6 +1400,7 @@ def _get_online_request_context(
         requested_result_row_names,
         needed_request_data,
         entityless_case,
+        redirected_feature_refs,
     )
 
 
@@ -1366,6 +1426,7 @@ def _prepare_entities_to_read_from_online_store(
         requested_result_row_names,
         needed_request_data,
         entityless_case,
+        redirected_feature_refs,
     ) = _get_online_request_context(registry, project, features, full_feature_names)
 
     # Extract Sequence from RepeatedValue Protobuf.
@@ -1411,7 +1472,25 @@ def _prepare_entities_to_read_from_online_store(
 
     join_key_values: Dict[str, List[ValueProto]] = {}
     request_data_features: Dict[str, List[ValueProto]] = {}
-    # Entity rows may be either entities or request data.
+    transformation_input_features_data: Dict[str, List[ValueProto]] = {}
+
+    # Collect transformation input feature names from OnDemandFeatureViews
+    transformation_input_features: Set[str] = set()
+    for odfv in requested_on_demand_feature_views:
+        # Check if this ODFV has transformations and source feature view projections
+        if hasattr(odfv, 'source_feature_view_projections'):
+            for projection in odfv.source_feature_view_projections.values():
+                for feature in projection.features:
+                    transformation_input_features.add(feature.name)
+        # Also check for unified FeatureViews with feature_transformation
+        elif hasattr(odfv, 'feature_transformation') and odfv.feature_transformation:
+            # For unified FeatureViews, check source_views if available
+            if hasattr(odfv, 'source_views') and odfv.source_views:
+                for source_view in odfv.source_views:
+                    for feature in source_view.features:
+                        transformation_input_features.add(feature.name)
+
+    # Entity rows may be either entities, request data, or transformation input features.
     for join_key_or_entity_name, values in entity_proto_values.items():
         # Found request data
         if join_key_or_entity_name in needed_request_data:
@@ -1427,17 +1506,20 @@ def _prepare_entities_to_read_from_online_store(
             warnings.warn("Using entity name is deprecated. Use join_key instead.")
             requested_result_row_names.add(join_key)
             join_key_values[join_key] = values
+        elif join_key_or_entity_name in transformation_input_features:
+            # It's a transformation input feature - treat as request-time data
+            transformation_input_features_data[join_key_or_entity_name] = values
         else:
             # Key is not recognized (likely a feature value), so we skip it.
             continue  # Or handle accordingly
 
     ensure_request_data_values_exist(needed_request_data, request_data_features)
 
-    # Populate online features response proto with join keys and request data features
+    # Populate online features response proto with join keys, request data features, and transformation input features
     online_features_response = GetOnlineFeaturesResponse(results=[])
     _populate_result_rows_from_columnar(
         online_features_response=online_features_response,
-        data=dict(**join_key_values, **request_data_features),
+        data=dict(**join_key_values, **request_data_features, **transformation_input_features_data),
     )
 
     # Add the Entityless case after populating result rows to avoid having to remove
@@ -1452,9 +1534,10 @@ def _prepare_entities_to_read_from_online_store(
         grouped_refs,
         entity_name_to_join_key_map,
         requested_on_demand_feature_views,
-        feature_refs,
+        redirected_feature_refs,
         requested_result_row_names,
         online_features_response,
+        set(transformation_input_features_data.keys()),
     )
 
 

@@ -22,7 +22,7 @@ from typeguard import typechecked
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
+from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource, RequestSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
@@ -175,18 +175,26 @@ class FeatureView(BaseFeatureView):
         self.stream_source = None
         self.data_source: Optional[DataSource] = None
         self.source_views: List[FeatureView] = []
+        self.source_request_sources: Dict[str, RequestSource] = {}
 
         if isinstance(source, DataSource):
             self.data_source = source
         elif isinstance(source, FeatureView):
             self.source_views = [source]
-        elif isinstance(source, list) and all(
-            isinstance(sv, FeatureView) for sv in source
-        ):
-            self.source_views = source
+        elif isinstance(source, list):
+            # Handle mixed list of FeatureViews and RequestSources
+            for sv in source:
+                if isinstance(sv, FeatureView):
+                    self.source_views.append(sv)
+                elif isinstance(sv, RequestSource):
+                    self.source_request_sources[sv.name] = sv
+                else:
+                    raise TypeError(
+                        f"List source items must be FeatureView or RequestSource, got {type(sv)}"
+                    )
         else:
             raise TypeError(
-                "source must be a DataSource, a FeatureView, or a list of FeatureView."
+                "source must be a DataSource, a FeatureView, or a list containing FeatureViews and RequestSources."
             )
 
         # Set up stream, batch and derived view sources
@@ -692,3 +700,31 @@ class FeatureView(BaseFeatureView):
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+    @staticmethod
+    def get_requested_unified_fvs(feature_refs, project, registry) -> List["FeatureView"]:
+        """
+        Extract FeatureViews with transformations that are requested in feature_refs.
+
+        Args:
+            feature_refs: List of feature references (e.g., ["fv_name:feature_name"])
+            project: Project name
+            registry: Registry instance
+
+        Returns:
+            List of FeatureViews with transformations that match the feature_refs
+        """
+        all_feature_views = registry.list_feature_views(
+            project, allow_cache=True
+        )
+        requested_unified_fvs: List[FeatureView] = []
+
+        for fv in all_feature_views:
+            # Only include FeatureViews with transformations
+            if hasattr(fv, 'feature_transformation') and fv.feature_transformation is not None:
+                for feature in fv.features:
+                    if f"{fv.name}:{feature.name}" in feature_refs:
+                        requested_unified_fvs.append(fv)
+                        break  # Only add once per feature view
+
+        return requested_unified_fvs
