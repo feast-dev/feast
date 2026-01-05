@@ -39,6 +39,8 @@ if TYPE_CHECKING:
 
 import pandas as pd
 import pyarrow as pa
+import click
+from colorama import Fore, Style
 from fastapi.concurrency import run_in_threadpool
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -72,9 +74,6 @@ from feast.inference import (
     update_feature_views_with_inferred_features_and_entities,
 )
 from feast.infra.infra_object import Infra
-from feast.infra.offline_stores.offline_utils import (
-    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
-)
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
@@ -100,8 +99,6 @@ from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
 
 warnings.simplefilter("once", DeprecationWarning)
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -1638,6 +1635,7 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        _print_materializing_banner()
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views
         )
@@ -1801,6 +1799,7 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        _print_materializing_banner()
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
@@ -3284,6 +3283,11 @@ def _print_materialization_log(
             utils.make_tzaware(end_date.replace(microsecond=0)),
             online_store,
         )
+
+
+def _print_materializing_banner() -> None:
+    click.echo("Materializing...")
+    click.echo()
 
 
 def _validate_feature_views(feature_views: List[BaseFeatureView]):
