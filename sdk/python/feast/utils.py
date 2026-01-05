@@ -709,7 +709,6 @@ def _augment_response_with_on_demand_transforms(
     """
     from feast.online_response import OnlineResponse
 
-
     requested_odfv_map = {odfv.name: odfv for odfv in requested_on_demand_feature_views}
     requested_odfv_feature_names = requested_odfv_map.keys()
 
@@ -848,7 +847,7 @@ def _augment_response_with_on_demand_transforms(
                     values_for_proto = feature_vector
                 elif odfv.mode == "python":
                     values_for_proto = [feature_vector]
-                elif hasattr(feature_vector, 'to_numpy'):
+                elif hasattr(feature_vector, "to_numpy"):
                     # pandas Series/DataFrame column
                     values_for_proto = feature_vector.to_numpy()
                 else:
@@ -1284,9 +1283,13 @@ def _get_feature_views_to_use(
             try:
                 # Look for the auto-generated OnDemandFeatureView for online serving
                 online_fv_name = f"{fv.name}_online"
-                online_fv = registry.get_on_demand_feature_view(online_fv_name, project, allow_cache)
+                online_fv = registry.get_on_demand_feature_view(
+                    online_fv_name, project, allow_cache
+                )
                 od_fvs_to_use.append(
-                    online_fv.with_projection(copy.copy(projection)) if projection else online_fv
+                    online_fv.with_projection(copy.copy(projection))
+                    if projection
+                    else online_fv
                 )
             except Exception:
                 # Fallback to the original FeatureView if auto-generated ODFV not found
@@ -1478,14 +1481,14 @@ def _prepare_entities_to_read_from_online_store(
     transformation_input_features: Set[str] = set()
     for odfv in requested_on_demand_feature_views:
         # Check if this ODFV has transformations and source feature view projections
-        if hasattr(odfv, 'source_feature_view_projections'):
+        if hasattr(odfv, "source_feature_view_projections"):
             for projection in odfv.source_feature_view_projections.values():
                 for feature in projection.features:
                     transformation_input_features.add(feature.name)
         # Also check for unified FeatureViews with feature_transformation
-        elif hasattr(odfv, 'feature_transformation') and odfv.feature_transformation:
+        elif hasattr(odfv, "feature_transformation") and odfv.feature_transformation:
             # For unified FeatureViews, check source_views if available
-            if hasattr(odfv, 'source_views') and odfv.source_views:
+            if hasattr(odfv, "source_views") and odfv.source_views:
                 for source_view in odfv.source_views:
                     for feature in source_view.features:
                         transformation_input_features.add(feature.name)
@@ -1519,7 +1522,11 @@ def _prepare_entities_to_read_from_online_store(
     online_features_response = GetOnlineFeaturesResponse(results=[])
     _populate_result_rows_from_columnar(
         online_features_response=online_features_response,
-        data=dict(**join_key_values, **request_data_features, **transformation_input_features_data),
+        data=dict(
+            **join_key_values,
+            **request_data_features,
+            **transformation_input_features_data,
+        ),
     )
 
     # Add the Entityless case after populating result rows to avoid having to remove

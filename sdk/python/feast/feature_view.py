@@ -22,7 +22,13 @@ from typeguard import typechecked
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource, RequestSource
+from feast.data_source import (
+    DataSource,
+    KafkaSource,
+    KinesisSource,
+    PushSource,
+    RequestSource,
+)
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
@@ -702,7 +708,9 @@ class FeatureView(BaseFeatureView):
         return max([interval[1] for interval in self.materialization_intervals])
 
     @staticmethod
-    def get_requested_unified_fvs(feature_refs, project, registry) -> List["FeatureView"]:
+    def get_requested_unified_fvs(
+        feature_refs, project, registry
+    ) -> List["FeatureView"]:
         """
         Extract FeatureViews with transformations that are requested in feature_refs.
 
@@ -714,14 +722,15 @@ class FeatureView(BaseFeatureView):
         Returns:
             List of FeatureViews with transformations that match the feature_refs
         """
-        all_feature_views = registry.list_feature_views(
-            project, allow_cache=True
-        )
+        all_feature_views = registry.list_feature_views(project, allow_cache=True)
         requested_unified_fvs: List[FeatureView] = []
 
         for fv in all_feature_views:
             # Only include FeatureViews with transformations
-            if hasattr(fv, 'feature_transformation') and fv.feature_transformation is not None:
+            if (
+                hasattr(fv, "feature_transformation")
+                and fv.feature_transformation is not None
+            ):
                 for feature in fv.features:
                     if f"{fv.name}:{feature.name}" in feature_refs:
                         requested_unified_fvs.append(fv)

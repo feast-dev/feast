@@ -498,9 +498,7 @@ class IbisRetrievalJob(RetrievalJob):
         self._on_demand_feature_views: List[OnDemandFeatureView] = (
             on_demand_feature_views
         )
-        self._unified_feature_views: List[FeatureView] = (
-            unified_feature_views
-        )
+        self._unified_feature_views: List[FeatureView] = unified_feature_views
         self._full_feature_names = full_feature_names
         self._metadata = metadata
         self.data_source_writer = data_source_writer

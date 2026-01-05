@@ -198,7 +198,8 @@ class OnlineStore(ABC):
 
             # Filter out features that were provided as transformation inputs to avoid overriding request-time data
             features_to_fetch = [
-                feature for feature in requested_features
+                feature
+                for feature in requested_features
                 if feature not in provided_transformation_input_features
             ]
 
@@ -214,9 +215,7 @@ class OnlineStore(ABC):
                 requested_features=features_to_fetch,
             )
 
-            feature_data = utils._convert_rows_to_protobuf(
-                features_to_fetch, read_rows
-            )
+            feature_data = utils._convert_rows_to_protobuf(features_to_fetch, read_rows)
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
             utils._populate_response_from_feature_data(
@@ -297,7 +296,8 @@ class OnlineStore(ABC):
 
             # Filter out features that were provided as transformation inputs to avoid overriding request-time data
             features_to_fetch = [
-                feature for feature in requested_features
+                feature
+                for feature in requested_features
                 if feature not in provided_transformation_input_features
             ]
 
@@ -337,9 +337,7 @@ class OnlineStore(ABC):
             if not features_to_fetch:
                 continue
 
-            feature_data = utils._convert_rows_to_protobuf(
-                features_to_fetch, read_rows
-            )
+            feature_data = utils._convert_rows_to_protobuf(features_to_fetch, read_rows)
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
             utils._populate_response_from_feature_data(

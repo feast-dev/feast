@@ -65,13 +65,9 @@ class TestUnifiedPythonTransformation(unittest.TestCase):
         start_date = end_date - timedelta(days=15)
 
         driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = create_driver_hourly_stats_df(
-            driver_entities, start_date, end_date
-        )
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
         driver_stats_path = os.path.join(self.data_dir, "driver_stats.parquet")
-        driver_df.to_parquet(
-            path=driver_stats_path, allow_truncated_timestamps=True
-        )
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
         driver = Entity(
             name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
@@ -114,9 +110,7 @@ class TestUnifiedPythonTransformation(unittest.TestCase):
         @transformation(mode="pandas")
         def pandas_transform(inputs: pd.DataFrame) -> pd.DataFrame:
             df = pd.DataFrame()
-            df["conv_rate_plus_acc_pandas"] = (
-                inputs["conv_rate"] + inputs["acc_rate"]
-            )
+            df["conv_rate_plus_acc_pandas"] = inputs["conv_rate"] + inputs["acc_rate"]
             return df
 
         sink_source = FileSource(name="sink-source", path="sink.parquet")
@@ -134,9 +128,7 @@ class TestUnifiedPythonTransformation(unittest.TestCase):
         def python_transform(inputs: dict[str, Any]) -> dict[str, Any]:
             output: dict[str, Any] = {
                 "conv_rate_plus_acc_python": conv_rate + acc_rate
-                for conv_rate, acc_rate in zip(
-                    inputs["conv_rate"], inputs["acc_rate"]
-                )
+                for conv_rate, acc_rate in zip(inputs["conv_rate"], inputs["acc_rate"])
             }
             return output
 
@@ -408,13 +400,9 @@ class TestUnifiedPythonTransformationAllDataTypes(unittest.TestCase):
         start_date = end_date - timedelta(days=15)
 
         driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = create_driver_hourly_stats_df(
-            driver_entities, start_date, end_date
-        )
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
         driver_stats_path = os.path.join(self.data_dir, "driver_stats.parquet")
-        driver_df.to_parquet(
-            path=driver_stats_path, allow_truncated_timestamps=True
-        )
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
         driver = Entity(name="driver", join_keys=["driver_id"])
 
@@ -496,10 +484,7 @@ class TestUnifiedPythonTransformationAllDataTypes(unittest.TestCase):
         sink_source = FileSource(name="sink-source", path="sink.parquet")
         python_view = FeatureView(
             name="python_view",
-            source=[
-                driver_stats_fv,
-                request_source
-            ],
+            source=[driver_stats_fv, request_source],
             sink_source=sink_source,
             schema=[
                 Field(name="highest_achieved_rank", dtype=String),

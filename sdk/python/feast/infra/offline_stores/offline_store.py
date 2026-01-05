@@ -169,10 +169,15 @@ class RetrievalJob(ABC):
         # Handle unified FeatureViews with transformations
         if self.unified_feature_views:
             for unified_fv in self.unified_feature_views:
-                if hasattr(unified_fv, 'feature_transformation') and unified_fv.feature_transformation is not None:
+                if (
+                    hasattr(unified_fv, "feature_transformation")
+                    and unified_fv.feature_transformation is not None
+                ):
                     # Apply the transformation using the transform_arrow method
-                    transformed_arrow = unified_fv.feature_transformation.transform_arrow(
-                        features_table, unified_fv.features
+                    transformed_arrow = (
+                        unified_fv.feature_transformation.transform_arrow(
+                            features_table, unified_fv.features
+                        )
                     )
 
                     for col in transformed_arrow.column_names:

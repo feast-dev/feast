@@ -1020,7 +1020,7 @@ class FeatureStore:
                 # Create ODFV with same transformation logic and correct mode
                 # Include both FeatureViews and RequestSources in sources
                 sources_list = list(fv.source_views or [])
-                if hasattr(fv, 'source_request_sources') and fv.source_request_sources:
+                if hasattr(fv, "source_request_sources") and fv.source_request_sources:
                     sources_list.extend(fv.source_request_sources.values())
 
                 # Disable online serving for the original FeatureView since we're creating an ODFV for online serving
@@ -1298,18 +1298,24 @@ class FeatureStore:
         source_feature_views = []
 
         # Separate FeatureViews with transformations from regular ones
-        for (fv, features_list) in fvs:
-            if hasattr(fv, 'feature_transformation') and fv.feature_transformation is not None:
+        for fv, features_list in fvs:
+            if (
+                hasattr(fv, "feature_transformation")
+                and fv.feature_transformation is not None
+            ):
                 # FeatureView with transformation - collect for post-processing
                 unified_transformation_views.append((fv, features_list))
 
                 # Extract source FeatureViews from the transformation view
-                if hasattr(fv, 'source') and fv.source:
+                if hasattr(fv, "source") and fv.source:
                     # Handle both single source and list of sources
                     sources = fv.source if isinstance(fv.source, list) else [fv.source]
                     for src in sources:
                         # Only add if it's actually a FeatureView, not a DataSource
-                        if isinstance(src, FeatureView) and src not in source_feature_views:
+                        if (
+                            isinstance(src, FeatureView)
+                            and src not in source_feature_views
+                        ):
                             source_feature_views.append(src)
             else:
                 regular_feature_views.append(fv)
