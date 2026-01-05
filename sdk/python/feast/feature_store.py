@@ -34,6 +34,8 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
+import click
+from colorama import Fore, Style
 from fastapi.concurrency import run_in_threadpool
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -67,9 +69,6 @@ from feast.inference import (
     update_feature_views_with_inferred_features_and_entities,
 )
 from feast.infra.infra_object import Infra
-from feast.infra.offline_stores.offline_utils import (
-    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
-)
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
@@ -95,8 +94,6 @@ from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
 
 warnings.simplefilter("once", DeprecationWarning)
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -1482,6 +1479,7 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        _print_materializing_banner()
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views
         )
@@ -1509,7 +1507,9 @@ class FeatureStore:
                     else:
                         odfv_start_date = end_date - timedelta(weeks=52)
 
-                    logger.info("%s:", feature_view.name)
+                    click.echo(
+                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+                    )
                     self._materialize_odfv(
                         feature_view,
                         odfv_start_date,
@@ -1530,17 +1530,16 @@ class FeatureStore:
                 else:
                     # TODO(felixwang9817): Find the earliest timestamp for this specific feature
                     # view from the offline store, and set the start date to that timestamp.
-                    logger.info(
-                        "Since the ttl is 0 for feature view %s, the start date will be set to 1 year before the current time.",
-                        feature_view.name,
+                    click.echo(
+                        f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
+                        "the start date will be set to 1 year before the current time."
                     )
                     start_date = _utc_now() - timedelta(weeks=52)
             provider = self._get_provider()
-            logger.info(
-                "%s from %s to %s:",
-                feature_view.name,
-                utils.make_tzaware(start_date.replace(microsecond=0)),
-                utils.make_tzaware(end_date.replace(microsecond=0)),
+            click.echo(
+                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
+                f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
+                f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
             )
 
             def tqdm_builder(length):
@@ -1603,6 +1602,7 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        _print_materializing_banner()
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
@@ -1621,7 +1621,9 @@ class FeatureStore:
         for feature_view in feature_views_to_materialize:
             if isinstance(feature_view, OnDemandFeatureView):
                 if feature_view.write_to_online_store:
-                    logger.info("%s:", feature_view.name)
+                    click.echo(
+                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+                    )
                     self._materialize_odfv(
                         feature_view,
                         start_date,
@@ -1630,7 +1632,9 @@ class FeatureStore:
                     )
                 continue
             provider = self._get_provider()
-            logger.info("%s:", feature_view.name)
+            click.echo(
+                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+            )
 
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
@@ -2927,6 +2931,11 @@ def _print_materialization_log(
             utils.make_tzaware(end_date.replace(microsecond=0)),
             online_store,
         )
+
+
+def _print_materializing_banner() -> None:
+    click.echo("Materializing...")
+    click.echo()
 
 
 def _validate_feature_views(feature_views: List[BaseFeatureView]):
