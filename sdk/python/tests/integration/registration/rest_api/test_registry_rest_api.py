@@ -272,7 +272,10 @@ class TestRegistryServerRest:
         data = APITestHelpers.validate_response_success(response)
 
         feature_services = data.get("featureServices", [])
-        assert len(feature_services) == RegistryTestConfig.DRIVER_RANKING_FEATURE_SERVICES_COUNT
+        assert (
+            len(feature_services)
+            == RegistryTestConfig.DRIVER_RANKING_FEATURE_SERVICES_COUNT
+        )
 
         # Validate batch sources in features
         for fs in feature_services:
@@ -319,7 +322,8 @@ class TestRegistryServerRest:
         data = APITestHelpers.validate_response_success(response)
 
         assert (
-            len(data["featureViews"]) == RegistryTestConfig.CREDIT_SCORING_FEATURE_VIEWS_COUNT
+            len(data["featureViews"])
+            == RegistryTestConfig.CREDIT_SCORING_FEATURE_VIEWS_COUNT
         )
         APITestHelpers.validate_pagination(
             data, RegistryTestConfig.CREDIT_SCORING_FEATURE_VIEWS_COUNT
@@ -404,7 +408,10 @@ class TestRegistryServerRest:
     # Project Tests
     @pytest.mark.parametrize(
         "project_name",
-        [RegistryTestConfig.CREDIT_SCORING_PROJECT, RegistryTestConfig.DRIVER_RANKING_PROJECT],
+        [
+            RegistryTestConfig.CREDIT_SCORING_PROJECT,
+            RegistryTestConfig.DRIVER_RANKING_PROJECT,
+        ],
     )
     def test_get_project_by_name(self, feast_rest_client, project_name):
         """Test getting a project by name."""
@@ -560,7 +567,9 @@ class TestRegistryServerRest:
         )
 
         # Validate pagination
-        APITestHelpers.validate_pagination(data, RegistryTestConfig.SAVED_DATASETS_COUNT)
+        APITestHelpers.validate_pagination(
+            data, RegistryTestConfig.SAVED_DATASETS_COUNT
+        )
         if endpoint == "/saved_datasets/all":
             assert data["pagination"]["page"] == 1
             assert data["pagination"]["limit"] == 50
