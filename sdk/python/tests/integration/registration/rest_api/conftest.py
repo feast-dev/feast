@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 from kubernetes import client, config
-from support import (
+from tests.integration.registration.rest_api.support import (
     applyFeastProject,
     create_feast_project,
     create_namespace,

@@ -132,6 +132,7 @@ class APITestHelpers:
             assert batch_source.get("type") == "BATCH_FILE"
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not os.path.exists(os.path.expanduser("~/.kube/config")),
     reason="Kube config not available in this environment",
