@@ -854,7 +854,11 @@ class TestNonEntityRetrieval:
                     [],
                     [],
                 )  # (all_feature_views, all_on_demand_feature_views)
-                mock_group_refs.return_value = ([], [], [])  # (fvs, odfvs, redirected_features)
+                mock_group_refs.return_value = (
+                    [],
+                    [],
+                    [],
+                )  # (fvs, odfvs, redirected_features)
 
                 # Test non-entity API call
                 result = fs.get_historical_features(

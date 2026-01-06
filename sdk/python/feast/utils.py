@@ -272,7 +272,10 @@ def _convert_arrow_to_proto(
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
     # Check for specific ODFV attributes to identify OnDemandFeatureView vs FeatureView
     # OnDemandFeatureView has source_feature_view_projections attribute that regular FeatureView doesn't have
-    if hasattr(feature_view, "source_feature_view_projections") and feature_view.source_feature_view_projections:
+    if (
+        hasattr(feature_view, "source_feature_view_projections")
+        and feature_view.source_feature_view_projections
+    ):
         return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
     else:
         return _convert_arrow_fv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]

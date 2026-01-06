@@ -1275,28 +1275,42 @@ class FeatureStore:
         # For each feature view name, get the actual feature view and categorize appropriately
         for view_name in feature_view_names:
             try:
-                fv = self._registry.get_any_feature_view(view_name, self.project, allow_cache=True)
+                fv = self._registry.get_any_feature_view(
+                    view_name, self.project, allow_cache=True
+                )
 
                 # For historical retrieval, keep unified FeatureViews as FeatureViews
                 # (they'll have their transformations applied post-retrieval)
-                if hasattr(fv, "feature_transformation") and fv.feature_transformation is not None:
+                if (
+                    hasattr(fv, "feature_transformation")
+                    and fv.feature_transformation is not None
+                ):
                     all_feature_views.append(fv)
-                elif hasattr(fv, "__class__") and "OnDemandFeatureView" in str(type(fv)):
+                elif hasattr(fv, "__class__") and "OnDemandFeatureView" in str(
+                    type(fv)
+                ):
                     all_on_demand_feature_views.append(fv)
                 else:
                     all_feature_views.append(fv)
             except Exception:
                 # Try to get as OnDemandFeatureView if regular lookup fails
                 try:
-                    odfv = self._registry.get_on_demand_feature_view(view_name, self.project, allow_cache=True)
+                    odfv = self._registry.get_on_demand_feature_view(
+                        view_name, self.project, allow_cache=True
+                    )
                     all_on_demand_feature_views.append(odfv)
                 except Exception:
                     # If both fail, it might be an _online variant - try the base name
                     if view_name.endswith("_online"):
                         base_name = view_name[:-7]  # Remove "_online" suffix
                         try:
-                            fv = self._registry.get_any_feature_view(base_name, self.project, allow_cache=True)
-                            if hasattr(fv, "feature_transformation") and fv.feature_transformation is not None:
+                            fv = self._registry.get_any_feature_view(
+                                base_name, self.project, allow_cache=True
+                            )
+                            if (
+                                hasattr(fv, "feature_transformation")
+                                and fv.feature_transformation is not None
+                            ):
                                 all_feature_views.append(fv)
                             else:
                                 all_on_demand_feature_views.append(fv)
@@ -1314,7 +1328,9 @@ class FeatureStore:
 
         # Handle FeatureViews with feature_transformation for historical retrieval
         # These are supported by extracting their source views and applying transformations later
-        regular_feature_views_tuples: List[Tuple[Union[FeatureView, OnDemandFeatureView], List[str]]] = []
+        regular_feature_views_tuples: List[
+            Tuple[Union[FeatureView, OnDemandFeatureView], List[str]]
+        ] = []
         unified_transformation_views: List[
             Tuple[Union[FeatureView, OnDemandFeatureView], List[str]]
         ] = []
