@@ -357,7 +357,7 @@ func getRegistryStoreFromScheme(registryPath string, registryConfig *RegistryCon
 	if registryStoreType, ok := REGISTRY_STORE_CLASS_FOR_SCHEME[uri.Scheme]; ok {
 		return getRegistryStoreFromType(registryStoreType, registryConfig, repoPath, project)
 	}
-	return nil, fmt.Errorf("registry path %s has unsupported scheme %s. Supported schemes are file, s3 and gs", registryPath, uri.Scheme)
+	return nil, fmt.Errorf("registry path %s has unsupported scheme %s. Supported schemes are file, s3 and gcs", registryPath, uri.Scheme)
 }
 
 func getRegistryStoreFromType(registryStoreType string, registryConfig *RegistryConfig, repoPath string, project string) (RegistryStore, error) {
@@ -366,6 +366,8 @@ func getRegistryStoreFromType(registryStoreType string, registryConfig *Registry
 		return NewFileRegistryStore(registryConfig, repoPath), nil
 	case "S3RegistryStore":
 		return NewS3RegistryStore(registryConfig, repoPath), nil
+	case "GCSRegistryStore":
+		return NewGCSRegistryStore(registryConfig, repoPath), nil
 	}
-	return nil, errors.New("only FileRegistryStore as a RegistryStore is supported at this moment")
+	return nil, errors.New("only FileRegistryStore, S3RegistryStore, and GCSRegistryStore are supported at this moment")
 }
