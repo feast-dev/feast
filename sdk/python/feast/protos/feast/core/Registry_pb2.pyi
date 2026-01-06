@@ -16,6 +16,7 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.core.DataSource_pb2
@@ -35,14 +36,16 @@ import google.protobuf.internal.containers
 import google.protobuf.message
 import google.protobuf.timestamp_pb2
 import sys
+import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class Registry(google.protobuf.message.Message):
     """Next id: 18"""
 
@@ -64,6 +67,10 @@ class Registry(google.protobuf.message.Message):
     LAST_UPDATED_FIELD_NUMBER: builtins.int
     PERMISSIONS_FIELD_NUMBER: builtins.int
     PROJECTS_FIELD_NUMBER: builtins.int
+    registry_schema_version: builtins.str
+    """to support migrations; incremented when schema is changed"""
+    version_id: builtins.str
+    """version id, random string generated on each update of the data; now used only for debugging purposes"""
     @property
     def entities(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Entity_pb2.Entity]: ...
     @property
@@ -85,12 +92,9 @@ class Registry(google.protobuf.message.Message):
     @property
     def infra(self) -> feast.core.InfraObject_pb2.Infra: ...
     @property
-    def project_metadata(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ProjectMetadata]:
+    def project_metadata(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[Global___ProjectMetadata]:
         """Tracking metadata of Feast by project"""
-    registry_schema_version: builtins.str
-    """to support migrations; incremented when schema is changed"""
-    version_id: builtins.str
-    """version id, random string generated on each update of the data; now used only for debugging purposes"""
+
     @property
     def last_updated(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
     @property
@@ -110,18 +114,21 @@ class Registry(google.protobuf.message.Message):
         saved_datasets: collections.abc.Iterable[feast.core.SavedDataset_pb2.SavedDataset] | None = ...,
         validation_references: collections.abc.Iterable[feast.core.ValidationProfile_pb2.ValidationReference] | None = ...,
         infra: feast.core.InfraObject_pb2.Infra | None = ...,
-        project_metadata: collections.abc.Iterable[global___ProjectMetadata] | None = ...,
+        project_metadata: collections.abc.Iterable[Global___ProjectMetadata] | None = ...,
         registry_schema_version: builtins.str = ...,
         version_id: builtins.str = ...,
         last_updated: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         permissions: collections.abc.Iterable[feast.core.Permission_pb2.Permission] | None = ...,
         projects: collections.abc.Iterable[feast.core.Project_pb2.Project] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["infra", b"infra", "last_updated", b"last_updated"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]) -> None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["infra", b"infra", "last_updated", b"last_updated"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Registry = Registry
+Global___Registry: typing_extensions.TypeAlias = Registry
 
+@typing.final
 class ProjectMetadata(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -135,6 +142,7 @@ class ProjectMetadata(google.protobuf.message.Message):
         project: builtins.str = ...,
         project_uuid: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["project", b"project", "project_uuid", b"project_uuid"]) -> None: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["project", b"project", "project_uuid", b"project_uuid"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___ProjectMetadata = ProjectMetadata
+Global___ProjectMetadata: typing_extensions.TypeAlias = ProjectMetadata

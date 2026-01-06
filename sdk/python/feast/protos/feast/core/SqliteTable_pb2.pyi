@@ -16,18 +16,21 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
+
 import builtins
 import google.protobuf.descriptor
 import google.protobuf.message
 import sys
+import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class SqliteTable(google.protobuf.message.Message):
     """Represents a Sqlite table"""
 
@@ -45,6 +48,7 @@ class SqliteTable(google.protobuf.message.Message):
         path: builtins.str = ...,
         name: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "path", b"path"]) -> None: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["name", b"name", "path", b"path"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___SqliteTable = SqliteTable
+Global___SqliteTable: typing_extensions.TypeAlias = SqliteTable

@@ -35,6 +35,7 @@ class Field:
         vector_index: If set to True the field will be indexed for vector similarity search.
         vector_length: The length of the vector if the vector index is set to True.
         vector_search_metric: The metric used for vector similarity search.
+        vector_index_type: The index type used for vector similarity search (e.g., "FLAT", "IVF_FLAT", "HNSW").
     """
 
     name: str
@@ -44,6 +45,7 @@ class Field:
     vector_index: bool
     vector_length: int
     vector_search_metric: Optional[str]
+    vector_index_type: Optional[str]
 
     def __init__(
         self,
@@ -55,6 +57,7 @@ class Field:
         vector_index: bool = False,
         vector_length: int = 0,
         vector_search_metric: Optional[str] = None,
+        vector_index_type: Optional[str] = None,
     ):
         """
         Creates a Field object.
@@ -65,7 +68,9 @@ class Field:
             description (optional): A human-readable description.
             tags (optional): User-defined metadata in dictionary form.
             vector_index (optional): If set to True the field will be indexed for vector similarity search.
+            vector_length (optional): The length of the vector if the vector index is set to True.
             vector_search_metric (optional): The metric used for vector similarity search.
+            vector_index_type (optional): The index type used for vector similarity search (e.g., "FLAT", "IVF_FLAT", "HNSW").
         """
         self.name = name
         self.dtype = dtype
@@ -74,6 +79,7 @@ class Field:
         self.vector_index = vector_index
         self.vector_length = vector_length
         self.vector_search_metric = vector_search_metric
+        self.vector_index_type = vector_index_type
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -87,6 +93,7 @@ class Field:
             or self.vector_length != other.vector_length
             # or self.vector_index != other.vector_index
             # or self.vector_search_metric != other.vector_search_metric
+            # or self.vector_index_type != other.vector_index_type
         ):
             return False
         return True
@@ -107,6 +114,7 @@ class Field:
             f"    vector_index={self.vector_index!r}\n"
             f"    vector_length={self.vector_length!r}\n"
             f"    vector_search_metric={self.vector_search_metric!r}\n"
+            f"    vector_index_type={self.vector_index_type!r}\n"
             f")"
         )
 
@@ -117,6 +125,7 @@ class Field:
         """Converts a Field object to its protobuf representation."""
         value_type = self.dtype.to_value_type()
         vector_search_metric = self.vector_search_metric or ""
+        vector_index_type = self.vector_index_type or ""
         return FieldProto(
             name=self.name,
             value_type=value_type.value,
@@ -125,6 +134,7 @@ class Field:
             vector_index=self.vector_index,
             vector_length=self.vector_length,
             vector_search_metric=vector_search_metric,
+            vector_index_type=vector_index_type,
         )
 
     @classmethod
@@ -139,6 +149,7 @@ class Field:
         vector_search_metric = getattr(field_proto, "vector_search_metric", "")
         vector_index = getattr(field_proto, "vector_index", False)
         vector_length = getattr(field_proto, "vector_length", 0)
+        vector_index_type = getattr(field_proto, "vector_index_type", "")
         return cls(
             name=field_proto.name,
             dtype=from_value_type(value_type=value_type),
@@ -147,6 +158,7 @@ class Field:
             vector_index=vector_index,
             vector_length=vector_length,
             vector_search_metric=vector_search_metric,
+            vector_index_type=vector_index_type,
         )
 
     @classmethod

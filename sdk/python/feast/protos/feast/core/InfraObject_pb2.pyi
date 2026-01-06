@@ -16,6 +16,7 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.core.DatastoreTable_pb2
@@ -24,14 +25,16 @@ import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
 import sys
+import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class Infra(google.protobuf.message.Message):
     """Represents a set of infrastructure objects managed by Feast"""
 
@@ -39,22 +42,26 @@ class Infra(google.protobuf.message.Message):
 
     INFRA_OBJECTS_FIELD_NUMBER: builtins.int
     @property
-    def infra_objects(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___InfraObject]:
+    def infra_objects(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[Global___InfraObject]:
         """List of infrastructure objects managed by Feast"""
+
     def __init__(
         self,
         *,
-        infra_objects: collections.abc.Iterable[global___InfraObject] | None = ...,
+        infra_objects: collections.abc.Iterable[Global___InfraObject] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["infra_objects", b"infra_objects"]) -> None: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["infra_objects", b"infra_objects"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Infra = Infra
+Global___Infra: typing_extensions.TypeAlias = Infra
 
+@typing.final
 class InfraObject(google.protobuf.message.Message):
     """Represents a single infrastructure object managed by Feast"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class CustomInfra(google.protobuf.message.Message):
         """Allows for custom infra objects to be added"""
 
@@ -67,7 +74,8 @@ class InfraObject(google.protobuf.message.Message):
             *,
             field: builtins.bytes = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["field", b"field"]) -> None: ...
+        _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["field", b"field"]
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
     INFRA_OBJECT_CLASS_TYPE_FIELD_NUMBER: builtins.int
     DATASTORE_TABLE_FIELD_NUMBER: builtins.int
@@ -80,17 +88,21 @@ class InfraObject(google.protobuf.message.Message):
     @property
     def sqlite_table(self) -> feast.core.SqliteTable_pb2.SqliteTable: ...
     @property
-    def custom_infra(self) -> global___InfraObject.CustomInfra: ...
+    def custom_infra(self) -> Global___InfraObject.CustomInfra: ...
     def __init__(
         self,
         *,
         infra_object_class_type: builtins.str = ...,
         datastore_table: feast.core.DatastoreTable_pb2.DatastoreTable | None = ...,
         sqlite_table: feast.core.SqliteTable_pb2.SqliteTable | None = ...,
-        custom_infra: global___InfraObject.CustomInfra | None = ...,
+        custom_infra: Global___InfraObject.CustomInfra | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "sqlite_table", b"sqlite_table"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "infra_object_class_type", b"infra_object_class_type", "sqlite_table", b"sqlite_table"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["infra_object", b"infra_object"]) -> typing_extensions.Literal["datastore_table", "sqlite_table", "custom_infra"] | None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "sqlite_table", b"sqlite_table"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "infra_object_class_type", b"infra_object_class_type", "sqlite_table", b"sqlite_table"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_infra_object: typing_extensions.TypeAlias = typing.Literal["datastore_table", "sqlite_table", "custom_infra"]
+    _WhichOneofArgType_infra_object: typing_extensions.TypeAlias = typing.Literal["infra_object", b"infra_object"]
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_infra_object) -> _WhichOneofReturnType_infra_object | None: ...
 
-global___InfraObject = InfraObject
+Global___InfraObject: typing_extensions.TypeAlias = InfraObject

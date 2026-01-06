@@ -173,11 +173,13 @@ class MilvusOnlineStore(OnlineStore):
                 dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
                 if dtype:
                     if dtype == DataType.FLOAT_VECTOR:
+                        # Use field-level vector_length if specified, otherwise fall back to global embedding_dim
+                        vector_dim = field.vector_length if field.vector_length > 0 else config.online_store.embedding_dim
                         fields.append(
                             FieldSchema(
                                 name=field.name,
                                 dtype=dtype,
-                                dim=config.online_store.embedding_dim,
+                                dim=vector_dim,
                             )
                         )
                     else:
@@ -196,9 +198,16 @@ class MilvusOnlineStore(OnlineStore):
                 collection_name=collection_name
             )
             if not collection_exists:
+                # Determine the dimension from the first vector field, or use global default
+                dimension = config.online_store.embedding_dim
+                for field in table.schema:
+                    if field.vector_index and field.vector_length > 0:
+                        dimension = field.vector_length
+                        break
+                
                 self.client.create_collection(
                     collection_name=collection_name,
-                    dimension=config.online_store.embedding_dim,
+                    dimension=dimension,
                     schema=schema,
                 )
                 index_params = self.client.prepare_index_params()
@@ -211,14 +220,14 @@ class MilvusOnlineStore(OnlineStore):
                         ]
                         and vector_field.name in vector_field_dict
                     ):
-                        metric = vector_field_dict[
-                            vector_field.name
-                        ].vector_search_metric
+                        field_config = vector_field_dict[vector_field.name]
+                        metric = field_config.vector_search_metric
+                        index_type = field_config.vector_index_type
                         index_params.add_index(
                             collection_name=collection_name,
                             field_name=vector_field.name,
                             metric_type=metric or config.online_store.metric_type,
-                            index_type=config.online_store.index_type,
+                            index_type=index_type or config.online_store.index_type,
                             index_name=f"vector_index_{vector_field.name}",
                             params={"nlist": config.online_store.nlist},
                         )

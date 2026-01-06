@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.core.Aggregation_pb2
@@ -29,40 +30,52 @@ import google.protobuf.internal.containers
 import google.protobuf.message
 import google.protobuf.timestamp_pb2
 import sys
+import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
+if sys.version_info >= (3, 13):
+    from warnings import deprecated
+else:
+    from typing_extensions import deprecated
+
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class OnDemandFeatureView(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     SPEC_FIELD_NUMBER: builtins.int
     META_FIELD_NUMBER: builtins.int
     @property
-    def spec(self) -> global___OnDemandFeatureViewSpec:
+    def spec(self) -> Global___OnDemandFeatureViewSpec:
         """User-specified specifications of this feature view."""
+
     @property
-    def meta(self) -> global___OnDemandFeatureViewMeta: ...
+    def meta(self) -> Global___OnDemandFeatureViewMeta: ...
     def __init__(
         self,
         *,
-        spec: global___OnDemandFeatureViewSpec | None = ...,
-        meta: global___OnDemandFeatureViewMeta | None = ...,
+        spec: Global___OnDemandFeatureViewSpec | None = ...,
+        meta: Global___OnDemandFeatureViewMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["meta", b"meta", "spec", b"spec"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["meta", b"meta", "spec", b"spec"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___OnDemandFeatureView = OnDemandFeatureView
+Global___OnDemandFeatureView: typing_extensions.TypeAlias = OnDemandFeatureView
 
+@typing.final
 class OnDemandFeatureViewSpec(google.protobuf.message.Message):
     """Next available id: 9"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class SourcesEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -70,16 +83,19 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
         VALUE_FIELD_NUMBER: builtins.int
         key: builtins.str
         @property
-        def value(self) -> global___OnDemandSource: ...
+        def value(self) -> Global___OnDemandSource: ...
         def __init__(
             self,
             *,
             key: builtins.str = ...,
-            value: global___OnDemandSource | None = ...,
+            value: Global___OnDemandSource | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["value", b"value"]
+        def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+        _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["key", b"key", "value", b"value"]
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
+    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -93,7 +109,8 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["key", b"key", "value", b"value"]
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
@@ -114,44 +131,51 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
     """Name of Feast project that this feature view belongs to."""
-    @property
-    def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
-        """List of features specifications for each feature defined with this feature view."""
-    @property
-    def sources(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, global___OnDemandSource]:
-        """Map of sources for this feature view."""
-    @property
-    def user_defined_function(self) -> global___UserDefinedFunction: ...
-    @property
-    def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
-        """Oneof with {user_defined_function, on_demand_substrait_transformation}"""
     description: builtins.str
     """Description of the on demand feature view."""
-    @property
-    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
-        """User defined metadata."""
     owner: builtins.str
     """Owner of the on demand feature view."""
     mode: builtins.str
     write_to_online_store: builtins.bool
+    singleton: builtins.bool
+    @property
+    def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
+        """List of features specifications for each feature defined with this feature view."""
+
+    @property
+    def sources(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, Global___OnDemandSource]:
+        """Map of sources for this feature view."""
+
+    @property
+    def user_defined_function(self) -> Global___UserDefinedFunction: ...
+    @property
+    def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
+        """Oneof with {user_defined_function, on_demand_substrait_transformation}"""
+
+    @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+        """User defined metadata."""
+
     @property
     def entities(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
         """List of names of entities associated with this feature view."""
+
     @property
     def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each entity defined as part of this feature view."""
-    singleton: builtins.bool
+
     @property
     def aggregations(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Aggregation_pb2.Aggregation]:
         """Aggregation definitions"""
+
     def __init__(
         self,
         *,
         name: builtins.str = ...,
         project: builtins.str = ...,
         features: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
-        sources: collections.abc.Mapping[builtins.str, global___OnDemandSource] | None = ...,
-        user_defined_function: global___UserDefinedFunction | None = ...,
+        sources: collections.abc.Mapping[builtins.str, Global___OnDemandSource] | None = ...,
+        user_defined_function: Global___UserDefinedFunction | None = ...,
         feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
         description: builtins.str = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
@@ -163,11 +187,14 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
         singleton: builtins.bool = ...,
         aggregations: collections.abc.Iterable[feast.core.Aggregation_pb2.Aggregation] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["feature_transformation", b"feature_transformation", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "write_to_online_store", b"write_to_online_store"]) -> None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["feature_transformation", b"feature_transformation", "user_defined_function", b"user_defined_function"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["aggregations", b"aggregations", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "write_to_online_store", b"write_to_online_store"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___OnDemandFeatureViewSpec = OnDemandFeatureViewSpec
+Global___OnDemandFeatureViewSpec: typing_extensions.TypeAlias = OnDemandFeatureViewSpec
 
+@typing.final
 class OnDemandFeatureViewMeta(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -176,20 +203,25 @@ class OnDemandFeatureViewMeta(google.protobuf.message.Message):
     @property
     def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is created"""
+
     @property
     def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is last updated"""
+
     def __init__(
         self,
         *,
         created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___OnDemandFeatureViewMeta = OnDemandFeatureViewMeta
+Global___OnDemandFeatureViewMeta: typing_extensions.TypeAlias = OnDemandFeatureViewMeta
 
+@typing.final
 class OnDemandSource(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -209,12 +241,18 @@ class OnDemandSource(google.protobuf.message.Message):
         feature_view_projection: feast.core.FeatureViewProjection_pb2.FeatureViewProjection | None = ...,
         request_data_source: feast.core.DataSource_pb2.DataSource | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["feature_view", b"feature_view", "feature_view_projection", b"feature_view_projection", "request_data_source", b"request_data_source", "source", b"source"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_view", b"feature_view", "feature_view_projection", b"feature_view_projection", "request_data_source", b"request_data_source", "source", b"source"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["source", b"source"]) -> typing_extensions.Literal["feature_view", "feature_view_projection", "request_data_source"] | None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["feature_view", b"feature_view", "feature_view_projection", b"feature_view_projection", "request_data_source", b"request_data_source", "source", b"source"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["feature_view", b"feature_view", "feature_view_projection", b"feature_view_projection", "request_data_source", b"request_data_source", "source", b"source"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_source: typing_extensions.TypeAlias = typing.Literal["feature_view", "feature_view_projection", "request_data_source"]
+    _WhichOneofArgType_source: typing_extensions.TypeAlias = typing.Literal["source", b"source"]
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_source) -> _WhichOneofReturnType_source | None: ...
 
-global___OnDemandSource = OnDemandSource
+Global___OnDemandSource: typing_extensions.TypeAlias = OnDemandSource
 
+@deprecated("""This message has been marked as deprecated using proto message options.""")
+@typing.final
 class UserDefinedFunction(google.protobuf.message.Message):
     """Serialized representation of python function."""
 
@@ -236,21 +274,24 @@ class UserDefinedFunction(google.protobuf.message.Message):
         body: builtins.bytes = ...,
         body_text: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["body", b"body", "body_text", b"body_text", "name", b"name"]) -> None: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["body", b"body", "body_text", b"body_text", "name", b"name"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___UserDefinedFunction = UserDefinedFunction
+Global___UserDefinedFunction: typing_extensions.TypeAlias = UserDefinedFunction
 
+@typing.final
 class OnDemandFeatureViewList(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     ONDEMANDFEATUREVIEWS_FIELD_NUMBER: builtins.int
     @property
-    def ondemandfeatureviews(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___OnDemandFeatureView]: ...
+    def ondemandfeatureviews(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[Global___OnDemandFeatureView]: ...
     def __init__(
         self,
         *,
-        ondemandfeatureviews: collections.abc.Iterable[global___OnDemandFeatureView] | None = ...,
+        ondemandfeatureviews: collections.abc.Iterable[Global___OnDemandFeatureView] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["ondemandfeatureviews", b"ondemandfeatureviews"]) -> None: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["ondemandfeatureviews", b"ondemandfeatureviews"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___OnDemandFeatureViewList = OnDemandFeatureViewList
+Global___OnDemandFeatureViewList: typing_extensions.TypeAlias = OnDemandFeatureViewList

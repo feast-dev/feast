@@ -16,19 +16,22 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
+
 import builtins
 import google.protobuf.descriptor
 import google.protobuf.message
 import google.protobuf.wrappers_pb2
 import sys
+import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class DatastoreTable(google.protobuf.message.Message):
     """Represents a Datastore table"""
 
@@ -46,12 +49,15 @@ class DatastoreTable(google.protobuf.message.Message):
     @property
     def project_id(self) -> google.protobuf.wrappers_pb2.StringValue:
         """GCP project id"""
+
     @property
     def namespace(self) -> google.protobuf.wrappers_pb2.StringValue:
         """Datastore namespace"""
+
     @property
     def database(self) -> google.protobuf.wrappers_pb2.StringValue:
         """Firestore database"""
+
     def __init__(
         self,
         *,
@@ -61,7 +67,9 @@ class DatastoreTable(google.protobuf.message.Message):
         namespace: google.protobuf.wrappers_pb2.StringValue | None = ...,
         database: google.protobuf.wrappers_pb2.StringValue | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["database", b"database", "namespace", b"namespace", "project_id", b"project_id"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["database", b"database", "name", b"name", "namespace", b"namespace", "project", b"project", "project_id", b"project_id"]) -> None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["database", b"database", "namespace", b"namespace", "project_id", b"project_id"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["database", b"database", "name", b"name", "namespace", b"namespace", "project", b"project", "project_id", b"project_id"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___DatastoreTable = DatastoreTable
+Global___DatastoreTable: typing_extensions.TypeAlias = DatastoreTable

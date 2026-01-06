@@ -45,4 +45,7 @@ message FeatureSpecV2 {
 
     // Field indicating the vector length
     int32 vector_length = 7;
+
+    // Index type used for vector similarity search (e.g., "FLAT", "IVF_FLAT", "HNSW").
+    string vector_index_type = 8;
 }

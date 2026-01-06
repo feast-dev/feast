@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import google.protobuf.descriptor
@@ -24,16 +25,18 @@ import google.protobuf.message
 import sys
 import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class GEValidationProfiler(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class UserDefinedProfiler(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -45,21 +48,25 @@ class GEValidationProfiler(google.protobuf.message.Message):
             *,
             body: builtins.bytes = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["body", b"body"]) -> None: ...
+        _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["body", b"body"]
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
     PROFILER_FIELD_NUMBER: builtins.int
     @property
-    def profiler(self) -> global___GEValidationProfiler.UserDefinedProfiler: ...
+    def profiler(self) -> Global___GEValidationProfiler.UserDefinedProfiler: ...
     def __init__(
         self,
         *,
-        profiler: global___GEValidationProfiler.UserDefinedProfiler | None = ...,
+        profiler: Global___GEValidationProfiler.UserDefinedProfiler | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["profiler", b"profiler"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["profiler", b"profiler"]) -> None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["profiler", b"profiler"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["profiler", b"profiler"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___GEValidationProfiler = GEValidationProfiler
+Global___GEValidationProfiler: typing_extensions.TypeAlias = GEValidationProfiler
 
+@typing.final
 class GEValidationProfile(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -71,13 +78,16 @@ class GEValidationProfile(google.protobuf.message.Message):
         *,
         expectation_suite: builtins.bytes = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["expectation_suite", b"expectation_suite"]) -> None: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["expectation_suite", b"expectation_suite"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___GEValidationProfile = GEValidationProfile
+Global___GEValidationProfile: typing_extensions.TypeAlias = GEValidationProfile
 
+@typing.final
 class ValidationReference(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing.final
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -91,7 +101,8 @@ class ValidationReference(google.protobuf.message.Message):
             key: builtins.str = ...,
             value: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["key", b"key", "value", b"value"]
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     REFERENCE_DATASET_NAME_FIELD_NUMBER: builtins.int
@@ -111,10 +122,11 @@ class ValidationReference(google.protobuf.message.Message):
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
+
     @property
-    def ge_profiler(self) -> global___GEValidationProfiler: ...
+    def ge_profiler(self) -> Global___GEValidationProfiler: ...
     @property
-    def ge_profile(self) -> global___GEValidationProfile: ...
+    def ge_profile(self) -> Global___GEValidationProfile: ...
     def __init__(
         self,
         *,
@@ -123,14 +135,20 @@ class ValidationReference(google.protobuf.message.Message):
         project: builtins.str = ...,
         description: builtins.str = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
-        ge_profiler: global___GEValidationProfiler | None = ...,
-        ge_profile: global___GEValidationProfile | None = ...,
+        ge_profiler: Global___GEValidationProfiler | None = ...,
+        ge_profile: Global___GEValidationProfile | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["cached_profile", b"cached_profile", "ge_profile", b"ge_profile", "ge_profiler", b"ge_profiler", "profiler", b"profiler"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["cached_profile", b"cached_profile", "description", b"description", "ge_profile", b"ge_profile", "ge_profiler", b"ge_profiler", "name", b"name", "profiler", b"profiler", "project", b"project", "reference_dataset_name", b"reference_dataset_name", "tags", b"tags"]) -> None: ...
+    _HasFieldArgType: typing_extensions.TypeAlias = typing.Literal["cached_profile", b"cached_profile", "ge_profile", b"ge_profile", "ge_profiler", b"ge_profiler", "profiler", b"profiler"]
+    def HasField(self, field_name: _HasFieldArgType) -> builtins.bool: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["cached_profile", b"cached_profile", "description", b"description", "ge_profile", b"ge_profile", "ge_profiler", b"ge_profiler", "name", b"name", "profiler", b"profiler", "project", b"project", "reference_dataset_name", b"reference_dataset_name", "tags", b"tags"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_cached_profile: typing_extensions.TypeAlias = typing.Literal["ge_profile"]
+    _WhichOneofArgType_cached_profile: typing_extensions.TypeAlias = typing.Literal["cached_profile", b"cached_profile"]
+    _WhichOneofReturnType_profiler: typing_extensions.TypeAlias = typing.Literal["ge_profiler"]
+    _WhichOneofArgType_profiler: typing_extensions.TypeAlias = typing.Literal["profiler", b"profiler"]
     @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["cached_profile", b"cached_profile"]) -> typing_extensions.Literal["ge_profile"] | None: ...
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_cached_profile) -> _WhichOneofReturnType_cached_profile | None: ...
     @typing.overload
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["profiler", b"profiler"]) -> typing_extensions.Literal["ge_profiler"] | None: ...
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_profiler) -> _WhichOneofReturnType_profiler | None: ...
 
-global___ValidationReference = ValidationReference
+Global___ValidationReference: typing_extensions.TypeAlias = ValidationReference

@@ -16,6 +16,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import builtins
 import collections.abc
 import feast.types.Value_pb2
@@ -23,14 +24,16 @@ import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
 import sys
+import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing.final
 class RedisKeyV2(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -49,6 +52,7 @@ class RedisKeyV2(google.protobuf.message.Message):
         entity_names: collections.abc.Iterable[builtins.str] | None = ...,
         entity_values: collections.abc.Iterable[feast.types.Value_pb2.Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["entity_names", b"entity_names", "entity_values", b"entity_values", "project", b"project"]) -> None: ...
+    _ClearFieldArgType: typing_extensions.TypeAlias = typing.Literal["entity_names", b"entity_names", "entity_values", b"entity_values", "project", b"project"]
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___RedisKeyV2 = RedisKeyV2
+Global___RedisKeyV2: typing_extensions.TypeAlias = RedisKeyV2
