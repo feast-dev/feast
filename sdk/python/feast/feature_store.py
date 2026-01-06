@@ -1263,8 +1263,8 @@ class FeatureStore:
 
         # For historical retrieval, we need to handle unified FeatureViews differently
         # than _get_feature_views_to_use does (which is designed for online serving)
-        all_feature_views = []
-        all_on_demand_feature_views = []
+        all_feature_views: List[FeatureView] = []
+        all_on_demand_feature_views: List[OnDemandFeatureView] = []
 
         # Get unique feature view names from feature refs
         feature_view_names = set()
@@ -1285,13 +1285,13 @@ class FeatureStore:
                     hasattr(fv, "feature_transformation")
                     and fv.feature_transformation is not None
                 ):
-                    all_feature_views.append(fv)
+                    all_feature_views.append(cast(FeatureView, fv))
                 elif hasattr(fv, "__class__") and "OnDemandFeatureView" in str(
                     type(fv)
                 ):
-                    all_on_demand_feature_views.append(fv)
+                    all_on_demand_feature_views.append(cast(OnDemandFeatureView, fv))
                 else:
-                    all_feature_views.append(fv)
+                    all_feature_views.append(cast(FeatureView, fv))
             except Exception:
                 # Try to get as OnDemandFeatureView if regular lookup fails
                 try:
@@ -1311,9 +1311,11 @@ class FeatureStore:
                                 hasattr(fv, "feature_transformation")
                                 and fv.feature_transformation is not None
                             ):
-                                all_feature_views.append(fv)
+                                all_feature_views.append(cast(FeatureView, fv))
                             else:
-                                all_on_demand_feature_views.append(fv)
+                                all_on_demand_feature_views.append(
+                                    cast(OnDemandFeatureView, fv)
+                                )
                         except Exception:
                             pass  # Skip if not found
 
