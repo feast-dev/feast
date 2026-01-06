@@ -306,13 +306,11 @@ class RedisOnlineStore(OnlineStore):
             ):
                 # Convert incoming timestamp to millisecond-aware datetime
                 aware_ts = utils.make_tzaware(timestamp)
-                
                 # Build protobuf timestamp with nanos
                 ts = Timestamp()
                 ts.FromDatetime(aware_ts)
                 # New timestamp in nanoseconds
                 new_total_nanos = ts.seconds * 1_000_000_000 + ts.nanos
-                
                 # Compare against existing timestamp (nanosecond precision)
                 if prev_event_time:
                     prev_ts = Timestamp()
@@ -323,7 +321,6 @@ class RedisOnlineStore(OnlineStore):
                         if progress:
                             progress(1)
                         continue
-                
                 # Store full timestamp (seconds + nanos)
                 entity_hset = {ts_key: ts.SerializeToString()}
 
