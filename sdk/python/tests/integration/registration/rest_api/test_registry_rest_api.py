@@ -13,7 +13,7 @@ import pytest
 
 # Test Configuration Constants
 @dataclass(frozen=True)
-class TestConfig:
+class RegistryTestConfig:
     """Configuration constants for registry REST API tests."""
 
     CREDIT_SCORING_PROJECT = "credit_scoring_local"
@@ -103,7 +103,7 @@ class APITestHelpers:
         assert "lastUpdatedTimestamp" in meta
 
         assert isinstance(entity["project"], str)
-        assert entity["project"] in TestConfig.PROJECT_NAMES
+        assert entity["project"] in RegistryTestConfig.PROJECT_NAMES
 
     @staticmethod
     def validate_feature_structure(feature: Dict[str, Any]) -> None:
@@ -144,7 +144,7 @@ class TestRegistryServerRest:
     def test_list_entities(self, feast_rest_client):
         """Test listing entities for a specific project."""
         response = feast_rest_client.get(
-            f"/entities/?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/entities/?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -152,21 +152,21 @@ class TestRegistryServerRest:
         assert "entities" in data
         entities = data["entities"]
         assert isinstance(entities, list)
-        assert len(entities) == TestConfig.CREDIT_SCORING_ENTITIES_COUNT
+        assert len(entities) == RegistryTestConfig.CREDIT_SCORING_ENTITIES_COUNT
 
         # Validate entity names
         actual_entity_names = {entity["spec"]["name"] for entity in entities}
-        assert actual_entity_names == TestConfig.ENTITY_NAMES
+        assert actual_entity_names == RegistryTestConfig.ENTITY_NAMES
 
         # Validate pagination
         APITestHelpers.validate_pagination(
-            data, TestConfig.CREDIT_SCORING_ENTITIES_COUNT
+            data, RegistryTestConfig.CREDIT_SCORING_ENTITIES_COUNT
         )
 
     def test_get_entity(self, feast_rest_client):
         """Test getting a specific entity with detailed validation."""
         response = feast_rest_client.get(
-            f"/entities/zipcode/?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/entities/zipcode/?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -179,7 +179,7 @@ class TestRegistryServerRest:
             spec["description"]
             == "ZIP code identifier for geographic location-based features"
         )
-        assert spec["tags"] == TestConfig.ZIPCODE_SPEC_TAGS
+        assert spec["tags"] == RegistryTestConfig.ZIPCODE_SPEC_TAGS
 
         # Validate meta
         meta = data["meta"]
@@ -216,22 +216,22 @@ class TestRegistryServerRest:
     def test_list_data_sources(self, feast_rest_client):
         """Test listing data sources for a specific project."""
         response = feast_rest_client.get(
-            f"/data_sources/?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/data_sources/?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
         assert "dataSources" in data
         data_sources = data["dataSources"]
-        assert len(data_sources) == TestConfig.CREDIT_SCORING_DATA_SOURCES_COUNT
+        assert len(data_sources) == RegistryTestConfig.CREDIT_SCORING_DATA_SOURCES_COUNT
 
         APITestHelpers.validate_pagination(
-            data, TestConfig.CREDIT_SCORING_DATA_SOURCES_COUNT
+            data, RegistryTestConfig.CREDIT_SCORING_DATA_SOURCES_COUNT
         )
 
     def test_get_data_sources(self, feast_rest_client):
         """Test getting a specific data source."""
         response = feast_rest_client.get(
-            f"/data_sources/Zipcode source/?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/data_sources/Zipcode source/?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -255,7 +255,7 @@ class TestRegistryServerRest:
         # Validate project associations for relevant data source types
         for ds in data_sources:
             if ds["type"] in ("BATCH_FILE", "REQUEST_SOURCE"):
-                assert ds["project"] in TestConfig.PROJECT_NAMES
+                assert ds["project"] in RegistryTestConfig.PROJECT_NAMES
 
         pagination = data.get("pagination", {})
         assert pagination.get("page") == 1
@@ -267,12 +267,12 @@ class TestRegistryServerRest:
     def test_list_feature_services(self, feast_rest_client):
         """Test listing feature services for a specific project."""
         response = feast_rest_client.get(
-            f"/feature_services/?project={TestConfig.DRIVER_RANKING_PROJECT}"
+            f"/feature_services/?project={RegistryTestConfig.DRIVER_RANKING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
         feature_services = data.get("featureServices", [])
-        assert len(feature_services) == TestConfig.DRIVER_RANKING_FEATURE_SERVICES_COUNT
+        assert len(feature_services) == RegistryTestConfig.DRIVER_RANKING_FEATURE_SERVICES_COUNT
 
         # Validate batch sources in features
         for fs in feature_services:
@@ -289,7 +289,7 @@ class TestRegistryServerRest:
         assert len(feature_services) >= 1
 
         for fs in feature_services:
-            assert fs.get("project") in TestConfig.PROJECT_NAMES
+            assert fs.get("project") in RegistryTestConfig.PROJECT_NAMES
 
             # Validate features structure
             spec = fs.get("spec", {})
@@ -300,7 +300,7 @@ class TestRegistryServerRest:
     def test_get_feature_services(self, feast_rest_client):
         """Test getting a specific feature service."""
         response = feast_rest_client.get(
-            f"/feature_services/driver_activity_v2/?project={TestConfig.DRIVER_RANKING_PROJECT}"
+            f"/feature_services/driver_activity_v2/?project={RegistryTestConfig.DRIVER_RANKING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -314,21 +314,21 @@ class TestRegistryServerRest:
     def test_list_feature_views(self, feast_rest_client):
         """Test listing feature views for a specific project."""
         response = feast_rest_client.get(
-            f"/feature_views/?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/feature_views/?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
         assert (
-            len(data["featureViews"]) == TestConfig.CREDIT_SCORING_FEATURE_VIEWS_COUNT
+            len(data["featureViews"]) == RegistryTestConfig.CREDIT_SCORING_FEATURE_VIEWS_COUNT
         )
         APITestHelpers.validate_pagination(
-            data, TestConfig.CREDIT_SCORING_FEATURE_VIEWS_COUNT
+            data, RegistryTestConfig.CREDIT_SCORING_FEATURE_VIEWS_COUNT
         )
 
     def test_get_feature_view(self, feast_rest_client):
         """Test getting a specific feature view."""
         response = feast_rest_client.get(
-            f"/feature_views/credit_history/?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/feature_views/credit_history/?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -352,26 +352,26 @@ class TestRegistryServerRest:
     def test_list_features(self, feast_rest_client):
         """Test listing features for a specific project."""
         response = feast_rest_client.get(
-            f"/features/?project={TestConfig.CREDIT_SCORING_PROJECT}&include_relationships=true"
+            f"/features/?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}&include_relationships=true"
         )
         data = APITestHelpers.validate_response_success(response)
 
         features = data.get("features")
         assert isinstance(features, list)
-        assert len(features) == TestConfig.CREDIT_SCORING_FEATURES_COUNT
+        assert len(features) == RegistryTestConfig.CREDIT_SCORING_FEATURES_COUNT
 
         # Validate each feature structure
         for feature in features:
             APITestHelpers.validate_feature_structure(feature)
 
         APITestHelpers.validate_pagination(
-            data, TestConfig.CREDIT_SCORING_FEATURES_COUNT
+            data, RegistryTestConfig.CREDIT_SCORING_FEATURES_COUNT
         )
 
     def test_get_feature(self, feast_rest_client):
         """Test getting a specific feature."""
         response = feast_rest_client.get(
-            f"/features/zipcode_features/city/?project={TestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
+            f"/features/zipcode_features/city/?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -397,14 +397,14 @@ class TestRegistryServerRest:
 
         # Validate expected projects are present
         actual_projects = set(f["project"] for f in features)
-        assert TestConfig.PROJECT_NAMES.issubset(actual_projects)
+        assert RegistryTestConfig.PROJECT_NAMES.issubset(actual_projects)
 
         APITestHelpers.validate_pagination_all_endpoint(data, "features")
 
     # Project Tests
     @pytest.mark.parametrize(
         "project_name",
-        [TestConfig.CREDIT_SCORING_PROJECT, TestConfig.DRIVER_RANKING_PROJECT],
+        [RegistryTestConfig.CREDIT_SCORING_PROJECT, RegistryTestConfig.DRIVER_RANKING_PROJECT],
     )
     def test_get_project_by_name(self, feast_rest_client, project_name):
         """Test getting a project by name."""
@@ -421,13 +421,13 @@ class TestRegistryServerRest:
         assert len(projects) == 2
 
         actual_project_names = [project["spec"]["name"] for project in projects]
-        assert set(actual_project_names) == TestConfig.PROJECT_NAMES
+        assert set(actual_project_names) == RegistryTestConfig.PROJECT_NAMES
 
     # Lineage Tests
     def test_get_registry_lineage(self, feast_rest_client):
         """Test getting registry lineage for a specific project."""
         response = feast_rest_client.get(
-            f"/lineage/registry?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/lineage/registry?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -449,11 +449,11 @@ class TestRegistryServerRest:
     def test_get_lineage_complete(self, feast_rest_client):
         """Test getting complete lineage for a specific project."""
         response = feast_rest_client.get(
-            f"/lineage/complete?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/lineage/complete?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
-        assert data.get("project") == TestConfig.CREDIT_SCORING_PROJECT
+        assert data.get("project") == RegistryTestConfig.CREDIT_SCORING_PROJECT
         assert "objects" in data
 
         objects = data["objects"]
@@ -512,12 +512,12 @@ class TestRegistryServerRest:
         assert len(data["projects"]) > 0
 
         project_names = [project["project"] for project in data.get("projects", [])]
-        assert TestConfig.CREDIT_SCORING_PROJECT in project_names
+        assert RegistryTestConfig.CREDIT_SCORING_PROJECT in project_names
 
     def test_get_lineage_object_path(self, feast_rest_client):
         """Test getting lineage for a specific object."""
         response = feast_rest_client.get(
-            f"/lineage/objects/entity/dob_ssn?project={TestConfig.CREDIT_SCORING_PROJECT}"
+            f"/lineage/objects/entity/dob_ssn?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -542,7 +542,7 @@ class TestRegistryServerRest:
     def test_saved_datasets_endpoints(self, feast_rest_client, endpoint, key):
         """Test saved datasets endpoints with parameterization."""
         if endpoint == "/saved_datasets":
-            url = f"{endpoint}?project={TestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
+            url = f"{endpoint}?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
         else:
             url = f"{endpoint}?allow_cache=true&page=1&limit=50&sort_order=asc&include_relationships=false"
 
@@ -556,11 +556,11 @@ class TestRegistryServerRest:
         # Extract and validate names
         actual_names = [ds["spec"]["name"] for ds in saved_datasets]
         APITestHelpers.validate_names_match(
-            actual_names, TestConfig.SAVED_DATASET_NAMES
+            actual_names, RegistryTestConfig.SAVED_DATASET_NAMES
         )
 
         # Validate pagination
-        APITestHelpers.validate_pagination(data, TestConfig.SAVED_DATASETS_COUNT)
+        APITestHelpers.validate_pagination(data, RegistryTestConfig.SAVED_DATASETS_COUNT)
         if endpoint == "/saved_datasets/all":
             assert data["pagination"]["page"] == 1
             assert data["pagination"]["limit"] == 50
@@ -569,7 +569,7 @@ class TestRegistryServerRest:
         """Test getting a specific saved dataset by name."""
         dataset_name = "comprehensive_credit_dataset_v1"
         response = feast_rest_client.get(
-            f"/saved_datasets/{dataset_name}?project={TestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
+            f"/saved_datasets/{dataset_name}?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -581,14 +581,14 @@ class TestRegistryServerRest:
     def test_get_permission_by_name(self, feast_rest_client):
         """Test getting a specific permission by name."""
         response = feast_rest_client.get(
-            f"/permissions/feast_admin_permission?project={TestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
+            f"/permissions/feast_admin_permission?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
         )
         APITestHelpers.validate_response_success(response)
 
     def test_list_permissions(self, feast_rest_client):
         """Test listing permissions for a specific project."""
         response = feast_rest_client.get(
-            f"/permissions?project={TestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
+            f"/permissions?project={RegistryTestConfig.CREDIT_SCORING_PROJECT}&include_relationships=false"
         )
         data = APITestHelpers.validate_response_success(response)
 
@@ -596,9 +596,9 @@ class TestRegistryServerRest:
 
         # Extract and validate names
         actual_names = [ds["spec"]["name"] for ds in data["permissions"]]
-        assert len(actual_names) == len(TestConfig.PERMISSION_NAMES)
+        assert len(actual_names) == len(RegistryTestConfig.PERMISSION_NAMES)
 
-        for name in TestConfig.PERMISSION_NAMES:
+        for name in RegistryTestConfig.PERMISSION_NAMES:
             assert name in actual_names
 
-        APITestHelpers.validate_pagination(data, TestConfig.PERMISSIONS_COUNT)
+        APITestHelpers.validate_pagination(data, RegistryTestConfig.PERMISSIONS_COUNT)
