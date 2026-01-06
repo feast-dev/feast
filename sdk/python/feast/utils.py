@@ -745,6 +745,9 @@ def _augment_response_with_on_demand_transforms(
         ) or not getattr(odfv, "write_to_online_store", True)
 
         if should_transform:
+            # Initialize transformed_features to avoid UnboundLocalError
+            transformed_features = None
+
             # Apply aggregations if configured.
             aggregations = getattr(odfv, "aggregations", [])
             mode_attr = getattr(odfv, "mode", "pandas")
@@ -770,6 +773,16 @@ def _augment_response_with_on_demand_transforms(
                         entities,
                         mode,
                     )
+
+                # If only aggregations were applied and no transformations will follow,
+                # set transformed_features to avoid UnboundLocalError.
+                # This handles the case where aggregations exist but the ODFV has no transformations.
+                if not hasattr(odfv, "feature_transformation") or not odfv.feature_transformation:
+                    # No transformations will be applied, set transformed_features to aggregated result
+                    if mode == "python" and initial_response_dict is not None:
+                        transformed_features = initial_response_dict
+                    elif mode in {"pandas", "substrait"} and initial_response_arrow is not None:
+                        transformed_features = initial_response_arrow
 
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
             # TODO: Fix to make it work for having both aggregation and transformation
@@ -822,6 +835,12 @@ def _augment_response_with_on_demand_transforms(
                 raise Exception(
                     f"Invalid OnDemandFeatureMode: {mode}. Expected one of 'pandas', 'python', or 'substrait'."
                 )
+
+            # Handle case where no transformation was applied
+            if transformed_features is None:
+                # No transformation was applied, skip this ODFV
+                continue
+
             transformed_columns = (
                 transformed_features.column_names
                 if isinstance(transformed_features, pyarrow.Table)
