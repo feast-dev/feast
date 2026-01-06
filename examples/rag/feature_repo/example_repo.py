@@ -31,7 +31,9 @@ city_embeddings_feature_view = FeatureView(
             name="vector",
             dtype=Array(Float32),
             vector_index=True,
-            vector_search_metric="COSINE",
+            vector_length=384,  # Specify vector dimension at field level
+            vector_search_metric="COSINE",  # Specify metric at field level
+            vector_index_type="FLAT",  # Specify index type at field level
         ),
         Field(name="state", dtype=String),
         Field(name="sentence_chunks", dtype=String),
