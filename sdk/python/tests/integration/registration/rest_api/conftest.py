@@ -60,23 +60,37 @@ def feast_rest_client():
     try:
         if not run_on_openshift:
             # Deploy dependencies
-            deploy_and_validate_pod(namespace, str(resource_dir / "redis.yaml"), "app=redis")
-            deploy_and_validate_pod(namespace, str(resource_dir / "postgres.yaml"), "app=postgres")
+            deploy_and_validate_pod(
+                namespace, str(resource_dir / "redis.yaml"), "app=redis"
+            )
+            deploy_and_validate_pod(
+                namespace, str(resource_dir / "postgres.yaml"), "app=postgres"
+            )
 
             # Create and validate FeatureStore CRs
             create_feast_project(
-                str(resource_dir / "feast_config_credit_scoring.yaml"), namespace, credit_scoring
+                str(resource_dir / "feast_config_credit_scoring.yaml"),
+                namespace,
+                credit_scoring,
             )
             validate_feature_store_cr_status(namespace, credit_scoring)
 
             create_feast_project(
-                str(resource_dir / "feast_config_driver_ranking.yaml"), namespace, driver_ranking
+                str(resource_dir / "feast_config_driver_ranking.yaml"),
+                namespace,
+                driver_ranking,
             )
             validate_feature_store_cr_status(namespace, driver_ranking)
 
             # Deploy ingress and get route URL
             run_kubectl_command(
-                ["apply", "-f", str(resource_dir / "feast-registry-nginx.yaml"), "-n", namespace]
+                [
+                    "apply",
+                    "-f",
+                    str(resource_dir / "feast-registry-nginx.yaml"),
+                    "-n",
+                    namespace,
+                ]
             )
             ingress_host = run_kubectl_command(
                 [
