@@ -1025,8 +1025,7 @@ class FeatureStore:
                 if hasattr(fv, "source_request_sources") and fv.source_request_sources:
                     sources_list.extend(fv.source_request_sources.values())
 
-                # Disable online serving for the original FeatureView since we're creating an ODFV for online serving
-                fv.online = False
+                # Keep the original FeatureView online=True as expected by dual registration pattern
 
                 online_fv = OnDemandFeatureView(
                     name=f"{fv.name}_online",
@@ -1261,10 +1260,48 @@ class FeatureStore:
             end_date = datetime.now()
 
         _feature_refs = utils._get_features(self._registry, self.project, features)
-        (
-            all_feature_views,
-            all_on_demand_feature_views,
-        ) = utils._get_feature_views_to_use(self._registry, self.project, features)
+
+        # For historical retrieval, we need to handle unified FeatureViews differently
+        # than _get_feature_views_to_use does (which is designed for online serving)
+        all_feature_views = []
+        all_on_demand_feature_views = []
+
+        # Get unique feature view names from feature refs
+        feature_view_names = set()
+        for feature_ref in _feature_refs:
+            view_name = feature_ref.split(":")[0] if ":" in feature_ref else feature_ref
+            feature_view_names.add(view_name)
+
+        # For each feature view name, get the actual feature view and categorize appropriately
+        for view_name in feature_view_names:
+            try:
+                fv = self._registry.get_any_feature_view(view_name, self.project, allow_cache=True)
+
+                # For historical retrieval, keep unified FeatureViews as FeatureViews
+                # (they'll have their transformations applied post-retrieval)
+                if hasattr(fv, "feature_transformation") and fv.feature_transformation is not None:
+                    all_feature_views.append(fv)
+                elif hasattr(fv, "__class__") and "OnDemandFeatureView" in str(type(fv)):
+                    all_on_demand_feature_views.append(fv)
+                else:
+                    all_feature_views.append(fv)
+            except Exception:
+                # Try to get as OnDemandFeatureView if regular lookup fails
+                try:
+                    odfv = self._registry.get_on_demand_feature_view(view_name, self.project, allow_cache=True)
+                    all_on_demand_feature_views.append(odfv)
+                except Exception:
+                    # If both fail, it might be an _online variant - try the base name
+                    if view_name.endswith("_online"):
+                        base_name = view_name[:-7]  # Remove "_online" suffix
+                        try:
+                            fv = self._registry.get_any_feature_view(base_name, self.project, allow_cache=True)
+                            if hasattr(fv, "feature_transformation") and fv.feature_transformation is not None:
+                                all_feature_views.append(fv)
+                            else:
+                                all_on_demand_feature_views.append(fv)
+                        except Exception:
+                            pass  # Skip if not found
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's not passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
@@ -1274,28 +1311,10 @@ class FeatureStore:
             all_feature_views,
             all_on_demand_feature_views,
         )
-        feature_views = list(view for view, _ in fvs)
-        on_demand_feature_views = list(view for view, _ in odfvs)
-
-        # Check that the right request data is present in the entity_df
-        if type(entity_df) == pd.DataFrame:
-            if self.config.coerce_tz_aware:
-                entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
-            for odfv in on_demand_feature_views:
-                odfv_request_data_schema = odfv.get_request_data_schema()
-                for feature_name in odfv_request_data_schema.keys():
-                    if feature_name not in entity_df.columns:
-                        raise RequestDataNotFoundInEntityDfException(
-                            feature_name=feature_name,
-                            feature_view_name=odfv.name,
-                        )
-
-        utils._validate_feature_refs(_feature_refs, full_feature_names)
-        provider = self._get_provider()
 
         # Handle FeatureViews with feature_transformation for historical retrieval
         # These are supported by extracting their source views and applying transformations later
-        regular_feature_views: List[Union[FeatureView, OnDemandFeatureView]] = []
+        regular_feature_views_tuples: List[Tuple[Union[FeatureView, OnDemandFeatureView], List[str]]] = []
         unified_transformation_views: List[
             Tuple[Union[FeatureView, OnDemandFeatureView], List[str]]
         ] = []
@@ -1322,22 +1341,42 @@ class FeatureStore:
                         ):
                             source_feature_views.append(src)
             else:
-                regular_feature_views.append(fv)
+                regular_feature_views_tuples.append((fv, features_list))
 
-        # Combine regular feature views with source feature views needed for transformations
-        # Do NOT include unified transformation views in the provider call as they would cause
-        # column selection errors - transformations will be applied post-retrieval
+        # Extract feature views for provider - combine regular and source views
+        regular_feature_views = list(view for view, _ in regular_feature_views_tuples)
         feature_views = regular_feature_views + source_feature_views
+        on_demand_feature_views = list(view for view, _ in odfvs)
 
-        # Filter feature_refs to only include those that refer to feature_views being passed to provider
-        # Unified transformation feature refs will be handled post-retrieval
+        # Check that the right request data is present in the entity_df
+        if type(entity_df) == pd.DataFrame:
+            if self.config.coerce_tz_aware:
+                entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
+            for odfv in on_demand_feature_views:
+                odfv_request_data_schema = odfv.get_request_data_schema()
+                for feature_name in odfv_request_data_schema.keys():
+                    if feature_name not in entity_df.columns:
+                        raise RequestDataNotFoundInEntityDfException(
+                            feature_name=feature_name,
+                            feature_view_name=odfv.name,
+                        )
+
+        utils._validate_feature_refs(_feature_refs, full_feature_names)
+        provider = self._get_provider()
+
+        # Filter feature_refs to ONLY include those that refer to feature_views being passed to provider
+        # Transformation feature refs are handled post-retrieval and should NOT be passed to provider
         provider_feature_refs = []
+        transformation_view_names = [fv.name for fv, _ in unified_transformation_views]
+
         for ref in _feature_refs:
             fv_name = ref.split(":")[0] if ":" in ref else ref
-            for fv in feature_views:
-                if fv.name == fv_name:
-                    provider_feature_refs.append(ref)
-                    break
+            # Only include if it matches a regular/source feature view (NOT transformation views)
+            if fv_name not in transformation_view_names:
+                for fv in feature_views:
+                    if fv.name == fv_name:
+                        provider_feature_refs.append(ref)
+                        break
 
         # Optional kwargs
         kwargs: Dict[str, Any] = {}

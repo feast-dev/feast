@@ -271,8 +271,8 @@ def _convert_arrow_to_proto(
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
     # Check for specific ODFV attributes to identify OnDemandFeatureView vs FeatureView
-    # OnDemandFeatureView has write_to_online_store, FeatureView does not
-    if hasattr(feature_view, "write_to_online_store"):
+    # OnDemandFeatureView has source_feature_view_projections attribute that regular FeatureView doesn't have
+    if hasattr(feature_view, "source_feature_view_projections") and feature_view.source_feature_view_projections:
         return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
     else:
         return _convert_arrow_fv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
@@ -787,6 +787,7 @@ def _augment_response_with_on_demand_transforms(
                     transformed_features_dict = odfv.transform_dict(
                         initial_response_dict
                     )
+                transformed_features = transformed_features_dict
             elif mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
                     initial_response_arrow = initial_response.to_arrow()
@@ -813,16 +814,11 @@ def _augment_response_with_on_demand_transforms(
                     transformed_features_arrow = odfv.transform_arrow(
                         initial_response_arrow, full_feature_names
                     )
+                transformed_features = transformed_features_arrow
             else:
                 raise Exception(
                     f"Invalid OnDemandFeatureMode: {mode}. Expected one of 'pandas', 'python', or 'substrait'."
                 )
-
-            transformed_features = (
-                transformed_features_dict
-                if mode == "python"
-                else transformed_features_arrow
-            )
             transformed_columns = (
                 transformed_features.column_names
                 if isinstance(transformed_features, pyarrow.Table)
