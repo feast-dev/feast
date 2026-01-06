@@ -134,7 +134,8 @@ class MilvusOnlineStore(OnlineStore):
                 self.client = MilvusClient(db_path)
             else:
                 print(
-                    f"Connecting to Milvus remotely at {config.online_store.host}:{config.online_store.port}"
+                    f"Connecting to Milvus remotely at "
+                    f"{config.online_store.host}:{config.online_store.port}"
                 )
                 self.client = MilvusClient(
                     uri=f"{config.online_store.host}:{config.online_store.port}",
@@ -173,8 +174,13 @@ class MilvusOnlineStore(OnlineStore):
                 dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
                 if dtype:
                     if dtype == DataType.FLOAT_VECTOR:
-                        # Use field-level vector_length if specified, otherwise fall back to global embedding_dim
-                        vector_dim = field.vector_length if field.vector_length > 0 else config.online_store.embedding_dim
+                        # Use field-level vector_length if specified,
+                        # otherwise fall back to global embedding_dim
+                        vector_dim = (
+                            field.vector_length
+                            if field.vector_length > 0
+                            else config.online_store.embedding_dim
+                        )
                         fields.append(
                             FieldSchema(
                                 name=field.name,
@@ -198,13 +204,13 @@ class MilvusOnlineStore(OnlineStore):
                 collection_name=collection_name
             )
             if not collection_exists:
-                # Determine the dimension from the first vector field, or use global default
+                # Determine dimension from first vector field, or use global
                 dimension = config.online_store.embedding_dim
                 for field in table.schema:
                     if field.vector_index and field.vector_length > 0:
                         dimension = field.vector_length
                         break
-                
+
                 self.client.create_collection(
                     collection_name=collection_name,
                     dimension=dimension,

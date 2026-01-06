@@ -32,10 +32,13 @@ class Field:
         dtype: The type of the field, such as string or float.
         description: A human-readable description.
         tags: User-defined metadata in dictionary form.
-        vector_index: If set to True the field will be indexed for vector similarity search.
-        vector_length: The length of the vector if the vector index is set to True.
+        vector_index: If set to True the field will be indexed for vector
+            similarity search.
+        vector_length: The length of the vector if the vector index is set
+            to True.
         vector_search_metric: The metric used for vector similarity search.
-        vector_index_type: The index type used for vector similarity search (e.g., "FLAT", "IVF_FLAT", "HNSW").
+        vector_index_type: The index type used for vector similarity search
+            (e.g., "FLAT", "IVF_FLAT", "HNSW").
     """
 
     name: str
@@ -67,10 +70,14 @@ class Field:
             dtype: The type of the field, such as string or float.
             description (optional): A human-readable description.
             tags (optional): User-defined metadata in dictionary form.
-            vector_index (optional): If set to True the field will be indexed for vector similarity search.
-            vector_length (optional): The length of the vector if the vector index is set to True.
-            vector_search_metric (optional): The metric used for vector similarity search.
-            vector_index_type (optional): The index type used for vector similarity search (e.g., "FLAT", "IVF_FLAT", "HNSW").
+            vector_index (optional): If set to True the field will be indexed
+                for vector similarity search.
+            vector_length (optional): The length of the vector if the vector
+                index is set to True.
+            vector_search_metric (optional): The metric used for vector
+                similarity search.
+            vector_index_type (optional): The index type used for vector
+                similarity search (e.g., "FLAT", "IVF_FLAT", "HNSW").
         """
         self.name = name
         self.dtype = dtype
