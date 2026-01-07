@@ -92,9 +92,25 @@ class PythonTransformation(Transformation):
         # This flattens the list of elements to extract the first one
         # in the case of a singleton element, it takes the value directly
         # in the case of a list of lists, it takes the first list
-        input_dict = {k: v[0] for k, v in input_dict.items()}
-        output_dict = self.udf.__call__(input_dict)
-        return {**input_dict, **output_dict}
+        singleton_input = {}
+        for k, v in input_dict.items():
+            if isinstance(v, list) and len(v) > 0:
+                singleton_input[k] = v[0]
+            else:
+                singleton_input[k] = v
+
+        output_dict = self.udf.__call__(singleton_input)
+
+        # For singleton transformations, wrap output values in lists to maintain consistency
+        # and ensure output takes precedence for overlapping keys
+        wrapped_output = {}
+        for k, v in output_dict.items():
+            if not isinstance(v, list):
+                wrapped_output[k] = [v]
+            else:
+                wrapped_output[k] = v
+
+        return {**input_dict, **wrapped_output}
 
     def infer_features(
         self, random_input: dict[str, Any], singleton: Optional[bool] = False
@@ -143,17 +159,22 @@ class PythonTransformation(Transformation):
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):
-            raise TypeError(
-                "Comparisons should only involve PythonTransformation class objects."
-            )
+            return False
 
-        if (
-            self.udf_string != other.udf_string
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
-        ):
+        # Use parent class comparison logic as base
+        if not super().__eq__(other):
+            return False
+
+        # Compare python-specific attributes
+        if self.singleton != other.singleton:
             return False
 
         return True
+
+    def __hash__(self):
+        """Generate hash for PythonTransformation objects."""
+        # Include singleton in hash
+        return hash((self.mode, self.name, self.udf_string, self.singleton))
 
     def __reduce__(self):
         """Support for pickle/dill serialization."""

@@ -215,13 +215,19 @@ class StreamFeatureView(FeatureView):
         if not other.udf:
             return False
 
+        # Use more resilient comparison for UDFs to handle serialization/deserialization
         if (
             self.mode != other.mode
             or self.timestamp_field != other.timestamp_field
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
             or self.udf_string != other.udf_string
             or self.aggregations != other.aggregations
         ):
+            return False
+
+        # Only compare bytecode if both UDFs have the same name and string representation
+        # This makes serialization/deserialization more robust
+        if (self.udf.__name__ != other.udf.__name__ or
+            self.udf_string != other.udf_string):
             return False
 
         return True

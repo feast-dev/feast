@@ -1,8 +1,10 @@
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta
 
 import pandas as pd
+import pytest
 
 from feast import (
     Entity,
@@ -274,83 +276,16 @@ def test_unified_pandas_transformation_returning_all_data_types():
 
 
 def test_invalid_unified_pandas_transformation_raises_type_error_on_apply():
-    """Test that invalid pandas transformation raises appropriate error."""
-    with tempfile.TemporaryDirectory() as data_dir:
-        store = FeatureStore(
-            config=RepoConfig(
-                project="test_invalid_unified_pandas_transformation",
-                registry=os.path.join(data_dir, "registry.db"),
-                provider="local",
-                entity_key_serialization_version=3,
-                online_store=SqliteOnlineStoreConfig(
-                    path=os.path.join(data_dir, "online.db")
-                ),
-            )
-        )
+    """Test that invalid pandas transformation raises appropriate error at decorator time."""
+    # Validation now happens at decorator time (fail-fast pattern)
+    # A PandasTransformation with an invalid return type should raise TypeError
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            "return signature for PandasTransformation should be pd.DataFrame"
+        ),
+    ):
 
-        driver = Entity(
-            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
-        )
-
-        dummy_stats_path = os.path.join(data_dir, "dummy.parquet")
-        # Create dummy parquet file for the source to avoid file validation errors
-        dummy_df = pd.DataFrame(
-            {
-                "driver_id": [1001],
-                "conv_rate": [0.5],
-                "event_timestamp": [datetime.now()],
-                "created": [datetime.now()],
-            }
-        )
-        dummy_df.to_parquet(path=dummy_stats_path, allow_truncated_timestamps=True)
-        driver_stats_source = FileSource(
-            name="driver_hourly_stats_source",
-            path=dummy_stats_path,
-            timestamp_field="event_timestamp",
-            created_timestamp_column="created",
-        )
-
-        driver_stats_fv = FeatureView(
-            name="driver_hourly_stats",
-            entities=[driver],
-            ttl=timedelta(days=0),
-            schema=[Field(name="conv_rate", dtype=Float32)],
-            online=True,
-            source=driver_stats_source,
-        )
-
-        # Create invalid transformation (returns wrong type)
         @transformation(mode="pandas")
         def invalid_transform(inputs: pd.DataFrame) -> str:  # Wrong return type!
             return "not a dataframe"
-
-        sink_source_path = os.path.join(data_dir, "sink.parquet")
-        # Create empty DataFrame for the sink source to avoid file validation errors
-        empty_sink_df = pd.DataFrame(
-            {
-                "invalid_output": ["test"],
-                "event_timestamp": [datetime.now()],
-                "created": [datetime.now()],
-            }
-        )
-        empty_sink_df.to_parquet(path=sink_source_path, allow_truncated_timestamps=True)
-        sink_source = FileSource(
-            name="sink-source",
-            path=sink_source_path,
-            timestamp_field="event_timestamp",
-            created_timestamp_column="created",
-        )
-        invalid_view = FeatureView(
-            name="invalid_view",
-            source=[driver_stats_fv],
-            sink_source=sink_source,
-            schema=[Field(name="invalid_output", dtype=String)],
-            feature_transformation=invalid_transform,
-        )
-
-        # This should succeed (validation happens at runtime)
-        store.apply([driver, driver_stats_source, driver_stats_fv, invalid_view])
-
-        # The error should occur when trying to use the transformation
-        # Note: The exact validation timing may vary based on implementation
-        print("✅ Invalid transformation test completed - validation behavior may vary")

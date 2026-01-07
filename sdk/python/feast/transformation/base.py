@@ -119,6 +119,33 @@ class Transformation(ABC):
     def infer_features(self, *args, **kwargs) -> Any:
         raise NotImplementedError
 
+    def __eq__(self, other):
+        """
+        Compare two Transformation objects for equality.
+        Uses a combination of mode, UDF string, and basic attributes for comparison.
+        """
+        if not isinstance(other, Transformation):
+            return False
+
+        # Compare basic attributes
+        if (
+            self.mode != other.mode
+            or self.udf_string != other.udf_string
+            or self.name != other.name
+        ):
+            return False
+
+        # For more robust comparison during serialization/deserialization,
+        # we primarily rely on udf_string rather than bytecode comparison
+        return True
+
+    def __hash__(self):
+        """
+        Generate hash for Transformation objects.
+        Uses mode, name, and udf_string for hash generation.
+        """
+        return hash((self.mode, self.name, self.udf_string))
+
 
 def transformation(
     mode: Union[TransformationMode, str],  # Support both enum and string

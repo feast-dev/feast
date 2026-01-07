@@ -272,10 +272,7 @@ def _convert_arrow_to_proto(
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
     # Check for specific ODFV attributes to identify OnDemandFeatureView vs FeatureView
     # OnDemandFeatureView has source_feature_view_projections attribute that regular FeatureView doesn't have
-    if (
-        hasattr(feature_view, "source_feature_view_projections")
-        and feature_view.source_feature_view_projections
-    ):
+    if hasattr(feature_view, "source_feature_view_projections"):
         return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
     else:
         return _convert_arrow_fv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
@@ -777,11 +774,17 @@ def _augment_response_with_on_demand_transforms(
                 # If only aggregations were applied and no transformations will follow,
                 # set transformed_features to avoid UnboundLocalError.
                 # This handles the case where aggregations exist but the ODFV has no transformations.
-                if not hasattr(odfv, "feature_transformation") or not odfv.feature_transformation:
+                if (
+                    not hasattr(odfv, "feature_transformation")
+                    or not odfv.feature_transformation
+                ):
                     # No transformations will be applied, set transformed_features to aggregated result
                     if mode == "python" and initial_response_dict is not None:
                         transformed_features = initial_response_dict
-                    elif mode in {"pandas", "substrait"} and initial_response_arrow is not None:
+                    elif (
+                        mode in {"pandas", "substrait"}
+                        and initial_response_arrow is not None
+                    ):
                         transformed_features = initial_response_arrow
 
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
@@ -790,19 +793,10 @@ def _augment_response_with_on_demand_transforms(
             elif mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                # Use feature_transformation for unified FeatureViews
-                if (
-                    hasattr(odfv, "feature_transformation")
-                    and odfv.feature_transformation
-                ):
-                    transformed_features_dict = odfv.feature_transformation.udf(
-                        initial_response_dict
-                    )
-                else:
-                    # Fallback to OnDemandFeatureView method
-                    transformed_features_dict = odfv.transform_dict(
-                        initial_response_dict
-                    )
+                # Always use transform_dict for OnDemandFeatureViews - it handles singleton mode properly
+                transformed_features_dict = odfv.transform_dict(
+                    initial_response_dict
+                )
                 transformed_features = transformed_features_dict
             elif mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
@@ -1294,9 +1288,16 @@ def _get_feature_views_to_use(
         fv = registry.get_any_feature_view(name, project, allow_cache)
 
         if isinstance(fv, OnDemandFeatureView):
-            od_fvs_to_use.append(
-                fv.with_projection(copy.copy(projection)) if projection else fv
-            )
+            # OnDemandFeatureViews with write_to_online_store=True should be treated as regular FeatureViews
+            # since their transformed values are already stored and should be served directly
+            if getattr(fv, "write_to_online_store", False):
+                fvs_to_use.append(
+                    fv.with_projection(copy.copy(projection)) if projection else fv
+                )
+            else:
+                od_fvs_to_use.append(
+                    fv.with_projection(copy.copy(projection)) if projection else fv
+                )
         elif (
             hasattr(fv, "feature_transformation")
             and fv.feature_transformation is not None
@@ -1315,7 +1316,7 @@ def _get_feature_views_to_use(
                 )
             except Exception:
                 # Fallback to the original FeatureView if auto-generated ODFV not found
-                od_fvs_to_use.append(
+                fvs_to_use.append(
                     fv.with_projection(copy.copy(projection)) if projection else fv
                 )
 
@@ -1355,6 +1356,19 @@ def _get_feature_views_to_use(
             fvs_to_use.append(
                 fv.with_projection(copy.copy(projection)) if projection else fv
             )
+
+    # Ensure OnDemandFeatureView source dependencies are included
+    for odfv in od_fvs_to_use:
+        if hasattr(odfv, 'source_feature_view_projections'):
+            for source_fv_projection in odfv.source_feature_view_projections.values():
+                # Get the actual feature view from registry
+                try:
+                    source_fv = registry.get_any_feature_view(source_fv_projection.name, project, allow_cache)
+                    if source_fv and source_fv not in fvs_to_use:
+                        fvs_to_use.append(source_fv)
+                except Exception:
+                    # Source view not found, skip
+                    pass
 
     return (fvs_to_use, od_fvs_to_use)
 

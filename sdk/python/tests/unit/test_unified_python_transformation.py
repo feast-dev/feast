@@ -113,7 +113,32 @@ class TestUnifiedPythonTransformation(unittest.TestCase):
             df["conv_rate_plus_acc_pandas"] = inputs["conv_rate"] + inputs["acc_rate"]
             return df
 
-        sink_source = FileSource(name="sink-source", path="sink.parquet")
+        sink_source_path = os.path.join(self.data_dir, "sink.parquet")
+        # Create an empty DataFrame for the sink source to avoid file validation errors
+        empty_sink_df = pd.DataFrame(
+            {
+                "conv_rate_plus_acc_pandas": [0.0],
+                "conv_rate_plus_acc_python": [0.0],
+                "conv_rate_plus_val1_python": [0.0],
+                "conv_rate_plus_val2_python": [0.0],
+                "conv_rate_plus_acc_python_singleton": [0.0],
+                "conv_rate_plus_acc_python_singleton_array": [[0.1, 0.2, 0.3]],
+                "conv_rate_plus_acc": [0.0],
+                "current_datetime": [datetime.now()],
+                "counter": [0],
+                "input_datetime": [datetime.now()],
+                "event_timestamp": [datetime.now()],
+                "created": [datetime.now()],
+            }
+        )
+        empty_sink_df.to_parquet(path=sink_source_path, allow_truncated_timestamps=True)
+
+        sink_source = FileSource(
+            name="sink-source",
+            path=sink_source_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
 
         pandas_view = FeatureView(
             name="pandas_view",
@@ -481,7 +506,32 @@ class TestUnifiedPythonTransformationAllDataTypes(unittest.TestCase):
             return output
 
         # Create unified FeatureView with python transformation
-        sink_source = FileSource(name="sink-source", path="sink.parquet")
+        sink_source_path = os.path.join(self.data_dir, "sink.parquet")
+        # Create an empty DataFrame for the sink source to avoid file validation errors
+        empty_sink_df = pd.DataFrame(
+            {
+                "highest_achieved_rank": [""],
+                "avg_daily_trips_plus_one": [0],
+                "conv_rate_plus_acc": [0.0],
+                "is_highest_rank": [False],
+                "achieved_ranks": [[""]],
+                "trips_until_next_rank_int": [[0]],
+                "trips_until_next_rank_float": [[0.0]],
+                "achieved_ranks_mask": [[False]],
+                "conv_rate_plus_val1": [0.0],
+                "conv_rate_plus_val2": [0.0],
+                "event_timestamp": [datetime.now()],
+                "created": [datetime.now()],
+            }
+        )
+        empty_sink_df.to_parquet(path=sink_source_path, allow_truncated_timestamps=True)
+
+        sink_source = FileSource(
+            name="sink-source",
+            path=sink_source_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
         python_view = FeatureView(
             name="python_view",
             source=[driver_stats_fv, request_source],
@@ -759,7 +809,23 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
             source=driver_stats_source,
         )
 
-        sink_source = FileSource(name="sink-source", path="sink.parquet")
+        # Create an empty sink file to avoid file validation errors
+        sink_source_path = os.path.join(data_dir, "sink.parquet")
+        empty_sink_df = pd.DataFrame(
+            {
+                "driver_name_lower": [""],
+                "event_timestamp": [datetime.now()],
+                "created": [datetime.now()],
+            }
+        )
+        empty_sink_df.to_parquet(path=sink_source_path, allow_truncated_timestamps=True)
+
+        sink_source = FileSource(
+            name="sink-source",
+            path=sink_source_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
         invalid_view = FeatureView(
             name="invalid_view",
             source=[driver_stats_fv],

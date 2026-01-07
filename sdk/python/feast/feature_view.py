@@ -334,6 +334,7 @@ class FeatureView(BaseFeatureView):
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.source_views != other.source_views
             or self.materialization_intervals != other.materialization_intervals
+            or self.feature_transformation != other.feature_transformation
         ):
             return False
 

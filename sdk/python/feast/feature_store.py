@@ -1384,17 +1384,29 @@ class FeatureStore:
 
         # Filter feature_refs to ONLY include those that refer to feature_views being passed to provider
         # Transformation feature refs are handled post-retrieval and should NOT be passed to provider
+        # EXCEPT for remote providers where the server needs to handle OnDemandFeatureViews
         provider_feature_refs = []
         transformation_view_names = [fv.name for fv, _ in unified_transformation_views]
+        odfv_names = [odfv.name for odfv in on_demand_feature_views]
 
-        for ref in _feature_refs:
-            fv_name = ref.split(":")[0] if ":" in ref else ref
-            # Only include if it matches a regular/source feature view (NOT transformation views)
-            if fv_name not in transformation_view_names:
-                for fv in feature_views:
-                    if fv.name == fv_name:
-                        provider_feature_refs.append(ref)
-                        break
+        # Check if using remote offline store
+        from feast.infra.offline_stores.remote import RemoteOfflineStoreConfig
+        is_remote_provider = isinstance(self.config.offline_store, RemoteOfflineStoreConfig)
+
+        # For remote providers, send ALL feature references to the server
+        # The server has access to the full registry and can handle OnDemandFeatureViews
+        if is_remote_provider:
+            provider_feature_refs = _feature_refs
+        else:
+            # For local providers, filter out transformation features as usual
+            for ref in _feature_refs:
+                fv_name = ref.split(":")[0] if ":" in ref else ref
+                # Only include if it matches a regular/source feature view (NOT transformation views)
+                if fv_name not in transformation_view_names:
+                    for fv in feature_views:
+                        if fv.name == fv_name:
+                            provider_feature_refs.append(ref)
+                            break
 
         # Optional kwargs
         kwargs: Dict[str, Any] = {}
@@ -1542,8 +1554,22 @@ class FeatureStore:
             for p in feature_view.source_feature_view_projections.values()
         }
 
+        # Build a mapping from source feature views to their entity objects
+        source_fv_entities: Dict[str, List[Entity]] = {}
         for source_fv in source_fvs:
-            all_join_keys.update(source_fv.entities)
+            entities = []
+            for entity_name in source_fv.entities:
+                try:
+                    entity = self._registry.get_entity(
+                        entity_name, self.project, allow_cache=True
+                    )
+                    entities.append(entity)
+                    # Use join_key, not entity name
+                    all_join_keys.add(entity.join_key)
+                except Exception:
+                    # Fallback to entity name if entity not found
+                    all_join_keys.add(entity_name)
+            source_fv_entities[source_fv.name] = entities
             if source_fv.batch_source:
                 entity_timestamp_col_names.add(source_fv.batch_source.timestamp_field)
 
@@ -1580,15 +1606,22 @@ class FeatureStore:
             if not source_fv.batch_source:
                 continue
 
+            # Get entities for this source feature view and extract proper join keys
+            entities = source_fv_entities.get(source_fv.name, [])
+            (
+                join_key_columns,
+                feature_name_columns,
+                timestamp_field,
+                created_timestamp_column,
+            ) = utils._get_column_names(source_fv, entities)
+
             job = provider.offline_store.pull_latest_from_table_or_query(
                 config=self.config,
                 data_source=source_fv.batch_source,
-                join_key_columns=source_fv.entities,
-                feature_name_columns=[f.name for f in source_fv.features],
-                timestamp_field=source_fv.batch_source.timestamp_field,
-                created_timestamp_column=getattr(
-                    source_fv.batch_source, "created_timestamp_column", None
-                ),
+                join_key_columns=join_key_columns,
+                feature_name_columns=feature_name_columns,
+                timestamp_field=timestamp_field,
+                created_timestamp_column=created_timestamp_column,
                 start_date=start_date,
                 end_date=end_date,
             )
@@ -1624,6 +1657,30 @@ class FeatureStore:
             full_feature_names=full_feature_names,
         )
         input_df = retrieval_job.to_df()
+
+        # Add request source fields with default values for materialization
+        # since request data is not available during batch materialization
+        if hasattr(feature_view, "source_request_sources"):
+            from feast.value_type import ValueType
+
+            for request_source in feature_view.source_request_sources.values():
+                for field in request_source.schema:
+                    if field.name not in input_df.columns:
+                        # Add default values based on the field type
+                        value_type = field.dtype.to_value_type()
+                        if value_type in (ValueType.INT32, ValueType.INT64):
+                            input_df[field.name] = 0
+                        elif value_type in (ValueType.FLOAT, ValueType.DOUBLE):
+                            input_df[field.name] = 0.0
+                        elif value_type == ValueType.STRING:
+                            input_df[field.name] = ""
+                        elif value_type == ValueType.BOOL:
+                            input_df[field.name] = False
+                        elif value_type == ValueType.UNIX_TIMESTAMP:
+                            input_df[field.name] = pd.Timestamp.now(tz="UTC")
+                        else:
+                            input_df[field.name] = None
+
         transformed_df = self._transform_on_demand_feature_view_df(
             feature_view, input_df
         )
@@ -2156,13 +2213,11 @@ class FeatureStore:
         allow_registry_cache: bool = True,
         transform_on_write: bool = True,
     ):
-        feature_view_dict = {
-            fv_proto.name: fv_proto
-            for fv_proto in self.list_all_feature_views(allow_registry_cache)
-        }
         try:
-            feature_view = feature_view_dict[feature_view_name]
-        except FeatureViewNotFoundException:
+            feature_view = self._registry.get_any_feature_view(
+                feature_view_name, self.project, allow_cache=allow_registry_cache
+            )
+        except Exception:
             raise FeatureViewNotFoundException(feature_view_name, self.project)
 
         # Convert inputs/df to a consistent DataFrame format
@@ -2195,7 +2250,10 @@ class FeatureStore:
             and hasattr(feature_view, "feature_transformation")
             and feature_view.feature_transformation
         ):
-            self._validate_transformed_schema(cast(FeatureView, feature_view), df)
+            # For OnDemandFeatureViews, allow raw source data when transform_on_write=False
+            # For unified FeatureViews, validate against transformed schema
+            if not isinstance(feature_view, OnDemandFeatureView):
+                self._validate_transformed_schema(cast(FeatureView, feature_view), df)
 
         return feature_view, df
 
@@ -2205,6 +2263,7 @@ class FeatureStore:
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
+        transform_on_write: Optional[bool] = None,
     ):
         """
         Persists a dataframe to the online store.
@@ -2214,24 +2273,18 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
+            transform_on_write (optional): Whether to apply transformations during write. If None, auto-detection is used.
         """
 
-        # Get feature view to enable schema-based transformation detection
-        feature_view = cast(
-            FeatureView,
-            self._registry.get_feature_view(
-                feature_view_name, self.project, allow_cache=allow_registry_cache
-            ),
-        )
-
-        # Determine input data for schema detection
-        input_data = df if df is not None else inputs
-
-        # Use schema-based auto-detection to determine whether to apply transformations
-        transform_on_write = should_apply_transformation(feature_view, input_data)
+        # If transform_on_write is not explicitly set, use auto-detection
         if transform_on_write is None:
-            # Fallback to default behavior if auto-detection is inconclusive
-            transform_on_write = True
+            feature_view = self._registry.get_any_feature_view(
+                feature_view_name, self.project, allow_cache=allow_registry_cache
+            )
+            input_data = df if df is not None else inputs
+            transform_on_write = should_apply_transformation(feature_view, input_data)
+            if transform_on_write is None:
+                transform_on_write = True  # Default fallback
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
             feature_view_name=feature_view_name,
@@ -2250,12 +2303,19 @@ class FeatureStore:
             # Check if feature columns are empty (entity columns may have data but feature columns are empty)
             feature_column_names = [f.name for f in feature_view.features]
             if feature_column_names:
-                feature_df = df[feature_column_names]
-                if feature_df.empty or feature_df.isnull().all().all():
-                    warnings.warn(
-                        "Cannot write dataframe with empty feature columns to online store"
-                    )
-                    return  # Early return for empty feature columns
+                # For OnDemandFeatureViews with transform_on_write=False, skip feature column validation
+                # since the dataframe contains raw input data, not computed output features
+                missing_columns = [col for col in feature_column_names if col not in df.columns]
+                if missing_columns and isinstance(feature_view, OnDemandFeatureView) and not transform_on_write:
+                    # Raw input data for OnDemandFeatureView - computed features not present yet, skip validation
+                    pass
+                elif not missing_columns:
+                    feature_df = df[feature_column_names]
+                    if feature_df.empty or feature_df.isnull().all().all():
+                        warnings.warn(
+                            "Cannot write dataframe with empty feature columns to online store"
+                        )
+                        return  # Early return for empty feature columns
 
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
@@ -2717,9 +2777,15 @@ class FeatureStore:
             hide_dummy_entity=False,
         )
         feature_view_set = set()
+        # Build list of ODFV names including those with write_to_online_store=True
+        odfv_names = [fv.name for fv in available_odfv_views]
+        for fv in available_feature_views:
+            if isinstance(fv, OnDemandFeatureView):
+                odfv_names.append(fv.name)
+
         for feature in features:
             feature_view_name = feature.split(":")[0]
-            if feature_view_name in [fv.name for fv in available_odfv_views]:
+            if feature_view_name in odfv_names:
                 feature_view: Union[OnDemandFeatureView, FeatureView] = (
                     self.get_on_demand_feature_view(feature_view_name)
                 )
