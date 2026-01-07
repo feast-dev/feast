@@ -794,9 +794,7 @@ def _augment_response_with_on_demand_transforms(
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
                 # Always use transform_dict for OnDemandFeatureViews - it handles singleton mode properly
-                transformed_features_dict = odfv.transform_dict(
-                    initial_response_dict
-                )
+                transformed_features_dict = odfv.transform_dict(initial_response_dict)
                 transformed_features = transformed_features_dict
             elif mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
@@ -1359,11 +1357,13 @@ def _get_feature_views_to_use(
 
     # Ensure OnDemandFeatureView source dependencies are included
     for odfv in od_fvs_to_use:
-        if hasattr(odfv, 'source_feature_view_projections'):
+        if hasattr(odfv, "source_feature_view_projections"):
             for source_fv_projection in odfv.source_feature_view_projections.values():
                 # Get the actual feature view from registry
                 try:
-                    source_fv = registry.get_any_feature_view(source_fv_projection.name, project, allow_cache)
+                    source_fv = registry.get_any_feature_view(
+                        source_fv_projection.name, project, allow_cache
+                    )
                     if source_fv and source_fv not in fvs_to_use:
                         fvs_to_use.append(source_fv)
                 except Exception:

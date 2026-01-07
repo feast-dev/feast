@@ -1387,11 +1387,13 @@ class FeatureStore:
         # EXCEPT for remote providers where the server needs to handle OnDemandFeatureViews
         provider_feature_refs = []
         transformation_view_names = [fv.name for fv, _ in unified_transformation_views]
-        odfv_names = [odfv.name for odfv in on_demand_feature_views]
 
         # Check if using remote offline store
         from feast.infra.offline_stores.remote import RemoteOfflineStoreConfig
-        is_remote_provider = isinstance(self.config.offline_store, RemoteOfflineStoreConfig)
+
+        is_remote_provider = isinstance(
+            self.config.offline_store, RemoteOfflineStoreConfig
+        )
 
         # For remote providers, send ALL feature references to the server
         # The server has access to the full registry and can handle OnDemandFeatureViews
@@ -2278,11 +2280,17 @@ class FeatureStore:
 
         # If transform_on_write is not explicitly set, use auto-detection
         if transform_on_write is None:
-            feature_view = self._registry.get_any_feature_view(
+            fv_for_detection = self._registry.get_any_feature_view(
                 feature_view_name, self.project, allow_cache=allow_registry_cache
             )
             input_data = df if df is not None else inputs
-            transform_on_write = should_apply_transformation(feature_view, input_data)
+            # Only apply transformation detection for FeatureView or OnDemandFeatureView
+            if isinstance(fv_for_detection, (FeatureView, OnDemandFeatureView)):
+                transform_on_write = should_apply_transformation(
+                    fv_for_detection, input_data
+                )
+            else:
+                transform_on_write = True  # Default for other types
             if transform_on_write is None:
                 transform_on_write = True  # Default fallback
 
@@ -2305,8 +2313,14 @@ class FeatureStore:
             if feature_column_names:
                 # For OnDemandFeatureViews with transform_on_write=False, skip feature column validation
                 # since the dataframe contains raw input data, not computed output features
-                missing_columns = [col for col in feature_column_names if col not in df.columns]
-                if missing_columns and isinstance(feature_view, OnDemandFeatureView) and not transform_on_write:
+                missing_columns = [
+                    col for col in feature_column_names if col not in df.columns
+                ]
+                if (
+                    missing_columns
+                    and isinstance(feature_view, OnDemandFeatureView)
+                    and not transform_on_write
+                ):
                     # Raw input data for OnDemandFeatureView - computed features not present yet, skip validation
                     pass
                 elif not missing_columns:

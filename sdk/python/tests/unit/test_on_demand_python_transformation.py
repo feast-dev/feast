@@ -64,13 +64,9 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         start_date = end_date - timedelta(days=15)
 
         driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = create_driver_hourly_stats_df(
-            driver_entities, start_date, end_date
-        )
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
-        driver_df.to_parquet(
-            path=driver_stats_path, allow_truncated_timestamps=True
-        )
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
         driver = Entity(
             name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
@@ -123,9 +119,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         )
         def pandas_view(inputs: pd.DataFrame) -> pd.DataFrame:
             df = pd.DataFrame()
-            df["conv_rate_plus_acc_pandas"] = (
-                inputs["conv_rate"] + inputs["acc_rate"]
-            )
+            df["conv_rate_plus_acc_pandas"] = inputs["conv_rate"] + inputs["acc_rate"]
             return df
 
         @on_demand_feature_view(
@@ -136,9 +130,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         def python_view(inputs: dict[str, Any]) -> dict[str, Any]:
             output: dict[str, Any] = {
                 "conv_rate_plus_acc_python": conv_rate + acc_rate
-                for conv_rate, acc_rate in zip(
-                    inputs["conv_rate"], inputs["acc_rate"]
-                )
+                for conv_rate, acc_rate in zip(inputs["conv_rate"], inputs["acc_rate"])
             }
             return output
 
@@ -244,8 +236,9 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         assert len(self.store.list_stream_feature_views()) == 0
 
     def tearDown(self):
-        if hasattr(self, 'temp_dir'):
+        if hasattr(self, "temp_dir"):
             import shutil
+
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_setup(self):
@@ -424,13 +417,9 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
         start_date = end_date - timedelta(days=15)
 
         driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = create_driver_hourly_stats_df(
-            driver_entities, start_date, end_date
-        )
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
-        driver_df.to_parquet(
-            path=driver_stats_path, allow_truncated_timestamps=True
-        )
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
         driver = Entity(name="driver", join_keys=["driver_id"])
 
@@ -648,9 +637,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "val_to_add_2",
         ]
         resp_online_missing_entity = self.store.get_online_features(
-            entity_rows=[
-                {"driver_id": 1234567890, "val_to_add": 0, "val_to_add_2": 1}
-            ],
+            entity_rows=[{"driver_id": 1234567890, "val_to_add": 0, "val_to_add_2": 1}],
             features=[
                 "driver_hourly_stats:conv_rate",
                 "driver_hourly_stats:acc_rate",
@@ -693,8 +680,9 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
         assert sorted(resp_online.columns) != sorted(resp_offline.columns)
 
     def tearDown(self):
-        if hasattr(self, 'temp_dir'):
+        if hasattr(self, "temp_dir"):
             import shutil
+
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_setup(self):
@@ -1451,7 +1439,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
 
             assert odfv_applied.entities == [chunk.name, document.name]
 
-                # Note here that after apply() is called, the entity_columns are populated with the join_key
+            # Note here that after apply() is called, the entity_columns are populated with the join_key
             assert odfv_applied.entity_columns[1].name == chunk.join_key
             assert odfv_applied.entity_columns[0].name == document.join_key
 

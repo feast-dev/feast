@@ -60,13 +60,9 @@ class TestOnlineWrites(unittest.TestCase):
         start_date = end_date - timedelta(days=15)
 
         driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = create_driver_hourly_stats_df(
-            driver_entities, start_date, end_date
-        )
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
-        driver_df.to_parquet(
-            path=driver_stats_path, allow_truncated_timestamps=True
-        )
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
         driver = Entity(name="driver", join_keys=["driver_id"])
 
@@ -133,7 +129,7 @@ class TestOnlineWrites(unittest.TestCase):
         )
 
     def tearDown(self):
-        if hasattr(self, 'temp_dir'):
+        if hasattr(self, "temp_dir"):
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_online_retrieval(self):

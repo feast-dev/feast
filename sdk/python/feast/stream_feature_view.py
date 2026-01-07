@@ -226,8 +226,10 @@ class StreamFeatureView(FeatureView):
 
         # Only compare bytecode if both UDFs have the same name and string representation
         # This makes serialization/deserialization more robust
-        if (self.udf.__name__ != other.udf.__name__ or
-            self.udf_string != other.udf_string):
+        if (
+            self.udf.__name__ != other.udf.__name__
+            or self.udf_string != other.udf_string
+        ):
             return False
 
         return True
