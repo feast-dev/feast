@@ -260,10 +260,13 @@ def test_unified_pandas_transformation_returning_all_data_types():
             ],
         ).to_df()
 
-        # Verify the transformations
-        assert (
-            online_response["float32_output"].iloc[0]
-            == online_response["conv_rate"].iloc[0] + 1.0
+        # Verify the transformations (use np.isclose for floating-point comparisons)
+        import numpy as np
+
+        assert np.isclose(
+            online_response["float32_output"].iloc[0],
+            online_response["conv_rate"].iloc[0] + 1.0,
+            rtol=1e-6,
         )
         assert (
             online_response["string_output"].iloc[0]

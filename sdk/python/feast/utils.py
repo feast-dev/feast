@@ -499,11 +499,11 @@ def _group_feature_refs(
     # on demand view to on demand view proto
     on_demand_view_index: Dict[str, "OnDemandFeatureView"] = {}
     for view in all_on_demand_feature_views:
-        if view.projection and not getattr(view, "write_to_online_store", True):
-            on_demand_view_index[view.projection.name_to_use()] = view
-        elif view.projection and getattr(view, "write_to_online_store", True):
+        if view.projection and getattr(view, "write_to_online_store", False):
             # we insert the ODFV view to FVs for ones that are written to the online store
             view_index[view.projection.name_to_use()] = view
+        elif view.projection:
+            on_demand_view_index[view.projection.name_to_use()] = view
 
     # view name to feature names
     views_features = defaultdict(set)
@@ -1300,49 +1300,78 @@ def _get_feature_views_to_use(
             hasattr(fv, "feature_transformation")
             and fv.feature_transformation is not None
         ):
-            # Handle unified FeatureViews with transformations by finding the generated OnDemandFeatureView
-            try:
-                # Look for the auto-generated OnDemandFeatureView for online serving
-                online_fv_name = f"{fv.name}_online"
-                online_fv = registry.get_on_demand_feature_view(
-                    online_fv_name, project, allow_cache
-                )
-                od_fvs_to_use.append(
-                    online_fv.with_projection(copy.copy(projection))
-                    if projection
-                    else online_fv
-                )
-            except Exception:
-                # Fallback to the original FeatureView if auto-generated ODFV not found
+            # Check if this FeatureView requires on-demand transformation or
+            # if transformation happens during materialization.
+            #
+            # On-demand transformation is needed when:
+            # - FeatureView has source_views (depends on other FeatureViews for input)
+            #
+            # Materialization-time transformation (no on-demand needed) when:
+            # - FeatureView has a batch_source (DataSource) and online=True
+            # - Features are already transformed and stored in online store
+            has_source_views = hasattr(fv, "source_views") and fv.source_views
+            has_batch_source = hasattr(fv, "batch_source") and fv.batch_source
+            is_online_enabled = getattr(fv, "online", False)
+
+            # If transformation happens during materialization, treat as regular FV
+            if has_batch_source and is_online_enabled and not has_source_views:
+                # Features are already transformed and stored in online store
+                if (
+                    hide_dummy_entity
+                    and fv.entities  # type: ignore[attr-defined]
+                    and fv.entities[0] == DUMMY_ENTITY_NAME  # type: ignore[attr-defined]
+                ):
+                    fv.entities = []  # type: ignore[attr-defined]
+                    fv.entity_columns = []  # type: ignore[attr-defined]
                 fvs_to_use.append(
                     fv.with_projection(copy.copy(projection)) if projection else fv
                 )
-
-            # For unified FeatureViews, source FeatureViews are stored in source_views property
-            source_views = (
-                fv.source_views
-                if hasattr(fv, "source_views") and fv.source_views
-                else []
-            )
-            for source_fv in source_views:
-                # source_fv is already a FeatureView object for unified FeatureViews
-                if hasattr(source_fv, "name"):
-                    # If it's a FeatureView, get it from registry to ensure it's up to date
-                    source_fv = registry.get_any_feature_view(
-                        source_fv.name, project, allow_cache
+            else:
+                # Handle unified FeatureViews with transformations that need on-demand transformation
+                # by finding the generated OnDemandFeatureView
+                try:
+                    # Look for the auto-generated OnDemandFeatureView for online serving
+                    online_fv_name = f"{fv.name}_online"
+                    online_fv = registry.get_on_demand_feature_view(
+                        online_fv_name, project, allow_cache
                     )
-                # TODO better way to handler dummy entities
-                if (
-                    hide_dummy_entity
-                    and source_fv.entities  # type: ignore[attr-defined]
-                    and source_fv.entities[0] == DUMMY_ENTITY_NAME  # type: ignore[attr-defined]
-                ):
-                    source_fv.entities = []  # type: ignore[attr-defined]
-                    source_fv.entity_columns = []  # type: ignore[attr-defined]
+                    od_fvs_to_use.append(
+                        online_fv.with_projection(copy.copy(projection))
+                        if projection
+                        else online_fv
+                    )
+                except Exception:
+                    # Fallback to the original FeatureView if auto-generated ODFV not found
+                    fvs_to_use.append(
+                        fv.with_projection(copy.copy(projection)) if projection else fv
+                    )
 
-                if source_fv not in fvs_to_use:
-                    # For unified FeatureViews, add source views without complex projection handling
-                    fvs_to_use.append(source_fv)
+                # For unified FeatureViews with on-demand transformation,
+                # source FeatureViews need to be added to fetch input data
+                source_views = (
+                    fv.source_views
+                    if hasattr(fv, "source_views") and fv.source_views
+                    else []
+                )
+                for source_fv in source_views:
+                    # source_fv is already a FeatureView object for unified FeatureViews
+                    if hasattr(source_fv, "name"):
+                        # If it's a FeatureView, get it from registry to ensure it's up to date
+                        source_fv = registry.get_any_feature_view(
+                            source_fv.name, project, allow_cache
+                        )
+                    # TODO better way to handler dummy entities
+                    if (
+                        hide_dummy_entity
+                        and source_fv.entities  # type: ignore[attr-defined]
+                        and source_fv.entities[0] == DUMMY_ENTITY_NAME  # type: ignore[attr-defined]
+                    ):
+                        source_fv.entities = []  # type: ignore[attr-defined]
+                        source_fv.entity_columns = []  # type: ignore[attr-defined]
+
+                    if source_fv not in fvs_to_use:
+                        # For unified FeatureViews, add source views without complex projection handling
+                        fvs_to_use.append(source_fv)
         else:
             if (
                 hide_dummy_entity

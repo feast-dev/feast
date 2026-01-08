@@ -751,7 +751,14 @@ class TestUnifiedPythonTransformationAllDataTypes(unittest.TestCase):
             [rank for rank in expected_ranks if rank != "Locked"][-1:] or ["None"]
         )[0]
 
-        assert result["conv_rate_plus_acc"] == result["conv_rate"] + result["acc_rate"]
+        # Use np.isclose for floating-point comparisons to handle precision issues
+        import numpy as np
+
+        assert np.isclose(
+            result["conv_rate_plus_acc"],
+            result["conv_rate"] + result["acc_rate"],
+            rtol=1e-6,
+        )
         assert result["avg_daily_trips_plus_one"] == result["avg_daily_trips"] + 1
         assert result["highest_achieved_rank"] == highest_rank
         assert result["is_highest_rank"] == (expected_ranks[-1] != "Locked")
