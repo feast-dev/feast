@@ -202,6 +202,7 @@ class MilvusOnlineStore(OnlineStore):
                     schema=schema,
                 )
                 index_params = self.client.prepare_index_params()
+                added_index = False
                 for vector_field in schema.fields:
                     if (
                         vector_field.dtype
@@ -222,10 +223,12 @@ class MilvusOnlineStore(OnlineStore):
                             index_name=f"vector_index_{vector_field.name}",
                             params={"nlist": config.online_store.nlist},
                         )
-                self.client.create_index(
-                    collection_name=collection_name,
-                    index_params=index_params,
-                )
+                        added_index = True
+                if added_index:
+                    self.client.create_index(
+                        collection_name=collection_name,
+                        index_params=index_params,
+                    )
             else:
                 self.client.load_collection(collection_name)
             self._collections[collection_name] = self.client.describe_collection(
