@@ -463,13 +463,11 @@ class OfflineServer(fl.FlightServerBase):
                 datetime.fromisoformat(command["end_date"])
             )
 
-        retJob = self.offline_store.get_historical_features(
-            config=self.store.config,
-            feature_views=feature_views,
-            feature_refs=feature_refs,
+        # Use the feature store's get_historical_features method to properly handle
+        # OnDemandFeatureViews and unified transformations
+        retJob = self.store.get_historical_features(
             entity_df=entity_df,
-            registry=self.store.registry,
-            project=project,
+            features=feature_refs,
             full_feature_names=full_feature_names,
             **kwargs,
         )

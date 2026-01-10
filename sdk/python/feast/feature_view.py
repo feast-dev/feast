@@ -22,7 +22,13 @@ from typeguard import typechecked
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
+from feast.data_source import (
+    DataSource,
+    KafkaSource,
+    KinesisSource,
+    PushSource,
+    RequestSource,
+)
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
@@ -39,6 +45,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2 as FeatureTransformationProto,
 )
+from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
 from feast.value_type import ValueType
@@ -107,6 +114,7 @@ class FeatureView(BaseFeatureView):
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
+    feature_transformation: Optional[Transformation]
 
     def __init__(
         self,
@@ -123,6 +131,7 @@ class FeatureView(BaseFeatureView):
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
+        feature_transformation: Optional[Transformation] = None,
     ):
         """
         Creates a FeatureView object.
@@ -148,6 +157,8 @@ class FeatureView(BaseFeatureView):
                 primary maintainer.
             mode (optional): The transformation mode for feature transformations. Only meaningful
                 when transformations are applied. Choose from TransformationMode enum values.
+            feature_transformation (optional): The transformation object containing the UDF and
+                mode for this feature view. Used for derived feature views.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -157,23 +168,39 @@ class FeatureView(BaseFeatureView):
         self.ttl = ttl
         schema = schema or []
         self.mode = mode
+        # Don't override feature_transformation if it's already set by subclass (e.g., BatchFeatureView)
+        if (
+            not hasattr(self, "feature_transformation")
+            or self.feature_transformation is None
+        ):
+            self.feature_transformation = feature_transformation
+        # Set online setting to provided value
+        self.online = online
 
         # Normalize source
         self.stream_source = None
         self.data_source: Optional[DataSource] = None
         self.source_views: List[FeatureView] = []
+        self.source_request_sources: Dict[str, RequestSource] = {}
 
         if isinstance(source, DataSource):
             self.data_source = source
         elif isinstance(source, FeatureView):
             self.source_views = [source]
-        elif isinstance(source, list) and all(
-            isinstance(sv, FeatureView) for sv in source
-        ):
-            self.source_views = source
+        elif isinstance(source, list):
+            # Handle mixed list of FeatureViews and RequestSources
+            for sv in source:
+                if isinstance(sv, FeatureView):
+                    self.source_views.append(sv)
+                elif isinstance(sv, RequestSource):
+                    self.source_request_sources[sv.name] = sv
+                else:
+                    raise TypeError(
+                        f"List source items must be FeatureView or RequestSource, got {type(sv)}"
+                    )
         else:
             raise TypeError(
-                "source must be a DataSource, a FeatureView, or a list of FeatureView."
+                "source must be a DataSource, a FeatureView, or a list containing FeatureViews and RequestSources."
             )
 
         # Set up stream, batch and derived view sources
@@ -259,7 +286,7 @@ class FeatureView(BaseFeatureView):
             owner=owner,
             source=self.batch_source,
         )
-        self.online = online
+        # Note: self.online is now set by auto-inference logic above
         self.offline = offline
         self.mode = mode
         self.materialization_intervals = []
@@ -307,6 +334,7 @@ class FeatureView(BaseFeatureView):
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.source_views != other.source_views
             or self.materialization_intervals != other.materialization_intervals
+            or self.feature_transformation != other.feature_transformation
         ):
             return False
 
@@ -679,3 +707,34 @@ class FeatureView(BaseFeatureView):
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+    @staticmethod
+    def get_requested_unified_fvs(
+        feature_refs, project, registry
+    ) -> List["FeatureView"]:
+        """
+        Extract FeatureViews with transformations that are requested in feature_refs.
+
+        Args:
+            feature_refs: List of feature references (e.g., ["fv_name:feature_name"])
+            project: Project name
+            registry: Registry instance
+
+        Returns:
+            List of FeatureViews with transformations that match the feature_refs
+        """
+        all_feature_views = registry.list_feature_views(project, allow_cache=True)
+        requested_unified_fvs: List[FeatureView] = []
+
+        for fv in all_feature_views:
+            # Only include FeatureViews with transformations
+            if (
+                hasattr(fv, "feature_transformation")
+                and fv.feature_transformation is not None
+            ):
+                for feature in fv.features:
+                    if f"{fv.name}:{feature.name}" in feature_refs:
+                        requested_unified_fvs.append(fv)
+                        break  # Only add once per feature view
+
+        return requested_unified_fvs

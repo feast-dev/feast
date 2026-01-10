@@ -41,95 +41,96 @@ from tests.utils.test_wrappers import check_warnings
 
 class TestOnlineWrites(unittest.TestCase):
     def setUp(self):
-        with tempfile.TemporaryDirectory() as data_dir:
-            self.store = FeatureStore(
-                config=RepoConfig(
-                    project="test_write_to_online_store",
-                    registry=os.path.join(data_dir, "registry.db"),
-                    provider="local",
-                    entity_key_serialization_version=3,
-                    online_store=SqliteOnlineStoreConfig(
-                        path=os.path.join(data_dir, "online.db")
-                    ),
-                )
+        self.temp_dir = tempfile.mkdtemp()
+        data_dir = self.temp_dir
+        self.store = FeatureStore(
+            config=RepoConfig(
+                project="test_write_to_online_store",
+                registry=os.path.join(data_dir, "registry.db"),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(data_dir, "online.db")
+                ),
             )
+        )
 
-            # Generate test data.
-            end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
-            start_date = end_date - timedelta(days=15)
+        # Generate test data.
+        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+        start_date = end_date - timedelta(days=15)
 
-            driver_entities = [1001, 1002, 1003, 1004, 1005]
-            driver_df = create_driver_hourly_stats_df(
-                driver_entities, start_date, end_date
-            )
-            driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
-            driver_df.to_parquet(
-                path=driver_stats_path, allow_truncated_timestamps=True
-            )
+        driver_entities = [1001, 1002, 1003, 1004, 1005]
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+        driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
-            driver = Entity(name="driver", join_keys=["driver_id"])
+        driver = Entity(name="driver", join_keys=["driver_id"])
 
-            driver_stats_source = FileSource(
-                name="driver_hourly_stats_source",
-                path=driver_stats_path,
-                timestamp_field="event_timestamp",
-                created_timestamp_column="created",
-            )
+        driver_stats_source = FileSource(
+            name="driver_hourly_stats_source",
+            path=driver_stats_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
 
-            driver_stats_fv = FeatureView(
-                name="driver_hourly_stats",
-                entities=[driver],
-                ttl=timedelta(days=0),
-                schema=[
-                    Field(name="conv_rate", dtype=Float32),
-                    Field(name="acc_rate", dtype=Float32),
-                    Field(name="avg_daily_trips", dtype=Int64),
-                ],
-                online=True,
-                source=driver_stats_source,
-            )
-            # Before apply() join_keys is empty
-            assert driver_stats_fv.join_keys == []
-            assert driver_stats_fv.entity_columns == []
+        driver_stats_fv = FeatureView(
+            name="driver_hourly_stats",
+            entities=[driver],
+            ttl=timedelta(days=0),
+            schema=[
+                Field(name="conv_rate", dtype=Float32),
+                Field(name="acc_rate", dtype=Float32),
+                Field(name="avg_daily_trips", dtype=Int64),
+            ],
+            online=True,
+            source=driver_stats_source,
+        )
+        # Before apply() join_keys is empty
+        assert driver_stats_fv.join_keys == []
+        assert driver_stats_fv.entity_columns == []
 
-            @on_demand_feature_view(
-                sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
-                schema=[Field(name="conv_rate_plus_acc", dtype=Float64)],
-                mode="python",
-            )
-            def test_view(inputs: dict[str, Any]) -> dict[str, Any]:
-                output: dict[str, Any] = {
-                    "conv_rate_plus_acc": [
-                        conv_rate + acc_rate
-                        for conv_rate, acc_rate in zip(
-                            inputs["conv_rate"], inputs["acc_rate"]
-                        )
-                    ]
-                }
-                return output
-
-            self.store.apply(
-                [
-                    driver,
-                    driver_stats_source,
-                    driver_stats_fv,
-                    test_view,
+        @on_demand_feature_view(
+            sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
+            schema=[Field(name="conv_rate_plus_acc", dtype=Float64)],
+            mode="python",
+        )
+        def test_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            output: dict[str, Any] = {
+                "conv_rate_plus_acc": [
+                    conv_rate + acc_rate
+                    for conv_rate, acc_rate in zip(
+                        inputs["conv_rate"], inputs["acc_rate"]
+                    )
                 ]
-            )
-            # after apply() join_keys is [driver]
-            assert driver_stats_fv.join_keys == [driver.join_key]
-            assert driver_stats_fv.entity_columns[0].name == driver.join_key
+            }
+            return output
 
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", df=driver_df
-            )
-            # This will give the intuitive structure of the data as:
-            # {"driver_id": [..], "conv_rate": [..], "acc_rate": [..], "avg_daily_trips": [..]}
-            driver_dict = driver_df.to_dict(orient="list")
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats",
-                inputs=driver_dict,
-            )
+        self.store.apply(
+            [
+                driver,
+                driver_stats_source,
+                driver_stats_fv,
+                test_view,
+            ]
+        )
+        # after apply() join_keys is [driver]
+        assert driver_stats_fv.join_keys == [driver.join_key]
+        assert driver_stats_fv.entity_columns[0].name == driver.join_key
+
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=driver_df
+        )
+        # This will give the intuitive structure of the data as:
+        # {"driver_id": [..], "conv_rate": [..], "acc_rate": [..], "avg_daily_trips": [..]}
+        driver_dict = driver_df.to_dict(orient="list")
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats",
+            inputs=driver_dict,
+        )
+
+    def tearDown(self):
+        if hasattr(self, "temp_dir"):
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_online_retrieval(self):
         entity_rows = [

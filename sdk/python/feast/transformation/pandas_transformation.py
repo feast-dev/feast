@@ -132,17 +132,18 @@ class PandasTransformation(Transformation):
 
     def __eq__(self, other):
         if not isinstance(other, PandasTransformation):
-            raise TypeError(
-                "Comparisons should only involve PandasTransformation class objects."
-            )
-
-        if (
-            self.udf_string != other.udf_string
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
-        ):
             return False
 
+        # Use parent class comparison logic as base
+        if not super().__eq__(other):
+            return False
+
+        # Additional pandas-specific checks can be added here if needed
         return True
+
+    def __hash__(self):
+        """Generate hash for PandasTransformation objects."""
+        return super().__hash__()
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):

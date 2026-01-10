@@ -8,10 +8,7 @@ Feast's architecture is designed to be flexible and scalable. It is composed of 
 online store. 
 This allows Feast to serve features in real-time with low latency.
 
-* Feast supports [feature transformation](feature-transformation.md) for On Demand and Streaming data sources and
-  will support Batch transformations in the future. For Streaming and Batch data sources, Feast requires a separate 
-[Feature Transformation Engine](feature-transformation.md#feature-transformation-engines) (in the batch case, this is 
-typically your Offline Store). We are exploring adding a default streaming engine to Feast.
+* Feast supports [feature transformation](feature-transformation.md) through a unified `@transformation` decorator that works across different execution contexts and timing modes (on-read, on-write, batch, streaming). For compute engine execution (batch and streaming), Feast requires a separate [Feature Transformation Engine](feature-transformation.md#feature-transformation) such as Spark, Ray, or Flink.
 
 * Domain expertise is recommended when integrating a data source with Feast understand the [tradeoffs from different
   write patterns](write-patterns.md) to your application

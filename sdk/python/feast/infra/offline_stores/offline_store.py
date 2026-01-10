@@ -166,6 +166,27 @@ class RetrievalJob(ABC):
                         col, transformed_arrow[col]
                     )
 
+        # Handle unified FeatureViews with transformations
+        if self.unified_feature_views:
+            for unified_fv in self.unified_feature_views:
+                if (
+                    hasattr(unified_fv, "feature_transformation")
+                    and unified_fv.feature_transformation is not None
+                ):
+                    # Apply the transformation using the transform_arrow method
+                    transformed_arrow = (
+                        unified_fv.feature_transformation.transform_arrow(
+                            features_table, unified_fv.features
+                        )
+                    )
+
+                    for col in transformed_arrow.column_names:
+                        if col.startswith("__index"):
+                            continue
+                        features_table = features_table.append_column(
+                            col, transformed_arrow[col]
+                        )
+
         if validation_reference:
             if not flags_helper.is_test():
                 warnings.warn(
@@ -254,6 +275,12 @@ class RetrievalJob(ABC):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         """Returns a list containing all the on demand feature views to be handled."""
         raise NotImplementedError
+
+    @property
+    def unified_feature_views(self) -> List["FeatureView"]:
+        """Returns a list containing all the unified feature views with transformations to be handled."""
+        # Default implementation returns empty list for backwards compatibility
+        return []
 
     def persist(
         self,
