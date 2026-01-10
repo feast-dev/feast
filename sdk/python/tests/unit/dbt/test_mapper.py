@@ -2,25 +2,25 @@
 Unit tests for dbt to Feast mapper.
 """
 
-import pytest
 from datetime import timedelta
 
-from feast.dbt.parser import DbtModel, DbtColumn
+import pytest
+
 from feast.dbt.mapper import (
     DbtToFeastMapper,
     map_dbt_type_to_feast_type,
-    DBT_TO_FEAST_TYPE_MAP,
 )
+from feast.dbt.parser import DbtColumn, DbtModel
 from feast.types import (
-    String,
-    Int32,
-    Int64,
+    Array,
+    Bool,
+    Bytes,
     Float32,
     Float64,
-    Bool,
+    Int32,
+    Int64,
+    String,
     UnixTimestamp,
-    Bytes,
-    Array,
 )
 
 

@@ -3,10 +3,10 @@ Unit tests for dbt manifest parser.
 """
 
 import json
-import pytest
-from pathlib import Path
 
-from feast.dbt.parser import DbtManifestParser, DbtModel, DbtColumn
+import pytest
+
+from feast.dbt.parser import DbtColumn, DbtManifestParser, DbtModel
 
 
 @pytest.fixture
