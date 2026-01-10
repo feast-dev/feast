@@ -112,113 +112,64 @@ class DbtManifestParser:
                 "dbt-artifacts-parser is required for dbt integration.\n"
                 "Install with: pip install 'feast[dbt]' or pip install dbt-artifacts-parser"
             )
-        except Exception:
-            # Fall back to raw manifest if typed parsing fails (e.g., incomplete manifest)
-            self._parsed_manifest = None
 
     def _extract_column_from_node(self, col_name: str, col_data: Any) -> DbtColumn:
         """Extract column info from a parsed node column."""
-        # Handle both dict and typed object access
-        if isinstance(col_data, dict):
-            return DbtColumn(
-                name=col_name,
-                description=col_data.get("description", "") or "",
-                data_type=col_data.get("data_type", "STRING") or "STRING",
-                tags=col_data.get("tags", []) or [],
-                meta=col_data.get("meta", {}) or {},
-            )
-        else:
-            # Typed object from dbt-artifacts-parser
-            return DbtColumn(
-                name=col_name,
-                description=getattr(col_data, "description", "") or "",
-                data_type=getattr(col_data, "data_type", "STRING") or "STRING",
-                tags=list(getattr(col_data, "tags", []) or []),
-                meta=dict(getattr(col_data, "meta", {}) or {}),
-            )
+        return DbtColumn(
+            name=col_name,
+            description=getattr(col_data, "description", "") or "",
+            data_type=getattr(col_data, "data_type", "STRING") or "STRING",
+            tags=list(getattr(col_data, "tags", []) or []),
+            meta=dict(getattr(col_data, "meta", {}) or {}),
+        )
 
     def _extract_model_from_node(self, node_id: str, node: Any) -> Optional[DbtModel]:
         """Extract DbtModel from a parsed manifest node."""
-        # Handle both dict and typed object access
-        if isinstance(node, dict):
-            resource_type = node.get("resource_type", "model")
-            if resource_type != "model":
+        # Check resource type
+        resource_type = getattr(node, "resource_type", None)
+        if resource_type is None:
+            if not node_id.startswith("model."):
                 return None
-
-            model_name = node.get("name", "")
-            node_tags = node.get("tags", []) or []
-            node_columns = node.get("columns", {}) or {}
-            depends_on = node.get("depends_on", {}) or {}
-            depends_on_nodes = depends_on.get("nodes", []) or []
-
-            columns = [
-                self._extract_column_from_node(col_name, col_data)
-                for col_name, col_data in node_columns.items()
-            ]
-
-            return DbtModel(
-                name=model_name,
-                unique_id=node_id,
-                database=node.get("database", "") or "",
-                schema=node.get("schema", "") or "",
-                alias=node.get("alias", model_name) or model_name,
-                description=node.get("description", "") or "",
-                columns=columns,
-                tags=node_tags,
-                meta=node.get("meta", {}) or {},
-                depends_on=depends_on_nodes,
-            )
         else:
-            # Typed object from dbt-artifacts-parser
-            resource_type = getattr(node, "resource_type", None)
-            if resource_type is None:
-                # Check if node_id indicates it's a model
-                if not node_id.startswith("model."):
-                    return None
-            elif (
-                str(resource_type) != "model"
-                and str(
-                    resource_type.value
-                    if hasattr(resource_type, "value")
-                    else resource_type
-                )
-                != "model"
-            ):
+            resource_type_str = (
+                resource_type.value
+                if hasattr(resource_type, "value")
+                else str(resource_type)
+            )
+            if resource_type_str != "model":
                 return None
 
-            model_name = getattr(node, "name", "")
-            node_tags = list(getattr(node, "tags", []) or [])
-            node_columns = getattr(node, "columns", {}) or {}
-            depends_on = getattr(node, "depends_on", None)
+        model_name = getattr(node, "name", "")
+        node_tags = list(getattr(node, "tags", []) or [])
+        node_columns = getattr(node, "columns", {}) or {}
+        depends_on = getattr(node, "depends_on", None)
 
-            if depends_on:
-                depends_on_nodes = list(getattr(depends_on, "nodes", []) or [])
-            else:
-                depends_on_nodes = []
+        if depends_on:
+            depends_on_nodes = list(getattr(depends_on, "nodes", []) or [])
+        else:
+            depends_on_nodes = []
 
-            # Handle columns dict
-            if isinstance(node_columns, dict):
-                columns = [
-                    self._extract_column_from_node(col_name, col_data)
-                    for col_name, col_data in node_columns.items()
-                ]
-            else:
-                columns = []
+        # Extract columns
+        columns = [
+            self._extract_column_from_node(col_name, col_data)
+            for col_name, col_data in node_columns.items()
+        ]
 
-            return DbtModel(
-                name=model_name,
-                unique_id=node_id,
-                database=getattr(node, "database", "") or "",
-                schema=getattr(node, "schema_", "")
-                or getattr(node, "schema", "")
-                or "",
-                alias=getattr(node, "alias", model_name) or model_name,
-                description=getattr(node, "description", "") or "",
-                columns=columns,
-                tags=node_tags,
-                meta=dict(getattr(node, "meta", {}) or {}),
-                depends_on=depends_on_nodes,
-            )
+        # Get schema - dbt-artifacts-parser uses schema_ to avoid Python keyword
+        schema = getattr(node, "schema_", "") or getattr(node, "schema", "") or ""
+
+        return DbtModel(
+            name=model_name,
+            unique_id=node_id,
+            database=getattr(node, "database", "") or "",
+            schema=schema,
+            alias=getattr(node, "alias", model_name) or model_name,
+            description=getattr(node, "description", "") or "",
+            columns=columns,
+            tags=node_tags,
+            meta=dict(getattr(node, "meta", {}) or {}),
+            depends_on=depends_on_nodes,
+        )
 
     def get_models(
         self,
@@ -239,19 +190,14 @@ class DbtManifestParser:
             >>> models = parser.get_models(model_names=["driver_stats"])
             >>> models = parser.get_models(tag_filter="feast")
         """
-        if self._raw_manifest is None:
+        if self._parsed_manifest is None:
             self.parse()
 
-        if self._raw_manifest is None:
+        if self._parsed_manifest is None:
             return []
 
         models = []
-
-        # Use parsed manifest if available, fall back to raw
-        if self._parsed_manifest is not None:
-            nodes = getattr(self._parsed_manifest, "nodes", {}) or {}
-        else:
-            nodes = self._raw_manifest.get("nodes", {})
+        nodes = getattr(self._parsed_manifest, "nodes", {}) or {}
 
         for node_id, node in nodes.items():
             # Only process models (not tests, seeds, snapshots, etc.)
@@ -290,15 +236,22 @@ class DbtManifestParser:
     @property
     def dbt_version(self) -> Optional[str]:
         """Get dbt version from manifest metadata."""
-        if self._raw_manifest is None:
+        if self._parsed_manifest is None:
             return None
-        metadata = self._raw_manifest.get("metadata", {})
-        return metadata.get("dbt_version")
+        metadata = getattr(self._parsed_manifest, "metadata", None)
+        if metadata is None:
+            return None
+        return getattr(metadata, "dbt_version", None)
 
     @property
     def project_name(self) -> Optional[str]:
         """Get project name from manifest metadata."""
-        if self._raw_manifest is None:
+        if self._parsed_manifest is None:
             return None
-        metadata = self._raw_manifest.get("metadata", {})
-        return metadata.get("project_name")
+        metadata = getattr(self._parsed_manifest, "metadata", None)
+        if metadata is None:
+            return None
+        # project_name may not exist in all manifest versions
+        return getattr(metadata, "project_name", None) or getattr(
+            metadata, "project_id", None
+        )

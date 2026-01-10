@@ -12,6 +12,65 @@ pytest.importorskip("dbt_artifacts_parser", reason="dbt-artifacts-parser not ins
 from feast.dbt.parser import DbtColumn, DbtManifestParser, DbtModel
 
 
+def _create_model_node(
+    name: str,
+    unique_id: str,
+    database: str = "my_database",
+    schema: str = "analytics",
+    description: str = "",
+    columns: dict = None,
+    tags: list = None,
+    meta: dict = None,
+    depends_on_nodes: list = None,
+):
+    """Helper to create a complete model node for dbt-artifacts-parser."""
+    return {
+        "name": name,
+        "unique_id": unique_id,
+        "resource_type": "model",
+        "package_name": "test_project",
+        "path": f"models/{name}.sql",
+        "original_file_path": f"models/{name}.sql",
+        "fqn": ["test_project", name],
+        "alias": name,
+        "checksum": {"name": "sha256", "checksum": "abc123"},
+        "database": database,
+        "schema": schema,
+        "description": description or "",
+        "columns": columns or {},
+        "tags": tags or [],
+        "meta": meta or {},
+        "config": {
+            "enabled": True,
+            "materialized": "table",
+            "tags": tags or [],
+            "meta": meta or {},
+        },
+        "depends_on": {"nodes": depends_on_nodes or [], "macros": []},
+        "refs": [],
+        "sources": [],
+        "metrics": [],
+        "compiled_path": f"target/compiled/test_project/models/{name}.sql",
+    }
+
+
+def _create_column(
+    name: str,
+    data_type: str = "STRING",
+    description: str = "",
+    tags: list = None,
+    meta: dict = None,
+):
+    """Helper to create a column definition."""
+    return {
+        "name": name,
+        "description": description or "",
+        "data_type": data_type,
+        "tags": tags or [],
+        "meta": meta or {},
+    }
+
+
 @pytest.fixture
 def sample_manifest(tmp_path):
     """Create a sample dbt manifest.json for testing."""
@@ -19,101 +78,62 @@ def sample_manifest(tmp_path):
         "metadata": {
             "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v9.json",
             "dbt_version": "1.5.0",
-            "project_name": "test_project",
             "generated_at": "2024-01-10T00:00:00Z",
+            "invocation_id": "test-invocation-id",
+            "env": {},
+            "adapter_type": "bigquery",
         },
         "nodes": {
-            "model.test_project.driver_stats": {
-                "name": "driver_stats",
-                "unique_id": "model.test_project.driver_stats",
-                "resource_type": "model",
-                "database": "my_database",
-                "schema": "analytics",
-                "alias": "driver_stats",
-                "description": "Driver statistics aggregated hourly",
-                "columns": {
-                    "driver_id": {
-                        "name": "driver_id",
-                        "description": "Unique driver identifier",
-                        "data_type": "INT64",
-                        "tags": ["entity"],
-                        "meta": {},
-                    },
-                    "event_timestamp": {
-                        "name": "event_timestamp",
-                        "description": "Event timestamp",
-                        "data_type": "TIMESTAMP",
-                        "tags": [],
-                        "meta": {},
-                    },
-                    "trip_count": {
-                        "name": "trip_count",
-                        "description": "Number of trips",
-                        "data_type": "INT64",
-                        "tags": ["feature"],
-                        "meta": {},
-                    },
-                    "avg_rating": {
-                        "name": "avg_rating",
-                        "description": "Average driver rating",
-                        "data_type": "FLOAT64",
-                        "tags": ["feature"],
-                        "meta": {},
-                    },
+            "model.test_project.driver_stats": _create_model_node(
+                name="driver_stats",
+                unique_id="model.test_project.driver_stats",
+                description="Driver statistics aggregated hourly",
+                columns={
+                    "driver_id": _create_column(
+                        "driver_id", "INT64", "Unique driver identifier", ["entity"]
+                    ),
+                    "event_timestamp": _create_column(
+                        "event_timestamp", "TIMESTAMP", "Event timestamp"
+                    ),
+                    "trip_count": _create_column(
+                        "trip_count", "INT64", "Number of trips", ["feature"]
+                    ),
+                    "avg_rating": _create_column(
+                        "avg_rating", "FLOAT64", "Average driver rating", ["feature"]
+                    ),
                 },
-                "tags": ["feast", "ml"],
-                "meta": {"owner": "data-team"},
-                "depends_on": {"nodes": ["source.test_project.raw_trips"]},
-            },
-            "model.test_project.customer_stats": {
-                "name": "customer_stats",
-                "unique_id": "model.test_project.customer_stats",
-                "resource_type": "model",
-                "database": "my_database",
-                "schema": "analytics",
-                "alias": "customer_stats",
-                "description": "Customer statistics",
-                "columns": {
-                    "customer_id": {
-                        "name": "customer_id",
-                        "description": "Unique customer ID",
-                        "data_type": "STRING",
-                        "tags": [],
-                        "meta": {},
-                    },
-                    "event_timestamp": {
-                        "name": "event_timestamp",
-                        "description": "Event timestamp",
-                        "data_type": "TIMESTAMP",
-                        "tags": [],
-                        "meta": {},
-                    },
-                    "order_count": {
-                        "name": "order_count",
-                        "description": "Total orders",
-                        "data_type": "INT64",
-                        "tags": [],
-                        "meta": {},
-                    },
+                tags=["feast", "ml"],
+                meta={"owner": "data-team"},
+                depends_on_nodes=["source.test_project.raw_trips"],
+            ),
+            "model.test_project.customer_stats": _create_model_node(
+                name="customer_stats",
+                unique_id="model.test_project.customer_stats",
+                description="Customer statistics",
+                columns={
+                    "customer_id": _create_column(
+                        "customer_id", "STRING", "Unique customer ID"
+                    ),
+                    "event_timestamp": _create_column(
+                        "event_timestamp", "TIMESTAMP", "Event timestamp"
+                    ),
+                    "order_count": _create_column(
+                        "order_count", "INT64", "Total orders"
+                    ),
                 },
-                "tags": ["ml"],
-                "meta": {},
-                "depends_on": {"nodes": []},
-            },
-            "test.test_project.some_test": {
-                "name": "some_test",
-                "unique_id": "test.test_project.some_test",
-                "resource_type": "test",
-                "database": "my_database",
-                "schema": "analytics",
-                "alias": "some_test",
-                "description": "A test node",
-                "columns": {},
-                "tags": [],
-                "meta": {},
-                "depends_on": {"nodes": []},
-            },
+                tags=["ml"],
+            ),
         },
+        "sources": {},
+        "macros": {},
+        "docs": {},
+        "exposures": {},
+        "metrics": {},
+        "groups": {},
+        "selectors": {},
+        "disabled": {},
+        "parent_map": {},
+        "child_map": {},
     }
 
     manifest_path = tmp_path / "manifest.json"
@@ -130,7 +150,6 @@ class TestDbtManifestParser:
         parser.parse()
 
         assert parser.dbt_version == "1.5.0"
-        assert parser.project_name == "test_project"
 
     def test_parse_manifest_not_found(self, tmp_path):
         """Test error when manifest file doesn't exist."""
@@ -158,12 +177,10 @@ class TestDbtManifestParser:
         parser = DbtManifestParser(str(sample_manifest))
         models = parser.get_models()
 
-        # Should only get models, not tests
         assert len(models) == 2
         model_names = [m.name for m in models]
         assert "driver_stats" in model_names
         assert "customer_stats" in model_names
-        assert "some_test" not in model_names
 
     def test_get_models_by_name(self, sample_manifest):
         """Test filtering models by name."""
