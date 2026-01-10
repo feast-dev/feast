@@ -14,6 +14,7 @@ def sample_manifest(tmp_path):
     """Create a sample dbt manifest.json for testing."""
     manifest = {
         "metadata": {
+            "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v9.json",
             "dbt_version": "1.5.0",
             "project_name": "test_project",
             "generated_at": "2024-01-10T00:00:00Z",

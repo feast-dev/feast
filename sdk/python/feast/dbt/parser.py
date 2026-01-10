@@ -112,6 +112,9 @@ class DbtManifestParser:
                 "dbt-artifacts-parser is required for dbt integration.\n"
                 "Install with: pip install 'feast[dbt]' or pip install dbt-artifacts-parser"
             )
+        except Exception:
+            # Fall back to raw manifest if typed parsing fails (e.g., incomplete manifest)
+            self._parsed_manifest = None
 
     def _extract_column_from_node(self, col_name: str, col_data: Any) -> DbtColumn:
         """Extract column info from a parsed node column."""
