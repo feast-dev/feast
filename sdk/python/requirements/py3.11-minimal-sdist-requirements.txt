@@ -949,7 +949,9 @@ greenlet==3.3.0 \
     --hash=sha256:dcd2bdbd444ff340e8d6bdf54d2f206ccddbb3ccfdcd3c25bf4afaa7b8f0cf45 \
     --hash=sha256:e29f3018580e8412d6aaf5641bb7745d38c85228dacf51a73bd4e26ddf2a6a8e \
     --hash=sha256:e8e18ed6995e9e2c0b4ed264d2cf89260ab3ac7e13555b8032b25a74c6d18655
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   sqlalchemy
 grpc-google-iam-v1==0.14.3 \
     --hash=sha256:7a7f697e017a067206a3dfef44e4c634a34d3dee135fe7d7a4613fe3e59217e6 \
     --hash=sha256:879ac4ef33136c5491a6300e27575a9ec760f6cdf9a2518798c1b8977a5dc389
@@ -3099,17 +3101,17 @@ urllib3==2.6.2 \
     #   botocore
     #   kubernetes
     #   requests
-uvicorn[standard]==0.34.0 \
-    --hash=sha256:023dc038422502fa28a09c7a30bf2b6991512da7dcdb8fd35fe57cfc154126f4 \
-    --hash=sha256:404051050cd7e905de2c9a7e61790943440b3416f49cb409f965d9dcd0fa73e9
+uvicorn[standard]==0.40.0 \
+    --hash=sha256:839676675e87e73694518b5574fd0f24c9d97b46bea16df7b8c05ea1a51071ea \
+    --hash=sha256:c6c8f55bc8bf13eb6fa9ff87ad62308bbbc33d0b67f84293151efe87e0d5f2ee
     # via
     #   feast (setup.py)
     #   fastapi-mcp
     #   mcp
     #   uvicorn-worker
-uvicorn-worker==0.3.0 \
-    --hash=sha256:6baeab7b2162ea6b9612cbe149aa670a76090ad65a267ce8e27316ed13c7de7b \
-    --hash=sha256:ef0fe8aad27b0290a9e602a256b03f5a5da3a9e5f942414ca587b645ec77dd52
+uvicorn-worker==0.4.0 \
+    --hash=sha256:8ee5306070d8f38dce124adce488c3c0b50f20cf0c0222b12c66188da7214493 \
+    --hash=sha256:e2ed952cef976f5e9e429d7269640bbcafbd36c80aa80f1003c8c77a6797abde
     # via feast (setup.py)
 uvloop==0.22.1 \
     --hash=sha256:017bd46f9e7b78e81606329d07141d3da446f8798c6baeec124260e22c262772 \
