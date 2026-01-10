@@ -90,14 +90,6 @@ def map_dbt_type_to_feast_type(dbt_type: str) -> FeastType:
 
     Returns:
         The corresponding Feast type
-
-    Examples:
-        >>> map_dbt_type_to_feast_type("STRING")
-        String
-        >>> map_dbt_type_to_feast_type("INT64")
-        Int64
-        >>> map_dbt_type_to_feast_type("ARRAY<STRING>")
-        Array(String)
     """
     if not dbt_type:
         return String
@@ -164,12 +156,13 @@ class DbtToFeastMapper:
     Supports creating DataSource, Entity, and FeatureView objects from
     dbt model metadata.
 
-    Examples:
-        >>> mapper = DbtToFeastMapper(data_source_type="bigquery")
-        >>> data_source = mapper.create_data_source(model)
-        >>> feature_view = mapper.create_feature_view(
-        ...     model, data_source, entity_column="driver_id"
-        ... )
+    Example::
+
+        mapper = DbtToFeastMapper(data_source_type="bigquery")
+        data_source = mapper.create_data_source(model)
+        feature_view = mapper.create_feature_view(
+            model, data_source, entity_column="driver_id"
+        )
 
     Args:
         data_source_type: Type of data source ('bigquery', 'snowflake', 'file')

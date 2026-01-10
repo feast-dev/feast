@@ -168,20 +168,21 @@ class DbtCodeGenerator:
     This class creates complete, importable Python files containing
     Entity, DataSource, and FeatureView definitions.
 
-    Example:
-        >>> generator = DbtCodeGenerator(
-        ...     data_source_type="bigquery",
-        ...     timestamp_field="event_timestamp",
-        ...     ttl_days=7
-        ... )
-        >>> code = generator.generate(
-        ...     models=models,
-        ...     entity_column="user_id",
-        ...     manifest_path="target/manifest.json",
-        ...     project_name="my_project"
-        ... )
-        >>> with open("features.py", "w") as f:
-        ...     f.write(code)
+    Example::
+
+        generator = DbtCodeGenerator(
+            data_source_type="bigquery",
+            timestamp_field="event_timestamp",
+            ttl_days=7
+        )
+        code = generator.generate(
+            models=models,
+            entity_column="user_id",
+            manifest_path="target/manifest.json",
+            project_name="my_project"
+        )
+        with open("features.py", "w") as f:
+            f.write(code)
     """
 
     def __init__(

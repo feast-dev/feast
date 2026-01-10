@@ -52,12 +52,13 @@ class DbtManifestParser:
     Uses dbt-artifacts-parser for typed parsing of manifest versions v1-v12
     (dbt versions 0.19 through 1.11+).
 
-    Examples:
-        >>> parser = DbtManifestParser("target/manifest.json")
-        >>> parser.parse()
-        >>> models = parser.get_models(tag_filter="feast")
-        >>> for model in models:
-        ...     print(f"Model: {model.name}, Columns: {len(model.columns)}")
+    Example::
+
+        parser = DbtManifestParser("target/manifest.json")
+        parser.parse()
+        models = parser.get_models(tag_filter="feast")
+        for model in models:
+            print(f"Model: {model.name}, Columns: {len(model.columns)}")
 
     Args:
         manifest_path: Path to manifest.json file (typically target/manifest.json)
@@ -186,9 +187,10 @@ class DbtManifestParser:
         Returns:
             List of DbtModel objects
 
-        Examples:
-            >>> models = parser.get_models(model_names=["driver_stats"])
-            >>> models = parser.get_models(tag_filter="feast")
+        Example::
+
+            models = parser.get_models(model_names=["driver_stats"])
+            models = parser.get_models(tag_filter="feast")
         """
         if self._parsed_manifest is None:
             self.parse()
