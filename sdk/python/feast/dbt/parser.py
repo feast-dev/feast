@@ -4,12 +4,11 @@ dbt manifest parser for Feast integration.
 This module provides functionality to parse dbt manifest.json files and extract
 model metadata for generating Feast FeatureViews.
 
-Uses dbt-artifacts-parser to handle manifest versions v1-v12 (dbt 0.19 through 1.11).
+Supports dbt manifest versions v1-v12 (dbt 0.19 through 1.11+).
 """
 
 import json
 from dataclasses import dataclass, field
-from enum import property
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -50,8 +49,7 @@ class DbtManifestParser:
     """
     Parser for dbt manifest.json files.
 
-    Uses dbt-artifacts-parser to handle manifest versions v1-v12.
-    Supports dbt versions 0.19 through 1.11.
+    Supports dbt manifest versions v1-v12 (dbt versions 0.19 through 1.11+).
 
     Examples:
         >>> parser = DbtManifestParser("target/manifest.json")
@@ -76,7 +74,6 @@ class DbtManifestParser:
             manifest_path: Path to manifest.json file
         """
         self.manifest_path = Path(manifest_path)
-        self.manifest = None
         self._raw_manifest: Optional[Dict[str, Any]] = None
 
     def parse(self) -> None:
@@ -101,15 +98,6 @@ class DbtManifestParser:
             raise ValueError(
                 f"Invalid JSON in manifest: {e}\nTry: dbt clean && dbt compile"
             )
-
-        # Try to use dbt-artifacts-parser if available
-        try:
-            from dbt_artifacts_parser.parser import parse_manifest
-
-            self.manifest = parse_manifest(manifest=self._raw_manifest)
-        except ImportError:
-            # Fall back to raw dict parsing if dbt-artifacts-parser not installed
-            self.manifest = None
 
     def get_models(
         self,
