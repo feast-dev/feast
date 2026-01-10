@@ -7,10 +7,10 @@ This module generates Python code files containing Feast object definitions
 
 from typing import Any, List, Optional, Set
 
-from jinja2 import Environment, BaseLoader
+from jinja2 import BaseLoader, Environment
 
-from feast.dbt.parser import DbtModel
 from feast.dbt.mapper import map_dbt_type_to_feast_type
+from feast.dbt.parser import DbtModel
 from feast.types import (
     Array,
     Bool,
@@ -22,7 +22,6 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
-
 
 # Template for generating a complete Feast definitions file
 FEAST_FILE_TEMPLATE = '''"""
@@ -239,7 +238,7 @@ class DbtCodeGenerator:
             "var_name": entity_var,
             "name": entity_column,
             "join_key": entity_column,
-            "description": f"Entity key for dbt models",
+            "description": "Entity key for dbt models",
             "tags": {"source": "dbt"},
         })
 

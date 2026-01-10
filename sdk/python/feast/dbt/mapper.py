@@ -12,20 +12,19 @@ from feast.dbt.parser import DbtModel
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.value_type import ValueType
 from feast.types import (
     Array,
     Bool,
     Bytes,
+    FeastType,
     Float32,
     Float64,
     Int32,
     Int64,
     String,
     UnixTimestamp,
-    FeastType,
 )
-
+from feast.value_type import ValueType
 
 # Comprehensive mapping from dbt/warehouse types to Feast types
 # Covers BigQuery, Snowflake, Redshift, PostgreSQL, and common SQL types

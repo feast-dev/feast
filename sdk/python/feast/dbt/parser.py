@@ -8,10 +8,10 @@ Uses dbt-artifacts-parser to handle manifest versions v1-v12 (dbt 0.19 through 1
 """
 
 import json
+from dataclasses import dataclass, field
 from enum import property
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, field
 
 
 @dataclass
@@ -133,6 +133,9 @@ class DbtManifestParser:
         """
         if self._raw_manifest is None:
             self.parse()
+
+        if self._raw_manifest is None:
+            return []
 
         models = []
         nodes = self._raw_manifest.get("nodes", {})

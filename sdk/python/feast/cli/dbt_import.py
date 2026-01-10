@@ -5,7 +5,7 @@ This module provides the `feast dbt` command group for integrating
 dbt models with Feast feature stores.
 """
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import click
 from colorama import Fore, Style
@@ -119,8 +119,8 @@ def import_command(
         # Generate Python file instead of applying to registry
         feast dbt import -m target/manifest.json -e driver_id --tag feast --output features.py
     """
-    from feast.dbt.parser import DbtManifestParser
     from feast.dbt.mapper import DbtToFeastMapper
+    from feast.dbt.parser import DbtManifestParser
 
     # Parse manifest
     click.echo(f"{Fore.CYAN}Parsing dbt manifest: {manifest_path}{Style.RESET_ALL}")
@@ -177,8 +177,8 @@ def import_command(
     # Generate Feast objects
     click.echo(f"\n{Fore.CYAN}Generating Feast objects...{Style.RESET_ALL}")
 
-    all_objects = []
-    entities_created = {}
+    all_objects: List[Any] = []
+    entities_created: Dict[str, Any] = {}
 
     for model in models:
         # Validate timestamp field exists
@@ -202,7 +202,7 @@ def import_command(
         if entity_column not in entities_created:
             entity = mapper.create_entity(
                 name=entity_column,
-                description=f"Entity key for dbt models",
+                description="Entity key for dbt models",
             )
             entities_created[entity_column] = entity
             all_objects.append(entity)
@@ -274,7 +274,7 @@ def import_command(
         click.echo(
             f"\n{Fore.GREEN}✓ Generated Feast definitions: {output}{Style.RESET_ALL}"
         )
-        click.echo(f"  You can now import this file in your feature_store.yaml repo.")
+        click.echo("  You can now import this file in your feature_store.yaml repo.")
         return
 
     if dry_run:

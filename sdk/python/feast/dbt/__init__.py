@@ -15,9 +15,9 @@ Example usage:
     ...     feature_view = mapper.create_feature_view(model, data_source, "driver_id")
 """
 
-from feast.dbt.parser import DbtManifestParser, DbtModel, DbtColumn
-from feast.dbt.mapper import DbtToFeastMapper
 from feast.dbt.codegen import DbtCodeGenerator, generate_feast_code
+from feast.dbt.mapper import DbtToFeastMapper
+from feast.dbt.parser import DbtColumn, DbtManifestParser, DbtModel
 
 __all__ = [
     "DbtManifestParser",
