@@ -123,8 +123,9 @@ from feast.infra.offline_stores.file_source import FileSource
 def _get_feast_type_name(feast_type: Any) -> str:
     """Get the string name of a Feast type for code generation."""
     if isinstance(feast_type, Array):
-        # Handle Array types
-        base_type_name = _get_feast_type_name(feast_type.base_type)
+        # Handle Array types - safely get base_type with fallback
+        base_type = getattr(feast_type, "base_type", String)
+        base_type_name = _get_feast_type_name(base_type)
         return f"Array({base_type_name})"
 
     # Map type objects to their names

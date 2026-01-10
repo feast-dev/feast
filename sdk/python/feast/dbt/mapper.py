@@ -110,7 +110,8 @@ def map_dbt_type_to_feast_type(dbt_type: str) -> FeastType:
         element_type_str = normalized[6:-1].strip()
         element_type = map_dbt_type_to_feast_type(element_type_str)
         # Array only supports primitive types
-        if isinstance(element_type, type(String)):
+        valid_array_types = {String, Int32, Int64, Float32, Float64, Bool, Bytes, UnixTimestamp}
+        if element_type in valid_array_types:
             return Array(element_type)
         return Array(String)  # Fallback for complex nested types
 
