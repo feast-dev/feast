@@ -234,13 +234,15 @@ class DbtCodeGenerator:
         # Prepare entity data
         entities = []
         entity_var = _make_var_name(entity_column)
-        entities.append({
-            "var_name": entity_var,
-            "name": entity_column,
-            "join_key": entity_column,
-            "description": "Entity key for dbt models",
-            "tags": {"source": "dbt"},
-        })
+        entities.append(
+            {
+                "var_name": entity_var,
+                "name": entity_column,
+                "join_key": entity_column,
+                "description": "Entity key for dbt models",
+                "tags": {"source": "dbt"},
+            }
+        )
 
         # Prepare data sources and feature views
         data_sources = []
@@ -298,25 +300,29 @@ class DbtCodeGenerator:
                 else:
                     type_imports.add(type_name)
 
-                fields.append({
-                    "name": column.name,
-                    "dtype": type_name,
-                    "description": _escape_description(column.description),
-                })
+                fields.append(
+                    {
+                        "name": column.name,
+                        "dtype": type_name,
+                        "description": _escape_description(column.description),
+                    }
+                )
 
             # Feature view
             fv_var = _make_var_name(f"{model.name}_fv")
-            feature_views.append({
-                "var_name": fv_var,
-                "name": model.name,
-                "entity_var": entity_var,
-                "source_var": source_var,
-                "ttl_days": self.ttl_days,
-                "fields": fields,
-                "online": online,
-                "description": _escape_description(model.description),
-                "tags": tags,
-            })
+            feature_views.append(
+                {
+                    "var_name": fv_var,
+                    "name": model.name,
+                    "entity_var": entity_var,
+                    "source_var": source_var,
+                    "ttl_days": self.ttl_days,
+                    "fields": fields,
+                    "online": online,
+                    "description": _escape_description(model.description),
+                    "tags": tags,
+                }
+            )
 
         # Sort type imports for consistent output
         sorted_types = sorted(type_imports)

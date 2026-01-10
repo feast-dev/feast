@@ -155,9 +155,7 @@ def import_command(
             click.echo(f"  Model names: {', '.join(model_names)}")
         raise SystemExit(0)
 
-    click.echo(
-        f"{Fore.GREEN}Found {len(models)} model(s) to import:{Style.RESET_ALL}"
-    )
+    click.echo(f"{Fore.GREEN}Found {len(models)} model(s) to import:{Style.RESET_ALL}")
     for model in models:
         tags_str = f" [tags: {', '.join(model.tags)}]" if model.tags else ""
         click.echo(f"  - {model.name} ({len(model.columns)} columns){tags_str}")
@@ -241,7 +239,8 @@ def import_command(
 
     # Filter models that were actually processed (have valid columns)
     valid_models = [
-        m for m in models
+        m
+        for m in models
         if timestamp_field in [c.name for c in m.columns]
         and entity_column in [c.name for c in m.columns]
     ]
@@ -278,9 +277,7 @@ def import_command(
         return
 
     if dry_run:
-        click.echo(
-            f"\n{Fore.YELLOW}Dry run - no changes applied.{Style.RESET_ALL}"
-        )
+        click.echo(f"\n{Fore.YELLOW}Dry run - no changes applied.{Style.RESET_ALL}")
         click.echo("Remove --dry-run flag to apply changes.")
         return
 

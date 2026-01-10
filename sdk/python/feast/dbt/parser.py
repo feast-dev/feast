@@ -99,8 +99,7 @@ class DbtManifestParser:
                 self._raw_manifest = json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in manifest: {e}\n"
-                f"Try: dbt clean && dbt compile"
+                f"Invalid JSON in manifest: {e}\nTry: dbt clean && dbt compile"
             )
 
         # Try to use dbt-artifacts-parser if available
