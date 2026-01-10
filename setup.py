@@ -167,6 +167,8 @@ GO_REQUIRED = ["cffi>=1.15.0"]
 
 MILVUS_REQUIRED = ["pymilvus==2.4.15", "milvus-lite==2.4.12", "setuptools>=60,<81"]
 
+DBT_REQUIRED = ["dbt-artifacts-parser>=0.6.0,<1"]
+
 TORCH_REQUIRED = [
     "torch>=2.7.0",
     "torchvision>=0.22.1",
@@ -367,6 +369,7 @@ setup(
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,
         "milvus": MILVUS_REQUIRED,
+        "dbt": DBT_REQUIRED,
         "docling": DOCLING_REQUIRED,
         "pytorch": TORCH_REQUIRED,
         "nlp": NLP_REQUIRED,

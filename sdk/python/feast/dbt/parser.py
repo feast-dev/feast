@@ -4,7 +4,7 @@ dbt manifest parser for Feast integration.
 This module provides functionality to parse dbt manifest.json files and extract
 model metadata for generating Feast FeatureViews.
 
-Supports dbt manifest versions v1-v12 (dbt 0.19 through 1.11+).
+Uses dbt-artifacts-parser for typed parsing of manifest versions v1-v12 (dbt 0.19 through 1.11+).
 """
 
 import json
@@ -47,9 +47,10 @@ class DbtModel:
 
 class DbtManifestParser:
     """
-    Parser for dbt manifest.json files.
+    Parser for dbt manifest.json files using dbt-artifacts-parser.
 
-    Supports dbt manifest versions v1-v12 (dbt versions 0.19 through 1.11+).
+    Uses dbt-artifacts-parser for typed parsing of manifest versions v1-v12
+    (dbt versions 0.19 through 1.11+).
 
     Examples:
         >>> parser = DbtManifestParser("target/manifest.json")
@@ -75,14 +76,16 @@ class DbtManifestParser:
         """
         self.manifest_path = Path(manifest_path)
         self._raw_manifest: Optional[Dict[str, Any]] = None
+        self._parsed_manifest: Optional[Any] = None
 
     def parse(self) -> None:
         """
-        Load and parse the manifest.json file.
+        Load and parse the manifest.json file using dbt-artifacts-parser.
 
         Raises:
             FileNotFoundError: If manifest.json doesn't exist
             ValueError: If manifest.json is invalid JSON
+            ImportError: If dbt-artifacts-parser is not installed
         """
         if not self.manifest_path.exists():
             raise FileNotFoundError(
@@ -97,6 +100,121 @@ class DbtManifestParser:
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in manifest: {e}\nTry: dbt clean && dbt compile"
+            )
+
+        # Parse using dbt-artifacts-parser for typed access
+        try:
+            from dbt_artifacts_parser.parser import parse_manifest
+
+            self._parsed_manifest = parse_manifest(manifest=self._raw_manifest)
+        except ImportError:
+            raise ImportError(
+                "dbt-artifacts-parser is required for dbt integration.\n"
+                "Install with: pip install 'feast[dbt]' or pip install dbt-artifacts-parser"
+            )
+
+    def _extract_column_from_node(self, col_name: str, col_data: Any) -> DbtColumn:
+        """Extract column info from a parsed node column."""
+        # Handle both dict and typed object access
+        if isinstance(col_data, dict):
+            return DbtColumn(
+                name=col_name,
+                description=col_data.get("description", "") or "",
+                data_type=col_data.get("data_type", "STRING") or "STRING",
+                tags=col_data.get("tags", []) or [],
+                meta=col_data.get("meta", {}) or {},
+            )
+        else:
+            # Typed object from dbt-artifacts-parser
+            return DbtColumn(
+                name=col_name,
+                description=getattr(col_data, "description", "") or "",
+                data_type=getattr(col_data, "data_type", "STRING") or "STRING",
+                tags=list(getattr(col_data, "tags", []) or []),
+                meta=dict(getattr(col_data, "meta", {}) or {}),
+            )
+
+    def _extract_model_from_node(self, node_id: str, node: Any) -> Optional[DbtModel]:
+        """Extract DbtModel from a parsed manifest node."""
+        # Handle both dict and typed object access
+        if isinstance(node, dict):
+            resource_type = node.get("resource_type", "model")
+            if resource_type != "model":
+                return None
+
+            model_name = node.get("name", "")
+            node_tags = node.get("tags", []) or []
+            node_columns = node.get("columns", {}) or {}
+            depends_on = node.get("depends_on", {}) or {}
+            depends_on_nodes = depends_on.get("nodes", []) or []
+
+            columns = [
+                self._extract_column_from_node(col_name, col_data)
+                for col_name, col_data in node_columns.items()
+            ]
+
+            return DbtModel(
+                name=model_name,
+                unique_id=node_id,
+                database=node.get("database", "") or "",
+                schema=node.get("schema", "") or "",
+                alias=node.get("alias", model_name) or model_name,
+                description=node.get("description", "") or "",
+                columns=columns,
+                tags=node_tags,
+                meta=node.get("meta", {}) or {},
+                depends_on=depends_on_nodes,
+            )
+        else:
+            # Typed object from dbt-artifacts-parser
+            resource_type = getattr(node, "resource_type", None)
+            if resource_type is None:
+                # Check if node_id indicates it's a model
+                if not node_id.startswith("model."):
+                    return None
+            elif (
+                str(resource_type) != "model"
+                and str(
+                    resource_type.value
+                    if hasattr(resource_type, "value")
+                    else resource_type
+                )
+                != "model"
+            ):
+                return None
+
+            model_name = getattr(node, "name", "")
+            node_tags = list(getattr(node, "tags", []) or [])
+            node_columns = getattr(node, "columns", {}) or {}
+            depends_on = getattr(node, "depends_on", None)
+
+            if depends_on:
+                depends_on_nodes = list(getattr(depends_on, "nodes", []) or [])
+            else:
+                depends_on_nodes = []
+
+            # Handle columns dict
+            if isinstance(node_columns, dict):
+                columns = [
+                    self._extract_column_from_node(col_name, col_data)
+                    for col_name, col_data in node_columns.items()
+                ]
+            else:
+                columns = []
+
+            return DbtModel(
+                name=model_name,
+                unique_id=node_id,
+                database=getattr(node, "database", "") or "",
+                schema=getattr(node, "schema_", "")
+                or getattr(node, "schema", "")
+                or "",
+                alias=getattr(node, "alias", model_name) or model_name,
+                description=getattr(node, "description", "") or "",
+                columns=columns,
+                tags=node_tags,
+                meta=dict(getattr(node, "meta", {}) or {}),
+                depends_on=depends_on_nodes,
             )
 
     def get_models(
@@ -125,65 +243,31 @@ class DbtManifestParser:
             return []
 
         models = []
-        nodes = self._raw_manifest.get("nodes", {})
+
+        # Use parsed manifest if available, fall back to raw
+        if self._parsed_manifest is not None:
+            nodes = getattr(self._parsed_manifest, "nodes", {}) or {}
+        else:
+            nodes = self._raw_manifest.get("nodes", {})
 
         for node_id, node in nodes.items():
             # Only process models (not tests, seeds, snapshots, etc.)
             if not node_id.startswith("model."):
                 continue
 
-            # Also check resource_type if available
-            resource_type = node.get("resource_type", "model")
-            if resource_type != "model":
+            model = self._extract_model_from_node(node_id, node)
+            if model is None:
                 continue
-
-            model_name = node.get("name", "")
 
             # Filter by model names if specified
-            if model_names and model_name not in model_names:
+            if model_names and model.name not in model_names:
                 continue
-
-            # Get tags from node
-            node_tags = node.get("tags", []) or []
 
             # Filter by tag if specified
-            if tag_filter and tag_filter not in node_tags:
+            if tag_filter and tag_filter not in model.tags:
                 continue
 
-            # Extract columns
-            columns = []
-            node_columns = node.get("columns", {}) or {}
-            for col_name, col_data in node_columns.items():
-                if isinstance(col_data, dict):
-                    columns.append(
-                        DbtColumn(
-                            name=col_name,
-                            description=col_data.get("description", "") or "",
-                            data_type=col_data.get("data_type", "STRING") or "STRING",
-                            tags=col_data.get("tags", []) or [],
-                            meta=col_data.get("meta", {}) or {},
-                        )
-                    )
-
-            # Get depends_on nodes
-            depends_on = node.get("depends_on", {}) or {}
-            depends_on_nodes = depends_on.get("nodes", []) or []
-
-            # Create DbtModel
-            models.append(
-                DbtModel(
-                    name=model_name,
-                    unique_id=node_id,
-                    database=node.get("database", "") or "",
-                    schema=node.get("schema", "") or "",
-                    alias=node.get("alias", model_name) or model_name,
-                    description=node.get("description", "") or "",
-                    columns=columns,
-                    tags=node_tags,
-                    meta=node.get("meta", {}) or {},
-                    depends_on=depends_on_nodes,
-                )
-            )
+            models.append(model)
 
         return models
 
