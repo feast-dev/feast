@@ -6,6 +6,9 @@ from datetime import timedelta
 
 import pytest
 
+# Skip all tests in this module if dbt-artifacts-parser is not installed
+pytest.importorskip("dbt_artifacts_parser", reason="dbt-artifacts-parser not installed")
+
 from feast.dbt.mapper import (
     DbtToFeastMapper,
     map_dbt_type_to_feast_type,
