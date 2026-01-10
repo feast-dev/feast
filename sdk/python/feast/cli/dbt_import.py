@@ -365,7 +365,9 @@ def list_command(
         click.echo(f"{Fore.CYAN}{model.name}{Style.RESET_ALL}{tags_str}")
         click.echo(f"  Table: {model.full_table_name}")
         if model.description:
-            desc = model.description[:80] + ("..." if len(model.description) > 80 else "")
+            desc = model.description[:80] + (
+                "..." if len(model.description) > 80 else ""
+            )
             click.echo(f"  Description: {desc}")
 
         if show_columns and model.columns:
