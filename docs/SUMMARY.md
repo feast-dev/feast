@@ -76,6 +76,7 @@
   * [Adding a custom provider](how-to-guides/customizing-feast/creating-a-custom-provider.md)
 * [Adding or reusing tests](how-to-guides/adding-or-reusing-tests.md)
 * [Starting Feast servers in TLS(SSL) Mode](how-to-guides/starting-feast-servers-tls-mode.md)
+* [Importing Features from dbt](how-to-guides/dbt-integration.md)
 
 ## Reference
 
