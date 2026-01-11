@@ -32,8 +32,6 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: make install-python-dependencies-ci
-      - name: Install dbt extra dependencies
-        run: uv pip install --system dbt-artifacts-parser
       - name: Test Python
         run: make test-python-unit
       - name: Minimize uv cache
