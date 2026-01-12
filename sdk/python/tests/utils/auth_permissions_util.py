@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 
 import yaml
 from keycloak import KeycloakAdmin
@@ -36,16 +37,22 @@ def default_store(
     permissions: list[Permission],
 ):
     runner = CliRunner()
-    result = runner.run(["init", PROJECT_NAME], cwd=temp_dir)
+    result = runner.run(["init", PROJECT_NAME], cwd=Path(temp_dir))
     repo_path = os.path.join(temp_dir, PROJECT_NAME, "feature_repo")
-    assert result.returncode == 0
+    assert result.returncode == 0, (
+        f"feast init failed. stdout:\n{result.stdout.decode(errors='ignore')}\n"
+        f"stderr:\n{result.stderr.decode(errors='ignore')}\n"
+    )
 
     include_auth_config(
         file_path=f"{repo_path}/feature_store.yaml", auth_config=auth_config
     )
 
-    result = runner.run(["--chdir", repo_path, "apply"], cwd=temp_dir)
-    assert result.returncode == 0
+    result = runner.run(["--chdir", repo_path, "apply"], cwd=Path(temp_dir))
+    assert result.returncode == 0, (
+        f"feast apply failed. stdout:\n{result.stdout.decode(errors='ignore')}\n"
+        f"stderr:\n{result.stderr.decode(errors='ignore')}\n"
+    )
 
     fs = FeatureStore(repo_path=repo_path)
 

@@ -15,10 +15,10 @@ import logging
 import multiprocessing
 import os
 import random
+import sys
 import tempfile
 from datetime import timedelta
 from multiprocessing import Process
-import sys
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, no_type_check
 from unittest import mock
@@ -36,6 +36,7 @@ from tests.data.data_creator import (
     create_document_dataset,
     create_image_dataset,
 )
+
 try:
     from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
         IntegrationTestRepoConfig,
@@ -91,12 +92,15 @@ except ModuleNotFoundError:
     def location(*args, **kwargs):  # type: ignore[no-redef]
         raise RuntimeError("Integration test dependencies are not available")
 
+
 try:
     from tests.utils.auth_permissions_util import default_store
 except ModuleNotFoundError:
 
     def default_store(*args, **kwargs):  # type: ignore[no-redef]
         raise RuntimeError("Auth test dependencies are not available")
+
+
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 from tests.utils.ssl_certifcates_util import (
     combine_trust_stores,
@@ -288,7 +292,9 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
         pytest.skip("Integration test dependencies are not available")
 
     own_markers = getattr(metafunc.definition, "own_markers", None)
-    marker_iter = own_markers if own_markers is not None else metafunc.definition.iter_markers()
+    marker_iter = (
+        own_markers if own_markers is not None else metafunc.definition.iter_markers()
+    )
     markers = {m.name: m for m in marker_iter}
 
     offline_stores = None
