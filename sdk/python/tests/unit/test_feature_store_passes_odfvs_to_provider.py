@@ -53,7 +53,10 @@ def test_feature_store_passes_on_demand_feature_views_to_provider(monkeypatch):
             [(odfv, [])],
         ),
     )
-    monkeypatch.setattr("feast.utils._validate_feature_refs", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "feast.utils._validate_feature_refs",
+        lambda *args, **kwargs: None,
+    )
 
     store.get_historical_features(entity_df="SELECT 1", features=["odfv:feat"])
 
