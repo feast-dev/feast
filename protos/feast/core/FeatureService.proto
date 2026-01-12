@@ -70,6 +70,10 @@ message LoggingConfig {
 
     // column names to use for partitioning
     repeated string partition_by = 3;
+
+    // S3 URL style for path-based access (required for MinIO, LocalStack, etc.)
+    // Valid values: "path" or "vhost" (virtual-hosted style, default)
+    string s3_url_style = 4;
   }
 
   message BigQueryDestination {
