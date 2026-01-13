@@ -134,7 +134,7 @@ HAZELCAST_REQUIRED = [
 IBIS_REQUIRED = [
     "ibis-framework>=9.0.0,<10",
     "ibis-substrait>=4.0.0",
-    "substrait<0.25.0",  # TODO: remove this once we upgrade protobuf 
+    "substrait<0.25.0",  # TODO: remove this once we upgrade protobuf
 ]
 
 GRPCIO_REQUIRED = [
@@ -147,16 +147,18 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
 DELTA_REQUIRED = ["deltalake<1.0.0"]
 
+ICEBERG_REQUIRED = [
+    "pyiceberg[sql,duckdb]>=0.8.0",
+    "duckdb>=1.0.0",
+]
+
 DOCLING_REQUIRED = ["docling>=2.23.0"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 SINGLESTORE_REQUIRED = ["singlestoredb<1.8.0"]
 
-COUCHBASE_REQUIRED = [
-    "couchbase==4.3.2",
-    "couchbase-columnar==1.0.0"
-]
+COUCHBASE_REQUIRED = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
@@ -190,7 +192,7 @@ IMAGE_REQUIRED = [
 RAY_REQUIRED = [
     "ray>=2.47.0; python_version == '3.10'",
     'codeflare-sdk>=0.31.1; python_version != "3.10"',
-    ]
+]
 
 CI_REQUIRED = (
     [
@@ -286,11 +288,7 @@ MINIMAL_REQUIRED = (
     + MILVUS_REQUIRED
 )
 NLP_REQUIRED = (
-    DOCLING_REQUIRED
-    + MILVUS_REQUIRED
-    + TORCH_REQUIRED
-    + RAG_REQUIRED
-    + IMAGE_REQUIRED
+    DOCLING_REQUIRED + MILVUS_REQUIRED + TORCH_REQUIRED + RAG_REQUIRED + IMAGE_REQUIRED
 )
 DOCS_REQUIRED = CI_REQUIRED
 DEV_REQUIRED = CI_REQUIRED
@@ -375,6 +373,7 @@ setup(
         "rag": RAG_REQUIRED,
         "image": IMAGE_REQUIRED,
         "ray": RAY_REQUIRED,
+        "iceberg": ICEBERG_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
