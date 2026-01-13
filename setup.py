@@ -39,7 +39,7 @@ REQUIRED = [
     "mmh3",
     "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
-    "pyarrow<=21.0.0",
+    "pyarrow>=21.0.0",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -143,7 +143,7 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<=1.62.3",
 ]
 
-DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0"]
 
 DELTA_REQUIRED = ["deltalake<1.0.0"]
 
