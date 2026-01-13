@@ -1207,28 +1207,33 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
         "name": "user_id",
         "description": "Primary identifier for users",
         "project": "project1",
-        "match_score": 100
+        "match_score": 100,
+        "matched_tags": {}
       },
       {
         "type": "featureView",
         "name": "user_features",
         "description": "User demographic and behavioral features",
         "project": "project1",
-        "match_score": 100
+        "match_score": 100,
+        "matched_tags": {"team": "user_analytics"}
       },
       {
         "type": "feature",
         "name": "user_age",
         "description": "Age of the user in years",
         "project": "project1",
-        "match_score": 80
+        "featureView": "user_features",
+        "match_score": 80,
+        "matched_tags": {}
       },
       {
         "type": "dataSource",
         "name": "user_analytics",
         "description": "Analytics data for user behavior tracking",
         "project": "project2",
-        "match_score": 80
+        "match_score": 80,
+        "matched_tags": {"source": "user_data"}
       }
     ],
     "pagination": {
