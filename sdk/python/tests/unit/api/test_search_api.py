@@ -770,6 +770,48 @@ class TestSearchAPI:
             f"Found {len(tag_matched_results)} results with matched_tags: {[r['name'] + ' -> ' + str(r.get('matched_tags', 'N/A')) for r in tag_matched_results]}"
         )
 
+    def test_search_matched_tags_multiple_tags(self, search_test_app):
+        """Test that multiple matching tags are returned in matched_tags"""
+        # Search for "a" which should match:
+        # - Names containing "a" (e.g., user_training_dataset, data sources)
+        # - Tags where key/value contains "a": "team" (key), "data" (value), "training" (value)
+        response = search_test_app.get("/search?query=a")
+        logger.info(response.json())
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Find user_training_dataset which has tags: {"environment": "test", "purpose": "training", "team": "data"}
+        # "team" contains "a", "data" contains "a", "training" contains "a"
+        # So matched_tags should have at least 2 entries: "purpose" and "team"
+        dataset_results = [
+            r for r in results if r.get("name") == "user_training_dataset"
+        ]
+
+        assert len(dataset_results) > 0, (
+            "Expected to find user_training_dataset in results"
+        )
+
+        dataset_result = dataset_results[0]
+        matched_tags = dataset_result.get("matched_tags", {})
+
+        assert isinstance(matched_tags, dict), (
+            f"matched_tags should be a dictionary, got {type(matched_tags)}"
+        )
+
+        # Should have multiple matching tags: "purpose" and "team"
+        assert len(matched_tags) >= 2, (
+            f"Expected at least 2 matching tags for 'a' query, got {len(matched_tags)}: {matched_tags}"
+        )
+
+        # Verify the expected tags are present
+        assert "team" in matched_tags and "purpose" in matched_tags, (
+            f"Expected 'team' and 'purpose' in matched_tags, got: {matched_tags}"
+        )
+
+        logger.debug(f"user_training_dataset matched_tags: {matched_tags}")
+
     def test_search_matched_tags_fuzzy_match(self, search_test_app):
         """Test that matched_tags field is present when a tag matches via fuzzy matching"""
         # Search for "te" which should fuzzy match tag key "team"
