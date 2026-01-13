@@ -3,9 +3,9 @@ name = "feast"
 description = "Python SDK for Feast"
 readme = "README.md"
 requires-python = ">=3.10.0"
-license = {file = "LICENSE"}
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10"
@@ -59,7 +59,7 @@ clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
 docling = ["docling==2.27.0"]
-duckdb = ["ibis-framework[duckdb]>=9.0.0"]
+duckdb = ["ibis-framework[duckdb]>=10.0.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
 gcp = [
@@ -82,9 +82,7 @@ grpcio = [
 hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
 ibis = [
-    "ibis-framework>=9.0.0",
-    "ibis-substrait>=4.0.0",
-    "substrait<0.25.0",  # TODO: remove this once we upgrade protobuf 
+    "ibis-framework>=10.0.0",
     "poetry-core<2",
     "poetry-dynamic-versioning",
 ]
@@ -99,11 +97,11 @@ image = [
     "scikit-learn>=1.0.0",
 ]
 milvus = [
-    "pymilvus==2.4.15",
+    "pymilvus>2.5",
     "milvus-lite==2.4.12",
     "feast[setuptools]"
 ]
-mssql = ["ibis-framework[mssql]>=9.0.0"]
+mssql = ["ibis-framework[mssql]>=10.0.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=4.0.0"]
