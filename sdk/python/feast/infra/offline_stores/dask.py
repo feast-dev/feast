@@ -281,7 +281,9 @@ class DaskOfflineStore(OfflineStore):
                     join_key = feature_view.projection.join_key_map.get(
                         entity_column.name, entity_column.name
                     )
-                    join_keys.append(join_key)
+                    # Skip dummy entity for entityless feature views - it's not in the data source
+                    if join_key != DUMMY_ENTITY_ID:
+                        join_keys.append(join_key)
 
                 right_entity_key_columns = [
                     timestamp_field,

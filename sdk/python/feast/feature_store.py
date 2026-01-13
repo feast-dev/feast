@@ -1279,17 +1279,16 @@ class FeatureStore:
                     view_name, self.project, allow_cache=True
                 )
 
-                # For historical retrieval, keep unified FeatureViews as FeatureViews
-                # (they'll have their transformations applied post-retrieval)
-                if (
+                # For historical retrieval, categorize appropriately
+                # Check for ODFV first since ODFVs also have feature_transformation
+                if isinstance(fv, OnDemandFeatureView):
+                    all_on_demand_feature_views.append(fv)
+                elif (
                     hasattr(fv, "feature_transformation")
                     and fv.feature_transformation is not None
                 ):
+                    # Unified FeatureViews - will have transformations applied post-retrieval
                     all_feature_views.append(cast(FeatureView, fv))
-                elif hasattr(fv, "__class__") and "OnDemandFeatureView" in str(
-                    type(fv)
-                ):
-                    all_on_demand_feature_views.append(cast(OnDemandFeatureView, fv))
                 else:
                     all_feature_views.append(cast(FeatureView, fv))
             except Exception:

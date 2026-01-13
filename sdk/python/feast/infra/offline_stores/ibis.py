@@ -155,6 +155,7 @@ def get_historical_features_ibis(
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
     event_expire_timestamp_fn=None,
+    **kwargs,
 ) -> RetrievalJob:
     entity_schema = _get_entity_schema(
         entity_df=entity_df,
@@ -235,7 +236,12 @@ def get_historical_features_ibis(
     odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
 
     # Extract unified FeatureViews with transformations
-    unified_fvs = FeatureView.get_requested_unified_fvs(feature_refs, project, registry)
+    # Prefer unified_feature_views from kwargs if provided (from feature_store.py),
+    # otherwise fall back to registry lookup
+    unified_fvs = kwargs.get(
+        "unified_feature_views",
+        FeatureView.get_requested_unified_fvs(feature_refs, project, registry),
+    )
 
     substrait_odfvs = [fv for fv in odfvs if fv.mode == "substrait"]
     for odfv in substrait_odfvs:

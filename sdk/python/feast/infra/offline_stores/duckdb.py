@@ -157,6 +157,7 @@ class DuckDBOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs,
     ) -> RetrievalJob:
         return get_historical_features_ibis(
             config=config,
@@ -170,6 +171,7 @@ class DuckDBOfflineStore(OfflineStore):
             data_source_writer=_write_data_source,
             staging_location=config.offline_store.staging_location,
             staging_location_endpoint_override=config.offline_store.staging_location_endpoint_override,
+            **kwargs,
         )
 
     @staticmethod
