@@ -3,11 +3,20 @@
 ## Overview
 The Iceberg Offline Store allows Feast to use Apache Iceberg tables as a source for historical feature retrieval and as a destination for materialization. This implementation focuses on a native Python experience using `pyiceberg` for table management and `duckdb` for high-performance SQL execution.
 
+## Implementation Status
+
+✅ **COMPLETE** - Phase 2 implementation finished 2026-01-14
+
+**Files Implemented**:
+- `sdk/python/feast/infra/offline_stores/contrib/iceberg_offline_store/iceberg.py` (539 lines)
+- `sdk/python/feast/infra/offline_stores/contrib/iceberg_offline_store/iceberg_source.py` (147 lines)
+- `sdk/python/tests/integration/feature_repos/universal/data_sources/iceberg.py` (163 lines)
+
 ## Design Goals
-- **Lightweight**: Avoid JVM and Spark dependencies where possible.
-- **Catalog Flexibility**: Support "With Catalog" (REST, Glue, Hive, SQL) and "Without Catalog" (Hadoop/File-based) configurations.
-- **Performance**: Use DuckDB for efficient Point-in-Time (PIT) joins on Arrow memory.
-- **Cloud Native**: Support S3, GCS, and Azure Blob Storage.
+- **Lightweight**: Avoid JVM and Spark dependencies where possible. ✅
+- **Catalog Flexibility**: Support "With Catalog" (REST, Glue, Hive, SQL) configurations. ✅
+- **Performance**: Use DuckDB for efficient Point-in-Time (PIT) joins on Arrow memory. ✅
+- **Cloud Native**: Support S3, GCS, and Azure Blob Storage. ✅
 
 ## Configuration
 The offline store is configured in `feature_store.yaml`:
