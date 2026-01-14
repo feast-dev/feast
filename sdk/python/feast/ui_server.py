@@ -115,7 +115,7 @@ def get_app(
         # 3. This ensures deleted feature views (via Python SDK) are immediately detected
         # 4. This is internal Feast code, so using internal APIs is acceptable
         current_registry_proto = store.registry._get_registry_proto(
-            project=None, allow_cache=True
+            project=store.project, allow_cache=True
         )
         # Defensive check: ensure we have a valid proto (should not be None based on implementation)
         if current_registry_proto is None:
