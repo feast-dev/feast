@@ -1,0 +1,22 @@
+project: iceberg_local
+registry: data/registry.db
+provider: local
+
+offline_store:
+    type: iceberg
+    catalog_type: sql
+    catalog_name: demo_catalog
+    uri: sqlite:///data/iceberg_catalog.db
+    warehouse: data/warehouse
+    namespace: demo
+
+online_store:
+    type: iceberg
+    catalog_type: sql
+    catalog_name: online_catalog
+    uri: sqlite:///data/iceberg_online_catalog.db
+    warehouse: data/online_warehouse
+    namespace: online
+    partition_strategy: entity_hash
+
+entity_key_serialization_version: 3

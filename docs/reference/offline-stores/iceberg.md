@@ -261,6 +261,59 @@ offline_store:
     warehouse: data/warehouse
 ```
 
+## Cloudflare R2 Configuration
+
+Cloudflare R2 provides S3-compatible object storage that works seamlessly with Iceberg. Here's how to configure Feast with R2:
+
+### Using R2 with S3-Compatible Storage
+
+```yaml
+offline_store:
+    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    catalog_type: sql  # or rest, hive, glue
+    catalog_name: r2_catalog
+    uri: postgresql://user:pass@catalog-host:5432/iceberg  # Catalog database
+    warehouse: s3://my-r2-bucket/warehouse
+    storage_options:
+        s3.endpoint: https://<account-id>.r2.cloudflarestorage.com
+        s3.access-key-id: ${R2_ACCESS_KEY_ID}
+        s3.secret-access-key: ${R2_SECRET_ACCESS_KEY}
+        s3.region: auto
+        s3.force-virtual-addressing: true  # Required for R2
+```
+
+**Important R2 Configuration Notes:**
+- `s3.force-virtual-addressing: true` is **required** for R2 compatibility
+- Use `s3.region: auto` (R2 doesn't require specific regions)
+- R2 endpoint format: `https://<account-id>.r2.cloudflarestorage.com`
+- Get credentials from R2 dashboard: API Tokens → Create API Token
+
+### Using R2 Data Catalog (Beta)
+
+Cloudflare R2 also supports native Iceberg REST catalogs:
+
+```yaml
+offline_store:
+    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    catalog_type: rest
+    catalog_name: r2_data_catalog
+    uri: <r2-catalog-uri>  # From R2 Data Catalog dashboard
+    warehouse: <r2-warehouse-name>
+    storage_options:
+        token: ${R2_DATA_CATALOG_TOKEN}
+```
+
+**Benefits of R2:**
+- **Cost-effective**: No egress fees, predictable pricing
+- **Performance**: Global edge network for fast data access
+- **S3-compatible**: Works with existing Iceberg/PyIceberg tooling
+- **Integrated catalog**: Optional native Iceberg catalog support
+
+**Resources:**
+- [Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/)
+- [R2 S3 API Compatibility](https://developers.cloudflare.com/r2/api/s3/)
+- [PyIceberg S3 Configuration](https://py.iceberg.apache.org/configuration/#s3)
+
 ## Schema Evolution
 
 Iceberg supports schema evolution natively. When feature schemas change, Iceberg handles:

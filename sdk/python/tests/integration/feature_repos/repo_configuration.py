@@ -84,6 +84,9 @@ from tests.integration.feature_repos.universal.online_store.datastore import (
 from tests.integration.feature_repos.universal.online_store.dynamodb import (
     DynamoDBOnlineStoreCreator,
 )
+from tests.integration.feature_repos.universal.online_store.iceberg import (
+    IcebergOnlineStoreCreator,
+)
 from tests.integration.feature_repos.universal.online_store.milvus import (
     MilvusOnlineStoreCreator,
 )
@@ -157,7 +160,10 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
 
 AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
-] = {"sqlite": ({"type": "sqlite"}, None)}
+] = {
+    "sqlite": ({"type": "sqlite"}, None),
+    "iceberg": ({"type": "iceberg"}, IcebergOnlineStoreCreator),
+}
 
 # Only configure Cloud DWH if running full integration tests
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":

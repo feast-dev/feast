@@ -374,6 +374,77 @@ catalog_type: sql
 uri: sqlite:///data/iceberg_catalog.db
 ```
 
+## Cloudflare R2 Configuration
+
+Cloudflare R2 is an excellent choice for Iceberg online store with its S3-compatible API and cost-effective pricing:
+
+### Using R2 with S3-Compatible Storage
+
+```yaml
+online_store:
+    type: feast.infra.online_stores.contrib.iceberg_online_store.iceberg.IcebergOnlineStore
+    catalog_type: sql  # or rest, hive, glue
+    catalog_name: r2_online_catalog
+    uri: postgresql://user:pass@catalog-host:5432/online_catalog
+    warehouse: s3://my-r2-bucket/online_warehouse
+    namespace: online
+    partition_strategy: entity_hash
+    storage_options:
+        s3.endpoint: https://<account-id>.r2.cloudflarestorage.com
+        s3.access-key-id: ${R2_ACCESS_KEY_ID}
+        s3.secret-access-key: ${R2_SECRET_ACCESS_KEY}
+        s3.region: auto
+        s3.force-virtual-addressing: true  # Required for R2
+```
+
+**R2-Specific Configuration:**
+- `s3.force-virtual-addressing: true` is **mandatory** for R2
+- R2 endpoint: `https://<account-id>.r2.cloudflarestorage.com`
+- Use environment variables for credentials (never commit secrets)
+- `s3.region: auto` works with R2's global architecture
+
+### Using R2 Data Catalog (Beta)
+
+```yaml
+online_store:
+    type: feast.infra.online_stores.contrib.iceberg_online_store.iceberg.IcebergOnlineStore
+    catalog_type: rest
+    catalog_name: r2_data_catalog
+    uri: <r2-catalog-uri>  # From R2 Data Catalog
+    warehouse: <r2-warehouse-name>
+    namespace: online
+    partition_strategy: entity_hash
+    storage_options:
+        token: ${R2_DATA_CATALOG_TOKEN}
+```
+
+### R2 Performance Optimization
+
+For optimal performance with R2:
+
+1. **Partition Strategy**: Use `entity_hash` to distribute data across R2's global network
+2. **Batch Writes**: Materialize in larger batches to reduce API calls
+3. **Caching**: Enable local caching for frequently accessed entities
+4. **Compaction**: Run periodic compaction to optimize file sizes
+
+```python
+# Batch materialization for R2
+fs.materialize_incremental(
+    end_date=datetime.now(),
+    feature_views=[driver_hourly_stats],
+)
+```
+
+**R2 Benefits for Online Store:**
+- **No egress fees**: Cost-effective for high-traffic applications
+- **Global caching**: Fast reads from edge locations
+- **S3 compatibility**: Works with all Iceberg tooling
+- **Predictable pricing**: No per-request charges
+
+**Resources:**
+- [Cloudflare R2 Docs](https://developers.cloudflare.com/r2/)
+- [R2 Performance Best Practices](https://developers.cloudflare.com/r2/reference/performance/)
+
 ## Monitoring
 
 Key metrics to monitor:
