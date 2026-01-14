@@ -14,12 +14,27 @@ access since they can impact real user traffic. See [Running Feast in Production
 ## Deleting objects from the registry
 
 {% hint style="warning" %}
-Simply removing a feature definition from your code and running `feast apply` or `FeatureStore.apply()` **does not** delete the object from the registry. You must explicitly delete objects using the dedicated delete methods.
+Simply removing a feature definition from your code and running `feast apply` or `FeatureStore.apply()` **does not** delete the object from the registry. You must explicitly delete objects using the dedicated delete methods or CLI commands.
 {% endhint %}
 
-To delete objects from the registry, use the explicit delete methods provided by the `FeatureStore` class:
+### Using the CLI
 
-### Deleting feature views
+The simplest way to delete objects is using the `feast delete` command:
+
+```bash
+# Delete any Feast object by name
+feast delete my_feature_view
+feast delete my_entity
+feast delete my_feature_service
+```
+
+See the [CLI documentation](../../reference/feast-cli-commands.md#delete) for more details.
+
+### Using the Python SDK
+
+To delete objects programmatically, use the explicit delete methods provided by the `FeatureStore` class:
+
+#### Deleting feature views
 ```python
 from feast import FeatureStore
 
@@ -27,12 +42,12 @@ store = FeatureStore(repo_path=".")
 store.delete_feature_view("my_feature_view")
 ```
 
-### Deleting feature services
+#### Deleting feature services
 ```python
 store.delete_feature_service("my_feature_service")
 ```
 
-### Deleting entities, data sources, and other objects
+#### Deleting entities, data sources, and other objects
 
 For entities, data sources, and other registry objects, you can use the registry methods directly:
 
