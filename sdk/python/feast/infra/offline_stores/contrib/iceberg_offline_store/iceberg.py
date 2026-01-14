@@ -1,12 +1,11 @@
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import duckdb
-
 import pandas as pd
 import pyarrow as pa
-from pyiceberg.catalog import load_catalog
 from pydantic import Field
+from pyiceberg.catalog import load_catalog
 
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg_source import (
@@ -109,24 +108,35 @@ class IcebergOfflineStore(OfflineStore):
                 arrow_table = scan.to_arrow()
                 con.register(fv.name, arrow_table)
 
-        # 4. Construct ASOF join query
-        # We'll use a simplified version for now and expand as needed for Feast complexities
-        feature_names_joined = ", ".join([f"{fv.name}.*" for fv in feature_views])
-
-        # Simplified ASOF Join for one feature view to start.
-        # Multi-FV join requires chaining ASOF joins or subqueries.
+        # 4. Construct ASOF join query with feature name handling
         query = "SELECT entity_df.*"
         for fv in feature_views:
-            query += f", {fv.name}.*"
+            # Join all features from the feature view
+            for feature in fv.features:
+                feature_name = feature.name
+                if full_feature_names:
+                    feature_name = f"{fv.name}__{feature.name}"
+                query += f", {fv.name}.{feature.name} AS {feature_name}"
 
         query += " FROM entity_df"
         for fv in feature_views:
-            # Note: entity_df must have the timestamp_field and entity keys
-            # fv.batch_source has the timestamp_field and join_keys (entities)
-            join_keys = fv.entities
-            # This is a placeholder for a robust PIT join generation logic
+            # Join all features from the feature view
+            for feature in fv.features:
+                feature_name = feature.name
+                if full_feature_names:
+                    feature_name = f"{fv.name}__{feature.name}"
+                query += f", {fv.name}.{feature.name} AS {feature_name}"
+
+        query += " FROM entity_df"
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, IcebergSource)
+            # DuckDB ASOF JOIN:
+            # 1. Join keys match exactly.
+            # 2. Timestamp condition (entity_timestamp >= feature_timestamp).
+            # 3. Picks the latest feature record for each entity record.
             query += f" ASOF LEFT JOIN {fv.name} ON "
-            join_conds = [f"entity_df.{k} = {fv.name}.{k}" for k in join_keys]
+            # Use 'entity_df.event_timestamp' which is standard in Feast universal tests
+            join_conds = [f"entity_df.{k} = {fv.name}.{k}" for k in fv.entities]
             query += " AND ".join(join_conds)
             query += f" AND entity_df.event_timestamp >= {fv.name}.{fv.batch_source.timestamp_field}"
 
@@ -148,15 +158,63 @@ class IcebergOfflineStore(OfflineStore):
         )
 
         assert isinstance(data_source, IcebergSource)
-        # Implementation for materialization
-        # ...
-        return IcebergRetrievalJob(duckdb.connect(), "")
+        assert isinstance(config.offline_store, IcebergOfflineStoreConfig)
+
+        # 1. Load Iceberg catalog
+        catalog_props = {
+            "type": config.offline_store.catalog_type,
+            "uri": config.offline_store.uri,
+            "warehouse": config.offline_store.warehouse,
+            **config.offline_store.storage_options,
+        }
+        catalog_props = {k: v for k, v in catalog_props.items() if v is not None}
+        catalog = load_catalog(config.offline_store.catalog_name, **catalog_props)
+
+        # 2. Setup DuckDB and Load Table
+        con = duckdb.connect(database=":memory:")
+        table = catalog.load_table(data_source.table_identifier)
+
+        # Load filtered scan
+        scan = table.scan(
+            row_filter=f"{timestamp_field} >= '{start_date.isoformat()}' AND {timestamp_field} <= '{end_date.isoformat()}'"
+        )
+        tasks = list(scan.plan_files())
+        has_deletes = any(task.delete_files for task in tasks)
+
+        if not has_deletes:
+            file_paths = [task.file.file_path for task in tasks]
+            if file_paths:
+                con.execute(
+                    f"CREATE VIEW source_table AS SELECT * FROM read_parquet({file_paths})"
+                )
+            else:
+                con.register("source_table", scan.to_arrow())
+        else:
+            con.register("source_table", scan.to_arrow())
+
+        # 3. Construct "Latest" Query
+        # Group by join keys and select the record with the maximum timestamp
+        join_keys_str = ", ".join(join_key_columns)
+        columns_str = ", ".join(
+            join_key_columns + feature_name_columns + [timestamp_field]
+        )
+
+        # Rank records by timestamp descending and pick rank 1
+        query = f"""
+        SELECT {columns_str} FROM (
+            SELECT *, row_number() OVER (PARTITION BY {join_keys_str} ORDER BY {timestamp_field} DESC) as rn
+            FROM source_table
+        ) WHERE rn = 1
+        """
+
+        return IcebergRetrievalJob(con, query)
 
 
 class IcebergRetrievalJob(RetrievalJob):
-    def __init__(self, con: duckdb.DuckDBPyConnection, query: str):
+    def __init__(self, con: duckdb.DuckDBPyConnection, query: str, full_feature_names: bool = False):
         self.con = con
         self.query = query
+        self._full_feature_names = full_feature_names
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         return self.con.execute(self.query).df()
@@ -166,7 +224,7 @@ class IcebergRetrievalJob(RetrievalJob):
 
     @property
     def full_feature_names(self) -> bool:
-        return False
+        return self._full_feature_names
 
     @property
     def on_demand_feature_views(self) -> List["OnDemandFeatureView"]:

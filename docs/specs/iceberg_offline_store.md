@@ -52,3 +52,20 @@ source = IcebergSource(
 - `pyiceberg[s3,glue,sql]`
 - `duckdb`
 - `pyarrow`
+
+## Known Upstream Dependency Warnings
+
+The following deprecation warnings originate from third-party dependencies (not from Feast code) and may appear during tests:
+
+| Package | Warning | Status |
+|---------|---------|--------|
+| `testcontainers` | `@wait_container_is_ready` decorator deprecated | Internal to lib; Feast uses `wait_for_logs()` correctly |
+| `pyiceberg` | `enablePackrat` → `enable_packrat` | Internal to pyiceberg parser |
+| `pyiceberg` | `escChar` → `esc_char`, `unquoteResults` → `unquote_results` | Internal to pyiceberg parser |
+| `pyiceberg` | Pydantic `@model_validator` mode='after' on classmethod deprecated | Internal to pyiceberg; requires pyiceberg v0.9+ |
+
+**Action**: No code changes required in Feast. Monitor upstream releases:
+- pyiceberg: https://github.com/apache/iceberg-python/releases
+- testcontainers-python: https://github.com/testcontainers/testcontainers-python/releases
+
+**Testing Note**: Use `uv run` for all test commands to ensure proper virtual environment management. See [Phase 2 checkpoint](plan.md) for test verification commands.

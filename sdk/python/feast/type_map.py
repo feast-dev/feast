@@ -1233,6 +1233,25 @@ def cb_columnar_type_to_feast_value_type(type_str: str) -> ValueType:
     return value
 
 
+def iceberg_to_feast_value_type(iceberg_type_as_str: str) -> ValueType:
+    # Basic mapping for Iceberg types
+    # Reference: https://iceberg.apache.org/spec/#primitive-types
+    type_map: Dict[str, ValueType] = {
+        "boolean": ValueType.BOOL,
+        "int": ValueType.INT32,
+        "long": ValueType.INT64,
+        "float": ValueType.FLOAT,
+        "double": ValueType.DOUBLE,
+        "string": ValueType.STRING,
+        "binary": ValueType.BYTES,
+        "uuid": ValueType.STRING,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        "timestamptz": ValueType.UNIX_TIMESTAMP,
+    }
+    return type_map.get(iceberg_type_as_str.lower(), ValueType.UNKNOWN)
+
+
 def convert_scalar_column(
     series: pd.Series, value_type: ValueType, target_pandas_type: str
 ) -> pd.Series:
