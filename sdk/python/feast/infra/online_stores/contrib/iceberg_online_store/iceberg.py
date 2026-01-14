@@ -325,11 +325,15 @@ class IcebergOnlineStore(OnlineStore):
         self, table: FeatureView, config: IcebergOnlineStoreConfig
     ) -> Schema:
         """Build Iceberg schema for online table."""
+        from pyiceberg.types import IntegerType
+
         fields = [
             NestedField(
                 field_id=1, name="entity_key", type=StringType(), required=True
             ),
-            NestedField(field_id=2, name="entity_hash", type=pa.int32(), required=True),
+            NestedField(
+                field_id=2, name="entity_hash", type=IntegerType(), required=True
+            ),
             NestedField(
                 field_id=3, name="event_ts", type=TimestampType(), required=True
             ),

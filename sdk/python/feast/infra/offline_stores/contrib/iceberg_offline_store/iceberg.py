@@ -111,16 +111,7 @@ class IcebergOfflineStore(OfflineStore):
         # 4. Construct ASOF join query with feature name handling
         query = "SELECT entity_df.*"
         for fv in feature_views:
-            # Join all features from the feature view
-            for feature in fv.features:
-                feature_name = feature.name
-                if full_feature_names:
-                    feature_name = f"{fv.name}__{feature.name}"
-                query += f", {fv.name}.{feature.name} AS {feature_name}"
-
-        query += " FROM entity_df"
-        for fv in feature_views:
-            # Join all features from the feature view
+            # Add all features from the feature view to SELECT clause
             for feature in fv.features:
                 feature_name = feature.name
                 if full_feature_names:
@@ -211,7 +202,12 @@ class IcebergOfflineStore(OfflineStore):
 
 
 class IcebergRetrievalJob(RetrievalJob):
-    def __init__(self, con: duckdb.DuckDBPyConnection, query: str, full_feature_names: bool = False):
+    def __init__(
+        self,
+        con: duckdb.DuckDBPyConnection,
+        query: str,
+        full_feature_names: bool = False,
+    ):
         self.con = con
         self.query = query
         self._full_feature_names = full_feature_names

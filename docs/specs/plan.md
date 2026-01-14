@@ -246,24 +246,76 @@ All documentation objectives achieved. Ready for final commit.
 
 ---
 
-### Phase 5: Maintenance & Monitoring (PLANNED)
-- [ ] Create comprehensive documentation:
-    - [ ] Add `docs/reference/offline-stores/iceberg.md` with configuration examples.
-    - [ ] Add `docs/reference/online-stores/iceberg.md` with performance characteristics.
-    - [ ] Add quickstart guide for Iceberg setup.
-- [ ] Final audit:
-    - [ ] Review type mappings in `feast/type_map.py` for completeness.
-    - [ ] Performance benchmarking against other offline stores.
-    - [ ] Security audit for catalog credentials handling.
-- [ ] Update CHANGELOG.md with new feature.
-- [ ] **Checkpoint**: Documentation review and merge.
+### Phase 5: Code Audit, Bug Fixes & Integration Tests (IN PROGRESS)
 
-### Phase 5: Maintenance & Monitoring
-- [ ] Monitor upstream dependency releases:
-    - [ ] pyiceberg upgrades (watch for v0.9+ for Pydantic fixes).
-    - [ ] testcontainers-python upgrades (deprecation fixes).
-- [ ] Set up CI/CD for Iceberg tests.
-- [ ] Community feedback integration.
+**Status**: Bug fixes and integration tests implementation
+
+**Completion Target**: 2026-01-14
+
+#### Phase 5.1: Code Audit & Bug Fixes
+
+**Audit Findings**:
+- ✅ Offline Store: Duplicate query building bug found (lines 111-130)
+- ✅ Online Store: Incorrect Arrow type in Iceberg schema (line 332)
+- ✅ Test Infrastructure: Already registered in AVAILABLE_OFFLINE_STORES
+
+**Bug Fixes**:
+- [ ] Fix duplicate query building in offline store `get_historical_features`
+- [ ] Fix Iceberg schema builder to use `IntegerType()` instead of `pa.int32()`
+- [ ] Verify all type mappings are complete in `type_map.py`
+
+#### Phase 5.2: Integration Tests
+
+**Standalone Tests**:
+- [ ] Create `test_iceberg_offline_store.py` - Isolated offline store tests
+- [ ] Create `test_iceberg_online_store.py` - Isolated online store tests
+- [ ] Create `IcebergOnlineStoreCreator` for universal test framework
+
+**Test Coverage**:
+- [ ] Point-in-time correct feature retrieval
+- [ ] COW vs MOR read strategy selection
+- [ ] Entity hash partitioning functionality
+- [ ] Online write and read consistency
+- [ ] Latest record selection per entity
+
+#### Phase 5.3: Cloudflare R2 Documentation
+
+**R2 Configuration Examples**:
+- [ ] Add R2 + REST catalog example to offline store docs
+- [ ] Add R2 + REST catalog example to online store docs
+- [ ] Create dedicated R2 quickstart guide (`iceberg_cloudflare_r2.md`)
+
+**Coverage**:
+- [ ] R2-compatible S3 endpoint configuration
+- [ ] R2 Data Catalog (native Iceberg catalog) setup
+- [ ] Authentication with R2 access keys
+- [ ] Force virtual addressing for R2 compatibility
+
+#### Phase 5.4: Local Development Example
+
+**Complete Example** (`examples/iceberg-local/`):
+- [ ] Create `feature_store.yaml` with SQLite catalog
+- [ ] Create `features.py` with entity and feature view definitions
+- [ ] Create `run_example.py` with end-to-end workflow
+- [ ] Create `README.md` with step-by-step instructions
+
+**Example Demonstrates**:
+- [ ] Local SQLite catalog + DuckDB engine setup
+- [ ] Sample data generation and Iceberg table creation
+- [ ] Feature definition and application
+- [ ] Materialization to online store
+- [ ] Online feature retrieval
+- [ ] Historical feature retrieval (point-in-time correct)
+
+#### **Checkpoint**: Phase 5 Complete when all tests pass and examples run
+
+---
+
+### Phase 6: Maintenance & Monitoring (FUTURE)
+- [ ] Monitor upstream dependency releases
+- [ ] Set up CI/CD for Iceberg tests
+- [ ] Community feedback integration
+- [ ] Performance benchmarking
 
 ## Design Specifications
 - [Offline Store Spec](iceberg_offline_store.md)
