@@ -140,7 +140,9 @@ def _get_feast_type_name(feast_type: Any) -> str:
         base_type_name = _get_feast_type_name(base_type)
         return f"Array({base_type_name})"
 
-    # Map type objects to their names
+    # Map type objects to their names.
+    # Note: ImageBytes and PdfBytes are excluded since dbt manifests only expose
+    # generic BYTES type without semantic information about binary content.
     type_map = {
         String: "String",
         Int32: "Int32",
