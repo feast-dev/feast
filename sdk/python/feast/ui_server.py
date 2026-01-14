@@ -108,9 +108,12 @@ def get_app(
             return Response(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE
             )  # Service Unavailable
-        # Get the current registry proto with cache check to detect file modifications
-        # Using allow_cache=True will check file modification time for file-based registries
-        # in sync mode and refresh if the file has been modified
+        # Note: We use _get_registry_proto (internal API) instead of proto() because:
+        # 1. _get_registry_proto with allow_cache=True checks file modification time
+        #    for file-based registries in sync mode and auto-refreshes if changed
+        # 2. proto() just returns the cached version without checking for modifications
+        # 3. This ensures deleted feature views (via Python SDK) are immediately detected
+        # 4. This is internal Feast code, so using internal APIs is acceptable
         current_registry_proto = store.registry._get_registry_proto(
             project=None, allow_cache=True
         )
