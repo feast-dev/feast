@@ -723,7 +723,7 @@ class FeatureStore:
         return feature_views_to_materialize
 
     def plan(
-        self, desired_repo_contents: RepoContents
+        self, desired_repo_contents: RepoContents, skip_validation: bool = False
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
 
@@ -733,6 +733,8 @@ class FeatureStore:
 
         Args:
             desired_repo_contents: The desired repo state.
+            skip_validation: If True, skip validation of feature views. This can be useful when the validation
+                system is being overly strict. Use with caution and report any issues on GitHub. Default is False.
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -767,11 +769,12 @@ class FeatureStore:
             ...     permissions=list())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
-        self._validate_all_feature_views(
-            desired_repo_contents.feature_views,
-            desired_repo_contents.on_demand_feature_views,
-            desired_repo_contents.stream_feature_views,
-        )
+        if not skip_validation:
+            self._validate_all_feature_views(
+                desired_repo_contents.feature_views,
+                desired_repo_contents.on_demand_feature_views,
+                desired_repo_contents.stream_feature_views,
+            )
         _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
             desired_repo_contents.data_sources,
@@ -835,6 +838,7 @@ class FeatureStore:
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
         partial: bool = True,
+        skip_validation: bool = False,
     ):
         """Register objects to metadata store and update related infrastructure.
 
@@ -849,6 +853,8 @@ class FeatureStore:
                 provider's infrastructure. This deletion will only be performed if partial is set to False.
             partial: If True, apply will only handle the specified objects; if False, apply will also delete
                 all the objects in objects_to_delete, and tear down any associated cloud resources.
+            skip_validation: If True, skip validation of feature views. This can be useful when the validation
+                system is being overly strict. Use with caution and report any issues on GitHub. Default is False.
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -950,11 +956,12 @@ class FeatureStore:
         entities_to_update.append(DUMMY_ENTITY)
 
         # Validate all feature views and make inferences.
-        self._validate_all_feature_views(
-            views_to_update,
-            odfvs_to_update,
-            sfvs_to_update,
-        )
+        if not skip_validation:
+            self._validate_all_feature_views(
+                views_to_update,
+                odfvs_to_update,
+                sfvs_to_update,
+            )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
