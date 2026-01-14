@@ -5,9 +5,12 @@ This module generates Python code files containing Feast object definitions
 (Entity, DataSource, FeatureView) from dbt model metadata.
 """
 
+import logging
 from typing import Any, List, Optional, Set
 
 from jinja2 import BaseLoader, Environment
+
+logger = logging.getLogger(__name__)
 
 from feast.dbt.mapper import map_dbt_type_to_feast_type
 from feast.dbt.parser import DbtModel
@@ -123,8 +126,17 @@ from feast.infra.offline_stores.file_source import FileSource
 def _get_feast_type_name(feast_type: Any) -> str:
     """Get the string name of a Feast type for code generation."""
     if isinstance(feast_type, Array):
-        # Handle Array types - safely get base_type with fallback
-        base_type = getattr(feast_type, "base_type", String)
+        # Safely get base_type. Should always exist since Array.__init__ sets it.
+        # Example: Array(String) -> base_type = String
+        base_type = getattr(feast_type, "base_type", None)
+
+        if base_type is None:
+            logger.warning(
+                "Array type missing 'base_type' attribute. "
+                "This indicates a bug in Array initialization. Falling back to String."
+            )
+            base_type = String
+
         base_type_name = _get_feast_type_name(base_type)
         return f"Array({base_type_name})"
 
@@ -293,11 +305,20 @@ class DbtCodeGenerator:
                 feast_type = map_dbt_type_to_feast_type(column.data_type)
                 type_name = _get_feast_type_name(feast_type)
 
-                # Track base type for imports (handle Array specially)
+                # Track base type for imports. For Array types, import both Array and base type.
+                # Example: Array(Int64) requires imports: Array, Int64
                 if isinstance(feast_type, Array):
                     type_imports.add("Array")
-                    # Also add the base type
-                    base_type_name = _get_feast_type_name(feast_type.base_type)
+
+                    base_type = getattr(feast_type, "base_type", None)
+                    if base_type is None:
+                        logger.warning(
+                            "Array type missing 'base_type' attribute while generating imports. "
+                            "This indicates a bug in Array initialization. Falling back to String."
+                        )
+                        base_type = String
+
+                    base_type_name = _get_feast_type_name(base_type)
                     type_imports.add(base_type_name)
                 else:
                     type_imports.add(type_name)
