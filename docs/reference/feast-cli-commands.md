@@ -62,6 +62,10 @@ feast apply
 `feast apply` \(when configured to use cloud provider like `gcp` or `aws`\) will create cloud infrastructure. This may incur costs.
 {% endhint %}
 
+{% hint style="info" %}
+**Important:** `feast apply` only registers or updates objects found in your Python files. It does **not** delete objects that you've removed from your code. To delete objects from the registry, you must use explicit delete methods. See the [Registry documentation](../getting-started/components/registry.md#deleting-objects-from-the-registry) for details.
+{% endhint %}
+
 ## Configuration
 
 Display the actual configuration being used by Feast, including both user-provided configurations and default configurations applied by Feast.

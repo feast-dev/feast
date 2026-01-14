@@ -34,14 +34,14 @@ def get_app(
     )
 
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
-    registry_initialized = False
+    registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
 
     def async_refresh():
         store.refresh_registry()
-        nonlocal registry_initialized
-        registry_initialized = True
+        nonlocal registry_proto
+        registry_proto = store.registry.proto()
         if shutting_down:
             return
         nonlocal active_timer
@@ -104,26 +104,12 @@ def get_app(
 
     @app.get("/registry")
     def read_registry():
-        if not registry_initialized:
-            return Response(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
-            )  # Service Unavailable
-        # Note: We use _get_registry_proto (internal API) instead of proto() because:
-        # 1. _get_registry_proto with allow_cache=True checks file modification time
-        #    for file-based registries in sync mode and auto-refreshes if changed
-        # 2. proto() just returns the cached version without checking for modifications
-        # 3. This ensures deleted feature views (via Python SDK) are immediately detected
-        # 4. This is internal Feast code, so using internal APIs is acceptable
-        current_registry_proto = store.registry._get_registry_proto(
-            project=store.project, allow_cache=True
-        )
-        # Defensive check: ensure we have a valid proto (should not be None based on implementation)
-        if current_registry_proto is None:
+        if registry_proto is None:
             return Response(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE
             )  # Service Unavailable
         return Response(
-            content=current_registry_proto.SerializeToString(),
+            content=registry_proto.SerializeToString(),
             media_type="application/octet-stream",
         )
 
@@ -131,7 +117,7 @@ def get_app(
     def health():
         return (
             Response(status_code=status.HTTP_200_OK)
-            if registry_initialized
+            if registry_proto
             else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
         )
 
