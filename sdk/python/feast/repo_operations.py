@@ -220,7 +220,12 @@ def parse_repo(repo_root: Path) -> RepoContents:
     return res
 
 
-def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool, skip_validation: bool = False):
+def plan(
+    repo_config: RepoConfig,
+    repo_path: Path,
+    skip_source_validation: bool,
+    skip_validation: bool = False,
+):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
     for project in repo.projects:
@@ -352,13 +357,20 @@ def apply_total_with_repo_instance(
     ) = extract_objects_for_apply_delete(project_name, registry, repo)
 
     if store._should_use_plan():
-        registry_diff, infra_diff, new_infra = store.plan(repo, skip_validation=skip_validation)
+        registry_diff, infra_diff, new_infra = store.plan(
+            repo, skip_validation=skip_validation
+        )
         click.echo(registry_diff.to_string())
 
         store._apply_diffs(registry_diff, infra_diff, new_infra)
         click.echo(infra_diff.to_string())
     else:
-        store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False, skip_validation=skip_validation)
+        store.apply(
+            all_to_apply,
+            objects_to_delete=all_to_delete,
+            partial=False,
+            skip_validation=skip_validation,
+        )
         log_infra_changes(views_to_keep, views_to_delete)
 
 
@@ -397,7 +409,12 @@ def create_feature_store(
         return FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
 
-def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool, skip_validation: bool = False):
+def apply_total(
+    repo_config: RepoConfig,
+    repo_path: Path,
+    skip_source_validation: bool,
+    skip_validation: bool = False,
+):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
     for project in repo.projects:

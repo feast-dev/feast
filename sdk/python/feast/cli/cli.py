@@ -243,7 +243,9 @@ def endpoint(ctx: click.Context):
     help="Don't validate feature views. Use with caution as this skips important checks.",
 )
 @click.pass_context
-def plan_command(ctx: click.Context, skip_source_validation: bool, skip_validation: bool):
+def plan_command(
+    ctx: click.Context, skip_source_validation: bool, skip_validation: bool
+):
     """
     Create or update a feature store deployment
     """
@@ -269,7 +271,9 @@ def plan_command(ctx: click.Context, skip_source_validation: bool, skip_validati
     help="Don't validate feature views. Use with caution as this skips important checks.",
 )
 @click.pass_context
-def apply_total_command(ctx: click.Context, skip_source_validation: bool, skip_validation: bool):
+def apply_total_command(
+    ctx: click.Context, skip_source_validation: bool, skip_validation: bool
+):
     """
     Create or update a feature store deployment
     """
