@@ -2,7 +2,7 @@
 title: "Introducing Feast's Unified Transformation Framework 🚀"
 description: "Discover Feast's powerful new transformation framework that provides a unified API for feature engineering across multiple compute engines including Pandas, Spark, and Ray."
 date: 2026-01-14
-authors: ["HaoXuAI", "GitHub Copilot"]
+authors: ["Francisco Javier Arceo", "Hao Xu", "GitHub Copilot"]
 ---
 
 <div class="hero-image">
