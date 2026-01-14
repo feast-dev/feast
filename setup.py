@@ -199,6 +199,7 @@ CI_REQUIRED = (
         "build",
         "virtualenv==20.23.0",
         "cryptography>=43.0,<44",
+        "dbt-artifacts-parser>=0.6.0,<1",
         "ruff>=0.8.0",
         "mypy-protobuf>=3.1",
         "grpcio-tools>=1.56.2,<=1.62.3",
