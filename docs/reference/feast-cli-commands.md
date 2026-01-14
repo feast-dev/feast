@@ -20,6 +20,7 @@ Options:
 Commands:
   apply                    Create or update a feature store deployment
   configuration            Display Feast configuration
+  delete                   Delete a Feast object from the registry
   entities                 Access entities
   feature-views            Access feature views
   init                     Create a new Feast repository
@@ -62,6 +63,10 @@ feast apply
 `feast apply` \(when configured to use cloud provider like `gcp` or `aws`\) will create cloud infrastructure. This may incur costs.
 {% endhint %}
 
+{% hint style="info" %}
+**Important:** `feast apply` only registers or updates objects found in your Python files. It does **not** delete objects that you've removed from your code. To delete objects from the registry, you must use the `feast delete` command or explicit delete methods in the Python SDK. See the [Delete command](#delete) below and the [Registry documentation](../getting-started/components/registry.md#deleting-objects-from-the-registry) for details.
+{% endhint %}
+
 ## Configuration
 
 Display the actual configuration being used by Feast, including both user-provided configurations and default configurations applied by Feast.
@@ -83,6 +88,40 @@ entity_key_serialization_version: 3
 auth:
     type: no_auth
 ```
+
+## Delete
+
+Delete a Feast object from the registry by its name.
+
+```bash
+feast delete <OBJECT_NAME>
+```
+
+**What does feast delete do?**
+
+The `feast delete` command removes a Feast object (such as a feature view, entity, data source, feature service, etc.) from the registry. The command will:
+
+1. Search for the object by name across all object types (entities, feature views, feature services, data sources, saved datasets, validation references, etc.)
+2. Delete the first matching object found
+3. Remove any associated infrastructure
+
+**Example:**
+
+```bash
+# Delete a feature view named "driver_hourly_stats"
+feast delete driver_hourly_stats
+
+# Delete an entity named "driver"
+feast delete driver
+```
+
+{% hint style="warning" %}
+The delete operation is permanent and will remove the object from the registry. Make sure you want to delete the object before running this command.
+{% endhint %}
+
+{% hint style="info" %}
+If multiple objects have the same name across different types, `feast delete` will delete the first one it finds. For programmatic deletion with more control, use the Python SDK methods like `store.delete_feature_view()`, `store.delete_feature_service()`, etc.
+{% endhint %}
 
 ## Entities
 
