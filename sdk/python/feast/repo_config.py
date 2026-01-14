@@ -85,6 +85,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
     "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
+    "iceberg": "feast.infra.online_stores.contrib.iceberg_online_store.iceberg.IcebergOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
