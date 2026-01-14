@@ -1,5 +1,16 @@
 # Importing Features from dbt
 
+{% hint style="warning" %}
+**Alpha Feature**: The dbt integration is currently in early development and subject to change.
+
+**Current Limitations**:
+- Supported data sources: BigQuery, Snowflake, and File-based sources only
+- Single entity per model
+- Manual entity column specification required
+
+Breaking changes may occur in future releases.
+{% endhint %}
+
 This guide explains how to use Feast's dbt integration to automatically import dbt models as Feast FeatureViews. This enables you to leverage your existing dbt transformations as feature definitions without manual duplication.
 
 ## Overview
