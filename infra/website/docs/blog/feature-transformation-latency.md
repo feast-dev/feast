@@ -6,7 +6,7 @@ authors: ["Francisco Javier Arceo", "Shuchu Han"]
 ---
 
 <div class="hero-image">
-  <img src="/images/blog/latency-comparison.png" alt="Pandas vs Native Python Latency Decomposition" loading="lazy">
+  <img src="/images/blog/latency.png" alt="Pandas vs Native Python Latency Decomposition" loading="lazy">
 </div>
 
 # Faster On Demand Transformations in Feast 🏎️💨
