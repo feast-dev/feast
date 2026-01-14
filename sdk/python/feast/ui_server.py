@@ -34,14 +34,14 @@ def get_app(
     )
 
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
-    registry_proto = None
+    registry_initialized = False
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
 
     def async_refresh():
         store.refresh_registry()
-        nonlocal registry_proto
-        registry_proto = store.registry.proto()
+        nonlocal registry_initialized
+        registry_initialized = True
         if shutting_down:
             return
         nonlocal active_timer
@@ -104,12 +104,18 @@ def get_app(
 
     @app.get("/registry")
     def read_registry():
-        if registry_proto is None:
+        if not registry_initialized:
             return Response(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE
             )  # Service Unavailable
+        # Get the current registry proto with cache check to detect file modifications
+        # Using allow_cache=True will check file modification time for file-based registries
+        # in sync mode and refresh if the file has been modified
+        current_registry_proto = store.registry._get_registry_proto(
+            project=None, allow_cache=True
+        )
         return Response(
-            content=registry_proto.SerializeToString(),
+            content=current_registry_proto.SerializeToString(),
             media_type="application/octet-stream",
         )
 
@@ -117,7 +123,7 @@ def get_app(
     def health():
         return (
             Response(status_code=status.HTTP_200_OK)
-            if registry_proto
+            if registry_initialized
             else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
         )
 

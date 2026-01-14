@@ -83,6 +83,7 @@ def ui_app_with_registry(mock_feature_store):
     mock_proto = MagicMock()
     mock_proto.SerializeToString.return_value = b"mock_proto_data"
     mock_registry.proto.return_value = mock_proto
+    mock_registry._get_registry_proto.return_value = mock_proto
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -103,6 +104,7 @@ def ui_app_without_registry(mock_feature_store):
     """
     mock_registry = MagicMock()
     mock_registry.proto.return_value = None
+    mock_registry._get_registry_proto.return_value = None
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -266,10 +268,12 @@ def test_health_endpoint_status(
         mock_proto = MagicMock()
         mock_proto.SerializeToString.return_value = b"mock_proto_data"
         mock_registry.proto.return_value = mock_proto
+        mock_registry._get_registry_proto.return_value = mock_proto
         mock_feature_store.registry = mock_registry
     else:
         mock_registry = MagicMock()
         mock_registry.proto.return_value = None
+        mock_registry._get_registry_proto.return_value = None
         mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
