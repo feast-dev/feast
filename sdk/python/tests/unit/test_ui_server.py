@@ -71,15 +71,15 @@ def mock_feature_store():
     return mock_store
 
 
-def _setup_mock_registry(mock_feature_store, has_data: bool):
+def _setup_mock_registry(mock_feature_store, has_registry_data: bool):
     """Helper function to setup mock registry with or without data.
     
     Args:
         mock_feature_store: The mock feature store to configure
-        has_data: Whether the registry should have data (True) or be None (False)
+        has_registry_data: Whether the registry should have data (True) or be None (False)
     """
     mock_registry = MagicMock()
-    if has_data:
+    if has_registry_data:
         mock_proto = MagicMock()
         mock_proto.SerializeToString.return_value = b"mock_proto_data"
         mock_registry.proto.return_value = mock_proto
@@ -99,7 +99,7 @@ def ui_app_with_registry(mock_feature_store):
     that has valid registry data available for testing endpoints that
     require registry access.
     """
-    _setup_mock_registry(mock_feature_store, has_data=True)
+    _setup_mock_registry(mock_feature_store, has_registry_data=True)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
@@ -117,7 +117,7 @@ def ui_app_without_registry(mock_feature_store):
     data available, used for testing error conditions and service
     unavailable responses.
     """
-    _setup_mock_registry(mock_feature_store, has_data=False)
+    _setup_mock_registry(mock_feature_store, has_registry_data=False)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
@@ -275,7 +275,7 @@ def test_health_endpoint_status(
     This parametrized test verifies that the /health endpoint returns the
     appropriate HTTP status code based on whether registry data is available.
     """
-    _setup_mock_registry(mock_feature_store, has_data=registry_available)
+    _setup_mock_registry(mock_feature_store, has_registry_data=registry_available)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)

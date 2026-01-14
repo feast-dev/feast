@@ -117,6 +117,11 @@ def get_app(
         current_registry_proto = store.registry._get_registry_proto(
             project=None, allow_cache=True
         )
+        # Defensive check: ensure we have a valid proto (should not be None based on implementation)
+        if current_registry_proto is None:
+            return Response(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+            )  # Service Unavailable
         return Response(
             content=current_registry_proto.SerializeToString(),
             media_type="application/octet-stream",
