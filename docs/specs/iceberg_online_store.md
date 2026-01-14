@@ -5,11 +5,29 @@ The Iceberg Online Store provides a "near-line" serving option using Apache Iceb
 
 ## Implementation Status
 
-✅ **COMPLETE** - Phase 3 implementation finished 2026-01-14
+✅ **COMPLETE** - All phases finished 2026-01-14
+
+**Phase Summary**:
+- ✅ Phase 3: Core online store implementation (Commit: b9659ad7e)
+- ✅ Phase 5.1: Bug fixes - Iceberg type usage (Commit: 8ce4bd85f)
+- ✅ Phase 5.2: Integration tests (Commit: d54624a1c)
 
 **Files Implemented**:
-- `sdk/python/feast/infra/online_stores/contrib/iceberg_online_store/iceberg.py` (540 lines)
+- `sdk/python/feast/infra/online_stores/contrib/iceberg_online_store/iceberg.py` (541 lines)
 - `sdk/python/feast/repo_config.py` (registration added)
+- `sdk/python/tests/integration/feature_repos/universal/online_store/iceberg.py` (66 lines)
+- `sdk/python/tests/integration/online_store/test_iceberg_online_store.py` (204 lines)
+
+**Test Coverage**:
+- 6 comprehensive integration tests (write/read, batching, partitioning, consistency, missing entities)
+- Universal test framework integration (IcebergOnlineStoreCreator)
+- Entity hash partitioning validation
+- No external dependencies (SQLite catalog, local filesystem)
+
+**Documentation**:
+- User guide: `docs/reference/online-stores/iceberg.md` (447 lines with R2 section)
+- Quickstart: `docs/specs/iceberg_quickstart.md` (479 lines)
+- Local example: `examples/iceberg-local/` (4 files, 581 lines)
 
 ## Design Goals
 - **Operational Simplicity**: No separate infrastructure; reuse Iceberg catalog. ✅

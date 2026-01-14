@@ -5,12 +5,28 @@ The Iceberg Offline Store allows Feast to use Apache Iceberg tables as a source 
 
 ## Implementation Status
 
-✅ **COMPLETE** - Phase 2 implementation finished 2026-01-14
+✅ **COMPLETE** - All phases finished 2026-01-14
+
+**Phase Summary**:
+- ✅ Phase 2: Core offline store implementation (Commit: 0093113d9)
+- ✅ Phase 5.1: Bug fixes - duplicate query building (Commit: 8ce4bd85f)
+- ✅ Phase 5.2: Integration tests (Commit: d54624a1c)
 
 **Files Implemented**:
-- `sdk/python/feast/infra/offline_stores/contrib/iceberg_offline_store/iceberg.py` (539 lines)
-- `sdk/python/feast/infra/offline_stores/contrib/iceberg_offline_store/iceberg_source.py` (147 lines)
-- `sdk/python/tests/integration/feature_repos/universal/data_sources/iceberg.py` (163 lines)
+- `sdk/python/feast/infra/offline_stores/contrib/iceberg_offline_store/iceberg.py` (232 lines)
+- `sdk/python/feast/infra/offline_stores/contrib/iceberg_offline_store/iceberg_source.py` (132 lines)
+- `sdk/python/tests/integration/feature_repos/universal/data_sources/iceberg.py` (164 lines)
+- `sdk/python/tests/integration/offline_store/test_iceberg_offline_store.py` (196 lines)
+
+**Test Coverage**:
+- 5 comprehensive integration tests (point-in-time correctness, multi-entity joins, schema inference, edge cases)
+- Universal test framework integration (IcebergDataSourceCreator)
+- No external dependencies (SQLite catalog, local filesystem)
+
+**Documentation**:
+- User guide: `docs/reference/offline-stores/iceberg.md` (344 lines with R2 section)
+- Quickstart: `docs/specs/iceberg_quickstart.md` (479 lines)
+- Local example: `examples/iceberg-local/` (4 files, 581 lines)
 
 ## Design Goals
 - **Lightweight**: Avoid JVM and Spark dependencies where possible. ✅
