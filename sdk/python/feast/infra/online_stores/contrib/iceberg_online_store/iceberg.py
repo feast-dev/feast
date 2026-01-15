@@ -42,7 +42,7 @@ from typing import (
 )
 
 import pyarrow as pa
-from pydantic import StrictInt, StrictStr
+from pydantic import Field, StrictInt, StrictStr
 from pyiceberg.catalog import load_catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
@@ -111,7 +111,7 @@ class IcebergOnlineStoreConfig(FeastConfigBaseModel):
     read_timeout_ms: StrictInt = 100
     """Timeout for online reads in milliseconds"""
 
-    storage_options: Dict[str, str] = {}
+    storage_options: Dict[str, str] = Field(default_factory=dict)
     """Additional storage configuration (e.g., S3 credentials)"""
 
 
@@ -219,17 +219,20 @@ class IcebergOnlineStore(OnlineStore):
             for ek in entity_keys
         ]
 
-        # Scan with partition filter
-        scan = iceberg_table.scan(
-            row_filter=f"entity_hash IN ({','.join(map(str, entity_hashes))})"
-        )
+        requested_feature_names = requested_features or [f.name for f in table.features]
 
-        # Project only requested columns
-        columns = ["entity_key", "event_ts", "created_ts"]
-        if requested_features:
-            columns.extend(requested_features)
-        else:
-            columns.extend([f.name for f in table.features])
+        columns = [
+            "entity_key",
+            "entity_hash",
+            "event_ts",
+            "created_ts",
+            *requested_feature_names,
+        ]
+
+        scan = iceberg_table.scan(
+            row_filter=f"entity_hash IN ({','.join(map(str, entity_hashes))})",
+            selected_fields=tuple(columns),
+        )
 
         arrow_table = scan.to_arrow()
 
@@ -237,7 +240,7 @@ class IcebergOnlineStore(OnlineStore):
         return self._convert_arrow_to_feast(
             arrow_table,
             entity_keys,
-            requested_features or [f.name for f in table.features],
+            requested_feature_names,
             config,
         )
 
@@ -435,16 +438,16 @@ class IcebergOnlineStore(OnlineStore):
     def _build_partition_spec(self, config: IcebergOnlineStoreConfig):
         """Build partition specification based on strategy."""
         from pyiceberg.partitioning import PartitionField, PartitionSpec
-        from pyiceberg.transforms import BucketTransform, DayTransform, HourTransform
+        from pyiceberg.transforms import DayTransform, HourTransform, IdentityTransform
 
         if config.partition_strategy == "entity_hash":
-            # Partition by entity_hash modulo partition_count
+            # Partition by entity_hash bucket id (0..partition_count-1)
             return PartitionSpec(
                 PartitionField(
                     source_id=2,  # entity_hash field
                     field_id=1000,
-                    transform=BucketTransform(config.partition_count),
-                    name="entity_hash_bucket",
+                    transform=IdentityTransform(),
+                    name="entity_hash",
                 )
             )
         elif config.partition_strategy == "timestamp":
@@ -463,8 +466,8 @@ class IcebergOnlineStore(OnlineStore):
                 PartitionField(
                     source_id=2,
                     field_id=1000,
-                    transform=BucketTransform(config.partition_count),
-                    name="entity_hash_bucket",
+                    transform=IdentityTransform(),
+                    name="entity_hash",
                 ),
                 PartitionField(
                     source_id=3,
