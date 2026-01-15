@@ -33,6 +33,7 @@ Welcome! This README provides a comprehensive guide to the Apache Iceberg storag
 **Planning Production Deployment?**
 - [Design Specifications](#design-specifications) - Architecture details
 - [Cloudflare R2 Configuration](#cloudflare-r2) - Cost-effective storage
+- [Production-Readiness Hardening](iceberg_production_readiness_hardening.md) - Audit findings + scheduled next tasks
 
 ### Quick Links
 
