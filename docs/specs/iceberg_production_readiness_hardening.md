@@ -59,17 +59,18 @@ A spec is considered production-ready when it is:
 ## Prioritized backlog + schedule
 
 ### P0 (Day 0–2): Make docs/specs accurate and internally consistent
-- [ ] Update `docs/reference/offline-stores/iceberg.md` examples to:
-  - [ ] use `offline_store.type: iceberg`
-  - [ ] use `IcebergSource(table_identifier=...)`
-- [ ] Ensure `docs/specs/iceberg_quickstart.md` matches current code (offline store type + IcebergSource args) (done).
-- [ ] Ensure `docs/specs/iceberg_online_store.md` does not contain contradictory status sections (done).
+- [x] Update `docs/reference/offline-stores/iceberg.md` examples to:
+  - [x] use `offline_store.type: iceberg`
+  - [x] use `IcebergSource(table_identifier=...)`
+- [x] Ensure `docs/specs/iceberg_quickstart.md` matches current code (offline store type + IcebergSource args).
+- [x] Ensure `docs/specs/iceberg_online_store.md` does not contain contradictory status sections.
 - [ ] Add a single “Supported / Not supported” callout to each spec (offline + online).
 
 ### P0 (Day 0–2): Close spec/impl gaps that affect correctness claims
-- [ ] Online store: apply real column projection in reads (so requested features don’t require full table scans).
-- [ ] Online store: validate partition strategy and pruning (ensure row filters align with partition spec and avoid double bucketing).
-- [ ] Online store: fix mutable default config (`storage_options`) to use a default factory.
+- [x] IcebergSource: implement `validate()` (fail fast on missing config and validate table access).
+- [x] Online store: apply real column projection in reads (so requested features don’t require full table scans).
+- [x] Online store: validate partition strategy and pruning (ensure row filters align with partition spec and avoid double bucketing).
+- [x] Online store: fix mutable default config (`storage_options`) to use a default factory.
 
 ### P1 (Week 1): Operability + security hardening in docs/specs
 - [ ] Add “Failure modes & runbook” sections:
@@ -111,3 +112,29 @@ Until benchmarks exist, the docs should treat online performance as a **target r
   - p95 <= 200ms
 
 Benchmarks in P2 should validate this target (and tighten or relax it with evidence).
+
+## Certification smoke checklist
+
+These are the **deterministic** steps to validate the initial certified matrix.
+
+### Certified: SQL catalog + filesystem warehouse
+
+Use the local end-to-end example:
+
+```bash
+cd examples/iceberg-local
+uv run python run_example.py
+```
+
+### Certified: REST catalog + S3-compatible warehouse (MinIO / AWS S3)
+
+Use the REST+MinIO smoke stack and script:
+
+```bash
+cd examples/iceberg-rest-minio
+docker compose up -d
+PYTHONPATH=../../sdk/python python smoke_test.py
+docker compose down -v
+```
+
+The goal is connectivity + basic write/read correctness (not benchmarking).

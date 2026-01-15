@@ -691,6 +691,21 @@ build-helm-docs: ## Build helm docs
 	cd ${ROOT_DIR}/infra/charts/feast; helm-docs
 	cd ${ROOT_DIR}/infra/charts/feast-feature-server; helm-docs
 
+
+##@ Iceberg
+
+iceberg-smoke-sql: ## Run Iceberg SQL+filesystem smoke example
+	cd $(ROOT_DIR)/examples/iceberg-local && uv run python run_example.py
+
+iceberg-smoke-rest-minio-up: ## Start Iceberg REST+MinIO docker compose
+	cd $(ROOT_DIR)/examples/iceberg-rest-minio && docker compose up -d
+
+iceberg-smoke-rest-minio: iceberg-smoke-rest-minio-up ## Run Iceberg REST+MinIO smoke test
+	cd $(ROOT_DIR)/examples/iceberg-rest-minio && PYTHONPATH=$(ROOT_DIR)/sdk/python python smoke_test.py
+
+iceberg-smoke-rest-minio-down: ## Stop Iceberg REST+MinIO docker compose
+	cd $(ROOT_DIR)/examples/iceberg-rest-minio && docker compose down -v
+
 ##@ Web UI
 # Note: these require node and yarn to be installed
 
