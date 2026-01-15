@@ -224,7 +224,7 @@ def plan(
     repo_config: RepoConfig,
     repo_path: Path,
     skip_source_validation: bool,
-    skip_validation: bool = False,
+    skip_feature_view_validation: bool = False,
 ):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
@@ -239,7 +239,9 @@ def plan(
             for data_source in data_sources:
                 provider.validate_data_source(store.config, data_source)
 
-        registry_diff, infra_diff, _ = store.plan(repo, skip_validation=skip_validation)
+        registry_diff, infra_diff, _ = store.plan(
+            repo, skip_feature_view_validation=skip_feature_view_validation
+        )
         click.echo(registry_diff.to_string())
         click.echo(infra_diff.to_string())
 
@@ -339,7 +341,7 @@ def apply_total_with_repo_instance(
     registry: BaseRegistry,
     repo: RepoContents,
     skip_source_validation: bool,
-    skip_validation: bool = False,
+    skip_feature_view_validation: bool = False,
 ):
     if not skip_source_validation:
         provider = store._get_provider()
@@ -358,7 +360,7 @@ def apply_total_with_repo_instance(
 
     if store._should_use_plan():
         registry_diff, infra_diff, new_infra = store.plan(
-            repo, skip_validation=skip_validation
+            repo, skip_feature_view_validation=skip_feature_view_validation
         )
         click.echo(registry_diff.to_string())
 
@@ -369,7 +371,7 @@ def apply_total_with_repo_instance(
             all_to_apply,
             objects_to_delete=all_to_delete,
             partial=False,
-            skip_validation=skip_validation,
+            skip_feature_view_validation=skip_feature_view_validation,
         )
         log_infra_changes(views_to_keep, views_to_delete)
 
@@ -413,7 +415,7 @@ def apply_total(
     repo_config: RepoConfig,
     repo_path: Path,
     skip_source_validation: bool,
-    skip_validation: bool = False,
+    skip_feature_view_validation: bool = False,
 ):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
@@ -429,7 +431,12 @@ def apply_total(
         # TODO: When we support multiple projects in a single repo, we should filter repo contents by project. Currently there is no way to associate Feast objects to project.
         print(f"Applying changes for project {project.name}")
         apply_total_with_repo_instance(
-            store, project.name, registry, repo, skip_source_validation, skip_validation
+            store,
+            project.name,
+            registry,
+            repo,
+            skip_source_validation,
+            skip_feature_view_validation,
         )
 
 
