@@ -1,0 +1,59 @@
+services:
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  mc:
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: [
+      "/bin/sh",
+      "-c",
+      "mc alias set local http://minio:9000 minio minio123 && mc mb -p local/warehouse || true && mc anonymous set download local/warehouse || true"
+    ]
+
+  iceberg-rest:
+    image: tabulario/iceberg-rest@sha256:3b7d31bdfec626b68e97531c9778a1b9119659e456fe28545a49f6aa6a9ce472
+    depends_on:
+      minio:
+        condition: service_healthy
+    ports:
+      - "8181:8181"
+    environment:
+      # Iceberg REST catalog configuration
+      CATALOG_WAREHOUSE: s3://warehouse/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+
+      # Iceberg S3FileIO properties (note: __ maps to '-')
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      CATALOG_S3_ACCESS__KEY__ID: minio
+      CATALOG_S3_SECRET__ACCESS__KEY: minio123
+
+      # S3 credentials (MinIO)
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
+      AWS_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://minio:9000
+      AWS_ENDPOINT_URL_S3: http://minio:9000
+
+      # Many S3-compatible stores require path-style access.
+      AWS_S3_PATH_STYLE_ACCESS: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8181/v1/config"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
