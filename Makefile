@@ -27,7 +27,7 @@ ifeq ($(shell uname -s), Darwin)
 	OS = osx
 endif
 TRINO_VERSION ?= 376
-PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
+PYTHON_VERSION = ${shell uv python find --show-version | cut -d. -f1,2}
 
 PYTHON_VERSIONS := 3.10 3.11 3.12
 
@@ -709,6 +709,16 @@ iceberg-smoke-rest-minio: iceberg-uv-sync iceberg-smoke-rest-minio-up ## Run Ice
 
 iceberg-smoke-rest-minio-down: ## Stop Iceberg REST+MinIO docker compose
 	cd $(ROOT_DIR)/examples/iceberg-rest-minio && docker compose down -v
+
+iceberg-certify: ## Run certified Iceberg smoke checks
+	@set -e; \
+	uv sync --extra iceberg; \
+	cd $(ROOT_DIR)/examples/iceberg-local && PYTHONPATH=$(ROOT_DIR)/sdk/python uv run python run_example.py; \
+	cd $(ROOT_DIR)/examples/iceberg-rest-minio && docker compose up -d; \
+	status=0; \
+	PYTHONPATH=$(ROOT_DIR)/sdk/python uv run python $(ROOT_DIR)/examples/iceberg-rest-minio/smoke_test.py || status=$$?; \
+	cd $(ROOT_DIR)/examples/iceberg-rest-minio && docker compose down -v; \
+	exit $$status
 
 ##@ Web UI
 # Note: these require node and yarn to be installed
