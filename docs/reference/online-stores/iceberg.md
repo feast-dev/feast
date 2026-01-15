@@ -41,10 +41,6 @@ In order to use this online store, you'll need to install the Iceberg dependenci
 uv sync --extra iceberg
 ```
 
-Or if using pip:
-```bash
-pip install 'feast[iceberg]'
-```
 
 This installs:
 * `pyiceberg[sql,duckdb]>=0.8.0` - Native Iceberg table operations

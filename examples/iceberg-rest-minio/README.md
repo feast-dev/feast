@@ -15,7 +15,7 @@ It validates that Feast’s Iceberg offline/online store integrations can:
 ## Prerequisites
 
 - Docker + docker compose
-- Python with `pyiceberg`, `pyarrow`, and `duckdb` available
+- `uv` (run `uv sync --extra iceberg` from the repo root)
 
 From the Feast repo root, run the smoke test using the repo sources:
 
@@ -26,8 +26,11 @@ cd examples/iceberg-rest-minio
 
 docker compose up -d
 
-# Run smoke test against the REST catalog
-PYTHONPATH=../../sdk/python python smoke_test.py
+# Ensure dependencies are present
+uv sync --extra iceberg
+
+# Run smoke test against the REST catalog (use repo sources)
+PYTHONPATH=../../sdk/python uv run python smoke_test.py
 
 docker compose down -v
 ```

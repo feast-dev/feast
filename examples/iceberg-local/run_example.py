@@ -10,7 +10,7 @@ This script demonstrates:
 5. Retrieving historical features (point-in-time correct)
 
 Requirements:
-    pip install feast[iceberg]
+    uv sync --extra iceberg
 """
 
 import os

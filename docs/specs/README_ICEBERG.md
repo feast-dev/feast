@@ -57,15 +57,13 @@ Welcome! This README provides a comprehensive guide to the Apache Iceberg storag
 # Install Feast with Iceberg support
 uv sync --extra iceberg
 
-# Or using pip
-pip install 'feast[iceberg]'
 ```
 
 ### Run Local Example
 
 ```bash
 cd examples/iceberg-local
-uv run python run_example.py
+PYTHONPATH=../../sdk/python uv run python run_example.py
 ```
 
 This will:

@@ -17,12 +17,19 @@ This example shows:
 
 ## Installation
 
-```bash
-# Install Feast with Iceberg support
-pip install feast[iceberg]
+This repo uses an **uv-native** workflow (no pip).
 
-# Or using uv (recommended)
-uv pip install feast[iceberg]
+From the repo root:
+
+```bash
+uv sync --extra iceberg
+```
+
+Then run the example:
+
+```bash
+cd examples/iceberg-local
+PYTHONPATH=../../sdk/python uv run python run_example.py
 ```
 
 ## Project Structure
@@ -46,7 +53,7 @@ iceberg-local/
 Run the complete example:
 
 ```bash
-python run_example.py
+PYTHONPATH=../../sdk/python uv run python run_example.py
 ```
 
 This script will:
@@ -255,24 +262,23 @@ For production workloads, consider:
 ### PyArrow version conflicts
 ```bash
 # Ensure Python < 3.13
-python --version
+uv run python --version
 
 # Reinstall with explicit PyArrow version
-pip install pyarrow==15.0.0 feast[iceberg]
 ```
 
 ### Catalog errors
 ```bash
 # Remove and recreate catalog
 rm -rf data/
-python run_example.py
+PYTHONPATH=../../sdk/python uv run python run_example.py
 ```
 
 ### Import errors
 ```bash
 # Ensure you're in the example directory
 cd examples/iceberg-local
-python run_example.py
+PYTHONPATH=../../sdk/python uv run python run_example.py
 ```
 
 ## Next Steps

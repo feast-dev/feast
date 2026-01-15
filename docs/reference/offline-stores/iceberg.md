@@ -37,10 +37,6 @@ In order to use this offline store, you'll need to install the Iceberg dependenc
 uv sync --extra iceberg
 ```
 
-Or if using pip:
-```bash
-pip install 'feast[iceberg]'
-```
 
 This installs:
 * `pyiceberg[sql,duckdb]>=0.8.0` - Native Iceberg table operations

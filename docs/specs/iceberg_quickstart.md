@@ -30,13 +30,6 @@ uv sync --extra iceberg
 # Or add to an existing project
 uv add "feast[iceberg]"
 ```
-
-### Using pip
-
-```bash
-pip install "feast[iceberg]"
-```
-
 This installs:
 - `pyiceberg[sql,duckdb]>=0.8.0` - Native Iceberg support
 - `duckdb>=1.0.0` - SQL engine for joins

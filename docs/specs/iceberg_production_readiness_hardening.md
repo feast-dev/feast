@@ -122,8 +122,9 @@ These are the **deterministic** steps to validate the initial certified matrix.
 Use the local end-to-end example:
 
 ```bash
+uv sync --extra iceberg
 cd examples/iceberg-local
-uv run python run_example.py
+PYTHONPATH=../../sdk/python uv run python run_example.py
 ```
 
 ### Certified: REST catalog + S3-compatible warehouse (MinIO / AWS S3)
@@ -131,9 +132,10 @@ uv run python run_example.py
 Use the REST+MinIO smoke stack and script:
 
 ```bash
+uv sync --extra iceberg
 cd examples/iceberg-rest-minio
 docker compose up -d
-PYTHONPATH=../../sdk/python python smoke_test.py
+PYTHONPATH=../../sdk/python uv run python smoke_test.py
 docker compose down -v
 ```
 
