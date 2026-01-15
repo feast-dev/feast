@@ -2,6 +2,8 @@
 
 **Status**: Draft backlog + schedule
 
+**Last updated**: 2026-01-15
+
 This document tracks the work needed to move the Iceberg offline/online store specs and documentation from "implemented" to "production-ready" (clear contracts, correct examples, operational guidance, and repeatable validation).
 
 ## What “production-ready” means for these specs
@@ -41,9 +43,9 @@ A spec is considered production-ready when it is:
 
 ### P0: Documentation correctness gaps
 - **IcebergSource constructor mismatch**: Some docs use `IcebergSource(table=...)` but the implementation uses `IcebergSource(table_identifier=...)`.
-  - Affected: `docs/reference/offline-stores/iceberg.md` (needs update), `docs/specs/iceberg_quickstart.md` (fixed).
+  - Affected: `docs/reference/offline-stores/iceberg.md` (fixed), `docs/specs/iceberg_quickstart.md` (fixed).
 - **Offline store type string mismatch**: Some docs show a fully-qualified class path for `offline_store.type`, but the implementation expects `type: iceberg`.
-  - Affected: `docs/reference/offline-stores/iceberg.md` (needs update), `docs/specs/iceberg_quickstart.md` (fixed).
+  - Affected: `docs/reference/offline-stores/iceberg.md` (fixed), `docs/specs/iceberg_quickstart.md` (fixed).
 - **Online spec contradictions**: `docs/specs/iceberg_online_store.md` contained an outdated “Phase 3 not started” checklist despite being marked complete.
   - Fixed: replaced the outdated section with a “Known Limitations / Hardening Backlog” pointer.
 
@@ -58,13 +60,20 @@ A spec is considered production-ready when it is:
 
 ## Prioritized backlog + schedule
 
+### Next tasks (recommended order)
+- Week 1: Fill in the config contract tables (required/optional keys per catalog type) and add offline/online runbooks for common failures.
+- Week 1: Add security guidance for `storage_options` (secrets, least-privilege, endpoint/TLS expectations).
+- Week 2: Add maintenance guidance (compaction, file sizing, metadata growth, retention patterns).
+- Week 2: Define the minimal CI gate (run `make iceberg-certify` on a nightly schedule; keep unit tests on PR).
+
+
 ### P0 (Day 0–2): Make docs/specs accurate and internally consistent
 - [x] Update `docs/reference/offline-stores/iceberg.md` examples to:
   - [x] use `offline_store.type: iceberg`
   - [x] use `IcebergSource(table_identifier=...)`
 - [x] Ensure `docs/specs/iceberg_quickstart.md` matches current code (offline store type + IcebergSource args).
 - [x] Ensure `docs/specs/iceberg_online_store.md` does not contain contradictory status sections.
-- [ ] Add a single “Supported / Not supported” callout to each spec (offline + online).
+- [x] Add a single “Supported / Not supported” callout to each spec (offline + online).
 
 ### P0 (Day 0–2): Close spec/impl gaps that affect correctness claims
 - [x] IcebergSource: implement `validate()` (fail fast on missing config and validate table access).
@@ -87,7 +96,7 @@ A spec is considered production-ready when it is:
 
 ### P2 (Weeks 2–3): Validation gates + benchmarking
 - [ ] Define a minimal CI gate for Iceberg (lint + targeted integration tests).
-- [ ] Add a manual certification checklist using `examples/iceberg-local/`.
+- [x] Add a manual certification checklist using `examples/iceberg-local/` and `make iceberg-certify`.
 - [ ] Add a benchmark harness plan (and optionally initial benchmark results) tied to spec latency targets.
 
 ## Proposed “certified matrix” (initial)
@@ -116,6 +125,14 @@ Benchmarks in P2 should validate this target (and tighten or relax it with evide
 ## Certification smoke checklist
 
 These are the **deterministic** steps to validate the initial certified matrix.
+
+### Single-command certification (recommended)
+
+```bash
+make iceberg-certify
+```
+
+This runs both certified configurations (SQL+filesystem, then REST+MinIO) and tears down docker containers/volumes at the end.
 
 ### Certified: SQL catalog + filesystem warehouse
 
