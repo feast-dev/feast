@@ -51,12 +51,31 @@ Creates or updates a feature store deployment
 feast apply
 ```
 
+**Options:**
+* `--skip-source-validation`: Skip validation of data sources (don't check if tables exist)
+* `--skip-feature-view-validation`: Skip validation of feature views. Use with caution as this skips important checks
+
+```bash
+# Skip only data source validation
+feast apply --skip-source-validation
+
+# Skip only feature view validation
+feast apply --skip-feature-view-validation
+
+# Skip both validations
+feast apply --skip-source-validation --skip-feature-view-validation
+```
+
 **What does Feast apply do?**
 
 1. Feast will scan Python files in your feature repository and find all Feast object definitions, such as feature views, entities, and data sources.
-2. Feast will validate your feature definitions (e.g. for uniqueness of features)
+2. Feast will validate your feature definitions (e.g. for uniqueness of features). This validation can be skipped using the `--skip-feature-view-validation` flag if the type/validation system is being overly strict.
 3. Feast will sync the metadata about Feast objects to the registry. If a registry does not exist, then it will be instantiated. The standard registry is a simple protobuf binary file that is stored on disk \(locally or in an object store\).
 4. Feast CLI will create all necessary feature store infrastructure. The exact infrastructure that is deployed or configured depends on the `provider` configuration that you have set in `feature_store.yaml`. For example, setting `local` as your provider will result in a `sqlite` online store being created. 
+
+{% hint style="info" %}
+The `--skip-feature-view-validation` flag is particularly useful for On-Demand Feature Views (ODFVs) with complex transformations that may fail validation. However, use it with caution and please report any validation issues to the Feast team on GitHub.
+{% endhint %}
 
 {% hint style="warning" %}
 `feast apply` \(when configured to use cloud provider like `gcp` or `aws`\) will create cloud infrastructure. This may incur costs.
