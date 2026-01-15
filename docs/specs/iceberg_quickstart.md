@@ -65,7 +65,7 @@ provider: local
 
 # Offline store for feature engineering
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: sql
     catalog_name: feast_catalog
     uri: sqlite:///data/iceberg_catalog.db
@@ -105,7 +105,7 @@ driver = Entity(
 # Define Iceberg data source
 driver_stats_source = IcebergSource(
     name="driver_hourly_stats",
-    table="feast.driver_hourly_stats",
+    table_identifier="feast.driver_hourly_stats",
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
@@ -258,7 +258,7 @@ registry: s3://feast-registry/registry.db
 provider: aws
 
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: rest
     catalog_name: feast_catalog
     uri: http://iceberg-rest:8181
@@ -288,7 +288,7 @@ online_store:
 
 ```yaml
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: glue
     catalog_name: feast_catalog
     warehouse: s3://data-lake/warehouse
