@@ -150,54 +150,21 @@ def online_read(
 
 ## Implementation Status
 
-### Current State (Phase 3 - Not Started)
-- [ ] `IcebergOnlineStore` class
-- [ ] `IcebergOnlineStoreConfig` configuration
-- [ ] `online_write_batch` method
-- [ ] `online_read` method
-- [ ] `update` method
-- [ ] Partition strategy implementation
-- [ ] Universal test integration
+✅ **COMPLETE** - All phases finished 2026-01-14
 
-### Known Limitations
-1. **Higher Latency than Redis**: Expected 50-100ms vs 1-5ms for Redis
-2. **Write Amplification**: Each write creates new Parquet file (mitigated by batching)
-3. **No Transactions**: Eventual consistency model
-4. **Compaction Required**: Periodic compaction needed to maintain performance
+### Known Limitations (Production Notes)
+1. **Higher latency than Redis**: Expect ~50-100ms p95 depending on table size and partitioning.
+2. **No TTL / automatic expiry**: Retention and cleanup are external responsibilities (e.g., scheduled compaction + retention jobs).
+3. **No concurrent write guarantees per key**: Avoid concurrent materialization/writes to the same entity key without external coordination.
+4. **Python-only readers**: Not readable by Java or Go SDKs.
+5. **Compaction required**: Periodic compaction is needed to avoid small-file overhead and metadata growth.
 
-### Use Cases
-- **Near-line serving**: Features that update hourly/daily
-- **Cost-sensitive deployments**: Avoid Redis infrastructure costs
-- **Analytical serving**: Hybrid OLAP/OLTP workloads
-- **Archival with serving**: Serve historical features directly
-- **Development/testing**: Simpler setup than Redis
+### Validation & Performance Work
+- **Integration tests**: Implemented (see `sdk/python/tests/integration/online_store/test_iceberg_online_store.py`).
+- **Benchmarking**: Required to turn the latency targets in this spec into measured, repeatable numbers.
 
-## Testing Strategy
-
-### Unit Tests
-- Partition hash calculation
-- Arrow conversion (Feast <-> Arrow)
-- Metadata filtering logic
-
-### Integration Tests (Universal Test Suite)
-- Write batch and read consistency
-- Partition pruning effectiveness
-- Concurrent write handling
-- Schema evolution
-
-### Performance Benchmarks
-- Latency percentiles (p50, p95, p99)
-- Throughput (reads/writes per second)
-- Storage efficiency vs Redis
-- Compaction overhead
-
-## Next Steps (Phase 3)
-1. Implement `IcebergOnlineStoreConfig` with partition strategy options
-2. Implement `online_write_batch` with entity_hash partitioning
-3. Implement `online_read` with metadata pruning
-4. Add to universal online store tests
-5. Performance benchmarking vs Redis/DynamoDB
-6. Documentation and examples
+### Hardening Backlog
+See `docs/specs/iceberg_production_readiness_hardening.md` for the production-readiness audit findings and scheduled next tasks.
 
 ## Final Implementation Details (Updated 2026-01-15)
 
