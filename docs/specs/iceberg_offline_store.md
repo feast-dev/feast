@@ -70,7 +70,7 @@ source = IcebergSource(
 - **Read Strategy**: Hybrid COW/MOR detection based on Iceberg delete file manifests.
 - **Interface**: Implemented both `pull_latest_from_table_or_query` and `pull_all_from_table_or_query` as `@staticmethod` to match Feast 0.38+ requirements.
 - **Catalog Support**: Explicit support for REST, SQL, Hive, and Glue catalogs.
-- **Dependencies**: `pyiceberg[sql,duckdb,pyiceberg-core]`, `duckdb`.
+- **Dependencies**: `pyiceberg[sql,duckdb]>=0.8.0`, `duckdb>=1.0.0`.
 
 ### Technical Stats
 - **Implementation**: 285 lines
@@ -78,8 +78,8 @@ source = IcebergSource(
 - **Status**: Production Ready ✅
 
 ## Requirements
-- `pyiceberg[s3,glue,sql]`
-- `duckdb`
+- `pyiceberg[sql,duckdb]>=0.8.0` (plus catalog/storage extras as needed: `s3`, `glue`, `hive`)
+- `duckdb>=1.0.0`
 - `pyarrow`
 
 ## Known Upstream Dependency Warnings

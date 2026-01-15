@@ -169,11 +169,11 @@ See `docs/specs/iceberg_production_readiness_hardening.md` for the production-re
 ## Final Implementation Details (Updated 2026-01-15)
 
 - **Partitioning**: Entity Hash (default), Timestamp, or Hybrid.
-- **Performance**: Metadata-based partition pruning using `pyiceberg-core` Rust transforms for extremely fast partition discovery.
+- **Performance**: Metadata-based partition pruning using Iceberg partition metadata for efficient file/partition selection.
 - **Schema**: Nullable fields for all features to ensure robust ingestion during materialization.
 - **Consistency**: Automatic selection of the latest record by `event_ts` during read operations.
 - **Lifecycle**: Complete `update` and `teardown` implementation for Iceberg table management.
-- **Dependencies**: `pyiceberg-core` is required for high-performance partitioning.
+- **Dependencies**: `pyiceberg` (Iceberg table operations) and `pyarrow` (Arrow conversion).
 
 ### Technical Stats
 - **Implementation**: 620 lines
