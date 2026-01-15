@@ -849,6 +849,10 @@ class FeatureStore:
         an online store), it will commit the updated registry. All operations are idempotent, meaning they can safely
         be rerun.
 
+        Note: The apply method does NOT delete objects that are removed from the provided list. To delete objects
+        from the registry, use explicit delete methods like delete_feature_view(), delete_feature_service(), or
+        pass objects to the objects_to_delete parameter with partial=False.
+
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
             objects_to_delete: A list of objects to be deleted from the registry and removed from the
