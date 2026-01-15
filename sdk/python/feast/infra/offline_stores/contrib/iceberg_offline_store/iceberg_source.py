@@ -67,8 +67,14 @@ class IcebergSource(DataSource):
         return data_source_proto
 
     def validate(self, config: RepoConfig):
-        # TODO: Add validation logic
-        pass
+        if not self.table_identifier:
+            raise ValueError("IcebergSource requires a non-empty table_identifier")
+
+        if not self.timestamp_field:
+            raise ValueError("IcebergSource requires timestamp_field to be set")
+
+        # Validate catalog connectivity and table existence by resolving schema.
+        list(self.get_table_column_names_and_types(config))
 
     def get_table_column_names_and_types(
         self, config: RepoConfig
