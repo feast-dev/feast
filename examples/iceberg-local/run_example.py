@@ -48,7 +48,7 @@ def create_sample_data() -> pd.DataFrame:
     start_date = end_date - timedelta(days=7)
 
     # Generate hourly timestamps
-    timestamps = pd.date_range(start_date, end_date, freq="1H")
+    timestamps = pd.date_range(start_date, end_date, freq="1h")
 
     # Create sample data for 5 drivers
     driver_ids = [1001, 1002, 1003, 1004, 1005]
@@ -89,6 +89,9 @@ def setup_iceberg_table(df: pd.DataFrame):
         df: DataFrame with driver statistics
     """
     print("\n=== Setting Up Iceberg Table ===")
+
+    os.makedirs("data", exist_ok=True)
+    os.makedirs("data/warehouse", exist_ok=True)
 
     # Create catalog
     catalog = load_catalog(
