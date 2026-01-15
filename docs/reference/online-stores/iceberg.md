@@ -4,6 +4,16 @@
 
 The Iceberg online store provides a "near-line" serving option using [Apache Iceberg](https://iceberg.apache.org/) tables with [PyIceberg](https://py.iceberg.apache.org/). It trades some latency (50-100ms) for significant operational simplicity and cost efficiency compared to traditional in-memory stores like Redis.
 
+## Status (Beta)
+
+Iceberg online store support is currently **Beta/Experimental**. Production-readiness hardening is in progress (notably correctness/performance work around partition pruning, projection, and config validation).
+
+**Certified configurations (initial):**
+- SQL catalog + local filesystem warehouse
+- REST catalog + S3-compatible warehouse (MinIO for development; AWS S3 for production)
+
+Hardening backlog and validation plan: `docs/specs/iceberg_production_readiness_hardening.md`.
+
 **Key Features:**
 * Native Iceberg table format for online serving
 * Metadata-based partition pruning for efficient lookups
@@ -13,8 +23,8 @@ The Iceberg online store provides a "near-line" serving option using [Apache Ice
 * Object storage cost vs in-memory cost (orders of magnitude cheaper)
 * Batch-oriented writes for materialization efficiency
 
-**Performance Characteristics:**
-* Read latency (p95): 50-100ms (vs <10ms for Redis)
+**Performance Characteristics (target, pending benchmarks):**
+* Read latency (warm metadata, entity_hash, batch <= 100): p50 <= 75ms, p95 <= 200ms
 * Write throughput: Batch-dependent (1000-10000 records/sec)
 * Storage cost: Object storage (S3/GCS) vs RAM/SSD
 * Operational complexity: Low (reuses Iceberg catalog)
@@ -50,7 +60,7 @@ project: my_project
 registry: data/registry.db
 provider: local
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: rest
     catalog_name: feast_catalog
     uri: http://localhost:8181

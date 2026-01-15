@@ -4,6 +4,16 @@
 
 The Iceberg offline store provides native support for [Apache Iceberg](https://iceberg.apache.org/) tables using [PyIceberg](https://py.iceberg.apache.org/). It offers a modern, open table format with ACID transactions, schema evolution, and time travel capabilities for feature engineering at scale.
 
+## Status (Beta)
+
+Iceberg offline store support is currently **Beta/Experimental**. The implementation is usable, but production-readiness hardening is in progress.
+
+**Certified configurations (initial):**
+- SQL catalog + local filesystem warehouse
+- REST catalog + S3-compatible warehouse (MinIO for development; AWS S3 for production)
+
+Hardening backlog and validation plan: `docs/specs/iceberg_production_readiness_hardening.md`.
+
 **Key Features:**
 * Native Iceberg table format support via PyIceberg
 * Hybrid read strategy: Copy-on-Write (COW) and Merge-on-Read (MOR) optimization

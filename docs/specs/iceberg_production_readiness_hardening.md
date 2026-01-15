@@ -91,13 +91,23 @@ A spec is considered production-ready when it is:
 
 ## Proposed “certified matrix” (initial)
 
-Start with a small certified set and expand:
+Initial certification targets (expand over time):
 
 - **Certified (initial)**:
   - SQL catalog + local filesystem warehouse
-  - SQL catalog + S3-compatible warehouse (e.g., MinIO / R2), if credentials patterns are documented
+  - REST catalog + S3-compatible warehouse (MinIO for development; AWS S3 for production)
 - **Documented (not yet certified)**:
-  - REST catalog + S3
   - AWS Glue catalog + S3
   - Hive catalog
+  - Cloudflare R2 Data Catalog (Beta)
 
+
+## Online-store performance target ("good enough")
+
+Until benchmarks exist, the docs should treat online performance as a **target range** rather than a guarantee.
+
+- **Target (warm metadata, entity_hash, partition_count=256, batch <= 100, <= 20 feature columns)**:
+  - p50 <= 75ms
+  - p95 <= 200ms
+
+Benchmarks in P2 should validate this target (and tighten or relax it with evidence).
