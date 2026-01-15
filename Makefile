@@ -694,14 +694,18 @@ build-helm-docs: ## Build helm docs
 
 ##@ Iceberg
 
-iceberg-smoke-sql: ## Run Iceberg SQL+filesystem smoke example
-	cd $(ROOT_DIR)/examples/iceberg-local && uv run python run_example.py
+iceberg-uv-sync: ## Sync uv deps with Iceberg extras
+	uv sync --extra iceberg
+
+
+iceberg-smoke-sql: iceberg-uv-sync ## Run Iceberg SQL+filesystem smoke example
+	cd $(ROOT_DIR)/examples/iceberg-local && PYTHONPATH=$(ROOT_DIR)/sdk/python uv run python run_example.py
 
 iceberg-smoke-rest-minio-up: ## Start Iceberg REST+MinIO docker compose
 	cd $(ROOT_DIR)/examples/iceberg-rest-minio && docker compose up -d
 
-iceberg-smoke-rest-minio: iceberg-smoke-rest-minio-up ## Run Iceberg REST+MinIO smoke test
-	cd $(ROOT_DIR)/examples/iceberg-rest-minio && PYTHONPATH=$(ROOT_DIR)/sdk/python python smoke_test.py
+iceberg-smoke-rest-minio: iceberg-uv-sync iceberg-smoke-rest-minio-up ## Run Iceberg REST+MinIO smoke test
+	cd $(ROOT_DIR)/examples/iceberg-rest-minio && PYTHONPATH=$(ROOT_DIR)/sdk/python uv run python smoke_test.py
 
 iceberg-smoke-rest-minio-down: ## Stop Iceberg REST+MinIO docker compose
 	cd $(ROOT_DIR)/examples/iceberg-rest-minio && docker compose down -v
