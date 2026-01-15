@@ -46,7 +46,7 @@ project: my_project
 registry: data/registry.db
 provider: local
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: rest
     catalog_name: feast_catalog
     uri: http://localhost:8181
@@ -66,7 +66,7 @@ project: my_project
 registry: data/registry.db
 provider: local
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: glue
     catalog_name: feast_catalog
     warehouse: s3://my-bucket/warehouse
@@ -89,7 +89,7 @@ project: my_project
 registry: data/registry.db
 provider: local
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: sql
     catalog_name: feast_catalog
     uri: sqlite:///data/iceberg_catalog.db
@@ -107,7 +107,7 @@ The full set of configuration options is available in `IcebergOfflineStoreConfig
 
 | Option | Type | Required | Default | Description |
 |--------|------|----------|---------|-------------|
-| `type` | str | Yes | - | Must be `feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore` |
+| `type` | str | Yes | - | Must be `iceberg` |
 | `catalog_type` | str | Yes | `"rest"` | Type of Iceberg catalog: `rest`, `glue`, `hive`, `sql` |
 | `catalog_name` | str | Yes | `"feast_catalog"` | Name of the Iceberg catalog |
 | `uri` | str | No | - | Catalog URI (required for REST/SQL catalogs) |
@@ -129,7 +129,7 @@ from feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg_source imp
 # Define an Iceberg data source
 my_iceberg_source = IcebergSource(
     name="driver_stats",
-    table="feast.driver_hourly_stats",  # namespace.table_name
+    table_identifier="feast.driver_hourly_stats",  # namespace.table_name
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
@@ -220,7 +220,7 @@ historical_features = store.get_historical_features(
 
 ```yaml
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: rest
     catalog_name: feast_catalog
     uri: http://iceberg-rest:8181
@@ -231,7 +231,7 @@ offline_store:
 
 ```yaml
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: glue
     catalog_name: feast_catalog
     warehouse: s3://data-lake/warehouse
@@ -243,7 +243,7 @@ offline_store:
 
 ```yaml
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: hive
     catalog_name: feast_catalog
     uri: thrift://hive-metastore:9083
@@ -254,7 +254,7 @@ offline_store:
 
 ```yaml
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: sql
     catalog_name: feast_catalog
     uri: sqlite:///data/iceberg_catalog.db
@@ -269,7 +269,7 @@ Cloudflare R2 provides S3-compatible object storage that works seamlessly with I
 
 ```yaml
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: sql  # or rest, hive, glue
     catalog_name: r2_catalog
     uri: postgresql://user:pass@catalog-host:5432/iceberg  # Catalog database
@@ -294,7 +294,7 @@ Cloudflare R2 also supports native Iceberg REST catalogs:
 
 ```yaml
 offline_store:
-    type: feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.IcebergOfflineStore
+    type: iceberg
     catalog_type: rest
     catalog_name: r2_data_catalog
     uri: <r2-catalog-uri>  # From R2 Data Catalog dashboard
