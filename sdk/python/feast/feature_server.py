@@ -397,7 +397,7 @@ def get_app(
         # For now, just return dummy text
         return {"response": "This is a dummy response from the Feast feature server."}
 
-    @app.post("/read-document")
+    @app.post("/read-document", dependencies=[Depends(inject_user_details)])
     async def read_document_endpoint(request: ReadDocumentRequest):
         try:
             import os
@@ -412,7 +412,7 @@ def get_app(
         except Exception as e:
             return {"error": str(e)}
 
-    @app.post("/save-document")
+    @app.post("/save-document", dependencies=[Depends(inject_user_details)])
     async def save_document_endpoint(request: SaveDocumentRequest):
         try:
             import json
