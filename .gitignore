@@ -238,3 +238,6 @@ infra/website/.astro/
 
 # offline builds
 offline_build/
+
+# Iceberg examples
+examples/iceberg-local/data/
