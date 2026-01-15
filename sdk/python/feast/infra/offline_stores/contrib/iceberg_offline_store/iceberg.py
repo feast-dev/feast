@@ -18,6 +18,79 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import to_naive_utc
 
 
+def _configure_duckdb_httpfs(con: duckdb.DuckDBPyConnection, storage_options: Dict[str, str]) -> None:
+    """Configure DuckDB httpfs/S3 settings from Iceberg storage_options.
+
+    This is required for S3-compatible warehouses (MinIO/R2/custom endpoints) when using
+    DuckDB's `read_parquet([...])` fast path.
+    """
+
+    if not storage_options:
+        return
+
+    def _sql_str(value: str) -> str:
+        return value.replace("'", "''")
+
+    s3_endpoint = storage_options.get("s3.endpoint")
+    s3_region = storage_options.get("s3.region")
+    s3_access_key_id = storage_options.get("s3.access-key-id")
+    s3_secret_access_key = storage_options.get("s3.secret-access-key")
+    s3_session_token = storage_options.get("s3.session-token")
+
+    # Iceberg/PyIceberg supports `s3.path-style-access`.
+    # Some docs use `s3.force-virtual-addressing` (the inverse of path-style).
+    path_style_raw = storage_options.get("s3.path-style-access")
+    force_virtual_raw = storage_options.get("s3.force-virtual-addressing")
+
+    if any(
+        v is not None
+        for v in [
+            s3_endpoint,
+            s3_region,
+            s3_access_key_id,
+            s3_secret_access_key,
+            s3_session_token,
+            path_style_raw,
+            force_virtual_raw,
+        ]
+    ):
+        con.execute("INSTALL httpfs")
+        con.execute("LOAD httpfs")
+
+    if s3_region:
+        con.execute(f"SET s3_region='{_sql_str(s3_region)}'")
+
+    if s3_endpoint:
+        endpoint = str(s3_endpoint).rstrip('/')
+
+        if endpoint.startswith('http://'):
+            con.execute("SET s3_use_ssl=false")
+            endpoint = endpoint.removeprefix('http://')
+        elif endpoint.startswith('https://'):
+            con.execute("SET s3_use_ssl=true")
+            endpoint = endpoint.removeprefix('https://')
+
+        con.execute(f"SET s3_endpoint='{_sql_str(endpoint)}'")
+
+    if s3_access_key_id:
+        con.execute(f"SET s3_access_key_id='{_sql_str(s3_access_key_id)}'")
+
+    if s3_secret_access_key:
+        con.execute(f"SET s3_secret_access_key='{_sql_str(s3_secret_access_key)}'")
+
+    if s3_session_token:
+        con.execute(f"SET s3_session_token='{_sql_str(s3_session_token)}'")
+
+    # DuckDB setting: s3_url_style = 'path' | 'vhost'
+    if path_style_raw is not None:
+        if str(path_style_raw).lower() == 'true':
+            con.execute("SET s3_url_style='path'")
+
+    if force_virtual_raw is not None:
+        if str(force_virtual_raw).lower() == 'true':
+            con.execute("SET s3_url_style='vhost'")
+
+
 class IcebergOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["iceberg"] = "iceberg"
     """ Offline store type selector"""
@@ -75,6 +148,7 @@ class IcebergOfflineStore(OfflineStore):
 
         # 2. Setup DuckDB
         con = duckdb.connect(database=":memory:")
+        _configure_duckdb_httpfs(con, config.offline_store.storage_options)
 
         # Register entity_df
         if isinstance(entity_df, pd.DataFrame):
@@ -232,6 +306,7 @@ class IcebergOfflineStore(OfflineStore):
 
         # 2. Setup DuckDB and Load Table
         con = duckdb.connect(database=":memory:")
+        _configure_duckdb_httpfs(con, config.offline_store.storage_options)
         table_id = data_source.table_identifier
         if not table_id:
             raise ValueError(f"Table identifier missing for source {data_source.name}")
