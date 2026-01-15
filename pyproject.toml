@@ -89,7 +89,7 @@ ibis = [
     "poetry-dynamic-versioning",
 ]
 iceberg = [
-    "pyiceberg[sql,duckdb]>=0.8.0",
+    "pyiceberg[sql,duckdb,pyiceberg-core]>=0.8.0",
     "duckdb>=1.0.0",
 ]
 ikv = [

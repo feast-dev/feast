@@ -29,7 +29,17 @@ Design:
 import hashlib
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import pyarrow as pa
 from pydantic import StrictInt, StrictStr
@@ -38,14 +48,18 @@ from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 from pyiceberg.types import NestedField, StringType, TimestampType
 
+from feast import Entity
+from feast.batch_feature_view import BatchFeatureView
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.type_map import feast_value_type_to_pa_type
+from feast.stream_feature_view import StreamFeatureView
+from feast.type_map import feast_value_type_to_pa
 from feast.utils import to_naive_utc
+from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
 
@@ -230,10 +244,12 @@ class IcebergOnlineStore(OnlineStore):
     def update(
         self,
         config: RepoConfig,
-        tables_to_delete: List[FeatureView],
-        tables_to_keep: List[FeatureView],
-        entities_to_delete: List[Any],
-        entities_to_keep: List[Any],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
         partial: bool,
     ) -> None:
         """
@@ -258,16 +274,46 @@ class IcebergOnlineStore(OnlineStore):
                 online_config, config.project, table
             )
             try:
-                catalog.drop_table(table_identifier, purge=True)
+                catalog.drop_table(table_identifier)
                 logger.info(f"Deleted online table: {table_identifier}")
             except Exception as e:
                 logger.warning(f"Failed to delete table {table_identifier}: {e}")
 
         # Create tables
         for table in tables_to_keep:
-            self._get_or_create_online_table(
-                catalog, online_config, config.project, table
+            if isinstance(table, FeatureView):
+                self._get_or_create_online_table(
+                    catalog, online_config, config.project, table
+                )
+
+    def teardown(
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
+    ) -> None:
+        """
+        Tear down online store tables.
+
+        Args:
+            config: Feast repo configuration
+            tables: Feature views to delete
+            entities: Entities to delete (not used)
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, IcebergOnlineStoreConfig)
+
+        catalog = self._load_catalog(online_config)
+
+        for table in tables:
+            table_identifier = self._get_table_identifier(
+                online_config, config.project, table
             )
+            try:
+                catalog.drop_table(table_identifier)
+                logger.info(f"Deleted online table: {table_identifier}")
+            except Exception as e:
+                logger.warning(f"Failed to delete table {table_identifier}: {e}")
 
     # Helper methods
 
@@ -279,7 +325,7 @@ class IcebergOnlineStore(OnlineStore):
             **config.storage_options,
         }
 
-        if config.catalog_type == "rest" and config.uri:
+        if config.uri:
             catalog_config["uri"] = config.uri
 
         return load_catalog(config.catalog_name, **catalog_config)
@@ -325,17 +371,45 @@ class IcebergOnlineStore(OnlineStore):
         self, table: FeatureView, config: IcebergOnlineStoreConfig
     ) -> Schema:
         """Build Iceberg schema for online table."""
-        from pyiceberg.types import IntegerType
+        from pyiceberg.types import (
+            BinaryType,
+            BooleanType,
+            DoubleType,
+            FloatType,
+            IntegerType,
+            LongType,
+            StringType,
+            TimestampType,
+        )
+
+        def _pa_to_iceberg(pa_type: pa.DataType):
+            if pa_type == pa.bool_():
+                return BooleanType()
+            if pa_type == pa.int32():
+                return IntegerType()
+            if pa_type == pa.int64():
+                return LongType()
+            if pa_type == pa.float32():
+                return FloatType()
+            if pa_type == pa.float64():
+                return DoubleType()
+            if pa_type == pa.string():
+                return StringType()
+            if pa_type == pa.binary():
+                return BinaryType()
+            if isinstance(pa_type, pa.TimestampType):
+                return TimestampType()
+            raise TypeError(f"Unsupported Arrow type for Iceberg: {pa_type}")
 
         fields = [
             NestedField(
-                field_id=1, name="entity_key", type=StringType(), required=True
+                field_id=1, name="entity_key", type=StringType(), required=False
             ),
             NestedField(
-                field_id=2, name="entity_hash", type=IntegerType(), required=True
+                field_id=2, name="entity_hash", type=IntegerType(), required=False
             ),
             NestedField(
-                field_id=3, name="event_ts", type=TimestampType(), required=True
+                field_id=3, name="event_ts", type=TimestampType(), required=False
             ),
             NestedField(
                 field_id=4, name="created_ts", type=TimestampType(), required=False
@@ -345,10 +419,13 @@ class IcebergOnlineStore(OnlineStore):
         # Add feature columns
         field_id = 5
         for feature in table.features:
-            pa_type = feast_value_type_to_pa_type(feature.dtype)
+            pa_type = feast_value_type_to_pa(feature.dtype.to_value_type())
             fields.append(
                 NestedField(
-                    field_id=field_id, name=feature.name, type=pa_type, required=False
+                    field_id=field_id,
+                    name=feature.name,
+                    type=_pa_to_iceberg(pa_type),
+                    required=False,
                 )
             )
             field_id += 1
@@ -476,7 +553,7 @@ class IcebergOnlineStore(OnlineStore):
 
         # Add feature arrays
         for feature in table.features:
-            pa_type = feast_value_type_to_pa_type(feature.dtype)
+            pa_type = feast_value_type_to_pa(feature.dtype.to_value_type())
             arrays.append(pa.array(feature_data[feature.name], type=pa_type))
             schema_fields.append(pa.field(feature.name, pa_type))
 
@@ -500,7 +577,9 @@ class IcebergOnlineStore(OnlineStore):
         }
 
         # Group by entity_key and get latest record per entity
-        results = {key: (None, None) for key in entity_key_bins.keys()}
+        results: Dict[
+            str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+        ] = {key: (None, None) for key in entity_key_bins.keys()}
 
         if len(arrow_table) == 0:
             return [(None, None) for _ in entity_keys]
@@ -539,6 +618,6 @@ class IcebergOnlineStore(OnlineStore):
 
     def _python_to_value_proto(self, value: Any) -> ValueProto:
         """Convert Python value to Feast ValueProto."""
-        from feast.type_map import python_type_to_feast_value_type
+        from feast.type_map import python_values_to_proto_values
 
-        return python_type_to_feast_value_type(value)
+        return python_values_to_proto_values([value], ValueType.UNKNOWN)[0]

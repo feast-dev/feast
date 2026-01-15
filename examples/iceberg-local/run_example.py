@@ -116,9 +116,9 @@ def setup_iceberg_table(df: pd.DataFrame):
 
     # Define Iceberg schema
     iceberg_schema = Schema(
-        NestedField(1, "driver_id", LongType(), required=True),
-        NestedField(2, "event_timestamp", TimestampType(), required=True),
-        NestedField(3, "created", TimestampType(), required=True),
+        NestedField(1, "driver_id", LongType(), required=False),
+        NestedField(2, "event_timestamp", TimestampType(), required=False),
+        NestedField(3, "created", TimestampType(), required=False),
         NestedField(4, "conv_rate", FloatType(), required=False),
         NestedField(5, "acc_rate", FloatType(), required=False),
         NestedField(6, "avg_daily_trips", LongType(), required=False),
@@ -168,7 +168,9 @@ def run_feast_workflow():
 
     # Apply features from features.py
     print("\nApplying feature definitions...")
-    fs.apply(["features.py"])
+    from features import driver, driver_stats_fv, driver_activity_v1, driver_activity_v2
+
+    fs.apply([driver, driver_stats_fv, driver_activity_v1, driver_activity_v2])
     print("Applied entities, feature views, and feature services")
 
     # Materialize features to online store

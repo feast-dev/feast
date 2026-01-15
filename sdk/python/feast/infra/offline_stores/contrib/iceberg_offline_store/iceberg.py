@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import duckdb
 import pandas as pd
@@ -15,6 +15,7 @@ from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.utils import to_naive_utc
 
 
 class IcebergOfflineStoreConfig(FeastConfigBaseModel):
@@ -32,6 +33,9 @@ class IcebergOfflineStoreConfig(FeastConfigBaseModel):
 
     warehouse: str = "warehouse"
     """ Warehouse path """
+
+    namespace: str = "feast"
+    """ Iceberg namespace """
 
     storage_options: Dict[str, str] = Field(default_factory=dict)
     """ Additional storage options (e.g., s3 credentials) """
@@ -127,9 +131,38 @@ class IcebergOfflineStore(OfflineStore):
             # 3. Picks the latest feature record for each entity record.
             query += f" ASOF LEFT JOIN {fv.name} ON "
             # Use 'entity_df.event_timestamp' which is standard in Feast universal tests
-            join_conds = [f"entity_df.{k} = {fv.name}.{k}" for k in fv.entities]
+            join_conds = [f"entity_df.{k} = {fv.name}.{k}" for k in fv.join_keys]
             query += " AND ".join(join_conds)
             query += f" AND entity_df.event_timestamp >= {fv.name}.{fv.batch_source.timestamp_field}"
+
+        return IcebergRetrievalJob(con, query)
+
+    @staticmethod
+    def pull_all_from_table_or_query(
+        config: RepoConfig,
+        data_source: Any,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> RetrievalJob:
+        from feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg import (
+            IcebergOfflineStore,
+        )
+
+        # Reuse common setup logic
+        con, source_table = IcebergOfflineStore._setup_duckdb_source(
+            config, data_source, timestamp_field, start_date, end_date
+        )
+
+        columns = join_key_columns + feature_name_columns + [timestamp_field]
+        if created_timestamp_column:
+            columns.append(created_timestamp_column)
+
+        columns_str = ", ".join(columns)
+        query = f"SELECT {columns_str} FROM {source_table}"
 
         return IcebergRetrievalJob(con, query)
 
@@ -141,9 +174,45 @@ class IcebergOfflineStore(OfflineStore):
         feature_name_columns: List[str],
         timestamp_field: str,
         created_timestamp_column: Optional[str],
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
     ) -> RetrievalJob:
+        from feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg import (
+            IcebergOfflineStore,
+        )
+
+        # Reuse common setup logic
+        con, source_table = IcebergOfflineStore._setup_duckdb_source(
+            config, data_source, timestamp_field, start_date, end_date
+        )
+
+        # 3. Construct "Latest" Query
+        # Group by join keys and select the record with the maximum timestamp
+        join_keys_str = ", ".join(join_key_columns)
+        columns = join_key_columns + feature_name_columns + [timestamp_field]
+        if created_timestamp_column:
+            columns.append(created_timestamp_column)
+
+        columns_str = ", ".join(columns)
+
+        # Rank records by timestamp descending and pick rank 1
+        query = f"""
+        SELECT {columns_str} FROM (
+            SELECT *, row_number() OVER (PARTITION BY {join_keys_str} ORDER BY {timestamp_field} DESC) as rn
+            FROM {source_table}
+        ) WHERE rn = 1
+        """
+
+        return IcebergRetrievalJob(con, query)
+
+    @staticmethod
+    def _setup_duckdb_source(
+        config: RepoConfig,
+        data_source: Any,
+        timestamp_field: str,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> Tuple[duckdb.DuckDBPyConnection, str]:
         from feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg_source import (
             IcebergSource,
         )
@@ -163,42 +232,40 @@ class IcebergOfflineStore(OfflineStore):
 
         # 2. Setup DuckDB and Load Table
         con = duckdb.connect(database=":memory:")
-        table = catalog.load_table(data_source.table_identifier)
+        table_id = data_source.table_identifier
+        if not table_id:
+            raise ValueError(f"Table identifier missing for source {data_source.name}")
+        table = catalog.load_table(table_id)
+
+        # Build row filter
+        row_filters = []
+        if start_date:
+            start_date_naive = to_naive_utc(start_date)
+            row_filters.append(f"{timestamp_field} >= '{start_date_naive.isoformat()}'")
+        if end_date:
+            end_date_naive = to_naive_utc(end_date)
+            row_filters.append(f"{timestamp_field} <= '{end_date_naive.isoformat()}'")
+
+        row_filter = " AND ".join(row_filters) if row_filters else None
 
         # Load filtered scan
-        scan = table.scan(
-            row_filter=f"{timestamp_field} >= '{start_date.isoformat()}' AND {timestamp_field} <= '{end_date.isoformat()}'"
-        )
+        scan = table.scan(row_filter=row_filter) if row_filter else table.scan()
         tasks = list(scan.plan_files())
         has_deletes = any(task.delete_files for task in tasks)
 
+        source_table = "source_table"
         if not has_deletes:
             file_paths = [task.file.file_path for task in tasks]
             if file_paths:
                 con.execute(
-                    f"CREATE VIEW source_table AS SELECT * FROM read_parquet({file_paths})"
+                    f"CREATE VIEW {source_table} AS SELECT * FROM read_parquet({file_paths})"
                 )
             else:
-                con.register("source_table", scan.to_arrow())
+                con.register(source_table, scan.to_arrow())
         else:
-            con.register("source_table", scan.to_arrow())
+            con.register(source_table, scan.to_arrow())
 
-        # 3. Construct "Latest" Query
-        # Group by join keys and select the record with the maximum timestamp
-        join_keys_str = ", ".join(join_key_columns)
-        columns_str = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
-        )
-
-        # Rank records by timestamp descending and pick rank 1
-        query = f"""
-        SELECT {columns_str} FROM (
-            SELECT *, row_number() OVER (PARTITION BY {join_keys_str} ORDER BY {timestamp_field} DESC) as rn
-            FROM source_table
-        ) WHERE rn = 1
-        """
-
-        return IcebergRetrievalJob(con, query)
+        return con, source_table
 
 
 class IcebergRetrievalJob(RetrievalJob):
