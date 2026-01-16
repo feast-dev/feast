@@ -28,6 +28,7 @@ Design:
 
 import hashlib
 import logging
+import threading
 from datetime import datetime
 from typing import (
     Any,
@@ -163,8 +164,6 @@ class IcebergOnlineStore(OnlineStore):
 
         # Warn about append-only behavior (once per instance)
         if not hasattr(self, '_append_warning_shown'):
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning(
                 "Iceberg online store uses append-only writes. "
                 "Run periodic compaction to prevent unbounded storage growth. "
@@ -394,8 +393,6 @@ class IcebergOnlineStore(OnlineStore):
             FloatType,
             IntegerType,
             LongType,
-            StringType,
-            TimestampType,
         )
 
         def _pa_to_iceberg(pa_type: pa.DataType):
@@ -592,52 +589,89 @@ class IcebergOnlineStore(OnlineStore):
             for ek in entity_keys
         }
 
-        # Group by entity_key and get latest record per entity
-        # Tuple: (event_ts, created_ts, features)
-        results: Dict[
-            str, Tuple[Optional[datetime], Optional[datetime], Optional[Dict[str, ValueProto]]]
-        ] = {key: (None, None, None) for key in entity_key_bins.keys()}
-
         if len(arrow_table) == 0:
             return [(None, None) for _ in entity_keys]
 
-        # Process rows
-        for i in range(len(arrow_table)):
-            entity_key_hex = arrow_table["entity_key"][i].as_py()
-            event_ts = arrow_table["event_ts"][i].as_py()
-            created_ts = arrow_table["created_ts"][i].as_py()
+        # Vectorized deduplication using PyArrow operations
+        # Sort by entity_key, event_ts (desc), created_ts (desc) to get latest records first
+        sorted_table = arrow_table.sort_by([
+            ("entity_key", "ascending"),
+            ("event_ts", "descending"),
+            ("created_ts", "descending"),
+        ])
 
-            # Check if this is the latest record for this entity
-            if entity_key_hex in results:
-                current_event_ts, current_created_ts, _ = results[entity_key_hex]
+        # Get unique entity_keys (first occurrence after sorting is the latest)
+        entity_key_col = sorted_table["entity_key"]
 
-                # Use created_ts as tiebreaker when event_ts is equal (deterministic)
-                is_newer = (
-                    current_event_ts is None or
-                    event_ts > current_event_ts or
-                    (event_ts == current_event_ts and created_ts is not None and
-                     (current_created_ts is None or created_ts > current_created_ts))
-                )
+        # Find indices where entity_key changes (first occurrence of each entity)
+        # This is vectorized - no Python loop
+        import pyarrow.compute as pc
 
-                if is_newer:
-                    # Extract feature values
-                    feature_dict = {}
-                    for feature_name in requested_features:
-                        value = arrow_table[feature_name][i].as_py()
-                        if value is not None:
-                            # Convert to ValueProto
-                            value_proto = self._python_to_value_proto(value)
-                            feature_dict[feature_name] = value_proto
+        # Create a shifted version to compare consecutive rows
+        # For the first row, it's always unique
+        if len(sorted_table) == 1:
+            unique_indices = [0]
+        else:
+            # Compare each entity_key with the previous one
+            shifted = entity_key_col.slice(0, len(entity_key_col) - 1)
+            current = entity_key_col.slice(1, len(entity_key_col) - 1)
 
-                    results[entity_key_hex] = (
-                        event_ts,
-                        created_ts,
-                        feature_dict if feature_dict else None,
-                    )
+            # Find where consecutive keys differ
+            not_equal = pc.not_equal(shifted, current)
 
-        # Return in original entity_keys order (extract only event_ts and features, not created_ts)
-        return [(event_ts, features) for event_ts, created_ts, features in
-                [results[ek_hex] for ek_hex in entity_key_bins.keys()]]
+            # Build unique indices: always include first row, then rows where key changed
+            unique_indices = [0]
+            not_equal_list = not_equal.to_pylist()
+            for i, is_different in enumerate(not_equal_list):
+                if is_different:
+                    unique_indices.append(i + 1)
+
+        # Take only the unique rows (latest for each entity_key)
+        deduplicated_table = sorted_table.take(unique_indices)
+
+        # Build results dictionary from deduplicated table
+        results: Dict[
+            str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+        ] = {}
+
+        # Convert columns to Python lists once (batch conversion is faster)
+        entity_keys_list = deduplicated_table["entity_key"].to_pylist()
+        event_ts_list = deduplicated_table["event_ts"].to_pylist()
+
+        # Extract feature columns
+        feature_columns = {
+            feature_name: deduplicated_table[feature_name].to_pylist()
+            for feature_name in requested_features
+        }
+
+        # Process each unique entity (now much smaller than original table)
+        for i in range(len(deduplicated_table)):
+            entity_key_hex = entity_keys_list[i]
+            event_ts = event_ts_list[i]
+
+            # Only process entities that were requested
+            if entity_key_hex not in entity_key_bins:
+                continue
+
+            # Extract feature values for this row
+            feature_dict = {}
+            for feature_name in requested_features:
+                value = feature_columns[feature_name][i]
+                if value is not None:
+                    # Convert to ValueProto
+                    value_proto = self._python_to_value_proto(value)
+                    feature_dict[feature_name] = value_proto
+
+            results[entity_key_hex] = (
+                event_ts,
+                feature_dict if feature_dict else None,
+            )
+
+        # Return in original entity_keys order
+        return [
+            results.get(ek_hex, (None, None))
+            for ek_hex in entity_key_bins.keys()
+        ]
 
     def _value_proto_to_python(self, value_proto: ValueProto, dtype) -> Any:
         """Convert Feast ValueProto to Python value."""

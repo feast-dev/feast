@@ -13,7 +13,6 @@ from pyiceberg.types import (
     LongType,
     StringType,
     TimestampType,
-    TimestamptzType,
 )
 
 from feast.feature_logging import LoggingDestination

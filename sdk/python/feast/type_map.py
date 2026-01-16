@@ -1249,7 +1249,20 @@ def iceberg_to_feast_value_type(iceberg_type_as_str: str) -> ValueType:
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "timestamptz": ValueType.UNIX_TIMESTAMP,
     }
-    return type_map.get(iceberg_type_as_str.lower(), ValueType.UNKNOWN)
+
+    # Handle list types: list<element_type>
+    iceberg_type_lower = iceberg_type_as_str.lower()
+    if iceberg_type_lower.startswith("list<") and iceberg_type_lower.endswith(">"):
+        # Extract inner type: list<string> -> string
+        inner_type = iceberg_type_lower[5:-1].strip()
+        # Get the base type
+        base_type = type_map.get(inner_type, ValueType.UNKNOWN)
+        if base_type != ValueType.UNKNOWN:
+            # Convert to list type: STRING -> STRING_LIST
+            return ValueType[base_type.name + "_LIST"]
+        return ValueType.UNKNOWN
+
+    return type_map.get(iceberg_type_lower, ValueType.UNKNOWN)
 
 
 def convert_scalar_column(

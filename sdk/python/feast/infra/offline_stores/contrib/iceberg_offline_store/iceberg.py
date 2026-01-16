@@ -1,3 +1,6 @@
+import math
+import re
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
@@ -24,30 +27,108 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.utils import to_naive_utc
 
+# SQL reserved words for DuckDB
+# Reference: https://duckdb.org/docs/sql/keywords_and_identifiers
+_SQL_RESERVED_WORDS = {
+    "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "IS", "NULL",
+    "TRUE", "FALSE", "AS", "ON", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER",
+    "CROSS", "FULL", "USING", "GROUP", "BY", "HAVING", "ORDER", "ASC", "DESC",
+    "LIMIT", "OFFSET", "UNION", "INTERSECT", "EXCEPT", "ALL", "DISTINCT",
+    "CASE", "WHEN", "THEN", "ELSE", "END", "IF", "EXISTS", "BETWEEN", "LIKE",
+    "ILIKE", "SIMILAR", "REGEXP", "GLOB", "CAST", "EXTRACT", "INTERVAL",
+    "DATE", "TIME", "TIMESTAMP", "VARCHAR", "CHAR", "TEXT", "INTEGER", "INT",
+    "BIGINT", "SMALLINT", "TINYINT", "DOUBLE", "REAL", "DECIMAL", "NUMERIC",
+    "BOOLEAN", "BLOB", "BINARY", "VARBINARY", "ARRAY", "STRUCT", "MAP",
+    "CREATE", "DROP", "ALTER", "TABLE", "VIEW", "INDEX", "SCHEMA", "DATABASE",
+    "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REPLACE", "VALUES", "SET",
+    "PRAGMA", "EXPLAIN", "DESCRIBE", "SHOW", "WITH", "RECURSIVE", "OVER",
+    "PARTITION", "WINDOW", "ROW", "ROWS", "RANGE", "PRECEDING", "FOLLOWING",
+    "UNBOUNDED", "CURRENT", "TIES", "FIRST", "LAST", "NULLS", "PRIMARY",
+    "FOREIGN", "KEY", "REFERENCES", "UNIQUE", "CHECK", "CONSTRAINT", "DEFAULT",
+    "COLLATE", "FOR", "GRANT", "REVOKE", "TO", "ANALYZE", "VACUUM", "COPY",
+    "EXPORT", "IMPORT", "LOAD", "INSTALL", "RETURNING", "ASOF", "LATERAL",
+}
+
+
+def validate_sql_identifier(identifier: str, context: str = "identifier") -> str:
+    """Validate SQL identifier is safe for interpolation into queries.
+
+    This function prevents SQL injection by ensuring identifiers contain only
+    safe characters and are not SQL reserved words.
+
+    Args:
+        identifier: The identifier to validate (table name, column name, etc.)
+        context: Description for error messages (e.g., "feature view name")
+
+    Returns:
+        The validated identifier (unchanged if valid)
+
+    Raises:
+        ValueError: If identifier contains unsafe characters or is a reserved word
+
+    Examples:
+        >>> validate_sql_identifier("my_table", "table name")
+        'my_table'
+        >>> validate_sql_identifier("user_id123", "column name")
+        'user_id123'
+        >>> validate_sql_identifier("SELECT", "table name")
+        ValueError: SQL table name cannot be a reserved word: 'SELECT'
+        >>> validate_sql_identifier("table; DROP TABLE users--", "table name")
+        ValueError: Invalid SQL table name: 'table; DROP TABLE users--'...
+    """
+    if not identifier:
+        raise ValueError(f"SQL {context} cannot be empty")
+
+    # Validate identifier matches safe pattern: start with letter/underscore,
+    # followed by letters, digits, or underscores
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier):
+        raise ValueError(
+            f"Invalid SQL {context}: '{identifier}'. "
+            f"Only alphanumeric characters and underscores allowed, "
+            f"must start with a letter or underscore."
+        )
+
+    # Check for SQL reserved words (case-insensitive)
+    if identifier.upper() in _SQL_RESERVED_WORDS:
+        raise ValueError(
+            f"SQL {context} cannot be a reserved word: '{identifier}'"
+        )
+
+    return identifier
+
 
 def _configure_duckdb_httpfs(con: duckdb.DuckDBPyConnection, storage_options: Dict[str, str]) -> None:
     """Configure DuckDB httpfs/S3 settings from Iceberg storage_options.
 
     This is required for S3-compatible warehouses (MinIO/R2/custom endpoints) when using
     DuckDB's `read_parquet([...])` fast path.
+
+    SECURITY: Uses DuckDB's parameterized queries to avoid credential exposure in SQL strings.
+    Credentials are never interpolated into SQL SET commands, preventing exposure in logs,
+    error messages, and query history. Falls back to AWS environment variables if not provided.
     """
+    import os
 
-    if not storage_options:
-        return
+    # Extract S3 configuration from storage_options or environment variables
+    s3_endpoint = storage_options.get("s3.endpoint") if storage_options else None
+    s3_endpoint = s3_endpoint or os.getenv("S3_ENDPOINT")
 
-    def _sql_str(value: str) -> str:
-        return value.replace("'", "''")
+    s3_region = storage_options.get("s3.region") if storage_options else None
+    s3_region = s3_region or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION")
 
-    s3_endpoint = storage_options.get("s3.endpoint")
-    s3_region = storage_options.get("s3.region")
-    s3_access_key_id = storage_options.get("s3.access-key-id")
-    s3_secret_access_key = storage_options.get("s3.secret-access-key")
-    s3_session_token = storage_options.get("s3.session-token")
+    s3_access_key_id = storage_options.get("s3.access-key-id") if storage_options else None
+    s3_access_key_id = s3_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
+
+    s3_secret_access_key = storage_options.get("s3.secret-access-key") if storage_options else None
+    s3_secret_access_key = s3_secret_access_key or os.getenv("AWS_SECRET_ACCESS_KEY")
+
+    s3_session_token = storage_options.get("s3.session-token") if storage_options else None
+    s3_session_token = s3_session_token or os.getenv("AWS_SESSION_TOKEN")
 
     # Iceberg/PyIceberg supports `s3.path-style-access`.
     # Some docs use `s3.force-virtual-addressing` (the inverse of path-style).
-    path_style_raw = storage_options.get("s3.path-style-access")
-    force_virtual_raw = storage_options.get("s3.force-virtual-addressing")
+    path_style_raw = storage_options.get("s3.path-style-access") if storage_options else None
+    force_virtual_raw = storage_options.get("s3.force-virtual-addressing") if storage_options else None
 
     if any(
         v is not None
@@ -64,38 +145,42 @@ def _configure_duckdb_httpfs(con: duckdb.DuckDBPyConnection, storage_options: Di
         con.execute("INSTALL httpfs")
         con.execute("LOAD httpfs")
 
+    # SECURITY FIX: Use DuckDB's parameterized queries to avoid credential exposure
+    # This prevents credentials from appearing in SQL logs, error messages, or query history
+
     if s3_region:
-        con.execute(f"SET s3_region='{_sql_str(s3_region)}'")
+        con.execute("SET s3_region = $1", [s3_region])
 
     if s3_endpoint:
         endpoint = str(s3_endpoint).rstrip('/')
 
         if endpoint.startswith('http://'):
-            con.execute("SET s3_use_ssl=false")
+            con.execute("SET s3_use_ssl = false")
             endpoint = endpoint.removeprefix('http://')
         elif endpoint.startswith('https://'):
-            con.execute("SET s3_use_ssl=true")
+            con.execute("SET s3_use_ssl = true")
             endpoint = endpoint.removeprefix('https://')
 
-        con.execute(f"SET s3_endpoint='{_sql_str(endpoint)}'")
+        con.execute("SET s3_endpoint = $1", [endpoint])
 
+    # CRITICAL: Never use f-strings or string interpolation for credentials
     if s3_access_key_id:
-        con.execute(f"SET s3_access_key_id='{_sql_str(s3_access_key_id)}'")
+        con.execute("SET s3_access_key_id = $1", [s3_access_key_id])
 
     if s3_secret_access_key:
-        con.execute(f"SET s3_secret_access_key='{_sql_str(s3_secret_access_key)}'")
+        con.execute("SET s3_secret_access_key = $1", [s3_secret_access_key])
 
     if s3_session_token:
-        con.execute(f"SET s3_session_token='{_sql_str(s3_session_token)}'")
+        con.execute("SET s3_session_token = $1", [s3_session_token])
 
     # DuckDB setting: s3_url_style = 'path' | 'vhost'
     if path_style_raw is not None:
         if str(path_style_raw).lower() == 'true':
-            con.execute("SET s3_url_style='path'")
+            con.execute("SET s3_url_style = 'path'")
 
     if force_virtual_raw is not None:
         if str(force_virtual_raw).lower() == 'true':
-            con.execute("SET s3_url_style='vhost'")
+            con.execute("SET s3_url_style = 'vhost'")
 
 
 class IcebergOfflineStoreConfig(FeastConfigBaseModel):
@@ -122,6 +207,47 @@ class IcebergOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class IcebergOfflineStore(OfflineStore):
+    # Class-level catalog cache with thread-safe access
+    _catalog_cache: Dict[Tuple, Any] = {}
+    _cache_lock = threading.Lock()
+
+    @classmethod
+    def _get_cached_catalog(cls, config: IcebergOfflineStoreConfig) -> Any:
+        """Get or create cached Iceberg catalog.
+
+        Uses frozen config tuple as cache key to ensure catalog is reused
+        across operations when config hasn't changed.
+
+        Args:
+            config: IcebergOfflineStoreConfig with catalog settings
+
+        Returns:
+            Cached or newly created Iceberg catalog instance
+        """
+        # Create immutable cache key from config
+        cache_key = (
+            config.catalog_type,
+            config.catalog_name,
+            config.uri,
+            config.warehouse,
+            frozenset(config.storage_options.items()) if config.storage_options else frozenset(),
+        )
+
+        with cls._cache_lock:
+            if cache_key not in cls._catalog_cache:
+                catalog_props = {
+                    "type": config.catalog_type,
+                    "uri": config.uri,
+                    "warehouse": config.warehouse,
+                    **config.storage_options,
+                }
+                catalog_props = {k: v for k, v in catalog_props.items() if v is not None}
+                cls._catalog_cache[cache_key] = load_catalog(
+                    config.catalog_name, **catalog_props
+                )
+
+        return cls._catalog_cache[cache_key]
+
     @staticmethod
     def get_historical_features(
         config: RepoConfig,
@@ -138,20 +264,8 @@ class IcebergOfflineStore(OfflineStore):
 
         assert isinstance(config.offline_store, IcebergOfflineStoreConfig)
 
-        # 1. Load Iceberg catalog
-        catalog_props = {
-            "type": config.offline_store.catalog_type,
-            "uri": config.offline_store.uri,
-            "warehouse": config.offline_store.warehouse,
-            **config.offline_store.storage_options,
-        }
-        # Filter out None values
-        catalog_props = {k: v for k, v in catalog_props.items() if v is not None}
-
-        catalog = load_catalog(
-            config.offline_store.catalog_name,
-            **catalog_props,
-        )
+        # 1. Load Iceberg catalog (cached)
+        catalog = IcebergOfflineStore._get_cached_catalog(config.offline_store)
 
         # 2. Setup DuckDB
         con = duckdb.connect(database=":memory:")
@@ -168,61 +282,94 @@ class IcebergOfflineStore(OfflineStore):
         # 3. For each feature view, load from Iceberg and register in DuckDB
         for fv in feature_views:
             assert isinstance(fv.batch_source, IcebergSource)
+
+            # Validate feature view name for SQL safety
+            fv_name = validate_sql_identifier(fv.name, "feature view name")
+
+            # Validate timestamp field
+            timestamp_field = validate_sql_identifier(
+                fv.batch_source.timestamp_field, "timestamp field"
+            )
+
             table_id = fv.batch_source.table_identifier
             if not table_id:
                 raise ValueError(f"Table identifier missing for feature view {fv.name}")
             table = catalog.load_table(table_id)
 
             # Implement Hybrid Strategy: Fast-path for COW, Safe-path for MOR
+            # Use streaming approach to avoid materializing all file metadata
             scan = table.scan()
-            tasks = list(scan.plan_files())
-            has_deletes = any(task.delete_files for task in tasks)
+            has_deletes = False
+            file_paths = []
+
+            for task in scan.plan_files():
+                if task.delete_files:
+                    has_deletes = True
+                    break
+                file_paths.append(task.file.file_path)
 
             if not has_deletes:
                 # Fast Path: Read Parquet files directly in DuckDB
-                file_paths = [task.file.file_path for task in tasks]
                 if file_paths:
                     con.execute(
-                        f"CREATE VIEW {fv.name} AS SELECT * FROM read_parquet({file_paths})"
+                        f"CREATE VIEW {fv_name} AS SELECT * FROM read_parquet({file_paths})"
                     )
                 else:
                     # Empty table
                     empty_arrow = table.schema().as_arrow()
-                    con.register(fv.name, pa.Table.from_batches([], schema=empty_arrow))
+                    con.register(fv_name, pa.Table.from_batches([], schema=empty_arrow))
             else:
                 # Safe Path: Use PyIceberg to resolve deletes into Arrow
                 arrow_table = scan.to_arrow()
-                con.register(fv.name, arrow_table)
+                con.register(fv_name, arrow_table)
 
         # 4. Construct ASOF join query with feature name handling
         query = "SELECT entity_df.*"
         for fv in feature_views:
+            # Validate identifiers
+            fv_name = validate_sql_identifier(fv.name, "feature view name")
+
             # Add all features from the feature view to SELECT clause
             for feature in fv.features:
+                feature_col = validate_sql_identifier(feature.name, "feature column name")
                 feature_name = feature.name
                 if full_feature_names:
+                    # Feature name for alias - validate the individual parts
                     feature_name = f"{fv.name}__{feature.name}"
-                query += f", {fv.name}.{feature.name} AS {feature_name}"
+                    feature_name = validate_sql_identifier(feature_name, "full feature name")
+                else:
+                    feature_name = validate_sql_identifier(feature_name, "feature name")
+                query += f", {fv_name}.{feature_col} AS {feature_name}"
 
         query += " FROM entity_df"
         for fv in feature_views:
             assert isinstance(fv.batch_source, IcebergSource)
+
+            # Validate identifiers
+            fv_name = validate_sql_identifier(fv.name, "feature view name")
+            timestamp_field = validate_sql_identifier(
+                fv.batch_source.timestamp_field, "timestamp field"
+            )
+
             # DuckDB ASOF JOIN:
             # 1. Join keys match exactly.
             # 2. Timestamp condition (entity_timestamp >= feature_timestamp).
             # 3. TTL filtering ensures features are fresh (within time-to-live window).
             # 4. Picks the latest feature record for each entity record.
-            query += f" ASOF LEFT JOIN {fv.name} ON "
+            query += f" ASOF LEFT JOIN {fv_name} ON "
             # Use 'entity_df.event_timestamp' which is standard in Feast universal tests
-            join_conds = [f"entity_df.{k} = {fv.name}.{k}" for k in fv.join_keys]
+            join_conds = []
+            for k in fv.join_keys:
+                join_key = validate_sql_identifier(k, "join key")
+                join_conds.append(f"entity_df.{join_key} = {fv_name}.{join_key}")
             query += " AND ".join(join_conds)
-            query += f" AND entity_df.event_timestamp >= {fv.name}.{fv.batch_source.timestamp_field}"
+            query += f" AND entity_df.event_timestamp >= {fv_name}.{timestamp_field}"
 
             # Add TTL filtering: feature must be within TTL window
             if fv.ttl and fv.ttl.total_seconds() > 0:
                 ttl_seconds = fv.ttl.total_seconds()
                 query += (
-                    f" AND {fv.name}.{fv.batch_source.timestamp_field} >= "
+                    f" AND {fv_name}.{timestamp_field} >= "
                     f"entity_df.event_timestamp - INTERVAL '{ttl_seconds}' SECOND"
                 )
 
@@ -260,9 +407,21 @@ class IcebergOfflineStore(OfflineStore):
             config, data_source, timestamp_field, start_date, end_date
         )
 
-        columns = join_key_columns + feature_name_columns + [timestamp_field]
+        # Validate all column names
+        validated_join_keys = [
+            validate_sql_identifier(col, "join key column") for col in join_key_columns
+        ]
+        validated_features = [
+            validate_sql_identifier(col, "feature column") for col in feature_name_columns
+        ]
+        validated_timestamp = validate_sql_identifier(timestamp_field, "timestamp field")
+
+        columns = validated_join_keys + validated_features + [validated_timestamp]
         if created_timestamp_column:
-            columns.append(created_timestamp_column)
+            validated_created = validate_sql_identifier(
+                created_timestamp_column, "created timestamp column"
+            )
+            columns.append(validated_created)
 
         columns_str = ", ".join(columns)
         query = f"SELECT {columns_str} FROM {source_table}"
@@ -291,17 +450,30 @@ class IcebergOfflineStore(OfflineStore):
 
         # 3. Construct "Latest" Query
         # Group by join keys and select the record with the maximum timestamp
-        join_keys_str = ", ".join(join_key_columns)
-        columns = join_key_columns + feature_name_columns + [timestamp_field]
+
+        # Validate all column names
+        validated_join_keys = [
+            validate_sql_identifier(col, "join key column") for col in join_key_columns
+        ]
+        validated_features = [
+            validate_sql_identifier(col, "feature column") for col in feature_name_columns
+        ]
+        validated_timestamp = validate_sql_identifier(timestamp_field, "timestamp field")
+
+        join_keys_str = ", ".join(validated_join_keys)
+        columns = validated_join_keys + validated_features + [validated_timestamp]
         if created_timestamp_column:
-            columns.append(created_timestamp_column)
+            validated_created = validate_sql_identifier(
+                created_timestamp_column, "created timestamp column"
+            )
+            columns.append(validated_created)
 
         columns_str = ", ".join(columns)
 
         # Rank records by timestamp descending (with created_timestamp as tiebreaker) and pick rank 1
-        order_by = f"{timestamp_field} DESC"
+        order_by = f"{validated_timestamp} DESC"
         if created_timestamp_column:
-            order_by += f", {created_timestamp_column} DESC"
+            order_by += f", {validated_created} DESC"
 
         query = f"""
         SELECT {columns_str} FROM (
@@ -327,15 +499,8 @@ class IcebergOfflineStore(OfflineStore):
         assert isinstance(data_source, IcebergSource)
         assert isinstance(config.offline_store, IcebergOfflineStoreConfig)
 
-        # 1. Load Iceberg catalog
-        catalog_props = {
-            "type": config.offline_store.catalog_type,
-            "uri": config.offline_store.uri,
-            "warehouse": config.offline_store.warehouse,
-            **config.offline_store.storage_options,
-        }
-        catalog_props = {k: v for k, v in catalog_props.items() if v is not None}
-        catalog = load_catalog(config.offline_store.catalog_name, **catalog_props)
+        # 1. Load Iceberg catalog (cached)
+        catalog = IcebergOfflineStore._get_cached_catalog(config.offline_store)
 
         # 2. Setup DuckDB and Load Table
         con = duckdb.connect(database=":memory:")
@@ -345,27 +510,37 @@ class IcebergOfflineStore(OfflineStore):
             raise ValueError(f"Table identifier missing for source {data_source.name}")
         table = catalog.load_table(table_id)
 
+        # Validate timestamp field for SQL safety
+        validated_timestamp = validate_sql_identifier(timestamp_field, "timestamp field")
+
         # Build row filter
         row_filters = []
         if start_date:
             start_date_naive = to_naive_utc(start_date)
-            row_filters.append(f"{timestamp_field} >= '{start_date_naive.isoformat()}'")
+            row_filters.append(f"{validated_timestamp} >= '{start_date_naive.isoformat()}'")
         if end_date:
             end_date_naive = to_naive_utc(end_date)
-            row_filters.append(f"{timestamp_field} <= '{end_date_naive.isoformat()}'")
+            row_filters.append(f"{validated_timestamp} <= '{end_date_naive.isoformat()}'")
 
         row_filter = " AND ".join(row_filters) if row_filters else None
 
         # Load filtered scan
         scan = table.scan(row_filter=row_filter) if row_filter else table.scan()
 
-        # Use any() for memory-efficient MOR detection (avoids materializing all file metadata)
-        has_deletes = any(task.delete_files for task in scan.plan_files())
+        # Use streaming approach to avoid materializing all file metadata
+        # This prevents OOM for tables with 10,000+ data files
+        has_deletes = False
+        file_paths = []
+
+        for task in scan.plan_files():
+            if task.delete_files:
+                has_deletes = True
+                break
+            file_paths.append(task.file.file_path)
 
         source_table = "source_table"
         if not has_deletes:
             # COW path: collect file paths and read Parquet directly in DuckDB
-            file_paths = [task.file.file_path for task in scan.plan_files()]
             if file_paths:
                 con.execute(
                     f"CREATE VIEW {source_table} AS SELECT * FROM read_parquet({file_paths})"
@@ -396,15 +571,8 @@ class IcebergOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, IcebergOfflineStoreConfig)
         assert isinstance(feature_view.batch_source, IcebergSource)
 
-        # Load catalog
-        catalog_props = {
-            "type": config.offline_store.catalog_type,
-            "uri": config.offline_store.uri,
-            "warehouse": config.offline_store.warehouse,
-            **config.offline_store.storage_options,
-        }
-        catalog_props = {k: v for k, v in catalog_props.items() if v is not None}
-        catalog = load_catalog(config.offline_store.catalog_name, **catalog_props)
+        # Load catalog (cached)
+        catalog = IcebergOfflineStore._get_cached_catalog(config.offline_store)
 
         # Get table identifier from the feature view's batch source
         table_identifier = feature_view.batch_source.table_identifier
@@ -478,15 +646,8 @@ class IcebergOfflineStore(OfflineStore):
                 "Use IcebergLoggingDestination or FileLoggingDestination."
             )
 
-        # Load catalog
-        catalog_props = {
-            "type": config.offline_store.catalog_type,
-            "uri": config.offline_store.uri,
-            "warehouse": config.offline_store.warehouse,
-            **config.offline_store.storage_options,
-        }
-        catalog_props = {k: v for k, v in catalog_props.items() if v is not None}
-        catalog = load_catalog(config.offline_store.catalog_name, **catalog_props)
+        # Load catalog (cached)
+        catalog = IcebergOfflineStore._get_cached_catalog(config.offline_store)
 
         try:
             iceberg_table = catalog.load_table(table_identifier)
@@ -656,14 +817,8 @@ class IcebergRetrievalJob(RetrievalJob):
 
         assert isinstance(self._config.offline_store, IcebergOfflineStoreConfig)
 
-        catalog_props = {
-            "type": self._config.offline_store.catalog_type,
-            "uri": self._config.offline_store.uri,
-            "warehouse": self._config.offline_store.warehouse,
-            **self._config.offline_store.storage_options,
-        }
-        catalog_props = {k: v for k, v in catalog_props.items() if v is not None}
-        catalog = load_catalog(self._config.offline_store.catalog_name, **catalog_props)
+        # Load catalog (cached)
+        catalog = IcebergOfflineStore._get_cached_catalog(self._config.offline_store)
 
         table_identifier = storage.table_identifier  # type: ignore
 

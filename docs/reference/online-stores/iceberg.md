@@ -346,8 +346,142 @@ online_store:
 * **Higher Latency**: 50-100ms vs 1-10ms for Redis
 * **Write Amplification**: Each write creates new Parquet file (mitigated by batching)
 * **No Transactions**: Eventual consistency model
-* **Compaction Required**: Periodic compaction needed for performance
+* **Compaction Required**: Periodic compaction needed for performance (see below)
 * **No TTL**: Time-to-live not implemented (manual cleanup required)
+
+## Storage Management and Compaction
+
+### Append-Only Write Behavior
+
+The Iceberg online store uses **append-only writes** for materialization. This means:
+
+* Each materialization adds new rows for entity keys without removing old rows
+* Storage grows unbounded without compaction
+* Read performance degrades as duplicate rows accumulate
+* Unlike Redis/DynamoDB, this is NOT a true upsert operation
+
+**Example storage growth:**
+```
+Materialization 1: Entity A -> value1 (1 row)
+Materialization 2: Entity A -> value2 (2 rows total)
+Materialization 3: Entity A -> value3 (3 rows total)
+...
+Materialization N: Entity A -> valueN (N rows total)
+```
+
+The online read path automatically deduplicates rows by selecting the latest value per entity key (based on event_ts and created_ts), but the duplicate rows still consume storage and I/O.
+
+### Compaction Strategy
+
+**IMPORTANT**: You must run periodic compaction to prevent unbounded storage growth and maintain read performance.
+
+#### Manual Compaction
+
+Use PyIceberg's table maintenance operations to compact data files and remove old snapshots:
+
+```python
+from datetime import datetime, timedelta
+from pyiceberg.catalog import load_catalog
+
+# Load catalog (match your feature_store.yaml configuration)
+catalog = load_catalog(
+    "feast_catalog",
+    **{
+        "type": "rest",
+        "uri": "http://localhost:8181",
+        "warehouse": "s3://my-bucket/warehouse",
+    }
+)
+
+# Load online table
+table = catalog.load_table("feast_online.my_project_driver_hourly_stats_online")
+
+# Rewrite data files to consolidate small files and remove duplicates
+# This uses Iceberg's built-in compaction
+table.rewrite_data_files(
+    target_file_size_bytes=128 * 1024 * 1024,  # 128MB target files
+)
+
+# Expire old snapshots (keeps only last 7 days)
+table.expire_snapshots(
+    older_than=datetime.now() - timedelta(days=7)
+)
+
+# Delete orphan data files (files no longer referenced by metadata)
+table.delete_orphan_files(
+    older_than=datetime.now() - timedelta(days=3)
+)
+```
+
+#### Automated Compaction Schedule
+
+For production deployments, schedule compaction jobs based on your materialization frequency:
+
+| Materialization Frequency | Recommended Compaction | Snapshot Retention |
+|---------------------------|------------------------|-------------------|
+| Hourly | Daily | 7 days |
+| Daily | Weekly | 14 days |
+| Weekly | Monthly | 30 days |
+
+**Example cron job:**
+```bash
+# Daily compaction at 2 AM
+0 2 * * * python /path/to/compact_iceberg_online.py
+```
+
+#### Monitoring Storage Growth
+
+Track these metrics to determine compaction needs:
+
+```python
+# Get table statistics
+metadata = table.metadata
+print(f"Snapshots: {len(metadata.snapshots)}")
+print(f"Data files: {len(list(table.scan().plan_files()))}")
+
+# Estimate storage size
+total_size = sum(f.file_size_in_bytes for f in table.scan().plan_files())
+print(f"Total storage: {total_size / 1024**3:.2f} GB")
+```
+
+**Compaction triggers:**
+* More than 1000 small files per partition
+* Storage growth exceeds 2x expected size
+* Read latency p95 exceeds 200ms
+* More than 50 snapshots accumulated
+
+#### Partition-Specific Compaction
+
+For large tables, compact specific partitions:
+
+```python
+# Compact only high-traffic partitions
+from pyiceberg.expressions import EqualTo
+
+table.rewrite_data_files(
+    where=EqualTo("entity_hash", 42),  # Specific partition
+    target_file_size_bytes=128 * 1024 * 1024,
+)
+```
+
+### Storage Cost Estimation
+
+Without compaction, storage costs scale linearly with materialization count:
+
+```
+Daily materializations for 30 days:
+- 1M entities × 1KB per row × 30 days = 30 GB
+- With compaction: ~1 GB (only latest values)
+- Cost savings: 96% reduction in storage
+```
+
+### Best Practices
+
+1. **Enable compaction from day one** - Don't wait for performance degradation
+2. **Monitor snapshot count** - Keep under 50 snapshots for optimal read performance
+3. **Use retention policies** - Expire old snapshots based on business requirements
+4. **Batch materializations** - Larger batches create fewer files, reducing compaction needs
+5. **Separate dev/prod** - Use different namespaces and retention policies
 
 ## Catalog Types
 

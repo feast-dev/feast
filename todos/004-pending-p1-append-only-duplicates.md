@@ -1,9 +1,11 @@
 ---
-status: pending
+status: resolved
 priority: p1
 issue_id: "004"
 tags: [code-review, data-integrity, online-store, storage-cost, performance]
 dependencies: []
+resolved_date: 2026-01-16
+resolution_type: documentation
 ---
 
 # Append-Only Writes Create Unbounded Duplicate Rows
@@ -196,6 +198,20 @@ if not hasattr(self, '_compaction_warning_shown'):
 ## Work Log
 
 **2026-01-16:** Issue identified during data-integrity and performance reviews
+
+**2026-01-16:** RESOLVED - Documentation added
+- Verified append-only warning present in code (lines 165-173 of iceberg.py)
+- Added comprehensive "Storage Management and Compaction" section to docs/reference/online-stores/iceberg.md
+- Documentation includes:
+  - Explanation of append-only write behavior and storage growth pattern
+  - Manual compaction scripts using PyIceberg table maintenance operations
+  - Automated compaction schedule recommendations based on materialization frequency
+  - Storage growth monitoring guidance and compaction triggers
+  - Partition-specific compaction for large tables
+  - Storage cost estimation showing 96% reduction with compaction
+  - Best practices for production deployments
+- Solution 1 (Documentation + Compaction Guidance) implemented successfully
+- TODO marked as resolved with resolution_type: documentation
 
 ## Resources
 

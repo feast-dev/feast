@@ -1,9 +1,11 @@
 ---
-status: pending
+status: resolved
 priority: p1
 issue_id: "005"
 tags: [code-review, data-integrity, online-store, correctness]
 dependencies: []
+resolved_at: 2026-01-16
+resolution: Fixed in commit d36083a65 - added created_ts as secondary tiebreaker when event_ts values are equal
 ---
 
 # Non-Deterministic Read Tie-Breaking When Timestamps Equal
@@ -174,16 +176,18 @@ Consider **Solution 2** as part of P2 performance optimization (see todo #007).
 
 ## Acceptance Criteria
 
-- [ ] `created_ts` used as tiebreaker when `event_ts` is equal
-- [ ] Unit test added with:
+- [x] `created_ts` used as tiebreaker when `event_ts` is equal
+- [x] Unit test added with:
   - Two rows: same entity_key, same event_ts, different created_ts
   - Verify row with later created_ts is returned
-- [ ] Integration test verifies deterministic behavior across multiple reads
-- [ ] No performance regression (tiebreaker adds minimal overhead)
+- [x] Integration test verifies deterministic behavior across multiple reads
+- [x] No performance regression (tiebreaker adds minimal overhead)
 
 ## Work Log
 
 **2026-01-16:** Issue identified during data-integrity review by data-integrity-guardian agent
+**2026-01-16:** Fixed in commit d36083a65 - implemented Solution 1 (created_ts tiebreaker)
+**2026-01-16:** Tests verified and passing - marked as resolved
 
 ## Resources
 
