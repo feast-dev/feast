@@ -16772,10 +16772,10 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: quay.io/feastdev/feature-server:0.58.0
+          value: quay.io/feastdev/feature-server:0.59.0
         - name: RELATED_IMAGE_CRON_JOB
           value: quay.io/openshift/origin-cli:4.17
-        image: quay.io/feastdev/feast-operator:0.58.0
+        image: quay.io/feastdev/feast-operator:0.59.0
         livenessProbe:
           httpGet:
             path: /healthz
