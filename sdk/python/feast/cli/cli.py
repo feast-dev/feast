@@ -237,8 +237,15 @@ def endpoint(ctx: click.Context):
     is_flag=True,
     help="Don't validate the data sources by checking for that the tables exist.",
 )
+@click.option(
+    "--skip-feature-view-validation",
+    is_flag=True,
+    help="Don't validate feature views. Use with caution as this skips important checks.",
+)
 @click.pass_context
-def plan_command(ctx: click.Context, skip_source_validation: bool):
+def plan_command(
+    ctx: click.Context, skip_source_validation: bool, skip_feature_view_validation: bool
+):
     """
     Create or update a feature store deployment
     """
@@ -247,7 +254,7 @@ def plan_command(ctx: click.Context, skip_source_validation: bool):
     cli_check_repo(repo, fs_yaml_file)
     repo_config = load_repo_config(repo, fs_yaml_file)
     try:
-        plan(repo_config, repo, skip_source_validation)
+        plan(repo_config, repo, skip_source_validation, skip_feature_view_validation)
     except FeastProviderLoginError as e:
         print(str(e))
 
@@ -258,8 +265,15 @@ def plan_command(ctx: click.Context, skip_source_validation: bool):
     is_flag=True,
     help="Don't validate the data sources by checking for that the tables exist.",
 )
+@click.option(
+    "--skip-feature-view-validation",
+    is_flag=True,
+    help="Don't validate feature views. Use with caution as this skips important checks.",
+)
 @click.pass_context
-def apply_total_command(ctx: click.Context, skip_source_validation: bool):
+def apply_total_command(
+    ctx: click.Context, skip_source_validation: bool, skip_feature_view_validation: bool
+):
     """
     Create or update a feature store deployment
     """
@@ -269,7 +283,9 @@ def apply_total_command(ctx: click.Context, skip_source_validation: bool):
 
     repo_config = load_repo_config(repo, fs_yaml_file)
     try:
-        apply_total(repo_config, repo, skip_source_validation)
+        apply_total(
+            repo_config, repo, skip_source_validation, skip_feature_view_validation
+        )
     except FeastProviderLoginError as e:
         print(str(e))
 

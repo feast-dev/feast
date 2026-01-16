@@ -3,13 +3,149 @@
 ## Motivation
 
 Feast uses an internal type system to provide guarantees on training and serving data.
-Feast currently supports eight primitive types - `INT32`, `INT64`, `FLOAT32`, `FLOAT64`, `STRING`, `BYTES`, `BOOL`, and `UNIX_TIMESTAMP` - and the corresponding array types.
-Map type is also supported using a key of `STRING` type and any supported feast type as a value.  
+Feast supports primitive types, array types, and map types for feature values.
 Null types are not supported, although the `UNIX_TIMESTAMP` type is nullable.
 The type system is controlled by [`Value.proto`](https://github.com/feast-dev/feast/blob/master/protos/feast/types/Value.proto) in protobuf and by [`types.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/types.py) in Python.
 Type conversion logic can be found in [`type_map.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/type_map.py).
 
-## Examples
+## Supported Types
+
+Feast supports the following data types:
+
+### Primitive Types
+
+| Feast Type | Python Type | Description |
+|------------|-------------|-------------|
+| `Int32` | `int` | 32-bit signed integer |
+| `Int64` | `int` | 64-bit signed integer |
+| `Float32` | `float` | 32-bit floating point |
+| `Float64` | `float` | 64-bit floating point |
+| `String` | `str` | String/text value |
+| `Bytes` | `bytes` | Binary data |
+| `Bool` | `bool` | Boolean value |
+| `UnixTimestamp` | `datetime` | Unix timestamp (nullable) |
+
+### Array Types
+
+All primitive types have corresponding array (list) types:
+
+| Feast Type | Python Type | Description |
+|------------|-------------|-------------|
+| `Array(Int32)` | `List[int]` | List of 32-bit integers |
+| `Array(Int64)` | `List[int]` | List of 64-bit integers |
+| `Array(Float32)` | `List[float]` | List of 32-bit floats |
+| `Array(Float64)` | `List[float]` | List of 64-bit floats |
+| `Array(String)` | `List[str]` | List of strings |
+| `Array(Bytes)` | `List[bytes]` | List of binary data |
+| `Array(Bool)` | `List[bool]` | List of booleans |
+| `Array(UnixTimestamp)` | `List[datetime]` | List of timestamps |
+
+### Map Types
+
+Map types allow storing dictionary-like data structures:
+
+| Feast Type | Python Type | Description |
+|------------|-------------|-------------|
+| `Map` | `Dict[str, Any]` | Dictionary with string keys and any supported Feast type as values (including nested maps) |
+| `Array(Map)` | `List[Dict[str, Any]]` | List of dictionaries |
+
+**Note:** Map keys must always be strings. Map values can be any supported Feast type, including primitives, arrays, or nested maps.
+
+## Complete Feature View Example
+
+Below is a complete example showing how to define a feature view with all supported types:
+
+```python
+from datetime import timedelta
+from feast import Entity, FeatureView, Field, FileSource
+from feast.types import (
+    Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp,
+    Array, Map
+)
+
+# Define a data source
+user_features_source = FileSource(
+    path="data/user_features.parquet",
+    timestamp_field="event_timestamp",
+)
+
+# Define an entity
+user = Entity(
+    name="user_id",
+    description="User identifier",
+)
+
+# Define a feature view with all supported types
+user_features = FeatureView(
+    name="user_features",
+    entities=[user],
+    ttl=timedelta(days=1),
+    schema=[
+        # Primitive types
+        Field(name="age", dtype=Int32),
+        Field(name="account_balance", dtype=Int64),
+        Field(name="transaction_amount", dtype=Float32),
+        Field(name="credit_score", dtype=Float64),
+        Field(name="username", dtype=String),
+        Field(name="profile_picture", dtype=Bytes),
+        Field(name="is_active", dtype=Bool),
+        Field(name="last_login", dtype=UnixTimestamp),
+        
+        # Array types
+        Field(name="daily_steps", dtype=Array(Int32)),
+        Field(name="transaction_history", dtype=Array(Int64)),
+        Field(name="ratings", dtype=Array(Float32)),
+        Field(name="portfolio_values", dtype=Array(Float64)),
+        Field(name="favorite_items", dtype=Array(String)),
+        Field(name="document_hashes", dtype=Array(Bytes)),
+        Field(name="notification_settings", dtype=Array(Bool)),
+        Field(name="login_timestamps", dtype=Array(UnixTimestamp)),
+        
+        # Map types
+        Field(name="user_preferences", dtype=Map),
+        Field(name="metadata", dtype=Map),
+        Field(name="activity_log", dtype=Array(Map)),
+    ],
+    source=user_features_source,
+)
+```
+
+### Map Type Usage Examples
+
+Maps can store complex nested data structures:
+
+```python
+# Simple map
+user_preferences = {
+    "theme": "dark",
+    "language": "en",
+    "notifications_enabled": True,
+    "font_size": 14
+}
+
+# Nested map
+metadata = {
+    "profile": {
+        "bio": "Software engineer",
+        "location": "San Francisco"
+    },
+    "stats": {
+        "followers": 1000,
+        "posts": 250
+    }
+}
+
+# List of maps
+activity_log = [
+    {"action": "login", "timestamp": "2024-01-01T10:00:00", "ip": "192.168.1.1"},
+    {"action": "purchase", "timestamp": "2024-01-01T11:30:00", "amount": 99.99},
+    {"action": "logout", "timestamp": "2024-01-01T12:00:00"}
+]
+```
+
+## Type System in Practice
+
+The sections below explain how Feast uses its type system in different contexts.
 
 ### Feature inference
 

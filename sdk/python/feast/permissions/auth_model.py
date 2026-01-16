@@ -33,25 +33,23 @@ class OidcClientAuthConfig(OidcAuthConfig):
     token: Optional[str] = None  # pre-issued `token`
 
     @model_validator(mode="after")
-    def _validate_credentials(cls, values):
+    def _validate_credentials(self):
         """Enforce exactly one valid credential set."""
-        d = values.__dict__ if hasattr(values, "__dict__") else values
-
-        has_user_pass = bool(d.get("username")) and bool(d.get("password"))
-        has_secret = bool(d.get("client_secret"))
-        has_token = bool(d.get("token"))
+        has_user_pass = bool(self.username) and bool(self.password)
+        has_secret = bool(self.client_secret)
+        has_token = bool(self.token)
 
         # 1 static token
         if has_token and not (has_user_pass or has_secret):
-            return values
+            return self
 
         # 2 client_credentials
         if has_secret and not has_user_pass and not has_token:
-            return values
+            return self
 
         # 3 ROPG
         if has_user_pass and has_secret and not has_token:
-            return values
+            return self
 
         raise ValueError(
             "Invalid OIDC client auth combination: "
