@@ -165,6 +165,8 @@ GO_REQUIRED = ["cffi>=1.15.0"]
 
 MILVUS_REQUIRED = ["pymilvus>2.5", "milvus-lite==2.4.12", "setuptools>=60,<81"]
 
+DBT_REQUIRED = ["dbt-artifacts-parser>=0.6.0,<1"]
+
 TORCH_REQUIRED = [
     "torch>=2.7.0",
     "torchvision>=0.22.1",
@@ -195,6 +197,7 @@ CI_REQUIRED = (
         "build",
         "virtualenv==20.23.0",
         "cryptography>=43.0,<44",
+        "dbt-artifacts-parser>=0.6.0,<1",
         "ruff>=0.8.0",
         "mypy-protobuf>=3.1",
         "grpcio-tools>=1.56.2,<=1.62.3",
@@ -365,6 +368,7 @@ setup(
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,
         "milvus": MILVUS_REQUIRED,
+        "dbt": DBT_REQUIRED,
         "docling": DOCLING_REQUIRED,
         "pytorch": TORCH_REQUIRED,
         "nlp": NLP_REQUIRED,
