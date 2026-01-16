@@ -1,0 +1,46 @@
+name: dbt-integration-tests
+
+# Run dbt integration tests on PRs
+on:
+  pull_request:
+    paths:
+      - 'sdk/python/feast/dbt/**'
+      - 'sdk/python/tests/integration/dbt/**'
+      - 'sdk/python/tests/unit/dbt/**'
+      - '.github/workflows/dbt-integration-tests.yml'
+
+jobs:
+  dbt-integration-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      
+      - name: Install dependencies
+        run: |
+          cd sdk/python
+          uv pip install --system -e "."
+          uv pip install --system dbt-artifacts-parser pytest pytest-xdist
+      
+      - name: Run dbt integration tests
+        run: |
+          cd sdk/python
+          python -m pytest tests/integration/dbt/test_dbt_integration.py -v --tb=short
+      
+      - name: Minimize uv cache
+        run: uv cache prune --ci
