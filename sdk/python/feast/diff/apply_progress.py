@@ -17,6 +17,7 @@ try:
         get_color_for_phase,
         is_tty_available,
     )
+
     _PROGRESS_UTILS_AVAILABLE = True
 except ImportError:
     # Graceful fallback when progress_utils is not available (e.g., in tests)
