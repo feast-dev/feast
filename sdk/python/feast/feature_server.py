@@ -542,7 +542,7 @@ def get_app(
         # For now, just return dummy text
         return {"response": "This is a dummy response from the Feast feature server."}
 
-    @app.post("/read-document")
+    @app.post("/read-document", dependencies=[Depends(inject_user_details)])
     async def read_document_endpoint(request: ReadDocumentRequest):
         try:
             import os
@@ -557,7 +557,7 @@ def get_app(
         except Exception as e:
             return {"error": str(e)}
 
-    @app.post("/save-document")
+    @app.post("/save-document", dependencies=[Depends(inject_user_details)])
     async def save_document_endpoint(request: SaveDocumentRequest):
         try:
             import json
@@ -668,12 +668,41 @@ def get_app(
 
     manager = ConnectionManager()
 
+    MAX_WS_CONNECTIONS = 5
+    MAX_MESSAGE_SIZE = 4096
+    MAX_MESSAGES_PER_MINUTE = 60
+    WS_READ_TIMEOUT_SEC = 60
+
     @app.websocket("/ws/chat")
     async def websocket_endpoint(websocket: WebSocket):
+        if len(manager.active_connections) >= MAX_WS_CONNECTIONS:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
         await manager.connect(websocket)
+        message_timestamps: List[float] = []
         try:
             while True:
-                message = await websocket.receive_text()
+                try:
+                    message = await asyncio.wait_for(
+                        websocket.receive_text(), timeout=WS_READ_TIMEOUT_SEC
+                    )
+                except asyncio.TimeoutError:
+                    await websocket.close(code=status.WS_1001_GOING_AWAY)
+                    return
+
+                if len(message) > MAX_MESSAGE_SIZE:
+                    await websocket.close(code=status.WS_1009_MESSAGE_TOO_BIG)
+                    return
+
+                now = time.time()
+                cutoff = now - 60
+                message_timestamps = [ts for ts in message_timestamps if ts >= cutoff]
+                if len(message_timestamps) >= MAX_MESSAGES_PER_MINUTE:
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
+                message_timestamps.append(now)
+
                 # Process the received message (currently unused but kept for future implementation)
                 # For now, just return dummy text
                 response = f"You sent: '{message}'. This is a dummy response from the Feast feature server."
