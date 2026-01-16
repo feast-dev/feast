@@ -61,7 +61,7 @@ The resource types supported by the permission framework are those defining the 
 * Permission
 
    
-**TIP**: Check out the Permission APIs in the [Feast Python API Documentation](https://rtd.feast.dev/en/master/#permission) to learn more!
+**TIP**: Check out the Permission APIs in the [Feast Python API Documentation](https://docs.feast.dev/getting-started/concepts/permission) to learn more!
 
 ```python
 # This configuration grants users with the 'owner' role permissions 
