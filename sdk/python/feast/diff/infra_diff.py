@@ -1,5 +1,8 @@
 from dataclasses import dataclass
-from typing import Generic, Iterable, List, Optional, Tuple, TypeVar
+from typing import TYPE_CHECKING, Generic, Iterable, List, Optional, Tuple, TypeVar
+
+if TYPE_CHECKING:
+    from feast.diff.apply_progress import ApplyProgressContext
 
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.infra.infra_object import (
@@ -33,8 +36,9 @@ class InfraDiff:
     def __init__(self):
         self.infra_object_diffs = []
 
-    def update(self):
+    def update(self, progress_ctx: Optional["ApplyProgressContext"] = None):
         """Apply the infrastructure changes specified in this object."""
+
         for infra_object_diff in self.infra_object_diffs:
             if infra_object_diff.transition_type in [
                 TransitionType.DELETE,
@@ -43,6 +47,10 @@ class InfraDiff:
                 infra_object = InfraObject.from_proto(
                     infra_object_diff.current_infra_object
                 )
+                if progress_ctx:
+                    progress_ctx.update_phase_progress(
+                        f"Tearing down {infra_object_diff.name}"
+                    )
                 infra_object.teardown()
             elif infra_object_diff.transition_type in [
                 TransitionType.CREATE,
@@ -51,7 +59,18 @@ class InfraDiff:
                 infra_object = InfraObject.from_proto(
                     infra_object_diff.new_infra_object
                 )
+                if progress_ctx:
+                    progress_ctx.update_phase_progress(
+                        f"Creating/updating {infra_object_diff.name}"
+                    )
                 infra_object.update()
+
+            # Update progress after each operation (except unchanged operations)
+            if (
+                progress_ctx
+                and infra_object_diff.transition_type != TransitionType.UNCHANGED
+            ):
+                progress_ctx.update_phase_progress()
 
     def to_string(self):
         from colorama import Fore, Style

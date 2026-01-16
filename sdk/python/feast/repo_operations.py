@@ -10,10 +10,11 @@ import tempfile
 from importlib.abc import Loader
 from importlib.machinery import ModuleSpec
 from pathlib import Path
-from typing import List, Optional, Set, Union
+from typing import Callable, List, Optional, Set, Union
 
 import click
 from click.exceptions import BadParameter
+from tqdm import tqdm
 
 from feast import PushSource
 from feast.batch_feature_view import BatchFeatureView
@@ -342,6 +343,7 @@ def apply_total_with_repo_instance(
     repo: RepoContents,
     skip_source_validation: bool,
     skip_feature_view_validation: bool = False,
+    tqdm_builder: Optional[Callable[[int], tqdm]] = None,
 ):
     if not skip_source_validation:
         provider = store._get_provider()
@@ -358,22 +360,54 @@ def apply_total_with_repo_instance(
         views_to_delete,
     ) = extract_objects_for_apply_delete(project_name, registry, repo)
 
-    if store._should_use_plan():
-        registry_diff, infra_diff, new_infra = store.plan(
-            repo, skip_feature_view_validation=skip_feature_view_validation
-        )
-        click.echo(registry_diff.to_string())
+    # Create progress context if tqdm_builder is provided
+    progress_ctx = None
+    if tqdm_builder:
+        from feast.diff.apply_progress import ApplyProgressContext
 
-        store._apply_diffs(registry_diff, infra_diff, new_infra)
-        click.echo(infra_diff.to_string())
-    else:
-        store.apply(
-            all_to_apply,
-            objects_to_delete=all_to_delete,
-            partial=False,
-            skip_feature_view_validation=skip_feature_view_validation,
-        )
-        log_infra_changes(views_to_keep, views_to_delete)
+        progress_ctx = ApplyProgressContext(tqdm_builder=tqdm_builder)
+        progress_ctx.start_overall_progress()
+
+    try:
+        if store._should_use_plan():
+            # Planning phase
+            if progress_ctx:
+                progress_ctx.start_phase("Planning changes", 1)
+
+            registry_diff, infra_diff, new_infra = store.plan(
+                repo,
+                skip_feature_view_validation=skip_feature_view_validation,
+                progress_ctx=progress_ctx,
+            )
+            click.echo(registry_diff.to_string())
+
+            if progress_ctx:
+                progress_ctx.complete_phase()
+
+            # Apply phase
+            store._apply_diffs(
+                registry_diff, infra_diff, new_infra, progress_ctx=progress_ctx
+            )
+            click.echo(infra_diff.to_string())
+        else:
+            # Legacy apply path - simple single phase tracking
+            if progress_ctx:
+                progress_ctx.start_phase("Applying changes", 1)
+
+            store.apply(
+                all_to_apply,
+                objects_to_delete=all_to_delete,
+                partial=False,
+                skip_feature_view_validation=skip_feature_view_validation,
+            )
+            log_infra_changes(views_to_keep, views_to_delete)
+
+            if progress_ctx:
+                progress_ctx.update_phase_progress()
+                progress_ctx.complete_phase()
+    finally:
+        if progress_ctx:
+            progress_ctx.cleanup()
 
 
 def log_infra_changes(
@@ -416,6 +450,7 @@ def apply_total(
     repo_path: Path,
     skip_source_validation: bool,
     skip_feature_view_validation: bool = False,
+    tqdm_builder: Optional[Callable[[int], tqdm]] = None,
 ):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
@@ -437,6 +472,7 @@ def apply_total(
             repo,
             skip_source_validation,
             skip_feature_view_validation,
+            tqdm_builder=tqdm_builder,
         )
 
 

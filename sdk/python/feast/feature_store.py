@@ -18,6 +18,7 @@ import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -30,6 +31,9 @@ from typing import (
     Union,
     cast,
 )
+
+if TYPE_CHECKING:
+    from feast.diff.apply_progress import ApplyProgressContext
 
 import pandas as pd
 import pyarrow as pa
@@ -726,6 +730,7 @@ class FeatureStore:
         self,
         desired_repo_contents: RepoContents,
         skip_feature_view_validation: bool = False,
+        progress_ctx: Optional["ApplyProgressContext"] = None,
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
 
@@ -793,6 +798,9 @@ class FeatureStore:
             self._registry, self.project, desired_repo_contents
         )
 
+        if progress_ctx:
+            progress_ctx.update_phase_progress("Computing infrastructure diff")
+
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
         self._registry.refresh(project=self.project)
@@ -807,7 +815,11 @@ class FeatureStore:
         return registry_diff, infra_diff, new_infra
 
     def _apply_diffs(
-        self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
+        self,
+        registry_diff: RegistryDiff,
+        infra_diff: InfraDiff,
+        new_infra: Infra,
+        progress_ctx: Optional["ApplyProgressContext"] = None,
     ):
         """Applies the given diffs to the metadata store and infrastructure.
 
@@ -815,13 +827,32 @@ class FeatureStore:
             registry_diff: The diff between the current registry and the desired registry.
             infra_diff: The diff between the current infra and the desired infra.
             new_infra: The desired infra.
+            progress_ctx: Optional progress context for tracking apply progress.
         """
-        infra_diff.update()
+        # Infrastructure phase
+        if progress_ctx:
+            infra_ops_count = len(infra_diff.infra_object_diffs)
+            progress_ctx.start_phase("Updating infrastructure", infra_ops_count)
+
+        infra_diff.update(progress_ctx=progress_ctx)
+
+        if progress_ctx:
+            progress_ctx.complete_phase()
+            progress_ctx.start_phase("Updating registry", 2)
+
+        # Registry phase
         apply_diff_to_registry(
             self._registry, registry_diff, self.project, commit=False
         )
 
+        if progress_ctx:
+            progress_ctx.update_phase_progress("Committing registry changes")
+
         self._registry.update_infra(new_infra, self.project, commit=True)
+
+        if progress_ctx:
+            progress_ctx.update_phase_progress("Registry update complete")
+            progress_ctx.complete_phase()
 
     def apply(
         self,
