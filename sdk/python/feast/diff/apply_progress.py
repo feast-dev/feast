@@ -23,13 +23,19 @@ except ImportError:
     # Graceful fallback when progress_utils is not available (e.g., in tests)
     _PROGRESS_UTILS_AVAILABLE = False
 
-    def create_positioned_tqdm(*args, **kwargs):
+    def create_positioned_tqdm(
+        position: int,
+        description: str,
+        total: int,
+        color: str = "blue",
+        postfix: Optional[str] = None,
+    ) -> Optional[tqdm]:
         return None
 
-    def get_color_for_phase(phase):
+    def get_color_for_phase(phase: str) -> str:
         return "blue"
 
-    def is_tty_available():
+    def is_tty_available() -> bool:
         return False
 
 
