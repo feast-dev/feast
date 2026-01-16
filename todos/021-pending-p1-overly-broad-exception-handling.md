@@ -1,9 +1,11 @@
 ---
-status: pending
+status: completed
 priority: p1
 issue_id: "021"
 tags: [error-handling, silent-failures, code-quality]
 dependencies: [015]
+resolved_date: "2026-01-17"
+resolution: "Fixed 3 locations: table deletion, namespace creation, table loading - now use specific PyIceberg exceptions"
 ---
 
 # Overly Broad Exception Handling Masks Failures

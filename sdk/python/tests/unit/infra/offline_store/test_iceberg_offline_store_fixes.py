@@ -1063,3 +1063,245 @@ class TestMORDetectionSingleScan:
                     assert "CREATE VIEW" in execute_call
                     assert "read_parquet" in execute_call
                     assert "s3://bucket/data.parquet" in str(execute_call)
+
+
+class TestTTLValueValidation:
+    """Test suite for TTL value validation to prevent SQL errors (TODO-020).
+
+    Note: Python's timedelta constructor already rejects infinite and NaN values,
+    so we focus on testing bounds validation (< 1 second, > 365 days).
+    """
+
+    def test_ttl_validation_rejects_sub_second_values(self):
+        """Test that sub-second TTL values are rejected."""
+        from unittest.mock import MagicMock, patch
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+        from feast.field import Field
+        from feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg_source import (
+            IcebergSource,
+        )
+        from feast.repo_config import RepoConfig
+        from feast.types import Int32
+
+        driver_entity = Entity(name="driver", join_keys=["driver_id"])
+
+        source = IcebergSource(
+            name="test_source",
+            table_identifier="test.features",
+            timestamp_field="event_timestamp",
+        )
+
+        # Create feature view with negative TTL (already filtered by > 0 check, but testing bounds)
+        feature_view = FeatureView(
+            name="test_fv",
+            entities=[driver_entity],
+            schema=[Field(name="feature1", dtype=Int32)],
+            source=source,
+            ttl=timedelta(seconds=0.5),  # Invalid: less than 1 second
+        )
+
+        config = RepoConfig(
+            project="test_project",
+            registry="registry.db",
+            provider="local",
+            offline_store=IcebergOfflineStoreConfig(
+                catalog_type="sql",
+                uri="sqlite:///test.db",
+            ),
+        )
+
+        entity_df = pd.DataFrame({
+            "driver_id": [1],
+            "event_timestamp": [datetime(2026, 1, 16, 12, 0, 0)],
+        })
+
+        # Mock catalog and table
+        mock_task = MagicMock()
+        mock_task.delete_files = []
+        mock_task.file.file_path = "s3://bucket/file.parquet"
+
+        mock_scan = MagicMock()
+        mock_scan.plan_files.return_value = [mock_task]
+
+        mock_table = MagicMock()
+        mock_table.scan.return_value = mock_scan
+
+        mock_catalog = MagicMock()
+        mock_catalog.load_table.return_value = mock_table
+
+        with patch("feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.load_catalog", return_value=mock_catalog):
+            with patch("feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.duckdb.connect") as mock_duckdb:
+                mock_con = MagicMock()
+                mock_duckdb.return_value = mock_con
+
+                # Should raise ValueError for TTL < 1 second
+                with pytest.raises(ValueError, match="invalid TTL"):
+                    IcebergOfflineStore.get_historical_features(
+                        config=config,
+                        feature_views=[feature_view],
+                        feature_refs=["test_fv:feature1"],
+                        entity_df=entity_df,
+                        registry=MagicMock(),
+                        project="test_project",
+                    )
+
+    def test_ttl_validation_rejects_excessive_values(self):
+        """Test that excessively large TTL values are rejected."""
+        from unittest.mock import MagicMock, patch
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+        from feast.field import Field
+        from feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg_source import (
+            IcebergSource,
+        )
+        from feast.repo_config import RepoConfig
+        from feast.types import Int32
+
+        driver_entity = Entity(name="driver", join_keys=["driver_id"])
+
+        source = IcebergSource(
+            name="test_source",
+            table_identifier="test.features",
+            timestamp_field="event_timestamp",
+        )
+
+        # Create feature view with excessive TTL (>365 days)
+        feature_view = FeatureView(
+            name="test_fv",
+            entities=[driver_entity],
+            schema=[Field(name="feature1", dtype=Int32)],
+            source=source,
+            ttl=timedelta(days=400),  # Invalid: > 365 days
+        )
+
+        config = RepoConfig(
+            project="test_project",
+            registry="registry.db",
+            provider="local",
+            offline_store=IcebergOfflineStoreConfig(
+                catalog_type="sql",
+                uri="sqlite:///test.db",
+            ),
+        )
+
+        entity_df = pd.DataFrame({
+            "driver_id": [1],
+            "event_timestamp": [datetime(2026, 1, 16, 12, 0, 0)],
+        })
+
+        # Mock catalog and table
+        mock_task = MagicMock()
+        mock_task.delete_files = []
+        mock_task.file.file_path = "s3://bucket/file.parquet"
+
+        mock_scan = MagicMock()
+        mock_scan.plan_files.return_value = [mock_task]
+
+        mock_table = MagicMock()
+        mock_table.scan.return_value = mock_scan
+
+        mock_catalog = MagicMock()
+        mock_catalog.load_table.return_value = mock_table
+
+        with patch("feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.load_catalog", return_value=mock_catalog):
+            with patch("feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.duckdb.connect") as mock_duckdb:
+                mock_con = MagicMock()
+                mock_duckdb.return_value = mock_con
+
+                # Should raise ValueError for TTL > 365 days
+                with pytest.raises(ValueError, match="invalid TTL"):
+                    IcebergOfflineStore.get_historical_features(
+                        config=config,
+                        feature_views=[feature_view],
+                        feature_refs=["test_fv:feature1"],
+                        entity_df=entity_df,
+                        registry=MagicMock(),
+                        project="test_project",
+                    )
+
+    def test_ttl_validation_accepts_valid_values(self):
+        """Test that valid TTL values are accepted."""
+        from unittest.mock import MagicMock, patch
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+        from feast.field import Field
+        from feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg_source import (
+            IcebergSource,
+        )
+        from feast.repo_config import RepoConfig
+        from feast.types import Int32
+
+        driver_entity = Entity(name="driver", join_keys=["driver_id"])
+
+        source = IcebergSource(
+            name="test_source",
+            table_identifier="test.features",
+            timestamp_field="event_timestamp",
+        )
+
+        # Create feature view with valid TTL
+        feature_view = FeatureView(
+            name="test_fv",
+            entities=[driver_entity],
+            schema=[Field(name="feature1", dtype=Int32)],
+            source=source,
+            ttl=timedelta(days=7),  # Valid: 7 days
+        )
+
+        config = RepoConfig(
+            project="test_project",
+            registry="registry.db",
+            provider="local",
+            offline_store=IcebergOfflineStoreConfig(
+                catalog_type="sql",
+                uri="sqlite:///test.db",
+            ),
+        )
+
+        entity_df = pd.DataFrame({
+            "driver_id": [1],
+            "event_timestamp": [datetime(2026, 1, 16, 12, 0, 0)],
+        })
+
+        # Mock catalog and table
+        mock_task = MagicMock()
+        mock_task.delete_files = []
+        mock_task.file.file_path = "s3://bucket/file.parquet"
+
+        mock_scan = MagicMock()
+        mock_scan.plan_files.return_value = [mock_task]
+
+        mock_table = MagicMock()
+        mock_table.scan.return_value = mock_scan
+
+        mock_catalog = MagicMock()
+        mock_catalog.load_table.return_value = mock_table
+
+        with patch("feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.load_catalog", return_value=mock_catalog):
+            with patch("feast.infra.offline_stores.contrib.iceberg_offline_store.iceberg.duckdb.connect") as mock_duckdb:
+                mock_con = MagicMock()
+                mock_duckdb.return_value = mock_con
+
+                # Should NOT raise an error for valid TTL
+                try:
+                    IcebergOfflineStore.get_historical_features(
+                        config=config,
+                        feature_views=[feature_view],
+                        feature_refs=["test_fv:feature1"],
+                        entity_df=entity_df,
+                        registry=MagicMock(),
+                        project="test_project",
+                    )
+                    # Expected to work (may fail later due to mocking, but TTL validation passed)
+                except ValueError as e:
+                    if "TTL" in str(e):
+                        pytest.fail(f"Valid TTL was rejected: {e}")
+                    # Other errors are acceptable in this unit test
+                except Exception:
+                    # Other exceptions are fine - we're only testing TTL validation
+                    pass
+

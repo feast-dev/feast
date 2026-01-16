@@ -1,9 +1,11 @@
 ---
-status: pending
+status: resolved
 priority: p2
 issue_id: "016"
 tags: [code-quality, duplication, maintainability]
 dependencies: []
+resolved_date: "2026-01-17"
+resolution: "Function does not exist in current codebase - likely already removed in earlier refactoring"
 ---
 
 # Duplicate _arrow_to_iceberg_type Function

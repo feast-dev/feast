@@ -28,6 +28,12 @@
    - 16 pending TODOs organized into 4 sessions
    - Timeline: 2-3 weeks, ~19 hours estimated
 
+5. ✅ **Created Pull Request**
+   - PR #5878: https://github.com/feast-dev/feast/pull/5878
+   - Target: feast-dev/feast:master
+   - Source: tommy-ca/feast:feat/iceberg-storage
+   - Comprehensive PR description with security analysis
+
 ---
 
 ## What We Built

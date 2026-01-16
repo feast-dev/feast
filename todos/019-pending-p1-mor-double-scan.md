@@ -1,9 +1,11 @@
 ---
-status: pending
+status: resolved
 priority: p1
 issue_id: "019"
 tags: [performance, bug, offline-store]
 dependencies: []
+resolved_date: "2026-01-17"
+resolution: "Code already optimized - single scan.plan_files() iteration at lines 305-309 and 535-539"
 ---
 
 # MOR Detection Double-Scans Table

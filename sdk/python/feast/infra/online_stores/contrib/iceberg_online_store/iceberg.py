@@ -45,6 +45,11 @@ from typing import (
 import pyarrow as pa
 from pydantic import Field, StrictInt, StrictStr
 from pyiceberg.catalog import load_catalog
+from pyiceberg.exceptions import (
+    NamespaceAlreadyExistsError,
+    NoSuchNamespaceError,
+    NoSuchTableError,
+)
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 from pyiceberg.types import NestedField, StringType, TimestampType
@@ -289,8 +294,17 @@ class IcebergOnlineStore(OnlineStore):
             try:
                 catalog.drop_table(table_identifier)
                 logger.info(f"Deleted online table: {table_identifier}")
+            except (NoSuchTableError, NoSuchNamespaceError):
+                # Expected: table or namespace doesn't exist (already deleted)
+                logger.debug(f"Table {table_identifier} not found (already deleted)")
             except Exception as e:
-                logger.warning(f"Failed to delete table {table_identifier}: {e}")
+                # Unexpected failures (auth, network, permissions) should be logged and raised
+                logger.error(
+                    f"Failed to delete table {table_identifier}: {e}",
+                    exc_info=True
+                )
+                # Let auth/network failures propagate to caller
+                raise
 
         # Create tables
         for table in tables_to_keep:
@@ -361,7 +375,8 @@ class IcebergOnlineStore(OnlineStore):
 
         try:
             return catalog.load_table(table_identifier)
-        except Exception:
+        except (NoSuchTableError, NoSuchNamespaceError):
+            # Table doesn't exist - create it below
             # Create table with schema
             schema = self._build_online_schema(table, config)
             partition_spec = self._build_partition_spec(config)
@@ -369,10 +384,10 @@ class IcebergOnlineStore(OnlineStore):
             # Create namespace if it doesn't exist
             try:
                 catalog.create_namespace(config.namespace)
-            except Exception as e:
-                # Only ignore if namespace already exists; let other errors propagate
-                if "already exists" not in str(e).lower():
-                    raise
+            except NamespaceAlreadyExistsError:
+                # Expected: namespace already exists
+                pass
+            # Don't catch other exceptions - let auth/network/permission failures propagate!
 
             iceberg_table = catalog.create_table(
                 identifier=table_identifier,

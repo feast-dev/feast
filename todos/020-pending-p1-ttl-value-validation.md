@@ -1,9 +1,11 @@
 ---
-status: pending
+status: completed
 priority: p1
 issue_id: "020"
 tags: [security, validation, data-integrity]
 dependencies: [003]
+resolved_date: "2026-01-17"
+resolution: "Added TTL bounds validation (1 second to 365 days) and math.isfinite() check. 3 comprehensive tests passing."
 ---
 
 # Missing TTL Value Validation

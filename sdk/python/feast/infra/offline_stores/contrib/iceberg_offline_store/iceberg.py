@@ -368,6 +368,22 @@ class IcebergOfflineStore(OfflineStore):
             # Add TTL filtering: feature must be within TTL window
             if fv.ttl and fv.ttl.total_seconds() > 0:
                 ttl_seconds = fv.ttl.total_seconds()
+
+                # SECURITY: Validate TTL value before SQL interpolation
+                # Prevents SQL errors from inf/nan values and enforces reasonable bounds
+                if not math.isfinite(ttl_seconds):
+                    raise ValueError(
+                        f"Feature view '{fv.name}' has non-finite TTL: {ttl_seconds}. "
+                        f"TTL must be a finite number of seconds."
+                    )
+
+                # Enforce reasonable bounds: 1 second to 365 days (31536000 seconds)
+                if not (1 <= ttl_seconds <= 31536000):
+                    raise ValueError(
+                        f"Feature view '{fv.name}' has invalid TTL: {fv.ttl}. "
+                        f"TTL must be between 1 second and 365 days (got {ttl_seconds} seconds)."
+                    )
+
                 query += (
                     f" AND {fv_name}.{timestamp_field} >= "
                     f"entity_df.event_timestamp - INTERVAL '{ttl_seconds}' SECOND"
