@@ -271,9 +271,17 @@ def plan_command(
     is_flag=True,
     help="Don't validate feature views. Use with caution as this skips important checks.",
 )
+@click.option(
+    "--no-progress",
+    is_flag=True,
+    help="Disable progress bars during apply operation.",
+)
 @click.pass_context
 def apply_total_command(
-    ctx: click.Context, skip_source_validation: bool, skip_feature_view_validation: bool
+    ctx: click.Context,
+    skip_source_validation: bool,
+    skip_feature_view_validation: bool,
+    no_progress: bool,
 ):
     """
     Create or update a feature store deployment
@@ -283,9 +291,19 @@ def apply_total_command(
     cli_check_repo(repo, fs_yaml_file)
 
     repo_config = load_repo_config(repo, fs_yaml_file)
+
+    # Set environment variable to disable progress if requested
+    if no_progress:
+        import os
+
+        os.environ["FEAST_NO_PROGRESS"] = "1"
+
     try:
         apply_total(
-            repo_config, repo, skip_source_validation, skip_feature_view_validation
+            repo_config,
+            repo,
+            skip_source_validation,
+            skip_feature_view_validation,
         )
     except FeastProviderLoginError as e:
         print(str(e))
