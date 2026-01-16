@@ -175,7 +175,14 @@ class SubstraitTransformation(Transformation):
 
         import ibis
         import ibis.expr.datatypes as dt
-        from ibis_substrait.compiler.core import SubstraitCompiler
+
+        try:
+            from ibis_substrait.compiler.core import SubstraitCompiler
+        except ImportError:
+            raise ImportError(
+                "Failed to use substrait transformation: 'ibis-substrait' package is not installed. "
+                "Install it with: `pip install ibis-substrait and only if https://github.com/ibis-project/ibis-substrait/issues/1309 issue is resolved."
+            )
 
         compiler = SubstraitCompiler()
 

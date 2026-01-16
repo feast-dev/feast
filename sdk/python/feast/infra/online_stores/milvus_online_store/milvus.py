@@ -222,10 +222,11 @@ class MilvusOnlineStore(OnlineStore):
                             index_name=f"vector_index_{vector_field.name}",
                             params={"nlist": config.online_store.nlist},
                         )
-                self.client.create_index(
-                    collection_name=collection_name,
-                    index_params=index_params,
-                )
+                if len(index_params) > 0:
+                    self.client.create_index(
+                        collection_name=collection_name,
+                        index_params=index_params,
+                    )
             else:
                 self.client.load_collection(collection_name)
             self._collections[collection_name] = self.client.describe_collection(
