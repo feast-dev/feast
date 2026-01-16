@@ -11,11 +11,25 @@ from typing import Optional
 
 from tqdm import tqdm
 
-from feast.diff.progress_utils import (
-    create_positioned_tqdm,
-    get_color_for_phase,
-    is_tty_available,
-)
+try:
+    from feast.diff.progress_utils import (
+        create_positioned_tqdm,
+        get_color_for_phase,
+        is_tty_available,
+    )
+    _PROGRESS_UTILS_AVAILABLE = True
+except ImportError:
+    # Graceful fallback when progress_utils is not available (e.g., in tests)
+    _PROGRESS_UTILS_AVAILABLE = False
+
+    def create_positioned_tqdm(*args, **kwargs):
+        return None
+
+    def get_color_for_phase(phase):
+        return "blue"
+
+    def is_tty_available():
+        return False
 
 
 @dataclass
@@ -50,7 +64,7 @@ class ApplyProgressContext:
 
     def __post_init__(self):
         """Initialize TTY detection after dataclass creation."""
-        self.tty_available = is_tty_available()
+        self.tty_available = _PROGRESS_UTILS_AVAILABLE and is_tty_available()
 
     def start_overall_progress(self):
         """Initialize the overall progress bar for apply phases."""
@@ -58,12 +72,16 @@ class ApplyProgressContext:
             return
 
         if self.overall_progress is None:
-            self.overall_progress = create_positioned_tqdm(
-                position=self.OVERALL_POSITION,
-                description="Applying changes",
-                total=self.total_phases,
-                color=get_color_for_phase("overall"),
-            )
+            try:
+                self.overall_progress = create_positioned_tqdm(
+                    position=self.OVERALL_POSITION,
+                    description="Applying changes",
+                    total=self.total_phases,
+                    color=get_color_for_phase("overall"),
+                )
+            except (TypeError, AttributeError):
+                # Handle case where fallback functions don't work as expected
+                self.overall_progress = None
 
     def start_phase(self, phase_name: str, operations_count: int = 0):
         """
@@ -80,17 +98,24 @@ class ApplyProgressContext:
 
         # Close previous phase progress if exists
         if self.phase_progress:
-            self.phase_progress.close()
+            try:
+                self.phase_progress.close()
+            except (AttributeError, TypeError):
+                pass
             self.phase_progress = None
 
         # Create new phase progress bar if operations are known
         if operations_count > 0:
-            self.phase_progress = create_positioned_tqdm(
-                position=self.PHASE_POSITION,
-                description=phase_name,
-                total=operations_count,
-                color=get_color_for_phase(phase_name.lower()),
-            )
+            try:
+                self.phase_progress = create_positioned_tqdm(
+                    position=self.PHASE_POSITION,
+                    description=phase_name,
+                    total=operations_count,
+                    color=get_color_for_phase(phase_name.lower()),
+                )
+            except (TypeError, AttributeError):
+                # Handle case where fallback functions don't work as expected
+                self.phase_progress = None
 
     def update_phase_progress(self, description: Optional[str] = None):
         """
@@ -102,11 +127,15 @@ class ApplyProgressContext:
         if not self.tty_available or not self.phase_progress:
             return
 
-        if description:
-            # Update postfix with current operation
-            self.phase_progress.set_postfix_str(description)
+        try:
+            if description:
+                # Update postfix with current operation
+                self.phase_progress.set_postfix_str(description)
 
-        self.phase_progress.update(1)
+            self.phase_progress.update(1)
+        except (AttributeError, TypeError):
+            # Handle case where phase_progress is None or fallback function returned None
+            pass
 
     def complete_phase(self):
         """Mark current phase as complete and advance overall progress."""
@@ -115,23 +144,35 @@ class ApplyProgressContext:
 
         # Close phase progress
         if self.phase_progress:
-            self.phase_progress.close()
+            try:
+                self.phase_progress.close()
+            except (AttributeError, TypeError):
+                pass
             self.phase_progress = None
 
         # Update overall progress
         if self.overall_progress:
-            self.overall_progress.update(1)
-            # Update postfix with phase completion
-            phase_text = f"({self.completed_phases + 1}/{self.total_phases} phases)"
-            self.overall_progress.set_postfix_str(phase_text)
+            try:
+                self.overall_progress.update(1)
+                # Update postfix with phase completion
+                phase_text = f"({self.completed_phases + 1}/{self.total_phases} phases)"
+                self.overall_progress.set_postfix_str(phase_text)
+            except (AttributeError, TypeError):
+                pass
 
         self.completed_phases += 1
 
     def cleanup(self):
         """Clean up all progress bars. Should be called in finally blocks."""
         if self.phase_progress:
-            self.phase_progress.close()
+            try:
+                self.phase_progress.close()
+            except (AttributeError, TypeError):
+                pass
             self.phase_progress = None
         if self.overall_progress:
-            self.overall_progress.close()
+            try:
+                self.overall_progress.close()
+            except (AttributeError, TypeError):
+                pass
             self.overall_progress = None
