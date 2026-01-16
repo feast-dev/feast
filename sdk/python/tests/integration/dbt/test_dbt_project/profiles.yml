@@ -1,0 +1,38 @@
+# Profiles for testing dbt compilation
+# We use DuckDB for local testing as it doesn't require external services
+
+test:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ':memory:'
+      threads: 1
+
+bigquery_test:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: feast-test-project
+      dataset: feast_test
+      threads: 1
+      timeout_seconds: 300
+      location: US
+      priority: interactive
+      keyfile: /dev/null
+
+snowflake_test:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: test_account
+      user: test_user
+      password: test_password
+      role: test_role
+      database: test_db
+      warehouse: test_wh
+      schema: test_schema
+      threads: 1

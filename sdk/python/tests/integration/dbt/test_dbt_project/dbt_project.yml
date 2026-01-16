@@ -1,0 +1,17 @@
+name: 'feast_integration_test'
+version: '1.0.0'
+config-version: 2
+
+# Project profile (for testing we don't need real connections)
+profile: 'test'
+
+# Model directory
+model-paths: ["models"]
+
+# Target directory where manifest.json will be generated
+target-path: "target"
+
+# Configure models
+models:
+  feast_integration_test:
+    +materialized: table
