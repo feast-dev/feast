@@ -3772,6 +3772,7 @@ pydantic==2.12.5 \
     --hash=sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d
     # via
     #   feast (setup.py)
+    #   dbt-artifacts-parser
     #   docling
     #   docling-core
     #   docling-ibm-models

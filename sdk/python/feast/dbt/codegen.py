@@ -10,8 +10,6 @@ from typing import Any, List, Optional, Set
 
 from jinja2 import BaseLoader, Environment
 
-logger = logging.getLogger(__name__)
-
 from feast.dbt.mapper import map_dbt_type_to_feast_type
 from feast.dbt.parser import DbtModel
 from feast.types import (
@@ -25,6 +23,8 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
+
+logger = logging.getLogger(__name__)
 
 # Template for generating a complete Feast definitions file
 FEAST_FILE_TEMPLATE = '''"""

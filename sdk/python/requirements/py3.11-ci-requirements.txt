@@ -3937,6 +3937,7 @@ pydantic==2.12.5 \
     # via
     #   feast (setup.py)
     #   codeflare-sdk
+    #   dbt-artifacts-parser
     #   docling
     #   docling-core
     #   docling-ibm-models
