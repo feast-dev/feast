@@ -23,7 +23,6 @@ import yaml
 from colorama import Fore, Style
 from dateutil import parser
 from pygments import formatters, highlight, lexers
-from tqdm import tqdm
 
 from feast import utils
 from feast.cli.data_sources import data_sources_cmd
@@ -292,12 +291,11 @@ def apply_total_command(
 
     repo_config = load_repo_config(repo, fs_yaml_file)
 
-    # Create tqdm_builder for progress tracking
-    tqdm_builder = None
-    if not no_progress:
+    # Set environment variable to disable progress if requested
+    if no_progress:
+        import os
 
-        def tqdm_builder(length):
-            return tqdm(total=length, ncols=100)
+        os.environ["FEAST_NO_PROGRESS"] = "1"
 
     try:
         apply_total(
@@ -305,7 +303,6 @@ def apply_total_command(
             repo,
             skip_source_validation,
             skip_feature_view_validation,
-            tqdm_builder=tqdm_builder,
         )
     except FeastProviderLoginError as e:
         print(str(e))

@@ -65,13 +65,6 @@ class InfraDiff:
                     )
                 infra_object.update()
 
-            # Update progress after each operation (except unchanged operations)
-            if (
-                progress_ctx
-                and infra_object_diff.transition_type != TransitionType.UNCHANGED
-            ):
-                progress_ctx.update_phase_progress()
-
     def to_string(self):
         from colorama import Fore, Style
 

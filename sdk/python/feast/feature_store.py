@@ -829,30 +829,35 @@ class FeatureStore:
             new_infra: The desired infra.
             progress_ctx: Optional progress context for tracking apply progress.
         """
-        # Infrastructure phase
-        if progress_ctx:
-            infra_ops_count = len(infra_diff.infra_object_diffs)
-            progress_ctx.start_phase("Updating infrastructure", infra_ops_count)
+        try:
+            # Infrastructure phase
+            if progress_ctx:
+                infra_ops_count = len(infra_diff.infra_object_diffs)
+                progress_ctx.start_phase("Updating infrastructure", infra_ops_count)
 
-        infra_diff.update(progress_ctx=progress_ctx)
+            infra_diff.update(progress_ctx=progress_ctx)
 
-        if progress_ctx:
-            progress_ctx.complete_phase()
-            progress_ctx.start_phase("Updating registry", 2)
+            if progress_ctx:
+                progress_ctx.complete_phase()
+                progress_ctx.start_phase("Updating registry", 2)
 
-        # Registry phase
-        apply_diff_to_registry(
-            self._registry, registry_diff, self.project, commit=False
-        )
+            # Registry phase
+            apply_diff_to_registry(
+                self._registry, registry_diff, self.project, commit=False
+            )
 
-        if progress_ctx:
-            progress_ctx.update_phase_progress("Committing registry changes")
+            if progress_ctx:
+                progress_ctx.update_phase_progress("Committing registry changes")
 
-        self._registry.update_infra(new_infra, self.project, commit=True)
+            self._registry.update_infra(new_infra, self.project, commit=True)
 
-        if progress_ctx:
-            progress_ctx.update_phase_progress("Registry update complete")
-            progress_ctx.complete_phase()
+            if progress_ctx:
+                progress_ctx.update_phase_progress("Registry update complete")
+                progress_ctx.complete_phase()
+        finally:
+            # Always cleanup progress bars
+            if progress_ctx:
+                progress_ctx.cleanup()
 
     def apply(
         self,
