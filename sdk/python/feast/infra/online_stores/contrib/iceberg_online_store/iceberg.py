@@ -105,7 +105,7 @@ class IcebergOnlineStoreConfig(FeastConfigBaseModel):
     partition_strategy: Literal["entity_hash", "timestamp", "hybrid"] = "entity_hash"
     """Partitioning strategy for entity lookups"""
 
-    partition_count: StrictInt = 256
+    partition_count: StrictInt = 32
     """Number of partitions for hash-based partitioning"""
 
     read_timeout_ms: StrictInt = 100
@@ -160,6 +160,17 @@ class IcebergOnlineStore(OnlineStore):
         iceberg_table = self._get_or_create_online_table(
             catalog, online_config, config.project, table
         )
+
+        # Warn about append-only behavior (once per instance)
+        if not hasattr(self, '_append_warning_shown'):
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Iceberg online store uses append-only writes. "
+                "Run periodic compaction to prevent unbounded storage growth. "
+                "See https://docs.feast.dev/reference/online-stores/iceberg#compaction"
+            )
+            self._append_warning_shown = True
 
         # Convert Feast data to Arrow table
         arrow_table = self._convert_feast_to_arrow(data, table, online_config, config)
@@ -359,8 +370,10 @@ class IcebergOnlineStore(OnlineStore):
             # Create namespace if it doesn't exist
             try:
                 catalog.create_namespace(config.namespace)
-            except Exception:
-                pass  # Namespace already exists
+            except Exception as e:
+                # Only ignore if namespace already exists; let other errors propagate
+                if "already exists" not in str(e).lower():
+                    raise
 
             iceberg_table = catalog.create_table(
                 identifier=table_identifier,
@@ -580,9 +593,10 @@ class IcebergOnlineStore(OnlineStore):
         }
 
         # Group by entity_key and get latest record per entity
+        # Tuple: (event_ts, created_ts, features)
         results: Dict[
-            str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
-        ] = {key: (None, None) for key in entity_key_bins.keys()}
+            str, Tuple[Optional[datetime], Optional[datetime], Optional[Dict[str, ValueProto]]]
+        ] = {key: (None, None, None) for key in entity_key_bins.keys()}
 
         if len(arrow_table) == 0:
             return [(None, None) for _ in entity_keys]
@@ -591,11 +605,21 @@ class IcebergOnlineStore(OnlineStore):
         for i in range(len(arrow_table)):
             entity_key_hex = arrow_table["entity_key"][i].as_py()
             event_ts = arrow_table["event_ts"][i].as_py()
+            created_ts = arrow_table["created_ts"][i].as_py()
 
             # Check if this is the latest record for this entity
             if entity_key_hex in results:
-                current_ts, _ = results[entity_key_hex]
-                if current_ts is None or event_ts > current_ts:
+                current_event_ts, current_created_ts, _ = results[entity_key_hex]
+
+                # Use created_ts as tiebreaker when event_ts is equal (deterministic)
+                is_newer = (
+                    current_event_ts is None or
+                    event_ts > current_event_ts or
+                    (event_ts == current_event_ts and created_ts is not None and
+                     (current_created_ts is None or created_ts > current_created_ts))
+                )
+
+                if is_newer:
                     # Extract feature values
                     feature_dict = {}
                     for feature_name in requested_features:
@@ -607,11 +631,13 @@ class IcebergOnlineStore(OnlineStore):
 
                     results[entity_key_hex] = (
                         event_ts,
+                        created_ts,
                         feature_dict if feature_dict else None,
                     )
 
-        # Return in original entity_keys order
-        return [results[ek_hex] for ek_hex in entity_key_bins.keys()]
+        # Return in original entity_keys order (extract only event_ts and features, not created_ts)
+        return [(event_ts, features) for event_ts, created_ts, features in
+                [results[ek_hex] for ek_hex in entity_key_bins.keys()]]
 
     def _value_proto_to_python(self, value_proto: ValueProto, dtype) -> Any:
         """Convert Feast ValueProto to Python value."""
