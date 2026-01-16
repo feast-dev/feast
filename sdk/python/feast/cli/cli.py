@@ -26,6 +26,7 @@ from pygments import formatters, highlight, lexers
 
 from feast import utils
 from feast.cli.data_sources import data_sources_cmd
+from feast.cli.dbt_import import dbt_cmd
 from feast.cli.entities import entities_cmd
 from feast.cli.feature_services import feature_services_cmd
 from feast.cli.feature_views import feature_views_cmd
@@ -569,6 +570,7 @@ cli.add_command(serve_command)
 cli.add_command(serve_offline_command)
 cli.add_command(serve_registry_command)
 cli.add_command(serve_transformations_command)
+cli.add_command(dbt_cmd)
 
 if __name__ == "__main__":
     cli()

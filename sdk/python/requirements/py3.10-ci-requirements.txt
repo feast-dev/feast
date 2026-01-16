@@ -853,6 +853,10 @@ db-dtypes==1.5.0 \
     # via
     #   google-cloud-bigquery
     #   pandas-gbq
+dbt-artifacts-parser==0.12.0 \
+    --hash=sha256:3db93df7969c3f22c6fbf75a51b0af4c21b189d8db6f3c54e8471102c775bb0d \
+    --hash=sha256:9d1c0ed41926102c1c39fdd780e1a332f58c9b794e94dba0dcf5dfefc847d6ea
+    # via feast (setup.py)
 debugpy==1.8.19 \
     --hash=sha256:0601708223fe1cd0e27c6cce67a899d92c7d68e73690211e6788a4b0e1903f5b \
     --hash=sha256:14035cbdbb1fe4b642babcdcb5935c2da3b1067ac211c5c5a8fdc0bb31adbcaa \
@@ -3763,6 +3767,7 @@ pydantic==2.12.5 \
     --hash=sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d
     # via
     #   feast (setup.py)
+    #   dbt-artifacts-parser
     #   docling
     #   docling-core
     #   docling-ibm-models
