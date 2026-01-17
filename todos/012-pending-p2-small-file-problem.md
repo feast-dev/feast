@@ -1,9 +1,12 @@
 ---
-status: pending
+status: completed
 priority: p2
 issue_id: "012"
 tags: [code-review, performance, online-store, storage]
 dependencies: []
+resolved_date: "2026-01-17"
+resolution: "partition_count default reduced from 256 to 32 in IcebergOnlineStoreConfig:114"
+verification: "Code review confirms: partition_count: StrictInt = 32"
 ---
 
 # Small File Problem with 256 Partitions

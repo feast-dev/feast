@@ -1,9 +1,12 @@
 ---
-status: pending
+status: completed
 priority: p2
 issue_id: "014"
 tags: [code-review, security, logging]
 dependencies: []
+resolved_date: "2026-01-17"
+resolution: "Credentials now passed via DuckDB parameterized queries ($1 placeholder), never interpolated into SQL strings. _configure_duckdb_httpfs() uses con.execute(sql, [credential]) pattern."
+test_coverage: "TestCredentialSecurityFixes: 6/6 tests passing (test_credentials_not_in_sql_strings, test_credentials_use_parameterized_queries, test_no_credential_exposure_in_error_messages)"
 ---
 
 # Credential Exposure Risk in Logging

@@ -1,9 +1,13 @@
 ---
-status: pending
+status: completed
 priority: p2
 issue_id: "015"
 tags: [code-review, error-handling, online-store]
 dependencies: []
+resolved_date: "2026-01-17"
+resolution: "Fixed by Issue 021 - namespace creation now catches only NamespaceAlreadyExistsError, auth/network/permission errors propagate correctly"
+related_issues: ["021"]
+verification: "iceberg.py:385-390 - specific exception handling implemented"
 ---
 
 # Exception Swallowing in Namespace Creation
