@@ -79,7 +79,7 @@ def test_iceberg_online_read_applies_selected_fields_projection(monkeypatch):
     dummy_table = DummyIcebergTable()
     dummy_catalog = types.SimpleNamespace(load_table=lambda identifier: dummy_table)
 
-    monkeypatch.setattr(store, "_load_catalog", lambda cfg: dummy_catalog)
+    monkeypatch.setattr(store, "_get_cached_catalog", lambda cfg: dummy_catalog)
     monkeypatch.setattr(store, "_get_table_identifier", lambda cfg, project, tbl: "online.test")
 
     entity_hashes = iter([1, 2])
@@ -236,7 +236,7 @@ def test_append_only_warning_shown_once():
     # Mock dependencies
     with patch.multiple(
         store,
-        _load_catalog=MagicMock(return_value=MagicMock()),
+        _get_cached_catalog=MagicMock(return_value=MagicMock()),
         _get_or_create_online_table=MagicMock(return_value=MagicMock(append=MagicMock())),
         _convert_feast_to_arrow=MagicMock(return_value=pyarrow.Table.from_pydict({"col": [1]})),
     ), patch("feast.infra.online_stores.contrib.iceberg_online_store.iceberg.logger", mock_logger):

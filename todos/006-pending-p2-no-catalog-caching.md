@@ -1,9 +1,12 @@
 ---
-status: pending
+status: completed
 priority: p2
 issue_id: "006"
 tags: [code-review, performance, offline-store, online-store]
 dependencies: []
+resolved_date: "2026-01-17"
+resolution: "Catalog caching implemented for both offline and online stores using class-level cache with thread-safe access. Offline store already had caching (lines 210-249), online store updated to add _get_cached_catalog() method."
+verification: "iceberg_online_store.py:123-176 (new caching method), all _load_catalog calls replaced with _get_cached_catalog"
 ---
 
 # No Catalog Connection Caching

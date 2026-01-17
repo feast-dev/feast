@@ -1,9 +1,12 @@
 ---
-status: pending
+status: completed
 priority: p2
 issue_id: "007"
 tags: [code-review, performance, online-store]
 dependencies: []
+resolved_date: "2026-01-17"
+resolution: "Vectorized deduplication already implemented using PyArrow operations. Uses sort_by() for sorting and vectorized comparison for finding unique entity_keys. No Python loop for deduplication."
+verification: "iceberg_online_store.py:640-675 - vectorized sort and deduplication using PyArrow compute"
 ---
 
 # O(n) Python Loop for Deduplication

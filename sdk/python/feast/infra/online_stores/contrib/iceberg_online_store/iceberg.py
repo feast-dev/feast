@@ -137,6 +137,49 @@ class IcebergOnlineStore(OnlineStore):
     - Complexity: Reuse Iceberg catalog vs manage separate cluster
     """
 
+    # Class-level catalog cache with thread-safe access
+    _catalog_cache: Dict[Tuple, Any] = {}
+    _cache_lock = threading.Lock()
+
+    @classmethod
+    def _get_cached_catalog(cls, config: IcebergOnlineStoreConfig) -> Any:
+        """Get or create cached Iceberg catalog.
+
+        Uses frozen config tuple as cache key to ensure catalog is reused
+        across operations when config hasn't changed.
+
+        Args:
+            config: IcebergOnlineStoreConfig with catalog settings
+
+        Returns:
+            Cached or newly created Iceberg catalog instance
+        """
+        # Create immutable cache key from config
+        cache_key = (
+            config.catalog_type,
+            config.catalog_name,
+            config.uri,
+            config.warehouse,
+            config.namespace,
+            frozenset(config.storage_options.items()) if config.storage_options else frozenset(),
+        )
+
+        with cls._cache_lock:
+            if cache_key not in cls._catalog_cache:
+                catalog_config = {
+                    "type": config.catalog_type,
+                    "warehouse": config.warehouse,
+                    **config.storage_options,
+                }
+                if config.uri:
+                    catalog_config["uri"] = config.uri
+
+                cls._catalog_cache[cache_key] = load_catalog(
+                    config.catalog_name, **catalog_config
+                )
+
+        return cls._catalog_cache[cache_key]
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -161,8 +204,8 @@ class IcebergOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, IcebergOnlineStoreConfig)
 
-        # Load catalog and table
-        catalog = self._load_catalog(online_config)
+        # Load catalog and table (cached)
+        catalog = self._get_cached_catalog(online_config)
         iceberg_table = self._get_or_create_online_table(
             catalog, online_config, config.project, table
         )
@@ -212,8 +255,8 @@ class IcebergOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, IcebergOnlineStoreConfig)
 
-        # Load catalog and table
-        catalog = self._load_catalog(online_config)
+        # Load catalog and table (cached)
+        catalog = self._get_cached_catalog(online_config)
         table_identifier = self._get_table_identifier(
             online_config, config.project, table
         )
@@ -284,7 +327,7 @@ class IcebergOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, IcebergOnlineStoreConfig)
 
-        catalog = self._load_catalog(online_config)
+        catalog = self._get_cached_catalog(online_config)
 
         # Delete tables
         for table in tables_to_delete:
@@ -330,7 +373,7 @@ class IcebergOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, IcebergOnlineStoreConfig)
 
-        catalog = self._load_catalog(online_config)
+        catalog = self._get_cached_catalog(online_config)
 
         for table in tables:
             table_identifier = self._get_table_identifier(
@@ -343,19 +386,6 @@ class IcebergOnlineStore(OnlineStore):
                 logger.warning(f"Failed to delete table {table_identifier}: {e}")
 
     # Helper methods
-
-    def _load_catalog(self, config: IcebergOnlineStoreConfig):
-        """Load Iceberg catalog from configuration."""
-        catalog_config = {
-            "type": config.catalog_type,
-            "warehouse": config.warehouse,
-            **config.storage_options,
-        }
-
-        if config.uri:
-            catalog_config["uri"] = config.uri
-
-        return load_catalog(config.catalog_name, **catalog_config)
 
     def _get_table_identifier(
         self, config: IcebergOnlineStoreConfig, project: str, table: FeatureView
