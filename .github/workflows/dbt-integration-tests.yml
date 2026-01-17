@@ -32,10 +32,7 @@ jobs:
           enable-cache: true
       
       - name: Install dependencies
-        run: |
-          cd sdk/python
-          uv pip install --system -e "."
-          uv pip install --system dbt-artifacts-parser pytest pytest-xdist
+        run: make install-python-dependencies-ci
       
       - name: Run dbt integration tests
         run: |
