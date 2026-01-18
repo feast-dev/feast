@@ -32,7 +32,6 @@ from typing import (
     cast,
 )
 
-import click
 import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
@@ -1510,7 +1509,7 @@ class FeatureStore:
                     else:
                         odfv_start_date = end_date - timedelta(weeks=52)
 
-                    click.echo(
+                    logger.info(
                         f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
                     )
                     self._materialize_odfv(
@@ -1533,13 +1532,13 @@ class FeatureStore:
                 else:
                     # TODO(felixwang9817): Find the earliest timestamp for this specific feature
                     # view from the offline store, and set the start date to that timestamp.
-                    click.echo(
+                    logger.info(
                         f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
                         "the start date will be set to 1 year before the current time."
                     )
                     start_date = _utc_now() - timedelta(weeks=52)
             provider = self._get_provider()
-            click.echo(
+            logger.info(
                 f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
                 f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
                 f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
@@ -1624,7 +1623,7 @@ class FeatureStore:
         for feature_view in feature_views_to_materialize:
             if isinstance(feature_view, OnDemandFeatureView):
                 if feature_view.write_to_online_store:
-                    click.echo(
+                    logger.info(
                         f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
                     )
                     self._materialize_odfv(
@@ -1635,9 +1634,7 @@ class FeatureStore:
                     )
                 continue
             provider = self._get_provider()
-            click.echo(
-                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
-            )
+            logger.info(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
 
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
@@ -2937,8 +2934,8 @@ def _print_materialization_log(
 
 
 def _print_materializing_banner() -> None:
-    click.echo("Materializing...")
-    click.echo()
+    logger.info("Materializing...")
+    logger.info("")
 
 
 def _validate_feature_views(feature_views: List[BaseFeatureView]):
