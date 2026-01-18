@@ -20,7 +20,9 @@ def test_validate_image_format_raises_when_deps_missing(monkeypatch):
 
     monkeypatch.setattr(image_utils, "_image_dependencies_available", False)
 
-    with pytest.raises(ImportError, match="Image processing dependencies are not installed"):
+    with pytest.raises(
+        ImportError, match="Image processing dependencies are not installed"
+    ):
         image_utils.validate_image_format(b"anything")
 
 
@@ -29,5 +31,7 @@ def test_get_image_metadata_raises_when_deps_missing(monkeypatch):
 
     monkeypatch.setattr(image_utils, "_image_dependencies_available", False)
 
-    with pytest.raises(ImportError, match="Image processing dependencies are not installed"):
+    with pytest.raises(
+        ImportError, match="Image processing dependencies are not installed"
+    ):
         image_utils.get_image_metadata(b"anything")
