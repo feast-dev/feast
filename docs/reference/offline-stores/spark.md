@@ -32,9 +32,13 @@ offline_store:
         spark.sql.session.timeZone: "UTC"
         spark.sql.execution.arrow.fallback.enabled: "true"
         spark.sql.execution.arrow.pyspark.enabled: "true"
+    # Optional: spill large materializations to the staging location instead of collecting in the driver
+    staging_location: "s3://my-bucket/tmp/feast"
 online_store:
     path: data/online_store.db
 ```
+
+> The `staging_location` can point to object storage (like S3, GCS, or Azure blobs) or a local filesystem directory (e.g., `/tmp/feast/staging`) to spill large materialization outputs before reading them back into Feast.
 {% endcode %}
 
 The full set of configuration options is available in [SparkOfflineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStoreConfig).
@@ -60,7 +64,7 @@ Below is a matrix indicating which functionality is supported by `SparkRetrieval
 | export to arrow table                                 | yes   |
 | export to arrow batches                               | no    |
 | export to SQL                                         | no    |
-| export to data lake (S3, GCS, etc.)                   | no    |
+| export to data lake (S3, GCS, etc.)                   | yes   |
 | export to data warehouse                              | no    |
 | export as Spark dataframe                             | yes   |
 | local execution of Python-based on-demand transforms  | no    |

@@ -235,6 +235,7 @@ infra/feast-operator/bin
 # ignore the website build directory
 infra/website/node_modules/
 infra/website/.astro/
+infra/website/dist/
 
 # offline builds
 offline_build/

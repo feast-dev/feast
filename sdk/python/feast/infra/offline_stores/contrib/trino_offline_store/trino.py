@@ -424,11 +424,16 @@ class TrinoOfflineStore(OfflineStore):
         )
 
         timestamp_filter = get_timestamp_filter_sql(
-            start_date, end_date, timestamp_field, quote_fields=False
+            start_date,
+            end_date,
+            timestamp_field,
+            quote_fields=False,
+            cast_style="timestamp",
+            date_time_separator=" ",
         )
         query = f"""
             SELECT {field_string}
-            FROM {from_expression}
+            FROM ( {from_expression} )
             WHERE {timestamp_filter}
         """
         return TrinoRetrievalJob(

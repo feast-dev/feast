@@ -33,11 +33,12 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
     if isinstance(data_source.file_format, ParquetFormat):
         return ibis.read_parquet(data_source.path)
     elif isinstance(data_source.file_format, DeltaFormat):
-        storage_options = {
-            "AWS_ENDPOINT_URL": data_source.s3_endpoint_override,
-        }
-
-        return ibis.read_delta(data_source.path, storage_options=storage_options)
+        if data_source.s3_endpoint_override:
+            storage_options = {
+                "AWS_ENDPOINT_URL": data_source.s3_endpoint_override,
+            }
+            return ibis.read_delta(data_source.path, storage_options=storage_options)
+        return ibis.read_delta(data_source.path)
 
 
 def _write_data_source(

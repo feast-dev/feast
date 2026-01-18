@@ -380,7 +380,6 @@ class UniversalFeatureViews:
 def construct_universal_feature_views(
     data_sources: UniversalDataSources,
     with_odfv: bool = True,
-    use_substrait_odfv: bool = False,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_hourly_stats_base_feature_view = (
@@ -396,7 +395,6 @@ def construct_universal_feature_views(
                 driver_hourly_stats_base_feature_view[["conv_rate"]],
                 create_conv_rate_request_source(),
             ],
-            use_substrait_odfv=use_substrait_odfv,
         )
         if with_odfv
         else None,

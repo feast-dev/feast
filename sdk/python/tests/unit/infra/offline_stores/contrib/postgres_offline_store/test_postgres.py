@@ -950,3 +950,138 @@ class TestNonEntityRetrieval:
             # Should not fail on parameter validation
             stderr_output = result.stderr.decode()
             assert "must be provided" not in stderr_output
+
+
+class TestPostgreSQLSourceQueryStringAlias:
+    """Test suite for get_table_query_string_with_alias() method.
+
+    This addresses GitHub issue #5605: PostgreSQL requires all subqueries
+    in FROM clauses to have aliases.
+    """
+
+    def test_table_source_get_table_query_string(self):
+        """Test get_table_query_string() with table-based source"""
+        source = PostgreSQLSource(
+            name="test_source",
+            table="my_schema.my_table",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string()
+        assert result == "my_schema.my_table"
+
+    def test_query_source_get_table_query_string(self):
+        """Test get_table_query_string() with query-based source"""
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT * FROM my_table WHERE active = true",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string()
+        assert result == "(SELECT * FROM my_table WHERE active = true)"
+
+    def test_table_source_with_alias(self):
+        """Test get_table_query_string_with_alias() with table-based source returns table without alias"""
+        source = PostgreSQLSource(
+            name="test_source",
+            table="my_schema.my_table",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string_with_alias()
+        # Table sources don't need aliases
+        assert result == "my_schema.my_table"
+
+    def test_query_source_with_default_alias(self):
+        """Test get_table_query_string_with_alias() with query-based source uses default alias"""
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT * FROM my_table WHERE active = true",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string_with_alias()
+        assert result == "(SELECT * FROM my_table WHERE active = true) AS subquery"
+
+    def test_query_source_with_custom_alias(self):
+        """Test get_table_query_string_with_alias() with custom alias"""
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT id, name FROM users",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string_with_alias(alias="user_data")
+        assert result == "(SELECT id, name FROM users) AS user_data"
+
+    def test_table_source_with_custom_alias_ignored(self):
+        """Test get_table_query_string_with_alias() ignores alias for table-based sources"""
+        source = PostgreSQLSource(
+            name="test_source",
+            table="events",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string_with_alias(alias="ignored_alias")
+        # Alias should be ignored for table sources
+        assert result == "events"
+
+    def test_sql_query_with_alias_is_valid(self):
+        """Test that SQL using get_table_query_string_with_alias() is syntactically valid"""
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT id, ts FROM raw_data",
+            timestamp_field="ts",
+        )
+
+        # Construct a SQL query using the new method
+        entity_sql = f"SELECT id, ts FROM {source.get_table_query_string_with_alias()}"
+
+        # Verify SQL is valid using sqlglot
+        parsed = sqlglot.parse(entity_sql, dialect="postgres")
+        assert len(parsed) == 1
+        assert parsed[0] is not None
+
+    def test_sql_query_without_alias_fails_in_postgres(self):
+        """Test that SQL using get_table_query_string() for query source produces invalid PostgreSQL
+
+        This demonstrates the issue that get_table_query_string_with_alias() fixes:
+        PostgreSQL requires all subqueries in FROM clauses to have aliases.
+        """
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT id, ts FROM raw_data",
+            timestamp_field="ts",
+        )
+
+        # Using the old method (without alias) for query-based source
+        entity_sql_without_alias = (
+            f"SELECT id, ts FROM {source.get_table_query_string()}"
+        )
+
+        # This produces: SELECT id, ts FROM (SELECT id, ts FROM raw_data)
+        # which is invalid in PostgreSQL (subquery needs alias)
+        # sqlglot is lenient and may parse it, but PostgreSQL would reject it
+        assert "AS" not in entity_sql_without_alias, (
+            "get_table_query_string() should not add alias"
+        )
+
+        # Using the new method (with alias) produces valid SQL
+        entity_sql_with_alias = (
+            f"SELECT id, ts FROM {source.get_table_query_string_with_alias()}"
+        )
+        assert "AS subquery" in entity_sql_with_alias
+
+    def test_complex_query_with_alias(self):
+        """Test get_table_query_string_with_alias() with complex nested query"""
+        complex_query = """
+            SELECT u.id, u.name, o.total
+            FROM users u
+            JOIN orders o ON u.id = o.user_id
+            WHERE o.created_at > '2023-01-01'
+        """
+        source = PostgreSQLSource(
+            name="test_source",
+            query=complex_query,
+            timestamp_field="created_at",
+        )
+
+        result = source.get_table_query_string_with_alias(alias="user_orders")
+        assert result.startswith("(")
+        assert result.endswith(") AS user_orders")
+        assert "SELECT u.id" in result

@@ -1322,6 +1322,7 @@ spec:
                                 - qdrant
                                 - couchbase.online
                                 - milvus
+                                - hybrid
                                 type: string
                             required:
                             - secretRef
@@ -5358,6 +5359,7 @@ spec:
                                     - qdrant
                                     - couchbase.online
                                     - milvus
+                                    - hybrid
                                     type: string
                                 required:
                                 - secretRef
@@ -9521,6 +9523,7 @@ spec:
                                 - qdrant
                                 - couchbase.online
                                 - milvus
+                                - hybrid
                                 type: string
                             required:
                             - secretRef
@@ -13557,6 +13560,7 @@ spec:
                                     - qdrant
                                     - couchbase.online
                                     - milvus
+                                    - hybrid
                                     type: string
                                 required:
                                 - secretRef

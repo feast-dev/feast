@@ -199,6 +199,26 @@ requests.post(
     "http://localhost:6566/push",
     data=json.dumps(push_data))
 ```
+#### Offline write batching for `/push`
+
+The Python feature server  supports configurable batching for the **offline**
+portion of writes executed via the `/push` endpoint.
+
+Only the offline part of a push is affected:
+
+- `to: "offline"` → **fully batched**
+- `to: "online_and_offline"` → **online written immediately**, **offline batched**
+- `to: "online"` → unaffected, always immediate
+
+Enable batching in your `feature_store.yaml`:
+
+```yaml
+feature_server:
+  type: local
+  offline_push_batching_enabled: true
+  offline_push_batching_batch_size: 1000
+  offline_push_batching_batch_interval_seconds: 10
+```
 
 ### Materializing features
 
