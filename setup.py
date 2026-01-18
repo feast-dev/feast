@@ -39,7 +39,7 @@ REQUIRED = [
     "mmh3",
     "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
-    "pyarrow<=21.0.0",
+    "pyarrow>=21.0.0",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -132,9 +132,7 @@ HAZELCAST_REQUIRED = [
 ]
 
 IBIS_REQUIRED = [
-    "ibis-framework>=9.0.0,<10",
-    "ibis-substrait>=4.0.0",
-    "substrait<0.25.0",  # TODO: remove this once we upgrade protobuf 
+    "ibis-framework>=10.0.0",
 ]
 
 GRPCIO_REQUIRED = [
@@ -143,7 +141,7 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<=1.62.3",
 ]
 
-DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=10.0.0"]
 
 DELTA_REQUIRED = ["deltalake<1.0.0"]
 
@@ -158,14 +156,16 @@ COUCHBASE_REQUIRED = [
     "couchbase-columnar==1.0.0"
 ]
 
-MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
+MSSQL_REQUIRED = ["ibis-framework[mssql]>=10.0.0"]
 
 FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<=1.10.0"]
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
 GO_REQUIRED = ["cffi>=1.15.0"]
 
-MILVUS_REQUIRED = ["pymilvus==2.4.15", "milvus-lite==2.4.12", "setuptools>=60,<81"]
+MILVUS_REQUIRED = ["pymilvus>2.5", "milvus-lite==2.4.12", "setuptools>=60,<81"]
+
+DBT_REQUIRED = ["dbt-artifacts-parser>=0.6.0,<1"]
 
 TORCH_REQUIRED = [
     "torch>=2.7.0",
@@ -197,6 +197,7 @@ CI_REQUIRED = (
         "build",
         "virtualenv==20.23.0",
         "cryptography>=43.0,<44",
+        "dbt-artifacts-parser>=0.6.0,<1",
         "ruff>=0.8.0",
         "mypy-protobuf>=3.1",
         "grpcio-tools>=1.56.2,<=1.62.3",
@@ -367,6 +368,7 @@ setup(
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,
         "milvus": MILVUS_REQUIRED,
+        "dbt": DBT_REQUIRED,
         "docling": DOCLING_REQUIRED,
         "pytorch": TORCH_REQUIRED,
         "nlp": NLP_REQUIRED,
@@ -381,7 +383,6 @@ setup(
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.10",

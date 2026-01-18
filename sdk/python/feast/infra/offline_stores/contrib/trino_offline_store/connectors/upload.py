@@ -56,6 +56,7 @@ CONNECTORS_WITHOUT_WITH_STATEMENTS: Set[str] = {
     "oracle",
     "redshift",
     "memsql",
+    "lakehouse",
 }
 
 CREATE_SCHEMA_QUERY_TEMPLATE = """

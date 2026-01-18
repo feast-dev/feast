@@ -1,5 +1,5 @@
 # This file is required to configure Feast release information for ODH/RHOAI Operator
 releases:
   - name: Feast
-    version: 0.58.0
+    version: 0.59.0
     repoUrl: https://github.com/feast-dev/feast
