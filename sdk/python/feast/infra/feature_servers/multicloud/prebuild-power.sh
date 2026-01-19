@@ -57,7 +57,7 @@ pip install grpcio==1.62.3
 echo "Entering Pyarrow source directory..."
 git clone https://github.com/apache/arrow.git
 cd arrow
-git checkout apache-arrow-17.0.0
+git checkout apache-arrow-22.0.0
 git submodule update --init --recursive
 cd cpp
 mkdir -p release && cd release
