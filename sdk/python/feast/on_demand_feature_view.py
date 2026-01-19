@@ -90,14 +90,13 @@ class ODFVErrorMessages:
         )
 
     @staticmethod
-    def mode_transformation_mismatch(mode: str, expected_type: str, actual_type: str) -> str:
-        return (
-            f"Mode '{mode}' requires {expected_type}, "
-            f"but got {actual_type}."
-        )
+    def mode_transformation_mismatch(
+        mode: str, expected_type: str, actual_type: str
+    ) -> str:
+        return f"Mode '{mode}' requires {expected_type}, but got {actual_type}."
 
     @staticmethod
-    def unknown_source_type_in_proto(source_type: str) -> str:
+    def unknown_source_type_in_proto(source_type: str | None) -> str:
         return f"Unknown source type in protobuf: {source_type}"
 
     @staticmethod
@@ -255,7 +254,9 @@ class OnDemandFeatureView(BaseFeatureView):
         self.write_to_online_store = write_to_online_store
         self.singleton = singleton
         if self.singleton and self.mode != "python":
-            raise ValueError(ODFVErrorMessages.singleton_mode_requires_python(self.mode))
+            raise ValueError(
+                ODFVErrorMessages.singleton_mode_requires_python(self.mode)
+            )
         self.aggregations = aggregations or []
 
     def _add_source_to_collections(self, odfv_source: OnDemandSourceType) -> None:
@@ -274,12 +275,14 @@ class OnDemandFeatureView(BaseFeatureView):
             self.source_feature_view_projections[odfv_source.name] = odfv_source
         elif isinstance(odfv_source, FeatureView):
             # FeatureView sources use their projection
-            self.source_feature_view_projections[odfv_source.name] = odfv_source.projection
+            self.source_feature_view_projections[odfv_source.name] = (
+                odfv_source.projection
+            )
         else:
             raise ValueError(
                 ODFVErrorMessages.unsupported_source_type(
                     type(odfv_source),
-                    "RequestSource, FeatureViewProjection, and FeatureView"
+                    "RequestSource, FeatureViewProjection, and FeatureView",
                 )
             )
 
@@ -388,7 +391,9 @@ class OnDemandFeatureView(BaseFeatureView):
     def _validate_singleton_config(self) -> None:
         """Validate singleton mode configuration."""
         if self.singleton and self.mode != "python":
-            raise ValueError(ODFVErrorMessages.singleton_mode_requires_python(self.mode))
+            raise ValueError(
+                ODFVErrorMessages.singleton_mode_requires_python(self.mode)
+            )
 
     def _validate_sources_config(self) -> None:
         """Validate sources configuration."""
@@ -401,7 +406,9 @@ class OnDemandFeatureView(BaseFeatureView):
         overlapping_names = fv_names.intersection(req_names)
 
         if overlapping_names:
-            raise ValueError(ODFVErrorMessages.duplicate_source_names(overlapping_names))
+            raise ValueError(
+                ODFVErrorMessages.duplicate_source_names(overlapping_names)
+            )
 
     def _validate_transformation_config(self) -> None:
         """Validate transformation configuration."""
@@ -419,18 +426,20 @@ class OnDemandFeatureView(BaseFeatureView):
                     ODFVErrorMessages.mode_transformation_mismatch(
                         self.mode,
                         "PandasTransformation or PythonTransformation",
-                        type(self.feature_transformation).__name__
+                        type(self.feature_transformation).__name__,
                     )
                 )
         elif self.mode == "substrait":
-            from feast.transformation.substrait_transformation import SubstraitTransformation
+            from feast.transformation.substrait_transformation import (
+                SubstraitTransformation,
+            )
 
             if not isinstance(self.feature_transformation, SubstraitTransformation):
                 raise ValueError(
                     ODFVErrorMessages.mode_transformation_mismatch(
                         self.mode,
                         "SubstraitTransformation",
-                        type(self.feature_transformation).__name__
+                        type(self.feature_transformation).__name__,
                     )
                 )
 
@@ -521,10 +530,14 @@ class OnDemandFeatureView(BaseFeatureView):
         sources = cls._parse_sources_from_proto(on_demand_feature_view_proto)
 
         # Parse transformation from proto
-        transformation = cls._parse_transformation_from_proto(on_demand_feature_view_proto)
+        transformation = cls._parse_transformation_from_proto(
+            on_demand_feature_view_proto
+        )
 
         # Parse optional fields with defaults
-        optional_fields = cls._parse_optional_fields_from_proto(on_demand_feature_view_proto)
+        optional_fields = cls._parse_optional_fields_from_proto(
+            on_demand_feature_view_proto
+        )
 
         # Create the OnDemandFeatureView object
         on_demand_feature_view_obj = cls(
@@ -552,14 +565,18 @@ class OnDemandFeatureView(BaseFeatureView):
         )
 
         # Set timestamps if present
-        cls._set_timestamps_from_proto(on_demand_feature_view_proto, on_demand_feature_view_obj)
+        cls._set_timestamps_from_proto(
+            on_demand_feature_view_proto, on_demand_feature_view_obj
+        )
 
         return on_demand_feature_view_obj
 
     @classmethod
-    def _parse_sources_from_proto(cls, proto: OnDemandFeatureViewProto) -> List[OnDemandSourceType]:
+    def _parse_sources_from_proto(
+        cls, proto: OnDemandFeatureViewProto
+    ) -> List[OnDemandSourceType]:
         """Parse and convert sources from the protobuf representation."""
-        sources = []
+        sources: List[OnDemandSourceType] = []
         for _, on_demand_source in proto.spec.sources.items():
             source_type = on_demand_source.WhichOneof("source")
 
@@ -578,12 +595,16 @@ class OnDemandFeatureView(BaseFeatureView):
                     RequestSource.from_proto(on_demand_source.request_data_source)
                 )
             else:
-                raise ValueError(ODFVErrorMessages.unknown_source_type_in_proto(source_type))
+                raise ValueError(
+                    ODFVErrorMessages.unknown_source_type_in_proto(source_type)
+                )
 
         return sources
 
     @classmethod
-    def _parse_transformation_from_proto(cls, proto: OnDemandFeatureViewProto) -> Transformation:
+    def _parse_transformation_from_proto(
+        cls, proto: OnDemandFeatureViewProto
+    ) -> Transformation:
         """Parse and convert the transformation from the protobuf representation."""
         feature_transformation = proto.spec.feature_transformation
         transformation_type = feature_transformation.WhichOneof("transformation")
@@ -612,10 +633,14 @@ class OnDemandFeatureView(BaseFeatureView):
             # Handle backward compatibility case where feature_transformation is cleared
             return cls._handle_backward_compatible_udf(proto)
         else:
-            raise ValueError(ODFVErrorMessages.unsupported_transformation_type(transformation_type))
+            raise ValueError(
+                ODFVErrorMessages.unsupported_transformation_type(transformation_type)
+            )
 
     @classmethod
-    def _handle_backward_compatible_udf(cls, proto: OnDemandFeatureViewProto) -> Transformation:
+    def _handle_backward_compatible_udf(
+        cls, proto: OnDemandFeatureViewProto
+    ) -> Transformation:
         """Handle backward compatibility for UDFs with empty body_text."""
         if not hasattr(proto.spec, "user_defined_function"):
             raise ValueError(ODFVErrorMessages.backward_compatible_udf_missing())
@@ -663,8 +688,7 @@ class OnDemandFeatureView(BaseFeatureView):
         entity_columns = []
         if hasattr(spec, "entity_columns"):
             entity_columns = [
-                Field.from_proto(field_proto)
-                for field_proto in spec.entity_columns
+                Field.from_proto(field_proto) for field_proto in spec.entity_columns
             ]
 
         # Parse singleton
@@ -689,7 +713,9 @@ class OnDemandFeatureView(BaseFeatureView):
         }
 
     @classmethod
-    def _set_timestamps_from_proto(cls, proto: OnDemandFeatureViewProto, obj: "OnDemandFeatureView") -> None:
+    def _set_timestamps_from_proto(
+        cls, proto: OnDemandFeatureViewProto, obj: "OnDemandFeatureView"
+    ) -> None:
         """Set timestamp fields on the object if they exist in the proto."""
         if proto.meta.HasField("created_timestamp"):
             obj.created_timestamp = proto.meta.created_timestamp.ToDatetime()
@@ -802,10 +828,14 @@ class OnDemandFeatureView(BaseFeatureView):
         pa_table, columns_to_cleanup = self._preprocess_arrow_table(pa_table)
 
         # Apply the transformation
-        transformed_table = self.feature_transformation.transform_arrow(pa_table, self.features)
+        transformed_table = self.feature_transformation.transform_arrow(
+            pa_table, self.features
+        )
 
         # Clean up temporary columns and apply final renaming
-        return self._postprocess_arrow_table(transformed_table, columns_to_cleanup, full_feature_names)
+        return self._postprocess_arrow_table(
+            transformed_table, columns_to_cleanup, full_feature_names
+        )
 
     def _preprocess_arrow_table(self, pa_table: pyarrow.Table):
         """
@@ -832,7 +862,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
         return pa_table, columns_to_cleanup
 
-    def _postprocess_arrow_table(self, transformed_table: pyarrow.Table, columns_to_cleanup: list[str], full_feature_names: bool) -> pyarrow.Table:
+    def _postprocess_arrow_table(
+        self,
+        transformed_table: pyarrow.Table,
+        columns_to_cleanup: list[str],
+        full_feature_names: bool,
+    ) -> pyarrow.Table:
         """
         Clean up temporary columns and apply final column renaming.
         """
@@ -842,9 +877,9 @@ class OnDemandFeatureView(BaseFeatureView):
             short_name = feature.name
             long_name = self._get_projected_feature_name(feature.name)
 
-            if (short_name in transformed_table.column_names and full_feature_names):
+            if short_name in transformed_table.column_names and full_feature_names:
                 rename_columns[short_name] = long_name
-            elif (long_name in transformed_table.column_names and not full_feature_names):
+            elif long_name in transformed_table.column_names and not full_feature_names:
                 rename_columns[long_name] = short_name
 
         # Clean up temporary columns
@@ -873,11 +908,15 @@ class OnDemandFeatureView(BaseFeatureView):
             Dictionary with transformed features
         """
         # Preprocess to ensure both full and short feature names exist
-        preprocessed_dict, columns_to_cleanup = self._preprocess_feature_dict(feature_dict)
+        preprocessed_dict, columns_to_cleanup = self._preprocess_feature_dict(
+            feature_dict
+        )
 
         # Apply the appropriate transformation based on mode
         if self.singleton and self.mode == "python":
-            output_dict = self.feature_transformation.transform_singleton(preprocessed_dict)
+            output_dict = self.feature_transformation.transform_singleton(
+                preprocessed_dict
+            )
         else:
             output_dict = self.feature_transformation.transform(preprocessed_dict)
 
@@ -888,7 +927,9 @@ class OnDemandFeatureView(BaseFeatureView):
 
         return output_dict
 
-    def _preprocess_feature_dict(self, feature_dict: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    def _preprocess_feature_dict(
+        self, feature_dict: dict[str, Any]
+    ) -> tuple[dict[str, Any], list[str]]:
         """
         Preprocess feature dictionary to ensure both full and short feature names exist.
         Returns the modified dictionary and columns that need cleanup.
@@ -921,7 +962,9 @@ class OnDemandFeatureView(BaseFeatureView):
         if self.features:
             missing_features = []
             for specified_feature in self.features:
-                if not self._feature_exists_in_inferred(specified_feature, inferred_features):
+                if not self._feature_exists_in_inferred(
+                    specified_feature, inferred_features
+                ):
                     missing_features.append(specified_feature)
             if missing_features:
                 raise SpecifiedFeaturesNotPresentError(
@@ -936,7 +979,9 @@ class OnDemandFeatureView(BaseFeatureView):
                 f"Could not infer Features for the feature view '{self.name}'.",
             )
 
-    def _feature_exists_in_inferred(self, specified_feature: Field, inferred_features: List[Field]) -> bool:
+    def _feature_exists_in_inferred(
+        self, specified_feature: Field, inferred_features: List[Field]
+    ) -> bool:
         """
         Check if a specified feature exists in the inferred features list.
         Handles both regular features and array types properly.
@@ -997,7 +1042,9 @@ class OnDemandFeatureView(BaseFeatureView):
                 sample_value = sample_values.get(value_type, default_value)
 
                 # Add both full and short feature references
-                feature_dict[f"{feature_view_projection.name}__{feature.name}"] = sample_value
+                feature_dict[f"{feature_view_projection.name}__{feature.name}"] = (
+                    sample_value
+                )
                 feature_dict[feature.name] = sample_value
 
         # Add request source features
@@ -1031,9 +1078,7 @@ class OnDemandFeatureView(BaseFeatureView):
         )
 
         # Sample image bytes (minimal JPEG)
-        image_sample = (
-            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00\x3f\x00\xaa\xff\xd9"
-        )
+        image_sample = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00\x3f\x00\xaa\xff\xd9"
 
         return {
             # Basic types
@@ -1045,11 +1090,9 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.FLOAT: [1.0],
             ValueType.BOOL: [True],
             ValueType.UNIX_TIMESTAMP: [_utc_now()],
-
             # Special binary types
             ValueType.PDF_BYTES: [pdf_sample],
             ValueType.IMAGE_BYTES: [image_sample],
-
             # List types
             ValueType.BYTES_LIST: [[b"hello world"]],
             ValueType.STRING_LIST: [["hello world"]],
