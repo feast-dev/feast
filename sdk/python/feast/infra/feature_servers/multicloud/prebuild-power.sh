@@ -23,7 +23,7 @@ export CXXFLAGS="-std=c++17"
 : "${LINKFLAGS:=""}"
 
 # Installing Python build dependencies
-python${PYTHON_VERSION} -m pip install build wheel setuptools ninja pybind11 numpy==2.3.3 setuptools_scm Cython==3.0.8
+python${PYTHON_VERSION} -m pip install build wheel setuptools ninja pybind11 numpy==2.3.3 setuptools_scm Cython
 
 # Directory to collect built wheels
 mkdir -p /wheelhouse
