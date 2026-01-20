@@ -1477,9 +1477,6 @@ class FeatureStore:
             >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> fs.materialize_incremental(end_date=_utc_now() - timedelta(minutes=5))
-            Materializing...
-            <BLANKLINE>
-            ...
         """
         _print_materializing_banner()
         feature_views_to_materialize = self._get_feature_views_to_materialize(
@@ -1600,9 +1597,6 @@ class FeatureStore:
             >>> fs.materialize(
             ...     start_date=_utc_now() - timedelta(hours=3), end_date=_utc_now() - timedelta(minutes=10)
             ... )
-            Materializing...
-            <BLANKLINE>
-            ...
         """
         _print_materializing_banner()
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
@@ -1634,7 +1628,9 @@ class FeatureStore:
                     )
                 continue
             provider = self._get_provider()
-            logger.info(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
+            logger.info(
+                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+            )
 
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
