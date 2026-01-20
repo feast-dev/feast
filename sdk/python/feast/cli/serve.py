@@ -1,6 +1,5 @@
 import logging
 import multiprocessing
-import os
 
 import click
 
