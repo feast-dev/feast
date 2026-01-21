@@ -15,6 +15,8 @@ from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse impo
 from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse_source import (
     ClickhouseSource,
 )
+from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
+from feast.infra.utils.clickhouse.connection_utils import get_client
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -114,3 +116,29 @@ class ClickhouseDataSourceCreator(DataSourceCreator):
 
     def teardown(self):
         pass
+
+
+def test_get_client_with_additional_params(clickhouse_container):
+    """
+    Test that get_client works with a real ClickHouse container and properly passes
+    additional settings like send_receive_timeout.
+    """
+    # Create config with custom send_receive_timeout
+    config = ClickhouseConfig(
+        host=clickhouse_container.get_container_host_ip(),
+        port=clickhouse_container.get_exposed_port(8123),
+        user=CLICKHOUSE_USER,
+        password=CLICKHOUSE_PASSWORD,
+        database=CLICKHOUSE_OFFLINE_DB,
+        additional_client_args={"send_receive_timeout": 60},
+    )
+
+    # Get client and verify it works
+    client = get_client(config)
+
+    # Verify client is connected and functional by running a simple query
+    result = client.query("SELECT 1 AS test_value")
+    assert result.result_rows == [(1,)]
+
+    # Verify the send_receive_timeout was applied
+    assert client.timeout._read == 60

@@ -220,7 +220,12 @@ def parse_repo(repo_root: Path) -> RepoContents:
     return res
 
 
-def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
+def plan(
+    repo_config: RepoConfig,
+    repo_path: Path,
+    skip_source_validation: bool,
+    skip_feature_view_validation: bool = False,
+):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
     for project in repo.projects:
@@ -234,7 +239,9 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
             for data_source in data_sources:
                 provider.validate_data_source(store.config, data_source)
 
-        registry_diff, infra_diff, _ = store.plan(repo)
+        registry_diff, infra_diff, _ = store.plan(
+            repo, skip_feature_view_validation=skip_feature_view_validation
+        )
         click.echo(registry_diff.to_string())
         click.echo(infra_diff.to_string())
 
@@ -334,6 +341,7 @@ def apply_total_with_repo_instance(
     registry: BaseRegistry,
     repo: RepoContents,
     skip_source_validation: bool,
+    skip_feature_view_validation: bool = False,
 ):
     if not skip_source_validation:
         provider = store._get_provider()
@@ -350,15 +358,40 @@ def apply_total_with_repo_instance(
         views_to_delete,
     ) = extract_objects_for_apply_delete(project_name, registry, repo)
 
-    if store._should_use_plan():
-        registry_diff, infra_diff, new_infra = store.plan(repo)
-        click.echo(registry_diff.to_string())
+    try:
+        if store._should_use_plan():
+            # Planning phase - compute diffs first without progress bars
+            registry_diff, infra_diff, new_infra = store.plan(
+                repo,
+                skip_feature_view_validation=skip_feature_view_validation,
+            )
+            click.echo(registry_diff.to_string())
 
-        store._apply_diffs(registry_diff, infra_diff, new_infra)
-        click.echo(infra_diff.to_string())
-    else:
-        store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
-        log_infra_changes(views_to_keep, views_to_delete)
+            # Only show progress bars if there are actual infrastructure changes
+            progress_ctx = None
+            if len(infra_diff.infra_object_diffs) > 0:
+                from feast.diff.apply_progress import ApplyProgressContext
+
+                progress_ctx = ApplyProgressContext()
+                progress_ctx.start_overall_progress()
+
+            # Apply phase
+            store._apply_diffs(
+                registry_diff, infra_diff, new_infra, progress_ctx=progress_ctx
+            )
+            click.echo(infra_diff.to_string())
+        else:
+            # Legacy apply path - no progress bars for legacy path
+            store.apply(
+                all_to_apply,
+                objects_to_delete=all_to_delete,
+                partial=False,
+                skip_feature_view_validation=skip_feature_view_validation,
+            )
+            log_infra_changes(views_to_keep, views_to_delete)
+    finally:
+        # Cleanup is handled in the new _apply_diffs method
+        pass
 
 
 def log_infra_changes(
@@ -396,7 +429,12 @@ def create_feature_store(
         return FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
 
-def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
+def apply_total(
+    repo_config: RepoConfig,
+    repo_path: Path,
+    skip_source_validation: bool,
+    skip_feature_view_validation: bool = False,
+):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
     for project in repo.projects:
@@ -411,7 +449,12 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         # TODO: When we support multiple projects in a single repo, we should filter repo contents by project. Currently there is no way to associate Feast objects to project.
         print(f"Applying changes for project {project.name}")
         apply_total_with_repo_instance(
-            store, project.name, registry, repo, skip_source_validation
+            store,
+            project.name,
+            registry,
+            repo,
+            skip_source_validation,
+            skip_feature_view_validation,
         )
 
 

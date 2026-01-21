@@ -67,3 +67,17 @@ def test_repo_init_with_underscore_in_project_name() -> None:
         )
         result = runner.run(["apply"], cwd=repo_dir)
         assert result.returncode != 0
+
+
+def test_postgres_template_registry_path_is_parameterized() -> None:
+    template_fs_yaml = (
+        Path(__file__).resolve().parents[3]
+        / "feast"
+        / "templates"
+        / "postgres"
+        / "feature_repo"
+        / "feature_store.yaml"
+    )
+    contents = template_fs_yaml.read_text(encoding="utf-8")
+    expected = "path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME"
+    assert expected in contents

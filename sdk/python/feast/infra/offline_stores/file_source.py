@@ -202,11 +202,18 @@ class FileSource(DataSource):
                 "AWS_ENDPOINT_URL": str(self.s3_endpoint_override),
             }
 
-            schema = (
-                DeltaTable(self.path, storage_options=storage_options)
-                .schema()
-                .to_pyarrow()
-            )
+            delta_schema = DeltaTable(
+                self.path, storage_options=storage_options
+            ).schema()
+            if hasattr(delta_schema, "to_arrow"):
+                # deltalake >= 0.10.0
+                arro3_schema = delta_schema.to_arrow()
+                schema = pyarrow.schema(arro3_schema)
+            elif hasattr(delta_schema, "to_pyarrow"):
+                # deltalake < 0.10.0
+                schema = delta_schema.to_pyarrow()
+            else:
+                raise Exception("Unknown DeltaTable package version")
         else:
             raise Exception(f"Unknown FileFormat -> {self.file_format}")
 
