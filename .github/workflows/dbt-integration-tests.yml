@@ -34,6 +34,47 @@ jobs:
       - name: Install dependencies
         run: make install-python-dependencies-ci
       
+      - name: Install dbt and dbt-duckdb
+        run: |
+          uv pip install --system dbt-core dbt-duckdb
+      
+      - name: Run dbt commands
+        run: |
+          cd sdk/python/tests/integration/dbt/test_dbt_project
+          dbt deps
+          dbt build
+          dbt test
+      
+      - name: Setup Feast project for dbt import test
+        run: |
+          cd sdk/python/tests/integration/dbt
+          mkdir -p feast_repo
+          cd feast_repo
+          cat > feature_store.yaml << EOF
+          project: feast_dbt_test
+          registry: data/registry.db
+          provider: local
+          online_store:
+            type: sqlite
+            path: data/online_store.db
+          EOF
+          mkdir -p data
+      
+      - name: Test feast dbt import
+        run: |
+          cd sdk/python/tests/integration/dbt/feast_repo
+          feast -c feature_store.yaml dbt import \
+            -m ../test_dbt_project/target/manifest.json \
+            -e driver_id \
+            -d file \
+            --tag feast
+      
+      - name: Verify feast objects were created
+        run: |
+          cd sdk/python/tests/integration/dbt/feast_repo
+          feast -c feature_store.yaml feature-views list
+          feast -c feature_store.yaml entities list
+      
       - name: Run dbt integration tests
         run: |
           cd sdk/python

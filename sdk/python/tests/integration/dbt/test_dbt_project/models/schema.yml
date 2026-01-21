@@ -1,11 +1,13 @@
 version: 2
 
-sources:
-  - name: raw_data
-    tables:
-      - name: driver_hourly_stats
-      - name: customer_stats
-      - name: product_stats
+# Seeds will be loaded as tables
+seeds:
+  - name: driver_hourly_stats
+    description: "Raw driver hourly statistics"
+  - name: customer_stats
+    description: "Raw customer statistics"
+  - name: product_stats
+    description: "Raw product statistics"
 
 models:
   - name: driver_features

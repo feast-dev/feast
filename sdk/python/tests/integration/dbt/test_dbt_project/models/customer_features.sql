@@ -7,4 +7,4 @@ SELECT
     total_orders,
     total_spent,
     avg_order_value
-FROM {{ source('raw_data', 'customer_stats') }}
+FROM {{ ref('customer_stats') }}

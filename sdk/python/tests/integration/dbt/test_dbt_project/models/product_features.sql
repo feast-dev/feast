@@ -7,4 +7,4 @@ SELECT
     view_count,
     purchase_count,
     rating_avg
-FROM {{ source('raw_data', 'product_stats') }}
+FROM {{ ref('product_stats') }}

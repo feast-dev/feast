@@ -8,6 +8,9 @@ profile: 'test'
 # Model directory
 model-paths: ["models"]
 
+# Seed directory
+seed-paths: ["seeds"]
+
 # Target directory where manifest.json will be generated
 target-path: "target"
 
@@ -15,3 +18,8 @@ target-path: "target"
 models:
   feast_integration_test:
     +materialized: table
+
+# Configure seeds
+seeds:
+  feast_integration_test:
+    +schema: raw

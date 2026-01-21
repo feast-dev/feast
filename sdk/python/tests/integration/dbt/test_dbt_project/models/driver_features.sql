@@ -7,4 +7,4 @@ SELECT
     conv_rate,
     acc_rate,
     avg_daily_trips
-FROM {{ source('raw_data', 'driver_hourly_stats') }}
+FROM {{ ref('driver_hourly_stats') }}
