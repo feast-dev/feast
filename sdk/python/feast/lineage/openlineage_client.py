@@ -35,8 +35,9 @@ class OpenLineageClient:
         """
         self.config = config
         self._client = None
+        self._enabled = config.enabled  # Store enabled state locally
         
-        if not config.enabled:
+        if not self._enabled:
             _logger.debug("OpenLineage is disabled, skipping client initialization")
             return
             
@@ -60,10 +61,10 @@ class OpenLineageClient:
                 f"OpenLineage Python client not available: {e}. "
                 "Install with: pip install openlineage-python"
             )
-            self.config.enabled = False
+            self._enabled = False  # Disable locally instead of mutating config
         except Exception as e:
             _logger.error(f"Failed to initialize OpenLineage client: {e}")
-            self.config.enabled = False
+            self._enabled = False  # Disable locally instead of mutating config
 
     def emit_materialize_start_event(
         self,
@@ -86,7 +87,7 @@ class OpenLineageClient:
         Returns:
             The run ID for this materialization, or None if emission failed
         """
-        if not self.config.enabled or not self.config.emit_materialization_events:
+        if not self._enabled or not self.config.emit_materialization_events:
             return None
             
         if not self._client:
@@ -171,7 +172,7 @@ class OpenLineageClient:
             run_id: The run ID from the START event
             success: Whether the materialization succeeded
         """
-        if not self.config.enabled or not self.config.emit_materialization_events:
+        if not self._enabled or not self.config.emit_materialization_events:
             return
             
         if not self._client or not run_id:
@@ -267,7 +268,7 @@ class OpenLineageClient:
             # Add feature view properties as additional fields
             facet_dict = {
                 "featureViewName": feature_view.name,
-                "features": [f.name for f in feature_view.features] if hasattr(feature_view, 'features') and feature_view.features else [],
+                "features": self._extract_feature_names(feature_view),
                 "entities": feature_view.entities if hasattr(feature_view, 'entities') else [],
             }
             
@@ -304,15 +305,7 @@ class OpenLineageClient:
                 dataset_name = self._get_dataset_name(source, feature_view.name, "input")
                 
                 # Create schema facet from feature view schema
-                schema_fields = []
-                if hasattr(feature_view, 'features') and feature_view.features:
-                    for feature in feature_view.features:
-                        schema_fields.append(
-                            SchemaField(
-                                name=feature.name,
-                                type=str(feature.dtype) if hasattr(feature, 'dtype') else "unknown",
-                            )
-                        )
+                schema_fields = self._create_schema_fields(feature_view)
                 
                 dataset_facets = {}
                 if schema_fields:
@@ -353,15 +346,7 @@ class OpenLineageClient:
             dataset_name = f"{project}.{feature_view.name}_online"
             
             # Create schema facet from feature view schema
-            schema_fields = []
-            if hasattr(feature_view, 'features') and feature_view.features:
-                for feature in feature_view.features:
-                    schema_fields.append(
-                        SchemaField(
-                            name=feature.name,
-                            type=str(feature.dtype) if hasattr(feature, 'dtype') else "unknown",
-                        )
-                    )
+            schema_fields = self._create_schema_fields(feature_view)
             
             dataset_facets = {}
             if schema_fields:
@@ -409,3 +394,28 @@ class OpenLineageClient:
             return get_version()
         except Exception:
             return "unknown"
+
+    def _extract_feature_names(self, feature_view: FeatureView) -> List[str]:
+        """Extract feature names from a feature view."""
+        if hasattr(feature_view, 'features') and feature_view.features:
+            return [f.name for f in feature_view.features]
+        return []
+
+    def _create_schema_fields(self, feature_view: FeatureView) -> List[Any]:
+        """Create schema fields from feature view features."""
+        try:
+            from openlineage.client.facet import SchemaField
+            
+            schema_fields = []
+            if hasattr(feature_view, 'features') and feature_view.features:
+                for feature in feature_view.features:
+                    schema_fields.append(
+                        SchemaField(
+                            name=feature.name,
+                            type=str(feature.dtype) if hasattr(feature, 'dtype') else "unknown",
+                        )
+                    )
+            return schema_fields
+        except Exception as e:
+            _logger.warning(f"Failed to create schema fields: {e}")
+            return []

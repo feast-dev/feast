@@ -1633,8 +1633,8 @@ class FeatureStore:
                         run_id=run_id,
                         success=True,
                     )
-            except Exception as e:
-                # Emit OpenLineage FAIL event
+            except Exception:
+                # Emit OpenLineage FAIL event on materialization_incremental
                 if openlineage_client and run_id:
                     openlineage_client.emit_materialize_complete_event(
                         feature_view=feature_view,
@@ -1644,7 +1644,7 @@ class FeatureStore:
                         run_id=run_id,
                         success=False,
                     )
-                raise e
+                raise
 
     def materialize(
         self,
@@ -1698,7 +1698,7 @@ class FeatureStore:
             self.config.online_store.type,
         )
         
-        # Initialize OpenLineage client if enabled
+        # Initialize OpenLineage client if enabled (import at top level to avoid repeated overhead)
         openlineage_client = None
         if self.config.openlineage_config.enabled:
             from feast.lineage.openlineage_client import OpenLineageClient
@@ -1766,8 +1766,8 @@ class FeatureStore:
                         run_id=run_id,
                         success=True,
                     )
-            except Exception as e:
-                # Emit OpenLineage FAIL event
+            except Exception:
+                # Emit OpenLineage FAIL event on materialize
                 if openlineage_client and run_id:
                     openlineage_client.emit_materialize_complete_event(
                         feature_view=feature_view,
@@ -1777,7 +1777,7 @@ class FeatureStore:
                         run_id=run_id,
                         success=False,
                     )
-                raise e
+                raise
 
     def _fvs_for_push_source_or_raise(
         self, push_source_name: str, allow_cache: bool
