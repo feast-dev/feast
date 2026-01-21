@@ -133,6 +133,33 @@ class FeastConfigBaseModel(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
 
+class OpenLineageConfig(FeastBaseModel):
+    """OpenLineage Configuration for lineage event emission."""
+
+    enabled: StrictBool = False
+    """ bool: Whether OpenLineage event emission is enabled (default: False). """
+
+    transport_type: StrictStr = "http"
+    """ str: Type of transport to use for sending lineage events. Options: 'http', 'kafka', 'console', 'file' """
+
+    transport_config: Dict[str, Any] = {}
+    """ dict: Configuration for the transport. 
+        For 'http': {'url': 'http://marquez:5000', 'timeout': 5.0, 'verify': True}
+        For 'kafka': {'bootstrap.servers': 'localhost:9092', 'topic': 'openlineage'}
+        For 'file': {'log_file_path': '/tmp/openlineage_events.json'}
+        For 'console': {}
+    """
+
+    namespace: StrictStr = "feast"
+    """ str: OpenLineage namespace for all emitted events (default: 'feast'). """
+
+    emit_materialization_events: StrictBool = True
+    """ bool: Whether to emit events for materialization runs (default: True). """
+
+    emit_retrieval_events: StrictBool = False
+    """ bool: Whether to emit events for feature retrieval operations (default: False). """
+
+
 class RegistryConfig(FeastBaseModel):
     """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
@@ -252,6 +279,11 @@ class RepoConfig(FeastBaseModel):
         MaterializationConfig(), alias="materialization"
     )
     """ MaterializationConfig: Configuration options for feature materialization behavior. """
+
+    openlineage_config: OpenLineageConfig = Field(
+        OpenLineageConfig(), alias="openlineage"
+    )
+    """ OpenLineageConfig: Configuration options for OpenLineage event emission. """
 
     def __init__(self, **data: Any):
         super().__init__(**data)

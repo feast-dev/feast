@@ -59,6 +59,7 @@ REQUIRED = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "openlineage-python>=1.0.0,<2",
 ]
 
 GCP_REQUIRED = [

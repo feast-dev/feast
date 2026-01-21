@@ -1589,23 +1589,62 @@ class FeatureStore:
 
             start_date = utils.make_tzaware(start_date)
             end_date = utils.make_tzaware(end_date) or _utc_now()
-
-            provider.materialize_single_feature_view(
-                config=self.config,
-                feature_view=feature_view,
-                start_date=start_date,
-                end_date=end_date,
-                registry=self._registry,
-                project=self.project,
-                tqdm_builder=tqdm_builder,
-            )
-            if not isinstance(feature_view, OnDemandFeatureView):
-                self._registry.apply_materialization(
-                    feature_view,
-                    self.project,
-                    start_date,
-                    end_date,
+            
+            # Initialize OpenLineage client if enabled
+            openlineage_client = None
+            run_id = None
+            if self.config.openlineage_config.enabled:
+                from feast.lineage.openlineage_client import OpenLineageClient
+                openlineage_client = OpenLineageClient(self.config.openlineage_config)
+                
+                # Emit OpenLineage START event
+                run_id = openlineage_client.emit_materialize_start_event(
+                    feature_view=feature_view,
+                    start_date=start_date,
+                    end_date=end_date,
+                    project=self.project,
                 )
+            
+            try:
+                provider.materialize_single_feature_view(
+                    config=self.config,
+                    feature_view=feature_view,
+                    start_date=start_date,
+                    end_date=end_date,
+                    registry=self._registry,
+                    project=self.project,
+                    tqdm_builder=tqdm_builder,
+                )
+                if not isinstance(feature_view, OnDemandFeatureView):
+                    self._registry.apply_materialization(
+                        feature_view,
+                        self.project,
+                        start_date,
+                        end_date,
+                    )
+                
+                # Emit OpenLineage COMPLETE event
+                if openlineage_client and run_id:
+                    openlineage_client.emit_materialize_complete_event(
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        project=self.project,
+                        run_id=run_id,
+                        success=True,
+                    )
+            except Exception as e:
+                # Emit OpenLineage FAIL event
+                if openlineage_client and run_id:
+                    openlineage_client.emit_materialize_complete_event(
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        project=self.project,
+                        run_id=run_id,
+                        success=False,
+                    )
+                raise e
 
     def materialize(
         self,
@@ -1658,6 +1697,13 @@ class FeatureStore:
             len(feature_views_to_materialize),
             self.config.online_store.type,
         )
+        
+        # Initialize OpenLineage client if enabled
+        openlineage_client = None
+        if self.config.openlineage_config.enabled:
+            from feast.lineage.openlineage_client import OpenLineageClient
+            openlineage_client = OpenLineageClient(self.config.openlineage_config)
+        
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
             if isinstance(feature_view, OnDemandFeatureView):
@@ -1680,24 +1726,58 @@ class FeatureStore:
 
             start_date = utils.make_tzaware(start_date)
             end_date = utils.make_tzaware(end_date)
+            
+            # Emit OpenLineage START event
+            run_id = None
+            if openlineage_client:
+                run_id = openlineage_client.emit_materialize_start_event(
+                    feature_view=feature_view,
+                    start_date=start_date,
+                    end_date=end_date,
+                    project=self.project,
+                )
+            
+            try:
+                provider.materialize_single_feature_view(
+                    config=self.config,
+                    feature_view=feature_view,
+                    start_date=start_date,
+                    end_date=end_date,
+                    registry=self._registry,
+                    project=self.project,
+                    tqdm_builder=tqdm_builder,
+                    disable_event_timestamp=disable_event_timestamp,
+                )
 
-            provider.materialize_single_feature_view(
-                config=self.config,
-                feature_view=feature_view,
-                start_date=start_date,
-                end_date=end_date,
-                registry=self._registry,
-                project=self.project,
-                tqdm_builder=tqdm_builder,
-                disable_event_timestamp=disable_event_timestamp,
-            )
-
-            self._registry.apply_materialization(
-                feature_view,
-                self.project,
-                start_date,
-                end_date,
-            )
+                self._registry.apply_materialization(
+                    feature_view,
+                    self.project,
+                    start_date,
+                    end_date,
+                )
+                
+                # Emit OpenLineage COMPLETE event
+                if openlineage_client and run_id:
+                    openlineage_client.emit_materialize_complete_event(
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        project=self.project,
+                        run_id=run_id,
+                        success=True,
+                    )
+            except Exception as e:
+                # Emit OpenLineage FAIL event
+                if openlineage_client and run_id:
+                    openlineage_client.emit_materialize_complete_event(
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        project=self.project,
+                        run_id=run_id,
+                        success=False,
+                    )
+                raise e
 
     def _fvs_for_push_source_or_raise(
         self, push_source_name: str, allow_cache: bool
