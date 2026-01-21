@@ -102,15 +102,15 @@ func getBaseServiceRepoConfig(
 			return repoConfig, authSecretErr
 		}
 
-		oidcServerProperties := map[string]interface{}{}
-		for _, oidcServerProperty := range OidcServerProperties {
-			if val, exists := propertiesMap[string(oidcServerProperty)]; exists {
-				oidcServerProperties[string(oidcServerProperty)] = val
+		oidcParameters := map[string]interface{}{}
+		for _, oidcProperty := range OidcProperties {
+			if val, exists := propertiesMap[string(oidcProperty)]; exists {
+				oidcParameters[string(oidcProperty)] = val
 			} else {
-				return repoConfig, missingOidcSecretProperty(oidcServerProperty)
+				return repoConfig, missingOidcSecretProperty(oidcProperty)
 			}
 		}
-		repoConfig.AuthzConfig.OidcParameters = oidcServerProperties
+		repoConfig.AuthzConfig.OidcParameters = oidcParameters
 	}
 
 	return repoConfig, nil
@@ -327,11 +327,11 @@ func getRepoConfig(
 			}
 
 			oidcClientProperties := map[string]interface{}{}
-			for _, oidcClientProperty := range OidcClientProperties {
-				if val, exists := propertiesMap[string(oidcClientProperty)]; exists {
-					oidcClientProperties[string(oidcClientProperty)] = val
+			for _, oidcProperty := range OidcProperties {
+				if val, exists := propertiesMap[string(oidcProperty)]; exists {
+					oidcClientProperties[string(oidcProperty)] = val
 				} else {
-					return repoConfig, missingOidcSecretProperty(oidcClientProperty)
+					return repoConfig, missingOidcSecretProperty(oidcProperty)
 				}
 			}
 			repoConfig.AuthzConfig.OidcParameters = oidcClientProperties

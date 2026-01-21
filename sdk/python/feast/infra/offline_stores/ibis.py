@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import ibis
-import ibis.selectors as s
 import numpy as np
 import pandas as pd
 import pyarrow
@@ -393,6 +392,10 @@ def point_in_time_join(
 
     acc_table = entity_table
 
+    # Track the columns we want to keep explicitly
+    entity_columns = list(entity_table.columns)
+    all_feature_cols: List[str] = []
+
     for (
         feature_table,
         timestamp_field,
@@ -432,7 +435,8 @@ def point_in_time_join(
             entity_table, predicates, lname="", rname="{name}_y"
         )
 
-        feature_table = feature_table.drop(s.endswith("_y"))
+        cols_to_drop_y = [c for c in feature_table.columns if c.endswith("_y")]
+        feature_table = feature_table.drop(*cols_to_drop_y)
 
         feature_table = deduplicate(
             table=feature_table,
@@ -445,6 +449,9 @@ def point_in_time_join(
         select_cols.extend(feature_refs)
         feature_table = feature_table.select(select_cols)
 
+        # Track the feature columns we're adding
+        all_feature_cols.extend(feature_refs)
+
         acc_table = acc_table.left_join(
             feature_table,
             predicates=[feature_table.entity_row_id == acc_table.entity_row_id],
@@ -452,9 +459,9 @@ def point_in_time_join(
             rname="{name}_yyyy",
         )
 
-        acc_table = acc_table.drop(s.endswith("_yyyy"))
-
-    acc_table = acc_table.drop("entity_row_id")
+    # Select only the columns we want: entity columns (minus entity_row_id) + all feature columns
+    final_cols = [c for c in entity_columns if c != "entity_row_id"] + all_feature_cols
+    acc_table = acc_table.select(final_cols)
 
     return acc_table
 

@@ -309,4 +309,44 @@ There are new CLI commands to manage on demand feature views:
 feast on-demand-feature-views list: Lists all registered on demand feature views after feast apply is run.
 feast on-demand-feature-views describe [NAME]: Describes the definition of an on demand feature view.
 
+## Troubleshooting
+
+### Validation Issues with Complex Transformations
+
+When defining On Demand Feature Views with complex transformations, you may encounter validation errors during `feast apply`. Feast validates ODFVs by constructing random inputs and running the transformation function to infer the output schema. This validation can sometimes be overly strict or fail for complex transformation logic.
+
+If you encounter validation errors that you believe are incorrect, you can skip feature view validation:
+
+**Python SDK:**
+```python
+from feast import FeatureStore
+
+store = FeatureStore(repo_path=".")
+store.apply([my_odfv], skip_feature_view_validation=True)
+```
+
+**CLI:**
+```bash
+feast apply --skip-feature-view-validation
+```
+
+{% hint style="warning" %}
+Skipping validation bypasses important checks. Use this option only when the validation system is being overly strict. We encourage you to report validation issues on the [Feast GitHub repository](https://github.com/feast-dev/feast/issues) so the team can improve the validation system.
+{% endhint %}
+
+**When to use skip_feature_view_validation:**
+- Your ODFV transformation uses complex logic that fails the random input validation
+- You've verified your transformation works correctly with real data
+- The validation error doesn't reflect an actual issue with your transformation
+
+**What validation is skipped:**
+- Feature view name uniqueness checks
+- ODFV transformation validation via `_construct_random_input()`
+- Schema inference for features
+
+**What is NOT skipped:**
+- Data source validation (use `--skip-source-validation` to skip)
+- Registry operations
+- Infrastructure updates
+
 

@@ -18,7 +18,6 @@ MATCH_SCORE_DEFAULT_THRESHOLD = 0.75
 MATCH_SCORE_NAME = 100
 MATCH_SCORE_DESCRIPTION = 80
 MATCH_SCORE_TAGS = 60
-MATCH_SCORE_PARTIAL = 40
 
 
 def grpc_call(handler_fn, request):
@@ -537,12 +536,42 @@ def filter_search_results_and_match_score(
 ) -> List[Dict]:
     """Filter search results based on query string"""
     if not query:
+        # Add all tags as matched_tags when no query (all tags match)
+        for result in results:
+            result["matched_tags"] = result.get("tags", {})
         return results
 
     query_lower = query.lower()
     filtered_results = []
 
     for result in results:
+        matched_tags = {}
+        best_fuzzy_tag_score = 0.0
+
+        # Collect all matching tags (exact and fuzzy) upfront
+        tags = result.get("tags", {})
+        has_exact_tag_match = False
+
+        for key, value in tags.items():
+            key_lower = str(key).lower()
+            value_str = str(value).lower()
+            tag_combined = f"{key_lower}={value_str}"
+
+            # Exact match in key or value
+            if query_lower in tag_combined:
+                has_exact_tag_match = True
+                matched_tags[key] = value
+            else:
+                # Fuzzy match for tags (on combined "key:value" string)
+                tag_fuzzy_score = fuzzy_match(query_lower, tag_combined)
+
+                if tag_fuzzy_score >= MATCH_SCORE_DEFAULT_THRESHOLD:
+                    matched_tags[key] = value
+                    if tag_fuzzy_score > best_fuzzy_tag_score:
+                        best_fuzzy_tag_score = tag_fuzzy_score
+
+        result["matched_tags"] = matched_tags
+
         # Search in name
         if query_lower in result.get("name", "").lower():
             result["match_score"] = MATCH_SCORE_NAME
@@ -555,42 +584,15 @@ def filter_search_results_and_match_score(
             filtered_results.append(result)
             continue
 
-        # Search in tags
-        tags = result.get("tags", {})
-        tag_match = False
-        matched_tag = None
-        best_fuzzy_score = 0.0
-        best_fuzzy_tag = None
-
-        for key, value in tags.items():
-            key_lower = key.lower()
-            value_str = str(value).lower()
-
-            # Exact match in key or value
-            if query_lower in key_lower or query_lower in value_str:
-                tag_match = True
-                # Store the matched tag as a dictionary
-                matched_tag = {key: value}
-                break
-
-            # Fuzzy match for tags (on combined "key:value" string)
-            tag_combined = f"{key_lower}={value_str}"
-            tag_fuzzy_score = fuzzy_match(query_lower, tag_combined)
-
-            if tag_fuzzy_score > best_fuzzy_score:
-                best_fuzzy_score = tag_fuzzy_score
-                best_fuzzy_tag = {key: value}
-
-        if tag_match:
+        # Exact tag match
+        if has_exact_tag_match:
             result["match_score"] = MATCH_SCORE_TAGS
-            result["matched_tag"] = matched_tag
             filtered_results.append(result)
             continue
 
         # Fuzzy tag match
-        if best_fuzzy_score >= MATCH_SCORE_DEFAULT_THRESHOLD:
-            result["match_score"] = best_fuzzy_score * 100
-            result["matched_tag"] = best_fuzzy_tag
+        if best_fuzzy_tag_score >= MATCH_SCORE_DEFAULT_THRESHOLD:
+            result["match_score"] = best_fuzzy_tag_score * 100
             filtered_results.append(result)
             continue
 

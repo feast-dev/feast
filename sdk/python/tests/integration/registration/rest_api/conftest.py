@@ -1,9 +1,11 @@
 import os
+from pathlib import Path
 
 import pytest
 import requests
 from kubernetes import client, config
-from support import (
+
+from tests.integration.registration.rest_api.support import (
     applyFeastProject,
     create_feast_project,
     create_namespace,
@@ -41,6 +43,10 @@ def feast_rest_client():
     config.load_kube_config()
     api_instance = client.CoreV1Api()
 
+    # Get the directory containing this conftest.py file
+    test_dir = Path(__file__).parent
+    resource_dir = test_dir / "resource"
+
     # Constants and environment values
     namespace = "test-ns-feast-rest"
     credit_scoring = "credit-scoring"
@@ -54,23 +60,37 @@ def feast_rest_client():
     try:
         if not run_on_openshift:
             # Deploy dependencies
-            deploy_and_validate_pod(namespace, "resource/redis.yaml", "app=redis")
-            deploy_and_validate_pod(namespace, "resource/postgres.yaml", "app=postgres")
+            deploy_and_validate_pod(
+                namespace, str(resource_dir / "redis.yaml"), "app=redis"
+            )
+            deploy_and_validate_pod(
+                namespace, str(resource_dir / "postgres.yaml"), "app=postgres"
+            )
 
             # Create and validate FeatureStore CRs
             create_feast_project(
-                "resource/feast_config_credit_scoring.yaml", namespace, credit_scoring
+                str(resource_dir / "feast_config_credit_scoring.yaml"),
+                namespace,
+                credit_scoring,
             )
             validate_feature_store_cr_status(namespace, credit_scoring)
 
             create_feast_project(
-                "resource/feast_config_driver_ranking.yaml", namespace, driver_ranking
+                str(resource_dir / "feast_config_driver_ranking.yaml"),
+                namespace,
+                driver_ranking,
             )
             validate_feature_store_cr_status(namespace, driver_ranking)
 
             # Deploy ingress and get route URL
             run_kubectl_command(
-                ["apply", "-f", "resource/feast-registry-nginx.yaml", "-n", namespace]
+                [
+                    "apply",
+                    "-f",
+                    str(resource_dir / "feast-registry-nginx.yaml"),
+                    "-n",
+                    namespace,
+                ]
             )
             ingress_host = run_kubectl_command(
                 [
@@ -114,7 +134,7 @@ def feast_rest_client():
                 aws_secret_key,
                 aws_bucket,
                 registry_path,
-                "resource/feast_config_rhoai.yaml",
+                str(resource_dir / "feast_config_rhoai.yaml"),
                 namespace,
             )
             validate_feature_store_cr_status(namespace, "test-s3")

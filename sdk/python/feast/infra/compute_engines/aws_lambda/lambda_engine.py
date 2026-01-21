@@ -108,9 +108,14 @@ class LambdaComputeEngine(ComputeEngine):
         r = self.lambda_client.create_function(
             FunctionName=self.lambda_name,
             PackageType="Image",
-            Role=self.repo_config.batch_engine.lambda_role,
-            Code={"ImageUri": self.repo_config.batch_engine.materialization_image},
+            Role=self.repo_config.batch_engine_config.lambda_role,
+            Code={
+                "ImageUri": self.repo_config.batch_engine_config.materialization_image
+            },
             Timeout=DEFAULT_TIMEOUT,
+            LoggingConfig={
+                "LogFormat": "JSON",
+            },
             Tags={
                 "feast-owned": "True",
                 "project": project,

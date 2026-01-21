@@ -2,7 +2,7 @@ project: my_project
 provider: local
 registry:
     registry_type: sql
-    path: postgresql://postgres:mysecretpassword@127.0.0.1:55001/feast
+    path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
         echo: false

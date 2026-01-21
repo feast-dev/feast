@@ -22,7 +22,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/opendatahub/feature-server:v0.58.0
+    value: quay.io/opendatahub/feature-server:v0.59.0
   - name: dockerfile
     value: Dockerfile
   - name: path-context
