@@ -1,0 +1,33 @@
+# Example Feast feature_store.yaml with OpenLineage configuration
+
+project: my_feast_project
+registry: data/registry.db
+provider: local
+
+online_store:
+  type: sqlite
+  path: data/online_store.db
+
+offline_store:
+  type: dask
+
+# OpenLineage configuration for lineage event emission
+openlineage:
+  # Enable OpenLineage event emission (default: false)
+  enabled: true
+  
+  # Transport type: 'http', 'kafka', 'console', or 'file'
+  transport_type: http
+  
+  # Transport-specific configuration
+  transport_config:
+    url: http://localhost:5000  # Marquez or other OpenLineage-compatible endpoint
+    timeout: 5.0
+    verify: true
+  
+  # OpenLineage namespace for all events (default: 'feast')
+  namespace: feast
+  
+  # Enable/disable specific event types
+  emit_materialization_events: true  # Emit events for feature materialization (default: true)
+  emit_retrieval_events: false       # Emit events for feature retrieval (default: false)
