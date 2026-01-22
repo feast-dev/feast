@@ -210,6 +210,17 @@ test-python-universal-spark: ## Run Python Spark integration tests
 			not test_snowflake" \
  	 sdk/python/tests
 
+test-python-historical-retrieval:
+	## Run Python historical retrieval integration tests
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.spark_offline_store.tests \
+ 	python -m pytest -n 8 --integration \
+ 	 	-k "test_historical_retrieval_with_validation or \
+			test_historical_features_persisting or \
+			test_historical_retrieval_fails_on_validation" \
+ 	 sdk/python/tests
+	 
 test-python-universal-trino: ## Run Python Trino integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.trino_repo_configuration \

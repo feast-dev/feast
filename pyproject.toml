@@ -264,3 +264,8 @@ exclude = [
   ".pyi",
   "protos",
   "sdk/python/feast/embedded_go/lib"]
+
+[dependency-groups]
+dev = [
+    "pytest-xdist>=3.8.0",
+]
