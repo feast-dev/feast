@@ -1230,9 +1230,9 @@ class FeatureStore:
             all_on_demand_feature_views,
         ) = utils._get_feature_views_to_use(self._registry, self.project, features)
 
-        # TODO(achal): _group_feature_refs returns the on demand feature views, but it's not passed into the provider.
-        # This is a weird interface quirk - we should revisit the `get_historical_features` to
-        # pass in the on demand feature views as well.
+        # TODO: This is an interim API change. We should revisit the Provider/OfflineStore
+        # historical retrieval interface to avoid ad-hoc argument additions (e.g. passing ODFVs
+        # separately) and define a clearer long-term contract.
         fvs, odfvs = utils._group_feature_refs(
             _feature_refs,
             all_feature_views,
