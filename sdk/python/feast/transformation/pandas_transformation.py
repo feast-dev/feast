@@ -152,8 +152,12 @@ class PandasTransformation(Transformation):
     ):
         if skip_udf:
             # Return a dummy transformation when skipping UDF deserialization
+            # Identity function that preserves DataFrame structure
+            def identity_udf(df: pd.DataFrame) -> pd.DataFrame:
+                return df
+
             return PandasTransformation(
-                udf=lambda x: x,  # Identity function as placeholder
+                udf=identity_udf,
                 udf_string=user_defined_function_proto.body_text,
             )
         return PandasTransformation(

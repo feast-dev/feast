@@ -170,8 +170,12 @@ class PythonTransformation(Transformation):
     ):
         if skip_udf:
             # Return a dummy transformation when skipping UDF deserialization
+            # Identity function that preserves dictionary structure
+            def identity_udf(features_dict: Dict[str, Any]) -> Dict[str, Any]:
+                return features_dict
+
             return PythonTransformation(
-                udf=lambda x: x,  # Identity function as placeholder
+                udf=identity_udf,
                 udf_string=user_defined_function_proto.body_text,
             )
         return PythonTransformation(
