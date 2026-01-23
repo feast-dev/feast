@@ -145,7 +145,17 @@ class PandasTransformation(Transformation):
         return True
 
     @classmethod
-    def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
+    def from_proto(
+        cls,
+        user_defined_function_proto: UserDefinedFunctionProto,
+        skip_udf: bool = False,
+    ):
+        if skip_udf:
+            # Return a dummy transformation when skipping UDF deserialization
+            return PandasTransformation(
+                udf=lambda x: x,  # Identity function as placeholder
+                udf_string=user_defined_function_proto.body_text,
+            )
         return PandasTransformation(
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
