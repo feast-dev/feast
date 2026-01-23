@@ -203,8 +203,8 @@ def test_skip_validation_use_case_documentation():
 
     With skip_validation=True:
     - push() calls list_all_feature_views(skip_validation=True)
-    - ODFVs WITHOUT write_to_online_store=True are loaded with dummy UDFs (identity functions)
-    - ODFVs WITH write_to_online_store=True are loaded normally (UDF is deserialized)
+    - ODFVs with write_to_online_store=False are loaded with dummy UDFs (identity functions)
+    - ODFVs with write_to_online_store=True are loaded normally (UDF is deserialized)
     - No deserialization of the actual UDF happens for ODFVs that won't execute transformations
     - push() can proceed successfully
 
