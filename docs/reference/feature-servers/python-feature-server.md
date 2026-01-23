@@ -34,7 +34,7 @@ Key performance options:
 ### Performance Best Practices
 
 **Worker Configuration:**
-- For production: Use `--workers -1` to auto-calculate optimal worker count (typically 2 × CPU cores + 1)
+- For production: Use `--workers -1` to auto-calculate optimal worker count (2 × CPU cores + 1)
 - For development: Use default single worker (`--workers 1`)
 - Monitor CPU and memory usage to tune worker count manually if needed
 
