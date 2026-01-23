@@ -303,7 +303,9 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
-        return self._list_all_feature_views(allow_cache, tags=tags, skip_validation=skip_validation)
+        return self._list_all_feature_views(
+            allow_cache, tags=tags, skip_validation=skip_validation
+        )
 
     def list_feature_views(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
@@ -1966,7 +1968,9 @@ class FeatureStore:
     ):
         feature_view_dict = {
             fv_proto.name: fv_proto
-            for fv_proto in self.list_all_feature_views(allow_registry_cache, skip_validation=skip_validation)
+            for fv_proto in self.list_all_feature_views(
+                allow_registry_cache, skip_validation=skip_validation
+            )
         }
         try:
             feature_view = feature_view_dict[feature_view_name]

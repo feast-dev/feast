@@ -244,7 +244,9 @@ def list_all_feature_views(
         return (
             list_feature_views(registry_proto, project, tags)
             + list_stream_feature_views(registry_proto, project, tags)
-            + list_on_demand_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+            + list_on_demand_feature_views(
+                registry_proto, project, tags, skip_udf=skip_udf
+            )
         )
     else:
         return _list_all_feature_views_cached(registry_proto, project, tags)
@@ -303,7 +305,9 @@ def list_on_demand_feature_views(
                 on_demand_feature_view.spec.tags, tags
             ):
                 on_demand_feature_views.append(
-                    OnDemandFeatureView.from_proto(on_demand_feature_view, skip_udf=skip_udf)
+                    OnDemandFeatureView.from_proto(
+                        on_demand_feature_view, skip_udf=skip_udf
+                    )
                 )
         return on_demand_feature_views
     else:

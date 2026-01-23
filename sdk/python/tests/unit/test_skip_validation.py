@@ -20,7 +20,9 @@ import pandas as pd
 
 from feast.feature_store import FeatureStore
 from feast.on_demand_feature_view import PandasTransformation, PythonTransformation
-from feast.protos.feast.core.Transformation_pb2 import UserDefinedFunctionV2 as UserDefinedFunctionProto
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
+)
 
 
 def test_apply_has_skip_feature_view_validation_parameter():
@@ -93,32 +95,33 @@ def test_push_async_has_skip_validation_parameter():
 
 def test_pandas_transformation_from_proto_with_skip_udf():
     """Test that PandasTransformation.from_proto works with skip_udf=True."""
-    
+
     # Create a UDF that would reference a non-existent module
     def udf_with_missing_module(df: pd.DataFrame) -> pd.DataFrame:
         # This would normally fail if a module is missing during deserialization
         import nonexistent_module  # noqa: F401
+
         return df
-    
+
     # Serialize the UDF
     serialized_udf = dill.dumps(udf_with_missing_module)
     udf_string = "import nonexistent_module\ndef udf(df): return df"
-    
+
     # Create proto
     udf_proto = UserDefinedFunctionProto(
         name="test_udf",
         body=serialized_udf,
         body_text=udf_string,
     )
-    
+
     # Test that skip_udf=True doesn't try to deserialize the UDF
     # This would normally fail with ModuleNotFoundError
     transformation = PandasTransformation.from_proto(udf_proto, skip_udf=True)
-    
+
     # Should get a dummy transformation with identity function
     assert transformation is not None
     assert transformation.udf_string == udf_string
-    
+
     # The dummy UDF should be callable and act as identity
     test_df = pd.DataFrame({"col1": [1, 2, 3]})
     result = transformation.udf(test_df)
@@ -127,32 +130,33 @@ def test_pandas_transformation_from_proto_with_skip_udf():
 
 def test_python_transformation_from_proto_with_skip_udf():
     """Test that PythonTransformation.from_proto works with skip_udf=True."""
-    
+
     # Create a UDF that would reference a non-existent module
     def udf_with_missing_module(features_dict):
         # This would normally fail if a module is missing during deserialization
         import nonexistent_module  # noqa: F401
+
         return features_dict
-    
+
     # Serialize the UDF
     serialized_udf = dill.dumps(udf_with_missing_module)
     udf_string = "import nonexistent_module\ndef udf(d): return d"
-    
+
     # Create proto
     udf_proto = UserDefinedFunctionProto(
         name="test_udf",
         body=serialized_udf,
         body_text=udf_string,
     )
-    
+
     # Test that skip_udf=True doesn't try to deserialize the UDF
     # This would normally fail with ModuleNotFoundError
     transformation = PythonTransformation.from_proto(udf_proto, skip_udf=True)
-    
+
     # Should get a dummy transformation with identity function
     assert transformation is not None
     assert transformation.udf_string == udf_string
-    
+
     # The dummy UDF should be callable and act as identity
     test_dict = {"col1": 1}
     result = transformation.udf(test_dict)
@@ -212,4 +216,3 @@ def test_skip_validation_use_case_documentation():
     - Different teams manage training vs. serving infrastructure
     """
     pass  # This is a documentation test
-
