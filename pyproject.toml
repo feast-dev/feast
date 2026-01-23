@@ -229,7 +229,7 @@ requires = [
   "setuptools>=60,<81",
   "setuptools_scm>=6.2",
   "sphinx!=4.0.0",
-  "wheel",
+  "wheel>=0.46.2",
 ]
 
 [tool.setuptools]
