@@ -304,9 +304,15 @@ def list_on_demand_feature_views(
             if on_demand_feature_view.spec.project == project and utils.has_all_tags(
                 on_demand_feature_view.spec.tags, tags
             ):
+                # Only skip UDF deserialization for ODFVs that don't write to online store
+                # ODFVs with write_to_online_store=True need the actual UDF loaded
+                # because it will be executed during push operations
+                should_skip_udf = (
+                    skip_udf and not on_demand_feature_view.spec.write_to_online_store
+                )
                 on_demand_feature_views.append(
                     OnDemandFeatureView.from_proto(
-                        on_demand_feature_view, skip_udf=skip_udf
+                        on_demand_feature_view, skip_udf=should_skip_udf
                     )
                 )
         return on_demand_feature_views
