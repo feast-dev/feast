@@ -233,17 +233,31 @@ def list_feature_services(
     return feature_services
 
 
-@registry_proto_cache_with_tags
 def list_all_feature_views(
     registry_proto: RegistryProto,
     project: str,
     tags: Optional[dict[str, str]],
     skip_udf: bool = False,
 ) -> List[BaseFeatureView]:
+    # Skip caching when skip_udf is True to avoid cache pollution
+    if skip_udf:
+        return (
+            list_feature_views(registry_proto, project, tags)
+            + list_stream_feature_views(registry_proto, project, tags)
+            + list_on_demand_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        )
+    else:
+        return _list_all_feature_views_cached(registry_proto, project, tags)
+
+
+@registry_proto_cache_with_tags
+def _list_all_feature_views_cached(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[BaseFeatureView]:
     return (
         list_feature_views(registry_proto, project, tags)
         + list_stream_feature_views(registry_proto, project, tags)
-        + list_on_demand_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_on_demand_feature_views(registry_proto, project, tags, skip_udf=False)
     )
 
 
@@ -275,12 +289,30 @@ def list_stream_feature_views(
     return stream_feature_views
 
 
-@registry_proto_cache_with_tags
 def list_on_demand_feature_views(
     registry_proto: RegistryProto,
     project: str,
     tags: Optional[dict[str, str]],
     skip_udf: bool = False,
+) -> List[OnDemandFeatureView]:
+    # Skip caching when skip_udf is True to avoid cache pollution with dummy UDFs
+    if skip_udf:
+        on_demand_feature_views = []
+        for on_demand_feature_view in registry_proto.on_demand_feature_views:
+            if on_demand_feature_view.spec.project == project and utils.has_all_tags(
+                on_demand_feature_view.spec.tags, tags
+            ):
+                on_demand_feature_views.append(
+                    OnDemandFeatureView.from_proto(on_demand_feature_view, skip_udf=skip_udf)
+                )
+        return on_demand_feature_views
+    else:
+        return _list_on_demand_feature_views_cached(registry_proto, project, tags)
+
+
+@registry_proto_cache_with_tags
+def _list_on_demand_feature_views_cached(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
 ) -> List[OnDemandFeatureView]:
     on_demand_feature_views = []
     for on_demand_feature_view in registry_proto.on_demand_feature_views:
@@ -288,7 +320,7 @@ def list_on_demand_feature_views(
             on_demand_feature_view.spec.tags, tags
         ):
             on_demand_feature_views.append(
-                OnDemandFeatureView.from_proto(on_demand_feature_view, skip_udf=skip_udf)
+                OnDemandFeatureView.from_proto(on_demand_feature_view, skip_udf=False)
             )
     return on_demand_feature_views
 
