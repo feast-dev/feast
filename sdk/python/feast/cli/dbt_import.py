@@ -225,9 +225,12 @@ def import_command(
         model_entities: List[Any] = []
         for entity_col in entity_cols:
             if entity_col not in entities_created:
+                # Use mapper's internal method for value type inference
+                entity_value_type = mapper._infer_entity_value_type(model, entity_col)
                 entity = mapper.create_entity(
                     name=entity_col,
                     description="Entity key for dbt models",
+                    value_type=entity_value_type,
                 )
                 entities_created[entity_col] = entity
                 all_objects.append(entity)

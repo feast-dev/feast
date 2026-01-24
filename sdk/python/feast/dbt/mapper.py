@@ -26,6 +26,24 @@ from feast.types import (
 )
 from feast.value_type import ValueType
 
+# Mapping from FeastType to ValueType for entity value inference
+FEAST_TYPE_TO_VALUE_TYPE: Dict[FeastType, ValueType] = {
+    String: ValueType.STRING,
+    Int32: ValueType.INT64,
+    Int64: ValueType.INT64,
+    Float32: ValueType.DOUBLE,
+    Float64: ValueType.DOUBLE,
+    Bool: ValueType.BOOL,
+    Bytes: ValueType.BYTES,
+    UnixTimestamp: ValueType.UNIX_TIMESTAMP,
+}
+
+
+def feast_type_to_value_type(feast_type: FeastType) -> ValueType:
+    """Convert a FeastType to its corresponding ValueType for entities."""
+    return FEAST_TYPE_TO_VALUE_TYPE.get(feast_type, ValueType.STRING)
+
+
 # Comprehensive mapping from dbt/warehouse types to Feast types
 # Covers BigQuery, Snowflake, Redshift, PostgreSQL, and common SQL types
 DBT_TO_FEAST_TYPE_MAP: Dict[str, FeastType] = {
@@ -180,6 +198,14 @@ class DbtToFeastMapper:
         self.timestamp_field = timestamp_field
         self.ttl_days = ttl_days
 
+    def _infer_entity_value_type(self, model: DbtModel, entity_col: str) -> ValueType:
+        """Infer entity ValueType from dbt model column type."""
+        for column in model.columns:
+            if column.name == entity_col:
+                feast_type = map_dbt_type_to_feast_type(column.data_type)
+                return feast_type_to_value_type(feast_type)
+        return ValueType.UNKNOWN
+
     def create_data_source(
         self,
         model: DbtModel,
@@ -310,7 +336,9 @@ class DbtToFeastMapper:
         """
         # Normalize to lists
         entity_cols: List[str] = (
-            [entity_columns] if isinstance(entity_columns, str) else list(entity_columns)
+            [entity_columns]
+            if isinstance(entity_columns, str)
+            else list(entity_columns)
         )
 
         entity_objs: List[Entity] = []
@@ -330,12 +358,14 @@ class DbtToFeastMapper:
         ts_field = timestamp_field or self.timestamp_field
         ttl = timedelta(days=ttl_days if ttl_days is not None else self.ttl_days)
 
-        # Columns to exclude from features (all entity columns + timestamp)
-        excluded = set(entity_cols) | {ts_field}
+        # Columns to exclude from schema (timestamp + any explicitly excluded)
+        # Note: entity columns should NOT be excluded - FeatureView.__init__
+        # expects entity columns to be in the schema and will extract them
+        excluded = {ts_field}
         if exclude_columns:
             excluded.update(exclude_columns)
 
-        # Create schema from model columns
+        # Create schema from model columns (includes entity columns)
         schema: List[Field] = []
         for column in model.columns:
             if column.name not in excluded:
@@ -352,9 +382,12 @@ class DbtToFeastMapper:
         if not entity_objs:
             entity_objs = []
             for entity_col in entity_cols:
+                # Infer entity value type from model column
+                entity_value_type = self._infer_entity_value_type(model, entity_col)
                 ent = self.create_entity(
                     name=entity_col,
                     description=f"Entity for {model.name}",
+                    value_type=entity_value_type,
                 )
                 entity_objs.append(ent)
 
@@ -405,16 +438,20 @@ class DbtToFeastMapper:
         """
         # Normalize to list
         entity_cols: List[str] = (
-            [entity_columns] if isinstance(entity_columns, str) else list(entity_columns)
+            [entity_columns]
+            if isinstance(entity_columns, str)
+            else list(entity_columns)
         )
 
         # Create entities (plural)
         entities_list = []
         for entity_col in entity_cols:
+            entity_value_type = self._infer_entity_value_type(model, entity_col)
             entity = self.create_entity(
                 name=entity_col,
                 description=f"Entity for {model.name}",
                 tags={"dbt.model": model.name},
+                value_type=entity_value_type,
             )
             entities_list.append(entity)
 
