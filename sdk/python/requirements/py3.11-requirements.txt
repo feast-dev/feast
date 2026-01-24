@@ -174,9 +174,9 @@ fsspec==2026.1.0 \
     --hash=sha256:cb76aa913c2285a3b49bdd5fc55b1d7c708d7208126b60f2eb8194fe1b4cbdcc \
     --hash=sha256:e987cb0496a0d81bba3a9d1cee62922fb395e7d4c3b575e57f547953334fe07b
     # via dask
-gunicorn==24.0.0 \
-    --hash=sha256:30401647ed4f162a3f7e5b8b3ed77e6e88d9a4ea5599f1ff31f7f54a7610339c \
-    --hash=sha256:7f6c916308740942586f49f14cf3743bdfc4130c29520c42706f42fa5a2dacdb
+gunicorn==24.1.1 \
+    --hash=sha256:757f6b621fc4f7581a90600b2cd9df593461f06a41d7259cb9b94499dc4095a8 \
+    --hash=sha256:f006d110e5cb3102859b4f5cd48335dbd9cc28d0d27cd24ddbdafa6c60929408
     # via
     #   feast (setup.py)
     #   uvicorn-worker
