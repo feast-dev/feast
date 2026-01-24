@@ -183,7 +183,7 @@ class TestDbtToFeastMapping:
         
         assert isinstance(entity, Entity)
         assert entity.name == "driver_id"
-        assert entity.join_keys == ["driver_id"]
+        assert entity.join_key == "driver_id"
         assert entity.description == "Driver entity"
 
     def test_create_feature_view(self, parser):
@@ -207,7 +207,7 @@ class TestDbtToFeastMapping:
         assert feature_view.name == "driver_features"
         assert feature_view.source == data_source
         assert len(feature_view.entities) == 1
-        assert feature_view.entities[0] == entity
+        assert feature_view.entities[0] == entity.name  # entities is a list of names
         assert feature_view.description == model.description
         
         # Check that schema excludes entity and timestamp columns
@@ -268,7 +268,7 @@ class TestDbtToFeastMapping:
         
         # Verify the feature view uses the created entity and data source
         assert objects["feature_view"].source == objects["data_source"]
-        assert objects["entity"] in objects["feature_view"].entities
+        assert objects["entity"].name in objects["feature_view"].entities
 
 
 class TestDbtDataSourceTypes:
@@ -480,7 +480,7 @@ class TestDbtIntegrationWorkflow:
         
         # Verify we created the right objects
         assert len(entities) == 3  # 3 unique entities
-        assert len(all_objects) == 12  # 3 entities + 3 data sources + 3 feature views + 3 more
+        assert len(all_objects) == 9  # 3 entities + 3 data sources + 3 feature views
 
     def test_code_generation_workflow(self, parser):
         """Test workflow that generates Python code."""
@@ -516,3 +516,152 @@ class TestDbtIntegrationWorkflow:
             assert read_code == code
         finally:
             os.unlink(temp_path)
+
+
+class TestDbtErrorHandling:
+    """Test error handling for edge cases."""
+
+    def test_manifest_not_found(self):
+        """Test that FileNotFoundError is raised for missing manifest."""
+        parser = DbtManifestParser("/nonexistent/path/manifest.json")
+
+        with pytest.raises(FileNotFoundError, match="dbt manifest not found"):
+            parser.parse()
+
+    def test_invalid_json_manifest(self, tmp_path):
+        """Test that ValueError is raised for invalid JSON."""
+        invalid_manifest = tmp_path / "manifest.json"
+        invalid_manifest.write_text("{ invalid json }")
+
+        parser = DbtManifestParser(str(invalid_manifest))
+
+        with pytest.raises(ValueError, match="Invalid JSON"):
+            parser.parse()
+
+
+class TestDbtTypeMappingEdgeCases:
+    """Test type mapping edge cases."""
+
+    def test_unknown_type_falls_back_to_string(self):
+        """Test that unknown types fall back to String."""
+        from feast.dbt.mapper import map_dbt_type_to_feast_type
+
+        result = map_dbt_type_to_feast_type("UNKNOWN_TYPE")
+        assert result == String
+
+    def test_empty_type_falls_back_to_string(self):
+        """Test that empty/null types fall back to String."""
+        from feast.dbt.mapper import map_dbt_type_to_feast_type
+
+        assert map_dbt_type_to_feast_type("") == String
+        # Test None handling (type: ignore for static analysis)
+        assert map_dbt_type_to_feast_type(None) == String  # type: ignore[arg-type]
+
+    def test_bool_type_mapping(self):
+        """Test boolean type mapping."""
+        from feast.dbt.mapper import map_dbt_type_to_feast_type
+        from feast.types import Bool
+
+        assert map_dbt_type_to_feast_type("BOOL") == Bool
+        assert map_dbt_type_to_feast_type("BOOLEAN") == Bool
+        assert map_dbt_type_to_feast_type("bool") == Bool
+
+    def test_parameterized_varchar_mapping(self):
+        """Test that VARCHAR(N) maps to String."""
+        from feast.dbt.mapper import map_dbt_type_to_feast_type
+
+        assert map_dbt_type_to_feast_type("VARCHAR(255)") == String
+        assert map_dbt_type_to_feast_type("VARCHAR(100)") == String
+        assert map_dbt_type_to_feast_type("CHAR(10)") == String
+
+    def test_snowflake_number_with_precision(self):
+        """Test Snowflake NUMBER with precision/scale mapping."""
+        from feast.dbt.mapper import map_dbt_type_to_feast_type
+
+        # No decimal places -> Int
+        assert map_dbt_type_to_feast_type("NUMBER(10,0)") == Int64
+        assert map_dbt_type_to_feast_type("NUMBER(5,0)") == Int32
+
+        # With decimal places -> Float64
+        assert map_dbt_type_to_feast_type("NUMBER(10,2)") == Float64
+        assert map_dbt_type_to_feast_type("NUMBER(18,4)") == Float64
+
+    def test_array_type_mapping(self):
+        """Test ARRAY type mapping."""
+        from feast.dbt.mapper import map_dbt_type_to_feast_type
+        from feast.types import Array
+
+        result = map_dbt_type_to_feast_type("ARRAY<STRING>")
+        assert isinstance(result, Array)
+
+        result = map_dbt_type_to_feast_type("ARRAY<INT64>")
+        assert isinstance(result, Array)
+
+
+class TestDbtDataSourceAdvanced:
+    """Test advanced data source features."""
+
+    def test_created_timestamp_column(self, parser):
+        """Test that created_timestamp_column is passed correctly."""
+        mapper = DbtToFeastMapper(data_source_type="bigquery")
+        model = parser.get_model_by_name("driver_features")
+
+        data_source = mapper.create_data_source(
+            model,
+            created_timestamp_column="created_at",
+        )
+
+        assert data_source.created_timestamp_column == "created_at"
+
+    def test_custom_timestamp_field(self, parser):
+        """Test custom timestamp field override."""
+        mapper = DbtToFeastMapper(data_source_type="bigquery")
+        model = parser.get_model_by_name("driver_features")
+
+        data_source = mapper.create_data_source(
+            model,
+            timestamp_field="custom_ts",
+        )
+
+        assert data_source.timestamp_field == "custom_ts"
+
+
+class TestDbtCodeGenerationAdvanced:
+    """Test advanced code generation scenarios."""
+
+    def test_generated_code_is_valid_python(self, parser):
+        """Test that generated code can be parsed as valid Python."""
+        import ast
+
+        models = parser.get_models(model_names=["driver_features"])
+
+        code = generate_feast_code(
+            models=models,
+            entity_column="driver_id",
+            data_source_type="bigquery",
+            timestamp_field="event_timestamp",
+            ttl_days=1,
+            manifest_path=str(TEST_MANIFEST_PATH),
+            project_name="test",
+        )
+
+        # This will raise SyntaxError if code is invalid
+        ast.parse(code)
+
+    def test_generated_code_has_correct_imports(self, parser):
+        """Test that generated code has all necessary type imports."""
+        models = parser.get_models(model_names=["driver_features"])
+
+        code = generate_feast_code(
+            models=models,
+            entity_column="driver_id",
+            data_source_type="bigquery",
+            timestamp_field="event_timestamp",
+            ttl_days=1,
+            manifest_path=str(TEST_MANIFEST_PATH),
+            project_name="test",
+        )
+
+        # Check that all used types are imported
+        assert "Float64" in code
+        assert "Int32" in code
