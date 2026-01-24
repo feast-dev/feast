@@ -62,17 +62,17 @@ jobs:
       - name: Test feast dbt import
         run: |
           cd sdk/python/tests/integration/dbt/feast_repo
-          feast -c feature_store.yaml dbt import \
+          feast dbt import \
             -m ../test_dbt_project/target/manifest.json \
             -e driver_id \
             -d file \
             --tag feast
-      
+
       - name: Verify feast objects were created
         run: |
           cd sdk/python/tests/integration/dbt/feast_repo
-          feast -c feature_store.yaml feature-views list
-          feast -c feature_store.yaml entities list
+          feast feature-views list
+          feast entities list
       
       - name: Run dbt integration tests
         run: |
