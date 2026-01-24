@@ -217,11 +217,11 @@ class FeastOpenLineageEmitter:
                 namespace=namespace,
             )
 
-            # Emit a RunEvent with OTHER state (metadata registration, not execution)
+            # Emit a RunEvent with COMPLETE state to create lineage connection
             result = self._client.emit_run_event(
                 job_name=job.name,
                 run_id=str(uuid.uuid4()),
-                event_type=RunState.OTHER,
+                event_type=RunState.COMPLETE,
                 inputs=inputs,
                 outputs=outputs,
                 job_facets=job.facets,
@@ -262,11 +262,11 @@ class FeastOpenLineageEmitter:
                 namespace=namespace,
             )
 
-            # Emit a RunEvent with OTHER state (metadata registration, not execution)
+            # Emit a RunEvent with COMPLETE state to create lineage connection
             return self._client.emit_run_event(
                 job_name=f"stream_{job.name}",
                 run_id=str(uuid.uuid4()),
-                event_type=RunState.OTHER,
+                event_type=RunState.COMPLETE,
                 inputs=inputs,
                 outputs=outputs,
                 job_facets=job.facets,
@@ -353,11 +353,11 @@ class FeastOpenLineageEmitter:
                 )
             }
 
-            # Emit a RunEvent with OTHER state (metadata registration, not execution)
+            # Emit a RunEvent with COMPLETE state to create lineage connection
             return self._client.emit_run_event(
                 job_name=f"on_demand_feature_view_{odfv.name}",
                 run_id=str(uuid.uuid4()),
-                event_type=RunState.OTHER,
+                event_type=RunState.COMPLETE,
                 inputs=inputs,
                 outputs=outputs,
                 job_facets=job_facets,
@@ -403,11 +403,11 @@ class FeastOpenLineageEmitter:
                 namespace=namespace,
             )
 
-            # Emit a RunEvent with OTHER state (metadata registration, not execution)
+            # Emit a RunEvent with COMPLETE state to create lineage connection
             return self._client.emit_run_event(
                 job_name=job.name,
                 run_id=str(uuid.uuid4()),
-                event_type=RunState.OTHER,
+                event_type=RunState.COMPLETE,
                 inputs=inputs,
                 outputs=outputs,
                 job_facets=job.facets,
@@ -851,7 +851,7 @@ class FeastOpenLineageEmitter:
                 result1 = self._client.emit_run_event(
                     job_name=f"feast_feature_views_{project}",
                     run_id=str(uuid.uuid4()),
-                    event_type=RunState.OTHER,
+                    event_type=RunState.COMPLETE,
                     inputs=fv_inputs,
                     outputs=fv_outputs,
                     job_facets=job_facets,
@@ -967,7 +967,7 @@ class FeastOpenLineageEmitter:
                 result = self._client.emit_run_event(
                     job_name=f"feature_service_{fs.name}",  # Prefix to avoid conflict with dataset
                     run_id=str(uuid.uuid4()),
-                    event_type=RunState.OTHER,
+                    event_type=RunState.COMPLETE,
                     inputs=fs_inputs,
                     outputs=[fs_output],
                     job_facets=job_facets,
