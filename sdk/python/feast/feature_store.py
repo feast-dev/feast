@@ -270,11 +270,14 @@ class FeatureStore:
         self,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
-        skip_validation: bool = False,
+        skip_feature_view_validation: bool = False,
     ) -> List[BaseFeatureView]:
         feature_views = []
         for fv in self.registry.list_all_feature_views(
-            self.project, allow_cache=allow_cache, tags=tags, skip_udf=skip_validation
+            self.project,
+            allow_cache=allow_cache,
+            tags=tags,
+            skip_udf=skip_feature_view_validation,
         ):
             if (
                 isinstance(fv, FeatureView)
@@ -290,7 +293,7 @@ class FeatureStore:
         self,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
-        skip_validation: bool = False,
+        skip_feature_view_validation: bool = False,
     ) -> List[BaseFeatureView]:
         """
         Retrieves the list of feature views from the registry.
@@ -298,13 +301,15 @@ class FeatureStore:
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
             tags: Filter by tags.
-            skip_validation: Whether to skip validation of feature views (e.g., UDF deserialization).
+            skip_feature_view_validation: Whether to skip validation of feature views (e.g., UDF deserialization).
 
         Returns:
             A list of feature views.
         """
         return self._list_all_feature_views(
-            allow_cache, tags=tags, skip_validation=skip_validation
+            allow_cache,
+            tags=tags,
+            skip_feature_view_validation=skip_feature_view_validation,
         )
 
     def list_feature_views(
@@ -1739,7 +1744,7 @@ class FeatureStore:
         allow_registry_cache: bool = True,
         to: PushMode = PushMode.ONLINE,
         transform_on_write: bool = True,
-        skip_validation: bool = False,
+        skip_feature_view_validation: bool = False,
     ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
@@ -1750,7 +1755,7 @@ class FeatureStore:
             allow_registry_cache: Whether to allow cached versions of the registry.
             to: Whether to push to online or offline store. Defaults to online store only.
             transform_on_write: Whether to transform the data before pushing.
-            skip_validation: Whether to skip validation of feature views (e.g., UDF deserialization).
+            skip_feature_view_validation: Whether to skip validation of feature views (e.g., UDF deserialization).
         """
         for fv in self._fvs_for_push_source_or_raise(
             push_source_name, allow_registry_cache
@@ -1761,7 +1766,7 @@ class FeatureStore:
                     df,
                     allow_registry_cache=allow_registry_cache,
                     transform_on_write=transform_on_write,
-                    skip_validation=skip_validation,
+                    skip_feature_view_validation=skip_feature_view_validation,
                 )
             if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
                 self.write_to_offline_store(
@@ -1774,7 +1779,7 @@ class FeatureStore:
         df: pd.DataFrame,
         allow_registry_cache: bool = True,
         to: PushMode = PushMode.ONLINE,
-        skip_validation: bool = False,
+        skip_feature_view_validation: bool = False,
         **kwargs,
     ):
         fvs = self._fvs_for_push_source_or_raise(push_source_name, allow_registry_cache)
@@ -1786,7 +1791,7 @@ class FeatureStore:
                         fv.name,
                         df,
                         allow_registry_cache=allow_registry_cache,
-                        skip_validation=skip_validation,
+                        skip_feature_view_validation=skip_feature_view_validation,
                     )
                     for fv in fvs
                 ]
@@ -1964,12 +1969,13 @@ class FeatureStore:
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
         transform_on_write: bool = True,
-        skip_validation: bool = False,
+        skip_feature_view_validation: bool = False,
     ):
         feature_view_dict = {
             fv_proto.name: fv_proto
             for fv_proto in self.list_all_feature_views(
-                allow_registry_cache, skip_validation=skip_validation
+                allow_registry_cache,
+                skip_feature_view_validation=skip_feature_view_validation,
             )
         }
         try:
@@ -2000,7 +2006,7 @@ class FeatureStore:
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
         transform_on_write: bool = True,
-        skip_validation: bool = False,
+        skip_feature_view_validation: bool = False,
     ):
         """
         Persists a dataframe to the online store.
@@ -2011,7 +2017,7 @@ class FeatureStore:
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
             transform_on_write (optional): Whether to transform the data before pushing.
-            skip_validation (optional): Whether to skip validation of feature views (e.g., UDF deserialization).
+            skip_feature_view_validation (optional): Whether to skip validation of feature views (e.g., UDF deserialization).
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
@@ -2020,7 +2026,7 @@ class FeatureStore:
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
             transform_on_write=transform_on_write,
-            skip_validation=skip_validation,
+            skip_feature_view_validation=skip_feature_view_validation,
         )
 
         # Validate that the dataframe has meaningful feature data
@@ -2048,7 +2054,7 @@ class FeatureStore:
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
-        skip_validation: bool = False,
+        skip_feature_view_validation: bool = False,
     ):
         """
         Persists a dataframe to the online store asynchronously.
@@ -2058,7 +2064,7 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
-            skip_validation (optional): Whether to skip validation of feature views (e.g., UDF deserialization).
+            skip_feature_view_validation (optional): Whether to skip validation of feature views (e.g., UDF deserialization).
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
@@ -2066,7 +2072,7 @@ class FeatureStore:
             df=df,
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
-            skip_validation=skip_validation,
+            skip_feature_view_validation=skip_feature_view_validation,
         )
 
         # Validate that the dataframe has meaningful feature data

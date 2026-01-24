@@ -8,7 +8,7 @@ is being overly strict. This is particularly important for:
 
 Users should be encouraged to report issues on GitHub when they need to use this flag.
 
-Also tests skip_validation parameter in push() and related methods to handle
+Also tests skip_feature_view_validation parameter in push() and related methods to handle
 On-Demand Feature Views with UDFs that reference modules not available in the
 current environment.
 """
@@ -59,16 +59,16 @@ def test_plan_has_skip_feature_view_validation_parameter():
         assert param.annotation == bool
 
 
-def test_push_has_skip_validation_parameter():
-    """Test that FeatureStore.push() method has skip_validation parameter"""
+def test_push_has_skip_feature_view_validation_parameter():
+    """Test that FeatureStore.push() method has skip_feature_view_validation parameter"""
     # Get the signature of the push method
     sig = inspect.signature(FeatureStore.push)
 
-    # Check that skip_validation parameter exists
-    assert "skip_validation" in sig.parameters
+    # Check that skip_feature_view_validation parameter exists
+    assert "skip_feature_view_validation" in sig.parameters
 
     # Check that it has a default value of False
-    param = sig.parameters["skip_validation"]
+    param = sig.parameters["skip_feature_view_validation"]
     assert param.default is False
 
     # Check that it's a boolean type hint (if type hints are present)
@@ -76,16 +76,16 @@ def test_push_has_skip_validation_parameter():
         assert param.annotation == bool
 
 
-def test_push_async_has_skip_validation_parameter():
-    """Test that FeatureStore.push_async() method has skip_validation parameter"""
+def test_push_async_has_skip_feature_view_validation_parameter():
+    """Test that FeatureStore.push_async() method has skip_feature_view_validation parameter"""
     # Get the signature of the push_async method
     sig = inspect.signature(FeatureStore.push_async)
 
-    # Check that skip_validation parameter exists
-    assert "skip_validation" in sig.parameters
+    # Check that skip_feature_view_validation parameter exists
+    assert "skip_feature_view_validation" in sig.parameters
 
     # Check that it has a default value of False
-    param = sig.parameters["skip_validation"]
+    param = sig.parameters["skip_feature_view_validation"]
     assert param.default is False
 
     # Check that it's a boolean type hint (if type hints are present)
@@ -163,9 +163,9 @@ def test_python_transformation_from_proto_with_skip_udf():
     assert result == test_dict
 
 
-def test_skip_feature_view_validation_use_case_documentation():
+def test_skip_feature_view_validation_in_apply_use_case_documentation():
     """
-    Documentation test: This test documents the key use case for skip_feature_view_validation.
+    Documentation test: This test documents the key use case for skip_feature_view_validation in apply().
 
     The skip_feature_view_validation flag is particularly important for On-Demand Feature Views (ODFVs)
     that use feature transformations. During the apply() process, ODFVs call infer_features()
@@ -186,34 +186,34 @@ def test_skip_feature_view_validation_use_case_documentation():
     pass  # This is a documentation test
 
 
-def test_skip_validation_use_case_documentation():
+def test_skip_feature_view_validation_in_push_use_case_documentation():
     """
-    Documentation test: This test documents the key use case for skip_validation in push().
+    Documentation test: This test documents the key use case for skip_feature_view_validation in push().
 
-    The skip_validation flag in push() addresses the ModuleNotFoundError issue when:
+    The skip_feature_view_validation flag in push() addresses the ModuleNotFoundError issue when:
     1. An OnDemandFeatureView with a UDF is defined in an environment with specific modules
     2. The UDF references functions, classes, or constants from those modules (e.g., 'training')
     3. feast.apply() is run to save the definition to the remote registry
     4. store.push() is called from a different environment without those modules
 
-    Without skip_validation:
+    Without skip_feature_view_validation:
     - push() calls list_all_feature_views() which deserializes ODFVs
     - Deserialization uses dill.loads() which fails if referenced modules are missing
     - Results in: ModuleNotFoundError: No module named 'training'
 
-    With skip_validation=True:
-    - push() calls list_all_feature_views(skip_validation=True)
+    With skip_feature_view_validation=True:
+    - push() calls list_all_feature_views(skip_feature_view_validation=True)
     - ODFVs with write_to_online_store=False are loaded with dummy UDFs (identity functions)
     - ODFVs with write_to_online_store=True are loaded normally (UDF is deserialized)
     - No deserialization of the actual UDF happens for ODFVs that won't execute transformations
     - push() can proceed successfully
 
     IMPORTANT: ODFVs with write_to_online_store=True will have their UDFs executed during
-    push operations, so their UDFs MUST be properly deserialized even when skip_validation=True.
+    push operations, so their UDFs MUST be properly deserialized even when skip_feature_view_validation=True.
     Only ODFVs that don't execute transformations during push can safely skip UDF loading.
 
     Example usage:
-        store.push("my_push_source", df, skip_validation=True)
+        store.push("my_push_source", df, skip_feature_view_validation=True)
 
     This is particularly useful in production environments where:
     - Data ingestion services don't need the training/modeling code
@@ -223,9 +223,9 @@ def test_skip_validation_use_case_documentation():
     pass  # This is a documentation test
 
 
-def test_skip_validation_only_applies_to_non_writing_odfvs():
+def test_skip_feature_view_validation_only_applies_to_non_writing_odfvs():
     """
-    Test that skip_validation only skips UDF loading for ODFVs that don't write to online store.
+    Test that skip_feature_view_validation only skips UDF loading for ODFVs that don't write to online store.
 
     ODFVs with write_to_online_store=True need their UDFs loaded because they will be executed
     during push operations. Only ODFVs with write_to_online_store=False can safely skip UDF loading.
