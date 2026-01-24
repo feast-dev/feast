@@ -43,7 +43,6 @@ jobs:
           cd sdk/python/tests/integration/dbt/test_dbt_project
           dbt deps
           dbt build
-          dbt test
       
       - name: Setup Feast project for dbt import test
         run: |
