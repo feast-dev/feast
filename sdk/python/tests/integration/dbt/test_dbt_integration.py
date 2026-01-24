@@ -62,7 +62,11 @@ class TestDbtManifestParsing:
 
         assert len(models) == 3
         model_names = {m.name for m in models}
-        assert model_names == {"driver_features", "customer_features", "product_features"}
+        assert model_names == {
+            "driver_features",
+            "customer_features",
+            "product_features",
+        }
 
     def test_get_models_with_tag_filter(self, parser):
         """Test filtering models by dbt tag."""
@@ -279,12 +283,17 @@ class TestDbtToFeastMapping:
 class TestDbtDataSourceTypes:
     """Test different data source type configurations."""
 
-    @pytest.mark.parametrize("data_source_type,expected_source_class", [
-        ("bigquery", BigQuerySource),
-        ("snowflake", SnowflakeSource),
-        ("file", FileSource),
-    ])
-    def test_all_data_source_types(self, parser, data_source_type, expected_source_class):
+    @pytest.mark.parametrize(
+        "data_source_type,expected_source_class",
+        [
+            ("bigquery", BigQuerySource),
+            ("snowflake", SnowflakeSource),
+            ("file", FileSource),
+        ],
+    )
+    def test_all_data_source_types(
+        self, parser, data_source_type, expected_source_class
+    ):
         """Test creating data sources for all supported types."""
         mapper = DbtToFeastMapper(data_source_type=data_source_type)
         model = parser.get_model_by_name("driver_features")
@@ -323,7 +332,10 @@ class TestDbtCodeGeneration:
 
         # Verify generated code contains expected imports
         assert "from feast import Entity, FeatureView, Field" in code
-        assert "from feast.infra.offline_stores.bigquery_source import BigQuerySource" in code
+        assert (
+            "from feast.infra.offline_stores.bigquery_source import BigQuerySource"
+            in code
+        )
 
         # Verify entity definitions
         assert "Entity(" in code
@@ -351,7 +363,10 @@ class TestDbtCodeGeneration:
             project_name="feast_integration_test",
         )
 
-        assert "from feast.infra.offline_stores.snowflake_source import SnowflakeSource" in code
+        assert (
+            "from feast.infra.offline_stores.snowflake_source import SnowflakeSource"
+            in code
+        )
         assert "SnowflakeSource(" in code
 
     def test_generate_code_for_file_source(self, parser):
