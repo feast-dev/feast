@@ -206,8 +206,8 @@ class TestDbtToFeastMapping:
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
-            entity_column="driver_id",
-            entity=entity,
+            entity_columns="driver_id",
+            entities=entity,
             timestamp_field="event_timestamp",
             ttl_days=1,
         )
@@ -244,8 +244,8 @@ class TestDbtToFeastMapping:
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
-            entity_column="driver_id",
-            entity=entity,
+            entity_columns="driver_id",
+            entities=entity,
             exclude_columns=["acc_rate"],  # Exclude specific feature
         )
 
@@ -261,23 +261,25 @@ class TestDbtToFeastMapping:
 
         objects = mapper.create_all_from_model(
             model=model,
-            entity_column="customer_id",
+            entity_columns="customer_id",
             ttl_days=2,
         )
 
-        assert "entity" in objects
+        assert "entities" in objects
         assert "data_source" in objects
         assert "feature_view" in objects
 
-        assert isinstance(objects["entity"], Entity)
-        assert objects["entity"].name == "customer_id"
+        assert isinstance(objects["entities"], list)
+        assert len(objects["entities"]) == 1
+        assert isinstance(objects["entities"][0], Entity)
+        assert objects["entities"][0].name == "customer_id"
 
         assert isinstance(objects["data_source"], BigQuerySource)
         assert isinstance(objects["feature_view"], FeatureView)
 
         # Verify the feature view uses the created entity and data source
         assert objects["feature_view"].source == objects["data_source"]
-        assert objects["entity"].name in objects["feature_view"].entities
+        assert objects["entities"][0].name in objects["feature_view"].entities
 
 
 class TestDbtDataSourceTypes:
@@ -321,7 +323,7 @@ class TestDbtCodeGeneration:
 
         code = generate_feast_code(
             models=models,
-            entity_column="driver_id",
+            entity_columns="driver_id",
             data_source_type="bigquery",
             timestamp_field="event_timestamp",
             ttl_days=1,
@@ -355,7 +357,7 @@ class TestDbtCodeGeneration:
 
         code = generate_feast_code(
             models=models,
-            entity_column="customer_id",
+            entity_columns="customer_id",
             data_source_type="snowflake",
             timestamp_field="event_timestamp",
             ttl_days=1,
@@ -375,7 +377,7 @@ class TestDbtCodeGeneration:
 
         code = generate_feast_code(
             models=models,
-            entity_column="product_id",
+            entity_columns="product_id",
             data_source_type="file",
             timestamp_field="event_timestamp",
             ttl_days=1,
@@ -400,7 +402,7 @@ class TestDbtTypeMapping:
         fv = mapper.create_feature_view(
             model=model,
             source=data_source,
-            entity_column="customer_id",
+            entity_columns="customer_id",
         )
 
         # Verify feature view was created successfully
@@ -417,7 +419,7 @@ class TestDbtTypeMapping:
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
-            entity_column="driver_id",
+            entity_columns="driver_id",
         )
 
         feature_dict = {f.name: f for f in feature_view.schema}
@@ -434,7 +436,7 @@ class TestDbtTypeMapping:
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
-            entity_column="product_id",
+            entity_columns="product_id",
         )
 
         feature_dict = {f.name: f for f in feature_view.schema}
@@ -494,8 +496,8 @@ class TestDbtIntegrationWorkflow:
             feature_view = mapper.create_feature_view(
                 model=model,
                 source=data_source,
-                entity_column=entity_col,
-                entity=entity,
+                entity_columns=entity_col,
+                entities=entity,
             )
             all_objects.append(feature_view)
 
@@ -510,7 +512,7 @@ class TestDbtIntegrationWorkflow:
         # Generate code
         code = generate_feast_code(
             models=models,
-            entity_column="driver_id",
+            entity_columns="driver_id",
             data_source_type="bigquery",
             timestamp_field="event_timestamp",
             ttl_days=1,
@@ -658,7 +660,7 @@ class TestDbtCodeGenerationAdvanced:
 
         code = generate_feast_code(
             models=models,
-            entity_column="driver_id",
+            entity_columns="driver_id",
             data_source_type="bigquery",
             timestamp_field="event_timestamp",
             ttl_days=1,
@@ -675,7 +677,7 @@ class TestDbtCodeGenerationAdvanced:
 
         code = generate_feast_code(
             models=models,
-            entity_column="driver_id",
+            entity_columns="driver_id",
             data_source_type="bigquery",
             timestamp_field="event_timestamp",
             ttl_days=1,
@@ -686,3 +688,117 @@ class TestDbtCodeGenerationAdvanced:
         # Check that all used types are imported
         assert "Float64" in code
         assert "Int32" in code
+
+
+class TestDbtMultiEntitySupport:
+    """Test multiple entity support in dbt integration."""
+
+    def test_create_feature_view_with_multiple_entities(self, parser):
+        """Test creating FeatureView with multiple entity columns."""
+        # Create a mock model with multiple entity columns
+        from feast.dbt.parser import DbtColumn, DbtModel
+
+        model = DbtModel(
+            name="test_model",
+            unique_id="model.test.test_model",
+            database="test_db",
+            schema="test_schema",
+            alias="test_table",
+            description="Test model",
+            tags=[],
+            columns=[
+                DbtColumn(name="user_id", data_type="STRING", description=""),
+                DbtColumn(name="merchant_id", data_type="STRING", description=""),
+                DbtColumn(name="event_timestamp", data_type="TIMESTAMP", description=""),
+                DbtColumn(name="amount", data_type="FLOAT64", description=""),
+            ],
+        )
+
+        mapper = DbtToFeastMapper(data_source_type="bigquery")
+        data_source = mapper.create_data_source(model)
+
+        # Create with multiple entities
+        feature_view = mapper.create_feature_view(
+            model=model,
+            source=data_source,
+            entity_columns=["user_id", "merchant_id"],
+        )
+
+        assert len(feature_view.entities) == 2
+        # Both entity columns should be excluded from features
+        feature_names = {f.name for f in feature_view.schema}
+        assert "user_id" not in feature_names
+        assert "merchant_id" not in feature_names
+        assert "amount" in feature_names
+
+    def test_generate_code_with_multiple_entities(self):
+        """Test generating code with multiple entity columns."""
+        from feast.dbt.parser import DbtColumn, DbtModel
+
+        model = DbtModel(
+            name="transactions",
+            unique_id="model.test.transactions",
+            database="test_db",
+            schema="test_schema",
+            alias="transactions",
+            description="Transaction features",
+            tags=[],
+            columns=[
+                DbtColumn(name="user_id", data_type="STRING", description=""),
+                DbtColumn(name="merchant_id", data_type="STRING", description=""),
+                DbtColumn(name="event_timestamp", data_type="TIMESTAMP", description=""),
+                DbtColumn(name="amount", data_type="FLOAT64", description=""),
+            ],
+        )
+
+        code = generate_feast_code(
+            models=[model],
+            entity_columns=["user_id", "merchant_id"],  # Multiple
+            data_source_type="bigquery",
+            timestamp_field="event_timestamp",
+            ttl_days=1,
+            manifest_path="test/manifest.json",
+            project_name="test",
+        )
+
+        # Verify multiple entity definitions
+        assert code.count("Entity(") == 2
+        assert 'name="user_id"' in code
+        assert 'name="merchant_id"' in code
+
+        # Verify feature view uses both entities
+        assert "entities=[user_id, merchant_id]" in code
+
+        # Code should be valid Python
+        import ast
+
+        ast.parse(code)
+
+    def test_entity_column_validation(self):
+        """Test validation of entity_columns parameter."""
+        from feast.dbt.parser import DbtColumn, DbtModel
+
+        model = DbtModel(
+            name="test_model",
+            unique_id="model.test.test_model",
+            database="test_db",
+            schema="test_schema",
+            alias="test_table",
+            description="",
+            tags=[],
+            columns=[
+                DbtColumn(name="id", data_type="STRING", description=""),
+                DbtColumn(name="event_timestamp", data_type="TIMESTAMP", description=""),
+            ],
+        )
+
+        mapper = DbtToFeastMapper()
+        data_source = mapper.create_data_source(model)
+
+        # Empty entity_columns should raise error
+        with pytest.raises(ValueError, match="At least one entity"):
+            mapper.create_feature_view(
+                model=model,
+                source=data_source,
+                entity_columns=[],
+            )

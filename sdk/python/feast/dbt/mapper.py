@@ -285,8 +285,8 @@ class DbtToFeastMapper:
         self,
         model: DbtModel,
         source: Any,
-        entity_column: str,
-        entity: Optional[Entity] = None,
+        entity_columns: Union[str, List[str]],
+        entities: Optional[Union[Entity, List[Entity]]] = None,
         timestamp_field: Optional[str] = None,
         ttl_days: Optional[int] = None,
         exclude_columns: Optional[List[str]] = None,
@@ -298,8 +298,8 @@ class DbtToFeastMapper:
         Args:
             model: The DbtModel to create a FeatureView from
             source: The DataSource for this FeatureView
-            entity_column: The entity/primary key column name
-            entity: Optional pre-created Entity (created if not provided)
+            entity_columns: Entity column name(s) - single string or list of strings
+            entities: Optional pre-created Entity or list of Entities
             timestamp_field: Override the default timestamp field
             ttl_days: Override the default TTL in days
             exclude_columns: Additional columns to exclude from features
@@ -308,11 +308,30 @@ class DbtToFeastMapper:
         Returns:
             A Feast FeatureView
         """
+        # Normalize to lists
+        entity_cols: List[str] = (
+            [entity_columns] if isinstance(entity_columns, str) else list(entity_columns)
+        )
+
+        entity_objs: List[Entity] = []
+        if entities is not None:
+            entity_objs = [entities] if isinstance(entities, Entity) else list(entities)
+
+        # Validate
+        if not entity_cols:
+            raise ValueError("At least one entity column must be specified")
+
+        if entity_objs and len(entity_cols) != len(entity_objs):
+            raise ValueError(
+                f"Number of entity_columns ({len(entity_cols)}) must match "
+                f"number of entities ({len(entity_objs)})"
+            )
+
         ts_field = timestamp_field or self.timestamp_field
         ttl = timedelta(days=ttl_days if ttl_days is not None else self.ttl_days)
 
-        # Columns to exclude from features
-        excluded = {entity_column, ts_field}
+        # Columns to exclude from features (all entity columns + timestamp)
+        excluded = set(entity_cols) | {ts_field}
         if exclude_columns:
             excluded.update(exclude_columns)
 
@@ -329,12 +348,15 @@ class DbtToFeastMapper:
                     )
                 )
 
-        # Create entity if not provided
-        if entity is None:
-            entity = self.create_entity(
-                name=entity_column,
-                description=f"Entity for {model.name}",
-            )
+        # Create entities if not provided
+        if not entity_objs:
+            entity_objs = []
+            for entity_col in entity_cols:
+                ent = self.create_entity(
+                    name=entity_col,
+                    description=f"Entity for {model.name}",
+                )
+                entity_objs.append(ent)
 
         # Build tags from dbt metadata
         tags = {
@@ -348,7 +370,7 @@ class DbtToFeastMapper:
             name=model.name,
             source=source,
             schema=schema,
-            entities=[entity],
+            entities=entity_objs,
             ttl=ttl,
             online=online,
             description=model.description,
@@ -358,12 +380,12 @@ class DbtToFeastMapper:
     def create_all_from_model(
         self,
         model: DbtModel,
-        entity_column: str,
+        entity_columns: Union[str, List[str]],
         timestamp_field: Optional[str] = None,
         ttl_days: Optional[int] = None,
         exclude_columns: Optional[List[str]] = None,
         online: bool = True,
-    ) -> Dict[str, Union[Entity, Any, FeatureView]]:
+    ) -> Dict[str, Union[List[Entity], Any, FeatureView]]:
         """
         Create all Feast objects (DataSource, Entity, FeatureView) from a dbt model.
 
@@ -372,21 +394,29 @@ class DbtToFeastMapper:
 
         Args:
             model: The DbtModel to create objects from
-            entity_column: The entity/primary key column name
+            entity_columns: Entity column name(s) - single string or list of strings
             timestamp_field: Override the default timestamp field
             ttl_days: Override the default TTL in days
             exclude_columns: Additional columns to exclude from features
             online: Whether to enable online serving
 
         Returns:
-            Dict with keys 'entity', 'data_source', 'feature_view'
+            Dict with keys 'entities', 'data_source', 'feature_view'
         """
-        # Create entity
-        entity = self.create_entity(
-            name=entity_column,
-            description=f"Entity for {model.name}",
-            tags={"dbt.model": model.name},
+        # Normalize to list
+        entity_cols: List[str] = (
+            [entity_columns] if isinstance(entity_columns, str) else list(entity_columns)
         )
+
+        # Create entities (plural)
+        entities_list = []
+        for entity_col in entity_cols:
+            entity = self.create_entity(
+                name=entity_col,
+                description=f"Entity for {model.name}",
+                tags={"dbt.model": model.name},
+            )
+            entities_list.append(entity)
 
         # Create data source
         data_source = self.create_data_source(
@@ -398,8 +428,8 @@ class DbtToFeastMapper:
         feature_view = self.create_feature_view(
             model=model,
             source=data_source,
-            entity_column=entity_column,
-            entity=entity,
+            entity_columns=entity_cols,
+            entities=entities_list,
             timestamp_field=timestamp_field,
             ttl_days=ttl_days,
             exclude_columns=exclude_columns,
@@ -407,7 +437,7 @@ class DbtToFeastMapper:
         )
 
         return {
-            "entity": entity,
+            "entities": entities_list,
             "data_source": data_source,
             "feature_view": feature_view,
         }
