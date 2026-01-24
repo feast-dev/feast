@@ -50,8 +50,7 @@ func NewDynamodbOnlineStore(project string, config *registry.RepoConfig, onlineS
 	}
 
 	// aws configuration
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		panic(err)

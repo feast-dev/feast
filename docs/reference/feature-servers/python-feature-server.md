@@ -8,6 +8,51 @@ The Python feature server is an HTTP endpoint that serves features with JSON I/O
 
 There is a CLI command that starts the server: `feast serve`. By default, Feast uses port 6566; the port be overridden with a `--port` flag.
 
+### Performance Configuration
+
+For production deployments, the feature server supports several performance optimization options:
+
+```bash
+# Basic usage
+feast serve
+
+# Production configuration with multiple workers
+feast serve --workers -1 --worker-connections 1000 --registry_ttl_sec 60
+
+# Manual worker configuration
+feast serve --workers 8 --worker-connections 2000 --max-requests 1000
+```
+
+Key performance options:
+- `--workers, -w`: Number of worker processes. Use `-1` to auto-calculate based on CPU cores (recommended for production)
+- `--worker-connections`: Maximum simultaneous clients per worker process (default: 1000)
+- `--max-requests`: Maximum requests before worker restart, prevents memory leaks (default: 1000)
+- `--max-requests-jitter`: Jitter to prevent thundering herd on worker restart (default: 50)
+- `--registry_ttl_sec, -r`: Registry refresh interval in seconds. Higher values reduce overhead but increase staleness (default: 60)
+- `--keep-alive-timeout`: Keep-alive connection timeout in seconds (default: 30)
+
+### Performance Best Practices
+
+**Worker Configuration:**
+- For production: Use `--workers -1` to auto-calculate optimal worker count (2 × CPU cores + 1)
+- For development: Use default single worker (`--workers 1`)
+- Monitor CPU and memory usage to tune worker count manually if needed
+
+**Registry TTL:**
+- Production: Use `--registry_ttl_sec 60` or higher to reduce refresh overhead
+- Development: Use lower values (5-10s) for faster iteration when schemas change frequently
+- Balance between performance (higher TTL) and freshness (lower TTL)
+
+**Connection Tuning:**
+- Increase `--worker-connections` for high-concurrency workloads
+- Use `--max-requests` to prevent memory leaks in long-running deployments
+- Adjust `--keep-alive-timeout` based on client connection patterns
+
+**Container Deployments:**
+- Set appropriate CPU/memory limits in Kubernetes to match worker configuration
+- Use HTTP health checks instead of TCP for better application-level monitoring
+- Consider horizontal pod autoscaling based on request latency metrics
+
 ## Deploying as a service
 
 See [this](../../how-to-guides/running-feast-in-production.md#id-4.2.-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.
