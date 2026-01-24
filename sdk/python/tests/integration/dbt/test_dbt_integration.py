@@ -17,16 +17,15 @@ import pytest
 # Skip all tests if dbt-artifacts-parser is not installed
 pytest.importorskip("dbt_artifacts_parser", reason="dbt-artifacts-parser not installed")
 
-from feast.dbt.codegen import generate_feast_code
-from feast.dbt.mapper import DbtToFeastMapper
-from feast.dbt.parser import DbtManifestParser
-from feast.entity import Entity
-from feast.feature_view import FeatureView
-from feast.infra.offline_stores.bigquery_source import BigQuerySource
-from feast.infra.offline_stores.file_source import FileSource
-from feast.infra.offline_stores.snowflake_source import SnowflakeSource
-from feast.types import Float32, Float64, Int32, Int64, String
-
+from feast.dbt.codegen import generate_feast_code  # noqa: E402
+from feast.dbt.mapper import DbtToFeastMapper  # noqa: E402
+from feast.dbt.parser import DbtManifestParser  # noqa: E402
+from feast.entity import Entity  # noqa: E402
+from feast.feature_view import FeatureView  # noqa: E402
+from feast.infra.offline_stores.bigquery_source import BigQuerySource  # noqa: E402
+from feast.infra.offline_stores.file_source import FileSource  # noqa: E402
+from feast.infra.offline_stores.snowflake_source import SnowflakeSource  # noqa: E402
+from feast.types import Float32, Float64, Int32, Int64, String  # noqa: E402
 
 # Get the path to the test dbt project
 TEST_DBT_PROJECT_DIR = Path(__file__).parent / "test_dbt_project"
@@ -60,7 +59,7 @@ class TestDbtManifestParsing:
     def test_get_all_models(self, parser):
         """Test retrieving all models from manifest."""
         models = parser.get_models()
-        
+
         assert len(models) == 3
         model_names = {m.name for m in models}
         assert model_names == {"driver_features", "customer_features", "product_features"}
@@ -72,12 +71,12 @@ class TestDbtManifestParsing:
         assert len(ml_models) == 2
         ml_names = {m.name for m in ml_models}
         assert ml_names == {"driver_features", "customer_features"}
-        
+
         # Filter by 'recommendations' tag (only product_features has it)
         rec_models = parser.get_models(tag_filter="recommendations")
         assert len(rec_models) == 1
         assert rec_models[0].name == "product_features"
-        
+
         # Filter by 'feast' tag (all models have it)
         feast_models = parser.get_models(tag_filter="feast")
         assert len(feast_models) == 3
@@ -85,7 +84,7 @@ class TestDbtManifestParsing:
     def test_get_models_by_name(self, parser):
         """Test filtering models by specific names."""
         models = parser.get_models(model_names=["driver_features", "customer_features"])
-        
+
         assert len(models) == 2
         model_names = {m.name for m in models}
         assert model_names == {"driver_features", "customer_features"}
@@ -110,24 +109,24 @@ class TestDbtManifestParsing:
     def test_model_columns(self, parser):
         """Test that column metadata is correctly extracted."""
         model = parser.get_model_by_name("driver_features")
-        
+
         column_dict = {col.name: col for col in model.columns}
-        
+
         # Check entity column
         assert "driver_id" in column_dict
         driver_id_col = column_dict["driver_id"]
         assert driver_id_col.data_type == "int64"
         assert driver_id_col.description == "Unique driver identifier"
-        
+
         # Check timestamp column
         assert "event_timestamp" in column_dict
         ts_col = column_dict["event_timestamp"]
         assert ts_col.data_type == "timestamp"
-        
+
         # Check feature columns
         assert "conv_rate" in column_dict
         assert column_dict["conv_rate"].data_type == "float64"
-        
+
         assert "avg_daily_trips" in column_dict
         assert column_dict["avg_daily_trips"].data_type == "int32"
 
@@ -170,9 +169,9 @@ class TestDbtToFeastMapping:
         """Test creating File data source from dbt model."""
         mapper = DbtToFeastMapper(data_source_type="file")
         model = parser.get_model_by_name("product_features")
-        
+
         data_source = mapper.create_data_source(model)
-        
+
         assert isinstance(data_source, FileSource)
         assert data_source.name == "product_features_source"
         assert data_source.path == "/data/product_features.parquet"
@@ -196,10 +195,10 @@ class TestDbtToFeastMapping:
         """Test creating Feast FeatureView from dbt model."""
         mapper = DbtToFeastMapper(data_source_type="bigquery")
         model = parser.get_model_by_name("driver_features")
-        
+
         data_source = mapper.create_data_source(model)
         entity = mapper.create_entity("driver_id", description="Driver entity")
-        
+
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
@@ -208,14 +207,14 @@ class TestDbtToFeastMapping:
             timestamp_field="event_timestamp",
             ttl_days=1,
         )
-        
+
         assert isinstance(feature_view, FeatureView)
         assert feature_view.name == "driver_features"
         assert feature_view.source == data_source
         assert len(feature_view.entities) == 1
         assert feature_view.entities[0] == entity.name  # entities is a list of names
         assert feature_view.description == model.description
-        
+
         # Check that schema excludes entity and timestamp columns
         feature_names = {f.name for f in feature_view.schema}
         assert "driver_id" not in feature_names  # Entity column excluded
@@ -223,7 +222,7 @@ class TestDbtToFeastMapping:
         assert "conv_rate" in feature_names
         assert "acc_rate" in feature_names
         assert "avg_daily_trips" in feature_names
-        
+
         # Check feature types
         feature_dict = {f.name: f for f in feature_view.schema}
         assert feature_dict["conv_rate"].dtype == Float64
@@ -234,10 +233,10 @@ class TestDbtToFeastMapping:
         """Test creating FeatureView with excluded columns."""
         mapper = DbtToFeastMapper(data_source_type="bigquery")
         model = parser.get_model_by_name("driver_features")
-        
+
         data_source = mapper.create_data_source(model)
         entity = mapper.create_entity("driver_id")
-        
+
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
@@ -245,7 +244,7 @@ class TestDbtToFeastMapping:
             entity=entity,
             exclude_columns=["acc_rate"],  # Exclude specific feature
         )
-        
+
         feature_names = {f.name for f in feature_view.schema}
         assert "acc_rate" not in feature_names
         assert "conv_rate" in feature_names
@@ -255,23 +254,23 @@ class TestDbtToFeastMapping:
         """Test creating all Feast objects at once from dbt model."""
         mapper = DbtToFeastMapper(data_source_type="bigquery")
         model = parser.get_model_by_name("customer_features")
-        
+
         objects = mapper.create_all_from_model(
             model=model,
             entity_column="customer_id",
             ttl_days=2,
         )
-        
+
         assert "entity" in objects
         assert "data_source" in objects
         assert "feature_view" in objects
-        
+
         assert isinstance(objects["entity"], Entity)
         assert objects["entity"].name == "customer_id"
-        
+
         assert isinstance(objects["data_source"], BigQuerySource)
         assert isinstance(objects["feature_view"], FeatureView)
-        
+
         # Verify the feature view uses the created entity and data source
         assert objects["feature_view"].source == objects["data_source"]
         assert objects["entity"].name in objects["feature_view"].entities
@@ -289,9 +288,9 @@ class TestDbtDataSourceTypes:
         """Test creating data sources for all supported types."""
         mapper = DbtToFeastMapper(data_source_type=data_source_type)
         model = parser.get_model_by_name("driver_features")
-        
+
         data_source = mapper.create_data_source(model)
-        
+
         assert isinstance(data_source, expected_source_class)
         assert data_source.timestamp_field == "event_timestamp"
 
@@ -299,7 +298,7 @@ class TestDbtDataSourceTypes:
         """Test that unsupported data source types raise an error."""
         mapper = DbtToFeastMapper(data_source_type="unsupported")
         model = parser.get_model_by_name("driver_features")
-        
+
         with pytest.raises(ValueError, match="Unsupported data_source_type"):
             mapper.create_data_source(model)
 
@@ -310,7 +309,7 @@ class TestDbtCodeGeneration:
     def test_generate_feast_code(self, parser):
         """Test generating Python code from dbt models."""
         models = parser.get_models(tag_filter="feast")
-        
+
         code = generate_feast_code(
             models=models,
             entity_column="driver_id",
@@ -321,19 +320,19 @@ class TestDbtCodeGeneration:
             project_name="feast_integration_test",
             online=True,
         )
-        
+
         # Verify generated code contains expected imports
         assert "from feast import Entity, FeatureView, Field" in code
         assert "from feast.infra.offline_stores.bigquery_source import BigQuerySource" in code
-        
+
         # Verify entity definitions
         assert "Entity(" in code
         assert 'name="driver_id"' in code
-        
+
         # Verify data source definitions
         assert "BigQuerySource(" in code
         assert "timestamp_field=" in code
-        
+
         # Verify feature view definitions
         assert "FeatureView(" in code
         assert "schema=[" in code
@@ -341,7 +340,7 @@ class TestDbtCodeGeneration:
     def test_generate_code_for_snowflake(self, parser):
         """Test generating code for Snowflake data sources."""
         models = parser.get_models(model_names=["customer_features"])
-        
+
         code = generate_feast_code(
             models=models,
             entity_column="customer_id",
@@ -351,14 +350,14 @@ class TestDbtCodeGeneration:
             manifest_path=str(TEST_MANIFEST_PATH),
             project_name="feast_integration_test",
         )
-        
+
         assert "from feast.infra.offline_stores.snowflake_source import SnowflakeSource" in code
         assert "SnowflakeSource(" in code
 
     def test_generate_code_for_file_source(self, parser):
         """Test generating code for File data sources."""
         models = parser.get_models(model_names=["product_features"])
-        
+
         code = generate_feast_code(
             models=models,
             entity_column="product_id",
@@ -368,7 +367,7 @@ class TestDbtCodeGeneration:
             manifest_path=str(TEST_MANIFEST_PATH),
             project_name="feast_integration_test",
         )
-        
+
         assert "from feast.infra.offline_stores.file_source import FileSource" in code
         assert "FileSource(" in code
 
@@ -398,16 +397,16 @@ class TestDbtTypeMapping:
         """Test that integer columns are mapped correctly."""
         model = parser.get_model_by_name("driver_features")
         mapper = DbtToFeastMapper()
-        
+
         data_source = mapper.create_data_source(model)
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
             entity_column="driver_id",
         )
-        
+
         feature_dict = {f.name: f for f in feature_view.schema}
-        
+
         # avg_daily_trips is INT32
         assert feature_dict["avg_daily_trips"].dtype == Int32
 
@@ -415,19 +414,19 @@ class TestDbtTypeMapping:
         """Test that float columns are mapped correctly."""
         model = parser.get_model_by_name("product_features")
         mapper = DbtToFeastMapper()
-        
+
         data_source = mapper.create_data_source(model)
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
             entity_column="product_id",
         )
-        
+
         feature_dict = {f.name: f for f in feature_view.schema}
-        
+
         # rating_avg is FLOAT32
         assert feature_dict["rating_avg"].dtype == Float32
-        
+
         # view_count and purchase_count are INT64
         assert feature_dict["view_count"].dtype == Int64
         assert feature_dict["purchase_count"].dtype == Int64
@@ -441,18 +440,18 @@ class TestDbtIntegrationWorkflow:
         # Step 1: Parse manifest and filter models
         models = parser.get_models(tag_filter="feast")
         assert len(models) == 3
-        
+
         # Step 2: Create mapper
         mapper = DbtToFeastMapper(
             data_source_type="bigquery",
             timestamp_field="event_timestamp",
             ttl_days=1,
         )
-        
+
         # Step 3: Create Feast objects for each model
         all_objects = []
         entities = {}
-        
+
         for model in models:
             # Determine entity column based on model
             if "driver" in model.name:
@@ -463,7 +462,7 @@ class TestDbtIntegrationWorkflow:
                 entity_col = "product_id"
             else:
                 continue
-            
+
             # Create or reuse entity
             if entity_col not in entities:
                 entity = mapper.create_entity(entity_col)
@@ -471,11 +470,11 @@ class TestDbtIntegrationWorkflow:
                 all_objects.append(entity)
             else:
                 entity = entities[entity_col]
-            
+
             # Create data source
             data_source = mapper.create_data_source(model)
             all_objects.append(data_source)
-            
+
             # Create feature view
             feature_view = mapper.create_feature_view(
                 model=model,
@@ -484,7 +483,7 @@ class TestDbtIntegrationWorkflow:
                 entity=entity,
             )
             all_objects.append(feature_view)
-        
+
         # Verify we created the right objects
         assert len(entities) == 3  # 3 unique entities
         assert len(all_objects) == 9  # 3 entities + 3 data sources + 3 feature views
@@ -492,7 +491,7 @@ class TestDbtIntegrationWorkflow:
     def test_code_generation_workflow(self, parser):
         """Test workflow that generates Python code."""
         models = parser.get_models(model_names=["driver_features"])
-        
+
         # Generate code
         code = generate_feast_code(
             models=models,
@@ -503,18 +502,18 @@ class TestDbtIntegrationWorkflow:
             manifest_path=str(TEST_MANIFEST_PATH),
             project_name="feast_integration_test",
         )
-        
+
         # Verify code is valid Python (basic check)
         assert code.startswith('"""')
         assert "from feast import" in code
         assert "Entity(" in code
         assert "FeatureView(" in code
-        
+
         # Write to temp file and verify it can be read
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
-        
+
         try:
             # Verify file was written
             assert os.path.exists(temp_path)
