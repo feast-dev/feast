@@ -12,7 +12,8 @@ seeds:
 models:
   - name: driver_features
     description: "Driver hourly features for ML models"
-    tags: ["feast", "ml", "driver"]
+    config:
+      tags: ["feast", "ml", "driver"]
     columns:
       - name: driver_id
         description: "Unique driver identifier"
@@ -36,7 +37,8 @@ models:
 
   - name: customer_features
     description: "Customer behavior features"
-    tags: ["feast", "ml", "customer"]
+    config:
+      tags: ["feast", "ml", "customer"]
     columns:
       - name: customer_id
         description: "Unique customer identifier"
@@ -60,7 +62,8 @@ models:
 
   - name: product_features
     description: "Product recommendation features"
-    tags: ["feast", "recommendations"]
+    config:
+      tags: ["feast", "recommendations"]
     columns:
       - name: product_id
         description: "Unique product identifier"
