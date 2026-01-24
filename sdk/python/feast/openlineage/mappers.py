@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
 try:
     from openlineage.client.event_v2 import (
-        Dataset,
         InputDataset,
         Job,
         OutputDataset,
@@ -416,9 +415,9 @@ def feature_service_to_job(
 def entity_to_dataset(
     entity: "Entity",
     namespace: str = "feast",
-) -> "Dataset":
+) -> "InputDataset":
     """
-    Convert a Feast Entity to an OpenLineage Dataset.
+    Convert a Feast Entity to an OpenLineage InputDataset.
 
     Entities define the keys for feature lookups and can be represented
     as datasets with schema information.
@@ -428,7 +427,7 @@ def entity_to_dataset(
         namespace: OpenLineage namespace
 
     Returns:
-        OpenLineage Dataset object
+        OpenLineage InputDataset object
     """
     _check_openlineage_available()
 
@@ -463,7 +462,7 @@ def entity_to_dataset(
             description=entity.description
         )
 
-    return Dataset(
+    return InputDataset(
         namespace=namespace,
         name=entity.name,
         facets=facets,
