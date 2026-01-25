@@ -18,6 +18,7 @@ import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -30,6 +31,9 @@ from typing import (
     Union,
     cast,
 )
+
+if TYPE_CHECKING:
+    from feast.diff.apply_progress import ApplyProgressContext
 
 import pandas as pd
 import pyarrow as pa
@@ -723,7 +727,10 @@ class FeatureStore:
         return feature_views_to_materialize
 
     def plan(
-        self, desired_repo_contents: RepoContents
+        self,
+        desired_repo_contents: RepoContents,
+        skip_feature_view_validation: bool = False,
+        progress_ctx: Optional["ApplyProgressContext"] = None,
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
 
@@ -733,6 +740,8 @@ class FeatureStore:
 
         Args:
             desired_repo_contents: The desired repo state.
+            skip_feature_view_validation: If True, skip validation of feature views. This can be useful when the validation
+                system is being overly strict. Use with caution and report any issues on GitHub. Default is False.
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -767,11 +776,12 @@ class FeatureStore:
             ...     permissions=list())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
-        self._validate_all_feature_views(
-            desired_repo_contents.feature_views,
-            desired_repo_contents.on_demand_feature_views,
-            desired_repo_contents.stream_feature_views,
-        )
+        if not skip_feature_view_validation:
+            self._validate_all_feature_views(
+                desired_repo_contents.feature_views,
+                desired_repo_contents.on_demand_feature_views,
+                desired_repo_contents.stream_feature_views,
+            )
         _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
             desired_repo_contents.data_sources,
@@ -788,6 +798,9 @@ class FeatureStore:
             self._registry, self.project, desired_repo_contents
         )
 
+        if progress_ctx:
+            progress_ctx.update_phase_progress("Computing infrastructure diff")
+
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
         self._registry.refresh(project=self.project)
@@ -802,7 +815,11 @@ class FeatureStore:
         return registry_diff, infra_diff, new_infra
 
     def _apply_diffs(
-        self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
+        self,
+        registry_diff: RegistryDiff,
+        infra_diff: InfraDiff,
+        new_infra: Infra,
+        progress_ctx: Optional["ApplyProgressContext"] = None,
     ):
         """Applies the given diffs to the metadata store and infrastructure.
 
@@ -810,13 +827,37 @@ class FeatureStore:
             registry_diff: The diff between the current registry and the desired registry.
             infra_diff: The diff between the current infra and the desired infra.
             new_infra: The desired infra.
+            progress_ctx: Optional progress context for tracking apply progress.
         """
-        infra_diff.update()
-        apply_diff_to_registry(
-            self._registry, registry_diff, self.project, commit=False
-        )
+        try:
+            # Infrastructure phase
+            if progress_ctx:
+                infra_ops_count = len(infra_diff.infra_object_diffs)
+                progress_ctx.start_phase("Updating infrastructure", infra_ops_count)
 
-        self._registry.update_infra(new_infra, self.project, commit=True)
+            infra_diff.update(progress_ctx=progress_ctx)
+
+            if progress_ctx:
+                progress_ctx.complete_phase()
+                progress_ctx.start_phase("Updating registry", 2)
+
+            # Registry phase
+            apply_diff_to_registry(
+                self._registry, registry_diff, self.project, commit=False
+            )
+
+            if progress_ctx:
+                progress_ctx.update_phase_progress("Committing registry changes")
+
+            self._registry.update_infra(new_infra, self.project, commit=True)
+
+            if progress_ctx:
+                progress_ctx.update_phase_progress("Registry update complete")
+                progress_ctx.complete_phase()
+        finally:
+            # Always cleanup progress bars
+            if progress_ctx:
+                progress_ctx.cleanup()
 
     def apply(
         self,
@@ -835,6 +876,7 @@ class FeatureStore:
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
         partial: bool = True,
+        skip_feature_view_validation: bool = False,
     ):
         """Register objects to metadata store and update related infrastructure.
 
@@ -843,12 +885,18 @@ class FeatureStore:
         an online store), it will commit the updated registry. All operations are idempotent, meaning they can safely
         be rerun.
 
+        Note: The apply method does NOT delete objects that are removed from the provided list. To delete objects
+        from the registry, use explicit delete methods like delete_feature_view(), delete_feature_service(), or
+        pass objects to the objects_to_delete parameter with partial=False.
+
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
             objects_to_delete: A list of objects to be deleted from the registry and removed from the
                 provider's infrastructure. This deletion will only be performed if partial is set to False.
             partial: If True, apply will only handle the specified objects; if False, apply will also delete
                 all the objects in objects_to_delete, and tear down any associated cloud resources.
+            skip_feature_view_validation: If True, skip validation of feature views. This can be useful when the validation
+                system is being overly strict. Use with caution and report any issues on GitHub. Default is False.
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -950,11 +998,12 @@ class FeatureStore:
         entities_to_update.append(DUMMY_ENTITY)
 
         # Validate all feature views and make inferences.
-        self._validate_all_feature_views(
-            views_to_update,
-            odfvs_to_update,
-            sfvs_to_update,
-        )
+        if not skip_feature_view_validation:
+            self._validate_all_feature_views(
+                views_to_update,
+                odfvs_to_update,
+                sfvs_to_update,
+            )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
@@ -2590,11 +2639,14 @@ class FeatureStore:
         type_: str = "http",
         no_access_log: bool = True,
         workers: int = 1,
+        worker_connections: int = 1000,
+        max_requests: int = 1000,
+        max_requests_jitter: int = 50,
         metrics: bool = False,
         keep_alive_timeout: int = 30,
         tls_key_path: str = "",
         tls_cert_path: str = "",
-        registry_ttl_sec: int = 2,
+        registry_ttl_sec: int = 60,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -2609,6 +2661,9 @@ class FeatureStore:
             port=port,
             no_access_log=no_access_log,
             workers=workers,
+            worker_connections=worker_connections,
+            max_requests=max_requests,
+            max_requests_jitter=max_requests_jitter,
             metrics=metrics,
             keep_alive_timeout=keep_alive_timeout,
             tls_key_path=tls_key_path,
