@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import copy
 import itertools
 import os
 import warnings
@@ -1233,6 +1234,17 @@ class FeatureStore:
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's not passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
+
+        # Deliberately disable writing to online store for ODFVs during historical retrieval
+        # since it's not applicable in this context.
+        # This does not change the output, since it forces to recompute ODFVs on historical retrieval
+        # but that is fine, since ODFVs precompute does not to work for historical retrieval (as per docs), only for online retrieval
+        # Copy to avoid side effects outside of this method
+        all_on_demand_feature_views = copy.deepcopy(all_on_demand_feature_views)
+
+        for odfv in all_on_demand_feature_views:
+            odfv.write_to_online_store = False
+
         fvs, odfvs = utils._group_feature_refs(
             _feature_refs,
             all_feature_views,

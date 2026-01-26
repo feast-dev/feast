@@ -6,7 +6,7 @@ This module generates Python code files containing Feast object definitions
 """
 
 import logging
-from typing import Any, List, Optional, Set
+from typing import Any, List, Optional, Set, Union
 
 from jinja2 import BaseLoader, Environment
 
@@ -106,7 +106,7 @@ from feast.infra.offline_stores.file_source import FileSource
 {% for fv in feature_views %}
 {{ fv.var_name }} = FeatureView(
     name="{{ fv.name }}",
-    entities=[{{ fv.entity_var }}],
+    entities=[{{ fv.entity_vars | join(', ') }}],
     ttl=timedelta(days={{ fv.ttl_days }}),
     schema=[
 {% for field in fv.fields %}
@@ -220,7 +220,7 @@ class DbtCodeGenerator:
     def generate(
         self,
         models: List[DbtModel],
-        entity_column: str,
+        entity_columns: Union[str, List[str]],
         manifest_path: str = "",
         project_name: str = "",
         exclude_columns: Optional[List[str]] = None,
@@ -231,7 +231,7 @@ class DbtCodeGenerator:
 
         Args:
             models: List of DbtModel objects to generate code for
-            entity_column: The entity/primary key column name
+            entity_columns: Entity column name(s) - single string or list of strings
             manifest_path: Path to the dbt manifest (for documentation)
             project_name: dbt project name (for documentation)
             exclude_columns: Columns to exclude from features
@@ -240,25 +240,36 @@ class DbtCodeGenerator:
         Returns:
             Generated Python code as a string
         """
-        excluded = {entity_column, self.timestamp_field}
+        # Normalize entity_columns to list
+        entity_cols: List[str] = (
+            [entity_columns] if isinstance(entity_columns, str) else entity_columns
+        )
+
+        if not entity_cols:
+            raise ValueError("At least one entity column must be specified")
+
+        excluded = set(entity_cols) | {self.timestamp_field}
         if exclude_columns:
             excluded.update(exclude_columns)
 
         # Collect all Feast types used for imports
         type_imports: Set[str] = set()
 
-        # Prepare entity data
+        # Prepare entity data - create one entity per entity column
         entities = []
-        entity_var = _make_var_name(entity_column)
-        entities.append(
-            {
-                "var_name": entity_var,
-                "name": entity_column,
-                "join_key": entity_column,
-                "description": "Entity key for dbt models",
-                "tags": {"source": "dbt"},
-            }
-        )
+        entity_vars = []  # Track variable names for feature views
+        for entity_col in entity_cols:
+            entity_var = _make_var_name(entity_col)
+            entity_vars.append(entity_var)
+            entities.append(
+                {
+                    "var_name": entity_var,
+                    "name": entity_col,
+                    "join_key": entity_col,
+                    "description": "Entity key for dbt models",
+                    "tags": {"source": "dbt"},
+                }
+            )
 
         # Prepare data sources and feature views
         data_sources = []
@@ -269,7 +280,9 @@ class DbtCodeGenerator:
             column_names = [c.name for c in model.columns]
             if self.timestamp_field not in column_names:
                 continue
-            if entity_column not in column_names:
+
+            # Skip if ANY entity column is missing
+            if not all(e in column_names for e in entity_cols):
                 continue
 
             # Build tags
@@ -339,7 +352,7 @@ class DbtCodeGenerator:
                 {
                     "var_name": fv_var,
                     "name": model.name,
-                    "entity_var": entity_var,
+                    "entity_vars": entity_vars,
                     "source_var": source_var,
                     "ttl_days": self.ttl_days,
                     "fields": fields,
@@ -366,7 +379,7 @@ class DbtCodeGenerator:
 
 def generate_feast_code(
     models: List[DbtModel],
-    entity_column: str,
+    entity_columns: Union[str, List[str]],
     data_source_type: str = "bigquery",
     timestamp_field: str = "event_timestamp",
     ttl_days: int = 1,
@@ -380,7 +393,7 @@ def generate_feast_code(
 
     Args:
         models: List of DbtModel objects
-        entity_column: Primary key column name
+        entity_columns: Entity column name(s) - single string or list of strings
         data_source_type: Type of data source (bigquery, snowflake, file)
         timestamp_field: Timestamp column name
         ttl_days: TTL in days for feature views
@@ -400,7 +413,7 @@ def generate_feast_code(
 
     return generator.generate(
         models=models,
-        entity_column=entity_column,
+        entity_columns=entity_columns,
         manifest_path=manifest_path,
         project_name=project_name,
         exclude_columns=exclude_columns,

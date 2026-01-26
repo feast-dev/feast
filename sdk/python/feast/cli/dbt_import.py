@@ -30,8 +30,10 @@ def dbt_cmd():
 @click.option(
     "--entity-column",
     "-e",
+    "entity_columns",
+    multiple=True,
     required=True,
-    help="Primary key / entity column name (e.g., driver_id, customer_id)",
+    help="Entity column name (can be specified multiple times, e.g., -e user_id -e merchant_id)",
 )
 @click.option(
     "--data-source-type",
@@ -89,7 +91,7 @@ def dbt_cmd():
 def import_command(
     ctx: click.Context,
     manifest_path: str,
-    entity_column: str,
+    entity_columns: tuple,
     data_source_type: str,
     timestamp_field: str,
     tag_filter: Optional[str],
@@ -141,6 +143,28 @@ def import_command(
     if parser.project_name:
         click.echo(f"  Project: {parser.project_name}")
 
+    # Convert tuple to list and validate
+    entity_cols: List[str] = list(entity_columns) if entity_columns else []
+
+    # Validation: At least one entity required (redundant with required=True but explicit)
+    if not entity_cols:
+        click.echo(
+            f"{Fore.RED}Error: At least one entity column required{Style.RESET_ALL}",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    # Validation: No duplicate entity columns
+    if len(entity_cols) != len(set(entity_cols)):
+        duplicates = [col for col in entity_cols if entity_cols.count(col) > 1]
+        click.echo(
+            f"{Fore.RED}Error: Duplicate entity columns: {', '.join(set(duplicates))}{Style.RESET_ALL}",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    click.echo(f"Entity columns: {', '.join(entity_cols)}")
+
     # Get models with filters
     model_list: Optional[List[str]] = list(model_names) if model_names else None
     models = parser.get_models(model_names=model_list, tag_filter=tag_filter)
@@ -188,24 +212,31 @@ def import_command(
             )
             continue
 
-        # Validate entity column exists
-        if entity_column not in column_names:
+        # Validate ALL entity columns exist
+        missing_entities = [e for e in entity_cols if e not in column_names]
+        if missing_entities:
             click.echo(
                 f"{Fore.YELLOW}Warning: Model '{model.name}' missing entity "
-                f"column '{entity_column}'. Skipping.{Style.RESET_ALL}"
+                f"column(s): {', '.join(missing_entities)}. Skipping.{Style.RESET_ALL}"
             )
             continue
 
-        # Create or reuse entity
-        if entity_column not in entities_created:
-            entity = mapper.create_entity(
-                name=entity_column,
-                description="Entity key for dbt models",
-            )
-            entities_created[entity_column] = entity
-            all_objects.append(entity)
-        else:
-            entity = entities_created[entity_column]
+        # Create or reuse entities (one per entity column)
+        model_entities: List[Any] = []
+        for entity_col in entity_cols:
+            if entity_col not in entities_created:
+                # Use mapper's internal method for value type inference
+                entity_value_type = mapper._infer_entity_value_type(model, entity_col)
+                entity = mapper.create_entity(
+                    name=entity_col,
+                    description="Entity key for dbt models",
+                    value_type=entity_value_type,
+                )
+                entities_created[entity_col] = entity
+                all_objects.append(entity)
+            else:
+                entity = entities_created[entity_col]
+            model_entities.append(entity)
 
         # Create data source
         data_source = mapper.create_data_source(
@@ -218,8 +249,8 @@ def import_command(
         feature_view = mapper.create_feature_view(
             model=model,
             source=data_source,
-            entity_column=entity_column,
-            entity=entity,
+            entity_columns=entity_cols,
+            entities=model_entities,
             timestamp_field=timestamp_field,
             ttl_days=ttl_days,
             exclude_columns=excluded,
@@ -242,7 +273,7 @@ def import_command(
         m
         for m in models
         if timestamp_field in [c.name for c in m.columns]
-        and entity_column in [c.name for c in m.columns]
+        and all(e in [c.name for c in m.columns] for e in entity_cols)
     ]
 
     # Summary
@@ -257,7 +288,7 @@ def import_command(
 
         code = generate_feast_code(
             models=valid_models,
-            entity_column=entity_column,
+            entity_columns=entity_cols,
             data_source_type=data_source_type,
             timestamp_field=timestamp_field,
             ttl_days=ttl_days,

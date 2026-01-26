@@ -5,7 +5,6 @@
 
 **Current Limitations**:
 - Supported data sources: BigQuery, Snowflake, and File-based sources only
-- Single entity per model
 - Manual entity column specification required
 
 Breaking changes may occur in future releases.
@@ -185,6 +184,53 @@ driver_features_fv = FeatureView(
 ```
 {% endcode %}
 
+## Multiple Entity Support
+
+The dbt integration supports feature views with multiple entities, useful for modeling relationships involving multiple keys.
+
+### Usage
+
+Specify multiple entity columns using repeated `-e` flags:
+
+```bash
+feast dbt import \
+  -m target/manifest.json \
+  -e user_id \
+  -e merchant_id \
+  --tag feast \
+  -o features/transactions.py
+```
+
+This creates a FeatureView with both `user_id` and `merchant_id` as entities, useful for:
+- Transaction features keyed by both user and merchant
+- Interaction features keyed by multiple parties
+- Association tables in many-to-many relationships
+
+Single entity usage:
+```bash
+feast dbt import -m target/manifest.json -e driver_id --tag feast
+```
+
+### Requirements
+
+All specified entity columns must exist in each dbt model being imported. Models missing any entity column will be skipped with a warning.
+
+### Generated Code
+
+The `--output` flag generates code like:
+
+```python
+user_id = Entity(name="user_id", join_keys=["user_id"], ...)
+merchant_id = Entity(name="merchant_id", join_keys=["merchant_id"], ...)
+
+transaction_fv = FeatureView(
+    name="transactions",
+    entities=[user_id, merchant_id],  # Multiple entities
+    schema=[...],
+    ...
+)
+```
+
 ## CLI Reference
 
 ### `feast dbt list`
@@ -217,7 +263,7 @@ feast dbt import <manifest_path> [OPTIONS]
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--entity-column`, `-e` | Column to use as entity key | (required) |
+| `--entity-column`, `-e` | Entity column name (can be specified multiple times) | (required) |
 | `--data-source-type`, `-d` | Data source type: `bigquery`, `snowflake`, `file` | `bigquery` |
 | `--tag-filter`, `-t` | Filter models by dbt tag | None |
 | `--model`, `-m` | Import specific model(s) only | None |
