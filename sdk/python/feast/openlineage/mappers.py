@@ -19,12 +19,14 @@ This module provides functions to map Feast entities like FeatureViews,
 FeatureServices, DataSources, and Entities to their OpenLineage equivalents.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 if TYPE_CHECKING:
     from feast import Entity, FeatureService, FeatureView
     from feast.data_source import DataSource
     from feast.field import Field
+    from feast.on_demand_feature_view import OnDemandFeatureView
+    from feast.stream_feature_view import StreamFeatureView
 
 try:
     from openlineage.client.event_v2 import (
@@ -315,7 +317,9 @@ def feature_view_to_job(
 
 def feature_service_to_job(
     feature_service: "FeatureService",
-    feature_views: List["FeatureView"],
+    feature_views: List[
+        Union["FeatureView", "OnDemandFeatureView", "StreamFeatureView"]
+    ],
     namespace: str = "feast",
 ) -> Tuple["Job", List["InputDataset"], List["OutputDataset"]]:
     """
@@ -328,7 +332,8 @@ def feature_service_to_job(
 
     Args:
         feature_service: Feast FeatureService object
-        feature_views: List of FeatureView objects referenced by the service
+        feature_views: List of all available feature views (FeatureView,
+            OnDemandFeatureView, StreamFeatureView)
         namespace: OpenLineage namespace
 
     Returns:
@@ -344,11 +349,20 @@ def feature_service_to_job(
     # Get feature view names
     fv_names = [proj.name for proj in feature_service.feature_view_projections]
 
+    # Build a lookup map for feature views by name
+    fv_by_name = {fv.name: fv for fv in feature_views}
+
     # Count total features
-    total_features = sum(
-        len(proj.features) if proj.features else 0
-        for proj in feature_service.feature_view_projections
-    )
+    # When proj.features is empty/None, it means "all features from that feature view"
+    # In that case, look up the actual feature view to get the real count
+    total_features = 0
+    for proj in feature_service.feature_view_projections:
+        if proj.features:
+            total_features += len(proj.features)
+        elif proj.name in fv_by_name:
+            fv = fv_by_name[proj.name]
+            if hasattr(fv, "features") and fv.features:
+                total_features += len(fv.features)
 
     # Add Feast-specific facet
     job_facets["feast_featureService"] = FeastFeatureServiceFacet(

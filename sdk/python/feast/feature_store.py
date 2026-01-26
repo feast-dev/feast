@@ -1810,10 +1810,12 @@ class FeatureStore:
         if self._openlineage_emitter is None:
             return None
         try:
-            run_id, _ = self._openlineage_emitter.emit_materialize_start(
+            run_id, success = self._openlineage_emitter.emit_materialize_start(
                 feature_views, start_date, end_date, self.project
             )
-            return run_id
+            # Return run_id only if START was successfully emitted
+            # This prevents orphaned COMPLETE/FAIL events
+            return run_id if run_id and success else None
         except Exception as e:
             warnings.warn(f"Failed to emit OpenLineage materialize start event: {e}")
             return None
@@ -1824,7 +1826,7 @@ class FeatureStore:
         feature_views: List[Any],
     ):
         """Emit OpenLineage COMPLETE event for materialization."""
-        if self._openlineage_emitter is None or run_id is None:
+        if self._openlineage_emitter is None or not run_id:
             return
         try:
             self._openlineage_emitter.emit_materialize_complete(
@@ -1839,7 +1841,7 @@ class FeatureStore:
         error_message: str,
     ):
         """Emit OpenLineage FAIL event for materialization."""
-        if self._openlineage_emitter is None or run_id is None:
+        if self._openlineage_emitter is None or not run_id:
             return
         try:
             self._openlineage_emitter.emit_materialize_fail(
