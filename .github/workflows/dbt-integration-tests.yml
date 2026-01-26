@@ -37,47 +37,9 @@ jobs:
       - name: Install dbt and dbt-duckdb
         run: |
           uv pip install --system dbt-core dbt-duckdb
-      
-      - name: Run dbt commands
-        run: |
-          cd sdk/python/tests/integration/dbt/test_dbt_project
-          dbt deps
-          dbt build
-      
-      - name: Setup Feast project for dbt import test
-        run: |
-          cd sdk/python/tests/integration/dbt
-          mkdir -p feast_repo
-          cd feast_repo
-          cat > feature_store.yaml << EOF
-          project: feast_dbt_test
-          registry: data/registry.db
-          provider: local
-          online_store:
-            type: sqlite
-            path: data/online_store.db
-          EOF
-          mkdir -p data
-      
-      - name: Test feast dbt import
-        run: |
-          cd sdk/python/tests/integration/dbt/feast_repo
-          feast dbt import \
-            -m ../test_dbt_project/target/manifest.json \
-            -e driver_id \
-            -d file \
-            --tag feast
 
-      - name: Verify feast objects were created
-        run: |
-          cd sdk/python/tests/integration/dbt/feast_repo
-          feast feature-views list
-          feast entities list
-      
       - name: Run dbt integration tests
-        run: |
-          cd sdk/python
-          python -m pytest tests/integration/dbt/test_dbt_integration.py -v --tb=short
+        run: make test-python-integration-dbt
       
       - name: Minimize uv cache
         run: uv cache prune --ci
