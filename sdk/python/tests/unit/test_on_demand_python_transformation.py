@@ -64,13 +64,9 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         start_date = end_date - timedelta(days=15)
 
         driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = create_driver_hourly_stats_df(
-            driver_entities, start_date, end_date
-        )
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
-        driver_df.to_parquet(
-            path=driver_stats_path, allow_truncated_timestamps=True
-        )
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
         driver = Entity(
             name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
@@ -123,9 +119,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         )
         def pandas_view(inputs: pd.DataFrame) -> pd.DataFrame:
             df = pd.DataFrame()
-            df["conv_rate_plus_acc_pandas"] = (
-                inputs["conv_rate"] + inputs["acc_rate"]
-            )
+            df["conv_rate_plus_acc_pandas"] = inputs["conv_rate"] + inputs["acc_rate"]
             return df
 
         @on_demand_feature_view(
@@ -136,9 +130,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         def python_view(inputs: dict[str, Any]) -> dict[str, Any]:
             output: dict[str, Any] = {
                 "conv_rate_plus_acc_python": conv_rate + acc_rate
-                for conv_rate, acc_rate in zip(
-                    inputs["conv_rate"], inputs["acc_rate"]
-                )
+                for conv_rate, acc_rate in zip(inputs["conv_rate"], inputs["acc_rate"])
             }
             return output
 
@@ -245,7 +237,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
 
     def tearDown(self):
         import shutil
-        if hasattr(self, 'data_dir'):
+
+        if hasattr(self, "data_dir"):
             shutil.rmtree(self.data_dir, ignore_errors=True)
 
     def test_setup(self):
