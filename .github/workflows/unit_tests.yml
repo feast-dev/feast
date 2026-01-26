@@ -2,6 +2,9 @@ name: unit-tests
 
 on:
   pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
   unit-test-python:
