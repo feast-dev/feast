@@ -23,6 +23,7 @@ from pydantic import StrictStr
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
@@ -50,6 +51,18 @@ class RemoteOnlineStoreConfig(FeastConfigBaseModel):
     cert: StrictStr = ""
     """ str: Path to the public certificate when the online server starts in TLS(SSL) mode. This may be needed if the online server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
     If type is 'remote', then this configuration is needed to connect to remote online server in TLS mode. """
+
+    # Connection pooling configuration
+    connection_pool_size: int = 50
+    """ int: Maximum number of connections to keep in the pool (default 50).
+    Increase for high-concurrency workloads. """
+
+    connection_idle_timeout: int = 300
+    """ int: Maximum time in seconds a session can be idle before being closed (default 300 = 5 minutes).
+    Set to 0 to disable idle timeout. """
+
+    connection_retries: int = 3
+    """ int: Number of retries for failed requests with exponential backoff (default 3). """
 
 
 class RemoteOnlineStore(OnlineStore):
@@ -543,6 +556,20 @@ class RemoteOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         pass
+
+    async def close(self) -> None:
+        """
+        Close the HTTP session and release connection pool resources.
+
+        This method is called automatically when FeatureStore.close() is invoked.
+        It cleans up the cached HTTP session used for connection pooling.
+
+        Note: Since the session is shared globally, calling close() will affect
+        all RemoteOnlineStore instances in the same process. This is typically
+        fine for SDK usage where there's usually one FeatureStore per process.
+        """
+        HttpSessionManager.close_session()
+        logger.debug("RemoteOnlineStore HTTP session closed")
 
 
 @rest_error_handling_decorator
