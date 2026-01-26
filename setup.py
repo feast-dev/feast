@@ -56,6 +56,7 @@ REQUIRED = [
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
     "prometheus_client",
+    "wheel>=0.46.2",
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
