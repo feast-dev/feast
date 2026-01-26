@@ -37,6 +37,8 @@ Feast integrates seamlessly with PyTorch workflows, whether you're training mode
 from feast import FeatureStore
 import torch
 from torch.utils.data import Dataset, DataLoader
+import pandas as pd
+from datetime import datetime
 
 # Initialize Feast
 store = FeatureStore(repo_path=".")
@@ -58,7 +60,7 @@ training_df = store.get_historical_features(
 
 # Create PyTorch Dataset
 class FeatureDataset(Dataset):
-    def __init__(self, df):
+    def __init__(self, df, feature_cols):
         self.features = torch.tensor(df[feature_cols].values, dtype=torch.float32)
         self.labels = torch.tensor(df['label'].values, dtype=torch.float32)
     
@@ -69,10 +71,16 @@ class FeatureDataset(Dataset):
         return self.features[idx], self.labels[idx]
 
 # Train your PyTorch model
-dataset = FeatureDataset(training_df)
+feature_cols = ['age', 'activity_score', 'popularity']
+dataset = FeatureDataset(training_df, feature_cols)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-model = YourPyTorchModel()
+# Define and train your model
+model = torch.nn.Sequential(
+    torch.nn.Linear(len(feature_cols), 64),
+    torch.nn.ReLU(),
+    torch.nn.Linear(64, 1)
+)
 # Training loop...
 ```
 
