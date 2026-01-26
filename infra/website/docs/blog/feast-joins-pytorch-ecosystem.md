@@ -58,6 +58,9 @@ training_df = store.get_historical_features(
     ]
 ).to_df()
 
+# Add your labels (from your training data source)
+# training_df['label'] = ...
+
 # Create PyTorch Dataset
 class FeatureDataset(Dataset):
     def __init__(self, df, feature_cols):
@@ -90,7 +93,7 @@ Once your PyTorch model is trained, Feast makes it easy to serve features in pro
 
 ```python
 # Get online features for real-time prediction
-features = store.get_online_features(
+online_features = store.get_online_features(
     entity_rows=[{"user_id": 1001}],
     features=[
         "user_features:age",
@@ -100,9 +103,13 @@ features = store.get_online_features(
 ).to_dict()
 
 # Convert to tensor and run inference
-feature_tensor = torch.tensor([features['age'][0], 
-                               features['activity_score'][0],
-                               features['popularity'][0]])
+# Note: Feature keys in the dict will use the format "feature_view__feature_name"
+feature_values = [
+    online_features['age'][0],
+    online_features['activity_score'][0],
+    online_features['popularity'][0]
+]
+feature_tensor = torch.tensor(feature_values, dtype=torch.float32)
 
 with torch.no_grad():
     prediction = model(feature_tensor)
