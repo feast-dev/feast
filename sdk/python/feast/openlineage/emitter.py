@@ -139,40 +139,35 @@ class FeastOpenLineageEmitter:
         if not self.is_enabled:
             return []
 
+        from feast.feature_view import FeatureView
+        from feast.on_demand_feature_view import OnDemandFeatureView
+        from feast.stream_feature_view import StreamFeatureView
+
         results = []
 
-        # Emit events for feature views
+        # Get all feature views at once (includes FeatureView, StreamFeatureView, OnDemandFeatureView)
+        all_feature_views: list = []
         try:
-            feature_views = registry.list_feature_views(
+            all_feature_views = registry.list_all_feature_views(
                 project=project, allow_cache=allow_cache
             )
-            for fv in feature_views:
-                result = self.emit_feature_view_lineage(fv, project)
-                results.append(result)
         except Exception as e:
-            logger.error(f"Error emitting feature view lineage: {e}")
+            logger.error(f"Error listing all feature views: {e}")
 
-        # Emit events for stream feature views
-        try:
-            stream_fvs = registry.list_stream_feature_views(
-                project=project, allow_cache=allow_cache
-            )
-            for sfv in stream_fvs:
-                result = self.emit_stream_feature_view_lineage(sfv, project)
+        # Emit lineage events for each feature view type
+        for fv in all_feature_views:
+            try:
+                if isinstance(fv, OnDemandFeatureView):
+                    result = self.emit_on_demand_feature_view_lineage(fv, project)
+                elif isinstance(fv, StreamFeatureView):
+                    result = self.emit_stream_feature_view_lineage(fv, project)
+                elif isinstance(fv, FeatureView):
+                    result = self.emit_feature_view_lineage(fv, project)
+                else:
+                    continue
                 results.append(result)
-        except Exception as e:
-            logger.error(f"Error emitting stream feature view lineage: {e}")
-
-        # Emit events for on-demand feature views
-        try:
-            odfvs = registry.list_on_demand_feature_views(
-                project=project, allow_cache=allow_cache
-            )
-            for odfv in odfvs:
-                result = self.emit_on_demand_feature_view_lineage(odfv, project)
-                results.append(result)
-        except Exception as e:
-            logger.error(f"Error emitting on-demand feature view lineage: {e}")
+            except Exception as e:
+                logger.error(f"Error emitting lineage for feature view {fv.name}: {e}")
 
         # Emit events for feature services
         try:
@@ -180,7 +175,9 @@ class FeastOpenLineageEmitter:
                 project=project, allow_cache=allow_cache
             )
             for fs in feature_services:
-                result = self.emit_feature_service_lineage(fs, feature_views, project)
+                result = self.emit_feature_service_lineage(
+                    fs, all_feature_views, project
+                )
                 results.append(result)
         except Exception as e:
             logger.error(f"Error emitting feature service lineage: {e}")
@@ -372,7 +369,9 @@ class FeastOpenLineageEmitter:
     def emit_feature_service_lineage(
         self,
         feature_service: "FeatureService",
-        feature_views: List["FeatureView"],
+        feature_views: List[
+            Union["FeatureView", "OnDemandFeatureView", "StreamFeatureView"]
+        ],
         project: str,
     ) -> bool:
         """
@@ -380,7 +379,8 @@ class FeastOpenLineageEmitter:
 
         Args:
             feature_service: The feature service
-            feature_views: List of available feature views
+            feature_views: List of all available feature views (FeatureView,
+                OnDemandFeatureView, StreamFeatureView)
             project: Project name
 
         Returns:
@@ -485,17 +485,16 @@ class FeastOpenLineageEmitter:
                             )
                         )
 
-                # Add entities as inputs
+                # Add entities as inputs (use direct name for consistency with emit_apply)
                 if hasattr(fv, "entities") and fv.entities:
                     for entity_name in fv.entities:
                         if entity_name and entity_name != "__dummy":
-                            entity_key = f"entity_{entity_name}"
-                            if entity_key not in seen_sources:
-                                seen_sources.add(entity_key)
+                            if entity_name not in seen_sources:
+                                seen_sources.add(entity_name)
                                 inputs.append(
                                     InputDataset(
                                         namespace=namespace,
-                                        name=entity_key,
+                                        name=entity_name,
                                     )
                                 )
 
