@@ -1160,13 +1160,17 @@ class RayRetrievalJob(RetrievalJob):
                 f"Ray offline store only supports SavedDatasetFileStorage, got {type(storage)}"
             )
         destination_path = storage.file_options.uri
-        if not destination_path.startswith(("s3://", "gs://", "hdfs://")):
+        if not destination_path.startswith(
+            ("s3://", "gs://", "hdfs://", "abfs://", "abfss://")
+        ):
             if not allow_overwrite and os.path.exists(destination_path):
                 raise SavedDatasetLocationAlreadyExists(location=destination_path)
         try:
             ray_ds = self._get_ray_dataset()
 
-            if not destination_path.startswith(("s3://", "gs://", "hdfs://")):
+            if not destination_path.startswith(
+                ("s3://", "gs://", "hdfs://", "abfs://", "abfss://")
+            ):
                 os.makedirs(os.path.dirname(destination_path), exist_ok=True)
 
             ray_ds.write_parquet(destination_path)
@@ -1959,7 +1963,7 @@ class RayOfflineStore(OfflineStore):
             path_obj = Path(resolved_path)
             if path_obj.suffix == ".parquet":
                 path_obj = path_obj.with_suffix("")
-            if not absolute_path.startswith(("s3://", "gs://")):
+            if not absolute_path.startswith(("s3://", "gs://", "abfs://", "abfss://")):
                 path_obj.mkdir(parents=True, exist_ok=True)
             ds.write_parquet(str(path_obj))
         except Exception as e:
