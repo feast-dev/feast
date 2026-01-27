@@ -7,9 +7,18 @@ import typing
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from feast.errors import (
+    FeastObjectNotFoundException,
+    FeatureViewNotFoundException,
+    OnDemandFeatureViewNotFoundException,
+)
+
 if typing.TYPE_CHECKING:
     from feast.data_source import DataSource
+    from feast.feature_store import FeatureStore
     from feast.feature_view import FeatureView
+    from feast.feast_object import FeastObject
+    from feast.infra.registry.base_registry import BaseRegistry
     from feast.repo_config import RepoConfig
 
 logger = logging.getLogger(__name__)
@@ -227,3 +236,50 @@ def resolve_feature_view_source_with_fallback(
             raise ValueError(
                 f"Unable to resolve any data source for feature view {feature_view.name}"
             )
+
+
+def get_feast_object_from_feature_store(
+    store: "FeatureStore",
+    name: str,
+    allow_registry_cache: bool = False,
+ ) -> "FeastObject":
+    try:
+        return store.get_feature_view(name, allow_registry_cache=allow_registry_cache)
+    except FeatureViewNotFoundException:
+        try:
+            return store.get_on_demand_feature_view(
+                name, allow_registry_cache=allow_registry_cache
+            )
+        except (FeatureViewNotFoundException, OnDemandFeatureViewNotFoundException):
+            try:
+                return store.get_stream_feature_view(
+                    name, allow_registry_cache=allow_registry_cache
+                )
+            except FeatureViewNotFoundException as e:
+                raise FeastObjectNotFoundException(
+                    f"Can't recognize feast object with a name {name}"
+                ) from e
+
+
+def get_feast_object_from_registry(
+    registry: "BaseRegistry",
+    name: str,
+    project: str,
+    allow_cache: bool = False,
+ ) -> "FeastObject":
+    try:
+        return registry.get_feature_view(name, project, allow_cache=allow_cache)
+    except FeatureViewNotFoundException:
+        try:
+            return registry.get_on_demand_feature_view(
+                name, project, allow_cache=allow_cache
+            )
+        except (FeatureViewNotFoundException, OnDemandFeatureViewNotFoundException):
+            try:
+                return registry.get_stream_feature_view(
+                    name, project, allow_cache=allow_cache
+                )
+            except FeatureViewNotFoundException as e:
+                raise FeastObjectNotFoundException(
+                    f"Can't recognize feast object with a name {name}"
+                ) from e
