@@ -2,7 +2,7 @@
 title: Streamlining ML Feature Engineering with Feast and dbt
 description: Learn how to leverage your dbt transformations as Feast features to eliminate duplicate work and accelerate ML development.
 date: 2026-01-27
-authors: ["Feast Team"]
+authors: ["Francisco Javier Arceo", "Yassin Nouh"]
 ---
 
 <div class="hero-image">
