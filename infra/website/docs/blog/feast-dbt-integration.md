@@ -72,7 +72,7 @@ You already have a dbt model that computes driver metrics. All you need to do is
 ```sql
 {{ config(
     materialized='table',
-    tags=['feast']  # ← Just add this tag!
+    tags=['feast']  -- ← Just add this tag!
 ) }}
 
 WITH driver_stats AS (
@@ -403,7 +403,7 @@ Data teams using Feast with dbt are seeing real impact:
 - **50-70% faster ML deployment**: From dbt model to production features in minutes, not weeks
 - **Single source of truth**: When dbt models update, ML features stay in sync
 - **Analytics expertise becomes ML expertise**: Your dbt knowledge directly translates to ML feature engineering
-- **Better collaboration**: No more "Can you rewrite this SQL in Python?" conversations
+- **Better collaboration**: No more need to rewrite SQL in Python
 
 ## Current Limitations and Future Roadmap
 
