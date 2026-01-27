@@ -126,7 +126,7 @@ redis = [
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
-    "snowflake-connector-python[pandas]>=3.7,<4",
+    "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
