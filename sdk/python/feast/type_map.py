@@ -483,6 +483,128 @@ def _python_datetime_to_int_timestamp(
     return int_timestamps
 
 
+def _python_set_to_proto_values(
+    feast_value_type: ValueType, values: List[Any]
+) -> List[ProtoValue]:
+    """
+    Converts Python set values to Feast Proto Values.
+
+    Args:
+        feast_value_type: The target set value type
+        values: List of set values that will be converted
+
+    Returns:
+        List of Feast Value Proto
+    """
+    # Feature can be set but None is still valid
+    if feast_value_type not in PYTHON_SET_VALUE_TYPE_TO_PROTO_VALUE:
+        return []
+
+    set_proto_type, set_field_name, set_valid_types = (
+        PYTHON_SET_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
+    )
+
+    # Convert set to list for proto (proto doesn't have native set type)
+    # We store unique values in a repeated field
+    def convert_set_to_list(value):
+        if value is None:
+            return None
+        # If it's already a set, convert to list
+        if isinstance(value, set):
+            return list(value)
+        # If it's a list/tuple/ndarray, remove duplicates
+        elif isinstance(value, (list, tuple, np.ndarray)):
+            return list(set(value))
+        else:
+            return value
+
+    converted_values = [convert_set_to_list(v) for v in values]
+    sample = next(filter(_non_empty_value, converted_values), None)
+
+    # Bytes to array type conversion
+    if isinstance(sample, (bytes, bytearray)):
+        # Bytes of an array containing elements of bytes not supported
+        if feast_value_type == ValueType.BYTES_SET:
+            raise _type_err(sample, ValueType.BYTES_SET)
+
+        json_sample = json.loads(sample)
+        if isinstance(json_sample, list):
+            json_values = [
+                json.loads(value) if value is not None else None
+                for value in converted_values
+            ]
+            if feast_value_type == ValueType.BOOL_SET:
+                json_values = [
+                    [bool(item) for item in list_item]
+                    if list_item is not None
+                    else None
+                    for list_item in json_values
+                ]
+            return [
+                (
+                    ProtoValue(**{set_field_name: set_proto_type(val=v)})  # type: ignore
+                    if v is not None
+                    else ProtoValue()
+                )
+                for v in json_values
+            ]
+        raise _type_err(sample, set_valid_types[0])
+
+    if sample is not None and not all(
+        type(item) in set_valid_types for item in sample
+    ):
+        for item in sample:
+            if type(item) not in set_valid_types:
+                if feast_value_type in [
+                    ValueType.INT32_SET,
+                    ValueType.INT64_SET,
+                ]:
+                    if not any(np.isnan(item) for item in sample):
+                        logger.error(
+                            "Set of Int32 or Int64 type has NULL values."
+                        )
+                raise _type_err(item, set_valid_types[0])
+
+    if feast_value_type == ValueType.UNIX_TIMESTAMP_SET:
+        result = []
+        for value in converted_values:
+            if value is not None:
+                result.append(
+                    ProtoValue(
+                        unix_timestamp_set_val=Int64Set(
+                            val=_python_datetime_to_int_timestamp(value)  # type: ignore
+                        )
+                    )
+                )
+            else:
+                result.append(ProtoValue())
+        return result
+    if feast_value_type == ValueType.BOOL_SET:
+        result = []
+        for value in converted_values:
+            if value is not None:
+                result.append(
+                    ProtoValue(
+                        **{
+                            set_field_name: set_proto_type(
+                                val=[bool(e) for e in value]  # type: ignore
+                            )
+                        }
+                    )
+                )
+            else:
+                result.append(ProtoValue())
+        return result
+    return [
+        (
+            ProtoValue(**{set_field_name: set_proto_type(val=value)})  # type: ignore
+            if value is not None
+            else ProtoValue()
+        )
+        for value in converted_values
+    ]
+
+
 def _python_value_to_proto_value(
     feast_value_type: ValueType, values: List[Any]
 ) -> List[ProtoValue]:
@@ -600,111 +722,7 @@ def _python_value_to_proto_value(
 
     # Detect set type and handle separately
     if "set" in feast_value_type.name.lower():
-        # Feature can be set but None is still valid
-        if feast_value_type in PYTHON_SET_VALUE_TYPE_TO_PROTO_VALUE:
-            set_proto_type, set_field_name, set_valid_types = (
-                PYTHON_SET_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
-            )
-
-            # Convert set to list for proto (proto doesn't have native set type)
-            # We store unique values in a repeated field
-            def convert_set_to_list(value):
-                if value is None:
-                    return None
-                # If it's already a set, convert to list
-                if isinstance(value, set):
-                    return list(value)
-                # If it's a list/tuple/ndarray, remove duplicates
-                elif isinstance(value, (list, tuple, np.ndarray)):
-                    return list(set(value))
-                else:
-                    return value
-
-            converted_values = [convert_set_to_list(v) for v in values]
-            sample = next(filter(_non_empty_value, converted_values), None)
-
-            # Bytes to array type conversion
-            if isinstance(sample, (bytes, bytearray)):
-                # Bytes of an array containing elements of bytes not supported
-                if feast_value_type == ValueType.BYTES_SET:
-                    raise _type_err(sample, ValueType.BYTES_SET)
-
-                json_sample = json.loads(sample)
-                if isinstance(json_sample, list):
-                    json_values = [
-                        json.loads(value) if value is not None else None
-                        for value in converted_values
-                    ]
-                    if feast_value_type == ValueType.BOOL_SET:
-                        json_values = [
-                            [bool(item) for item in list_item]
-                            if list_item is not None
-                            else None
-                            for list_item in json_values
-                        ]
-                    return [
-                        (
-                            ProtoValue(**{set_field_name: set_proto_type(val=v)})  # type: ignore
-                            if v is not None
-                            else ProtoValue()
-                        )
-                        for v in json_values
-                    ]
-                raise _type_err(sample, set_valid_types[0])
-
-            if sample is not None and not all(
-                type(item) in set_valid_types for item in sample
-            ):
-                for item in sample:
-                    if type(item) not in set_valid_types:
-                        if feast_value_type in [
-                            ValueType.INT32_SET,
-                            ValueType.INT64_SET,
-                        ]:
-                            if not any(np.isnan(item) for item in sample):
-                                logger.error(
-                                    "Set of Int32 or Int64 type has NULL values."
-                                )
-                        raise _type_err(item, set_valid_types[0])
-
-            if feast_value_type == ValueType.UNIX_TIMESTAMP_SET:
-                result = []
-                for value in converted_values:
-                    if value is not None:
-                        result.append(
-                            ProtoValue(
-                                unix_timestamp_set_val=Int64Set(
-                                    val=_python_datetime_to_int_timestamp(value)  # type: ignore
-                                )
-                            )
-                        )
-                    else:
-                        result.append(ProtoValue())
-                return result
-            if feast_value_type == ValueType.BOOL_SET:
-                result = []
-                for value in converted_values:
-                    if value is not None:
-                        result.append(
-                            ProtoValue(
-                                **{
-                                    set_field_name: set_proto_type(
-                                        val=[bool(e) for e in value]  # type: ignore
-                                    )
-                                }
-                            )
-                        )
-                    else:
-                        result.append(ProtoValue())
-                return result
-            return [
-                (
-                    ProtoValue(**{set_field_name: set_proto_type(val=value)})  # type: ignore
-                    if value is not None
-                    else ProtoValue()
-                )
-                for value in converted_values
-            ]
+        return _python_set_to_proto_values(feast_value_type, values)
 
     # Handle scalar types below
     else:
