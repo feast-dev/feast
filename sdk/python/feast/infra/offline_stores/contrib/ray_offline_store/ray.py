@@ -62,6 +62,12 @@ from feast.type_map import (
 from feast.utils import _get_column_names, make_df_tzaware, make_tzaware
 
 logger = logging.getLogger(__name__)
+# Remote storage URI schemes supported by the Ray offline store
+# S3: Amazon S3
+# GCS: Google Cloud Storage
+# HDFS: Hadoop Distributed File System
+# Azure: Azure Storage Gen2
+REMOTE_STORAGE_SCHEMES = ("s3://", "gs://", "hdfs://", "abfs://", "abfss://")
 
 
 def _get_data_schema_info(
@@ -1160,17 +1166,13 @@ class RayRetrievalJob(RetrievalJob):
                 f"Ray offline store only supports SavedDatasetFileStorage, got {type(storage)}"
             )
         destination_path = storage.file_options.uri
-        if not destination_path.startswith(
-            ("s3://", "gs://", "hdfs://", "abfs://", "abfss://")
-        ):
+        if not destination_path.startswith(REMOTE_STORAGE_SCHEMES):
             if not allow_overwrite and os.path.exists(destination_path):
                 raise SavedDatasetLocationAlreadyExists(location=destination_path)
         try:
             ray_ds = self._get_ray_dataset()
 
-            if not destination_path.startswith(
-                ("s3://", "gs://", "hdfs://", "abfs://", "abfss://")
-            ):
+            if not destination_path.startswith(REMOTE_STORAGE_SCHEMES):
                 os.makedirs(os.path.dirname(destination_path), exist_ok=True)
 
             ray_ds.write_parquet(destination_path)
@@ -1963,7 +1965,7 @@ class RayOfflineStore(OfflineStore):
             path_obj = Path(resolved_path)
             if path_obj.suffix == ".parquet":
                 path_obj = path_obj.with_suffix("")
-            if not absolute_path.startswith(("s3://", "gs://", "abfs://", "abfss://")):
+            if not absolute_path.startswith(REMOTE_STORAGE_SCHEMES):
                 path_obj.mkdir(parents=True, exist_ok=True)
             ds.write_parquet(str(path_obj))
         except Exception as e:
