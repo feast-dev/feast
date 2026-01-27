@@ -286,7 +286,12 @@ class MilvusOnlineStore(OnlineStore):
             )
 
             # Remove timestamp fields that are handled separately to avoid conflicts
-            timestamp_fields = ["event_timestamp", "created_timestamp", "event_ts", "created_ts"]
+            timestamp_fields = [
+                "event_timestamp",
+                "created_timestamp",
+                "event_ts",
+                "created_ts",
+            ]
             for field in timestamp_fields:
                 values_dict.pop(field, None)
 
@@ -756,10 +761,13 @@ def _extract_proto_values_to_dict(
                         if (
                             serialize_to_string
                             and proto_val_type
-                            not in ["string_val", "bytes_val", "unix_timestamp_val"] + numeric_types
+                            not in ["string_val", "bytes_val", "unix_timestamp_val"]
+                            + numeric_types
                         ):
                             # For complex types, use base64 encoding instead of decode
-                            vector_values = base64.b64encode(feature_values.SerializeToString()).decode("utf-8")
+                            vector_values = base64.b64encode(
+                                feature_values.SerializeToString()
+                            ).decode("utf-8")
                         elif proto_val_type == "bytes_val":
                             byte_data = getattr(feature_values, proto_val_type)
                             vector_values = base64.b64encode(byte_data).decode("utf-8")
