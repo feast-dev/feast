@@ -465,6 +465,7 @@ hdfs_storage = SavedDatasetFileStorage(path="hdfs://namenode:8020/datasets/drive
 job.persist(hdfs_storage, allow_overwrite=True)
 
 # Azure Blob Storage / Azure Data Lake Storage Gen2
+# By setting AZURE_STORAGE_ANON=False it uses DefaultAzureCredential
 az_storage = SavedDatasetFileStorage(path="abfss://container@stc_account.dfs.core.windows.net/datasets/driver_features.parquet")
 job.persist(az_storage, allow_overwrite=True)
 ```
