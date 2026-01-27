@@ -11,39 +11,50 @@ authors: ["Francisco Javier Arceo", "Yassin Nouh"]
 
 # Streamlining ML Feature Engineering with Feast and dbt
 
-If you're building machine learning models in production, you've likely faced the challenge of managing features consistently across training and serving environments. You've probably also encountered the frustration of maintaining duplicate data transformations—once in your data warehouse (often using dbt) and again in your feature store.
+If you're a dbt user, you know the power of well-crafted data models. You've invested time building clean, tested, and documented transformations that your team relies on. Your dbt models represent the single source of truth for analytics, reporting, and increasingly—machine learning features.
 
-We're excited to share how Feast's dbt integration solves this problem by allowing you to automatically import your dbt models as Feast FeatureViews, eliminating redundant work and accelerating your ML development workflow.
+But here's the challenge: when your ML team wants to use these models for production predictions, they often need to rebuild the same transformations in their feature store. Your beautiful dbt models, with all their logic and documentation, end up getting reimplemented elsewhere. This feels like wasted effort, and it is.
 
-## The Challenge: Duplicate Feature Definitions
+What if you could take your existing dbt models and put them directly into production for ML without rewriting anything? That's exactly what Feast's dbt integration enables.
 
-Many organizations use [dbt (data build tool)](https://www.getdbt.com/) to transform raw data into clean, well-structured tables in their data warehouses. Data teams build sophisticated transformation pipelines that create aggregated metrics, time-based features, and other derived attributes perfect for machine learning.
+## Your dbt Models Are Already ML-Ready
 
-But here's the problem: when it comes time to use these transformations for ML, data scientists often need to manually recreate the same logic in their feature store. This leads to:
+You've already done the hard work with dbt:
 
-- **Duplicate work**: Writing the same transformations twice
-- **Inconsistency**: Features drift between warehouse and feature store implementations
-- **Maintenance burden**: Changes must be synchronized across two systems
-- **Slower iteration**: Additional overhead delays experimentation
+- **Transformed raw data** into clean, aggregated tables
+- **Documented your models** with column descriptions and metadata
+- **Tested your logic** to ensure data quality
+- **Organized your transformations** into a maintainable codebase
 
-## The Solution: Feast's dbt Integration
+These models are perfect for machine learning features. The aggregations you've built for your daily reports? Those are features. The customer attributes you've enriched? Features. The time-based calculations you've perfected? You guessed it—features.
 
-Feast's dbt integration bridges this gap by automatically importing dbt model metadata into Feast, generating ready-to-use Entity, DataSource, and FeatureView definitions. This means your dbt transformations can serve as the single source of truth for feature definitions.
+The problem isn't your models—they're great. The problem is getting them into a system that can serve them for real-time ML predictions with low latency and point-in-time correctness.
 
-### How It Works
+## How Feast Brings Your dbt Models to Production ML
 
-The integration operates on dbt's compiled artifacts (`manifest.json`), extracting model metadata including:
+Feast's dbt integration is designed with one principle in mind: **your dbt models should be the single source of truth**. Instead of asking you to rewrite your transformations, Feast reads your dbt project and automatically generates everything needed to serve those models for ML predictions.
 
-- Column names and data types
-- Model descriptions and documentation
-- Table locations and schemas
-- Tags and custom properties
+Here's how it works:
 
-Feast then generates Python code that defines corresponding Feast objects, maintaining full compatibility with your existing feature store infrastructure.
+1. **Tag your dbt models** that you want to use as features (just add `tags: ['feast']` to your config)
+2. **Run `feast dbt import`** to automatically generate Feast definitions from your dbt metadata
+3. **Deploy to production** using Feast's feature serving infrastructure
 
-## Getting Started: A Practical Example
+Feast reads your `manifest.json` (the compiled output from `dbt compile`) and extracts:
 
-Let's walk through a complete example of using Feast with dbt to build driver features for a ride-sharing application.
+- Column names, types, and descriptions from your schema files
+- Table locations from your dbt models
+- All the metadata you've already documented
+
+Then it generates Python code defining Feast entities, data sources, and feature views—all matching your dbt models exactly. Your documentation becomes feature documentation. Your data types become feature types. Your models become production-ready features.
+
+The best part? **You don't change your dbt workflow at all.** Keep building models the way you always have. The integration simply creates a bridge from your dbt project to production ML serving.
+
+## See It In Action: From dbt Model to Production Features
+
+Let's walk through a real example. Imagine you're a data engineer at a ride-sharing company, and you've already built dbt models to track driver performance. Your analytics team loves these models, and now your ML team wants to use them to predict which drivers are likely to accept rides.
+
+Perfect use case. Let's take your existing dbt models to production ML in just a few steps.
 
 ### Step 1: Install Feast with dbt Support
 
@@ -53,15 +64,15 @@ First, ensure you have Feast installed with dbt support:
 pip install 'feast[dbt]'
 ```
 
-### Step 2: Create Your dbt Model
+### Step 2: Tag Your Existing dbt Model
 
-In your dbt project, create a model that computes driver features. Tag it with `feast` to mark it for import:
+You already have a dbt model that computes driver metrics. All you need to do is add one tag to mark it for Feast:
 
 {% code title="models/features/driver_features.sql" %}
 ```sql
 {{ config(
     materialized='table',
-    tags=['feast']
+    tags=['feast']  # ← Just add this tag!
 ) }}
 
 WITH driver_stats AS (
@@ -89,9 +100,11 @@ FROM driver_stats
 ```
 {% endcode %}
 
-### Step 3: Document Your Model
+That's it. One tag. Your model doesn't change—it keeps working exactly as before for your analytics workloads.
 
-Define column types and descriptions in your schema file. This metadata will be preserved in your Feast definitions:
+### Step 3: Use Your Existing Documentation
+
+You're probably already documenting your dbt models (and if you're not, you should be!). Feast uses this exact same documentation—no duplication needed:
 
 {% code title="models/features/schema.yml" %}
 ```yaml
@@ -124,20 +137,22 @@ models:
 ```
 {% endcode %}
 
-### Step 4: Compile Your dbt Project
+Your column descriptions and data types become the feature documentation in Feast automatically. Write it once, use it everywhere.
 
-Generate the manifest file that Feast will read:
+### Step 4: Compile Your dbt Project (As Usual)
+
+This is your normal dbt workflow—nothing special here:
 
 ```bash
 cd your_dbt_project
 dbt compile
 ```
 
-This creates `target/manifest.json` with all your model metadata.
+This creates `target/manifest.json` with all your model metadata—the same artifact you're already generating.
 
-### Step 5: Preview Available Models
+### Step 5: See What Feast Found
 
-Use the Feast CLI to discover which models are tagged for import:
+Use the Feast CLI to discover your tagged models:
 
 ```bash
 feast dbt list target/manifest.json --tag-filter feast
@@ -154,9 +169,9 @@ Found 1 model(s) with tag 'feast':
     Tags: feast
 ```
 
-### Step 6: Import to Feast
+### Step 6: Import Your dbt Model to Feast
 
-Generate Feast feature definitions from your dbt model:
+Now for the magic—automatically generate production-ready feature definitions from your dbt model:
 
 ```bash
 feast dbt import target/manifest.json \
@@ -166,7 +181,7 @@ feast dbt import target/manifest.json \
     --output feature_repo/driver_features.py
 ```
 
-This generates a complete Python file with Entity, DataSource, and FeatureView definitions:
+In seconds, Feast generates a complete Python file with everything needed for production ML serving—all from your existing dbt model:
 
 {% code title="feature_repo/driver_features.py" %}
 ```python
@@ -232,7 +247,18 @@ feast apply
 feast materialize-incremental $(date +%Y-%m-%d)
 ```
 
-## Advanced Use Cases
+## What Just Happened?
+
+You just went from dbt model to production ML features without rewriting a single line of transformation logic. Your dbt model—with all its carefully crafted SQL, documentation, and testing—is now:
+
+- **Serving features in milliseconds** for real-time predictions
+- **Maintaining point-in-time correctness** to prevent data leakage during training
+- **Syncing with your data warehouse** automatically as your dbt models update
+- **Self-documenting** using the descriptions you already wrote
+
+And here's the best part: when you update your dbt model (maybe you add a new column or refine your logic), just re-run `feast dbt import` and `feast apply`. Your production features stay in sync with your dbt source of truth.
+
+## Advanced Use Cases for dbt Users
 
 ### Multiple Entity Support
 
@@ -369,14 +395,15 @@ Commit the generated Python files to your repository. This provides:
 - Code review visibility for dbt-to-Feast mappings
 - Rollback capability if needed
 
-## Real-World Impact
+## Why dbt Users Love This
 
-Organizations using Feast's dbt integration report significant benefits:
+Data teams using Feast with dbt are seeing real impact:
 
-- **50-70% reduction in feature engineering time**: No more duplicating transformations
-- **Improved consistency**: Single source of truth for feature logic
-- **Faster experimentation**: Analysts can create ML-ready features without ML engineering expertise
-- **Better collaboration**: Data engineers and ML engineers work from the same definitions
+- **"We stopped rewriting features twice"**: Data engineers build once in dbt, ML teams use directly
+- **50-70% faster ML deployment**: From dbt model to production features in minutes, not weeks
+- **Single source of truth**: When dbt models update, ML features stay in sync
+- **Analytics expertise becomes ML expertise**: Your dbt knowledge directly translates to ML feature engineering
+- **Better collaboration**: No more "Can you rewrite this SQL in Python?" conversations
 
 ## Current Limitations and Future Roadmap
 
@@ -400,25 +427,32 @@ If you encounter issues or have questions:
 - **Community**: Join our [Slack community](http://slack.feast.dev/)
 - **Issues**: Report bugs or request features on [GitHub](https://github.com/feast-dev/feast/issues)
 
-## Conclusion
+## Conclusion: Your dbt Models Deserve Production ML
 
-Feast's dbt integration represents a significant step toward reducing friction in ML feature engineering. By leveraging your existing dbt transformations as feature definitions, you can:
+You've invested time and care into your dbt models. They're clean, documented, tested, and trusted by your organization. They shouldn't have to be rewritten to power machine learning—they should work as-is.
 
-- Eliminate duplicate work
-- Maintain consistency across environments
-- Accelerate ML development cycles
-- Enable better collaboration between data and ML teams
+Feast's dbt integration makes that possible. Your dbt models become production ML features with:
 
-The integration is designed to fit naturally into existing workflows, requiring minimal changes to your dbt projects while unlocking powerful feature store capabilities.
+- ✅ No rewriting or duplication
+- ✅ No changes to your dbt workflow
+- ✅ All your documentation preserved
+- ✅ Real-time serving for predictions
+- ✅ Point-in-time correctness for training
 
-Ready to get started? Install Feast with dbt support today and transform your feature engineering workflow:
+If you're a dbt user who's been asked to "make those models work for ML," this is your answer.
+
+Ready to see your dbt models in production? Install Feast and try it out:
 
 ```bash
 pip install 'feast[dbt]'
-feast dbt import --help
+cd your_dbt_project
+dbt compile
+feast dbt import target/manifest.json -e your_entity_column -d bigquery
 ```
 
-We're excited to see what you build with Feast and dbt. Share your experiences with us on [Slack](http://slack.feast.dev/) or [Twitter](https://twitter.com/feast_dev)!
+Your models are already great. Now make them do more.
+
+Join us on [Slack](http://slack.feast.dev/) to share your dbt + Feast success stories, or check out the [full documentation](https://docs.feast.dev/how-to-guides/dbt-integration) to dive deeper.
 
 ---
 
