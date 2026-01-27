@@ -550,9 +550,7 @@ def _python_set_to_proto_values(
             ]
         raise _type_err(sample, set_valid_types[0])
 
-    if sample is not None and not all(
-        type(item) in set_valid_types for item in sample
-    ):
+    if sample is not None and not all(type(item) in set_valid_types for item in sample):
         for item in sample:
             if type(item) not in set_valid_types:
                 if feast_value_type in [
@@ -560,9 +558,7 @@ def _python_set_to_proto_values(
                     ValueType.INT64_SET,
                 ]:
                     if not any(np.isnan(item) for item in sample):
-                        logger.error(
-                            "Set of Int32 or Int64 type has NULL values."
-                        )
+                        logger.error("Set of Int32 or Int64 type has NULL values.")
                 raise _type_err(item, set_valid_types[0])
 
     if feast_value_type == ValueType.UNIX_TIMESTAMP_SET:
