@@ -17,8 +17,10 @@ from sqlalchemy import (  # type: ignore
     String,
     Table,
     Text,
+    bindparam,
     create_engine,
     delete,
+    func,
     insert,
     select,
     update,
@@ -43,6 +45,13 @@ from feast.errors import (
 )
 from feast.expediagroup.pydantic_models.project_metadata_model import (
     ProjectMetadataModel,
+)
+from feast.expediagroup.search import (
+    ExpediaProjectAndRelatedFeatureViews,
+    ExpediaSearchFeatureViewsRequest,
+    ExpediaSearchFeatureViewsResponse,
+    ExpediaSearchProjectsRequest,
+    ExpediaSearchProjectsResponse,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -1132,10 +1141,12 @@ class SqlRegistry(CachingRegistry):
                 )
                 conn.execute(insert_stmt)
 
+            # After applying child objects (not Project itself), update the parent project's timestamp
             if not isinstance(obj, Project):
-                self.apply_project(
-                    self.get_project(name=project, allow_cache=False), commit=True
+                self._update_project_timestamp(
+                    project, update_datetime, update_time, conn
                 )
+
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(update_datetime, project, conn)
 
@@ -1162,6 +1173,46 @@ class SqlRegistry(CachingRegistry):
                 }
                 insert_stmt = insert(feast_metadata).values(values)
                 conn.execute(insert_stmt)
+
+    def _update_project_timestamp(
+        self, project_name: str, update_datetime: datetime, update_time: int, conn
+    ):
+        """
+        Update the project's last_updated_timestamp when child objects are modified.
+
+        This is critical for cache invalidation: when entities, feature views, or other
+        child objects are applied, the parent project must be marked as updated so that
+        cached registry data is properly invalidated.
+
+        We need to update both:
+        1. The last_updated_timestamp column (BIGINT) - used for cache comparison
+        2. The project_proto blob's meta.last_updated_timestamp - used when deserializing
+
+        Both updates happen within the same transaction to ensure atomicity.
+        """
+        # Fetch the current project proto
+        project_select_stmt = select(projects.c.project_proto).where(
+            projects.c.project_name == project_name
+        )
+        project_row = conn.execute(project_select_stmt).first()
+
+        if project_row:
+            # Deserialize, update timestamp, and re-serialize
+            project_proto = ProjectProto.FromString(
+                project_row._mapping["project_proto"]
+            )
+            project_proto.meta.last_updated_timestamp.FromDatetime(update_datetime)
+
+            # Update both the timestamp column and the proto blob
+            project_update_stmt = (
+                update(projects)
+                .where(projects.c.project_name == project_name)
+                .values(
+                    last_updated_timestamp=update_time,
+                    project_proto=project_proto.SerializeToString(),
+                )
+            )
+            conn.execute(project_update_stmt)
 
     def _delete_object(
         self,
@@ -1510,3 +1561,225 @@ class SqlRegistry(CachingRegistry):
                             datetime.utcfromtimestamp(int(metadata_value))
                         )
         return project_metadata_model
+
+    def expedia_search_projects(
+        self,
+        request: ExpediaSearchProjectsRequest,
+    ) -> ExpediaSearchProjectsResponse:
+        # Unpack fields from the request object
+        (
+            search_text,
+            updated_at,
+            page_size,
+            page_index,
+        ) = request
+
+        # 1. Query projects table for matching projects
+        with self.read_engine.begin() as conn:
+            count_stmt = select(func.count(projects.c.project_id.distinct()))
+            params = {}
+
+            if search_text:
+                count_stmt = count_stmt.where(
+                    projects.c.project_id.like(bindparam("search_pattern"))
+                )
+                params["search_pattern"] = f"%{search_text}%"
+
+            if updated_at is not None:
+                updated_at_timestamp = int(updated_at.timestamp())
+                count_stmt = count_stmt.where(
+                    projects.c.last_updated_timestamp >= updated_at_timestamp
+                )
+
+            total_count = conn.execute(count_stmt, params).scalar() or 0
+            total_page_indices = (total_count + page_size - 1) // page_size
+
+            stmt = (
+                select(
+                    projects.c.project_id,
+                    projects.c.project_proto,
+                )
+                .order_by(projects.c.project_id)
+                .limit(page_size)
+                .offset(page_index * page_size)
+            )
+
+            if search_text:
+                stmt = stmt.where(
+                    projects.c.project_id.like(bindparam("search_pattern"))
+                )
+                params["search_pattern"] = f"%{search_text}%"
+
+            if updated_at is not None:
+                updated_at_timestamp = int(updated_at.timestamp())
+                stmt = stmt.where(
+                    projects.c.last_updated_timestamp >= updated_at_timestamp
+                )
+
+            rows = conn.execute(stmt, params).all()
+
+            project_objs: List[Project] = []
+            project_ids: List[str] = []
+            for row in rows:
+                project_id = row._mapping["project_id"]
+                project_proto = ProjectProto.FromString(row._mapping["project_proto"])
+                project = Project.from_proto(project_proto)
+                project_objs.append(project)
+                project_ids.append(project_id)
+
+        # 2. Fetch all feature views for these projects
+        with self.read_engine.begin() as conn:
+            feature_views_stmt = select(
+                feature_views.c.project_id, feature_views.c.feature_view_proto
+            ).where(feature_views.c.project_id.in_(project_ids))
+            feature_view_rows = conn.execute(feature_views_stmt).all()
+
+        feature_views_by_project: Dict[str, List[FeatureView]] = {}
+        for row in feature_view_rows:
+            project_id = row._mapping["project_id"]
+            feature_view_proto = FeatureViewProto.FromString(
+                row._mapping["feature_view_proto"]
+            )
+            fv = FeatureView.from_proto(feature_view_proto)
+            feature_views_by_project.setdefault(project_id, []).append(fv)
+
+        # 3. Build ExpediaProjectAndRelatedFeatureViews objects
+        projects_and_related_feature_views = []
+        for project in project_objs:
+            obj = ExpediaProjectAndRelatedFeatureViews(
+                project=project,
+                feature_views=feature_views_by_project.get(project.name, []),
+            )
+            projects_and_related_feature_views.append(obj)
+
+        return ExpediaSearchProjectsResponse(
+            projects_and_related_feature_views=projects_and_related_feature_views,
+            total_projects=total_count,
+            total_page_indices=total_page_indices,
+        )
+
+    def expedia_search_feature_views(
+        self,
+        request: ExpediaSearchFeatureViewsRequest,
+    ) -> ExpediaSearchFeatureViewsResponse:
+        # Unpack fields from the request object
+        (
+            search_text,
+            online,
+            application,
+            team,
+            created_at,
+            updated_at,
+            page_size,
+            page_index,
+        ) = request
+
+        offset = page_index * page_size
+        results = []
+        filtered_results = []
+        in_memory_filtering_required = any(
+            [online is not None, application, team, created_at, updated_at]
+        )
+
+        with self.read_engine.begin() as conn:
+            if not in_memory_filtering_required:
+                stmt = select(feature_views).order_by(feature_views.c.feature_view_name)
+
+                if search_text:  # Only add search filter if search_text is not empty
+                    stmt = stmt.where(
+                        feature_views.c.feature_view_name.like(
+                            bindparam("search_pattern")
+                        )
+                    )
+
+                stmt = stmt.limit(page_size).offset(offset)
+
+                if search_text:
+                    rows = conn.execute(
+                        stmt, {"search_pattern": f"%{search_text}%"}
+                    ).all()
+                else:
+                    rows = conn.execute(stmt).all()
+
+                for row in rows:
+                    feature_view_proto = FeatureViewProto.FromString(
+                        row._mapping["feature_view_proto"]
+                    )
+                    feature_view_proto.spec.project = row._mapping["project_id"]
+                    fv = FeatureView.from_proto(feature_view_proto)
+                    results.append(fv)
+
+                total_stmt = select(func.count()).select_from(feature_views)
+                if search_text:  # Only add search filter if search_text is not empty
+                    total_stmt = total_stmt.where(
+                        feature_views.c.feature_view_name.like(
+                            bindparam("search_pattern")
+                        )
+                    )
+
+                if search_text:
+                    total_count = (
+                        conn.execute(
+                            total_stmt, {"search_pattern": f"%{search_text}%"}
+                        ).scalar()
+                        or 0
+                    )
+                else:
+                    total_count = conn.execute(total_stmt).scalar() or 0
+                total_page_indices = (total_count + page_size - 1) // page_size
+
+                return ExpediaSearchFeatureViewsResponse(
+                    feature_views=results,
+                    total_feature_views=total_count,
+                    total_page_indices=total_page_indices,
+                )
+
+            stmt = select(feature_views)
+            if search_text:
+                stmt = stmt.where(
+                    feature_views.c.feature_view_name.like(bindparam("search_pattern"))
+                )
+
+            rows = conn.execute(
+                stmt, {"search_pattern": f"%{search_text}%"} if search_text else {}
+            ).all()
+
+            for row in rows:
+                feature_view_proto = FeatureViewProto.FromString(
+                    row._mapping["feature_view_proto"]
+                )
+                feature_view_proto.spec.project = row._mapping["project_id"]
+                fv = FeatureView.from_proto(feature_view_proto)
+                add_to_results = True
+
+                if online is not None and fv.online != online:
+                    add_to_results = False
+                if application and fv.tags.get("application") != application:
+                    add_to_results = False
+                if team and fv.tags.get("team") != team:
+                    add_to_results = False
+                if (
+                    created_at is not None
+                    and fv.created_timestamp
+                    and fv.created_timestamp < created_at
+                ):
+                    add_to_results = False
+                if (
+                    updated_at is not None
+                    and fv.last_updated_timestamp
+                    and fv.last_updated_timestamp < updated_at
+                ):
+                    add_to_results = False
+
+                if add_to_results:
+                    filtered_results.append(fv)
+
+            total_count = len(filtered_results)
+            total_page_indices = (total_count + page_size - 1) // page_size
+            paginated_results = filtered_results[offset : offset + page_size]
+
+        return ExpediaSearchFeatureViewsResponse(
+            feature_views=paginated_results,
+            total_feature_views=total_count,
+            total_page_indices=total_page_indices,
+        )

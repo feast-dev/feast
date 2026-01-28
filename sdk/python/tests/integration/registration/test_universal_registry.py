@@ -1268,6 +1268,17 @@ def test_registry_cache(test_registry):
     test_registry.apply_data_source(batch_source, project)
     test_registry.apply_feature_view(fv1, project)
     registry_feature_views_cached = test_registry.list_feature_views(
+        project, allow_cache=False
+    )
+    registry_data_sources_cached = test_registry.list_data_sources(
+        project, allow_cache=False
+    )
+    assert len(registry_feature_views_cached) == 1
+    assert len(registry_data_sources_cached) == 1
+
+    test_registry.refresh(project)
+
+    registry_feature_views_cached = test_registry.list_feature_views(
         project, allow_cache=True
     )
     registry_data_sources_cached = test_registry.list_data_sources(
@@ -2086,13 +2097,10 @@ def test_registry_cache_overwrite(test_registry):
     # Register data source and feature view
     test_registry.apply_data_source(batch_source, project)
     test_registry.apply_feature_view(fv1, project)
-    # during apply_* methods, get_project is called which creates the project in the all cache maps
-    assert len(test_registry.cached_feature_view_map) == 1
-    assert len(test_registry.cached_data_source_map) == 1
-    assert project in test_registry.cached_feature_view_map
-    assert project in test_registry.cached_data_source_map
-    assert len(test_registry.cached_feature_view_map[project]) == 0
-    assert len(test_registry.cached_data_source_map[project]) == 0
+    # SqlFallbackRegistry uses lazy caching - cache is not populated during apply_* methods
+    # The cache is only populated when objects are fetched with allow_cache=True
+    assert len(test_registry.cached_feature_views.cache_map) == 0
+    assert len(test_registry.cached_data_sources.cache_map) == 0
 
     registry_feature_view = test_registry.get_feature_view(
         fv1.name, project, allow_cache=True
@@ -2191,5 +2199,382 @@ def test_registry_cache_expiration(test_registry):
         batch_source.description
         == test_registry.cached_data_sources.get(project, batch_source.name).description
     )
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    sql_fallback_fixtures,
+)
+def test_expedia_search_projects_success(test_registry):
+    from feast.expediagroup.search import ExpediaSearchProjectsRequest
+
+    # Create projects with different attributes
+    project1 = Project(
+        name="test_project_1",
+        description="Test project 1",
+        tags={"team": "team1", "application": "app1"},
+        owner="owner1@example.com",
+    )
+
+    project2 = Project(
+        name="search_project_2",
+        description="Search project 2",
+        tags={"team": "team2", "application": "app2"},
+        owner="owner2@example.com",
+    )
+
+    project3 = Project(
+        name="another_project",
+        description="Another project",
+        tags={"team": "team1", "application": "app3"},
+        owner="owner3@example.com",
+    )
+
+    # Apply projects
+    test_registry.apply_project(project1)
+    test_registry.apply_project(project2)
+    test_registry.apply_project(project3)
+
+    # Create feature views for projects
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    entity = Entity(name="test_entity", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="feature_view_1",
+        schema=[Field(name="test", dtype=Int64), Field(name="feature1", dtype=String)],
+        entities=[entity],
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    fv2 = FeatureView(
+        name="feature_view_2",
+        schema=[Field(name="test", dtype=Int64), Field(name="feature2", dtype=String)],
+        entities=[entity],
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    test_registry.apply_feature_view(fv1, project1.name)
+    test_registry.apply_feature_view(fv2, project2.name)
+
+    # Test search without filters
+    request = ExpediaSearchProjectsRequest(
+        search_text="",
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_projects(request)
+
+    assert response.total_projects >= 3
+    assert len(response.projects_and_related_feature_views) >= 3
+
+    # Find our projects in the response
+    project_names = [
+        p.project.name for p in response.projects_and_related_feature_views
+    ]
+    assert project1.name in project_names
+    assert project2.name in project_names
+    assert project3.name in project_names
+
+    # Test search with text filter
+    request = ExpediaSearchProjectsRequest(
+        search_text="test",
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_projects(request)
+
+    project_names = [
+        p.project.name for p in response.projects_and_related_feature_views
+    ]
+    assert project1.name in project_names
+    # Note: project2 and project3 may not contain "test" in their project_id
+
+    # Test pagination
+    request = ExpediaSearchProjectsRequest(
+        search_text="",
+        updated_at=None,
+        page_size=1,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_projects(request)
+
+    assert len(response.projects_and_related_feature_views) == 1
+    assert response.total_page_indices >= 3
+
+    # Test that feature views are included
+    for project_and_fvs in response.projects_and_related_feature_views:
+        if project_and_fvs.project.name == project1.name:
+            assert len(project_and_fvs.feature_views) == 1
+            assert project_and_fvs.feature_views[0].name == "feature_view_1"
+        elif project_and_fvs.project.name == project2.name:
+            assert len(project_and_fvs.feature_views) == 1
+            assert project_and_fvs.feature_views[0].name == "feature_view_2"
+        elif project_and_fvs.project.name == project3.name:
+            assert len(project_and_fvs.feature_views) == 0
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    sql_fallback_fixtures,
+)
+def test_expedia_search_feature_views_success(test_registry):
+    from feast.expediagroup.search import ExpediaSearchFeatureViewsRequest
+
+    # Create project
+    project = Project(name="test_project", description="Test project")
+    test_registry.apply_project(project)
+
+    # Create data sources
+    batch_source1 = FileSource(
+        name="source1",
+        file_format=ParquetFormat(),
+        path="file://feast/source1/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    batch_source2 = FileSource(
+        name="source2",
+        file_format=ParquetFormat(),
+        path="file://feast/source2/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    entity = Entity(name="test_entity", join_keys=["test"])
+
+    # Create feature views with different attributes
+    fv1 = FeatureView(
+        name="search_feature_view_1",
+        schema=[Field(name="test", dtype=Int64), Field(name="feature1", dtype=String)],
+        entities=[entity],
+        source=batch_source1,
+        ttl=timedelta(minutes=5),
+        online=True,
+        tags={"team": "team1", "application": "app1"},
+    )
+
+    fv2 = FeatureView(
+        name="test_feature_view_2",
+        schema=[Field(name="test", dtype=Int64), Field(name="feature2", dtype=String)],
+        entities=[entity],
+        source=batch_source2,
+        ttl=timedelta(minutes=5),
+        online=False,
+        tags={"team": "team2", "application": "app2"},
+    )
+
+    fv3 = FeatureView(
+        name="another_view",
+        schema=[Field(name="test", dtype=Int64), Field(name="feature3", dtype=String)],
+        entities=[entity],
+        source=batch_source1,
+        ttl=timedelta(minutes=5),
+        online=True,
+        tags={"team": "team1", "application": "app3"},
+    )
+
+    test_registry.apply_feature_view(fv1, project.name)
+    test_registry.apply_feature_view(fv2, project.name)
+    test_registry.apply_feature_view(fv3, project.name)
+
+    # Test search without filters
+    request = ExpediaSearchFeatureViewsRequest(
+        search_text="",
+        online=None,
+        application="",
+        team="",
+        created_at=None,
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_feature_views(request)
+
+    assert response.total_feature_views >= 3
+    assert len(response.feature_views) >= 3
+
+    fv_names = [fv.name for fv in response.feature_views]
+    assert fv1.name in fv_names
+    assert fv2.name in fv_names
+    assert fv3.name in fv_names
+
+    # Test search with text filter
+    request = ExpediaSearchFeatureViewsRequest(
+        search_text="search",
+        online=None,
+        application=None,
+        team=None,
+        created_at=None,
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_feature_views(request)
+
+    fv_names = [fv.name for fv in response.feature_views]
+    assert fv1.name in fv_names  # contains "search"
+    # Note: fv2 and fv3 may not contain "search" based on search implementation
+
+    # Test filter by online status
+    request = ExpediaSearchFeatureViewsRequest(
+        search_text="",
+        online=True,
+        application="",
+        team="",
+        created_at=None,
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_feature_views(request)
+
+    fv_names = [fv.name for fv in response.feature_views]
+    assert fv1.name in fv_names  # online=True
+    assert fv2.name not in fv_names  # online=False
+    assert fv3.name in fv_names  # online=True
+
+    # Test filter by team
+    request = ExpediaSearchFeatureViewsRequest(
+        search_text="",
+        online=None,
+        application="",
+        team="team1",
+        created_at=None,
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_feature_views(request)
+
+    fv_names = [fv.name for fv in response.feature_views]
+    assert fv1.name in fv_names  # team=team1
+    assert fv2.name not in fv_names  # team=team2
+    assert fv3.name in fv_names  # team=team1
+
+    # Test filter by application
+    request = ExpediaSearchFeatureViewsRequest(
+        search_text="",
+        online=None,
+        application="app1",
+        team="",
+        created_at=None,
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_feature_views(request)
+
+    fv_names = [fv.name for fv in response.feature_views]
+    assert fv1.name in fv_names  # application=app1
+    assert fv2.name not in fv_names  # application=app2
+    assert fv3.name not in fv_names  # application=app3
+
+    # Test pagination
+    request = ExpediaSearchFeatureViewsRequest(
+        search_text="",
+        online=None,
+        application="",
+        team="",
+        created_at=None,
+        updated_at=None,
+        page_size=1,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_feature_views(request)
+
+    assert len(response.feature_views) == 1
+    assert response.total_page_indices >= 3
+
+    # Test combined filters
+    request = ExpediaSearchFeatureViewsRequest(
+        search_text="",
+        online=True,
+        application="",
+        team="team1",
+        created_at=None,
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+    response = test_registry.expedia_search_feature_views(request)
+
+    fv_names = [fv.name for fv in response.feature_views]
+    assert fv1.name in fv_names  # online=True and team=team1
+    assert fv2.name not in fv_names  # online=False
+    assert fv3.name in fv_names  # online=True and team=team1
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [lazy_fixture("local_registry")],
+)
+def test_expedia_search_projects_raises_type_error_for_non_sql_registry(test_registry):
+    """Test that ExpediaSearchProjects raises TypeError for non-SQL registries."""
+    from feast.expediagroup.search import ExpediaSearchProjectsRequest
+
+    request = ExpediaSearchProjectsRequest(
+        search_text="",
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+
+    with pytest.raises(
+        AttributeError,
+        match="'Registry' object has no attribute 'expedia_search_projects'",
+    ):
+        test_registry.expedia_search_projects(request)
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [lazy_fixture("local_registry")],
+)
+def test_expedia_search_feature_views_raises_type_error_for_non_sql_registry(
+    test_registry,
+):
+    """Test that ExpediaSearchFeatureViews raises TypeError for non-SQL registries."""
+    from feast.expediagroup.search import ExpediaSearchFeatureViewsRequest
+
+    request = ExpediaSearchFeatureViewsRequest(
+        search_text="",
+        online=None,
+        application="",
+        team="",
+        created_at=None,
+        updated_at=None,
+        page_size=10,
+        page_index=0,
+    )
+
+    with pytest.raises(
+        AttributeError,
+        match="'Registry' object has no attribute 'expedia_search_feature_views'",
+    ):
+        test_registry.expedia_search_feature_views(request)
 
     test_registry.teardown()

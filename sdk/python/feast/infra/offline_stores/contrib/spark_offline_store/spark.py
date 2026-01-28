@@ -350,13 +350,6 @@ class SparkOfflineStore(OfflineStore):
             start_date, end_date, timestamp_field, tz=timezone.utc, quote_fields=False
         )
 
-        (fields_with_aliases, aliases) = _get_fields_with_aliases(
-            fields=join_key_columns + feature_name_columns + [timestamp_field],
-            field_mappings=data_source.field_mapping,
-        )
-
-        fields_with_alias_string = ", ".join(fields_with_aliases)
-
         query = f"""
             SELECT {fields_with_alias_string}
             FROM {from_expression}

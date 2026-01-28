@@ -4,8 +4,10 @@ package server
 
 import (
 	"context"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -22,16 +24,27 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var testRepoBasePath string
+
+func TestMain(m *testing.M) {
+	// Get the file path of this source file, regardless of the working directory
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		log.Print("couldn't find file path of the test file")
+		os.Exit(1)
+	}
+	testRepoBasePath = filepath.Join(filename, "..", "..", "..", "test")
+	if err := test.SetupInitializedRepo(testRepoBasePath); err != nil {
+		log.Print("Could not initialize test repo: ", err)
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
+
 func TestGetFeastServingInfo(t *testing.T) {
 	ctx := context.Background()
-	// Pregenerated using `feast init`.
-	dir := "../../test/"
-	err := test.SetupInitializedRepo(dir)
-	defer test.CleanUpInitializedRepo(dir)
 
-	require.Nil(t, err)
-
-	client, closer := GetClient(ctx, dir, "")
+	client, closer := GetClient(ctx, testRepoBasePath, "")
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
 	assert.Nil(t, err)
@@ -40,14 +53,8 @@ func TestGetFeastServingInfo(t *testing.T) {
 
 func TestGetOnlineFeaturesSqlite(t *testing.T) {
 	ctx := context.Background()
-	// Pregenerated using `feast init`.
-	dir := "../../test/"
-	err := test.SetupInitializedRepo(dir)
-	defer test.CleanUpInitializedRepo(dir)
 
-	require.NoError(t, err)
-
-	client, closer := GetClient(ctx, dir, "")
+	client, closer := GetClient(ctx, testRepoBasePath, "")
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -74,7 +81,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 		{Val: &types.Value_Int64Val{Int64Val: 1005}},
 	}
 	expectedFeatureNamesResp := []string{"driver_id", "conv_rate", "acc_rate", "avg_daily_trips"}
-	rows, err := test.ReadParquet(filepath.Join(dir, "feature_repo", "driver_stats.parquet"))
+	rows, err := test.ReadParquet(filepath.Join(testRepoBasePath, "feature_repo", "driver_stats.parquet"))
 	assert.Nil(t, err)
 	entityKeys := map[int64]bool{1001: true, 1003: true, 1005: true}
 	correctFeatures := test.GetLatestFeatures(rows, entityKeys)
@@ -100,15 +107,9 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 
 func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	ctx := context.Background()
-	// Pregenerated using `feast init`.
-	dir := "../../test/"
-	err := test.SetupInitializedRepo(dir)
-	defer test.CleanUpInitializedRepo(dir)
-
-	require.NoError(t, err)
 
 	logPath := t.TempDir()
-	client, closer := GetClient(ctx, dir, logPath)
+	client, closer := GetClient(ctx, testRepoBasePath, logPath)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{

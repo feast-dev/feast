@@ -238,22 +238,40 @@ func SetupInitializedRepo(basePath string) error {
 		log.Printf("Repo base path error: %s", err.Error())
 		return err
 	}
-	applyCommand := exec.Command(feastExec, "apply")
-	applyCommand.Env = os.Environ()
 	featureRepoPath, err := filepath.Abs(filepath.Join(path, "feature_repo"))
 	if err != nil {
 		log.Printf("Repo filepath error: %s", err.Error())
 		return err
 	}
-	applyCommand.Dir = featureRepoPath
-	out, err := applyCommand.CombinedOutput()
-	if err != nil {
-		log.Printf("Repo setup error: %s", string(out))
+
+	// Ensure data directory exists
+	dataDir := filepath.Join(featureRepoPath, "data")
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		log.Printf("Failed to create data directory: %s", err.Error())
 		return err
 	}
 
-	// Pause to ensure apply completes
-	time.Sleep(5 * time.Second)
+	applyCommand := exec.Command(feastExec, "apply")
+	applyCommand.Env = os.Environ()
+	applyCommand.Dir = featureRepoPath
+	out, err := applyCommand.CombinedOutput()
+	if err != nil {
+		log.Printf("Repo setup error: %s, %v", string(out), err)
+		return err
+	} else {
+		// Verify registry.db was created with retries
+		registryPath := filepath.Join(dataDir, "registry.db")
+		for i := 0; i < 10; i++ {
+			if _, err := os.Stat(registryPath); err == nil {
+				log.Printf("Registry file created successfully after %d attempts", i+1)
+				break
+			}
+			if i == 9 {
+				return fmt.Errorf("registry.db was not created after feast apply")
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",

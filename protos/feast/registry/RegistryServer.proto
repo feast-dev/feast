@@ -4,6 +4,7 @@ package feast.registry;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Entity.proto";
 import "feast/core/FeatureService.proto";
@@ -100,6 +101,10 @@ service RegistryServer{
   // Feature RPCs
   rpc ListFeatures (ListFeaturesRequest) returns (ListFeaturesResponse) {}
   rpc GetFeature (GetFeatureRequest) returns (Feature) {}
+
+  // Expedia Search RPCs
+  rpc ExpediaSearchProjects (ExpediaSearchProjectsRequest) returns (ExpediaSearchProjectsResponse) {}
+  rpc ExpediaSearchFeatureViews (ExpediaSearchFeatureViewsRequest) returns (ExpediaSearchFeatureViewsResponse) {}
 }
 
 // Common pagination and sorting messages
@@ -589,4 +594,45 @@ message GetFeatureRequest {
   string feature_view = 2;
   string name = 3;
   bool allow_cache = 4;
+}
+
+// Expedia Search
+
+message ExpediaProjectAndRelatedFeatureViews {
+  feast.core.Project project = 1;
+  repeated feast.core.FeatureView feature_views = 2;
+}
+
+message ExpediaSearchFeatureViewsRequest {
+  string search_text = 1;
+  /*
+  Using google.protobuf.BoolValue here because we need tri-state (true/false/not set),
+  which is not possible with a simple bool.
+  */
+  google.protobuf.BoolValue online = 2;
+  string application = 3;
+  string team = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  int32 page_size = 7;
+  int32 page_index = 8;
+}
+
+message ExpediaSearchFeatureViewsResponse {
+  repeated feast.core.FeatureView feature_views = 1;
+  int32 total_feature_views = 2;
+  int32 total_page_indices = 3;
+}
+
+message ExpediaSearchProjectsRequest {
+  string search_text = 1;
+  google.protobuf.Timestamp updated_at = 2;
+  int32 page_size = 3;
+  int32 page_index = 4;
+}
+
+message ExpediaSearchProjectsResponse {
+  repeated ExpediaProjectAndRelatedFeatureViews projects_and_related_feature_views = 1;
+  int32 total_projects = 2;
+  int32 total_page_indices = 3;
 }

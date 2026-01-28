@@ -363,7 +363,7 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus
+	// +kubebuilder:validation:Enum=snowflake.online;redis;eg-valkey;ikv;datastore;dynamodb;bigtable;postgres;cassandra;scylladb;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;eg-milvus
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -374,12 +374,14 @@ type OnlineStoreDBStorePersistence struct {
 var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"snowflake.online",
 	"redis",
+	"eg-valkey",
 	"ikv",
 	"datastore",
 	"dynamodb",
 	"bigtable",
 	"postgres",
 	"cassandra",
+	"scylladb",
 	"mysql",
 	"hazelcast",
 	"singlestore",
@@ -388,6 +390,7 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"qdrant",
 	"couchbase.online",
 	"milvus",
+	"eg-milvus",
 }
 
 // LocalRegistryConfig configures the registry service
@@ -418,7 +421,7 @@ type RegistryFilePersistence struct {
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
 type RegistryDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=sql;snowflake.registry
+	// +kubebuilder:validation:Enum=sql;sql-fallback;snowflake.registry;http
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -428,7 +431,9 @@ type RegistryDBStorePersistence struct {
 
 var ValidRegistryDBStorePersistenceTypes = []string{
 	"sql",
+	"sql-fallback",
 	"snowflake.registry",
+	"http",
 }
 
 // PvcConfig defines the settings for a persistent file store based on PVCs.

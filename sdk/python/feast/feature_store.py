@@ -77,7 +77,6 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.http import HttpRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
-from feast.infra.registry.sql_fallback import SqlFallbackRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
@@ -164,6 +163,8 @@ class FeatureStore:
         if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, self.config.project, None)
         elif registry_config.registry_type == "sql-fallback":
+            from feast.infra.registry.sql_fallback import SqlFallbackRegistry
+
             self._registry = SqlFallbackRegistry(
                 registry_config, self.config.project, None
             )

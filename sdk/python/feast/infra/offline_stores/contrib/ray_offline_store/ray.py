@@ -60,6 +60,7 @@ from feast.type_map import (
     pa_to_feast_value_type,
 )
 from feast.utils import _get_column_names, make_df_tzaware, make_tzaware
+from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
 
@@ -284,31 +285,41 @@ def _convert_feature_column_types(
     Returns:
         DataFrame or Dataset with properly converted feature column types
     """
+    # Extract only the serializable information needed for type conversion
+    # This avoids capturing FeatureView objects (which contain protobuf fields)
+    # in the closure, which would cause pickling errors with Ray
+    feature_type_info: List[Tuple[str, ValueType]] = []
+    for fv in feature_views:
+        for feature in fv.features:
+            try:
+                value_type = feature.dtype.to_value_type()
+                feature_type_info.append((feature.name, value_type))
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get value type for feature {feature.name}: {e}"
+                )
 
     def convert_batch(batch: pd.DataFrame) -> pd.DataFrame:
         batch = batch.copy()
 
-        for fv in feature_views:
-            for feature in fv.features:
-                feat_name = feature.name
-                if feat_name not in batch.columns:
-                    continue
-                try:
-                    value_type = feature.dtype.to_value_type()
-                    if value_type.name.endswith("_LIST"):
-                        batch[feat_name] = convert_array_column(
-                            batch[feat_name], value_type
-                        )
-                    else:
-                        target_pandas_type = feast_value_type_to_pandas_type(value_type)
-                        batch[feat_name] = convert_scalar_column(
-                            batch[feat_name], value_type, target_pandas_type
-                        )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to convert feature {feat_name} to proper type: {e}"
+        for feat_name, value_type in feature_type_info:
+            if feat_name not in batch.columns:
+                continue
+            try:
+                if value_type.name.endswith("_LIST"):
+                    batch[feat_name] = convert_array_column(
+                        batch[feat_name], value_type
                     )
-                    continue
+                else:
+                    target_pandas_type = feast_value_type_to_pandas_type(value_type)
+                    batch[feat_name] = convert_scalar_column(
+                        batch[feat_name], value_type, target_pandas_type
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to convert feature {feat_name} to proper type: {e}"
+                )
+                continue
         return batch
 
     return _apply_to_data(data, convert_batch)

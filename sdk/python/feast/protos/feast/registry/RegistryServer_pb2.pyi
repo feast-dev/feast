@@ -21,6 +21,7 @@ import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
 import google.protobuf.timestamp_pb2
+import google.protobuf.wrappers_pb2
 import sys
 
 if sys.version_info >= (3, 8):
@@ -1922,3 +1923,135 @@ class GetFeatureRequest(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "feature_view", b"feature_view", "name", b"name", "project", b"project"]) -> None: ...
 
 global___GetFeatureRequest = GetFeatureRequest
+
+class ExpediaProjectAndRelatedFeatureViews(google.protobuf.message.Message):
+    """Expedia Search"""
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PROJECT_FIELD_NUMBER: builtins.int
+    FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    @property
+    def project(self) -> feast.core.Project_pb2.Project: ...
+    @property
+    def feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.FeatureView_pb2.FeatureView]: ...
+    def __init__(
+        self,
+        *,
+        project: feast.core.Project_pb2.Project | None = ...,
+        feature_views: collections.abc.Iterable[feast.core.FeatureView_pb2.FeatureView] | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["project", b"project"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["feature_views", b"feature_views", "project", b"project"]) -> None: ...
+
+global___ExpediaProjectAndRelatedFeatureViews = ExpediaProjectAndRelatedFeatureViews
+
+class ExpediaSearchFeatureViewsRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    SEARCH_TEXT_FIELD_NUMBER: builtins.int
+    ONLINE_FIELD_NUMBER: builtins.int
+    APPLICATION_FIELD_NUMBER: builtins.int
+    TEAM_FIELD_NUMBER: builtins.int
+    CREATED_AT_FIELD_NUMBER: builtins.int
+    UPDATED_AT_FIELD_NUMBER: builtins.int
+    PAGE_SIZE_FIELD_NUMBER: builtins.int
+    PAGE_INDEX_FIELD_NUMBER: builtins.int
+    search_text: builtins.str
+    @property
+    def online(self) -> google.protobuf.wrappers_pb2.BoolValue:
+        """
+        Using google.protobuf.BoolValue here because we need tri-state (true/false/not set),
+        which is not possible with a simple bool.
+        """
+    application: builtins.str
+    team: builtins.str
+    @property
+    def created_at(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    @property
+    def updated_at(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    page_size: builtins.int
+    page_index: builtins.int
+    def __init__(
+        self,
+        *,
+        search_text: builtins.str = ...,
+        online: google.protobuf.wrappers_pb2.BoolValue | None = ...,
+        application: builtins.str = ...,
+        team: builtins.str = ...,
+        created_at: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        updated_at: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        page_size: builtins.int = ...,
+        page_index: builtins.int = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["created_at", b"created_at", "online", b"online", "updated_at", b"updated_at"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["application", b"application", "created_at", b"created_at", "online", b"online", "page_index", b"page_index", "page_size", b"page_size", "search_text", b"search_text", "team", b"team", "updated_at", b"updated_at"]) -> None: ...
+
+global___ExpediaSearchFeatureViewsRequest = ExpediaSearchFeatureViewsRequest
+
+class ExpediaSearchFeatureViewsResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    TOTAL_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    TOTAL_PAGE_INDICES_FIELD_NUMBER: builtins.int
+    @property
+    def feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.FeatureView_pb2.FeatureView]: ...
+    total_feature_views: builtins.int
+    total_page_indices: builtins.int
+    def __init__(
+        self,
+        *,
+        feature_views: collections.abc.Iterable[feast.core.FeatureView_pb2.FeatureView] | None = ...,
+        total_feature_views: builtins.int = ...,
+        total_page_indices: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["feature_views", b"feature_views", "total_feature_views", b"total_feature_views", "total_page_indices", b"total_page_indices"]) -> None: ...
+
+global___ExpediaSearchFeatureViewsResponse = ExpediaSearchFeatureViewsResponse
+
+class ExpediaSearchProjectsRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    SEARCH_TEXT_FIELD_NUMBER: builtins.int
+    UPDATED_AT_FIELD_NUMBER: builtins.int
+    PAGE_SIZE_FIELD_NUMBER: builtins.int
+    PAGE_INDEX_FIELD_NUMBER: builtins.int
+    search_text: builtins.str
+    @property
+    def updated_at(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    page_size: builtins.int
+    page_index: builtins.int
+    def __init__(
+        self,
+        *,
+        search_text: builtins.str = ...,
+        updated_at: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        page_size: builtins.int = ...,
+        page_index: builtins.int = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["updated_at", b"updated_at"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["page_index", b"page_index", "page_size", b"page_size", "search_text", b"search_text", "updated_at", b"updated_at"]) -> None: ...
+
+global___ExpediaSearchProjectsRequest = ExpediaSearchProjectsRequest
+
+class ExpediaSearchProjectsResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PROJECTS_AND_RELATED_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    TOTAL_PROJECTS_FIELD_NUMBER: builtins.int
+    TOTAL_PAGE_INDICES_FIELD_NUMBER: builtins.int
+    @property
+    def projects_and_related_feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ExpediaProjectAndRelatedFeatureViews]: ...
+    total_projects: builtins.int
+    total_page_indices: builtins.int
+    def __init__(
+        self,
+        *,
+        projects_and_related_feature_views: collections.abc.Iterable[global___ExpediaProjectAndRelatedFeatureViews] | None = ...,
+        total_projects: builtins.int = ...,
+        total_page_indices: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["projects_and_related_feature_views", b"projects_and_related_feature_views", "total_page_indices", b"total_page_indices", "total_projects", b"total_projects"]) -> None: ...
+
+global___ExpediaSearchProjectsResponse = ExpediaSearchProjectsResponse
