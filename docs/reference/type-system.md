@@ -3,7 +3,7 @@
 ## Motivation
 
 Feast uses an internal type system to provide guarantees on training and serving data.
-Feast supports primitive types, array types, and map types for feature values.
+Feast supports primitive types, array types, set types, and map types for feature values.
 Null types are not supported, although the `UNIX_TIMESTAMP` type is nullable.
 The type system is controlled by [`Value.proto`](https://github.com/feast-dev/feast/blob/master/protos/feast/types/Value.proto) in protobuf and by [`types.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/types.py) in Python.
 Type conversion logic can be found in [`type_map.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/type_map.py).
@@ -40,6 +40,23 @@ All primitive types have corresponding array (list) types:
 | `Array(Bool)` | `List[bool]` | List of booleans |
 | `Array(UnixTimestamp)` | `List[datetime]` | List of timestamps |
 
+### Set Types
+
+All primitive types (except Map) have corresponding set types for storing unique values:
+
+| Feast Type | Python Type | Description |
+|------------|-------------|-------------|
+| `Set(Int32)` | `Set[int]` | Set of unique 32-bit integers |
+| `Set(Int64)` | `Set[int]` | Set of unique 64-bit integers |
+| `Set(Float32)` | `Set[float]` | Set of unique 32-bit floats |
+| `Set(Float64)` | `Set[float]` | Set of unique 64-bit floats |
+| `Set(String)` | `Set[str]` | Set of unique strings |
+| `Set(Bytes)` | `Set[bytes]` | Set of unique binary data |
+| `Set(Bool)` | `Set[bool]` | Set of unique booleans |
+| `Set(UnixTimestamp)` | `Set[datetime]` | Set of unique timestamps |
+
+**Note:** Set types automatically remove duplicate values. When converting from lists or other iterables to sets, duplicates are eliminated.
+
 ### Map Types
 
 Map types allow storing dictionary-like data structures:
@@ -60,7 +77,7 @@ from datetime import timedelta
 from feast import Entity, FeatureView, Field, FileSource
 from feast.types import (
     Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp,
-    Array, Map
+    Array, Set, Map
 )
 
 # Define a data source
@@ -101,6 +118,12 @@ user_features = FeatureView(
         Field(name="notification_settings", dtype=Array(Bool)),
         Field(name="login_timestamps", dtype=Array(UnixTimestamp)),
         
+        # Set types (unique values only)
+        Field(name="visited_pages", dtype=Set(String)),
+        Field(name="unique_categories", dtype=Set(Int32)),
+        Field(name="tag_ids", dtype=Set(Int64)),
+        Field(name="preferred_languages", dtype=Set(String)),
+        
         # Map types
         Field(name="user_preferences", dtype=Map),
         Field(name="metadata", dtype=Map),
@@ -108,6 +131,24 @@ user_features = FeatureView(
     ],
     source=user_features_source,
 )
+```
+
+### Set Type Usage Examples
+
+Sets store unique values and automatically remove duplicates:
+
+```python
+# Simple set
+visited_pages = {"home", "products", "checkout", "products"}  # "products" appears twice
+# Feast will store this as: {"home", "products", "checkout"}
+
+# Integer set
+unique_categories = {1, 2, 3, 2, 1}  # duplicates will be removed
+# Feast will store this as: {1, 2, 3}
+
+# Converting a list with duplicates to a set
+tag_list = [100, 200, 300, 100, 200]
+tag_ids = set(tag_list)  # {100, 200, 300}
 ```
 
 ### Map Type Usage Examples

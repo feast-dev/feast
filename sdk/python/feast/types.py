@@ -178,6 +178,36 @@ class Array(ComplexFeastType):
         return f"Array({self.base_type})"
 
 
+class Set(ComplexFeastType):
+    """
+    A Set represents a set of unique values of a given type.
+
+    Attributes:
+        base_type: The base type of the set.
+    """
+
+    base_type: Union[PrimitiveFeastType, ComplexFeastType]
+
+    def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
+        # Sets do not support MAP as a base type
+        supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t != Map]
+        if base_type not in supported_set_types:
+            raise ValueError(
+                f"Type {type(base_type)} is currently not supported as a base type for Set."
+            )
+
+        self.base_type = base_type
+
+    def to_value_type(self) -> ValueType:
+        assert isinstance(self.base_type, PrimitiveFeastType)
+        value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
+        value_type_set_name = value_type_name + "_SET"
+        return ValueType[value_type_set_name]
+
+    def __str__(self):
+        return f"Set({self.base_type})"
+
+
 FeastType = Union[ComplexFeastType, PrimitiveFeastType]
 
 VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
@@ -202,6 +232,14 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.UNIX_TIMESTAMP_LIST: Array(UnixTimestamp),
     ValueType.MAP: Map,
     ValueType.MAP_LIST: Array(Map),
+    ValueType.BYTES_SET: Set(Bytes),
+    ValueType.STRING_SET: Set(String),
+    ValueType.INT32_SET: Set(Int32),
+    ValueType.INT64_SET: Set(Int64),
+    ValueType.DOUBLE_SET: Set(Float64),
+    ValueType.FLOAT_SET: Set(Float32),
+    ValueType.BOOL_SET: Set(Bool),
+    ValueType.UNIX_TIMESTAMP_SET: Set(UnixTimestamp),
 }
 
 FEAST_TYPES_TO_PYARROW_TYPES = {
