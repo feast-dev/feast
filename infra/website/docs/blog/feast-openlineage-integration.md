@@ -11,9 +11,28 @@ authors: ["Nikhil Kathole", "Francisco Javier Arceo"]
 
 # Tracking Feature Lineage with OpenLineage 🔗
 
-# Feast and OpenLineage
+# Feast's Native Lineage Support
 
-Understanding where your ML features come from and how they flow through your system is critical for debugging, compliance, and governance. We are excited to announce that Feast now supports native integration with [OpenLineage](https://openlineage.io/), the open standard for data lineage collection and analysis.
+Feast already provides **built-in lineage tracking** through its native UI. When you explore your feature store in the Feast UI, you can visualize relationships between data sources, entities, feature views, and feature services—all without any additional configuration.
+
+<div class="content-image">
+  <img src="/images/blog/feast_native_lineage.png" alt="Feast Native Lineage UI" loading="lazy">
+</div>
+
+This native lineage view shows:
+- How **Data Sources** feed into **Feature Views**
+- Which **Entities** are associated with each **Feature View**
+- How **Feature Views** compose **Feature Services**
+
+# Why OpenLineage? Lineage Across Your ML Ecosystem
+
+While Feast's native lineage is powerful for understanding your feature store, modern ML systems span many tools—data pipelines, training jobs, model registries, and serving infrastructure. **OpenLineage** is the open standard that connects lineage across all these systems.
+
+We are excited to announce that Feast now supports native integration with [OpenLineage](https://openlineage.io/), enabling you to:
+
+- **Track end-to-end ML lineage**: Connect Feast feature lineage with upstream data pipelines (Airflow, Spark, dbt) and downstream model training
+- **Unified visibility**: See your entire ML data flow in a single lineage graph
+- **Interoperability**: Use any OpenLineage-compatible tool
 
 With this integration, Feast automatically tracks and emits lineage events whenever you apply feature definitions or materialize features—**no code changes required**. Simply enable OpenLineage in your `feature_store.yaml`, and Feast handles the rest.
 
