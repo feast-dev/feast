@@ -2253,6 +2253,148 @@ class FeatureStore:
         provider = self._get_provider()
         await provider.ingest_df_async(feature_view, df)
 
+    def update_online_store(
+        self,
+        feature_view_name: str,
+        df: pd.DataFrame,
+        update_expressions: Dict[str, str],
+        allow_registry_cache: bool = True,
+    ) -> None:
+        """
+        Update features using DynamoDB-specific list operations.
+
+        This method provides efficient in-place list updates using DynamoDB's native
+        UpdateItem operations with list_append and other expressions. This is more
+        efficient than the read-modify-write pattern for array-based features.
+
+        Args:
+            feature_view_name: The feature view to update.
+            df: DataFrame with new values to append/prepend to existing lists.
+            update_expressions: Dict mapping feature names to DynamoDB update expressions.
+                Examples:
+                - {"transactions": "list_append(transactions, :new_val)"}  # append
+                - {"recent_items": "list_append(:new_val, recent_items)"}  # prepend
+            allow_registry_cache: Whether to allow cached registry.
+
+        Raises:
+            NotImplementedError: If online store doesn't support update expressions.
+            ValueError: If the feature view or update expressions are invalid.
+
+        Example:
+            # Append new transactions to existing transaction history
+            store.update_online_store(
+                feature_view_name="user_transactions",
+                df=new_transactions_df,
+                update_expressions={
+                    "transaction_history": "list_append(transaction_history, :new_val)",
+                    "recent_amounts": "list_append(:new_val, recent_amounts)"  # prepend
+                }
+            )
+        """
+        # Check if online store supports update expressions
+        provider = self._get_provider()
+        if not hasattr(provider.online_store, "update_online_store"):
+            raise NotImplementedError(
+                f"Online store {type(provider.online_store).__name__} "
+                "does not support update expressions. This feature is only available "
+                "with DynamoDB online store."
+            )
+
+        feature_view, df = self._get_feature_view_and_df_for_online_write(
+            feature_view_name=feature_view_name,
+            df=df,
+            allow_registry_cache=allow_registry_cache,
+            transform_on_write=False,  # Don't transform for updates
+        )
+
+        # Validate that the dataframe has meaningful feature data
+        if df is not None:
+            if df.empty:
+                warnings.warn("Cannot update with empty dataframe")
+                return
+
+            # Check if feature columns are empty
+            feature_column_names = [f.name for f in feature_view.features]
+            if feature_column_names:
+                feature_df = df[feature_column_names]
+                if feature_df.empty or feature_df.isnull().all().all():
+                    warnings.warn("Cannot update with empty feature columns")
+                    return
+
+        # Prepare data for online store
+        from feast.infra.passthrough_provider import PassthroughProvider
+
+        rows_to_write = PassthroughProvider._prep_rows_to_write_for_ingestion(
+            feature_view=feature_view,
+            df=df,
+        )
+
+        # Call DynamoDB-specific method
+        provider.online_store.update_online_store(
+            config=self.config,
+            table=feature_view,
+            data=rows_to_write,
+            update_expressions=update_expressions,
+            progress=None,
+        )
+
+    async def update_online_store_async(
+        self,
+        feature_view_name: str,
+        df: pd.DataFrame,
+        update_expressions: Dict[str, str],
+        allow_registry_cache: bool = True,
+    ) -> None:
+        """
+        Async version of update_online_store.
+        """
+        # Check if online store supports update expressions
+        provider = self._get_provider()
+        if not hasattr(provider.online_store, "update_online_store_async"):
+            raise NotImplementedError(
+                f"Online store {type(provider.online_store).__name__} "
+                "does not support async update expressions. This feature is only available "
+                "with DynamoDB online store."
+            )
+
+        feature_view, df = self._get_feature_view_and_df_for_online_write(
+            feature_view_name=feature_view_name,
+            df=df,
+            allow_registry_cache=allow_registry_cache,
+            transform_on_write=False,  # Don't transform for updates
+        )
+
+        # Validate that the dataframe has meaningful feature data
+        if df is not None:
+            if df.empty:
+                warnings.warn("Cannot update with empty dataframe")
+                return
+
+            # Check if feature columns are empty
+            feature_column_names = [f.name for f in feature_view.features]
+            if feature_column_names:
+                feature_df = df[feature_column_names]
+                if feature_df.empty or feature_df.isnull().all().all():
+                    warnings.warn("Cannot update with empty feature columns")
+                    return
+
+        # Prepare data for online store
+        from feast.infra.passthrough_provider import PassthroughProvider
+
+        rows_to_write = PassthroughProvider._prep_rows_to_write_for_ingestion(
+            feature_view=feature_view,
+            df=df,
+        )
+
+        # Call DynamoDB-specific async method
+        await provider.online_store.update_online_store_async(
+            config=self.config,
+            table=feature_view,
+            data=rows_to_write,
+            update_expressions=update_expressions,
+            progress=None,
+        )
+
     def write_to_offline_store(
         self,
         feature_view_name: str,
