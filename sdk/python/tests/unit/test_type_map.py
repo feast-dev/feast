@@ -379,3 +379,85 @@ class TestMapTypes:
         assert len(converted["list_of_maps"]) == len(original_map["list_of_maps"])
         assert converted["list_of_maps"][0]["item"] == "first"
         assert converted["list_of_maps"][1]["item"] == "second"
+
+
+class TestSetTypes:
+    """Test cases for SET value types."""
+
+    def test_simple_set_conversion(self):
+        """Test basic SET type conversion from Python set to proto and back."""
+        test_set = {1, 2, 3, 4, 5}
+
+        protos = python_values_to_proto_values([test_set], ValueType.INT32_SET)
+        converted = feast_value_type_to_python_type(protos[0])
+
+        assert isinstance(converted, set)
+        assert converted == test_set
+
+    def test_string_set_conversion(self):
+        """Test STRING_SET type conversion."""
+        test_set = {"apple", "banana", "cherry"}
+
+        protos = python_values_to_proto_values([test_set], ValueType.STRING_SET)
+        converted = feast_value_type_to_python_type(protos[0])
+
+        assert isinstance(converted, set)
+        assert converted == test_set
+
+    def test_float_set_conversion(self):
+        """Test FLOAT_SET type conversion."""
+        test_set = {1.5, 2.5, 3.5}
+
+        protos = python_values_to_proto_values([test_set], ValueType.FLOAT_SET)
+        converted = feast_value_type_to_python_type(protos[0])
+
+        assert isinstance(converted, set)
+        assert converted == test_set
+
+    def test_bool_set_conversion(self):
+        """Test BOOL_SET type conversion."""
+        test_set = {True, False}
+
+        protos = python_values_to_proto_values([test_set], ValueType.BOOL_SET)
+        converted = feast_value_type_to_python_type(protos[0])
+
+        assert isinstance(converted, set)
+        assert converted == test_set
+
+    def test_set_from_list_with_duplicates(self):
+        """Test that duplicate values in lists are removed when converted to sets."""
+        test_list = [1, 2, 2, 3, 3, 3, 4, 5, 5]
+
+        protos = python_values_to_proto_values([test_list], ValueType.INT32_SET)
+        converted = feast_value_type_to_python_type(protos[0])
+
+        assert isinstance(converted, set)
+        assert converted == {1, 2, 3, 4, 5}
+
+    def test_empty_set(self):
+        """Test empty SET conversion."""
+        test_set = set()
+
+        protos = python_values_to_proto_values([test_set], ValueType.STRING_SET)
+        converted = feast_value_type_to_python_type(protos[0])
+
+        assert isinstance(converted, set)
+        assert len(converted) == 0
+
+    def test_null_set(self):
+        """Test None SET conversion."""
+        protos = python_values_to_proto_values([None], ValueType.INT32_SET)
+        converted = feast_value_type_to_python_type(protos[0])
+
+        assert converted is None
+
+    def test_multiple_set_values(self):
+        """Test conversion of multiple set values."""
+        test_sets = [{1, 2, 3}, {4, 5}, {6}]
+
+        protos = python_values_to_proto_values(test_sets, ValueType.INT32_SET)
+
+        assert len(protos) == 3
+        assert feast_value_type_to_python_type(protos[0]) == {1, 2, 3}
+        assert feast_value_type_to_python_type(protos[1]) == {4, 5}
+        assert feast_value_type_to_python_type(protos[2]) == {6}
