@@ -191,6 +191,65 @@ class MaterializationConfig(BaseModel):
         If false, feature retrieval jobs will pull all feature values within the specified time range. """
 
 
+class OpenLineageConfig(FeastBaseModel):
+    """Configuration for OpenLineage integration.
+
+    This enables automatic data lineage tracking for Feast operations like
+    materialization, feature retrieval, and registry changes.
+
+    Example configuration in feature_store.yaml:
+        openlineage:
+            enabled: true
+            transport_type: http
+            transport_url: http://localhost:5000
+            transport_endpoint: api/v1/lineage
+            namespace: feast
+    """
+
+    enabled: StrictBool = False
+    """ bool: Whether OpenLineage integration is enabled. Defaults to False. """
+
+    transport_type: StrictStr = "console"
+    """ str: Type of transport (http, console, file, kafka). Defaults to console. """
+
+    transport_url: Optional[StrictStr] = None
+    """ str: URL for HTTP transport. Required when transport_type is 'http'. """
+
+    transport_endpoint: StrictStr = "api/v1/lineage"
+    """ str: API endpoint for HTTP transport. Defaults to 'api/v1/lineage'. """
+
+    api_key: Optional[StrictStr] = None
+    """ str: Optional API key for authentication with the lineage server. """
+
+    namespace: StrictStr = "feast"
+    """ str: Default namespace for Feast jobs and datasets. """
+
+    producer: StrictStr = "feast"
+    """ str: Producer identifier for OpenLineage events. """
+
+    emit_on_apply: StrictBool = True
+    """ bool: Emit lineage events when 'feast apply' is called. """
+
+    emit_on_materialize: StrictBool = True
+    """ bool: Emit lineage events during materialization. """
+
+    def to_openlineage_config(self):
+        """Convert to feast.openlineage.OpenLineageConfig."""
+        from feast.openlineage.config import OpenLineageConfig as OLConfig
+
+        return OLConfig(
+            enabled=self.enabled,
+            transport_type=self.transport_type,
+            transport_url=self.transport_url,
+            transport_endpoint=self.transport_endpoint,
+            api_key=self.api_key,
+            namespace=self.namespace,
+            producer=self.producer,
+            emit_on_apply=self.emit_on_apply,
+            emit_on_materialize=self.emit_on_materialize,
+        )
+
+
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 
@@ -253,6 +312,9 @@ class RepoConfig(FeastBaseModel):
     )
     """ MaterializationConfig: Configuration options for feature materialization behavior. """
 
+    openlineage_config: Optional[OpenLineageConfig] = Field(None, alias="openlineage")
+    """ OpenLineageConfig: Configuration for OpenLineage data lineage integration (optional). """
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 
@@ -287,6 +349,11 @@ class RepoConfig(FeastBaseModel):
             self.feature_server = get_feature_server_config_from_type(
                 self.feature_server["type"]
             )(**self.feature_server)
+
+        # Initialize OpenLineage configuration
+        self._openlineage: Optional[OpenLineageConfig] = None
+        if "openlineage" in data:
+            self.openlineage_config = data["openlineage"]
 
         if self.entity_key_serialization_version < 3:
             warnings.warn(
@@ -390,6 +457,16 @@ class RepoConfig(FeastBaseModel):
                 self._batch_engine = self._batch_engine
 
         return self._batch_engine
+
+    @property
+    def openlineage(self) -> Optional[OpenLineageConfig]:
+        """Get the OpenLineage configuration."""
+        if not self._openlineage:
+            if isinstance(self.openlineage_config, Dict):
+                self._openlineage = OpenLineageConfig(**self.openlineage_config)
+            elif self.openlineage_config:
+                self._openlineage = self.openlineage_config
+        return self._openlineage
 
     @model_validator(mode="before")
     def _validate_auth_config(cls, values: Any) -> Any:
