@@ -1963,11 +1963,15 @@ class RayOfflineStore(OfflineStore):
                 absolute_path, destination.s3_endpoint_override
             )
             if absolute_path.startswith(REMOTE_STORAGE_SCHEMES):
-                write_path = absolute_path.rstrip('.parquet') if absolute_path.endswith('.parquet') else absolute_path
+                write_path = (
+                    absolute_path.rstrip(".parquet")
+                    if absolute_path.endswith(".parquet")
+                    else absolute_path
+                )
             else:
                 path_obj = Path(resolved_path)
-                if path_obj.suffix == '.parquet':
-                    path_obj = path_obj.with_suffix('')
+                if path_obj.suffix == ".parquet":
+                    path_obj = path_obj.with_suffix("")
                 path_obj.mkdir(parents=True, exist_ok=True)
                 write_path = str(path_obj)
             ds.write_parquet(write_path)
