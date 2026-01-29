@@ -1,6 +1,6 @@
 import pytest
 
-from feast.types import Array, Float32, String, from_value_type
+from feast.types import Array, Float32, Set, String, from_value_type
 from feast.value_type import ValueType
 
 
@@ -25,6 +25,22 @@ def test_array_feast_type():
 
     with pytest.raises(ValueError):
         _ = Array(Array(String))
+
+
+def test_set_feast_type():
+    set_string = Set(String)
+    assert set_string.to_value_type() == ValueType.STRING_SET
+    assert from_value_type(set_string.to_value_type()) == set_string
+
+    set_float_32 = Set(Float32)
+    assert set_float_32.to_value_type() == ValueType.FLOAT_SET
+    assert from_value_type(set_float_32.to_value_type()) == set_float_32
+
+    with pytest.raises(ValueError):
+        _ = Set(Set)
+
+    with pytest.raises(ValueError):
+        _ = Set(Set(String))
 
 
 def test_all_value_types():
