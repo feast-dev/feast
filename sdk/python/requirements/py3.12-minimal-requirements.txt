@@ -873,9 +873,9 @@ grpcio-status==1.62.3 \
     --hash=sha256:289bdd7b2459794a12cf95dc0cb727bd4a1742c37bd823f760236c937e53a485 \
     --hash=sha256:f9049b762ba8de6b1086789d8315846e094edac2c50beaf462338b301a8fd4b8
     # via google-api-core
-gunicorn==24.0.0 \
-    --hash=sha256:30401647ed4f162a3f7e5b8b3ed77e6e88d9a4ea5599f1ff31f7f54a7610339c \
-    --hash=sha256:7f6c916308740942586f49f14cf3743bdfc4130c29520c42706f42fa5a2dacdb
+gunicorn==24.1.1 \
+    --hash=sha256:757f6b621fc4f7581a90600b2cd9df593461f06a41d7259cb9b94499dc4095a8 \
+    --hash=sha256:f006d110e5cb3102859b4f5cd48335dbd9cc28d0d27cd24ddbdafa6c60929408
     # via
     #   feast (setup.py)
     #   uvicorn-worker
