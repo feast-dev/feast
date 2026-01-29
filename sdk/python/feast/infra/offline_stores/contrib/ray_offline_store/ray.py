@@ -1964,7 +1964,7 @@ class RayOfflineStore(OfflineStore):
             )
             if absolute_path.startswith(REMOTE_STORAGE_SCHEMES):
                 write_path = (
-                    absolute_path.rstrip(".parquet")
+                    absolute_path[:-8]
                     if absolute_path.endswith(".parquet")
                     else absolute_path
                 )
