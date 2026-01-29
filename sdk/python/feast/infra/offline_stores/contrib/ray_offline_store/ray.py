@@ -1962,12 +1962,15 @@ class RayOfflineStore(OfflineStore):
             filesystem, resolved_path = FileSource.create_filesystem_and_path(
                 absolute_path, destination.s3_endpoint_override
             )
-            path_obj = Path(resolved_path)
-            if path_obj.suffix == ".parquet":
-                path_obj = path_obj.with_suffix("")
-            if not absolute_path.startswith(REMOTE_STORAGE_SCHEMES):
+            if absolute_path.startswith(REMOTE_STORAGE_SCHEMES):
+                write_path = absolute_path.rstrip('.parquet') if absolute_path.endswith('.parquet') else absolute_path
+            else:
+                path_obj = Path(resolved_path)
+                if path_obj.suffix == '.parquet':
+                    path_obj = path_obj.with_suffix('')
                 path_obj.mkdir(parents=True, exist_ok=True)
-            ds.write_parquet(str(path_obj))
+                write_path = str(path_obj)
+            ds.write_parquet(write_path)
         except Exception as e:
             raise RuntimeError(f"Failed to write logged features: {e}")
 
