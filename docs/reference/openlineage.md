@@ -1,6 +1,6 @@
 # OpenLineage Integration
 
-This module provides **native integration** between Feast Feature Store and [OpenLineage](https://openlineage.io/), enabling automatic data lineage tracking for ML feature engineering workflows.
+This module provides **native integration** between Feast and [OpenLineage](https://openlineage.io/), enabling automatic data lineage tracking for ML feature engineering workflows.
 
 ## Overview
 
