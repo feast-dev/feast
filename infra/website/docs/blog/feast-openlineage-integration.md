@@ -1,7 +1,7 @@
 ---
 title: Tracking Feature Lineage with OpenLineage
 description: Feast now supports native OpenLineage integration for automatic data lineage tracking of your ML features - no code changes required.
-date: 2026-01-26
+date: 2026-01-29
 authors: ["Nikhil Kathole", "Francisco Javier Arceo"]
 ---
 
