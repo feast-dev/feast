@@ -235,7 +235,7 @@ def search_test_app():
             user_on_demand_features,
         ]
     )
-    store._registry.apply_saved_dataset(user_dataset, "test_project")
+    store.registry.apply_saved_dataset(user_dataset, "test_project")
 
     global global_store
     global_store = store
@@ -431,7 +431,7 @@ def multi_project_search_test_app():
             description=project_data["description"],
             tags={"domain": project_data["domain"]},
         )
-        master_store._registry.apply_project(project_obj)
+        master_store.registry.apply_project(project_obj)
 
     # Create resources for each project and apply them to the shared registry
     for project_name, project_data in projects_data.items():
@@ -565,19 +565,19 @@ def multi_project_search_test_app():
 
         # Apply all objects for this project directly to the registry
         for entity in entities:
-            master_store._registry.apply_entity(entity, project_name)
+            master_store.registry.apply_entity(entity, project_name)
 
         for data_source in data_sources:
-            master_store._registry.apply_data_source(data_source, project_name)
+            master_store.registry.apply_data_source(data_source, project_name)
 
         for feature_view in feature_views:
-            master_store._registry.apply_feature_view(feature_view, project_name)
+            master_store.registry.apply_feature_view(feature_view, project_name)
 
         for feature_service in feature_services:
-            master_store._registry.apply_feature_service(feature_service, project_name)
+            master_store.registry.apply_feature_service(feature_service, project_name)
 
     # Ensure registry is committed
-    master_store._registry.commit()
+    master_store.registry.commit()
 
     # Build REST app using the master store's registry (contains all projects)
     rest_server = RestRegistryServer(master_store)
@@ -1213,7 +1213,7 @@ class TestSearchAPI:
         """Test searching for on-demand feature views"""
         # Search by name
         global global_store
-        global_store._registry.refresh()
+        global_store.registry.refresh()
         response = search_test_app.get("/search?query=user_on_demand_features")
         assert response.status_code == 200
 
