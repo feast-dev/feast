@@ -639,11 +639,14 @@ build-feast-operator-docker: ## Build Feast Operator Docker image
 	VERSION=$(VERSION) \
 	$(MAKE) docker-build
 
-build-go-feature-server: ## Build Go Feature Server Docker iamge
+build-go-feature-server-docker: ## Build Go Feature Server Docker iamge
 	make compile-protos-go
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/go-feature-server:$(VERSION) \
 		-f go/infra/docker/feature-server/Dockerfile --load .
+
+push-go-feature-server-docker: ## Push Go Feature Server Docker image
+	docker push $(REGISTRY)/go-feature-server:$(VERSION)
 
 ##@ Dev images
 
