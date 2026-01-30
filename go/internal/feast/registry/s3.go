@@ -29,22 +29,21 @@ type S3RegistryStore struct {
 
 // NewS3RegistryStore creates a S3RegistryStore with the given configuration
 func NewS3RegistryStore(config *RegistryConfig, repoPath string) *S3RegistryStore {
-	var lr S3RegistryStore
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	var rs S3RegistryStore
+	ctx := context.Background()
 
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
-		lr = S3RegistryStore{
+		rs = S3RegistryStore{
 			filePath: config.Path,
 		}
 	} else {
-		lr = S3RegistryStore{
+		rs = S3RegistryStore{
 			filePath: config.Path,
 			s3Client: s3.NewFromConfig(cfg),
 		}
 	}
-	return &lr
+	return &rs
 }
 
 func (r *S3RegistryStore) GetRegistryProto() (*core.Registry, error) {

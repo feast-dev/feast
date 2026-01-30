@@ -129,15 +129,6 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 
-class ReadDocumentRequest(BaseModel):
-    file_path: str
-
-
-class SaveDocumentRequest(BaseModel):
-    file_path: str
-    data: dict
-
-
 async def _get_features(
     request: Union[GetOnlineFeaturesRequest, GetOnlineDocumentsRequest],
     store: "feast.FeatureStore",
@@ -542,42 +533,6 @@ def get_app(
         # For now, just return dummy text
         return {"response": "This is a dummy response from the Feast feature server."}
 
-    @app.post("/read-document", dependencies=[Depends(inject_user_details)])
-    async def read_document_endpoint(request: ReadDocumentRequest):
-        try:
-            import os
-
-            if not os.path.exists(request.file_path):
-                return {"error": f"File not found: {request.file_path}"}
-
-            with open(request.file_path, "r", encoding="utf-8") as file:
-                content = file.read()
-
-            return {"content": content, "file_path": request.file_path}
-        except Exception as e:
-            return {"error": str(e)}
-
-    @app.post("/save-document", dependencies=[Depends(inject_user_details)])
-    async def save_document_endpoint(request: SaveDocumentRequest):
-        try:
-            import json
-            import os
-            from pathlib import Path
-
-            file_path = Path(request.file_path).resolve()
-            if not str(file_path).startswith(os.getcwd()):
-                return {"error": "Invalid file path"}
-
-            base_name = file_path.stem
-            labels_file = file_path.parent / f"{base_name}-labels.json"
-
-            with open(labels_file, "w", encoding="utf-8") as file:
-                json.dump(request.data, file, indent=2, ensure_ascii=False)
-
-            return {"success": True, "saved_to": str(labels_file)}
-        except Exception as e:
-            return {"error": str(e)}
-
     @app.get("/chat")
     async def chat_ui():
         # Serve the chat UI
@@ -796,6 +751,9 @@ def start_server(
     port: int,
     no_access_log: bool,
     workers: int,
+    worker_connections: int,
+    max_requests: int,
+    max_requests_jitter: int,
     keep_alive_timeout: int,
     registry_ttl_sec: int,
     tls_key_path: str,
@@ -833,6 +791,9 @@ def start_server(
             "bind": f"{host}:{port}",
             "accesslog": None if no_access_log else "-",
             "workers": workers,
+            "worker_connections": worker_connections,
+            "max_requests": max_requests,
+            "max_requests_jitter": max_requests_jitter,
             "keepalive": keep_alive_timeout,
             "registry_ttl_sec": registry_ttl_sec,
         }

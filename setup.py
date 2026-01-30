@@ -56,6 +56,7 @@ REQUIRED = [
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
     "prometheus_client",
+    "wheel>=0.46.2",
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
@@ -102,6 +103,8 @@ POSTGRES_C_REQUIRED = [
 ]
 
 OPENTELEMETRY = ["prometheus_client", "psutil"]
+
+OPENLINEAGE_REQUIRED = ["openlineage-python>=1.40.0"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
@@ -261,6 +264,7 @@ CI_REQUIRED = (
     + SINGLESTORE_REQUIRED
     + COUCHBASE_REQUIRED
     + OPENTELEMETRY
+    + OPENLINEAGE_REQUIRED
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
     + MILVUS_REQUIRED
@@ -364,6 +368,7 @@ setup(
         "singlestore": SINGLESTORE_REQUIRED,
         "couchbase": COUCHBASE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
+        "openlineage": OPENLINEAGE_REQUIRED,
         "faiss": FAISS_REQUIRED,
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,

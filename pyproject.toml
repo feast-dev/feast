@@ -104,6 +104,7 @@ milvus = [
 mssql = ["ibis-framework[mssql]>=10.0.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
+openlineage = ["openlineage-python>=1.40.0"]
 spark = ["pyspark>=4.0.0"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]==3.2.5"]
@@ -148,7 +149,7 @@ ci = [
     "mock==2.0.0",
     "moto<5",
     "mypy>=1.4.1,<1.11.3",
-    "urllib3>=2.6.0,<3",
+    "urllib3>=2.6.3,<3",
     "psutil==5.9.0",
     "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
     "pytest>=6.0.0,<8",
@@ -179,7 +180,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
@@ -229,7 +230,7 @@ requires = [
   "setuptools>=60,<81",
   "setuptools_scm>=6.2",
   "sphinx!=4.0.0",
-  "wheel",
+  "wheel>=0.46.2",
 ]
 
 [tool.setuptools]
@@ -264,3 +265,8 @@ exclude = [
   ".pyi",
   "protos",
   "sdk/python/feast/embedded_go/lib"]
+
+[dependency-groups]
+dev = [
+    "pytest-xdist>=3.8.0",
+]

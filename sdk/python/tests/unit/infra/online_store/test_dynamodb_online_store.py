@@ -64,10 +64,17 @@ def test_dynamodb_online_store_config_default():
     aws_region = "us-west-2"
     dynamodb_store_config = DynamoDBOnlineStoreConfig(region=aws_region)
     assert dynamodb_store_config.type == "dynamodb"
-    assert dynamodb_store_config.batch_size == 40
+    assert dynamodb_store_config.batch_size == 100
     assert dynamodb_store_config.endpoint_url is None
     assert dynamodb_store_config.region == aws_region
     assert dynamodb_store_config.table_name_template == "{project}.{table_name}"
+    # Verify other optimized defaults
+    assert dynamodb_store_config.max_pool_connections == 50
+    assert dynamodb_store_config.keepalive_timeout == 30.0
+    assert dynamodb_store_config.connect_timeout == 5
+    assert dynamodb_store_config.read_timeout == 10
+    assert dynamodb_store_config.total_max_retry_attempts == 3
+    assert dynamodb_store_config.retry_mode == "adaptive"
 
 
 def test_dynamodb_online_store_config_custom_params():

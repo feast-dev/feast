@@ -210,6 +210,17 @@ test-python-universal-spark: ## Run Python Spark integration tests
 			not test_snowflake" \
  	 sdk/python/tests
 
+test-python-historical-retrieval:
+	## Run Python historical retrieval integration tests
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.spark_offline_store.tests \
+ 	python -m pytest -n 8 --integration \
+ 	 	-k "test_historical_retrieval_with_validation or \
+			test_historical_features_persisting or \
+			test_historical_retrieval_fails_on_validation" \
+ 	 sdk/python/tests
+	 
 test-python-universal-trino: ## Run Python Trino integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.trino_repo_configuration \
@@ -627,6 +638,15 @@ build-feast-operator-docker: ## Build Feast Operator Docker image
 	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
 	VERSION=$(VERSION) \
 	$(MAKE) docker-build
+
+build-go-feature-server-docker: ## Build Go Feature Server Docker iamge
+	make compile-protos-go
+	docker buildx build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/go-feature-server:$(VERSION) \
+		-f go/infra/docker/feature-server/Dockerfile --load .
+
+push-go-feature-server-docker: ## Push Go Feature Server Docker image
+	docker push $(REGISTRY)/go-feature-server:$(VERSION)
 
 ##@ Dev images
 
