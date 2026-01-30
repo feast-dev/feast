@@ -289,7 +289,20 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
         return
 
     if not _integration_test_deps_available:
-        pytest.skip("Integration test dependencies are not available")
+        metafunc.parametrize(
+            "environment",
+            [
+                pytest.param(
+                    None,
+                    marks=pytest.mark.skip(
+                        reason="Integration test dependencies are not available"
+                    ),
+                )
+            ],
+            indirect=True,
+            ids=["no-integration-deps"],
+        )
+        return
 
     own_markers = getattr(metafunc.definition, "own_markers", None)
     marker_iter = (
