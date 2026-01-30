@@ -17,6 +17,9 @@ import (
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	"github.com/rs/zerolog/log"
+
+	"github.com/feast-dev/feast/go/internal/feast/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type httpServer struct {
@@ -335,9 +338,53 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+	length int
+}
+
+func (w *statusWriter) WriteHeader(status int) {
+	if w.status == 0 {
+		w.status = status
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *statusWriter) Write(b []byte) (int, error) {
+	if w.status == 0 {
+		w.status = 200
+	}
+	n, err := w.ResponseWriter.Write(b)
+	w.length += n
+	return n, err
+}
+
+func metricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t0 := time.Now()
+		sw := &statusWriter{ResponseWriter: w}
+		next.ServeHTTP(sw, r)
+		duration := time.Since(t0)
+
+		metrics.HttpMetrics.Duration(metrics.HttpLabels{
+			Method: r.Method,
+			Status: sw.status,
+			Path:   r.URL.Path,
+		}).Duration(duration)
+
+		metrics.HttpMetrics.RequestsTotal(metrics.HttpLabels{
+			Method: r.Method,
+			Status: sw.status,
+			Path:   r.URL.Path,
+		}).Inc()
+	})
+}
+
 func (s *httpServer) Serve(host string, port int) error {
 	mux := http.NewServeMux()
-	mux.Handle("/get-online-features", recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)))
+	mux.Handle("/get-online-features", metricsMiddleware(recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures))))
+	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", healthCheckHandler)
 	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 15 * time.Second}
 	err := s.server.ListenAndServe()
