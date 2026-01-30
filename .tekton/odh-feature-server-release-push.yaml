@@ -14,7 +14,7 @@ metadata:
     appstudio.openshift.io/application: opendatahub-release
     appstudio.openshift.io/component: odh-feature-server
     pipelines.appstudio.openshift.io/type: build
-  name: odh-feature-server-on-push
+  name: odh-feature-server-release-on-push
   namespace: open-data-hub-tenant
 spec:
   params:

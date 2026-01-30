@@ -14,7 +14,7 @@ metadata:
     appstudio.openshift.io/application: opendatahub-release
     appstudio.openshift.io/component: odh-feast-operator
     pipelines.appstudio.openshift.io/type: build
-  name: odh-feast-operator-on-push
+  name: odh-feast-operator-release-on-push
   namespace: open-data-hub-tenant
 spec:
   params:
