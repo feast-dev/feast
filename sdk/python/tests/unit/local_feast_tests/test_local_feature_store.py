@@ -869,108 +869,9 @@ def test_registry_config_cache_mode_can_be_set():
 # Tests for update_online_store functionality
 
 
-def test_update_online_store_not_supported():
-    """Test that update_online_store raises NotImplementedError for non-DynamoDB stores."""
-
-    # Create a FeatureStore with SQLite online store (doesn't support update expressions)
-    fd, registry_path = mkstemp()
-    fd, online_store_path = mkstemp()
-    store = FeatureStore(
-        config=RepoConfig(
-            registry=registry_path,
-            project="default",
-            provider="local",
-            online_store=SqliteOnlineStoreConfig(path=online_store_path),
-            entity_key_serialization_version=3,
-        )
-    )
-
-    df = pd.DataFrame({"entity_id": ["1", "2"], "transactions": [["tx1"], ["tx2"]]})
-
-    update_expressions = {"transactions": "list_append(transactions, :new_val)"}
-
-    with pytest.raises(NotImplementedError) as exc_info:
-        store.update_online_store(
-            feature_view_name="test_fv", df=df, update_expressions=update_expressions
-        )
-
-    assert "does not support update expressions" in str(exc_info.value)
-    assert "DynamoDB online store" in str(exc_info.value)
-
-
-def test_update_online_store_empty_dataframe():
-    """Test that update_online_store handles empty dataframe gracefully."""
-
-    with (
-        patch("feast.feature_store.load_repo_config") as mock_load_config,
-        patch("feast.feature_store.Registry"),
-        patch("feast.feature_store.get_provider") as mock_get_provider,
-        patch(
-            "feast.feature_store.FeatureStore._get_feature_view_and_df_for_online_write"
-        ) as mock_get_fv_df,
-    ):
-        mock_provider = Mock()
-        mock_provider.online_store = DynamoDBOnlineStore()
-        mock_provider.online_store.update_online_store = Mock()
-        mock_get_provider.return_value = mock_provider
-        mock_load_config.return_value = Mock()
-
-        empty_df = pd.DataFrame()
-        mock_feature_view = Mock()
-        mock_get_fv_df.return_value = (mock_feature_view, empty_df)
-
-        store = FeatureStore()
-        update_expressions = {"transactions": "list_append(transactions, :new_val)"}
-
-        with patch("feast.feature_store.warnings.warn") as mock_warn:
-            store.update_online_store(
-                feature_view_name="test_fv",
-                df=empty_df,
-                update_expressions=update_expressions,
-            )
-            mock_warn.assert_called_once_with("Cannot update with empty dataframe")
-            mock_provider.online_store.update_online_store.assert_not_called()
-
-
-def test_update_online_store_success():
-    """Test successful update_online_store call."""
-
-    with (
-        patch(
-            "feast.feature_store.FeatureStore._get_feature_view_and_df_for_online_write"
-        ) as mock_get_fv_df,
-        patch(
-            "feast.infra.passthrough_provider.PassthroughProvider._prep_rows_to_write_for_ingestion"
-        ) as mock_prep,
-        patch("feast.feature_store.load_repo_config") as mock_load_config,
-        patch("feast.feature_store.Registry"),
-        patch("feast.feature_store.get_provider") as mock_get_provider,
-    ):
-        mock_provider = Mock()
-        mock_provider.online_store = DynamoDBOnlineStore()
-        mock_provider.online_store.update_online_store = Mock()
-        mock_get_provider.return_value = mock_provider
-        mock_prep.return_value = []
-        mock_load_config.return_value = Mock()
-
-        df = pd.DataFrame({"entity_id": ["1", "2"], "transactions": [["tx1"], ["tx2"]]})
-        mock_feature_view = Mock()
-        mock_feature_view.features = [Field(name="transactions", dtype=Array(String))]
-        mock_get_fv_df.return_value = (mock_feature_view, df)
-
-        store = FeatureStore()
-        update_expressions = {"transactions": "list_append(transactions, :new_val)"}
-
-        store.update_online_store(
-            feature_view_name="test_fv", df=df, update_expressions=update_expressions
-        )
-
-        mock_provider.online_store.update_online_store.assert_called_once()
-
-
 @pytest.mark.asyncio
-async def test_update_online_store_async_not_supported():
-    """Test that async update raises NotImplementedError for non-DynamoDB stores."""
+async def test_update_online_store_not_supported():
+    """Test that update raises NotImplementedError for non-DynamoDB stores."""
 
     fd, registry_path = mkstemp()
     fd, online_store_path = mkstemp()
@@ -989,7 +890,7 @@ async def test_update_online_store_async_not_supported():
     update_expressions = {"transactions": "list_append(transactions, :new_val)"}
 
     with pytest.raises(NotImplementedError) as exc_info:
-        await store.update_online_store_async(
+        await store.update_online_store(
             feature_view_name="test_fv", df=df, update_expressions=update_expressions
         )
 
@@ -998,8 +899,8 @@ async def test_update_online_store_async_not_supported():
 
 
 @pytest.mark.asyncio
-async def test_update_online_store_async_success():
-    """Test successful async update_online_store call."""
+async def test_update_online_store_success():
+    """Test successful update_online_store call."""
 
     with (
         patch(
@@ -1028,7 +929,7 @@ async def test_update_online_store_async_success():
         store = FeatureStore()
         update_expressions = {"transactions": "list_append(transactions, :new_val)"}
 
-        await store.update_online_store_async(
+        await store.update_online_store(
             feature_view_name="test_fv", df=df, update_expressions=update_expressions
         )
 
