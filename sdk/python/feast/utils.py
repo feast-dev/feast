@@ -1111,7 +1111,7 @@ def _get_features(
         cache_key = f"{_features.name}:{project}:{hash(tuple(str(fv) for fv in _features.feature_view_projections))}"
 
         # Check cache first if caching is enabled and available
-        if allow_cache and hasattr(registry, '_feature_service_cache'):
+        if allow_cache and hasattr(registry, "_feature_service_cache"):
             if cache_key in registry._feature_service_cache:
                 return registry._feature_service_cache[cache_key]
 
@@ -1133,7 +1133,7 @@ def _get_features(
             )
 
         # Cache the result if caching is enabled and available
-        if allow_cache and hasattr(registry, '_feature_service_cache'):
+        if allow_cache and hasattr(registry, "_feature_service_cache"):
             registry._feature_service_cache[cache_key] = _feature_refs
     else:
         assert isinstance(_features, list)

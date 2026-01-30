@@ -116,9 +116,10 @@ class FeatureStore:
 
     config: RepoConfig
     repo_path: Path
-    _registry: BaseRegistry
-    _provider: Provider
+    _registry: Optional[BaseRegistry]
+    _provider: Optional[Provider]
     _openlineage_emitter: Optional[Any] = None
+    _feature_service_cache: Dict[str, List[str]]
 
     def __init__(
         self,
@@ -207,8 +208,12 @@ class FeatureStore:
         if self._registry is None:
             self._registry = self._create_registry()
             # Add feature service cache to registry for performance optimization
-            if not hasattr(self._registry, '_feature_service_cache'):
-                self._registry._feature_service_cache = self._feature_service_cache
+            if not hasattr(self._registry, "_feature_service_cache"):
+                setattr(
+                    self._registry,
+                    "_feature_service_cache",
+                    self._feature_service_cache,
+                )
         return self._registry
 
     def _create_registry(self) -> BaseRegistry:
@@ -219,9 +224,7 @@ class FeatureStore:
         elif registry_config.registry_type == "snowflake.registry":
             from feast.infra.registry.snowflake import SnowflakeRegistry
 
-            return SnowflakeRegistry(
-                registry_config, self.config.project, None
-            )
+            return SnowflakeRegistry(registry_config, self.config.project, None)
         elif registry_config and registry_config.registry_type == "remote":
             from feast.infra.registry.remote import RemoteRegistry
 
@@ -848,9 +851,7 @@ class FeatureStore:
 
         # Compute the desired difference between the current objects in the registry and
         # the desired repo state.
-        registry_diff = diff_between(
-            self.registry, self.project, desired_repo_contents
-        )
+        registry_diff = diff_between(self.registry, self.project, desired_repo_contents)
 
         if progress_ctx:
             progress_ctx.update_phase_progress("Computing infrastructure diff")
@@ -860,7 +861,7 @@ class FeatureStore:
         self.registry.refresh(project=self.project)
         current_infra_proto = self.registry.get_infra(self.project).to_proto()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
-        new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
+        new_infra = self.provider.plan_infra(self.config, desired_registry_proto)
         new_infra_proto = new_infra.to_proto()
         infra_diff = diff_infra_protos(
             current_infra_proto, new_infra_proto, project=self.project
@@ -1307,7 +1308,9 @@ class FeatureStore:
         if entity_df is None and end_date is None:
             end_date = datetime.now()
 
-        _feature_refs = utils._get_features(self.registry, self.project, features, allow_cache=True)
+        _feature_refs = utils._get_features(
+            self.registry, self.project, features, allow_cache=True
+        )
         (
             all_feature_views,
             all_on_demand_feature_views,
@@ -2853,7 +2856,7 @@ class FeatureStore:
 
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
-        return self._provider.get_feature_server_endpoint()
+        return self.provider.get_feature_server_endpoint()
 
     def serve_ui(
         self,
