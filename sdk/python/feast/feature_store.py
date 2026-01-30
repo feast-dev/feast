@@ -191,7 +191,7 @@ class FeatureStore:
 
     def __repr__(self) -> str:
         # Show lazy loading status without triggering initialization
-        registry_status = "not loaded" if self.registry is None else "loaded"
+        registry_status = "not loaded" if self._registry is None else "loaded"
         provider_status = "not loaded" if self._provider is None else "loaded"
         return (
             f"FeatureStore(\n"
