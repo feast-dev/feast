@@ -262,6 +262,12 @@ class FeatureStore:
             self._openlineage_emitter = self._init_openlineage_emitter()
         return self._openlineage_emitter
 
+    def _clear_feature_service_cache(self):
+        """Clear feature service cache to avoid stale data after registry refresh."""
+        self._feature_service_cache.clear()
+        if hasattr(self.registry, "_feature_service_cache"):
+            getattr(self.registry, "_feature_service_cache").clear()
+
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
 
@@ -278,6 +284,7 @@ class FeatureStore:
         """
 
         self.registry.refresh(self.project)
+        self._clear_feature_service_cache()
 
     def list_entities(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
@@ -859,6 +866,7 @@ class FeatureStore:
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
         self.registry.refresh(project=self.project)
+        self._clear_feature_service_cache()
         current_infra_proto = self.registry.get_infra(self.project).to_proto()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self.provider.plan_infra(self.config, desired_registry_proto)
