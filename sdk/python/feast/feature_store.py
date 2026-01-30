@@ -208,12 +208,14 @@ class FeatureStore:
         if self._registry is None:
             self._registry = self._create_registry()
             # Add feature service cache to registry for performance optimization
-            if not hasattr(self._registry, "_feature_service_cache"):
+            if self._registry and not hasattr(self._registry, "_feature_service_cache"):
                 setattr(
                     self._registry,
                     "_feature_service_cache",
                     self._feature_service_cache,
                 )
+        if self._registry is None:
+            raise RuntimeError("Registry failed to initialize properly")
         return self._registry
 
     def _create_registry(self) -> BaseRegistry:
