@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -20,6 +21,10 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
+	"github.com/feast-dev/feast/go/internal/feast/metrics"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -64,6 +69,8 @@ func main() {
 	flag.StringVar(&host, "host", host, "Specify a host for the server")
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
 	flag.Parse()
+
+	metrics.InitMetrics()
 
 	// Initialize tracer
 	if OTELTracingEnabled() {
@@ -155,11 +162,30 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 	if err != nil {
 		return err
 	}
-
-	grpcServer := grpc.NewServer()
+	srvMetrics := grpc_prometheus.NewServerMetrics(
+		grpc_prometheus.WithServerHandlingTimeHistogram(
+			grpc_prometheus.WithHistogramBuckets([]float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}),
+		),
+	)
+	prometheus.MustRegister(srvMetrics)
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(srvMetrics.UnaryServerInterceptor()),
+	)
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+	srvMetrics.InitializeMetrics(grpcServer)
+
+	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", 9090)}
+	go func() {
+		log.Info().Msgf("Starting metrics server on port %d", 9090)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		metricsServer.Handler = mux
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Failed to start metrics server")
+		}
+	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -172,6 +198,12 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 		if loggingService != nil {
 			loggingService.Stop()
 		}
+		
+		log.Info().Msg("Stopping metrics server...")
+		if err := metricsServer.Shutdown(context.Background()); err != nil {
+			log.Error().Err(err).Msg("Error stopping metrics server")
+		}
+		
 		log.Info().Msg("gRPC server terminated")
 	}()
 
