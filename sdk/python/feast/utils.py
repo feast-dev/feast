@@ -1107,6 +1107,15 @@ def _get_features(
 
     _feature_refs = []
     if isinstance(_features, FeatureService):
+        # Create cache key for feature service resolution
+        cache_key = f"{_features.name}:{project}:{hash(tuple(str(fv) for fv in _features.feature_view_projections))}"
+
+        # Check cache first if caching is enabled and available
+        if allow_cache and hasattr(registry, '_feature_service_cache'):
+            if cache_key in registry._feature_service_cache:
+                return registry._feature_service_cache[cache_key]
+
+        # Resolve feature service from registry
         feature_service_from_registry = registry.get_feature_service(
             _features.name, project, allow_cache
         )
@@ -1116,10 +1125,16 @@ def _get_features(
                 "inconsistent with the version from the registry. Potentially a newer version "
                 "of the FeatureService has been applied to the registry."
             )
+
+        # Build feature reference list
         for projection in feature_service_from_registry.feature_view_projections:
             _feature_refs.extend(
                 [f"{projection.name_to_use()}:{f.name}" for f in projection.features]
             )
+
+        # Cache the result if caching is enabled and available
+        if allow_cache and hasattr(registry, '_feature_service_cache'):
+            registry._feature_service_cache[cache_key] = _feature_refs
     else:
         assert isinstance(_features, list)
         _feature_refs = _features
