@@ -1,3 +1,4 @@
+import os
 import random
 import string
 import subprocess
@@ -33,11 +34,18 @@ class CliRunner:
     """
 
     def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
+        env = os.environ.copy()
+        env.setdefault("IS_TEST", "True")
         return subprocess.run(
-            [sys.executable, cli.__file__] + args, cwd=cwd, capture_output=True
+            [sys.executable, cli.__file__] + args,
+            cwd=cwd,
+            capture_output=True,
+            env=env,
         )
 
     def run_with_output(self, args: List[str], cwd: Path) -> Tuple[int, bytes]:
+        env = os.environ.copy()
+        env.setdefault("IS_TEST", "True")
         try:
             return (
                 0,
@@ -45,6 +53,7 @@ class CliRunner:
                     [sys.executable, cli.__file__] + args,
                     cwd=cwd,
                     stderr=subprocess.STDOUT,
+                    env=env,
                 ),
             )
         except subprocess.CalledProcessError as e:
