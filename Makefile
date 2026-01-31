@@ -55,12 +55,12 @@ protos: compile-protos-python compile-protos-docs ## Compile protobufs for Pytho
 build: protos build-docker ## Build protobufs and Docker images
 
 format-python: ## Format Python code
-	cd ${ROOT_DIR}/sdk/python && uv run ruff check --fix feast/ tests/
-	cd ${ROOT_DIR}/sdk/python && uv run ruff format feast/ tests/
+	uv run ruff check --fix sdk/python/feast/ sdk/python/tests/
+	uv run ruff format sdk/python/feast/ sdk/python/tests/
 
 lint-python: ## Lint Python code
-	cd ${ROOT_DIR}/sdk/python && uv run ruff check feast/ tests/
-	cd ${ROOT_DIR}/sdk/python && uv run mypy feast
+	uv run ruff check sdk/python/feast/ sdk/python/tests/
+	cd ${ROOT_DIR}/sdk/python; uv run mypy feast
 
 # New combined target
 precommit-check: format-python lint-python ## Run all precommit checks
@@ -74,7 +74,7 @@ install-precommit: ## Install precommit hooks (runs on commit, not push)
 
 # Manual full type check
 mypy-full: ## Full MyPy type checking with all files
-	cd ${ROOT_DIR}/sdk/python && uv run mypy feast tests
+	cd ${ROOT_DIR}/sdk/python; uv run mypy feast tests
 
 # Run precommit on all files
 precommit-all: ## Run all precommit hooks on all files
@@ -172,33 +172,33 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") tests
+	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
-	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest tests/unit -n auto -x --tb=short
+	uv run python -m pytest sdk/python/tests/unit -n auto -x --tb=short
 
 # Changed files only (requires pytest-testmon)
 test-python-changed: ## Run tests for changed files only
-	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest --testmon -n 8 --tb=short
+	uv run python -m pytest --testmon -n 8 --tb=short sdk/python/tests
 
 # Quick smoke test for PRs
 test-python-smoke: ## Quick smoke test for development
-	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest \
-		tests/unit/test_feature_store.py \
-		tests/unit/test_repo_operations.py \
+	uv run python -m pytest \
+		sdk/python/tests/unit/test_feature_store.py \
+		sdk/python/tests/unit/test_repo_operations.py \
 		-n 4 --tb=short
 
 test-python-integration: ## Run Python integration tests (CI)
-	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
-		tests
+		sdk/python/tests
 
 # Integration tests with better parallelization
 test-python-integration-parallel: ## Run integration tests with enhanced parallelization
-	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest tests/integration \
+	uv run python -m pytest sdk/python/tests/integration \
 		-n auto --dist loadscope \
 		--timeout=300 --tb=short -v \
 		--integration --color=yes --durations=20
