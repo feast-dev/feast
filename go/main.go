@@ -5,10 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
@@ -19,7 +21,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/status"
 
+	"github.com/feast-dev/feast/go/internal/feast/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -64,6 +69,8 @@ func main() {
 	flag.StringVar(&host, "host", host, "Specify a host for the server")
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
 	flag.Parse()
+
+	metrics.InitMetrics()
 
 	// Initialize tracer
 	if OTELTracingEnabled() {
@@ -156,10 +163,50 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 		return err
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+			t0 := time.Now()
+			resp, err := handler(ctx, req)
+			duration := time.Since(t0)
+			code := status.Code(err).String()
+
+			parts := strings.Split(info.FullMethod, "/")
+			service := "unknown"
+			method := "unknown"
+			if len(parts) >= 3 {
+				service = parts[1]
+				method = parts[2]
+			}
+
+			metrics.Metrics.GrpcDuration(metrics.GrpcLabels{
+				Service: service,
+				Method:  method,
+				Code:    code,
+			}).Duration(duration)
+
+			metrics.Metrics.GrpcRequestsTotal(metrics.GrpcLabels{
+				Service: service,
+				Method:  method,
+				Code:    code,
+			}).Inc()
+
+			return resp, err
+		}),
+	)
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+
+	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", 9090)}
+	go func() {
+		log.Info().Msgf("Starting metrics server on port %d", 9090)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		metricsServer.Handler = mux
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Failed to start metrics server")
+		}
+	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -172,6 +219,12 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 		if loggingService != nil {
 			loggingService.Stop()
 		}
+		
+		log.Info().Msg("Stopping metrics server...")
+		if err := metricsServer.Shutdown(context.Background()); err != nil {
+			log.Error().Err(err).Msg("Error stopping metrics server")
+		}
+		
 		log.Info().Msg("gRPC server terminated")
 	}()
 
