@@ -707,6 +707,8 @@ Allowed values: "debug", "info", "warning", "error", "critical". |
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
 volume definition in the Volumes field. |
+| `workerConfigs` _[WorkerConfigs](#workerconfigs)_ | WorkerConfigs defines the worker configuration for the Feast server.
+These options are primarily used for production deployments to optimize performance. |
 | `restAPI` _boolean_ | Enable REST API registry server. |
 | `grpc` _boolean_ | Enable gRPC registry server. Defaults to true if unset. |
 
@@ -771,6 +773,8 @@ Allowed values: "debug", "info", "warning", "error", "critical". |
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
 volume definition in the Volumes field. |
+| `workerConfigs` _[WorkerConfigs](#workerconfigs)_ | WorkerConfigs defines the worker configuration for the Feast server.
+These options are primarily used for production deployments to optimize performance. |
 
 
 #### ServiceHostnames
@@ -821,5 +825,32 @@ _Appears in:_
 | --- | --- |
 | `configMapRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | references the local k8s configmap where the TLS cert resides |
 | `certName` _string_ | defines the configmap key name for the client TLS cert. |
+
+
+#### WorkerConfigs
+
+
+
+WorkerConfigs defines the worker configuration for Feast servers.
+These settings control gunicorn worker processes for production deployments.
+
+_Appears in:_
+- [RegistryServerConfigs](#registryserverconfigs)
+- [ServerConfigs](#serverconfigs)
+
+| Field | Description |
+| --- | --- |
+| `workers` _integer_ | Workers is the number of worker processes. Use -1 to auto-calculate based on CPU cores (2 * CPU + 1).
+Defaults to 1 if not specified. |
+| `workerConnections` _integer_ | WorkerConnections is the maximum number of simultaneous clients per worker process.
+Defaults to 1000. |
+| `maxRequests` _integer_ | MaxRequests is the maximum number of requests a worker will process before restarting.
+This helps prevent memory leaks. Defaults to 1000. |
+| `maxRequestsJitter` _integer_ | MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+thundering herd effect on worker restart. Defaults to 50. |
+| `keepAliveTimeout` _integer_ | KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+Defaults to 30. |
+| `registryTTLSeconds` _integer_ | RegistryTTLSeconds is the number of seconds after which the registry is refreshed.
+Higher values reduce refresh overhead but increase staleness. Defaults to 60. |
 
 
