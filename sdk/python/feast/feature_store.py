@@ -38,7 +38,6 @@ if TYPE_CHECKING:
     from feast.diff.apply_progress import ApplyProgressContext
 import pandas as pd
 import pyarrow as pa
-from colorama import Fore, Style
 from fastapi.concurrency import run_in_threadpool
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
