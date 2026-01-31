@@ -59,7 +59,7 @@ clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
 docling = ["docling==2.27.0"]
-duckdb = ["ibis-framework[duckdb]>=10.0.0"]
+duckdb = ["ibis-framework[duckdb]>=10.0.0", "sqlglot[rs]>=23.4,<28.7.0"]  # https://github.com/ibis-project/ibis/issues/11882
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
 gcp = [
@@ -127,7 +127,7 @@ redis = [
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
-    "snowflake-connector-python[pandas]>=3.7,<4",
+    "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
@@ -163,7 +163,6 @@ ci = [
     "pytest-mock==1.10.4",
     "pytest-env",
     "Sphinx>4.0.0,<7",
-    "sqlglot[rs]>=23.4",
     "testcontainers==4.9.0",
     "python-keycloak==4.2.2",
     "pre-commit<3.3.2",
