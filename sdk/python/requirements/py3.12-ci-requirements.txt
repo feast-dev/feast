@@ -4484,9 +4484,9 @@ python-keycloak==4.2.2 \
     --hash=sha256:1d43a1accd4a038ed39317fcb3eb78211df6c75bbcbc4c482c99ee76327136f2 \
     --hash=sha256:5137fd87c69031a372a578df96bae96b9aead2c9dad976613bc978e9e0246a1e
     # via feast (setup.py)
-python-multipart==0.0.21 \
-    --hash=sha256:7137ebd4d3bbf70ea1622998f902b97a29434a9e8dc40eb203bbcf7c2a2cba92 \
-    --hash=sha256:cf7a6713e01c87aa35387f4774e812c4361150938d20d232800f75ffcf266090
+python-multipart==0.0.22 \
+    --hash=sha256:2b2cd894c83d21bf49d702499531c7bafd057d730c201782048f7945d82de155 \
+    --hash=sha256:7340bef99a7e0032613f56dc36027b959fd3b30a787ed62d310e951f7c3a3a58
     # via mcp
 python-pptx==1.0.2 \
     --hash=sha256:160838e0b8565a8b1f67947675886e9fea18aa5e795db7ae531606d68e785cba \
