@@ -34,7 +34,6 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
-from colorama import Fore, Style
 from fastapi.concurrency import run_in_threadpool
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -1506,9 +1505,7 @@ class FeatureStore:
                     else:
                         odfv_start_date = end_date - timedelta(weeks=52)
 
-                    logger.info(
-                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
-                    )
+                    logger.info("%s:", feature_view.name)
                     self._materialize_odfv(
                         feature_view,
                         odfv_start_date,
@@ -1530,15 +1527,16 @@ class FeatureStore:
                     # TODO(felixwang9817): Find the earliest timestamp for this specific feature
                     # view from the offline store, and set the start date to that timestamp.
                     logger.info(
-                        f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
-                        "the start date will be set to 1 year before the current time."
+                        "Since the ttl is 0 for feature view %s, the start date will be set to 1 year before the current time.",
+                        feature_view.name,
                     )
                     start_date = _utc_now() - timedelta(weeks=52)
             provider = self._get_provider()
             logger.info(
-                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
-                f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
-                f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
+                "%s from %s to %s:",
+                feature_view.name,
+                utils.make_tzaware(start_date.replace(microsecond=0)),
+                utils.make_tzaware(end_date.replace(microsecond=0)),
             )
 
             def tqdm_builder(length):
@@ -1617,9 +1615,7 @@ class FeatureStore:
         for feature_view in feature_views_to_materialize:
             if isinstance(feature_view, OnDemandFeatureView):
                 if feature_view.write_to_online_store:
-                    logger.info(
-                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
-                    )
+                    logger.info("%s:", feature_view.name)
                     self._materialize_odfv(
                         feature_view,
                         start_date,
@@ -1628,9 +1624,7 @@ class FeatureStore:
                     )
                 continue
             provider = self._get_provider()
-            logger.info(
-                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
-            )
+            logger.info("%s:", feature_view.name)
 
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
