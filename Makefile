@@ -60,7 +60,7 @@ format-python: ## Format Python code
 
 lint-python: ## Lint Python code
 	uv run ruff check sdk/python/feast/ sdk/python/tests/
-	cd ${ROOT_DIR}/sdk/python; uv run mypy feast
+	cd ${ROOT_DIR}/sdk/python && uv run --no-project mypy feast
 
 # New combined target
 precommit-check: format-python lint-python ## Run all precommit checks
@@ -74,7 +74,7 @@ install-precommit: ## Install precommit hooks (runs on commit, not push)
 
 # Manual full type check
 mypy-full: ## Full MyPy type checking with all files
-	cd ${ROOT_DIR}/sdk/python; uv run mypy feast tests
+	cd ${ROOT_DIR}/sdk/python && uv run --no-project mypy feast tests
 
 # Run precommit on all files
 precommit-all: ## Run all precommit hooks on all files
