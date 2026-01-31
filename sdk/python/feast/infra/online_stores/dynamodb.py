@@ -734,6 +734,328 @@ class DynamoDBOnlineStore(OnlineStore):
             }
         }
 
+    def update_online_store(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        update_expressions: Dict[str, str],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Update features in DynamoDB using UpdateItem with custom UpdateExpression.
+
+        This method provides DynamoDB-specific list update functionality using
+        native UpdateItem operations with list_append and other expressions.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            data: Feature data to update. Each tuple contains an entity key,
+                  feature values, event timestamp, and optional created timestamp.
+            update_expressions: Dict mapping feature names to DynamoDB update expressions.
+                Examples:
+                - "transactions": "list_append(transactions, :new_val)"
+                - "recent_items": "list_append(:new_val, recent_items)"  # prepend
+            progress: Optional progress callback function.
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        dynamodb_resource = self._get_dynamodb_resource(
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
+        )
+
+        table_instance = dynamodb_resource.Table(
+            _get_table_name(online_config, config, table)
+        )
+
+        # Process each entity update
+        for entity_key, features, timestamp, _ in _latest_data_to_write(data):
+            entity_id = compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+
+            self._update_item_with_expression(
+                table_instance,
+                entity_id,
+                features,
+                timestamp,
+                update_expressions,
+                config,
+            )
+
+            if progress:
+                progress(1)
+
+    async def update_online_store_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        update_expressions: Dict[str, str],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Async version of update_online_store.
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        table_name = _get_table_name(online_config, config, table)
+        client = await self._get_aiodynamodb_client(
+            online_config.region,
+            online_config.max_pool_connections,
+            online_config.keepalive_timeout,
+            online_config.connect_timeout,
+            online_config.read_timeout,
+            online_config.total_max_retry_attempts,
+            online_config.retry_mode,
+            online_config.endpoint_url,
+        )
+
+        # Process each entity update
+        for entity_key, features, timestamp, _ in _latest_data_to_write(data):
+            entity_id = compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+
+            await self._update_item_with_expression_async(
+                client,
+                table_name,
+                entity_id,
+                features,
+                timestamp,
+                update_expressions,
+                config,
+            )
+
+            if progress:
+                progress(1)
+
+    def _update_item_with_expression(
+        self,
+        table_instance,
+        entity_id: str,
+        features: Dict[str, ValueProto],
+        timestamp: datetime,
+        update_expressions: Dict[str, str],
+        config: RepoConfig,
+    ):
+        """Execute DynamoDB UpdateItem with list operations via read-modify-write."""
+        # Read existing item to get current values for list operations
+        existing_values: Dict[str, ValueProto] = {}
+        item_exists = False
+        try:
+            response = table_instance.get_item(Key={"entity_id": entity_id})
+            if "Item" in response:
+                item_exists = True
+                if "values" in response["Item"]:
+                    for feat_name, val_bin in response["Item"]["values"].items():
+                        val = ValueProto()
+                        val.ParseFromString(val_bin.value)
+                        existing_values[feat_name] = val
+        except ClientError:
+            pass
+
+        # Build final feature values by applying list operations
+        final_features: Dict[str, ValueProto] = {}
+        for feature_name, value_proto in features.items():
+            if feature_name in update_expressions:
+                final_features[feature_name] = self._apply_list_operation(
+                    existing_values.get(feature_name),
+                    value_proto,
+                    update_expressions[feature_name],
+                )
+            else:
+                final_features[feature_name] = value_proto
+
+        # For new items, use put_item
+        if not item_exists:
+            item = {
+                "entity_id": entity_id,
+                "event_ts": str(utils.make_tzaware(timestamp)),
+                "values": {k: v.SerializeToString() for k, v in final_features.items()},
+            }
+            table_instance.put_item(Item=item)
+            return
+
+        # Build UpdateExpression for existing items
+        update_expr_parts: list[str] = []
+        expression_attribute_values: Dict[str, Any] = {}
+        expression_attribute_names: Dict[str, str] = {
+            "#values": "values",
+            "#event_ts": "event_ts",
+        }
+
+        update_expr_parts.append("#event_ts = :event_ts")
+        expression_attribute_values[":event_ts"] = str(utils.make_tzaware(timestamp))
+
+        for feature_name, value_proto in final_features.items():
+            feat_attr = f"#feat_{feature_name}"
+            val_name = f":val_{feature_name}"
+            expression_attribute_names[feat_attr] = feature_name
+            expression_attribute_values[val_name] = value_proto.SerializeToString()  # type: ignore[assignment]
+            update_expr_parts.append(f"#values.{feat_attr} = {val_name}")
+
+        try:
+            table_instance.update_item(
+                Key={"entity_id": entity_id},
+                UpdateExpression="SET " + ", ".join(update_expr_parts),
+                ExpressionAttributeNames=expression_attribute_names,
+                ExpressionAttributeValues=expression_attribute_values,
+            )
+        except ClientError as e:
+            logger.error(f"Failed to update item {entity_id}: {e}")
+            raise
+
+    def _apply_list_operation(
+        self, existing: Optional[ValueProto], new_value: ValueProto, update_expr: str
+    ) -> ValueProto:
+        """Apply list operation (append/prepend) and return merged ValueProto."""
+        result = ValueProto()
+        is_prepend = update_expr.strip().startswith("list_append(:new_val")
+        existing_list = self._extract_list_values(existing) if existing else []
+        new_list = self._extract_list_values(new_value)
+        merged = new_list + existing_list if is_prepend else existing_list + new_list
+        self._set_list_values(result, new_value, merged)
+        return result
+
+    def _extract_list_values(self, value_proto: ValueProto) -> list:
+        """Extract list values from ValueProto."""
+        if value_proto.HasField("string_list_val"):
+            return list(value_proto.string_list_val.val)
+        elif value_proto.HasField("int32_list_val"):
+            return list(value_proto.int32_list_val.val)
+        elif value_proto.HasField("int64_list_val"):
+            return list(value_proto.int64_list_val.val)
+        elif value_proto.HasField("float_list_val"):
+            return list(value_proto.float_list_val.val)
+        elif value_proto.HasField("double_list_val"):
+            return list(value_proto.double_list_val.val)
+        elif value_proto.HasField("bool_list_val"):
+            return list(value_proto.bool_list_val.val)
+        elif value_proto.HasField("bytes_list_val"):
+            return list(value_proto.bytes_list_val.val)
+        return []
+
+    def _set_list_values(
+        self, result: ValueProto, template: ValueProto, values: list
+    ) -> None:
+        """Set list values on result ValueProto based on template type."""
+        if template.HasField("string_list_val"):
+            result.string_list_val.val.extend(values)
+        elif template.HasField("int32_list_val"):
+            result.int32_list_val.val.extend(values)
+        elif template.HasField("int64_list_val"):
+            result.int64_list_val.val.extend(values)
+        elif template.HasField("float_list_val"):
+            result.float_list_val.val.extend(values)
+        elif template.HasField("double_list_val"):
+            result.double_list_val.val.extend(values)
+        elif template.HasField("bool_list_val"):
+            result.bool_list_val.val.extend(values)
+        elif template.HasField("bytes_list_val"):
+            result.bytes_list_val.val.extend(values)
+
+    async def _update_item_with_expression_async(
+        self,
+        client,
+        table_name: str,
+        entity_id: str,
+        features: Dict[str, ValueProto],
+        timestamp: datetime,
+        update_expressions: Dict[str, str],
+        config: RepoConfig,
+    ):
+        """Async version of _update_item_with_expression."""
+        # Read existing item
+        existing_values: Dict[str, ValueProto] = {}
+        item_exists = False
+        try:
+            response = await client.get_item(
+                TableName=table_name, Key={"entity_id": {"S": entity_id}}
+            )
+            if "Item" in response:
+                item_exists = True
+                if "values" in response["Item"] and "M" in response["Item"]["values"]:
+                    for feat_name, val_data in response["Item"]["values"]["M"].items():
+                        if "B" in val_data:
+                            val = ValueProto()
+                            val.ParseFromString(val_data["B"])
+                            existing_values[feat_name] = val
+        except ClientError:
+            pass
+
+        # Build final feature values
+        final_features: Dict[str, ValueProto] = {}
+        for feature_name, value_proto in features.items():
+            if feature_name in update_expressions:
+                final_features[feature_name] = self._apply_list_operation(
+                    existing_values.get(feature_name),
+                    value_proto,
+                    update_expressions[feature_name],
+                )
+            else:
+                final_features[feature_name] = value_proto
+
+        # For new items, use put_item
+        if not item_exists:
+            item = {
+                "entity_id": {"S": entity_id},
+                "event_ts": {"S": str(utils.make_tzaware(timestamp))},
+                "values": {
+                    "M": {
+                        k: {"B": v.SerializeToString()}
+                        for k, v in final_features.items()
+                    }
+                },
+            }
+            await client.put_item(TableName=table_name, Item=item)
+            return
+
+        # Build UpdateExpression for existing items
+        update_expr_parts: list[str] = []
+        expression_attribute_values: Dict[str, Any] = {}
+        expression_attribute_names: Dict[str, str] = {
+            "#values": "values",
+            "#event_ts": "event_ts",
+        }
+
+        update_expr_parts.append("#event_ts = :event_ts")
+        expression_attribute_values[":event_ts"] = {
+            "S": str(utils.make_tzaware(timestamp))
+        }
+
+        for feature_name, value_proto in final_features.items():
+            feat_attr = f"#feat_{feature_name}"
+            val_name = f":val_{feature_name}"
+            expression_attribute_names[feat_attr] = feature_name
+            expression_attribute_values[val_name] = {
+                "B": value_proto.SerializeToString()
+            }
+            update_expr_parts.append(f"#values.{feat_attr} = {val_name}")
+
+        try:
+            await client.update_item(
+                TableName=table_name,
+                Key={"entity_id": {"S": entity_id}},
+                UpdateExpression="SET " + ", ".join(update_expr_parts),
+                ExpressionAttributeNames=expression_attribute_names,
+                ExpressionAttributeValues=expression_attribute_values,
+            )
+        except ClientError as e:
+            logger.error(f"Failed to update item {entity_id}: {e}")
+            raise
+
 
 # Global async client functions removed - now using instance methods
 
