@@ -83,7 +83,7 @@ AWS_REQUIRED = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 KUBERNETES_REQUIRED = ["kubernetes"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=3.7,<4",
+    "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 
 SPARK_REQUIRED = [
@@ -144,7 +144,10 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<=1.62.3",
 ]
 
-DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=10.0.0"]
+DUCKDB_REQUIRED = [
+    "ibis-framework[duckdb]>=10.0.0",
+    "sqlglot[rs]>=23.4,<28.7.0",  # https://github.com/ibis-project/ibis/issues/11882
+]
 
 DELTA_REQUIRED = ["deltalake<1.0.0"]
 
