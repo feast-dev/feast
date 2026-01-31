@@ -185,7 +185,9 @@ class SnowflakeOfflineStore(OfflineStore):
             )
             select_timestamps = list(
                 map(
-                    lambda field_name: f"TO_VARCHAR({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') AS {field_name}",
+                    lambda field_name: (
+                        f"TO_VARCHAR({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') AS {field_name}"
+                    ),
                     timestamp_columns,
                 )
             )
