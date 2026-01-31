@@ -55,14 +55,35 @@ protos: compile-protos-python compile-protos-docs ## Compile protobufs for Pytho
 build: protos build-docker ## Build protobufs and Docker images
 
 format-python: ## Format Python code
-	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
+	cd ${ROOT_DIR}/sdk/python && uv run ruff check --fix feast/ tests/
+	cd ${ROOT_DIR}/sdk/python && uv run ruff format feast/ tests/
 
 lint-python: ## Lint Python code
-	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
-	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
-	
+	cd ${ROOT_DIR}/sdk/python && uv run ruff check feast/ tests/
+	cd ${ROOT_DIR}/sdk/python && uv run mypy feast
+
+# New combined target
+precommit-check: format-python lint-python ## Run all precommit checks
+	@echo "✅ All precommit checks passed"
+
+# Install precommit hooks with correct stages
+install-precommit: ## Install precommit hooks (runs on commit, not push)
+	pip install pre-commit
+	pre-commit install --hook-type pre-commit
+	@echo "✅ Precommit hooks installed (will run on commit, not push)"
+
+# Manual full type check
+mypy-full: ## Full MyPy type checking with all files
+	cd ${ROOT_DIR}/sdk/python && uv run mypy feast tests
+
+# Run precommit on all files
+precommit-all: ## Run all precommit hooks on all files
+	pre-commit run --all-files
+
+# Make scripts executable
+setup-scripts: ## Make helper scripts executable
+	chmod +x scripts/uv-run.sh scripts/check-init-py.sh
+
 ##@ Python SDK - local
 # formerly install-python-ci-dependencies-uv-venv
 # editable install
@@ -151,14 +172,36 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
+	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") tests
+
+# Fast unit tests only
+test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
+	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest tests/unit -n auto -x --tb=short
+
+# Changed files only (requires pytest-testmon)
+test-python-changed: ## Run tests for changed files only
+	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest --testmon -n 8 --tb=short
+
+# Quick smoke test for PRs
+test-python-smoke: ## Quick smoke test for development
+	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest \
+		tests/unit/test_feature_store.py \
+		tests/unit/test_repo_operations.py \
+		-n 4 --tb=short
 
 test-python-integration: ## Run Python integration tests (CI)
-	python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
-		sdk/python/tests
+		tests
+
+# Integration tests with better parallelization
+test-python-integration-parallel: ## Run integration tests with enhanced parallelization
+	cd ${ROOT_DIR}/sdk/python && uv run python -m pytest tests/integration \
+		-n auto --dist loadscope \
+		--timeout=300 --tb=short -v \
+		--integration --color=yes --durations=20
 
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
@@ -220,7 +263,7 @@ test-python-historical-retrieval:
 			test_historical_features_persisting or \
 			test_historical_retrieval_fails_on_validation" \
  	 sdk/python/tests
-	 
+
 test-python-universal-trino: ## Run Python Trino integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.trino_repo_configuration \
@@ -622,7 +665,7 @@ build-feature-transformation-server-docker: ## Build Feature Transformation Serv
 push-feature-server-java-docker: ## Push Feature Server Java Docker image
 	docker push $(REGISTRY)/feature-server-java:$(VERSION)
 
-build-feature-server-java-docker: ## Build Feature Server Java Docker image	
+build-feature-server-java-docker: ## Build Feature Server Java Docker image
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
@@ -721,12 +764,12 @@ build-ui-local: ## Build Feast UI locally
 	cd $(ROOT_DIR)/ui && yarn install && npm run build --omit=dev
 	rm -rf $(ROOT_DIR)/sdk/python/feast/ui/build
 	cp -r $(ROOT_DIR)/ui/build $(ROOT_DIR)/sdk/python/feast/ui/
-	
+
 format-ui: ## Format Feast UI
 	cd $(ROOT_DIR)/ui && NPM_TOKEN= yarn install && NPM_TOKEN= yarn format
 
 
-##@ Go SDK 
+##@ Go SDK
 PB_REL = https://github.com/protocolbuffers/protobuf/releases
 PB_VERSION = 30.2
 PB_ARCH := $(shell uname -m)
@@ -792,4 +835,3 @@ build-go-docker-dev: ## Build Go Docker image for development
 	docker buildx build --build-arg VERSION=dev \
 		-t feastdev/feature-server-go:dev \
 		-f go/infra/docker/feature-server/Dockerfile --load .
-
