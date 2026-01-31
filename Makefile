@@ -172,25 +172,25 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
+	uv run --extra ci python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
-	uv run python -m pytest sdk/python/tests/unit -n auto -x --tb=short
+	uv run --extra ci python -m pytest sdk/python/tests/unit -n auto -x --tb=short
 
 # Changed files only (requires pytest-testmon)
 test-python-changed: ## Run tests for changed files only
-	uv run python -m pytest --testmon -n 8 --tb=short sdk/python/tests
+	uv run --extra ci python -m pytest --testmon -n 8 --tb=short sdk/python/tests
 
 # Quick smoke test for PRs
 test-python-smoke: ## Quick smoke test for development
-	uv run python -m pytest \
+	uv run --extra ci python -m pytest \
 		sdk/python/tests/unit/test_feature_store.py \
 		sdk/python/tests/unit/test_repo_operations.py \
 		-n 4 --tb=short
 
 test-python-integration: ## Run Python integration tests (CI)
-	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --extra ci python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
@@ -198,7 +198,7 @@ test-python-integration: ## Run Python integration tests (CI)
 
 # Integration tests with better parallelization
 test-python-integration-parallel: ## Run integration tests with enhanced parallelization
-	uv run python -m pytest sdk/python/tests/integration \
+	uv run --extra ci python -m pytest sdk/python/tests/integration \
 		-n auto --dist loadscope \
 		--timeout=300 --tb=short -v \
 		--integration --color=yes --durations=20
