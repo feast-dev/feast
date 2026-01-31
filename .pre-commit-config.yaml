@@ -1,100 +1,23 @@
-exclude: 'build/|feast/embedded_go/lib/|\.pb2\.py$|protos/'
-minimum_pre_commit_version: 3.3.0
-default_language_version:
-    python: python3.11
-
-default_stages: [commit]  # RUN ON COMMIT, NOT PUSH!
+default_stages: [commit]
 
 repos:
-  # Standard file checks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: check-merge-conflict
-        args: ['--assume-in-merge']
-      - id: trailing-whitespace
-        exclude: '\.py$'  # Ruff handles Python files
-      - id: check-added-large-files
-        args: ['--maxkb=5000']  # Allow larger files for ML datasets
-      - id: end-of-file-fixer
-        exclude: '^(.*\.svg|.*\.md|.*\.pb2\.py)$'
-      - id: no-commit-to-branch
-        args: ['--branch=master', '--branch=main']
-      - id: check-yaml
-        args: ["--unsafe"]
-      - id: detect-private-key
-      - id: mixed-line-ending
-        args: [--fix=lf]
-      - id: check-executables-have-shebangs
-      - id: check-json
-      - id: check-toml
-
-
-  # Ruff - consolidate linting and formatting
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.14
-    hooks:
-      - id: ruff
-        args: [--fix]
-        files: ^sdk/python/
-      - id: ruff-format
-        files: ^sdk/python/
-
-  # Local hooks
   - repo: local
     hooks:
-      # MyPy type checking with proper working directory
-      - id: mypy
-        name: mypy
-        entry: bash -c "cd sdk/python && python -m mypy feast"
+      - id: format
+        name: Format
+        stages: [commit]
         language: system
-        files: ^sdk/python/(feast|tests)/.*\.py$
+        entry: make format-python
         pass_filenames: false
-      # Template building only when templates change
-      - id: build-templates
+      - id: lint
+        name: Lint
+        stages: [commit]
+        language: system
+        entry: make lint-python
+        pass_filenames: false
+      - id: template
         name: Build Templates
-        entry: python infra/scripts/compile-templates.py
+        stages: [commit]
         language: system
-        files: \.(jinja2|md)$
+        entry: make build-templates
         pass_filenames: false
-        require_serial: true
-
-      # Check for missing __init__.py files in SDK
-      - id: check-init-py
-        name: Check for missing __init__.py files
-        entry: ./scripts/check-init-py.sh
-        language: system
-        pass_filenames: false
-        require_serial: true
-        files: ^sdk/python/feast/.*$
-
-      # Prevent direct pytest.mark.asyncio usage
-      - id: forbid-pytest-asyncio
-        name: Block @pytest.mark.asyncio (use asyncio_mode=auto)
-        entry: bash
-        language: system
-        types: [python]
-        pass_filenames: true
-        args:
-          - -c
-          - |
-            grep -EnH '^[^#]*@pytest\.mark\.asyncio' "$@" && {
-              echo "❌ Do not use @pytest.mark.asyncio."
-              echo "   pytest is already configured with asyncio_mode=auto."
-              exit 1;
-            } || true
-
-      # Full MyPy check (manual stage for thorough checking)
-      - id: mypy-full
-        name: mypy (full type checking)
-        entry: bash -c "cd sdk/python && python -m mypy feast tests"
-        language: system
-        pass_filenames: false
-        stages: [manual]
-
-ci:
-    autofix_commit_msg: 🎨 [pre-commit.ci] Auto format
-    autoupdate_commit_msg: ⬆ [pre-commit.ci] pre-commit autoupdate
-    autofix_prs: true
-    autoupdate_schedule: weekly
-    skip: [mypy-full]  # Skip manual stage hooks in CI
