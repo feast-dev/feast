@@ -526,6 +526,7 @@ maturin==1.12.2 \
     --hash=sha256:f1c2e4ee43bf286b052091a3b2356a157978985837c7aed42354deb2947a4006
     # via
     #   cryptography
+    #   orjson
     #   pydantic-core
     #   rpds-py
     #   watchfiles
@@ -666,13 +667,13 @@ poetry-core==2.3.1 \
     #   rich
     #   rsa
     #   tomlkit
-pybind11-global==3.0.1 \
-    --hash=sha256:0e8d5a68d084c50bf145ce5efdbdd00704dbe6315035d0b7a255708ddeb9faca \
-    --hash=sha256:eb6ef4e8f5a60f4c0b6a9396cb7806f78d42f8d081e42a93c0bb62288f6cf403
+pybind11-global==3.0.2 \
+    --hash=sha256:00a26be4cd65974133eaae7e7532e7141ccb7a88cd131995bc8d1f652852aaf9 \
+    --hash=sha256:e183b4456459c35fbbbc8296eb29e241f6cf0774c0bbc3fc8349789611c6df4b
     # via pybind11
-pybind11==3.0.1 \
-    --hash=sha256:9c0f40056a016da59bab516efb523089139fcc6f2ba7e4930854c61efb932051 \
-    --hash=sha256:aa8f0aa6e0a94d3b64adfc38f560f33f15e589be2175e103c0a33c6bce55ee89
+pybind11==3.0.2 \
+    --hash=sha256:432f01aeb68e361a3a7fc7575c2c7f497595bf640f747acd909ff238dd766e06 \
+    --hash=sha256:f8a6500548919cc33bcd220d5f984688326f574fa97f1107f2f4fdb4c6fb019f
     # via duckdb
 pycparser==3.0 \
     --hash=sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29 \
