@@ -60,6 +60,7 @@ REQUIRED = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "orjson>=3.9.0",
 ]
 
 GCP_REQUIRED = [

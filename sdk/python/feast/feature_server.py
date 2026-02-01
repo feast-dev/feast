@@ -39,7 +39,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 from google.protobuf.json_format import MessageToDict
 from prometheus_client import Gauge, start_http_server
@@ -324,7 +324,7 @@ def get_app(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
     )
-    async def get_online_features(request: GetOnlineFeaturesRequest) -> Dict[str, Any]:
+    async def get_online_features(request: GetOnlineFeaturesRequest) -> ORJSONResponse:
         # Initialize parameters for FeatureStore.get_online_features(...) call
         features = await _get_features(request, store)
 
@@ -341,14 +341,14 @@ def get_app(
                 lambda: store.get_online_features(**read_params)  # type: ignore
             )
 
-        # Convert the Protobuf object to JSON and return it
+        # Convert Protobuf to dict, then use ORJSONResponse for faster JSON serialization
         response_dict = await run_in_threadpool(
             MessageToDict,
             response.proto,
             preserving_proto_field_name=True,
             float_precision=18,
         )
-        return response_dict
+        return ORJSONResponse(content=response_dict)
 
     @app.post(
         "/retrieve-online-documents",
@@ -356,7 +356,7 @@ def get_app(
     )
     async def retrieve_online_documents(
         request: GetOnlineDocumentsRequest,
-    ) -> Dict[str, Any]:
+    ) -> ORJSONResponse:
         logger.warning(
             "This endpoint is in alpha and will be moved to /get-online-features when stable."
         )
@@ -376,14 +376,14 @@ def get_app(
                 lambda: store.retrieve_online_documents(**read_params)  # type: ignore
             )
 
-        # Convert the Protobuf object to JSON and return it
+        # Convert Protobuf to dict, then use ORJSONResponse for faster JSON serialization
         response_dict = await run_in_threadpool(
             MessageToDict,
             response.proto,
             preserving_proto_field_name=True,
             float_precision=18,
         )
-        return response_dict
+        return ORJSONResponse(content=response_dict)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
