@@ -1,9 +1,10 @@
 // Package registry implements Feast registry stores.
 //
 // MySQL Registry Store:
-// The MySQL registry store queries assume a database schema matching the Python SQLAlchemy
-// schema defined in sdk/python/feast/infra/registry/sql.py. When the Python schema evolves,
-// the Go queries in this package must be updated accordingly.
+// The MySQL registry store provides read-only access to a Feast registry stored in MySQL.
+// It queries a database schema matching the Python SQLAlchemy schema defined in
+// sdk/python/feast/infra/registry/sql.py. When the Python schema evolves, the Go queries
+// in this package must be updated accordingly.
 package registry
 
 import (
