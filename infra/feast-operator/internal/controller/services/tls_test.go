@@ -170,7 +170,7 @@ var _ = Describe("TLS Config", func() {
 			Expect(openshiftTls).To(BeTrue())
 
 			// check k8s deployment objects
-			feastDeploy := feast.initFeastDeploy()
+			feastDeploy := feast.initFeastDeploy(OnlineFeastType)
 			err = feast.setDeployment(feastDeploy)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(feastDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
@@ -320,7 +320,7 @@ var _ = Describe("TLS Config", func() {
 			Expect(uiSvc.Spec.Ports[0].Name).To(Equal(HttpScheme))
 
 			// check k8s deployment objects
-			feastDeploy = feast.initFeastDeploy()
+			feastDeploy = feast.initFeastDeploy(OnlineFeastType)
 			err = feast.setDeployment(feastDeploy)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(feastDeploy.Spec.Template.Spec.Containers).To(HaveLen(4))
@@ -370,7 +370,7 @@ var _ = Describe("TLS Config", func() {
 			Expect(registryRestSvc.Annotations).NotTo(BeEmpty())
 			Expect(registryRestSvc.Spec.Ports[0].Name).To(Equal(HttpsScheme))
 
-			feastDeploy = feast.initFeastDeploy()
+			feastDeploy = feast.initFeastDeploy(OnlineFeastType)
 			err = feast.setDeployment(feastDeploy)
 			Expect(err).ToNot(HaveOccurred())
 			registryContainer := GetRegistryContainer(*feastDeploy)

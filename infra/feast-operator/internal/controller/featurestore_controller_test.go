@@ -134,7 +134,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				},
 			}
 
-			deployment, _ := feast.GetDeployment()
+			deployment, _ := feast.GetDeployment(services.OnlineFeastType)
 			deployment.Status = appsv1.DeploymentStatus{
 				Conditions: []appsv1.DeploymentCondition{
 					{

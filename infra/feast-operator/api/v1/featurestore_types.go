@@ -33,6 +33,7 @@ const (
 	ClientReadyType        = "Client"
 	OfflineStoreReadyType  = "OfflineStore"
 	OnlineStoreReadyType   = "OnlineStore"
+	OnlineStoreGrpcReadyType = "OnlineStoreGrpc"
 	RegistryReadyType      = "Registry"
 	UIReadyType            = "UI"
 	ReadyType              = "FeatureStore"
@@ -45,6 +46,7 @@ const (
 	DeploymentNotAvailableReason = "DeploymentNotAvailable"
 	OfflineStoreFailedReason     = "OfflineStoreDeploymentFailed"
 	OnlineStoreFailedReason      = "OnlineStoreDeploymentFailed"
+	OnlineStoreGrpcFailedReason  = "OnlineStoreGrpcDeploymentFailed"
 	RegistryFailedReason         = "RegistryDeploymentFailed"
 	UIFailedReason               = "UIDeploymentFailed"
 	ClientFailedReason           = "ClientDeploymentFailed"
@@ -55,6 +57,7 @@ const (
 	ReadyMessage                  = "FeatureStore installation complete"
 	OfflineStoreReadyMessage      = "Offline Store installation complete"
 	OnlineStoreReadyMessage       = "Online Store installation complete"
+	OnlineStoreGrpcReadyMessage   = "Online Store gRPC installation complete"
 	RegistryReadyMessage          = "Registry installation complete"
 	UIReadyMessage                = "UI installation complete"
 	ClientReadyMessage            = "Client installation complete"
@@ -73,8 +76,44 @@ type FeatureStoreSpec struct {
 	FeastProject    string                `json:"feastProject"`
 	FeastProjectDir *FeastProjectDir      `json:"feastProjectDir,omitempty"`
 	Services        *FeatureStoreServices `json:"services,omitempty"`
+	// FeatureServer configures the Feast feature server, including MCP support.
+	FeatureServer   *FeatureServerConfig  `json:"feature_server,omitempty"`
 	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
 	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
+}
+
+// FeatureServerConfig defines feature server configuration settings.
+// Fields are aligned with Feast's feature_store.yaml feature_server schema.
+type FeatureServerConfig struct {
+	// Feature server type selector (e.g. local, mcp)
+	Type *string `json:"type,omitempty" yaml:"type,omitempty"`
+	// Whether the feature server should be launched.
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	// Enable MCP server support - defaults to false.
+	MCPEnabled *bool `json:"mcp_enabled,omitempty" yaml:"mcp_enabled,omitempty"`
+	// MCP server name for identification.
+	MCPServerName *string `json:"mcp_server_name,omitempty" yaml:"mcp_server_name,omitempty"`
+	// MCP server version.
+	MCPServerVersion *string `json:"mcp_server_version,omitempty" yaml:"mcp_server_version,omitempty"`
+	// Optional MCP transport configuration.
+	MCPTransport *string `json:"mcp_transport,omitempty" yaml:"mcp_transport,omitempty"`
+	// The endpoint definition for transformation_service.
+	TransformationServiceEndpoint *string `json:"transformation_service_endpoint,omitempty" yaml:"transformation_service_endpoint,omitempty"`
+	// Feature logging configuration.
+	FeatureLogging *FeatureLoggingConfig `json:"feature_logging,omitempty" yaml:"feature_logging,omitempty"`
+}
+
+// FeatureLoggingConfig defines feature server logging settings.
+type FeatureLoggingConfig struct {
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	// Interval of flushing logs to the destination in offline store.
+	FlushIntervalSecs *int32 `json:"flush_interval_secs,omitempty" yaml:"flush_interval_secs,omitempty"`
+	// Interval of dumping logs collected in memory to local disk.
+	WriteToDiskIntervalSecs *int32 `json:"write_to_disk_interval_secs,omitempty" yaml:"write_to_disk_interval_secs,omitempty"`
+	// Log queue capacity.
+	QueueCapacity *int32 `json:"queue_capacity,omitempty" yaml:"queue_capacity,omitempty"`
+	// Timeout for adding new log item to the queue.
+	EmitTimeoutMicroSecs *int32 `json:"emit_timeout_micro_secs,omitempty" yaml:"emit_timeout_micro_secs,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
@@ -349,6 +388,8 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 type OnlineStore struct {
 	// Creates a feature server container
 	Server      *ServerConfigs          `json:"server,omitempty"`
+	// Creates a gRPC feature server container (feast listen)
+	Grpc        *GrpcServerConfigs      `json:"grpc,omitempty"`
 	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
 }
 
@@ -512,6 +553,8 @@ type FeatureStoreRef struct {
 type ServerConfigs struct {
 	ContainerConfigs `json:",inline"`
 	TLS              *TlsConfigs `json:"tls,omitempty"`
+	// Replicas sets the number of replicas for the service deployment.
+	Replicas *int32 `json:"replicas,omitempty"`
 	// LogLevel sets the logging level for the server
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
@@ -560,6 +603,21 @@ type WorkerConfigs struct {
 	// Higher values reduce refresh overhead but increase staleness. Defaults to 60.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
+	RegistryTTLSeconds *int32 `json:"registryTTLSeconds,omitempty"`
+}
+
+// GrpcServerConfigs creates a gRPC feature server for the online store.
+type GrpcServerConfigs struct {
+	ContainerConfigs `json:",inline"`
+	// Replicas sets the number of replicas for the gRPC service deployment.
+	Replicas *int32 `json:"replicas,omitempty"`
+	// VolumeMounts defines the list of volumes that should be mounted into the gRPC container.
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// Port sets the gRPC server port. Defaults to 50051 if unset.
+	Port *int32 `json:"port,omitempty"`
+	// MaxWorkers sets the maximum number of threads for handling gRPC calls.
+	MaxWorkers *int32 `json:"maxWorkers,omitempty"`
+	// RegistryTTLSeconds sets how often the registry is refreshed.
 	RegistryTTLSeconds *int32 `json:"registryTTLSeconds,omitempty"`
 }
 
@@ -686,6 +744,7 @@ type FeatureStoreStatus struct {
 type ServiceHostnames struct {
 	OfflineStore string `json:"offlineStore,omitempty"`
 	OnlineStore  string `json:"onlineStore,omitempty"`
+	OnlineStoreGrpc string `json:"onlineStoreGrpc,omitempty"`
 	Registry     string `json:"registry,omitempty"`
 	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`

@@ -18,6 +18,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -102,6 +103,16 @@ func (feast *FeastServices) Deploy() error {
 		}
 	}
 
+	if feast.isOnlineGrpcServer() {
+		if err = feast.deployFeastServiceByType(OnlineGrpcFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(OnlineGrpcFeastType); err != nil {
+			return err
+		}
+	}
+
 	if feast.isLocalRegistry() {
 		err := feast.validateRegistryPersistence(services.Registry.Local.Persistence)
 		if err != nil {
@@ -133,9 +144,6 @@ func (feast *FeastServices) Deploy() error {
 	}
 
 	if err := feast.createServiceAccount(); err != nil {
-		return err
-	}
-	if err := feast.createDeployment(); err != nil {
 		return err
 	}
 	if err := feast.deployClient(); err != nil {
@@ -221,6 +229,13 @@ func (feast *FeastServices) validateOfflineStorePersistence(offlinePersistence *
 }
 
 func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType) error {
+	hasServerConfig := false
+	if feastType == OnlineGrpcFeastType {
+		hasServerConfig = feast.isOnlineGrpcServer()
+	} else if feast.getServerConfigs(feastType) != nil {
+		hasServerConfig = true
+	}
+
 	if pvcCreate, shouldCreate := shouldCreatePvc(feast.Handler.FeatureStore, feastType); shouldCreate {
 		if err := feast.createPVC(pvcCreate, feastType); err != nil {
 			return feast.setFeastServiceCondition(err, feastType)
@@ -228,7 +243,7 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 	} else {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType))
 	}
-	if serviceConfig := feast.getServerConfigs(feastType); serviceConfig != nil {
+	if hasServerConfig {
 		// For registry service, handle both gRPC and REST services
 		if feastType == RegistryFeastType && feast.isRegistryServer() {
 			// Create gRPC service if enabled
@@ -266,6 +281,9 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 				return feast.setFeastServiceCondition(err, feastType)
 			}
 		}
+		if err := feast.createDeploymentForType(feastType); err != nil {
+			return feast.setFeastServiceCondition(err, feastType)
+		}
 	} else {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initFeastSvc(feastType))
 		// Delete REST API service if it exists
@@ -281,6 +299,9 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 
 func (feast *FeastServices) removeFeastServiceByType(feastType FeastServiceType) error {
 	if err := feast.Handler.DeleteOwnedFeastObj(feast.initFeastSvc(feastType)); err != nil {
+		return err
+	}
+	if err := feast.Handler.DeleteOwnedFeastObj(feast.initFeastDeploy(feastType)); err != nil {
 		return err
 	}
 	if err := feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType)); err != nil {
@@ -327,11 +348,11 @@ func (feast *FeastServices) createServiceAccount() error {
 	return nil
 }
 
-func (feast *FeastServices) createDeployment() error {
+func (feast *FeastServices) createDeploymentForType(feastType FeastServiceType) error {
 	logger := log.FromContext(feast.Handler.Context)
-	deploy := feast.initFeastDeploy()
+	deploy := feast.initFeastDeploy(feastType)
 	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, deploy, controllerutil.MutateFn(func() error {
-		return feast.setDeployment(deploy)
+		return feast.setDeployment(deploy, feastType)
 	})); err != nil {
 		return err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
@@ -379,11 +400,14 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType
 	return nil
 }
 
-func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
+func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType FeastServiceType) error {
 	cr := feast.Handler.FeatureStore
 	replicas := deploy.Spec.Replicas
 
-	deploy.Labels = feast.getLabels()
+	deploy.Labels = feast.getFeastTypeLabels(feastType)
+	if desiredReplicas := feast.getReplicasForType(feastType); desiredReplicas != nil {
+		replicas = desiredReplicas
+	}
 	deploy.Spec = appsv1.DeploymentSpec{
 		Replicas: replicas,
 		Selector: metav1.SetAsLabelSelector(deploy.GetLabels()),
@@ -398,48 +422,75 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 			},
 		},
 	}
-	if err := feast.setPod(&deploy.Spec.Template.Spec); err != nil {
+	if err := feast.setPod(&deploy.Spec.Template.Spec, feastType); err != nil {
 		return err
 	}
 	return controllerutil.SetControllerReference(cr, deploy, feast.Handler.Scheme)
 }
 
-func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
-	if err := feast.setContainers(podSpec); err != nil {
+func (feast *FeastServices) setPod(podSpec *corev1.PodSpec, feastType FeastServiceType) error {
+	if err := feast.setContainers(podSpec, feastType); err != nil {
 		return err
 	}
 	feast.mountTlsConfigs(podSpec)
-	feast.mountPvcConfigs(podSpec)
+	feast.mountPvcConfigs(podSpec, feastType)
 	feast.mountEmptyDirVolumes(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
-	feast.applyNodeSelector(podSpec)
+	feast.applyNodeSelector(podSpec, feastType)
 
 	return nil
 }
 
-func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
+func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec, feastType FeastServiceType) error {
 	fsYamlB64, err := feast.GetServiceFeatureStoreYamlBase64()
 	if err != nil {
 		return err
 	}
 
 	feast.setInitContainer(podSpec, fsYamlB64)
-	if feast.isRegistryServer() {
-		feast.setContainer(&podSpec.Containers, RegistryFeastType, fsYamlB64)
-	}
-	if feast.isOnlineServer() {
-		feast.setContainer(&podSpec.Containers, OnlineFeastType, fsYamlB64)
-	}
-	if feast.isOfflineServer() {
-		feast.setContainer(&podSpec.Containers, OfflineFeastType, fsYamlB64)
-	}
-	if feast.isUiServer() {
-		feast.setContainer(&podSpec.Containers, UIFeastType, fsYamlB64)
-	}
+	feast.setContainer(&podSpec.Containers, feastType, fsYamlB64)
 	return nil
 }
 
 func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastType FeastServiceType, fsYamlB64 string) {
+	if feastType == OnlineGrpcFeastType {
+		grpcCfg := feast.getOnlineGrpcConfigs()
+		if grpcCfg == nil {
+			return
+		}
+		name := string(feastType)
+		workingDir := feast.getFeatureRepoDir()
+		cmd := feast.getGrpcContainerCommand()
+		container := getContainer(name, workingDir, cmd, grpcCfg.ContainerConfigs, fsYamlB64)
+		container.Ports = []corev1.ContainerPort{
+			{
+				Name:          "grpc",
+				ContainerPort: feast.getOnlineGrpcPort(),
+				Protocol:      corev1.ProtocolTCP,
+			},
+		}
+		probeHandler := feast.getProbeHandler(feastType, &feastdevv1.TlsConfigs{})
+		container.StartupProbe = &corev1.Probe{
+			ProbeHandler:     probeHandler,
+			PeriodSeconds:    3,
+			FailureThreshold: 40,
+		}
+		container.LivenessProbe = &corev1.Probe{
+			ProbeHandler:     probeHandler,
+			PeriodSeconds:    20,
+			FailureThreshold: 6,
+		}
+		container.ReadinessProbe = &corev1.Probe{
+			ProbeHandler:  probeHandler,
+			PeriodSeconds: 10,
+		}
+		volumeMounts := feast.getVolumeMounts(feastType)
+		if len(volumeMounts) > 0 {
+			container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
+		}
+		*containers = append(*containers, *container)
+		return
+	}
 	if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
 		name := string(feastType)
 		workingDir := feast.getFeatureRepoDir()
@@ -532,6 +583,12 @@ func (feast *FeastServices) mountUserDefinedVolumes(podSpec *corev1.PodSpec) {
 }
 
 func (feast *FeastServices) getVolumeMounts(feastType FeastServiceType) (volumeMounts []corev1.VolumeMount) {
+	if feastType == OnlineGrpcFeastType {
+		if grpcCfg := feast.getOnlineGrpcConfigs(); grpcCfg != nil {
+			return grpcCfg.VolumeMounts
+		}
+		return []corev1.VolumeMount{}
+	}
 	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
 		return serviceConfigs.VolumeMounts
 	}
@@ -631,6 +688,20 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	return feastCommand
 }
 
+func (feast *FeastServices) getGrpcContainerCommand() []string {
+	address := fmt.Sprintf("0.0.0.0:%d", feast.getOnlineGrpcPort())
+	cmd := []string{"feast", "listen", "--address", address}
+	if grpcCfg := feast.getOnlineGrpcConfigs(); grpcCfg != nil {
+		if grpcCfg.MaxWorkers != nil {
+			cmd = append(cmd, "--max_workers", strconv.Itoa(int(*grpcCfg.MaxWorkers)))
+		}
+		if grpcCfg.RegistryTTLSeconds != nil {
+			cmd = append(cmd, "--registry_ttl_sec", strconv.Itoa(int(*grpcCfg.RegistryTTLSeconds)))
+		}
+	}
+	return cmd
+}
+
 func (feast *FeastServices) getDeploymentStrategy() appsv1.DeploymentStrategy {
 	if feast.Handler.FeatureStore.Status.Applied.Services.DeploymentStrategy != nil {
 		return *feast.Handler.FeatureStore.Status.Applied.Services.DeploymentStrategy
@@ -702,6 +773,22 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 
 func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType, isRestService bool) error {
 	svc.Labels = feast.getFeastTypeLabels(feastType)
+	if feastType == OnlineGrpcFeastType {
+		grpcPort := feast.getOnlineGrpcPort()
+		svc.Spec = corev1.ServiceSpec{
+			Selector: feast.getFeastTypeLabels(feastType),
+			Type:     corev1.ServiceTypeClusterIP,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "grpc",
+					Port:       grpcPort,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(int(grpcPort)),
+				},
+			},
+		}
+		return controllerutil.SetControllerReference(feast.Handler.FeatureStore, svc, feast.Handler.Scheme)
+	}
 	if feast.isOpenShiftTls(feastType) {
 		if len(svc.Annotations) == 0 {
 			svc.Annotations = map[string]string{}
@@ -757,7 +844,7 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	}
 
 	svc.Spec = corev1.ServiceSpec{
-		Selector: feast.getLabels(),
+		Selector: feast.getFeastTypeLabels(feastType),
 		Type:     corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
@@ -829,6 +916,8 @@ func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastd
 		if feast.isOnlineStore() {
 			return appliedServices.OnlineStore.Server
 		}
+	case OnlineGrpcFeastType:
+		return nil
 	case RegistryFeastType:
 		if feast.isRegistryServer() {
 			return &appliedServices.Registry.Local.Server.ServerConfigs
@@ -837,6 +926,21 @@ func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastd
 		return appliedServices.UI
 	}
 	return nil
+}
+
+func (feast *FeastServices) getOnlineGrpcConfigs() *feastdevv1.GrpcServerConfigs {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	if appliedServices != nil && appliedServices.OnlineStore != nil {
+		return appliedServices.OnlineStore.Grpc
+	}
+	return nil
+}
+
+func (feast *FeastServices) getOnlineGrpcPort() int32 {
+	if grpcCfg := feast.getOnlineGrpcConfigs(); grpcCfg != nil && grpcCfg.Port != nil {
+		return *grpcCfg.Port
+	}
+	return DefaultOnlineGrpcPort
 }
 
 func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *string {
@@ -849,6 +953,19 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 func (feast *FeastServices) getWorkerConfigs(feastType FeastServiceType) *feastdevv1.WorkerConfigs {
 	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
 		return serviceConfigs.WorkerConfigs
+	}
+	return nil
+}
+
+func (feast *FeastServices) getReplicasForType(feastType FeastServiceType) *int32 {
+	if feastType == OnlineGrpcFeastType {
+		if grpcCfg := feast.getOnlineGrpcConfigs(); grpcCfg != nil {
+			return grpcCfg.Replicas
+		}
+		return nil
+	}
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.Replicas
 	}
 	return nil
 }
@@ -866,34 +983,26 @@ func (feast *FeastServices) isMetricsEnabled(feastType FeastServiceType) bool {
 }
 
 func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *map[string]string {
+	if feastType == OnlineGrpcFeastType {
+		if grpcCfg := feast.getOnlineGrpcConfigs(); grpcCfg != nil {
+			return grpcCfg.ContainerConfigs.OptionalCtrConfigs.NodeSelector
+		}
+		return nil
+	}
 	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
 		return serviceConfigs.ContainerConfigs.OptionalCtrConfigs.NodeSelector
 	}
 	return nil
 }
 
-func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
-	// Merge node selectors from all services
-	mergedNodeSelector := make(map[string]string)
-
-	// Check all service types for node selector configuration
-	allServiceTypes := append(feastServerTypes, UIFeastType)
-	for _, feastType := range allServiceTypes {
-		if selector := feast.getNodeSelectorForType(feastType); selector != nil && len(*selector) > 0 {
-			for k, v := range *selector {
-				mergedNodeSelector[k] = v
-			}
-		}
-	}
-
-	// If no service has node selector configured, we're done
-	if len(mergedNodeSelector) == 0 {
+func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec, feastType FeastServiceType) {
+	selector := feast.getNodeSelectorForType(feastType)
+	if selector == nil || len(*selector) == 0 {
 		return
 	}
 
 	// Merge with any existing node selectors (from ops team or other sources)
-	// This preserves pre-existing selectors while adding operator requirements
-	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, mergedNodeSelector)
+	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, *selector)
 	podSpec.NodeSelector = finalNodeSelector
 }
 
@@ -929,9 +1038,9 @@ func (feast *FeastServices) GetFeastServiceName(feastType FeastServiceType) stri
 	return GetFeastServiceName(feast.Handler.FeatureStore, feastType)
 }
 
-func (feast *FeastServices) GetDeployment() (appsv1.Deployment, error) {
+func (feast *FeastServices) GetDeployment(feastType FeastServiceType) (appsv1.Deployment, error) {
 	deployment := appsv1.Deployment{}
-	obj := feast.GetObjectMeta()
+	obj := feast.GetObjectMetaType(feastType)
 	err := feast.Handler.Get(feast.Handler.Context, client.ObjectKey{Namespace: obj.GetNamespace(), Name: obj.GetName()}, &deployment)
 	return deployment, err
 }
@@ -969,6 +1078,12 @@ func (feast *FeastServices) setServiceHostnames() error {
 		objMeta := feast.initFeastSvc(OnlineFeastType)
 		feast.Handler.FeatureStore.Status.ServiceHostnames.OnlineStore = objMeta.Name + "." + objMeta.Namespace + domain +
 			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.OnlineStore.Server.TLS)
+	}
+	if feast.isOnlineGrpcServer() {
+		objMeta := feast.initFeastSvc(OnlineGrpcFeastType)
+		grpcPort := feast.getOnlineGrpcPort()
+		feast.Handler.FeatureStore.Status.ServiceHostnames.OnlineStoreGrpc = objMeta.Name + "." + objMeta.Namespace + domain +
+			strconv.Itoa(int(grpcPort))
 	}
 	if feast.isRegistryServer() {
 		objMeta := feast.initFeastSvc(RegistryFeastType)
@@ -1098,13 +1213,18 @@ func (feast *FeastServices) isOnlineServer() bool {
 		feast.Handler.FeatureStore.Status.Applied.Services.OnlineStore.Server != nil
 }
 
+func (feast *FeastServices) isOnlineGrpcServer() bool {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	return appliedServices != nil && appliedServices.OnlineStore != nil && appliedServices.OnlineStore.Grpc != nil
+}
+
 func (feast *FeastServices) isOnlineStore() bool {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.OnlineStore != nil
 }
 
 func (feast *FeastServices) noLocalCoreServerConfigured() bool {
-	return !(feast.isRegistryServer() || feast.isOnlineServer() || feast.isOfflineServer())
+	return !(feast.isRegistryServer() || feast.isOnlineServer() || feast.isOnlineGrpcServer() || feast.isOfflineServer())
 }
 
 func (feast *FeastServices) isUiServer() bool {
@@ -1112,9 +1232,29 @@ func (feast *FeastServices) isUiServer() bool {
 	return appliedServices != nil && appliedServices.UI != nil
 }
 
-func (feast *FeastServices) initFeastDeploy() *appsv1.Deployment {
+func (feast *FeastServices) GetDeploymentTypes() []FeastServiceType {
+	deployments := []FeastServiceType{}
+	if feast.isOfflineServer() {
+		deployments = append(deployments, OfflineFeastType)
+	}
+	if feast.isOnlineServer() {
+		deployments = append(deployments, OnlineFeastType)
+	}
+	if feast.isOnlineGrpcServer() {
+		deployments = append(deployments, OnlineGrpcFeastType)
+	}
+	if feast.isRegistryServer() {
+		deployments = append(deployments, RegistryFeastType)
+	}
+	if feast.isUiServer() {
+		deployments = append(deployments, UIFeastType)
+	}
+	return deployments
+}
+
+func (feast *FeastServices) initFeastDeploy(feastType FeastServiceType) *appsv1.Deployment {
 	deploy := &appsv1.Deployment{
-		ObjectMeta: feast.GetObjectMeta(),
+		ObjectMeta: feast.GetObjectMetaType(feastType),
 	}
 	deploy.SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("Deployment"))
 	return deploy
@@ -1183,11 +1323,9 @@ func applyCtrConfigs(container *corev1.Container, containerConfigs feastdevv1.Co
 	}
 }
 
-func (feast *FeastServices) mountPvcConfigs(podSpec *corev1.PodSpec) {
-	for _, feastType := range feastServerTypes {
-		if pvcConfig, hasPvcConfig := hasPvcConfig(feast.Handler.FeatureStore, feastType); hasPvcConfig {
-			feast.mountPvcConfig(podSpec, pvcConfig, feastType)
-		}
+func (feast *FeastServices) mountPvcConfigs(podSpec *corev1.PodSpec, feastType FeastServiceType) {
+	if pvcConfig, hasPvcConfig := hasPvcConfig(feast.Handler.FeatureStore, feastType); hasPvcConfig {
+		feast.mountPvcConfig(podSpec, pvcConfig, feastType)
 	}
 }
 
@@ -1278,6 +1416,15 @@ func getTargetRestPort(feastType FeastServiceType, tls *feastdevv1.TlsConfigs) i
 
 func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *feastdevv1.TlsConfigs) corev1.ProbeHandler {
 	targetPort := getTargetPort(feastType, tls)
+
+	if feastType == OnlineGrpcFeastType {
+		targetPort = feast.getOnlineGrpcPort()
+		return corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(targetPort)),
+			},
+		}
+	}
 
 	if feastType == RegistryFeastType {
 		if feast.isRegistryGrpcEnabled() {

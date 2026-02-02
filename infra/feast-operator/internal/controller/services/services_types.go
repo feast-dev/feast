@@ -55,10 +55,12 @@ const (
 	DefaultOnlineStorageRequest         = "5Gi"
 	DefaultRegistryStorageRequest       = "5Gi"
 	MetricsPort                   int32 = 8000
+	DefaultOnlineGrpcPort         int32 = 50051
 
 	AuthzFeastType    FeastServiceType = "authorization"
 	OfflineFeastType  FeastServiceType = "offline"
 	OnlineFeastType   FeastServiceType = "online"
+	OnlineGrpcFeastType FeastServiceType = "online-grpc"
 	RegistryFeastType FeastServiceType = "registry"
 	UIFeastType       FeastServiceType = "ui"
 	ClientFeastType   FeastServiceType = "client"
@@ -113,6 +115,11 @@ var (
 			TargetHttpPort:  6566,
 			TargetHttpsPort: 6567,
 		},
+		OnlineGrpcFeastType: {
+			Args:            []string{"listen"},
+			TargetHttpPort:  DefaultOnlineGrpcPort,
+			TargetHttpsPort: DefaultOnlineGrpcPort,
+		},
 		RegistryFeastType: {
 			Args:                []string{"serve_registry"},
 			TargetHttpPort:      6570,
@@ -152,6 +159,19 @@ var (
 				Type:   feastdevv1.OnlineStoreReadyType,
 				Status: metav1.ConditionFalse,
 				Reason: feastdevv1.OnlineStoreFailedReason,
+			},
+		},
+		OnlineGrpcFeastType: {
+			metav1.ConditionTrue: {
+				Type:    feastdevv1.OnlineStoreGrpcReadyType,
+				Status:  metav1.ConditionTrue,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.OnlineStoreGrpcReadyMessage,
+			},
+			metav1.ConditionFalse: {
+				Type:   feastdevv1.OnlineStoreGrpcReadyType,
+				Status: metav1.ConditionFalse,
+				Reason: feastdevv1.OnlineStoreGrpcFailedReason,
 			},
 		},
 		RegistryFeastType: {
@@ -218,6 +238,7 @@ var feastServerTypes = []FeastServiceType{
 	RegistryFeastType,
 	OfflineFeastType,
 	OnlineFeastType,
+	OnlineGrpcFeastType,
 }
 
 // AuthzType defines the authorization type
@@ -255,6 +276,7 @@ type RepoConfig struct {
 	OnlineStore                   OnlineStoreConfig  `yaml:"online_store,omitempty"`
 	Registry                      RegistryConfig     `yaml:"registry,omitempty"`
 	AuthzConfig                   AuthzConfig        `yaml:"auth,omitempty"`
+	FeatureServer                 *feastdevv1.FeatureServerConfig `yaml:"feature_server,omitempty"`
 	EntityKeySerializationVersion int                `yaml:"entity_key_serialization_version,omitempty"`
 }
 

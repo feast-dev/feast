@@ -46,6 +46,11 @@ func hasPvcConfig(featureStore *feastdevv1.FeatureStore, feastType FeastServiceT
 				services.OnlineStore.Persistence.FilePersistence != nil {
 				pvcConfig = services.OnlineStore.Persistence.FilePersistence.PvcConfig
 			}
+		case OnlineGrpcFeastType:
+			if services.OnlineStore != nil && services.OnlineStore.Persistence != nil &&
+				services.OnlineStore.Persistence.FilePersistence != nil {
+				pvcConfig = services.OnlineStore.Persistence.FilePersistence.PvcConfig
+			}
 		case OfflineFeastType:
 			if services.OfflineStore != nil && services.OfflineStore.Persistence != nil &&
 				services.OfflineStore.Persistence.FilePersistence != nil {
@@ -183,6 +188,21 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		services.OnlineStore.Server = &feastdevv1.ServerConfigs{}
 	}
 	setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+	if services.OnlineStore.Grpc != nil {
+		setDefaultCtrConfigs(&services.OnlineStore.Grpc.ContainerConfigs.DefaultCtrConfigs)
+		if services.OnlineStore.Grpc.Port == nil {
+			defaultPort := DefaultOnlineGrpcPort
+			services.OnlineStore.Grpc.Port = &defaultPort
+		}
+		if services.OnlineStore.Grpc.MaxWorkers == nil {
+			defaultMaxWorkers := int32(10)
+			services.OnlineStore.Grpc.MaxWorkers = &defaultMaxWorkers
+		}
+		if services.OnlineStore.Grpc.RegistryTTLSeconds == nil {
+			defaultRegistryTTL := int32(5)
+			services.OnlineStore.Grpc.RegistryTTLSeconds = &defaultRegistryTTL
+		}
+	}
 
 	if services.UI != nil {
 		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs)

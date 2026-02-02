@@ -86,6 +86,9 @@ func getBaseServiceRepoConfig(
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 
 	repoConfig := defaultRepoConfig(featureStore)
+	if featureStore.Status.Applied.FeatureServer != nil {
+		repoConfig.FeatureServer = featureStore.Status.Applied.FeatureServer
+	}
 	clientRepoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc, nil)
 	if err != nil {
 		return repoConfig, err
@@ -311,6 +314,9 @@ func getRepoConfig(
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	status := featureStore.Status
 	repoConfig := initRepoConfig(status.Applied.FeastProject)
+	if status.Applied.FeatureServer != nil {
+		repoConfig.FeatureServer = status.Applied.FeatureServer
+	}
 	if status.Applied.AuthzConfig != nil {
 		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
 			repoConfig.AuthzConfig = AuthzConfig{

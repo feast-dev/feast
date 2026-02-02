@@ -160,7 +160,7 @@ var _ = Describe("Registry Service", func() {
 		It("should configure correct gRPC container ports", func() {
 			setFeatureStoreServerConfig(true, false)
 			Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -173,7 +173,7 @@ var _ = Describe("Registry Service", func() {
 		It("should configure correct REST container ports", func() {
 			setFeatureStoreServerConfig(false, true)
 			Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -192,7 +192,7 @@ var _ = Describe("Registry Service", func() {
 			setFeatureStoreServerConfig(true, true)
 			Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
 
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -219,7 +219,7 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment and verify NodeSelector is applied
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -263,7 +263,7 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment and verify merged NodeSelector is applied
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -298,7 +298,7 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment first
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -363,7 +363,7 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment and verify UI service selector is applied
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -387,7 +387,7 @@ var _ = Describe("Registry Service", func() {
 
 			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
 
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -428,7 +428,7 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment and verify no NodeSelector is applied (empty selector)
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -472,7 +472,7 @@ var _ = Describe("Registry Service", func() {
 
 			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
 
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -520,7 +520,7 @@ var _ = Describe("Registry Service", func() {
 
 			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
 
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
@@ -559,7 +559,7 @@ var _ = Describe("Registry Service", func() {
 
 			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
 
-			deployment := feast.initFeastDeploy()
+			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 

@@ -3,4 +3,5 @@ resources:
 - v1_featurestore.yaml
 - v1_featurestore_with_ui.yaml
 - v1_featurestore_all_remote_servers.yaml
+- v1_featurestore_mcp_grpc.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
