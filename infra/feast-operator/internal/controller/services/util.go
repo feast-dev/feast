@@ -184,10 +184,12 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		ensurePVCDefaults(services.OnlineStore.Persistence.FilePersistence.PvcConfig, OnlineFeastType)
 	}
 
-	if services.OnlineStore.Server == nil {
+	if services.OnlineStore.Server == nil && services.OnlineStore.Grpc == nil {
 		services.OnlineStore.Server = &feastdevv1.ServerConfigs{}
 	}
-	setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+	if services.OnlineStore.Server != nil {
+		setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+	}
 	if services.OnlineStore.Grpc != nil {
 		setDefaultCtrConfigs(&services.OnlineStore.Grpc.ContainerConfigs.DefaultCtrConfigs)
 		if services.OnlineStore.Grpc.Port == nil {
