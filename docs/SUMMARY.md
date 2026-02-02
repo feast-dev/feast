@@ -67,6 +67,7 @@
   * [Read features from the online store](how-to-guides/feast-snowflake-gcp-aws/read-features-from-the-online-store.md)
   * [Scaling Feast](how-to-guides/scaling-feast.md)
   * [Structuring Feature Repos](how-to-guides/structuring-repos.md)
+  * [Federated Feature Store Setup](how-to-guides/federated-feature-store.md)
 * [Running Feast in production (e.g. on Kubernetes)](how-to-guides/running-feast-in-production.md)
 * [Feast on Kubernetes](how-to-guides/feast-on-kubernetes.md)
 * [Customizing Feast](how-to-guides/customizing-feast/README.md)
