@@ -1189,7 +1189,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1.ReadyType)).To(BeFalse())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1.OnlineStoreReadyType)).To(BeTrue())
-			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1.OfflineStoreReadyType)).To(BeTrue())
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OfflineStoreReadyType)).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Remote.FeastRef.Name).To(Equal(referencedRegistry.Name))
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ReadyType)
 			Expect(cond).NotTo(BeNil())

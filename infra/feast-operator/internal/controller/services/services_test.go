@@ -42,12 +42,10 @@ func (feast *FeastServices) refreshFeatureStore(ctx context.Context, key types.N
 }
 
 func applySpecToStatus(fs *feastdevv1.FeatureStore) {
-	if fs.Status.Applied.Services == nil && fs.Spec.Services != nil {
+	if fs.Spec.Services != nil {
 		fs.Status.Applied.Services = fs.Spec.Services.DeepCopy()
 	}
-	if len(fs.Status.Applied.FeastProject) == 0 {
-		fs.Status.Applied.FeastProject = fs.Spec.FeastProject
-	}
+	fs.Status.Applied.FeastProject = fs.Spec.FeastProject
 	Expect(k8sClient.Status().Update(context.Background(), fs)).To(Succeed())
 }
 
