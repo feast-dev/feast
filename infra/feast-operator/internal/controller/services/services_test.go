@@ -436,4 +436,143 @@ var _ = Describe("Registry Service", func() {
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(BeEmpty())
 		})
 	})
+
+	Describe("WorkerConfigs Configuration", func() {
+		It("should apply WorkerConfigs to the online store command", func() {
+			// Set WorkerConfigs for online store
+			workers := int32(4)
+			workerConnections := int32(2000)
+			maxRequests := int32(500)
+			maxRequestsJitter := int32(100)
+			keepAliveTimeout := int32(60)
+			registryTTLSeconds := int32(120)
+
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+					WorkerConfigs: &feastdevv1.WorkerConfigs{
+						Workers:            &workers,
+						WorkerConnections:  &workerConnections,
+						MaxRequests:        &maxRequests,
+						MaxRequestsJitter:  &maxRequestsJitter,
+						KeepAliveTimeout:   &keepAliveTimeout,
+						RegistryTTLSeconds: &registryTTLSeconds,
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+
+			// Verify all worker config options are present in the command
+			Expect(onlineContainer.Command).To(ContainElement("--workers"))
+			Expect(onlineContainer.Command).To(ContainElement("4"))
+			Expect(onlineContainer.Command).To(ContainElement("--worker-connections"))
+			Expect(onlineContainer.Command).To(ContainElement("2000"))
+			Expect(onlineContainer.Command).To(ContainElement("--max-requests"))
+			Expect(onlineContainer.Command).To(ContainElement("500"))
+			Expect(onlineContainer.Command).To(ContainElement("--max-requests-jitter"))
+			Expect(onlineContainer.Command).To(ContainElement("100"))
+			Expect(onlineContainer.Command).To(ContainElement("--keep-alive-timeout"))
+			Expect(onlineContainer.Command).To(ContainElement("60"))
+			Expect(onlineContainer.Command).To(ContainElement("--registry_ttl_sec"))
+			Expect(onlineContainer.Command).To(ContainElement("120"))
+		})
+
+		It("should apply partial WorkerConfigs to the online store command", func() {
+			// Set only some WorkerConfigs options
+			workers := int32(-1) // Auto-calculate
+			registryTTLSeconds := int32(300)
+
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+					WorkerConfigs: &feastdevv1.WorkerConfigs{
+						Workers:            &workers,
+						RegistryTTLSeconds: &registryTTLSeconds,
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+
+			// Verify specified options are present
+			Expect(onlineContainer.Command).To(ContainElement("--workers"))
+			Expect(onlineContainer.Command).To(ContainElement("-1"))
+			Expect(onlineContainer.Command).To(ContainElement("--registry_ttl_sec"))
+			Expect(onlineContainer.Command).To(ContainElement("300"))
+
+			// Verify unspecified options are not present
+			Expect(onlineContainer.Command).NotTo(ContainElement("--worker-connections"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--max-requests"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--max-requests-jitter"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--keep-alive-timeout"))
+		})
+
+		It("should not add worker config options when WorkerConfigs is nil", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+					// WorkerConfigs is not set (nil)
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+
+			// Verify no worker config options are present (defaults are used by the CLI)
+			Expect(onlineContainer.Command).NotTo(ContainElement("--workers"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--worker-connections"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--max-requests"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--max-requests-jitter"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--keep-alive-timeout"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--registry_ttl_sec"))
+		})
+	})
 })
