@@ -160,9 +160,9 @@ var _ = Describe("Registry Service", func() {
 		It("should configure correct gRPC container ports", func() {
 			setFeatureStoreServerConfig(true, false)
 			Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
-			deployment := feast.initFeastDeploy(OnlineFeastType)
+			deployment := feast.initFeastDeploy(RegistryFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, RegistryFeastType)).To(Succeed())
 
 			ports := deployment.Spec.Template.Spec.Containers[0].Ports
 			Expect(ports).To(HaveLen(1))
@@ -173,9 +173,9 @@ var _ = Describe("Registry Service", func() {
 		It("should configure correct REST container ports", func() {
 			setFeatureStoreServerConfig(false, true)
 			Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
-			deployment := feast.initFeastDeploy(OnlineFeastType)
+			deployment := feast.initFeastDeploy(RegistryFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, RegistryFeastType)).To(Succeed())
 
 			ports := deployment.Spec.Template.Spec.Containers[0].Ports
 			Expect(ports).To(HaveLen(1))
@@ -192,9 +192,9 @@ var _ = Describe("Registry Service", func() {
 			setFeatureStoreServerConfig(true, true)
 			Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
 
-			deployment := feast.initFeastDeploy(OnlineFeastType)
+			deployment := feast.initFeastDeploy(RegistryFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, RegistryFeastType)).To(Succeed())
 
 			ports := deployment.Spec.Template.Spec.Containers[0].Ports
 			Expect(ports).To(HaveLen(2))
@@ -219,9 +219,9 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment and verify NodeSelector is applied
-			deployment := feast.initFeastDeploy(OnlineFeastType)
+			deployment := feast.initFeastDeploy(RegistryFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, RegistryFeastType)).To(Succeed())
 
 			// Verify NodeSelector is applied to pod spec
 			expectedNodeSelector := map[string]string{
@@ -231,7 +231,7 @@ var _ = Describe("Registry Service", func() {
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
 
-		It("should merge NodeSelectors from multiple services", func() {
+		It("should apply online NodeSelector when multiple services configured", func() {
 			// Set NodeSelector for registry service
 			registryNodeSelector := map[string]string{
 				"kubernetes.io/os": "linux",
@@ -265,11 +265,10 @@ var _ = Describe("Registry Service", func() {
 			// Create deployment and verify merged NodeSelector is applied
 			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, OnlineFeastType)).To(Succeed())
 
-			// Verify NodeSelector merges all service selectors (online overrides registry for node-type)
+			// Verify NodeSelector uses online service selector only
 			expectedNodeSelector := map[string]string{
-				"kubernetes.io/os": "linux",
 				"node-type":        "online",
 				"zone":             "us-west-1a",
 			}
@@ -298,9 +297,9 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment first
-			deployment := feast.initFeastDeploy(OnlineFeastType)
+			deployment := feast.initFeastDeploy(UIFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, UIFeastType)).To(Succeed())
 
 			// Simulate a mutating webhook or admission controller adding node selectors
 			// This would happen after the operator creates the pod spec but before scheduling
@@ -312,7 +311,7 @@ var _ = Describe("Registry Service", func() {
 
 			// Apply the node selector logic again to test merging
 			// This simulates the operator reconciling and re-applying node selectors
-			feast.applyNodeSelector(&deployment.Spec.Template.Spec)
+			feast.applyNodeSelector(&deployment.Spec.Template.Spec, UIFeastType)
 
 			// Verify NodeSelector merges existing and operator selectors
 			expectedNodeSelector := map[string]string{
@@ -323,7 +322,7 @@ var _ = Describe("Registry Service", func() {
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
 
-		It("should apply UI service NodeSelector when UI has highest precedence", func() {
+		It("should apply UI NodeSelector for UI deployment", func() {
 			// Set NodeSelector for online service
 			onlineNodeSelector := map[string]string{
 				"node-type": "online",
@@ -363,11 +362,11 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment and verify UI service selector is applied
-			deployment := feast.initFeastDeploy(OnlineFeastType)
+			deployment := feast.initFeastDeploy(UIFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, UIFeastType)).To(Succeed())
 
-			// Verify NodeSelector is applied with UI service's selector (UI wins)
+			// Verify NodeSelector is applied with UI service's selector
 			expectedNodeSelector := map[string]string{
 				"node-type": "ui",
 				"zone":      "us-east-1",
@@ -389,7 +388,7 @@ var _ = Describe("Registry Service", func() {
 
 			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, OnlineFeastType)).To(Succeed())
 
 			onlineContainer := GetOnlineContainer(*deployment)
 			Expect(onlineContainer).NotTo(BeNil())
@@ -428,9 +427,9 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			// Create deployment and verify no NodeSelector is applied (empty selector)
-			deployment := feast.initFeastDeploy(OnlineFeastType)
+			deployment := feast.initFeastDeploy(RegistryFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, RegistryFeastType)).To(Succeed())
 
 			// Verify no NodeSelector is applied (empty selector)
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(BeEmpty())
@@ -474,7 +473,7 @@ var _ = Describe("Registry Service", func() {
 
 			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, OnlineFeastType)).To(Succeed())
 
 			onlineContainer := GetOnlineContainer(*deployment)
 			Expect(onlineContainer).NotTo(BeNil())
@@ -522,7 +521,7 @@ var _ = Describe("Registry Service", func() {
 
 			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, OnlineFeastType)).To(Succeed())
 
 			onlineContainer := GetOnlineContainer(*deployment)
 			Expect(onlineContainer).NotTo(BeNil())
@@ -561,7 +560,7 @@ var _ = Describe("Registry Service", func() {
 
 			deployment := feast.initFeastDeploy(OnlineFeastType)
 			Expect(deployment).NotTo(BeNil())
-			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(feast.setDeployment(deployment, OnlineFeastType)).To(Succeed())
 
 			onlineContainer := GetOnlineContainer(*deployment)
 			Expect(onlineContainer).NotTo(BeNil())
