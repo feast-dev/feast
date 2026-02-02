@@ -40,8 +40,12 @@ func (feast *FeastServices) refreshFeatureStore(ctx context.Context, key types.N
 }
 
 func applySpecToStatus(fs *feastdevv1.FeatureStore) {
-	fs.Status.Applied.Services = fs.Spec.Services.DeepCopy()
-	fs.Status.Applied.FeastProject = fs.Spec.FeastProject
+	if fs.Status.Applied.Services == nil && fs.Spec.Services != nil {
+		fs.Status.Applied.Services = fs.Spec.Services.DeepCopy()
+	}
+	if len(fs.Status.Applied.FeastProject) == 0 {
+		fs.Status.Applied.FeastProject = fs.Spec.FeastProject
+	}
 	Expect(k8sClient.Status().Update(context.Background(), fs)).To(Succeed())
 }
 
@@ -63,6 +67,8 @@ var _ = Describe("Registry Service", func() {
 	}
 
 	BeforeEach(func() {
+		// Avoid cross-test contamination from tls tests toggling the global OpenShift flag.
+		isOpenShift = false
 		ctx = context.Background()
 		typeNamespacedName = types.NamespacedName{
 			Name:      "testfeaturestore",
@@ -166,7 +172,7 @@ var _ = Describe("Registry Service", func() {
 
 			ports := deployment.Spec.Template.Spec.Containers[0].Ports
 			Expect(ports).To(HaveLen(1))
-			Expect(ports[0].ContainerPort).To(Equal(FeastServiceConstants[RegistryFeastType].TargetHttpPort))
+			Expect(ports[0].ContainerPort).To(Equal(getTargetPort(RegistryFeastType, feast.getTlsConfigs(RegistryFeastType))))
 			Expect(ports[0].Name).To(Equal(string(RegistryFeastType)))
 		})
 
@@ -179,12 +185,12 @@ var _ = Describe("Registry Service", func() {
 
 			ports := deployment.Spec.Template.Spec.Containers[0].Ports
 			Expect(ports).To(HaveLen(1))
-			Expect(ports[0].ContainerPort).To(Equal(FeastServiceConstants[RegistryFeastType].TargetRestHttpPort))
+			Expect(ports[0].ContainerPort).To(Equal(getTargetRestPort(RegistryFeastType, feast.getTlsConfigs(RegistryFeastType))))
 			Expect(ports[0].Name).To(Equal(string(RegistryFeastType) + "-rest"))
 
 			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
 			Expect(deployment.Spec.Template.Spec.Containers[0].Ports).To(HaveLen(1))
-			Expect(deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort).To(Equal(FeastServiceConstants[RegistryFeastType].TargetRestHttpPort))
+			Expect(deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort).To(Equal(getTargetRestPort(RegistryFeastType, feast.getTlsConfigs(RegistryFeastType))))
 			Expect(deployment.Spec.Template.Spec.Containers[0].Ports[0].Name).To(Equal(string(RegistryFeastType) + "-rest"))
 		})
 
@@ -198,9 +204,9 @@ var _ = Describe("Registry Service", func() {
 
 			ports := deployment.Spec.Template.Spec.Containers[0].Ports
 			Expect(ports).To(HaveLen(2))
-			Expect(ports[0].ContainerPort).To(Equal(FeastServiceConstants[RegistryFeastType].TargetHttpPort))
+			Expect(ports[0].ContainerPort).To(Equal(getTargetPort(RegistryFeastType, feast.getTlsConfigs(RegistryFeastType))))
 			Expect(ports[0].Name).To(Equal(string(RegistryFeastType)))
-			Expect(ports[1].ContainerPort).To(Equal(FeastServiceConstants[RegistryFeastType].TargetRestHttpPort))
+			Expect(ports[1].ContainerPort).To(Equal(getTargetRestPort(RegistryFeastType, feast.getTlsConfigs(RegistryFeastType))))
 			Expect(ports[1].Name).To(Equal(string(RegistryFeastType) + "-rest"))
 		})
 	})
@@ -269,8 +275,8 @@ var _ = Describe("Registry Service", func() {
 
 			// Verify NodeSelector uses online service selector only
 			expectedNodeSelector := map[string]string{
-				"node-type":        "online",
-				"zone":             "us-west-1a",
+				"node-type": "online",
+				"zone":      "us-west-1a",
 			}
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
@@ -376,7 +382,14 @@ var _ = Describe("Registry Service", func() {
 
 		It("should enable metrics on the online service when configured", func() {
 			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
-				Server: &feastdevv1.ServerConfigs{Metrics: ptr(true)},
+				Server: &feastdevv1.ServerConfigs{
+					Metrics: ptr(true),
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+				},
 			}
 
 			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
@@ -392,7 +405,7 @@ var _ = Describe("Registry Service", func() {
 
 			onlineContainer := GetOnlineContainer(*deployment)
 			Expect(onlineContainer).NotTo(BeNil())
-			Expect(onlineContainer.Command).To(Equal([]string{"feast", "serve", "--metrics", "-h", "0.0.0.0", "-p", "6566"}))
+			Expect(onlineContainer.Command).To(Equal(feast.getContainerCommand(OnlineFeastType)))
 			Expect(onlineContainer.Ports).To(ContainElement(corev1.ContainerPort{
 				Name:          "metrics",
 				ContainerPort: MetricsPort,

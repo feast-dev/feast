@@ -57,15 +57,15 @@ const (
 	MetricsPort                   int32 = 8000
 	DefaultOnlineGrpcPort         int32 = 50051
 
-	AuthzFeastType    FeastServiceType = "authorization"
-	OfflineFeastType  FeastServiceType = "offline"
-	OnlineFeastType   FeastServiceType = "online"
+	AuthzFeastType      FeastServiceType = "authorization"
+	OfflineFeastType    FeastServiceType = "offline"
+	OnlineFeastType     FeastServiceType = "online"
 	OnlineGrpcFeastType FeastServiceType = "online-grpc"
-	RegistryFeastType FeastServiceType = "registry"
-	UIFeastType       FeastServiceType = "ui"
-	ClientFeastType   FeastServiceType = "client"
-	ClientCaFeastType FeastServiceType = "client-ca"
-	CronJobFeastType  FeastServiceType = "cronjob"
+	RegistryFeastType   FeastServiceType = "registry"
+	UIFeastType         FeastServiceType = "ui"
+	ClientFeastType     FeastServiceType = "client"
+	ClientCaFeastType   FeastServiceType = "client-ca"
+	CronJobFeastType    FeastServiceType = "cronjob"
 
 	OfflineRemoteConfigType                 OfflineConfigType = "remote"
 	OfflineFilePersistenceDaskConfigType    OfflineConfigType = "dask"
@@ -270,14 +270,14 @@ type FeastServices struct {
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
 // https://rtd.feast.dev/en/stable/#feast.repo_config.RepoConfig
 type RepoConfig struct {
-	Project                       string             `yaml:"project,omitempty"`
-	Provider                      FeastProviderType  `yaml:"provider,omitempty"`
-	OfflineStore                  OfflineStoreConfig `yaml:"offline_store,omitempty"`
-	OnlineStore                   OnlineStoreConfig  `yaml:"online_store,omitempty"`
-	Registry                      RegistryConfig     `yaml:"registry,omitempty"`
-	AuthzConfig                   AuthzConfig        `yaml:"auth,omitempty"`
+	Project                       string                          `yaml:"project,omitempty"`
+	Provider                      FeastProviderType               `yaml:"provider,omitempty"`
+	OfflineStore                  OfflineStoreConfig              `yaml:"offline_store,omitempty"`
+	OnlineStore                   OnlineStoreConfig               `yaml:"online_store,omitempty"`
+	Registry                      RegistryConfig                  `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig                     `yaml:"auth,omitempty"`
 	FeatureServer                 *feastdevv1.FeatureServerConfig `yaml:"feature_server,omitempty"`
-	EntityKeySerializationVersion int                `yaml:"entity_key_serialization_version,omitempty"`
+	EntityKeySerializationVersion int                             `yaml:"entity_key_serialization_version,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.

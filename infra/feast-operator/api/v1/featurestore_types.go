@@ -30,15 +30,15 @@ const (
 	FailedPhase  = "Failed"
 
 	// Feast condition types:
-	ClientReadyType        = "Client"
-	OfflineStoreReadyType  = "OfflineStore"
-	OnlineStoreReadyType   = "OnlineStore"
+	ClientReadyType          = "Client"
+	OfflineStoreReadyType    = "OfflineStore"
+	OnlineStoreReadyType     = "OnlineStore"
 	OnlineStoreGrpcReadyType = "OnlineStoreGrpc"
-	RegistryReadyType      = "Registry"
-	UIReadyType            = "UI"
-	ReadyType              = "FeatureStore"
-	AuthorizationReadyType = "Authorization"
-	CronJobReadyType       = "CronJob"
+	RegistryReadyType        = "Registry"
+	UIReadyType              = "UI"
+	ReadyType                = "FeatureStore"
+	AuthorizationReadyType   = "Authorization"
+	CronJobReadyType         = "CronJob"
 
 	// Feast condition reasons:
 	ReadyReason                  = "Ready"
@@ -77,9 +77,9 @@ type FeatureStoreSpec struct {
 	FeastProjectDir *FeastProjectDir      `json:"feastProjectDir,omitempty"`
 	Services        *FeatureStoreServices `json:"services,omitempty"`
 	// FeatureServer configures the Feast feature server, including MCP support.
-	FeatureServer   *FeatureServerConfig  `json:"feature_server,omitempty"`
-	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
-	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
+	FeatureServer *FeatureServerConfig `json:"feature_server,omitempty"`
+	AuthzConfig   *AuthzConfig         `json:"authz,omitempty"`
+	CronJob       *FeastCronJob        `json:"cronJob,omitempty"`
 }
 
 // FeatureServerConfig defines feature server configuration settings.
@@ -387,7 +387,7 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 // OnlineStore configures the online store service
 type OnlineStore struct {
 	// Creates a feature server container
-	Server      *ServerConfigs          `json:"server,omitempty"`
+	Server *ServerConfigs `json:"server,omitempty"`
 	// Creates a gRPC feature server container (feast listen)
 	Grpc        *GrpcServerConfigs      `json:"grpc,omitempty"`
 	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
@@ -742,12 +742,12 @@ type FeatureStoreStatus struct {
 
 // ServiceHostnames defines the service hostnames in the format of <domain>:<port>, e.g. example.svc.cluster.local:80
 type ServiceHostnames struct {
-	OfflineStore string `json:"offlineStore,omitempty"`
-	OnlineStore  string `json:"onlineStore,omitempty"`
+	OfflineStore    string `json:"offlineStore,omitempty"`
+	OnlineStore     string `json:"onlineStore,omitempty"`
 	OnlineStoreGrpc string `json:"onlineStoreGrpc,omitempty"`
-	Registry     string `json:"registry,omitempty"`
-	RegistryRest string `json:"registryRest,omitempty"`
-	UI           string `json:"ui,omitempty"`
+	Registry        string `json:"registry,omitempty"`
+	RegistryRest    string `json:"registryRest,omitempty"`
+	UI              string `json:"ui,omitempty"`
 }
 
 // +kubebuilder:object:root=true
