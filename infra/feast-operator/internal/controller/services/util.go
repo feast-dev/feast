@@ -95,75 +95,100 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 
 	applied := &cr.Status.Applied
+	ensureProjectDirDefaults(applied)
+	services := ensureServiceDefaults(applied)
+	applyRegistryDefaults(cr, services)
+	applyOfflineDefaults(services)
+	applyOnlineDefaults(cr, services)
+	applyUiDefaults(services)
+	applyCronJobDefaults(applied)
+}
+
+func ensureProjectDirDefaults(applied *feastdevv1.FeatureStoreSpec) {
 	if applied.FeastProjectDir == nil {
 		applied.FeastProjectDir = &feastdevv1.FeastProjectDir{
 			Init: &feastdevv1.FeastInitOptions{},
 		}
 	}
+}
+
+func ensureServiceDefaults(applied *feastdevv1.FeatureStoreSpec) *feastdevv1.FeatureStoreServices {
 	if applied.Services == nil {
 		applied.Services = &feastdevv1.FeatureStoreServices{}
 	}
-	services := applied.Services
+	return applied.Services
+}
 
-	if services.Registry != nil {
-		// if remote registry not set, proceed w/ local registry defaults
-		if services.Registry.Remote == nil {
-			// if local registry not set, apply an empty pointer struct
-			if services.Registry.Local == nil {
-				services.Registry.Local = &feastdevv1.LocalRegistryConfig{}
-			}
-			if services.Registry.Local.Persistence == nil {
-				services.Registry.Local.Persistence = &feastdevv1.RegistryPersistence{}
-			}
-
-			if services.Registry.Local.Persistence.DBPersistence == nil {
-				if services.Registry.Local.Persistence.FilePersistence == nil {
-					services.Registry.Local.Persistence.FilePersistence = &feastdevv1.RegistryFilePersistence{}
-				}
-
-				if len(services.Registry.Local.Persistence.FilePersistence.Path) == 0 {
-					services.Registry.Local.Persistence.FilePersistence.Path = defaultRegistryPath(cr)
-				}
-
-				ensurePVCDefaults(services.Registry.Local.Persistence.FilePersistence.PvcConfig, RegistryFeastType)
-			}
-
-			if services.Registry.Local.Server != nil {
-				setDefaultCtrConfigs(&services.Registry.Local.Server.ContainerConfigs.DefaultCtrConfigs)
-				// Set default for GRPC: true if nil
-				if services.Registry.Local.Server.GRPC == nil {
-					defaultGRPC := true
-					services.Registry.Local.Server.GRPC = &defaultGRPC
-				}
-
-			}
-		} else if services.Registry.Remote.FeastRef != nil && len(services.Registry.Remote.FeastRef.Namespace) == 0 {
-			services.Registry.Remote.FeastRef.Namespace = cr.Namespace
-		}
+func applyRegistryDefaults(cr *feastdevv1.FeatureStore, services *feastdevv1.FeatureStoreServices) {
+	if services.Registry == nil {
+		return
 	}
 
-	if services.OfflineStore != nil {
-		if services.OfflineStore.Persistence == nil {
-			services.OfflineStore.Persistence = &feastdevv1.OfflineStorePersistence{}
+	// if remote registry not set, proceed w/ local registry defaults
+	if services.Registry.Remote == nil {
+		// if local registry not set, apply an empty pointer struct
+		if services.Registry.Local == nil {
+			services.Registry.Local = &feastdevv1.LocalRegistryConfig{}
+		}
+		if services.Registry.Local.Persistence == nil {
+			services.Registry.Local.Persistence = &feastdevv1.RegistryPersistence{}
 		}
 
-		if services.OfflineStore.Persistence.DBPersistence == nil {
-			if services.OfflineStore.Persistence.FilePersistence == nil {
-				services.OfflineStore.Persistence.FilePersistence = &feastdevv1.OfflineStoreFilePersistence{}
+		if services.Registry.Local.Persistence.DBPersistence == nil {
+			if services.Registry.Local.Persistence.FilePersistence == nil {
+				services.Registry.Local.Persistence.FilePersistence = &feastdevv1.RegistryFilePersistence{}
 			}
 
-			if len(services.OfflineStore.Persistence.FilePersistence.Type) == 0 {
-				services.OfflineStore.Persistence.FilePersistence.Type = string(OfflineFilePersistenceDaskConfigType)
+			if len(services.Registry.Local.Persistence.FilePersistence.Path) == 0 {
+				services.Registry.Local.Persistence.FilePersistence.Path = defaultRegistryPath(cr)
 			}
 
-			ensurePVCDefaults(services.OfflineStore.Persistence.FilePersistence.PvcConfig, OfflineFeastType)
+			ensurePVCDefaults(services.Registry.Local.Persistence.FilePersistence.PvcConfig, RegistryFeastType)
 		}
 
-		if services.OfflineStore.Server != nil {
-			setDefaultCtrConfigs(&services.OfflineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+		if services.Registry.Local.Server != nil {
+			setDefaultCtrConfigs(&services.Registry.Local.Server.ContainerConfigs.DefaultCtrConfigs)
+			// Set default for GRPC: true if nil
+			if services.Registry.Local.Server.GRPC == nil {
+				defaultGRPC := true
+				services.Registry.Local.Server.GRPC = &defaultGRPC
+			}
 		}
+		return
 	}
 
+	if services.Registry.Remote.FeastRef != nil && len(services.Registry.Remote.FeastRef.Namespace) == 0 {
+		services.Registry.Remote.FeastRef.Namespace = cr.Namespace
+	}
+}
+
+func applyOfflineDefaults(services *feastdevv1.FeatureStoreServices) {
+	if services.OfflineStore == nil {
+		return
+	}
+
+	if services.OfflineStore.Persistence == nil {
+		services.OfflineStore.Persistence = &feastdevv1.OfflineStorePersistence{}
+	}
+
+	if services.OfflineStore.Persistence.DBPersistence == nil {
+		if services.OfflineStore.Persistence.FilePersistence == nil {
+			services.OfflineStore.Persistence.FilePersistence = &feastdevv1.OfflineStoreFilePersistence{}
+		}
+
+		if len(services.OfflineStore.Persistence.FilePersistence.Type) == 0 {
+			services.OfflineStore.Persistence.FilePersistence.Type = string(OfflineFilePersistenceDaskConfigType)
+		}
+
+		ensurePVCDefaults(services.OfflineStore.Persistence.FilePersistence.PvcConfig, OfflineFeastType)
+	}
+
+	if services.OfflineStore.Server != nil {
+		setDefaultCtrConfigs(&services.OfflineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+	}
+}
+
+func applyOnlineDefaults(cr *feastdevv1.FeatureStore, services *feastdevv1.FeatureStoreServices) {
 	// default to onlineStore service deployment
 	if services.OnlineStore == nil {
 		services.OnlineStore = &feastdevv1.OnlineStore{}
@@ -184,32 +209,40 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		ensurePVCDefaults(services.OnlineStore.Persistence.FilePersistence.PvcConfig, OnlineFeastType)
 	}
 
-	if services.OnlineStore.Server == nil && services.OnlineStore.Grpc == nil {
-		services.OnlineStore.Server = &feastdevv1.ServerConfigs{}
-	}
-	if services.OnlineStore.Server != nil {
-		setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
-	}
-	if services.OnlineStore.Grpc != nil {
-		setDefaultCtrConfigs(&services.OnlineStore.Grpc.ContainerConfigs.DefaultCtrConfigs)
-		if services.OnlineStore.Grpc.Port == nil {
-			defaultPort := DefaultOnlineGrpcPort
-			services.OnlineStore.Grpc.Port = &defaultPort
-		}
-		if services.OnlineStore.Grpc.MaxWorkers == nil {
-			defaultMaxWorkers := int32(10)
-			services.OnlineStore.Grpc.MaxWorkers = &defaultMaxWorkers
-		}
-		if services.OnlineStore.Grpc.RegistryTTLSeconds == nil {
-			defaultRegistryTTL := int32(5)
-			services.OnlineStore.Grpc.RegistryTTLSeconds = &defaultRegistryTTL
-		}
-	}
+	applyOnlineServerDefaults(services.OnlineStore)
+}
 
+func applyOnlineServerDefaults(onlineStore *feastdevv1.OnlineStore) {
+	if onlineStore.Server == nil && onlineStore.Grpc == nil {
+		onlineStore.Server = &feastdevv1.ServerConfigs{}
+	}
+	if onlineStore.Server != nil {
+		setDefaultCtrConfigs(&onlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+	}
+	if onlineStore.Grpc != nil {
+		setDefaultCtrConfigs(&onlineStore.Grpc.ContainerConfigs.DefaultCtrConfigs)
+		if onlineStore.Grpc.Port == nil {
+			defaultPort := DefaultOnlineGrpcPort
+			onlineStore.Grpc.Port = &defaultPort
+		}
+		if onlineStore.Grpc.MaxWorkers == nil {
+			defaultMaxWorkers := int32(10)
+			onlineStore.Grpc.MaxWorkers = &defaultMaxWorkers
+		}
+		if onlineStore.Grpc.RegistryTTLSeconds == nil {
+			defaultRegistryTTL := int32(5)
+			onlineStore.Grpc.RegistryTTLSeconds = &defaultRegistryTTL
+		}
+	}
+}
+
+func applyUiDefaults(services *feastdevv1.FeatureStoreServices) {
 	if services.UI != nil {
 		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs)
 	}
+}
 
+func applyCronJobDefaults(applied *feastdevv1.FeatureStoreSpec) {
 	if applied.CronJob == nil {
 		applied.CronJob = &feastdevv1.FeastCronJob{}
 	}

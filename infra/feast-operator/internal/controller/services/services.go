@@ -52,97 +52,106 @@ func (feast *FeastServices) ApplyDefaults() error {
 
 // Deploy the feast services
 func (feast *FeastServices) Deploy() error {
+	if err := feast.validateLocalServers(); err != nil {
+		return err
+	}
+	if err := feast.reconcileOpenshiftTls(); err != nil {
+		return err
+	}
+	if err := feast.reconcileOffline(); err != nil {
+		return err
+	}
+	if err := feast.reconcileOnline(); err != nil {
+		return err
+	}
+	if err := feast.reconcileOnlineGrpc(); err != nil {
+		return err
+	}
+	if err := feast.reconcileRegistry(); err != nil {
+		return err
+	}
+	if err := feast.reconcileUI(); err != nil {
+		return err
+	}
+	return feast.deploySupportServices()
+}
+
+func (feast *FeastServices) validateLocalServers() error {
 	if feast.noLocalCoreServerConfigured() {
 		return errors.New("at least one local server must be configured. e.g. registry / online / offline")
 	}
-	if feast.isRegistryServer() {
-		if !feast.isRegistryGrpcEnabled() && !feast.isRegistryRestEnabled() {
-			return errors.New("at least one of gRPC or REST API must be enabled for registry service")
-		}
+	if feast.isRegistryServer() && !feast.isRegistryGrpcEnabled() && !feast.isRegistryRestEnabled() {
+		return errors.New("at least one of gRPC or REST API must be enabled for registry service")
 	}
+	return nil
+}
+
+func (feast *FeastServices) reconcileOpenshiftTls() error {
 	openshiftTls, err := feast.checkOpenshiftTls()
 	if err != nil {
 		return err
 	}
 	if openshiftTls {
-		if err := feast.createCaConfigMap(); err != nil {
-			return err
-		}
-	} else {
-		_ = feast.Handler.DeleteOwnedFeastObj(feast.initCaConfigMap())
+		return feast.createCaConfigMap()
 	}
+	_ = feast.Handler.DeleteOwnedFeastObj(feast.initCaConfigMap())
+	return nil
+}
 
-	services := feast.Handler.FeatureStore.Status.Applied.Services
+func (feast *FeastServices) reconcileOffline() error {
 	if feast.isOfflineStore() {
-		err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence)
-		if err != nil {
+		services := feast.Handler.FeatureStore.Status.Applied.Services
+		if err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence); err != nil {
 			return err
 		}
-
-		if err = feast.deployFeastServiceByType(OfflineFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(OfflineFeastType); err != nil {
-			return err
-		}
+		return feast.deployFeastServiceByType(OfflineFeastType)
 	}
+	return feast.removeFeastServiceByType(OfflineFeastType)
+}
 
+func (feast *FeastServices) reconcileOnline() error {
 	if feast.isOnlineStore() {
-		err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence)
-		if err != nil {
+		services := feast.Handler.FeatureStore.Status.Applied.Services
+		if err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence); err != nil {
 			return err
 		}
-
-		if err = feast.deployFeastServiceByType(OnlineFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
-			return err
-		}
+		return feast.deployFeastServiceByType(OnlineFeastType)
 	}
+	return feast.removeFeastServiceByType(OnlineFeastType)
+}
 
+func (feast *FeastServices) reconcileOnlineGrpc() error {
 	if feast.isOnlineGrpcServer() {
-		if err = feast.deployFeastServiceByType(OnlineGrpcFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(OnlineGrpcFeastType); err != nil {
-			return err
-		}
+		return feast.deployFeastServiceByType(OnlineGrpcFeastType)
 	}
+	return feast.removeFeastServiceByType(OnlineGrpcFeastType)
+}
 
+func (feast *FeastServices) reconcileRegistry() error {
 	if feast.isLocalRegistry() {
-		err := feast.validateRegistryPersistence(services.Registry.Local.Persistence)
-		if err != nil {
+		services := feast.Handler.FeatureStore.Status.Applied.Services
+		if err := feast.validateRegistryPersistence(services.Registry.Local.Persistence); err != nil {
 			return err
 		}
-
-		if err = feast.deployFeastServiceByType(RegistryFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(RegistryFeastType); err != nil {
-			return err
-		}
+		return feast.deployFeastServiceByType(RegistryFeastType)
 	}
+	return feast.removeFeastServiceByType(RegistryFeastType)
+}
+
+func (feast *FeastServices) reconcileUI() error {
 	if feast.isUiServer() {
-		if err = feast.deployFeastServiceByType(UIFeastType); err != nil {
+		if err := feast.deployFeastServiceByType(UIFeastType); err != nil {
 			return err
 		}
-		if err = feast.createRoute(UIFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(UIFeastType); err != nil {
-			return err
-		}
-		if err := feast.removeRoute(UIFeastType); err != nil {
-			return err
-		}
+		return feast.createRoute(UIFeastType)
 	}
+	if err := feast.removeFeastServiceByType(UIFeastType); err != nil {
+		return err
+	}
+	return feast.removeRoute(UIFeastType)
+}
 
+func (feast *FeastServices) deploySupportServices() error {
 	if err := feast.createServiceAccount(); err != nil {
 		return err
 	}
@@ -152,11 +161,7 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployNamespaceRegistry(); err != nil {
 		return err
 	}
-	if err := feast.deployCronJob(); err != nil {
-		return err
-	}
-
-	return nil
+	return feast.deployCronJob()
 }
 
 func (feast *FeastServices) validateRegistryPersistence(registryPersistence *feastdevv1.RegistryPersistence) error {
