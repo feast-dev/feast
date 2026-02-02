@@ -330,6 +330,7 @@ _Appears in:_
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `nodeSelector` _map[string]string_ |  |
 | `replicas` _integer_ | Replicas sets the number of replicas for the gRPC service deployment. |
+| `tls` _[TlsConfigs](#tlsconfigs)_ | TLS configures TLS for the gRPC server. |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the gRPC container. |
 | `port` _integer_ | Port sets the gRPC server port. Defaults to 50051 if unset. |
 | `maxWorkers` _integer_ | MaxWorkers sets the maximum number of threads for handling gRPC calls. |
@@ -874,6 +875,7 @@ _Appears in:_
 TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.
 
 _Appears in:_
+- [GrpcServerConfigs](#grpcserverconfigs)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 

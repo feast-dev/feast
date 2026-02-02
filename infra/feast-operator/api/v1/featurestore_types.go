@@ -611,6 +611,8 @@ type GrpcServerConfigs struct {
 	ContainerConfigs `json:",inline"`
 	// Replicas sets the number of replicas for the gRPC service deployment.
 	Replicas *int32 `json:"replicas,omitempty"`
+	// TLS configures TLS for the gRPC server.
+	TLS *TlsConfigs `json:"tls,omitempty"`
 	// VolumeMounts defines the list of volumes that should be mounted into the gRPC container.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 	// Port sets the gRPC server port. Defaults to 50051 if unset.

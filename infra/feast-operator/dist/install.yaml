@@ -1524,6 +1524,43 @@ spec:
                                   of compute resources required.
                                 type: object
                             type: object
+                          tls:
+                            description: TLS configures TLS for the gRPC server.
+                            properties:
+                              disable:
+                                description: will disable TLS for the feast service.
+                                  useful in an openshift cluster, for example, where
+                                  TLS is configured by default
+                                type: boolean
+                              secretKeyNames:
+                                description: SecretKeyNames defines the secret key
+                                  names for the TLS key and cert.
+                                properties:
+                                  tlsCrt:
+                                    description: defaults to "tls.crt"
+                                    type: string
+                                  tlsKey:
+                                    description: defaults to "tls.key"
+                                    type: string
+                                type: object
+                              secretRef:
+                                description: references the local k8s secret where
+                                  the TLS key and cert reside
+                                properties:
+                                  name:
+                                    default: ""
+                                    description: |-
+                                      Name of the referent.
+                                      This field is effectively required, but due to backwards compatibility is
+                                      allowed to be empty.
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '`secretRef` required if `disable` is false.'
+                              rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                : true'
                           volumeMounts:
                             description: VolumeMounts defines the list of volumes
                               that should be mounted into the gRPC container.
@@ -6093,6 +6130,43 @@ spec:
                                       of compute resources required.
                                     type: object
                                 type: object
+                              tls:
+                                description: TLS configures TLS for the gRPC server.
+                                properties:
+                                  disable:
+                                    description: will disable TLS for the feast service.
+                                      useful in an openshift cluster, for example,
+                                      where TLS is configured by default
+                                    type: boolean
+                                  secretKeyNames:
+                                    description: SecretKeyNames defines the secret
+                                      key names for the TLS key and cert.
+                                    properties:
+                                      tlsCrt:
+                                        description: defaults to "tls.crt"
+                                        type: string
+                                      tlsKey:
+                                        description: defaults to "tls.key"
+                                        type: string
+                                    type: object
+                                  secretRef:
+                                    description: references the local k8s secret where
+                                      the TLS key and cert reside
+                                    properties:
+                                      name:
+                                        default: ""
+                                        description: |-
+                                          Name of the referent.
+                                          This field is effectively required, but due to backwards compatibility is
+                                          allowed to be empty.
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                type: object
+                                x-kubernetes-validations:
+                                - message: '`secretRef` required if `disable` is false.'
+                                  rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                    : true'
                               volumeMounts:
                                 description: VolumeMounts defines the list of volumes
                                   that should be mounted into the gRPC container.

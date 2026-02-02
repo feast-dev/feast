@@ -546,6 +546,11 @@ func (in *GrpcServerConfigs) DeepCopyInto(out *GrpcServerConfigs) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.TLS != nil {
+		in, out := &in.TLS, &out.TLS
+		*out = new(TlsConfigs)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
 		*out = make([]corev1.VolumeMount, len(*in))

@@ -291,6 +291,7 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 		}
 	} else {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initFeastSvc(feastType))
+		_ = feast.Handler.DeleteOwnedFeastObj(feast.initFeastDeploy(feastType))
 		// Delete REST API service if it exists
 		_ = feast.Handler.DeleteOwnedFeastObj(&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -298,6 +299,8 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 				Namespace: feast.Handler.FeatureStore.Namespace,
 			},
 		})
+		apimeta.RemoveStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, FeastServiceConditions[feastType][metav1.ConditionTrue].Type)
+		return nil
 	}
 	return feast.setFeastServiceCondition(nil, feastType)
 }
@@ -308,6 +311,16 @@ func (feast *FeastServices) removeFeastServiceByType(feastType FeastServiceType)
 	}
 	if err := feast.Handler.DeleteOwnedFeastObj(feast.initFeastDeploy(feastType)); err != nil {
 		return err
+	}
+	if feastType == RegistryFeastType {
+		if err := feast.Handler.DeleteOwnedFeastObj(&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      feast.GetFeastRestServiceName(feastType),
+				Namespace: feast.Handler.FeatureStore.Namespace,
+			},
+		}); err != nil {
+			return err
+		}
 	}
 	if err := feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType)); err != nil {
 		return err
@@ -474,7 +487,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 				Protocol:      corev1.ProtocolTCP,
 			},
 		}
-		probeHandler := feast.getProbeHandler(feastType, &feastdevv1.TlsConfigs{})
+		probeHandler := feast.getProbeHandler(feastType, feast.getTlsConfigs(feastType))
 		container.StartupProbe = &corev1.Probe{
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    3,
@@ -704,6 +717,10 @@ func (feast *FeastServices) getGrpcContainerCommand() []string {
 			cmd = append(cmd, "--registry_ttl_sec", strconv.Itoa(int(*grpcCfg.RegistryTTLSeconds)))
 		}
 	}
+	if tls := feast.getTlsConfigs(OnlineGrpcFeastType); tls.IsTLS() {
+		feastTlsPath := GetTlsPath(OnlineGrpcFeastType)
+		cmd = append(cmd, "--key", feastTlsPath+tls.SecretKeyNames.TlsKey, "--cert", feastTlsPath+tls.SecretKeyNames.TlsCrt)
+	}
 	return cmd
 }
 
@@ -780,6 +797,12 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	svc.Labels = feast.getFeastTypeLabels(feastType)
 	if feastType == OnlineGrpcFeastType {
 		grpcPort := feast.getOnlineGrpcPort()
+		if feast.isOpenShiftTls(feastType) {
+			if len(svc.Annotations) == 0 {
+				svc.Annotations = map[string]string{}
+			}
+			svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+		}
 		svc.Spec = corev1.ServiceSpec{
 			Selector: feast.getFeastTypeLabels(feastType),
 			Type:     corev1.ServiceTypeClusterIP,
@@ -1420,6 +1443,9 @@ func getTargetRestPort(feastType FeastServiceType, tls *feastdevv1.TlsConfigs) i
 }
 
 func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *feastdevv1.TlsConfigs) corev1.ProbeHandler {
+	if tls == nil {
+		tls = &feastdevv1.TlsConfigs{}
+	}
 	targetPort := getTargetPort(feastType, tls)
 
 	if feastType == OnlineGrpcFeastType {

@@ -24,6 +24,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -446,6 +448,111 @@ var _ = Describe("Registry Service", func() {
 
 			// Verify no NodeSelector is applied (empty selector)
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(BeEmpty())
+		})
+	})
+
+	Describe("Online Store Server Removal", func() {
+		It("should delete online deployment when server config is removed", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// create online deployment
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+			Expect(apimeta.IsStatusConditionTrue(featureStore.Status.Conditions, feastdevv1.OnlineStoreReadyType)).To(BeTrue())
+
+			onlineDeploy := feast.initFeastDeploy(OnlineFeastType)
+			Expect(onlineDeploy).NotTo(BeNil())
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      onlineDeploy.Name,
+				Namespace: onlineDeploy.Namespace,
+			}, onlineDeploy)).To(Succeed())
+
+			// remove server config (simulate grpc-only)
+			featureStore.Spec.Services.OnlineStore.Server = nil
+			featureStore.Spec.Services.OnlineStore.Grpc = &feastdevv1.GrpcServerConfigs{}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+			Expect(apimeta.FindStatusCondition(featureStore.Status.Conditions, feastdevv1.OnlineStoreReadyType)).To(BeNil())
+
+			err := k8sClient.Get(ctx, types.NamespacedName{
+				Name:      onlineDeploy.Name,
+				Namespace: onlineDeploy.Namespace,
+			}, onlineDeploy)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		})
+	})
+
+	Describe("Online gRPC TLS", func() {
+		It("should mount TLS secret and configure command flags", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Grpc: &feastdevv1.GrpcServerConfigs{
+					TLS: &feastdevv1.TlsConfigs{
+						SecretRef: &corev1.LocalObjectReference{
+							Name: "grpc-tls",
+						},
+					},
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy(OnlineGrpcFeastType)
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment, OnlineGrpcFeastType)).To(Succeed())
+
+			_, container := getContainerByType(OnlineGrpcFeastType, deployment.Spec.Template.Spec)
+			Expect(container).NotTo(BeNil())
+			Expect(container.Command).To(ContainElements(
+				"--key", "/tls/online-grpc/tls.key",
+				"--cert", "/tls/online-grpc/tls.crt",
+			))
+
+			hasMount := false
+			for _, mount := range container.VolumeMounts {
+				if mount.Name == "online-grpc-tls" &&
+					mount.MountPath == "/tls/online-grpc/" &&
+					mount.ReadOnly {
+					hasMount = true
+					break
+				}
+			}
+			Expect(hasMount).To(BeTrue())
+
+			hasVolume := false
+			for _, volume := range deployment.Spec.Template.Spec.Volumes {
+				if volume.Name == "online-grpc-tls" &&
+					volume.Secret != nil &&
+					volume.Secret.SecretName == "grpc-tls" {
+					hasVolume = true
+					break
+				}
+			}
+			Expect(hasVolume).To(BeTrue())
 		})
 	})
 
