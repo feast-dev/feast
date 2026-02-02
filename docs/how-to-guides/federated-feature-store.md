@@ -1,10 +1,10 @@
-# Federated Feature Store Setup
+# Multi-Team Feature Store Setup
 
-A federated feature store architecture allows multiple teams to contribute to a shared Feast registry while maintaining clear ownership boundaries. This pattern is particularly useful for organizations with multiple data science teams or projects that need to share features while preserving autonomy.
+A multi-team feature store architecture (sometimes called a "federated" feature store) allows multiple teams to collaborate on a shared Feast registry while maintaining clear ownership boundaries. This pattern is particularly useful for organizations with multiple data science teams or projects that need to share features while preserving autonomy.
 
 ## Overview
 
-In a federated setup, you typically have:
+In a multi-team setup, you typically have:
 
 - **Platform Repository (Central)**: A single repository managed by the platform team that acts as the source of truth for core infrastructure objects like entities, data sources, and batch/stream feature views.
 - **Team Repositories (Distributed)**: Team-owned repositories for training pipelines and inference services. Teams define their own FeatureServices and On-Demand Feature Views (ODFVs) and apply them safely without affecting objects they don't own.
@@ -612,11 +612,11 @@ print(features)
 
 ## Summary
 
-A federated feature store architecture enables scalable collaboration across multiple teams:
+A multi-team feature store architecture enables scalable collaboration across multiple teams:
 
 - The **platform team** maintains core objects (entities, sources, views) with `partial=False`
 - **Individual teams** safely add their FeatureServices and ODFVs with `partial=True`
 - Clear ownership boundaries prevent accidental deletions and conflicts
 - Proper CI/CD, naming conventions, and validation ensure smooth operation
 
-This pattern allows organizations to scale Feast usage across many teams while maintaining a consistent, well-governed feature store.
+This pattern (sometimes referred to as "federated" feature stores) allows organizations to scale Feast usage across many teams while maintaining a consistent, well-governed feature store.
