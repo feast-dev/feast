@@ -18210,9 +18210,9 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: null
+          value: quay.io/feastdev/feature-server:0.59.0
         - name: RELATED_IMAGE_CRON_JOB
-          value: null
+          value: quay.io/openshift/origin-cli:4.17
         image: quay.io/feastdev/feast-operator:0.59.0
         livenessProbe:
           httpGet:
