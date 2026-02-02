@@ -55,12 +55,12 @@ protos: compile-protos-python compile-protos-docs ## Compile protobufs for Pytho
 build: protos build-docker ## Build protobufs and Docker images
 
 format-python: ## Format Python code
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/ruff ] && .venv/bin/ruff check --fix feast/ tests/ || ruff check --fix feast/ tests/)
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/ruff ] && .venv/bin/ruff format feast/ tests/ || ruff format feast/ tests/)
+	cd $(ROOT_DIR) && uv run ruff check --fix sdk/python/feast/ sdk/python/tests/
+	cd $(ROOT_DIR) && uv run ruff format sdk/python/feast/ sdk/python/tests/
 
 lint-python: ## Lint Python code
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/ruff ] && .venv/bin/ruff check feast/ tests/ || ruff check feast/ tests/)
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/mypy ] && .venv/bin/mypy feast || mypy feast)
+	cd $(ROOT_DIR) && uv run ruff check sdk/python/feast/ sdk/python/tests/
+	cd $(ROOT_DIR) && uv run sh -c "cd sdk/python && mypy feast"
 
 # New combined target
 precommit-check: format-python lint-python ## Run all precommit checks
@@ -74,7 +74,7 @@ install-precommit: ## Install precommit hooks (runs on commit, not push)
 
 # Manual full type check
 mypy-full: ## Full MyPy type checking with all files
-	cd ${ROOT_DIR}/sdk/python && uv run --no-project mypy feast tests
+	cd ${ROOT_DIR} && uv run sh -c "cd sdk/python && mypy feast tests"
 
 # Run precommit on all files
 precommit-all: ## Run all precommit hooks on all files
@@ -170,40 +170,33 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") tests || python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") tests)
+	cd $(ROOT_DIR) && uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest tests/unit -n auto -x --tb=short || python -m pytest tests/unit -n auto -x --tb=short)
+	cd $(ROOT_DIR) && uv run python -m pytest sdk/python/tests/unit -n auto -x --tb=short
 
 # Changed files only (requires pytest-testmon)
 test-python-changed: ## Run tests for changed files only
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest --testmon -n 8 --tb=short tests || python -m pytest --testmon -n 8 --tb=short tests)
+	cd $(ROOT_DIR) && uv run python -m pytest --testmon -n 8 --tb=short sdk/python/tests
 
 # Quick smoke test for PRs
 test-python-smoke: ## Quick smoke test for development
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest \
-		tests/unit/test_unit_feature_store.py \
-		tests/unit/test_repo_operations_validate_feast_project_name.py \
-		-n 4 --tb=short || python -m pytest \
-		tests/unit/test_unit_feature_store.py \
-		tests/unit/test_repo_operations_validate_feast_project_name.py \
-		-n 4 --tb=short)
+	cd $(ROOT_DIR) && uv run python -m pytest \
+		sdk/python/tests/unit/test_unit_feature_store.py \
+		sdk/python/tests/unit/test_repo_operations_validate_feast_project_name.py \
+		-n 4 --tb=short
 
 test-python-integration: ## Run Python integration tests (CI)
-	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	cd $(ROOT_DIR) && uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
-		tests || python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
-		-k "(not snowflake or not test_historical_features_main)" \
-		-m "not rbac_remote_integration_test" \
-		--log-cli-level=INFO -s \
-		tests)
+		sdk/python/tests
 
 # Integration tests with better parallelization
 test-python-integration-parallel: ## Run integration tests with enhanced parallelization
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest tests/integration \
+	cd $(ROOT_DIR) && uv run python -m pytest sdk/python/tests/integration \
 		-n auto --dist loadscope \
 		--timeout=300 --tb=short -v \
 		--integration --color=yes --durations=20
@@ -214,25 +207,25 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 	HADOOP_HOME=$$HOME/hadoop \
 	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
 	HADOOP_USER_NAME=root \
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	cd $(ROOT_DIR) && uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
-		tests
+		sdk/python/tests
 
 test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	cd $(ROOT_DIR) && uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
-		tests
+		sdk/python/tests
 
 test-python-integration-container: ## Run Python integration tests using Docker
 	@(docker info > /dev/null 2>&1 && \
 		FEAST_LOCAL_ONLINE_CONTAINER=True \
-		cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest -n 8 --integration tests \
+		cd $(ROOT_DIR) && uv run python -m pytest -n 8 --integration sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
 test-python-universal-spark: ## Run Python Spark integration tests
@@ -604,7 +597,7 @@ test-python-universal-couchbase-online:	## Run Python Couchbase online store int
 		sdk/python/tests
 
 test-python-universal: ## Run all Python integration tests
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest -n 8 --integration tests
+	cd $(ROOT_DIR) && uv run python -m pytest -n 8 --integration sdk/python/tests
 
 ##@ Java
 
