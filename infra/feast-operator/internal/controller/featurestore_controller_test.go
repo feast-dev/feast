@@ -460,9 +460,10 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OnlineStoreReadyType)
 			Expect(cond).ToNot(BeNil())
-			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+			Expect(cond.Reason).To(Equal(feastdevv1.OnlineStoreFailedReason))
 			Expect(cond.Type).To(Equal(feastdevv1.OnlineStoreReadyType))
+			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + deploy.Name + " is already owned by another Service controller " + name))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ClientReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -1405,10 +1406,10 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.OnlineStoreReadyType)
 			Expect(cond).ToNot(BeNil())
-			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+			Expect(cond.Reason).To(Equal(feastdevv1.OnlineStoreFailedReason))
 			Expect(cond.Type).To(Equal(feastdevv1.OnlineStoreReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1.OnlineStoreReadyMessage))
+			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + deploy.Name + " is already owned by another Service controller " + name))
 
 			Expect(resource.Status.Phase).To(Equal(feastdevv1.FailedPhase))
 		})
