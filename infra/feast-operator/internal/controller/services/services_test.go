@@ -499,17 +499,21 @@ var _ = Describe("Registry Service", func() {
 
 	Describe("Online gRPC TLS", func() {
 		It("should mount TLS secret and configure command flags", func() {
-			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
-				Grpc: &feastdevv1.GrpcServerConfigs{
-					TLS: &feastdevv1.TlsConfigs{
-						SecretRef: &corev1.LocalObjectReference{
-							Name: "grpc-tls",
-						},
+		featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+			Grpc: &feastdevv1.GrpcServerConfigs{
+				TLS: &feastdevv1.TlsConfigs{
+					SecretRef: &corev1.LocalObjectReference{
+						Name: "grpc-tls",
 					},
-					ContainerConfigs: feastdevv1.ContainerConfigs{
-						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
-						},
+					SecretKeyNames: feastdevv1.SecretKeyNames{
+						TlsKey: "tls.key",
+						TlsCrt: "tls.crt",
+					},
+				},
+				ContainerConfigs: feastdevv1.ContainerConfigs{
+					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+						Image: ptr("test-image"),
+					},
 					},
 				},
 			}
