@@ -639,6 +639,12 @@ build-feast-operator-docker: ## Build Feast Operator Docker image
 	VERSION=$(VERSION) \
 	$(MAKE) docker-build
 
+build-feast-operator-docker-on-mac: ## Build Feast Operator Docker image on Mac
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-build-on-mac
+
 build-go-feature-server-docker: ## Build Go Feature Server Docker iamge
 	make compile-protos-go
 	docker buildx build --build-arg VERSION=$(VERSION) \
