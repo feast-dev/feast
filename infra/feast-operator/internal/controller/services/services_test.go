@@ -470,7 +470,7 @@ var _ = Describe("Registry Service", func() {
 
 			// create online deployment
 			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
-			Expect(apimeta.IsStatusConditionTrue(featureStore.Status.Conditions, feastdevv1.OnlineStoreReadyType)).To(BeTrue())
+			Expect(apimeta.IsStatusConditionTrue(feast.Handler.FeatureStore.Status.Conditions, feastdevv1.OnlineStoreReadyType)).To(BeTrue())
 
 			onlineDeploy := feast.initFeastDeploy(OnlineFeastType)
 			Expect(onlineDeploy).NotTo(BeNil())
@@ -489,7 +489,7 @@ var _ = Describe("Registry Service", func() {
 			feast.refreshFeatureStore(ctx, typeNamespacedName)
 
 			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
-			Expect(apimeta.FindStatusCondition(featureStore.Status.Conditions, feastdevv1.OnlineStoreReadyType)).To(BeNil())
+			Expect(apimeta.FindStatusCondition(feast.Handler.FeatureStore.Status.Conditions, feastdevv1.OnlineStoreReadyType)).To(BeNil())
 
 			err := k8sClient.Get(ctx, types.NamespacedName{
 				Name:      onlineDeploy.Name,

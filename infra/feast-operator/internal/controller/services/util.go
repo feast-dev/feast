@@ -485,9 +485,9 @@ func GetOnlineContainer(deployment appsv1.Deployment) *corev1.Container {
 }
 
 func getContainerByType(feastType FeastServiceType, podSpec corev1.PodSpec) (int, *corev1.Container) {
-	for i, c := range podSpec.Containers {
-		if c.Name == string(feastType) {
-			return i, &c
+	for i := range podSpec.Containers {
+		if podSpec.Containers[i].Name == string(feastType) {
+			return i, &podSpec.Containers[i]
 		}
 	}
 	return -1, nil
