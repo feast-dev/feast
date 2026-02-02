@@ -55,12 +55,12 @@ protos: compile-protos-python compile-protos-docs ## Compile protobufs for Pytho
 build: protos build-docker ## Build protobufs and Docker images
 
 format-python: ## Format Python code
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/ruff check --fix feast/ tests/
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/ruff format feast/ tests/
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/ruff ] && .venv/bin/ruff check --fix feast/ tests/ || ruff check --fix feast/ tests/)
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/ruff ] && .venv/bin/ruff format feast/ tests/ || ruff format feast/ tests/)
 
 lint-python: ## Lint Python code
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/ruff check feast/ tests/
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/mypy feast
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/ruff ] && .venv/bin/ruff check feast/ tests/ || ruff check feast/ tests/)
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/mypy ] && .venv/bin/mypy feast || mypy feast)
 
 # New combined target
 precommit-check: format-python lint-python ## Run all precommit checks
@@ -101,17 +101,15 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 
 # Used in github actions/ci
 # formerly install-python-ci-dependencies-uv
-install-python-dependencies-ci: ## Install Python CI dependencies using uv
-	# Create a virtual environment and sync dependencies
-	cd $(ROOT_DIR)/sdk/python && uv venv --seed
+install-python-dependencies-ci: ## Install Python CI dependencies using uv (system)
 	@if [ "$$(uname -s)" = "Linux" ]; then \
 		echo "Installing dependencies with torch CPU index for Linux..."; \
-		cd $(ROOT_DIR)/sdk/python && uv pip sync --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+		uv pip sync --system --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
 	else \
 		echo "Installing dependencies from PyPI for macOS..."; \
-		cd $(ROOT_DIR)/sdk/python && uv pip sync requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+		uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
 	fi
-	cd $(ROOT_DIR)/sdk/python && uv pip install --no-deps -e .
+	uv pip install --system --no-deps -e .
 
 # Used in github actions/ci
 install-hadoop-dependencies-ci: ## Install Hadoop dependencies
@@ -172,29 +170,36 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") tests
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") tests || python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") tests)
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest tests/unit -n auto -x --tb=short
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest tests/unit -n auto -x --tb=short || python -m pytest tests/unit -n auto -x --tb=short)
 
 # Changed files only (requires pytest-testmon)
 test-python-changed: ## Run tests for changed files only
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest --testmon -n 8 --tb=short tests
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest --testmon -n 8 --tb=short tests || python -m pytest --testmon -n 8 --tb=short tests)
 
 # Quick smoke test for PRs
 test-python-smoke: ## Quick smoke test for development
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest \
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest \
 		tests/unit/test_unit_feature_store.py \
 		tests/unit/test_repo_operations_validate_feast_project_name.py \
-		-n 4 --tb=short
+		-n 4 --tb=short || python -m pytest \
+		tests/unit/test_unit_feature_store.py \
+		tests/unit/test_repo_operations_validate_feast_project_name.py \
+		-n 4 --tb=short)
 
 test-python-integration: ## Run Python integration tests (CI)
-	cd $(ROOT_DIR)/sdk/python && .venv/bin/python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	cd $(ROOT_DIR)/sdk/python && ([ -f .venv/bin/python ] && .venv/bin/python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
-		tests
+		tests || python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+		-k "(not snowflake or not test_historical_features_main)" \
+		-m "not rbac_remote_integration_test" \
+		--log-cli-level=INFO -s \
+		tests)
 
 # Integration tests with better parallelization
 test-python-integration-parallel: ## Run integration tests with enhanced parallelization
