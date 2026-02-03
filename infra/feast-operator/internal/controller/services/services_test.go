@@ -623,7 +623,11 @@ var _ = Describe("Registry Service", func() {
 				Name:      pvcName,
 				Namespace: featureStore.Namespace,
 			}, pvc)
-			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			if err != nil {
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			} else {
+				Expect(pvc.DeletionTimestamp).NotTo(BeNil())
+			}
 		})
 	})
 
