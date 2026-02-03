@@ -465,7 +465,7 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec, feastType Fea
 		return err
 	}
 
-	feast.setInitContainer(podSpec, fsYamlB64)
+	feast.setInitContainer(podSpec, feastType, fsYamlB64)
 	feast.setContainer(&podSpec.Containers, feastType, fsYamlB64)
 	return nil
 }
@@ -477,7 +477,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			return
 		}
 		name := string(feastType)
-		workingDir := feast.getFeatureRepoDir()
+		workingDir := feast.getFeatureRepoDir(feastType)
 		cmd := feast.getGrpcContainerCommand()
 		container := getContainer(name, workingDir, cmd, grpcCfg.ContainerConfigs, fsYamlB64)
 		container.Ports = []corev1.ContainerPort{
@@ -511,7 +511,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 	}
 	if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
 		name := string(feastType)
-		workingDir := feast.getFeatureRepoDir()
+		workingDir := feast.getFeatureRepoDir(feastType)
 		cmd := feast.getContainerCommand(feastType)
 		container := getContainer(name, workingDir, cmd, serverConfigs.ContainerConfigs, fsYamlB64)
 		tls := feast.getTlsConfigs(feastType)
@@ -733,11 +733,11 @@ func (feast *FeastServices) getDeploymentStrategy() appsv1.DeploymentStrategy {
 	}
 }
 
-func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 string) {
+func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, feastType FeastServiceType, fsYamlB64 string) {
 	applied := feast.Handler.FeatureStore.Status.Applied
 	if applied.FeastProjectDir != nil && !applied.Services.DisableInitContainers {
 		feastProjectDir := applied.FeastProjectDir
-		workingDir := getOfflineMountPath(feast.Handler.FeatureStore)
+		workingDir := getMountPath(feast.Handler.FeatureStore, feastType)
 		projectPath := workingDir + "/" + applied.FeastProject
 		container := corev1.Container{
 			Name:  "feast-init",
@@ -783,7 +783,7 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 			}
 		}
 
-		featureRepoDir := feast.getFeatureRepoDir()
+		featureRepoDir := feast.getFeatureRepoDir(feastType)
 		container.Args = []string{
 			"echo \"Creating feast repository...\"\necho '" + createCommand + "'\n" +
 				"if [[ ! -d " + featureRepoDir + " ]]; then " + createCommand + "; fi;\n" +
@@ -1395,9 +1395,9 @@ func (feast *FeastServices) mountEmptyDirVolumes(podSpec *corev1.PodSpec, feastT
 	}
 }
 
-func (feast *FeastServices) getFeatureRepoDir() string {
+func (feast *FeastServices) getFeatureRepoDir(feastType FeastServiceType) string {
 	applied := feast.Handler.FeatureStore.Status.Applied
-	feastProjectDir := getOfflineMountPath(feast.Handler.FeatureStore) + "/" + applied.FeastProject
+	feastProjectDir := getMountPath(feast.Handler.FeatureStore, feastType) + "/" + applied.FeastProject
 	if applied.FeastProjectDir != nil && applied.FeastProjectDir.Git != nil && len(applied.FeastProjectDir.Git.FeatureRepoPath) > 0 {
 		return feastProjectDir + "/" + applied.FeastProjectDir.Git.FeatureRepoPath
 	}

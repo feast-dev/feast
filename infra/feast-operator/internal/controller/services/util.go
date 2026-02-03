@@ -78,8 +78,8 @@ func shouldMountEmptyDir(featureStore *feastdevv1.FeatureStore, feastType FeastS
 	return !ok
 }
 
-func getOfflineMountPath(featureStore *feastdevv1.FeatureStore) string {
-	if pvcConfig, ok := hasPvcConfig(featureStore, OfflineFeastType); ok {
+func getMountPath(featureStore *feastdevv1.FeatureStore, feastType FeastServiceType) string {
+	if pvcConfig, ok := hasPvcConfig(featureStore, feastType); ok {
 		return pvcConfig.MountPath
 	}
 	return EphemeralPath

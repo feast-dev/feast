@@ -313,6 +313,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(offlineVolMount.MountPath).To(Equal(offlineStoreMountPath))
 			Expect(offlineVolMount.Name).To(Equal(offlinePvcName))
 			assertEnvFrom(*offlineContainer)
+			Expect(offlineDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(offlineDeploy.Spec.Template.Spec.InitContainers[0].WorkingDir).To(Equal(offlineStoreMountPath))
+			Expect(offlineContainer.WorkingDir).To(Equal(path.Join(offlineStoreMountPath, resource.Spec.FeastProject, services.FeatureRepoDir)))
 
 			// check offline pvc
 			pvc := &corev1.PersistentVolumeClaim{}
@@ -338,6 +341,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(onlineVolMount.MountPath).To(Equal(onlineStoreMountPath))
 			Expect(onlineVolMount.Name).To(Equal(onlinePvcName))
 			assertEnvFrom(*onlineContainer)
+			Expect(onlineDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(onlineDeploy.Spec.Template.Spec.InitContainers[0].WorkingDir).To(Equal(onlineStoreMountPath))
+			Expect(onlineContainer.WorkingDir).To(Equal(path.Join(onlineStoreMountPath, resource.Spec.FeastProject, services.FeatureRepoDir)))
 
 			// check online pvc
 			pvc = &corev1.PersistentVolumeClaim{}
