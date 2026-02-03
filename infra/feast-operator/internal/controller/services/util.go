@@ -73,13 +73,9 @@ func shouldCreatePvc(featureStore *feastdevv1.FeatureStore, feastType FeastServi
 	return nil, false
 }
 
-func shouldMountEmptyDir(featureStore *feastdevv1.FeatureStore) bool {
-	for _, feastType := range feastServerTypes {
-		if _, ok := hasPvcConfig(featureStore, feastType); !ok {
-			return true
-		}
-	}
-	return false
+func shouldMountEmptyDir(featureStore *feastdevv1.FeatureStore, feastType FeastServiceType) bool {
+	_, ok := hasPvcConfig(featureStore, feastType)
+	return !ok
 }
 
 func getOfflineMountPath(featureStore *feastdevv1.FeatureStore) string {

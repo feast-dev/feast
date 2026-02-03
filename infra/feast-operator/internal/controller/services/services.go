@@ -452,7 +452,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec, feastType FeastServi
 	}
 	feast.mountTlsConfigs(podSpec)
 	feast.mountPvcConfigs(podSpec, feastType)
-	feast.mountEmptyDirVolumes(podSpec)
+	feast.mountEmptyDirVolumes(podSpec, feastType)
 	feast.mountUserDefinedVolumes(podSpec)
 	feast.applyNodeSelector(podSpec, feastType)
 
@@ -1389,8 +1389,8 @@ func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *f
 	}
 }
 
-func (feast *FeastServices) mountEmptyDirVolumes(podSpec *corev1.PodSpec) {
-	if shouldMountEmptyDir(feast.Handler.FeatureStore) {
+func (feast *FeastServices) mountEmptyDirVolumes(podSpec *corev1.PodSpec, feastType FeastServiceType) {
+	if shouldMountEmptyDir(feast.Handler.FeatureStore, feastType) {
 		mountEmptyDirVolume(podSpec)
 	}
 }
