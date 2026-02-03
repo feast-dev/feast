@@ -33,12 +33,21 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      - name: Install system dependencies
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y make
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            # make is already installed on macOS runners
+            which make || brew install make
+          fi
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Python
         env:
-          PYTHONPATH: "/home/runner/work/feast/feast/.venv/lib/python${{ matrix.python-version }}/site-packages:$PYTHONPATH"
-          PATH: "/home/runner/work/feast/feast/.venv/bin:$PATH"
+          PYTHONPATH: "${{ github.workspace }}/.venv/lib/python${{ matrix.python-version }}/site-packages:$PYTHONPATH"
+          PATH: "${{ github.workspace }}/.venv/bin:$PATH"
         run: make test-python-unit
       - name: Minimize uv cache
         run: uv cache prune --ci
