@@ -388,13 +388,13 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 "pagination": pagination,
             }
 
-        @router.get("/metrics/summary", tags=["Metrics"])
-        async def metrics_summary(
+    @router.get("/metrics/summary", tags=["Metrics"])
+    async def metrics_summary(
         allow_cache: bool = Query(True),
-        ):
-            """
-            Returns registry-level metadata summary statistics.
-            """
+    ):
+        """
+        Returns registry-level metadata summary statistics.
+        """
 
         # Fetch all projects
         projects_resp = grpc_call(
