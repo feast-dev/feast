@@ -246,7 +246,7 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 			return feast.setFeastServiceCondition(err, feastType)
 		}
 	} else {
-		_ = feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType))
+		_ = feast.deletePVCForType(feastType)
 	}
 	if hasServerConfig {
 		// For registry service, handle both gRPC and REST services
@@ -322,7 +322,7 @@ func (feast *FeastServices) removeFeastServiceByType(feastType FeastServiceType)
 			return err
 		}
 	}
-	if err := feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType)); err != nil {
+	if err := feast.deletePVCForType(feastType); err != nil {
 		return err
 	}
 	apimeta.RemoveStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, FeastServiceConditions[feastType][metav1.ConditionTrue].Type)
@@ -1326,11 +1326,25 @@ func (feast *FeastServices) initPVC(feastType FeastServiceType) *corev1.Persiste
 
 func (feast *FeastServices) pvcFeastType(feastType FeastServiceType) FeastServiceType {
 	if feastType == OnlineGrpcFeastType {
-		if _, ok := hasPvcConfig(feast.Handler.FeatureStore, OnlineFeastType); ok {
-			return OnlineFeastType
-		}
+		return OnlineFeastType
 	}
 	return feastType
+}
+
+func (feast *FeastServices) shouldDeletePVCForType(feastType FeastServiceType) bool {
+	if feastType == OnlineGrpcFeastType {
+		if _, ok := hasPvcConfig(feast.Handler.FeatureStore, OnlineFeastType); ok && feast.isOnlineServer() {
+			return false
+		}
+	}
+	return true
+}
+
+func (feast *FeastServices) deletePVCForType(feastType FeastServiceType) error {
+	if !feast.shouldDeletePVCForType(feastType) {
+		return nil
+	}
+	return feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feast.pvcFeastType(feastType)))
 }
 
 func (feast *FeastServices) initRoute(feastType FeastServiceType) *routev1.Route {

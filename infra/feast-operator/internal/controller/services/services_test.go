@@ -561,6 +561,57 @@ var _ = Describe("Registry Service", func() {
 		})
 	})
 
+	Describe("Online gRPC PVC cleanup", func() {
+		It("should delete the shared online PVC when the gRPC service is disabled", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Grpc: &feastdevv1.GrpcServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+				},
+				Persistence: &feastdevv1.OnlineStorePersistence{
+					FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
+						Path: "online.db",
+						PvcConfig: &feastdevv1.PvcConfig{
+							Create:    &feastdevv1.PvcCreate{},
+							MountPath: "/data",
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineGrpcFeastType)).To(Succeed())
+
+			pvcName := feast.GetFeastServiceName(OnlineFeastType)
+			pvc := &corev1.PersistentVolumeClaim{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      pvcName,
+				Namespace: featureStore.Namespace,
+			}, pvc)).To(Succeed())
+
+			featureStore.Spec.Services.OnlineStore = nil
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.reconcileOnlineGrpc()).To(Succeed())
+
+			err := k8sClient.Get(ctx, types.NamespacedName{
+				Name:      pvcName,
+				Namespace: featureStore.Namespace,
+			}, pvc)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		})
+	})
+
 	Describe("Online gRPC TLS", func() {
 		It("should mount TLS secret and configure command flags", func() {
 			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
