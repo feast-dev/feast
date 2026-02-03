@@ -525,7 +525,7 @@ var _ = Describe("Registry Service", func() {
 				},
 				Persistence: &feastdevv1.OnlineStorePersistence{
 					FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
-						Path: "/data/online.db",
+						Path: "online.db",
 						PvcConfig: &feastdevv1.PvcConfig{
 							Create:    &feastdevv1.PvcCreate{},
 							MountPath: "/data",
