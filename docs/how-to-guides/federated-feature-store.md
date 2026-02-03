@@ -1,6 +1,6 @@
 # Multi-Team Feature Store Setup
 
-A multi-team feature store architecture (sometimes called a "federated" feature store) allows multiple teams to collaborate on a shared Feast registry while maintaining clear ownership boundaries. This pattern is particularly useful for organizations with multiple data science teams or projects that need to share features while preserving autonomy.
+A multi-team feature store architecture (sometimes called a "federated" feature store) allows multiple teams to collaborate on a shared Feast registry while maintaining clear ownership boundaries. This pattern is particularly useful for organizations with multiple teams or projects that need to share features while preserving autonomy.
 
 ## Overview
 
