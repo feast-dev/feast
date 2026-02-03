@@ -388,15 +388,15 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 "pagination": pagination,
             }
 
-    @router.get("/metrics/summary", tags=["Metrics"])
-    async def metrics_summary(
+        @router.get("/metrics/summary", tags=["Metrics"])
+        async def metrics_summary(
         allow_cache: bool = Query(True),
-    ):
-        """
-        Returns registry-level metadat summary statistics.
-        """
+        ):
+            """
+            Returns registry-level metadata summary statistics.
+            """
 
-        #Get all projects
+        # Fetch all projects
         projects_resp = grpc_call(
             grpc_handler.ListProjects,
             RegistryServer_pb2.ListProjectsRequest(allow_cache=allow_cache),
@@ -405,7 +405,7 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
         projects = projects_resp.get("projects", [])
         total_projects = len(projects)
 
-        #Initialize counters
+        # Initialize totals
         totals = {
             "entities": 0,
             "dataSources": 0,
@@ -415,23 +415,30 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
             "featureServices": 0,
         }
 
-        last__updates_ts = None
+        last_updated_ts = None
 
-        #Iterate through projects
-
+        # Loop through projects
         for project in projects:
             project_name = project["spec"]["name"]
 
-            #count entities
+            # Entities
             entities = grpc_call(
+                grpc_handler.ListEntities,
+                RegistryServer_pb2.ListEntitiesRequest(
+                    project=project_name, allow_cache=allow_cache
+                ),
+            )
+
+            # Data sources
+            data_sources = grpc_call(
                 grpc_handler.ListDataSources,
                 RegistryServer_pb2.ListDataSourcesRequest(
                     project=project_name, allow_cache=allow_cache
                 ),
             )
 
-            #Count saved datasets
-            try: 
+            # Saved datasets
+            try:
                 saved_datasets = grpc_call(
                     grpc_handler.ListSavedDatasets,
                     RegistryServer_pb2.ListSavedDatasetsRequest(
@@ -439,20 +446,31 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                     ),
                 )
             except Exception:
+                saved_datasets = {"savedDatasets": []}
+
+            # Features
+            try:
+                features = grpc_call(
+                    grpc_handler.ListFeatures,
+                    RegistryServer_pb2.ListFeaturesRequest(
+                        project=project_name, allow_cache=allow_cache
+                    ),
+                )
+            except Exception:
                 features = {"features": []}
 
-            #Count feature views
+            # Feature views
             try:
                 feature_views = grpc_call(
-                    grpc_handler.ListAllFeaturesViews,
+                    grpc_handler.ListAllFeatureViews,
                     RegistryServer_pb2.ListAllFeatureViewsRequest(
                         project=project_name, allow_cache=allow_cache
                     ),
                 )
-            except:
-                feature_views = {"feature_views": []}
+            except Exception:
+                feature_views = {"featureViews": []}
 
-            # Count feature services
+            # Feature services
             try:
                 feature_services = grpc_call(
                     grpc_handler.ListFeatureServices,
@@ -460,25 +478,27 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                         project=project_name, allow_cache=allow_cache
                     ),
                 )
-            except:
-                feature_services = {"feature_services": []}
+            except Exception:
+                feature_services = {"featureServices": []}
 
             # Aggregate counts
-            total["entities"] += len(entities.get("entities", []))
-            totals["dataSources"] += len(dataSources.get("dataSources", []))
-            totals["savedDatasets"] += len(savedDatasets.get("savedDatsets", []))
+            totals["entities"] += len(entities.get("entities", []))
+            totals["dataSources"] += len(data_sources.get("dataSources", []))
+            totals["savedDatasets"] += len(saved_datasets.get("savedDatasets", []))
             totals["features"] += len(features.get("features", []))
-            totals["featureViews"] += len(featureViews.get("featureViews", []))
-            totals["featureServices"] += len(featureServices.get("featureServices", []))
+            totals["featureViews"] += len(feature_views.get("featureViews", []))
+            totals["featureServices"] += len(
+                feature_services.get("featureServices", [])
+            )
 
-            # Track last updated timestamp (best effort)
+            # Track latest update timestamp (best effort)
             for fv in feature_views.get("featureViews", []):
                 meta = fv.get("meta", {})
                 ts = meta.get("lastUpdatedTimestamp")
 
-                if ts: 
-                    if last_updates_ts is None or ts > last_updated_ts:
-                        last_updated_ts
+                if ts:
+                    if last_updated_ts is None or ts > last_updated_ts:
+                        last_updated_ts = ts
 
         return {
             "totalProjects": total_projects,
@@ -487,8 +507,8 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
             "totalSavedDatasets": totals["savedDatasets"],
             "totalFeatures": totals["features"],
             "totalFeatureViews": totals["featureViews"],
-            "totalFeatureServices": totals["featureServices"],\
-            "lastUpdatedTImestamp": last_updated_ts,
+            "totalFeatureServices": totals["featureServices"],
+            "lastUpdatedTimestamp": last_updated_ts,
         }
 
     return router
