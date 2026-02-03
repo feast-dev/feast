@@ -1337,6 +1337,11 @@ func (feast *FeastServices) shouldDeletePVCForType(feastType FeastServiceType) b
 			return false
 		}
 	}
+	if feastType == OnlineFeastType {
+		if _, ok := hasPvcConfig(feast.Handler.FeatureStore, OnlineFeastType); ok && feast.isOnlineGrpcServer() {
+			return false
+		}
+	}
 	return true
 }
 
