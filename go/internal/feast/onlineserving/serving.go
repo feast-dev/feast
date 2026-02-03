@@ -652,7 +652,7 @@ func getQualifiedFeatureName(viewName string, featureName string, fullFeatureNam
 func validateJoinKeys(
 	joinKeyValues map[string]*prototypes.RepeatedValue,
 	expectedJoinKeysSet map[string]interface{}) error {
-	for joinKey, _ := range joinKeyValues {
+	for joinKey := range joinKeyValues {
 		if _, ok := expectedJoinKeysSet[joinKey]; !ok {
 			return fmt.Errorf("Invalid entity join key. key=%s", joinKey)
 		}
