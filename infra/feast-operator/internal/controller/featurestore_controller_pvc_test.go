@@ -402,13 +402,13 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			registryDeploy, err = getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(registryDeploy.Spec.Template.Spec.Volumes).To(ContainElement(ephemeralVolume))
-			Expect(services.GetRegistryContainer(*registryDeploy).VolumeMounts).To(ContainElement(ephemeralVolMount))
+			Expect(registryDeploy.Spec.Template.Spec.Volumes).NotTo(ContainElement(ephemeralVolume))
+			Expect(services.GetRegistryContainer(*registryDeploy).VolumeMounts).NotTo(ContainElement(ephemeralVolMount))
 
 			offlineDeploy, err = getDeploymentByType(ctx, k8sClient, resource, services.OfflineFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(offlineDeploy.Spec.Template.Spec.Volumes).To(ContainElement(ephemeralVolume))
-			Expect(services.GetOfflineContainer(*offlineDeploy).VolumeMounts).To(ContainElement(ephemeralVolMount))
+			Expect(offlineDeploy.Spec.Template.Spec.Volumes).NotTo(ContainElement(ephemeralVolume))
+			Expect(services.GetOfflineContainer(*offlineDeploy).VolumeMounts).NotTo(ContainElement(ephemeralVolMount))
 
 			// check online pvc is deleted
 			log.FromContext(feast.Handler.Context).Info("Checking deletion of", "PersistentVolumeClaim", onlineDeploy.Name)
