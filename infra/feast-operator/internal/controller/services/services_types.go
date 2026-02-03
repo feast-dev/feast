@@ -233,14 +233,6 @@ var (
 	OidcProperties       = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl, OidcClientSecret, OidcUsername, OidcPassword}
 )
 
-// Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.
-var feastServerTypes = []FeastServiceType{
-	RegistryFeastType,
-	OfflineFeastType,
-	OnlineFeastType,
-	OnlineGrpcFeastType,
-}
-
 // AuthzType defines the authorization type
 type AuthzType string
 
