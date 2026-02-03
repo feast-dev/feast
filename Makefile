@@ -82,7 +82,7 @@ precommit-all: ## Run all precommit hooks on all files
 
 # Make scripts executable
 setup-scripts: ## Make helper scripts executable
-	chmod +x scripts/uv-run.sh scripts/check-init-py.sh
+	chmod +x scripts/uv-run.sh scripts/check-init-py.sh scripts/mypy-daemon.sh
 
 ##@ Python SDK - local
 # formerly install-python-ci-dependencies-uv-venv
