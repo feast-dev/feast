@@ -921,7 +921,7 @@ func (feast *FeastServices) setServiceAccount(sa *corev1.ServiceAccount) error {
 }
 
 func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1.PvcCreate, feastType FeastServiceType) (*corev1.PersistentVolumeClaim, error) {
-	pvc := feast.initPVC(feastType)
+	pvc := feast.initPVC(feast.pvcFeastType(feastType))
 
 	pvc.Spec = corev1.PersistentVolumeClaimSpec{
 		AccessModes: pvcCreate.AccessModes,
@@ -1324,6 +1324,15 @@ func (feast *FeastServices) initPVC(feastType FeastServiceType) *corev1.Persiste
 	return pvc
 }
 
+func (feast *FeastServices) pvcFeastType(feastType FeastServiceType) FeastServiceType {
+	if feastType == OnlineGrpcFeastType {
+		if _, ok := hasPvcConfig(feast.Handler.FeatureStore, OnlineFeastType); ok {
+			return OnlineFeastType
+		}
+	}
+	return feastType
+}
+
 func (feast *FeastServices) initRoute(feastType FeastServiceType) *routev1.Route {
 	route := &routev1.Route{
 		ObjectMeta: feast.GetObjectMetaType(feastType),
@@ -1359,7 +1368,7 @@ func (feast *FeastServices) mountPvcConfigs(podSpec *corev1.PodSpec, feastType F
 
 func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *feastdevv1.PvcConfig, feastType FeastServiceType) {
 	if podSpec != nil && pvcConfig != nil {
-		volName := feast.initPVC(feastType).Name
+		volName := feast.initPVC(feast.pvcFeastType(feastType)).Name
 		pvcName := volName
 		if pvcConfig.Ref != nil {
 			pvcName = pvcConfig.Ref.Name
@@ -1372,13 +1381,11 @@ func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *f
 				},
 			},
 		})
-		if feastType == OfflineFeastType {
-			for i := range podSpec.InitContainers {
-				podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
-					Name:      volName,
-					MountPath: pvcConfig.MountPath,
-				})
-			}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      volName,
+				MountPath: pvcConfig.MountPath,
+			})
 		}
 		for i := range podSpec.Containers {
 			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{

@@ -315,6 +315,10 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			assertEnvFrom(*offlineContainer)
 			Expect(offlineDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(offlineDeploy.Spec.Template.Spec.InitContainers[0].WorkingDir).To(Equal(offlineStoreMountPath))
+			offlineInitVolMount := services.GetOfflineVolumeMount(feast.Handler.FeatureStore, offlineDeploy.Spec.Template.Spec.InitContainers[0].VolumeMounts)
+			Expect(offlineInitVolMount).NotTo(BeNil())
+			Expect(offlineInitVolMount.MountPath).To(Equal(offlineStoreMountPath))
+			Expect(offlineInitVolMount.Name).To(Equal(offlinePvcName))
 			Expect(offlineContainer.WorkingDir).To(Equal(path.Join(offlineStoreMountPath, resource.Spec.FeastProject, services.FeatureRepoDir)))
 
 			// check offline pvc
@@ -343,6 +347,10 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			assertEnvFrom(*onlineContainer)
 			Expect(onlineDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(onlineDeploy.Spec.Template.Spec.InitContainers[0].WorkingDir).To(Equal(onlineStoreMountPath))
+			onlineInitVolMount := services.GetOnlineVolumeMount(feast.Handler.FeatureStore, onlineDeploy.Spec.Template.Spec.InitContainers[0].VolumeMounts)
+			Expect(onlineInitVolMount).NotTo(BeNil())
+			Expect(onlineInitVolMount.MountPath).To(Equal(onlineStoreMountPath))
+			Expect(onlineInitVolMount.Name).To(Equal(onlinePvcName))
 			Expect(onlineContainer.WorkingDir).To(Equal(path.Join(onlineStoreMountPath, resource.Spec.FeastProject, services.FeatureRepoDir)))
 
 			// check online pvc
@@ -368,6 +376,12 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			registryVolMount := services.GetRegistryVolumeMount(feast.Handler.FeatureStore, registryContainer.VolumeMounts)
 			Expect(registryVolMount.MountPath).To(Equal(registryMountPath))
 			Expect(registryVolMount.Name).To(Equal(registryPvcName))
+			Expect(registryDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(registryDeploy.Spec.Template.Spec.InitContainers[0].WorkingDir).To(Equal(registryMountPath))
+			registryInitVolMount := services.GetRegistryVolumeMount(feast.Handler.FeatureStore, registryDeploy.Spec.Template.Spec.InitContainers[0].VolumeMounts)
+			Expect(registryInitVolMount).NotTo(BeNil())
+			Expect(registryInitVolMount.MountPath).To(Equal(registryMountPath))
+			Expect(registryInitVolMount.Name).To(Equal(registryPvcName))
 
 			// check registry pvc
 			pvc = &corev1.PersistentVolumeClaim{}

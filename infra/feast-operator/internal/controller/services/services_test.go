@@ -35,6 +35,15 @@ func ptr[T any](v T) *T {
 	return &v
 }
 
+func findPvcVolume(volumes []corev1.Volume) *corev1.Volume {
+	for i := range volumes {
+		if volumes[i].PersistentVolumeClaim != nil {
+			return &volumes[i]
+		}
+	}
+	return nil
+}
+
 func (feast *FeastServices) refreshFeatureStore(ctx context.Context, key types.NamespacedName) {
 	fs := &feastdevv1.FeatureStore{}
 	Expect(k8sClient.Get(ctx, key, fs)).To(Succeed())
@@ -494,6 +503,61 @@ var _ = Describe("Registry Service", func() {
 				Namespace: onlineDeploy.Namespace,
 			}, onlineDeploy)
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		})
+	})
+
+	Describe("Online gRPC PVC", func() {
+		It("should mount the same PVC as the online deployment when file persistence is enabled", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+				},
+				Grpc: &feastdevv1.GrpcServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr("test-image"),
+						},
+					},
+				},
+				Persistence: &feastdevv1.OnlineStorePersistence{
+					FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
+						Path: "/data/online.db",
+						PvcConfig: &feastdevv1.PvcConfig{
+							Create:    &feastdevv1.PvcCreate{},
+							MountPath: "/data",
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			onlineDeploy := feast.initFeastDeploy(OnlineFeastType)
+			Expect(onlineDeploy).NotTo(BeNil())
+			Expect(feast.setDeployment(onlineDeploy, OnlineFeastType)).To(Succeed())
+
+			grpcDeploy := feast.initFeastDeploy(OnlineGrpcFeastType)
+			Expect(grpcDeploy).NotTo(BeNil())
+			Expect(feast.setDeployment(grpcDeploy, OnlineGrpcFeastType)).To(Succeed())
+
+			onlinePvcVolume := findPvcVolume(onlineDeploy.Spec.Template.Spec.Volumes)
+			grpcPvcVolume := findPvcVolume(grpcDeploy.Spec.Template.Spec.Volumes)
+
+			Expect(onlinePvcVolume).NotTo(BeNil())
+			Expect(grpcPvcVolume).NotTo(BeNil())
+
+			expectedPvcName := feast.GetFeastServiceName(OnlineFeastType)
+			Expect(onlinePvcVolume.Name).To(Equal(expectedPvcName))
+			Expect(onlinePvcVolume.PersistentVolumeClaim.ClaimName).To(Equal(expectedPvcName))
+			Expect(grpcPvcVolume.Name).To(Equal(expectedPvcName))
+			Expect(grpcPvcVolume.PersistentVolumeClaim.ClaimName).To(Equal(expectedPvcName))
 		})
 	})
 
