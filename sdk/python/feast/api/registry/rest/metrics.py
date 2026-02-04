@@ -154,7 +154,7 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 for k in total_counts:
                     total_counts[k] += counts[k]
 
-                try: 
+                try:
                     feature_views = grpc_call(
                         grpc_handler.ListAllFeatureViews,
                         RegistryServer_pb2.ListAllFeatureViewsRequest(
@@ -178,7 +178,7 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
             return {
                 "totalProjects": len(all_projects),
                 "lastUpdatedTimestamp": last_updated_ts,
-                "total": total_counts, 
+                "total": total_counts,
                 "perProject": all_counts,
                 }
 
