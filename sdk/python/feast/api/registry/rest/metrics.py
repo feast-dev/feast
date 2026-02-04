@@ -144,12 +144,43 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 "featureViews": 0,
                 "featureServices": 0,
             }
+
+            last_updated_ts = None
+
             for project_name in all_projects:
                 counts = count_resources_for_project(project_name)
                 all_counts[project_name] = counts
+
                 for k in total_counts:
                     total_counts[k] += counts[k]
-            return {"total": total_counts, "perProject": all_counts}
+
+                try: 
+                    feature_views = grpc_call(
+                        grpc_handler.ListAllFeatureViews,
+                        RegistryServer_pb2.ListAllFeatureViewsRequest(
+                            project=project_name,
+                            allow_cache=allow_cache,
+                        ),
+                    )
+                except Exception:
+                    feature_views = {"featureViews": []}
+
+                for any_fv in feature_views.get("featureViews", []):
+                    for _, value in any_fv.items():
+                        if isinstance(value, dict):
+                            meta = value.get("meta", [])
+                            ts = meta.get("lastUpdatedTimestamp")
+
+                            if ts:
+                                if last_updated_ts is None or ts > last_updated_ts:
+                                    last_updated_ts = ts
+                                break
+            return {
+                "totalProjects": len(all_projects),
+                "lastUpdatedTimestamp": last_updated_ts,
+                "total": total_counts, 
+                "perProject": all_counts,
+                }
 
     @router.get(
         "/metrics/popular_tags", tags=["Metrics"], response_model=PopularTagsResponse
@@ -387,128 +418,5 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 "visits": paged_visits,
                 "pagination": pagination,
             }
-
-    @router.get("/metrics/summary", tags=["Metrics"])
-    async def metrics_summary(
-        allow_cache: bool = Query(True),
-    ):
-        """
-        Returns registry-level metadata summary statistics.
-        """
-
-        # Fetch all projects
-        projects_resp = grpc_call(
-            grpc_handler.ListProjects,
-            RegistryServer_pb2.ListProjectsRequest(allow_cache=allow_cache),
-        )
-
-        projects = projects_resp.get("projects", [])
-        total_projects = len(projects)
-
-        # Initialize totals
-        totals = {
-            "entities": 0,
-            "dataSources": 0,
-            "savedDatasets": 0,
-            "features": 0,
-            "featureViews": 0,
-            "featureServices": 0,
-        }
-
-        last_updated_ts = None
-
-        # Loop through projects
-        for project in projects:
-            project_name = project["spec"]["name"]
-
-            # Entities
-            entities = grpc_call(
-                grpc_handler.ListEntities,
-                RegistryServer_pb2.ListEntitiesRequest(
-                    project=project_name, allow_cache=allow_cache
-                ),
-            )
-
-            # Data sources
-            data_sources = grpc_call(
-                grpc_handler.ListDataSources,
-                RegistryServer_pb2.ListDataSourcesRequest(
-                    project=project_name, allow_cache=allow_cache
-                ),
-            )
-
-            # Saved datasets
-            try:
-                saved_datasets = grpc_call(
-                    grpc_handler.ListSavedDatasets,
-                    RegistryServer_pb2.ListSavedDatasetsRequest(
-                        project=project_name, allow_cache=allow_cache
-                    ),
-                )
-            except Exception:
-                saved_datasets = {"savedDatasets": []}
-
-            # Features
-            try:
-                features = grpc_call(
-                    grpc_handler.ListFeatures,
-                    RegistryServer_pb2.ListFeaturesRequest(
-                        project=project_name, allow_cache=allow_cache
-                    ),
-                )
-            except Exception:
-                features = {"features": []}
-
-            # Feature views
-            try:
-                feature_views = grpc_call(
-                    grpc_handler.ListAllFeatureViews,
-                    RegistryServer_pb2.ListAllFeatureViewsRequest(
-                        project=project_name, allow_cache=allow_cache
-                    ),
-                )
-            except Exception:
-                feature_views = {"featureViews": []}
-
-            # Feature services
-            try:
-                feature_services = grpc_call(
-                    grpc_handler.ListFeatureServices,
-                    RegistryServer_pb2.ListFeatureServicesRequest(
-                        project=project_name, allow_cache=allow_cache
-                    ),
-                )
-            except Exception:
-                feature_services = {"featureServices": []}
-
-            # Aggregate counts
-            totals["entities"] += len(entities.get("entities", []))
-            totals["dataSources"] += len(data_sources.get("dataSources", []))
-            totals["savedDatasets"] += len(saved_datasets.get("savedDatasets", []))
-            totals["features"] += len(features.get("features", []))
-            totals["featureViews"] += len(feature_views.get("featureViews", []))
-            totals["featureServices"] += len(
-                feature_services.get("featureServices", [])
-            )
-
-            # Track latest update timestamp (best effort)
-            for fv in feature_views.get("featureViews", []):
-                meta = fv.get("meta", {})
-                ts = meta.get("lastUpdatedTimestamp")
-
-                if ts:
-                    if last_updated_ts is None or ts > last_updated_ts:
-                        last_updated_ts = ts
-
-        return {
-            "totalProjects": total_projects,
-            "totalEntities": totals["entities"],
-            "totalDataSources": totals["dataSources"],
-            "totalSavedDatasets": totals["savedDatasets"],
-            "totalFeatures": totals["features"],
-            "totalFeatureViews": totals["featureViews"],
-            "totalFeatureServices": totals["featureServices"],
-            "lastUpdatedTimestamp": last_updated_ts,
-        }
 
     return router
