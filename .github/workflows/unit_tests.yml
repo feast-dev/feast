@@ -56,6 +56,24 @@ jobs:
           echo "Using PYTHONPATH: $PYTHONPATH"
           echo "Using PATH: $PATH"
 
+          # Debug info and workarounds for Python 3.11 macOS issues
+          if [[ "${{ matrix.python-version }}" == "3.11" && "$RUNNER_OS" == "macOS" ]]; then
+            echo "=== Debug info for Python 3.11 macOS ==="
+            uv run python --version
+            uv run python -c "import sys; print(f'Python executable: {sys.executable}')"
+            uv run python -c "import site; print(f'Site packages: {site.getsitepackages()}')"
+
+            # Try to pre-import problematic modules to check compatibility
+            uv run python -c "import ray; print(f'Ray version: {ray.__version__}')" || echo "Ray import failed"
+            echo "=================================="
+
+            # Add workarounds for Python 3.11 macOS Ray compatibility issues
+            export RAY_DISABLE_RUNTIME_ENV_HOOK=1
+            export RAY_DISABLE_IMPORT_WARNING=1
+            export PYTHONDONTWRITEBYTECODE=1
+            echo "Applied Python 3.11 macOS workarounds"
+          fi
+
           make test-python-unit
       - name: Minimize uv cache
         run: uv cache prune --ci
