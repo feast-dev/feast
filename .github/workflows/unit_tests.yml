@@ -45,10 +45,17 @@ jobs:
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Python
-        env:
-          PYTHONPATH: "${{ github.workspace }}/.venv/lib/python${{ matrix.python-version }}/site-packages"
         run: |
+          # Set up environment for Ray workers to access packages
           export PATH="${{ github.workspace }}/.venv/bin:$PATH"
+
+          # Dynamically detect the correct site-packages path
+          SITE_PACKAGES=$(uv run python -c "import site; print(site.getsitepackages()[0])")
+          export PYTHONPATH="$SITE_PACKAGES"
+
+          echo "Using PYTHONPATH: $PYTHONPATH"
+          echo "Using PATH: $PATH"
+
           make test-python-unit
       - name: Minimize uv cache
         run: uv cache prune --ci
