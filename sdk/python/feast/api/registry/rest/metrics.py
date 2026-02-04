@@ -168,7 +168,7 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 for any_fv in feature_views.get("featureViews", []):
                     for _, value in any_fv.items():
                         if isinstance(value, dict):
-                            meta = value.get("meta", [])
+                            meta = value.get("meta", {})
                             ts = meta.get("lastUpdatedTimestamp")
 
                             if ts:
