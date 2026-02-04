@@ -49,23 +49,20 @@ jobs:
           # Set up environment for Ray workers to access packages
           export PATH="${{ github.workspace }}/.venv/bin:$PATH"
 
-          # Dynamically detect the correct site-packages path
+          # Dynamically detect site-packages for uv env
           SITE_PACKAGES=$(uv run python -c "import site; print(site.getsitepackages()[0])")
-          export PYTHONPATH="$SITE_PACKAGES"
+
+          # Preserve any existing PYTHONPATH and add repo + site-packages
+          export PYTHONPATH="${{ github.workspace }}/sdk/python:${PYTHONPATH}:$SITE_PACKAGES"
 
           echo "Using PYTHONPATH: $PYTHONPATH"
           echo "Using PATH: $PATH"
 
-          # Workarounds for macOS Ray compatibility issues
+          # Ray macOS workarounds
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             echo "=== Applying macOS Ray compatibility workarounds ==="
-            # These help with Ray worker spawning issues on macOS
             export RAY_DISABLE_RUNTIME_ENV_HOOK=1
             export PYTHONDONTWRITEBYTECODE=1
-
-            # Ensure clean Python environment
-            export PYTHONPATH="$PYTHONPATH:$SITE_PACKAGES"
-
             echo "Applied macOS workarounds for Python ${{ matrix.python-version }}"
           fi
 
