@@ -418,3 +418,79 @@ def test_function_call_syntax():
 
     deserialized = OnDemandFeatureView.from_proto(proto)
     assert deserialized.name == CUSTOM_FUNCTION_NAME
+
+
+def test_on_demand_feature_view_without_transformation():
+    """Test that OnDemandFeatureView can be created without a UDF or transformation."""
+    from feast.data_source import RequestSource
+    from feast.types import Float32, String
+
+    # Create a request source
+    request_source = RequestSource(
+        name="test_request",
+        schema=[
+            Field(name="user_id", dtype=String),
+            Field(name="value", dtype=Float32),
+        ],
+    )
+
+    # Test 1: Create ODFV without transformation
+    odfv_no_transform = OnDemandFeatureView(
+        name="test_odfv_no_transform",
+        sources=[request_source],
+        schema=[
+            Field(name="output_feature", dtype=Float32),
+        ],
+        mode="pandas",
+    )
+
+    assert odfv_no_transform.feature_transformation is None
+    assert odfv_no_transform.name == "test_odfv_no_transform"
+    assert len(odfv_no_transform.features) == 1
+
+    # Test 2: Verify transform_arrow returns table as-is
+    import pyarrow as pa
+
+    test_table = pa.table({
+        "user_id": ["user1", "user2"],
+        "value": [1.0, 2.0],
+    })
+
+    result = odfv_no_transform.transform_arrow(test_table)
+    assert result == test_table
+
+    # Test 3: Verify transform_dict returns dict as-is
+    test_dict = {
+        "user_id": ["user1", "user2"],
+        "value": [1.0, 2.0],
+    }
+
+    result = odfv_no_transform.transform_dict(test_dict)
+    assert result == test_dict
+
+    # Test 4: Test serialization/deserialization
+    proto = odfv_no_transform.to_proto()
+    assert proto.spec.name == "test_odfv_no_transform"
+
+    deserialized = OnDemandFeatureView.from_proto(proto)
+    assert deserialized.name == "test_odfv_no_transform"
+    assert deserialized.feature_transformation is None
+
+    # Test 5: Verify that ODFVs with transformations still work
+    def simple_transform(features_df: pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame()
+        df["doubled_value"] = features_df["value"] * 2
+        return df
+
+    odfv_with_transform = OnDemandFeatureView(
+        name="test_odfv_with_transform",
+        sources=[request_source],
+        schema=[
+            Field(name="doubled_value", dtype=Float32),
+        ],
+        udf=simple_transform,
+        mode="pandas",
+    )
+
+    assert odfv_with_transform.feature_transformation is not None
+    assert isinstance(odfv_with_transform.feature_transformation, PandasTransformation)

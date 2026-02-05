@@ -79,6 +79,18 @@ public class OnlineTransformationService implements TransformationService {
     return this.stub.transformFeatures(transformFeaturesRequest);
   }
 
+  /**
+   * Check if an on-demand feature view has transformers defined.
+   *
+   * @param featureReference the feature reference to check
+   * @return true if the ODFV has transformers defined, false otherwise
+   */
+  public boolean hasTransformers(ServingAPIProto.FeatureReferenceV2 featureReference) {
+    OnDemandFeatureViewProto.OnDemandFeatureViewSpec onDemandFeatureViewSpec =
+        this.registryRepository.getOnDemandFeatureViewSpec(featureReference);
+    return onDemandFeatureViewSpec.hasFeatureTransformation();
+  }
+
   /** {@inheritDoc} */
   @Override
   public List<ServingAPIProto.FeatureReferenceV2> extractOnDemandFeaturesDependencies(

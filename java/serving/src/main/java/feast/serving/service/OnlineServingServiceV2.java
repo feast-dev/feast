@@ -97,12 +97,18 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .filter(r -> this.registryRepository.isOnDemandFeatureReference(r))
             .collect(Collectors.toList());
 
+    // Filter to only include on-demand feature views that have transformers defined
+    List<FeatureReferenceV2> onDemandFeatureReferencesWithTransformers =
+        onDemandFeatureReferences.stream()
+            .filter(r -> this.onlineTransformationService.hasTransformers(r))
+            .collect(Collectors.toList());
+
     // ToDo (pyalex): refactor transformation service to delete unused left part of the returned
     // Pair from extractRequestDataFeatureNamesAndOnDemandFeatureSources.
     // Currently, we can retrieve context variables directly from GetOnlineFeaturesRequest.
     List<FeatureReferenceV2> onDemandFeatureSources =
         this.onlineTransformationService.extractOnDemandFeaturesDependencies(
-            onDemandFeatureReferences);
+            onDemandFeatureReferencesWithTransformers);
 
     // Add on demand feature sources to list of feature references to retrieve.
     for (FeatureReferenceV2 onDemandFeatureSource : onDemandFeatureSources) {
@@ -186,12 +192,12 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       postProcessingSpan.finish();
     }
 
-    if (!onDemandFeatureReferences.isEmpty()) {
+    if (!onDemandFeatureReferencesWithTransformers.isEmpty()) {
       // Handle ODFVs. For each ODFV reference, we send a TransformFeaturesRequest to the FTS.
       // The request should contain the entity data, the retrieved features, and the request context
       // data.
       this.populateOnDemandFeatures(
-          onDemandFeatureReferences,
+          onDemandFeatureReferencesWithTransformers,
           onDemandFeatureSources,
           retrievedFeatureReferences,
           request,

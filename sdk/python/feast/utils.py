@@ -691,6 +691,10 @@ def _augment_response_with_on_demand_transforms(
     for odfv_name, _feature_refs in odfv_feature_refs.items():
         odfv = requested_odfv_map[odfv_name]
         if not odfv.write_to_online_store:
+            # If there's no transformation or aggregations, skip processing
+            if not odfv.feature_transformation and not odfv.aggregations:
+                continue
+
             # Apply aggregations if configured.
             if odfv.aggregations:
                 if odfv.mode == "python":
@@ -715,13 +719,13 @@ def _augment_response_with_on_demand_transforms(
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
             # TODO: Fix to make it work for having both aggregation and transformation
             #  ticket: https://github.com/feast-dev/feast/issues/5689
-            elif odfv.mode == "python":
+            elif odfv.feature_transformation and odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
                     initial_response_dict
                 )
-            elif odfv.mode in {"pandas", "substrait"}:
+            elif odfv.feature_transformation and odfv.mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
                     initial_response_arrow = initial_response.to_arrow()
                 transformed_features_arrow = odfv.transform_arrow(
