@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List, Optional, Set, Union
 
 import click
+import yaml
 from click.exceptions import BadParameter
 
 from feast import PushSource
@@ -488,7 +489,16 @@ def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
         sys.exit(1)
 
 
-def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
+DEFAULT_DEMO_REPOS = [("driver", "local"), ("rag", "rag")]
+
+
+def init_repo(
+    repo_name: str,
+    template: str,
+    repo_path: Optional[str] = None,
+    *,
+    shared_registry: bool = False,
+):
     import os
     from pathlib import Path
     from shutil import copytree
@@ -552,6 +562,19 @@ def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
     replace_str_in_file(
         feature_store_yaml_path, "project: my_project", f"project: {repo_name}"
     )
+
+    # Multi-demo default flow only: shared registry at project root.
+    if (
+        shared_registry
+        and (repo_name, template) in DEFAULT_DEMO_REPOS
+        and feature_store_yaml_path.exists()
+    ):
+        with open(feature_store_yaml_path) as f:
+            config = yaml.safe_load(f)
+        if config and isinstance(config.get("registry"), str):
+            config["registry"] = "../../registry.db"
+            with open(feature_store_yaml_path, "w") as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
     # Remove the __pycache__ folder if it exists
     import shutil
