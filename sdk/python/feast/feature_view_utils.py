@@ -5,7 +5,7 @@ Utility functions for feature view operations including source resolution.
 import logging
 import typing
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from feast.errors import (
     FeastObjectNotFoundException,
@@ -17,11 +17,15 @@ if typing.TYPE_CHECKING:
     from feast.data_source import DataSource
     from feast.feature_store import FeatureStore
     from feast.feature_view import FeatureView
-    from feast.feast_object import FeastObject
     from feast.infra.registry.base_registry import BaseRegistry
+    from feast.on_demand_feature_view import OnDemandFeatureView
     from feast.repo_config import RepoConfig
+    from feast.stream_feature_view import StreamFeatureView
 
 logger = logging.getLogger(__name__)
+
+
+FeatureViewLike = Union["FeatureView", "OnDemandFeatureView", "StreamFeatureView"]
 
 
 @dataclass
@@ -238,11 +242,11 @@ def resolve_feature_view_source_with_fallback(
             )
 
 
-def get_feast_object_from_feature_store(
+def get_feature_view_from_feature_store(
     store: "FeatureStore",
     name: str,
     allow_registry_cache: bool = False,
- ) -> "FeastObject":
+) -> FeatureViewLike:
     try:
         return store.get_feature_view(name, allow_registry_cache=allow_registry_cache)
     except FeatureViewNotFoundException:
@@ -261,12 +265,12 @@ def get_feast_object_from_feature_store(
                 ) from e
 
 
-def get_feast_object_from_registry(
+def get_feature_view_from_registry(
     registry: "BaseRegistry",
     name: str,
     project: str,
     allow_cache: bool = False,
- ) -> "FeastObject":
+) -> FeatureViewLike:
     try:
         return registry.get_feature_view(name, project, allow_cache=allow_cache)
     except FeatureViewNotFoundException:

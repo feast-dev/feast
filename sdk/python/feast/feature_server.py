@@ -53,7 +53,7 @@ from feast.errors import (
     FeastError,
 )
 from feast.feast_object import FeastObject
-from feast.feature_view_utils import get_feast_object_from_feature_store
+from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.rest import inject_user_details
@@ -482,10 +482,8 @@ def get_app(
     async def _get_feast_object(
         feature_view_name: str, allow_registry_cache: bool
     ) -> FeastObject:
-        # FIXME: this logic repeated at least 3 times in the codebase - should be centralized
-        # in logging, in server and in feature_store (Python SDK)
         return await run_in_threadpool(
-            get_feast_object_from_feature_store,
+            get_feature_view_from_feature_store,
             store,
             feature_view_name,
             allow_registry_cache,

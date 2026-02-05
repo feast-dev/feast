@@ -10,7 +10,7 @@ from feast.errors import (
     FeastObjectNotFoundException,
 )
 from feast.feature_view import DUMMY_ENTITY_ID
-from feast.feature_view_utils import get_feast_object_from_registry
+from feast.feature_view_utils import get_feature_view_from_registry
 from feast.protos.feast.core.FeatureService_pb2 import (
     LoggingConfig as LoggingConfigProto,
 )
@@ -57,7 +57,7 @@ class FeatureServiceLoggingSource(LoggingSource):
             # Go code can be found here:
             # https://github.com/feast-dev/feast/blob/master/go/internal/feast/server/logging/memorybuffer.go#L51
             try:
-                feast_object = get_feast_object_from_registry(
+                feast_object = get_feature_view_from_registry(
                     registry,
                     projection.name,
                     self._project,
