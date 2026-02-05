@@ -1,2 +1,0 @@
-test_name,total_time,timestamp,timing_feature_retrieval,timing_response_conversion,timing_entity_count,timing_feature_count,memory_mb
-validation_test,2.3986192500015022,2026-01-29T14:32:58.962915,0.007023250000202097,4.933300078846514e-05,5,1,24.871719360351562

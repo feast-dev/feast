@@ -1,2 +1,0 @@
-test_name,total_time,timestamp,timing_feature_store_init,timing_registry_load,timing_test_data_prep,memory_mb
-component_setup,2.4589329159935005,2026-01-29T14:21:32.596565,2.4576784590026364,5.874986527487636e-06,0.0011777499894378707,24.751439094543457

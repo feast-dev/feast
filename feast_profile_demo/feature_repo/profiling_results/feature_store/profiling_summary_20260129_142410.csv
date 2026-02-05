@@ -1,3 +1,0 @@
-test_name,total_time,timestamp,timing_entity_count,timing_get_online_features,memory_mb
-quick_test_entity_1,2.3633545829943614,2026-01-29T14:24:10.097124,1,0.002,24.742127418518066
-quick_test_entity_10,0.00734408300195355,2026-01-29T14:24:10.164317,10,0.004,0.23468017578125
