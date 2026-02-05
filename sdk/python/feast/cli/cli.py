@@ -447,6 +447,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "milvus",
             "ray",
             "ray_rag",
+            "rag",
             "pytorch_nlp",
         ],
         case_sensitive=False,
@@ -458,13 +459,23 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     "--repo-path",
     help="Directory path where the repository will be created (default: create subdirectory with project name)",
 )
-def init_command(project_directory, minimal: bool, template: str, repo_path: str):
+@click.option(
+    "--scenario",
+    type=click.Choice(["driver", "rag"], case_sensitive=False),
+    default="driver",
+    help="Scenario/demo to create: driver (classic driver stats) or rag (RAG with vector search).",
+)
+def init_command(
+    project_directory, minimal: bool, template: str, repo_path: str, scenario: str
+):
     """Create a new Feast repository"""
     if not project_directory:
         project_directory = generate_project_name()
 
     if minimal:
         template = "minimal"
+    elif scenario == "rag":
+        template = "rag"
 
     init_repo(project_directory, template, repo_path)
 
