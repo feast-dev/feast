@@ -144,12 +144,43 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 "featureViews": 0,
                 "featureServices": 0,
             }
+
+            last_updated_ts = None
+
             for project_name in all_projects:
                 counts = count_resources_for_project(project_name)
                 all_counts[project_name] = counts
+
                 for k in total_counts:
                     total_counts[k] += counts[k]
-            return {"total": total_counts, "perProject": all_counts}
+
+                try:
+                    feature_views = grpc_call(
+                        grpc_handler.ListAllFeatureViews,
+                        RegistryServer_pb2.ListAllFeatureViewsRequest(
+                            project=project_name,
+                            allow_cache=allow_cache,
+                        ),
+                    )
+                except Exception:
+                    feature_views = {"featureViews": []}
+
+                for any_fv in feature_views.get("featureViews", []):
+                    for _, value in any_fv.items():
+                        if isinstance(value, dict):
+                            meta = value.get("meta", {})
+                            ts = meta.get("lastUpdatedTimestamp")
+
+                            if ts:
+                                if last_updated_ts is None or ts > last_updated_ts:
+                                    last_updated_ts = ts
+                                break
+            return {
+                "totalProjects": len(all_projects),
+                "lastUpdatedTimestamp": last_updated_ts,
+                "total": total_counts,
+                "perProject": all_counts,
+                }
 
     @router.get(
         "/metrics/popular_tags", tags=["Metrics"], response_model=PopularTagsResponse
