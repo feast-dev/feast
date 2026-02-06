@@ -664,3 +664,77 @@ def load_artifacts(app: FastAPI):
     assert lookup_tables["sentiment_labels"]["LABEL_1"] == "neutral"
     assert lookup_tables["sentiment_labels"]["LABEL_2"] == "positive"
     assert lookup_tables["emoji_sentiment"]["😊"] == "positive"
+
+
+# Fork-safety tests for multi-worker Gunicorn deployments
+def test_feast_serve_application_has_post_fork_hook():
+    """Test that FeastServeApplication properly configures the post_fork hook."""
+    import sys
+
+    if sys.platform == "win32":
+        pytest.skip("Gunicorn not available on Windows")
+
+    from unittest.mock import MagicMock, patch
+
+    # Import after platform check since gunicorn doesn't work on Windows
+    from feast.feature_server import FeastServeApplication
+
+    mock_store = MagicMock()
+    mock_store.registry = MagicMock()
+    mock_store.config.auth_config.type = "no_auth"
+
+    with patch("feast.feature_server.get_app") as mock_get_app:
+        mock_get_app.return_value = MagicMock()
+
+        app = FeastServeApplication(
+            store=mock_store,
+            registry_ttl_sec=60,
+            bind="127.0.0.1:8000",
+            workers=4,
+        )
+
+        # Verify the config has been loaded
+        app.load_config()
+
+        # Check that post_fork hook is set
+        assert app.cfg.post_fork is not None
+        assert callable(app.cfg.post_fork)
+
+
+def test_feast_serve_application_post_fork_calls_on_worker_init():
+    """Test that the post_fork hook calls registry.on_worker_init()."""
+    import sys
+
+    if sys.platform == "win32":
+        pytest.skip("Gunicorn not available on Windows")
+
+    from unittest.mock import MagicMock, patch
+
+    from feast.feature_server import FeastServeApplication
+
+    mock_store = MagicMock()
+    mock_store.registry = MagicMock()
+    mock_store.registry.on_worker_init = MagicMock()
+    mock_store.config.auth_config.type = "no_auth"
+
+    with patch("feast.feature_server.get_app") as mock_get_app:
+        mock_get_app.return_value = MagicMock()
+
+        app = FeastServeApplication(
+            store=mock_store,
+            registry_ttl_sec=60,
+            bind="127.0.0.1:8000",
+            workers=4,
+        )
+
+        app.load_config()
+
+        # Simulate the post_fork hook being called
+        mock_server = MagicMock()
+        mock_worker = MagicMock()
+        mock_worker.pid = 12345
+
+        app._post_fork_hook(mock_server, mock_worker)
+
+        # Verify on_worker_init was called
+        mock_store.registry.on_worker_init.assert_called_once()
