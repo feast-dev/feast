@@ -163,7 +163,21 @@ class PythonTransformation(Transformation):
         )
 
     @classmethod
-    def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
+    def from_proto(
+        cls,
+        user_defined_function_proto: UserDefinedFunctionProto,
+        skip_udf: bool = False,
+    ):
+        if skip_udf:
+            # Return a dummy transformation when skipping UDF deserialization
+            # Identity function that preserves dictionary structure
+            def identity_udf(features_dict: Dict[str, Any]) -> Dict[str, Any]:
+                return features_dict
+
+            return PythonTransformation(
+                udf=identity_udf,
+                udf_string=user_defined_function_proto.body_text,
+            )
         return PythonTransformation(
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
