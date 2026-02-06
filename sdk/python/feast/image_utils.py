@@ -241,6 +241,7 @@ def validate_image_format(image_bytes: bytes) -> bool:
     Returns:
         True if valid image, False otherwise
     """
+    _check_image_dependencies()
     try:
         with Image.open(io.BytesIO(image_bytes)) as img:
             img.verify()
@@ -259,6 +260,7 @@ def get_image_metadata(image_bytes: bytes) -> dict:
     Raises:
         ValueError: If image cannot be processed
     """
+    _check_image_dependencies()
     try:
         with Image.open(io.BytesIO(image_bytes)) as img:
             return {
