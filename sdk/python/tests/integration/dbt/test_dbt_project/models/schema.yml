@@ -1,0 +1,83 @@
+version: 2
+
+# Seeds will be loaded as tables
+seeds:
+  - name: driver_hourly_stats
+    description: "Raw driver hourly statistics"
+  - name: customer_stats
+    description: "Raw customer statistics"
+  - name: product_stats
+    description: "Raw product statistics"
+
+models:
+  - name: driver_features
+    description: "Driver hourly features for ML models"
+    tags: ["feast", "ml", "driver"]
+    columns:
+      - name: driver_id
+        description: "Unique driver identifier"
+        data_type: int64
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: "Event timestamp"
+        data_type: timestamp
+        tests:
+          - not_null
+      - name: conv_rate
+        description: "Conversion rate"
+        data_type: float64
+      - name: acc_rate
+        description: "Acceptance rate"
+        data_type: float64
+      - name: avg_daily_trips
+        description: "Average daily trips"
+        data_type: int32
+
+  - name: customer_features
+    description: "Customer behavior features"
+    tags: ["feast", "ml", "customer"]
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier"
+        data_type: string
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: "Event timestamp"
+        data_type: timestamp
+        tests:
+          - not_null
+      - name: total_orders
+        description: "Total number of orders"
+        data_type: int64
+      - name: total_spent
+        description: "Total amount spent"
+        data_type: float64
+      - name: avg_order_value
+        description: "Average order value"
+        data_type: float64
+
+  - name: product_features
+    description: "Product recommendation features"
+    tags: ["feast", "recommendations"]
+    columns:
+      - name: product_id
+        description: "Unique product identifier"
+        data_type: string
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: "Event timestamp"
+        data_type: timestamp
+        tests:
+          - not_null
+      - name: view_count
+        description: "Number of views"
+        data_type: int64
+      - name: purchase_count
+        description: "Number of purchases"
+        data_type: int64
+      - name: rating_avg
+        description: "Average rating"
+        data_type: float32
