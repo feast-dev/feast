@@ -429,17 +429,18 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 
 			Expect(resource.Status.Phase).To(Equal(feastdevv1.PendingPhase))
 
-			// check deployment
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
-			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
+			for _, feastType := range []services.FeastServiceType{
+				services.RegistryFeastType,
+				services.OfflineFeastType,
+				services.OnlineFeastType,
+				services.UIFeastType,
+			} {
+				deploy, err := getDeploymentByType(ctx, k8sClient, resource, feastType)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+				Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
+				Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			}
 			svc := &corev1.Service{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
 				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
@@ -528,7 +529,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			deployList := appsv1.DeploymentList{}
 			err = k8sClient.List(ctx, &deployList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deployList.Items).To(HaveLen(1))
+			Expect(deployList.Items).To(HaveLen(4))
 
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
@@ -549,15 +550,9 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 				},
 			}
 
-			// check deployment
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			registryDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			registryContainer := services.GetRegistryContainer(*deploy)
+			registryContainer := services.GetRegistryContainer(*registryDeploy)
 			Expect(registryContainer.Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
@@ -601,7 +596,9 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
-			offlineContainer := services.GetOfflineContainer(*deploy)
+			offlineDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.OfflineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			offlineContainer := services.GetOfflineContainer(*offlineDeploy)
 			Expect(offlineContainer.Env).To(HaveLen(1))
 			assertEnvFrom(*offlineContainer)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
@@ -618,7 +615,9 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfigOffline).To(Equal(testConfig))
 
-			onlineContainer := services.GetOnlineContainer(*deploy)
+			onlineDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.OnlineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			onlineContainer := services.GetOnlineContainer(*onlineDeploy)
 			Expect(onlineContainer.VolumeMounts).To(HaveLen(1))
 			Expect(onlineContainer.Env).To(HaveLen(1))
 			assertEnvFrom(*onlineContainer)
@@ -636,7 +635,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			err = yaml.Unmarshal(envByte, repoConfigOnline)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfigOnline).To(Equal(testConfig))
-			onlineContainer = services.GetOnlineContainer(*deploy)
+			onlineContainer = services.GetOnlineContainer(*onlineDeploy)
 			Expect(onlineContainer.Env).To(HaveLen(1))
 
 			// check client config
@@ -694,12 +693,9 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			feast.Handler.FeatureStore = resource
 
 			// check online config
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			onlineDeploy, err = getDeploymentByType(ctx, k8sClient, resource, services.OnlineFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			onlineContainer = services.GetOnlineContainer(*deploy)
+			onlineContainer = services.GetOnlineContainer(*onlineDeploy)
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 

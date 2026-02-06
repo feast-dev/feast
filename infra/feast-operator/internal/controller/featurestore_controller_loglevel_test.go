@@ -165,28 +165,62 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 			Expect(cond.Message).To(Equal(feastdevv1.OnlineStoreReadyMessage))
 			Expect(resource.Status.Phase).To(Equal(feastdevv1.PendingPhase))
 
-			// check deployment
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
+			// check deployments per service
+			registryDeploy := &appsv1.Deployment{}
+			registryMeta := feast.GetObjectMetaType(services.RegistryFeastType)
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+				Name:      registryMeta.Name,
+				Namespace: registryMeta.Namespace,
+			}, registryDeploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
-			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
-			command := services.GetRegistryContainer(*deploy).Command
+			Expect(registryDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(registryDeploy)).To(BeTrue())
+			Expect(registryDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command := services.GetRegistryContainer(*registryDeploy).Command
 			Expect(command).To(ContainElement("--log-level"))
 			Expect(command).To(ContainElement("ERROR"))
 
-			command = services.GetOfflineContainer(*deploy).Command
+			offlineDeploy := &appsv1.Deployment{}
+			offlineMeta := feast.GetObjectMetaType(services.OfflineFeastType)
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      offlineMeta.Name,
+				Namespace: offlineMeta.Namespace,
+			}, offlineDeploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(offlineDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(offlineDeploy)).To(BeTrue())
+			Expect(offlineDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command = services.GetOfflineContainer(*offlineDeploy).Command
 			Expect(command).To(ContainElement("--log-level"))
 			Expect(command).To(ContainElement("INFO"))
 
-			command = services.GetOnlineContainer(*deploy).Command
+			onlineDeploy := &appsv1.Deployment{}
+			onlineMeta := feast.GetObjectMetaType(services.OnlineFeastType)
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      onlineMeta.Name,
+				Namespace: onlineMeta.Namespace,
+			}, onlineDeploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(onlineDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(onlineDeploy)).To(BeTrue())
+			Expect(onlineDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command = services.GetOnlineContainer(*onlineDeploy).Command
 			Expect(command).To(ContainElement("--log-level"))
 			Expect(command).To(ContainElement("DEBUG"))
+
+			uiDeploy := &appsv1.Deployment{}
+			uiMeta := feast.GetObjectMetaType(services.UIFeastType)
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      uiMeta.Name,
+				Namespace: uiMeta.Namespace,
+			}, uiDeploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(uiDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(uiDeploy)).To(BeTrue())
+			Expect(uiDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command = services.GetUIContainer(*uiDeploy).Command
+			Expect(command).To(ContainElement("--log-level"))
+			Expect(command).To(ContainElement("INFO"))
 		})
 
 		It("should not include --log-level parameter when logLevel is not specified for any service", func() {
@@ -227,22 +261,38 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 				},
 			}
 
-			// check deployment
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
+			// check deployments per service
+			registryDeploy := &appsv1.Deployment{}
+			registryMeta := feast.GetObjectMetaType(services.RegistryFeastType)
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+				Name:      registryMeta.Name,
+				Namespace: registryMeta.Namespace,
+			}, registryDeploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
-			command := services.GetRegistryContainer(*deploy).Command
+			Expect(registryDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command := services.GetRegistryContainer(*registryDeploy).Command
 			Expect(command).NotTo(ContainElement("--log-level"))
 
-			command = services.GetOnlineContainer(*deploy).Command
+			onlineDeploy := &appsv1.Deployment{}
+			onlineMeta := feast.GetObjectMetaType(services.OnlineFeastType)
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      onlineMeta.Name,
+				Namespace: onlineMeta.Namespace,
+			}, onlineDeploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(onlineDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command = services.GetOnlineContainer(*onlineDeploy).Command
 			Expect(command).NotTo(ContainElement("--log-level"))
 
-			command = services.GetUIContainer(*deploy).Command
+			uiDeploy := &appsv1.Deployment{}
+			uiMeta := feast.GetObjectMetaType(services.UIFeastType)
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      uiMeta.Name,
+				Namespace: uiMeta.Namespace,
+			}, uiDeploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(uiDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command = services.GetUIContainer(*uiDeploy).Command
 			Expect(command).NotTo(ContainElement("--log-level"))
 		})
 

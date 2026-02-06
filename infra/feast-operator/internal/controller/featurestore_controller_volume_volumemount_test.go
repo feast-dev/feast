@@ -112,17 +112,17 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 				},
 			}
 
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
+			onlineDeploy := &appsv1.Deployment{}
+			onlineMeta := feast.GetObjectMetaType(services.OnlineFeastType)
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+				Name:      onlineMeta.Name,
+				Namespace: onlineMeta.Namespace,
+			}, onlineDeploy)
 
 			Expect(err).NotTo(HaveOccurred())
 
 			// Extract the PodSpec from DeploymentSpec
-			podSpec := deploy.Spec.Template.Spec
+			podSpec := onlineDeploy.Spec.Template.Spec
 
 			// Validate Volumes
 			// Validate Volumes - Check if our test volume exists among multiple
@@ -131,13 +131,7 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 			}, Equal("test-volume"))), "Expected volume 'test-volume' to be present")
 
 			// Ensure 'online' container has the test volume mount
-			var onlineContainer *corev1.Container
-			for i, container := range podSpec.Containers {
-				if container.Name == "online" {
-					onlineContainer = &podSpec.Containers[i]
-					break
-				}
-			}
+			onlineContainer := services.GetOnlineContainer(*onlineDeploy)
 			Expect(onlineContainer).ToNot(BeNil(), "Expected to find container 'online'")
 
 			// Validate that 'online' container has the test-volume mount
@@ -145,14 +139,32 @@ var _ = Describe("FeatureStore Controller - Deployment Volumes and VolumeMounts"
 				return vm.Name
 			}, Equal("test-volume"))), "Expected 'online' container to have volume mount 'test-volume'")
 
-			// Ensure all other containers do NOT have the test volume mount
-			for _, container := range podSpec.Containers {
-				if container.Name != "online" {
-					Expect(container.VolumeMounts).ToNot(ContainElement(WithTransform(func(vm corev1.VolumeMount) string {
-						return vm.Name
-					}, Equal("test-volume"))), "Unexpected volume mount 'test-volume' found in container "+container.Name)
-				}
-			}
+			// Ensure other service deployments do NOT have the test volume mount
+			offlineDeploy := &appsv1.Deployment{}
+			offlineMeta := feast.GetObjectMetaType(services.OfflineFeastType)
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      offlineMeta.Name,
+				Namespace: offlineMeta.Namespace,
+			}, offlineDeploy)
+			Expect(err).NotTo(HaveOccurred())
+			offlineContainer := services.GetOfflineContainer(*offlineDeploy)
+			Expect(offlineContainer).NotTo(BeNil())
+			Expect(offlineContainer.VolumeMounts).ToNot(ContainElement(WithTransform(func(vm corev1.VolumeMount) string {
+				return vm.Name
+			}, Equal("test-volume"))), "Unexpected volume mount 'test-volume' found in offline container")
+
+			uiDeploy := &appsv1.Deployment{}
+			uiMeta := feast.GetObjectMetaType(services.UIFeastType)
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      uiMeta.Name,
+				Namespace: uiMeta.Namespace,
+			}, uiDeploy)
+			Expect(err).NotTo(HaveOccurred())
+			uiContainer := services.GetUIContainer(*uiDeploy)
+			Expect(uiContainer).NotTo(BeNil())
+			Expect(uiContainer.VolumeMounts).ToNot(ContainElement(WithTransform(func(vm corev1.VolumeMount) string {
+				return vm.Name
+			}, Equal("test-volume"))), "Unexpected volume mount 'test-volume' found in UI container")
 
 		})
 	})

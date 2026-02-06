@@ -38,6 +38,9 @@ func (feast *FeastServices) setTlsDefaults() error {
 	if feast.isOnlineServer() {
 		tlsDefaults(appliedServices.OnlineStore.Server.TLS)
 	}
+	if feast.isOnlineGrpcServer() {
+		tlsDefaults(appliedServices.OnlineStore.Grpc.TLS)
+	}
 	if feast.isRegistryServer() {
 		tlsDefaults(appliedServices.Registry.Local.Server.TLS)
 	}
@@ -60,6 +63,13 @@ func (feast *FeastServices) setOpenshiftTls() error {
 		appliedServices.OnlineStore.Server.TLS = &feastdevv1.TlsConfigs{
 			SecretRef: &corev1.LocalObjectReference{
 				Name: feast.initFeastSvc(OnlineFeastType).Name + tlsNameSuffix,
+			},
+		}
+	}
+	if feast.onlineGrpcOpenshiftTls() {
+		appliedServices.OnlineStore.Grpc.TLS = &feastdevv1.TlsConfigs{
+			SecretRef: &corev1.LocalObjectReference{
+				Name: feast.initFeastSvc(OnlineGrpcFeastType).Name + tlsNameSuffix,
 			},
 		}
 	}
@@ -114,7 +124,11 @@ func (feast *FeastServices) setOpenshiftTls() error {
 }
 
 func (feast *FeastServices) checkOpenshiftTls() (bool, error) {
-	if feast.offlineOpenshiftTls() || feast.onlineOpenshiftTls() || feast.localRegistryOpenshiftTls() || feast.uiOpenshiftTls() {
+	if feast.offlineOpenshiftTls() ||
+		feast.onlineOpenshiftTls() ||
+		feast.onlineGrpcOpenshiftTls() ||
+		feast.localRegistryOpenshiftTls() ||
+		feast.uiOpenshiftTls() {
 		return true, nil
 	}
 	return feast.remoteRegistryOpenshiftTls()
@@ -126,6 +140,8 @@ func (feast *FeastServices) isOpenShiftTls(feastType FeastServiceType) (isOpenSh
 		isOpenShift = feast.offlineOpenshiftTls()
 	case OnlineFeastType:
 		isOpenShift = feast.onlineOpenshiftTls()
+	case OnlineGrpcFeastType:
+		isOpenShift = feast.onlineGrpcOpenshiftTls()
 	case RegistryFeastType:
 		isOpenShift = feast.localRegistryOpenshiftTls()
 	case UIFeastType:
@@ -136,6 +152,12 @@ func (feast *FeastServices) isOpenShiftTls(feastType FeastServiceType) (isOpenSh
 }
 
 func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) *feastdevv1.TlsConfigs {
+	if feastType == OnlineGrpcFeastType {
+		if grpcCfg := feast.getOnlineGrpcConfigs(); grpcCfg != nil {
+			return grpcCfg.TLS
+		}
+		return nil
+	}
 	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
 		return serviceConfigs.TLS
 	}
@@ -156,6 +178,16 @@ func (feast *FeastServices) onlineOpenshiftTls() bool {
 			feast.Handler.FeatureStore.Spec.Services.OnlineStore == nil ||
 			feast.Handler.FeatureStore.Spec.Services.OnlineStore.Server == nil ||
 			feast.Handler.FeatureStore.Spec.Services.OnlineStore.Server.TLS == nil)
+}
+
+// True if running in an openshift cluster and gRPC TLS not configured in the service Spec
+func (feast *FeastServices) onlineGrpcOpenshiftTls() bool {
+	return isOpenShift &&
+		feast.isOnlineGrpcServer() &&
+		(feast.Handler.FeatureStore.Spec.Services == nil ||
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore == nil ||
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore.Grpc == nil ||
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore.Grpc.TLS == nil)
 }
 
 // True if running in an openshift cluster and Tls not configured in the service Spec
@@ -208,6 +240,7 @@ func (feast *FeastServices) mountTlsConfigs(podSpec *corev1.PodSpec) {
 	feast.mountRegistryClientTls(podSpec)
 	feast.mountTlsConfig(OfflineFeastType, podSpec)
 	feast.mountTlsConfig(OnlineFeastType, podSpec)
+	feast.mountTlsConfig(OnlineGrpcFeastType, podSpec)
 	feast.mountTlsConfig(UIFeastType, podSpec)
 	feast.mountCustomCABundle(podSpec)
 }

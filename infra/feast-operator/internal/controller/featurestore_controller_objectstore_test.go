@@ -175,23 +175,25 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			Expect(resource.Status.Phase).To(Equal(feastdevv1.PendingPhase))
 
-			// check deployment
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			// check deployments per service
+			registryDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
-			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(2))
-			Expect(services.GetRegistryContainer(*deploy)).NotTo(BeNil())
-			Expect(services.GetOnlineContainer(*deploy)).NotTo(BeNil())
-			Expect(services.GetOfflineContainer(*deploy)).To(BeNil())
-			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(1))
+			Expect(registryDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(registryDeploy)).To(BeTrue())
+			Expect(registryDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(registryDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(services.GetRegistryContainer(*registryDeploy)).NotTo(BeNil())
+			Expect(services.GetOfflineContainer(*registryDeploy)).To(BeNil())
+			Expect(registryDeploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
+			Expect(registryDeploy.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(1))
+
+			onlineDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.OnlineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(onlineDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(onlineDeploy)).To(BeTrue())
+			Expect(onlineDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(onlineDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(services.GetOnlineContainer(*onlineDeploy)).NotTo(BeNil())
 
 			// update S3 additional args and reconcile
 			resourceNew := resource.DeepCopy()
@@ -217,13 +219,10 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).To(Equal(&newS3AdditionalKwargs))
 
 			// check registry deployment
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			registryDeploy, err = getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
-			registryContainer := services.GetRegistryContainer(*deploy)
+			Expect(registryDeploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
+			registryContainer := services.GetRegistryContainer(*registryDeploy)
 			Expect(registryContainer.VolumeMounts).To(HaveLen(1))
 		})
 
@@ -250,7 +249,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			deployList := appsv1.DeploymentList{}
 			err = k8sClient.List(ctx, &deployList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deployList.Items).To(HaveLen(1))
+			Expect(deployList.Items).To(HaveLen(2))
 
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
@@ -271,24 +270,18 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				},
 			}
 
-			// check deployment
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			// check deployments per service
+			registryDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
-			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(2))
-			Expect(services.GetRegistryContainer(*deploy)).NotTo(BeNil())
-			Expect(services.GetOnlineContainer(*deploy)).NotTo(BeNil())
-			Expect(services.GetOfflineContainer(*deploy)).To(BeNil())
-			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
-			env := getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
+			Expect(registryDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(registryDeploy)).To(BeTrue())
+			Expect(registryDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(services.GetRegistryContainer(*registryDeploy)).NotTo(BeNil())
+			Expect(services.GetOfflineContainer(*registryDeploy)).To(BeNil())
+			Expect(registryDeploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
+			Expect(registryDeploy.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(1))
+			Expect(registryDeploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
+			env := getFeatureStoreYamlEnvVar(registryDeploy.Spec.Template.Spec.Containers[0].Env)
 			Expect(env).NotTo(BeNil())
 
 			// check registry config
@@ -348,12 +341,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			feast.Handler.FeatureStore = resource
 
 			// check registry config
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			registryDeploy, err = getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			env = getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
+			env = getFeatureStoreYamlEnvVar(registryDeploy.Spec.Template.Spec.Containers[0].Env)
 			Expect(env).NotTo(BeNil())
 			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
@@ -397,24 +387,10 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			feast := services.FeastServices{
-				Handler: handler.FeastHandler{
-					Client:       controllerReconciler.Client,
-					Context:      ctx,
-					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: resource,
-				},
-			}
-
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			registryDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
 
-			env := getFeatureStoreYamlEnvVar(services.GetRegistryContainer(*deploy).Env)
+			env := getFeatureStoreYamlEnvVar(services.GetRegistryContainer(*registryDeploy).Env)
 			Expect(env).NotTo(BeNil())
 
 			// decode feature_store.yaml and verify registry cache settings

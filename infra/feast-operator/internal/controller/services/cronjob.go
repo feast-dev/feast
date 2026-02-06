@@ -171,13 +171,29 @@ func (feast *FeastServices) getCronJobContainer(containerName, cronJobCmd string
 		containerName,
 		"",
 		[]string{
-			"kubectl", "exec", "deploy/" + feast.initFeastDeploy().Name, "-i",
+			"kubectl", "exec", "deploy/" + feast.getCronJobTargetDeploymentName(), "-i",
 			"--",
 			"bash", "-c", cronJobCmd,
 		},
 		feast.Handler.FeatureStore.Status.Applied.CronJob.ContainerConfigs.ContainerConfigs,
 		"",
 	)
+}
+
+func (feast *FeastServices) getCronJobTargetDeploymentName() string {
+	if feast.isOnlineServer() {
+		return feast.initFeastDeploy(OnlineFeastType).Name
+	}
+	if feast.isRegistryServer() {
+		return feast.initFeastDeploy(RegistryFeastType).Name
+	}
+	if feast.isOfflineServer() {
+		return feast.initFeastDeploy(OfflineFeastType).Name
+	}
+	if feast.isOnlineGrpcServer() {
+		return feast.initFeastDeploy(OnlineGrpcFeastType).Name
+	}
+	return feast.initFeastDeploy(OnlineFeastType).Name
 }
 
 func (feast *FeastServices) createCronJobRole() error {
@@ -209,7 +225,7 @@ func (feast *FeastServices) setCronJobRole(role *rbacv1.Role) error {
 		{
 			APIGroups:     []string{appsv1.GroupName},
 			Resources:     []string{"deployments"},
-			ResourceNames: []string{feast.initFeastDeploy().Name},
+			ResourceNames: []string{feast.getCronJobTargetDeploymentName()},
 			Verbs:         []string{"get"},
 		},
 		{
