@@ -95,12 +95,22 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-minimal-requirements.txt
 	uv pip install --no-deps -e .[minimal]
 
-##@ Python SDK - CI (uses uv project management)
-# Uses uv sync for consistent behavior between local and CI environments
+##@ Python SDK - CI (uses uv with virtualenv)
+# Uses uv pip sync with virtualenv for CI environments
 
 # Used in github actions/ci
-install-python-dependencies-ci: ## Install Python CI dependencies using uv sync
-	uv sync --extra ci
+install-python-dependencies-ci: ## Install Python CI dependencies using uv pip sync
+	# Create virtualenv if it doesn't exist
+	uv venv .venv
+	# Install CPU-only torch first to prevent CUDA dependency issues (Linux only)
+	@if [ "$$(uname -s)" = "Linux" ]; then \
+		echo "Installing dependencies with torch CPU index for Linux..."; \
+		uv pip sync --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+	else \
+		echo "Installing dependencies from PyPI for macOS..."; \
+		uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+	fi
+	uv pip install --no-deps -e .
 
 # Used in github actions/ci
 install-hadoop-dependencies-ci: ## Install Hadoop dependencies
