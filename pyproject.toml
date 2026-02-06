@@ -83,8 +83,6 @@ hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
 ibis = [
     "ibis-framework>=10.0.0",
-    "poetry-core<2",
-    "poetry-dynamic-versioning",
 ]
 ikv = [
     "ikvpy>=0.0.36",
@@ -127,7 +125,7 @@ redis = [
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
-    "snowflake-connector-python[pandas]>=3.7,<4",
+    "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
