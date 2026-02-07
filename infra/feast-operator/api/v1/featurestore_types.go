@@ -75,6 +75,7 @@ type FeatureStoreSpec struct {
 	Services        *FeatureStoreServices `json:"services,omitempty"`
 	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
 	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
+	BatchEngine     *BatchEngineConfig    `json:"batchEngine,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
@@ -153,6 +154,15 @@ type FeastCronJob struct {
 
 	// The number of failed finished jobs to retain. Value must be non-negative integer.
 	FailedJobsHistoryLimit *int32 `json:"failedJobsHistoryLimit,omitempty"`
+}
+
+// BatchEngineConfig defines the batch compute engine configuration.
+type BatchEngineConfig struct {
+	// Reference to a ConfigMap containing the batch engine configuration.
+	// The ConfigMap should contain YAML-formatted config with 'type' and engine-specific fields.
+	ConfigMapRef *corev1.LocalObjectReference `json:"configMapRef,omitempty"`
+	// Key name in the ConfigMap. Defaults to "config" if not specified.
+	ConfigMapKey string `json:"configMapKey,omitempty"`
 }
 
 // JobSpec describes how the job execution will look like.
