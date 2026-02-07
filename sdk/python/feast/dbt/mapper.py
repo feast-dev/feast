@@ -29,9 +29,9 @@ from feast.value_type import ValueType
 # Mapping from FeastType to ValueType for entity value inference
 FEAST_TYPE_TO_VALUE_TYPE: Dict[FeastType, ValueType] = {
     String: ValueType.STRING,
-    Int32: ValueType.INT64,
+    Int32: ValueType.INT32,
     Int64: ValueType.INT64,
-    Float32: ValueType.DOUBLE,
+    Float32: ValueType.FLOAT,
     Float64: ValueType.DOUBLE,
     Bool: ValueType.BOOL,
     Bytes: ValueType.BYTES,
