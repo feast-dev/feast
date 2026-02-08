@@ -134,9 +134,13 @@ def feast_value_type_to_python_type(
     if val_attr in ("uuid_list_val", "time_uuid_list_val"):
         return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
 
-    # Backward compatibility: handle UUIDs stored as string_val with feature_type hint
+    # Backward compatibility: handle UUIDs stored as string_val/string_list_val with feature_type hint
     if feature_type in (ValueType.UUID, ValueType.TIME_UUID) and isinstance(val, str):
         return uuid_module.UUID(val)
+    if feature_type in (ValueType.UUID_LIST, ValueType.TIME_UUID_LIST) and isinstance(
+        val, list
+    ):
+        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
 
     return val
 
@@ -1140,6 +1144,8 @@ def _convert_value_name_to_snowflake_udf(value_name: str, project_name: str) -> 
         "UNIX_TIMESTAMP_LIST": f"feast_{project_name}_snowflake_array_timestamp_to_list_unix_timestamp_proto",
         "UUID": f"feast_{project_name}_snowflake_varchar_to_string_proto",
         "TIME_UUID": f"feast_{project_name}_snowflake_varchar_to_string_proto",
+        "UUID_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "TIME_UUID_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
     }
     return name_map[value_name].upper()
 
