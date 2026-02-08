@@ -30,6 +30,7 @@ from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
+from feast.value_type import ValueType
 
 
 class OnlineStore(ABC):
@@ -340,11 +341,9 @@ class OnlineStore(ABC):
     @staticmethod
     def _build_feature_types(
         grouped_refs: List,
-    ) -> Dict[str, "ValueType"]:
+    ) -> Dict[str, ValueType]:
         """Build a mapping of feature names to ValueType from grouped feature view refs."""
-        from feast.value_type import ValueType as VT
-
-        feature_types: Dict[str, VT] = {}
+        feature_types: Dict[str, ValueType] = {}
         for table, requested_features in grouped_refs:
             for field in table.features:
                 if field.name in requested_features:

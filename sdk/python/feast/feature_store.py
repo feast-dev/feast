@@ -2598,8 +2598,7 @@ class FeatureStore:
             data=requested_features_data,
         )
         feature_types = {
-            f.name: f.dtype.to_value_type()
-            for f in requested_feature_view.features
+            f.name: f.dtype.to_value_type() for f in requested_feature_view.features
         }
         return OnlineResponse(online_features_response, feature_types=feature_types)
 
@@ -2885,10 +2884,7 @@ class FeatureStore:
             online_features_response.metadata.feature_names.val.extend(
                 features_to_request
             )
-            feature_types = {
-                f.name: f.dtype.to_value_type()
-                for f in table.features
-            }
+            feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
             return OnlineResponse(online_features_response, feature_types=feature_types)
 
         table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
@@ -2916,10 +2912,7 @@ class FeatureStore:
             data=entity_key_dict,
         )
 
-        feature_types = {
-            f.name: f.dtype.to_value_type()
-            for f in table.features
-        }
+        feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
         return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def serve(

@@ -420,8 +420,16 @@ PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.STRING_LIST: (StringList, "string_list_val", [np.str_, str]),
     ValueType.BOOL_LIST: (BoolList, "bool_list_val", [np.bool_, bool]),
     ValueType.BYTES_LIST: (BytesList, "bytes_list_val", [np.bytes_, bytes]),
-    ValueType.UUID_LIST: (StringList, "string_list_val", [np.str_, str, uuid_module.UUID]),
-    ValueType.TIME_UUID_LIST: (StringList, "string_list_val", [np.str_, str, uuid_module.UUID]),
+    ValueType.UUID_LIST: (
+        StringList,
+        "string_list_val",
+        [np.str_, str, uuid_module.UUID],
+    ),
+    ValueType.TIME_UUID_LIST: (
+        StringList,
+        "string_list_val",
+        [np.str_, str, uuid_module.UUID],
+    ),
 }
 
 PYTHON_SET_VALUE_TYPE_TO_PROTO_VALUE: Dict[
