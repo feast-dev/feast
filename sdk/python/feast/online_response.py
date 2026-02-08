@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Dict, List, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeAlias, Union
 
 import pandas as pd
 import pyarrow as pa
@@ -21,6 +21,7 @@ from feast.feature_view import DUMMY_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.torch_wrapper import get_torch
 from feast.type_map import feast_value_type_to_python_type
+from feast.value_type import ValueType
 
 if TYPE_CHECKING:
     import torch
@@ -37,14 +38,20 @@ class OnlineResponse:
     Defines an online response in feast.
     """
 
-    def __init__(self, online_response_proto: GetOnlineFeaturesResponse):
+    def __init__(
+        self,
+        online_response_proto: GetOnlineFeaturesResponse,
+        feature_types: Optional[Dict[str, ValueType]] = None,
+    ):
         """
         Construct a native online response from its protobuf version.
 
         Args:
         online_response_proto: GetOnlineResponse proto object to construct from.
+        feature_types: Optional mapping of feature names to ValueType for type-aware deserialization.
         """
         self.proto = online_response_proto
+        self._feature_types = feature_types or {}
         # Delete DUMMY_ENTITY_ID from proto if it exists
         for idx, val in enumerate(self.proto.metadata.feature_names.val):
             if val == DUMMY_ENTITY_ID:
@@ -65,8 +72,10 @@ class OnlineResponse:
         for feature_ref, feature_vector in zip(
             self.proto.metadata.feature_names.val, self.proto.results
         ):
+            feature_type = self._feature_types.get(feature_ref)
             response[feature_ref] = [
-                feast_value_type_to_python_type(v) for v in feature_vector.values
+                feast_value_type_to_python_type(v, feature_type)
+                for v in feature_vector.values
             ]
 
             if include_event_timestamps:
