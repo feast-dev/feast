@@ -71,6 +71,10 @@ class ValueType(enum.Enum):
     JSON_LIST = 33
     STRUCT = 34
     STRUCT_LIST = 35
+    UUID = 36
+    TIME_UUID = 37
+    UUID_LIST = 38
+    TIME_UUID_LIST = 39
 
 
 ListType = Union[
