@@ -740,6 +740,21 @@ def _python_value_to_proto_value(
                     else:
                         result.append(ProtoValue())
                 return result
+            if feast_value_type in (
+                ValueType.UUID_LIST,
+                ValueType.TIME_UUID_LIST,
+            ):
+                # uuid.UUID objects must be converted to str for StringList proto.
+                return [
+                    (
+                        ProtoValue(
+                            **{field_name: proto_type(val=[str(e) for e in value])}  # type: ignore
+                        )
+                        if value is not None
+                        else ProtoValue()
+                    )
+                    for value in values
+                ]
             return [
                 (
                     ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore

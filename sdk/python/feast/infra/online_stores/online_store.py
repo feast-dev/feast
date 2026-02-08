@@ -342,12 +342,19 @@ class OnlineStore(ABC):
     def _build_feature_types(
         grouped_refs: List,
     ) -> Dict[str, ValueType]:
-        """Build a mapping of feature names to ValueType from grouped feature view refs."""
+        """Build a mapping of feature names to ValueType from grouped feature view refs.
+
+        Includes both bare names and prefixed names (feature_view__feature) so that
+        lookups succeed regardless of the full_feature_names setting.
+        """
         feature_types: Dict[str, ValueType] = {}
         for table, requested_features in grouped_refs:
+            table_name = table.projection.name_to_use()
             for field in table.features:
                 if field.name in requested_features:
-                    feature_types[field.name] = field.dtype.to_value_type()
+                    vtype = field.dtype.to_value_type()
+                    feature_types[field.name] = vtype
+                    feature_types[f"{table_name}__{field.name}"] = vtype
         return feature_types
 
     @abstractmethod
