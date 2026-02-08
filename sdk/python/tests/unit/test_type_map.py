@@ -531,6 +531,22 @@ class TestUuidTypes:
         assert all(isinstance(r, uuid.UUID) for r in result)
         assert result == test_uuids
 
+    def test_uuid_object_list_roundtrip(self):
+        """uuid.UUID objects in list -> proto -> list of uuid.UUID roundtrip."""
+        test_uuids = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
+        protos = python_values_to_proto_values([test_uuids], ValueType.UUID_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert all(isinstance(r, uuid.UUID) for r in result)
+        assert result == test_uuids
+
+    def test_time_uuid_object_list_roundtrip(self):
+        """uuid.UUID objects in TIME_UUID list -> proto -> roundtrip."""
+        test_uuids = [uuid.uuid1(), uuid.uuid1()]
+        protos = python_values_to_proto_values([test_uuids], ValueType.TIME_UUID_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert all(isinstance(r, uuid.UUID) for r in result)
+        assert result == test_uuids
+
     def test_pg_uuid_type_mapping(self):
         """PostgreSQL uuid type maps to ValueType.UUID."""
         assert pg_type_to_feast_value_type("uuid") == ValueType.UUID
