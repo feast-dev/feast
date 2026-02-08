@@ -1,3 +1,5 @@
+import uuid
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -7,6 +9,7 @@ from feast.type_map import (
     _python_dict_to_map_proto,
     _python_list_to_map_list_proto,
     feast_value_type_to_python_type,
+    pg_type_to_feast_value_type,
     python_type_to_feast_value_type,
     python_values_to_proto_values,
 )
@@ -461,3 +464,90 @@ class TestSetTypes:
         assert feast_value_type_to_python_type(protos[0]) == {1, 2, 3}
         assert feast_value_type_to_python_type(protos[1]) == {4, 5}
         assert feast_value_type_to_python_type(protos[2]) == {6}
+
+
+class TestUuidTypes:
+    """Test cases for UUID and TIME_UUID value types."""
+
+    def test_uuid_string_roundtrip(self):
+        """UUID string -> proto -> uuid.UUID object roundtrip."""
+        test_uuid = uuid.uuid4()
+        protos = python_values_to_proto_values([str(test_uuid)], ValueType.UUID)
+        assert protos[0].uuid_val == str(test_uuid)
+
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, uuid.UUID)
+        assert result == test_uuid
+
+    def test_uuid_object_serialization(self):
+        """uuid.UUID object -> proto serialization (str conversion automatic)."""
+        test_uuid = uuid.uuid4()
+        protos = python_values_to_proto_values([test_uuid], ValueType.UUID)
+        assert protos[0].uuid_val == str(test_uuid)
+
+    def test_time_uuid_roundtrip(self):
+        """TIME_UUID string -> proto -> uuid.UUID object roundtrip."""
+        test_uuid = uuid.uuid1()
+        protos = python_values_to_proto_values([str(test_uuid)], ValueType.TIME_UUID)
+        assert protos[0].time_uuid_val == str(test_uuid)
+
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, uuid.UUID)
+        assert result == test_uuid
+
+    def test_uuid_without_feature_type_returns_uuid(self):
+        """With dedicated uuid_val proto field, UUID is identified without feature_type hint."""
+        test_uuid = uuid.uuid4()
+        protos = python_values_to_proto_values([str(test_uuid)], ValueType.UUID)
+
+        # No feature_type hint needed — uuid_val field identifies the type
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, uuid.UUID)
+        assert result == test_uuid
+
+    def test_uuid_backward_compat_string_val(self):
+        """UUIDs stored as string_val (old format) still work with feature_type hint."""
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        test_uuid = uuid.uuid4()
+        # Simulate old-format proto with string_val
+        proto = ProtoValue(string_val=str(test_uuid))
+
+        # Without feature_type, returns plain string
+        result = feast_value_type_to_python_type(proto)
+        assert isinstance(result, str)
+
+        # With feature_type hint, returns uuid.UUID
+        result = feast_value_type_to_python_type(proto, ValueType.UUID)
+        assert isinstance(result, uuid.UUID)
+        assert result == test_uuid
+
+    def test_uuid_list_roundtrip(self):
+        """UUID list -> proto -> list of uuid.UUID objects roundtrip."""
+        test_uuids = [uuid.uuid4(), uuid.uuid4()]
+        test_uuid_strs = [str(u) for u in test_uuids]
+        protos = python_values_to_proto_values([test_uuid_strs], ValueType.UUID_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert all(isinstance(r, uuid.UUID) for r in result)
+        assert result == test_uuids
+
+    def test_uuid_object_list_roundtrip(self):
+        """uuid.UUID objects in list -> proto -> list of uuid.UUID roundtrip."""
+        test_uuids = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
+        protos = python_values_to_proto_values([test_uuids], ValueType.UUID_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert all(isinstance(r, uuid.UUID) for r in result)
+        assert result == test_uuids
+
+    def test_time_uuid_object_list_roundtrip(self):
+        """uuid.UUID objects in TIME_UUID list -> proto -> roundtrip."""
+        test_uuids = [uuid.uuid1(), uuid.uuid1()]
+        protos = python_values_to_proto_values([test_uuids], ValueType.TIME_UUID_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert all(isinstance(r, uuid.UUID) for r in result)
+        assert result == test_uuids
+
+    def test_pg_uuid_type_mapping(self):
+        """PostgreSQL uuid type maps to ValueType.UUID."""
+        assert pg_type_to_feast_value_type("uuid") == ValueType.UUID
+        assert pg_type_to_feast_value_type("uuid[]") == ValueType.UUID_LIST

@@ -636,6 +636,7 @@ def _augment_response_with_on_demand_transforms(
     feature_refs: List[str],
     requested_on_demand_feature_views: List["OnDemandFeatureView"],
     full_feature_names: bool,
+    feature_types: Optional[Dict[str, "ValueType"]] = None,
 ):
     """Computes on demand feature values and adds them to the result rows.
 
@@ -666,7 +667,9 @@ def _augment_response_with_on_demand_transforms(
                 else feature_name
             )
 
-    initial_response = OnlineResponse(online_features_response)
+    initial_response = OnlineResponse(
+        online_features_response, feature_types=feature_types
+    )
     initial_response_arrow: Optional[pyarrow.Table] = None
     initial_response_dict: Optional[Dict[str, List[Any]]] = None
 

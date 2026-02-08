@@ -1,5 +1,6 @@
 import copy
 import functools
+import uuid
 import warnings
 from types import FunctionType
 from typing import Any, List, Optional, Union, cast
@@ -1093,6 +1094,9 @@ class OnDemandFeatureView(BaseFeatureView):
             # Special binary types
             ValueType.PDF_BYTES: [pdf_sample],
             ValueType.IMAGE_BYTES: [image_sample],
+            # UUID types
+            ValueType.UUID: [uuid.uuid4()],
+            ValueType.TIME_UUID: [uuid.uuid1()],
             # List types
             ValueType.BYTES_LIST: [[b"hello world"]],
             ValueType.STRING_LIST: [["hello world"]],
@@ -1102,6 +1106,8 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.FLOAT_LIST: [[1.0]],
             ValueType.BOOL_LIST: [[True]],
             ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
+            ValueType.UUID_LIST: [[uuid.uuid4(), uuid.uuid4()]],
+            ValueType.TIME_UUID_LIST: [[uuid.uuid1(), uuid.uuid1()]],
         }
 
     @staticmethod
