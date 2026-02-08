@@ -218,18 +218,21 @@ class OnlineStore(ABC):
                 output_len,
             )
 
+        feature_types = self._build_feature_types(grouped_refs)
+
         if requested_on_demand_feature_views:
             utils._augment_response_with_on_demand_transforms(
                 online_features_response,
                 feature_refs,
                 requested_on_demand_feature_views,
                 full_feature_names,
+                feature_types=feature_types,
             )
 
         utils._drop_unneeded_columns(
             online_features_response, requested_result_row_names
         )
-        return OnlineResponse(online_features_response)
+        return OnlineResponse(online_features_response, feature_types=feature_types)
 
     async def get_online_features_async(
         self,
@@ -318,18 +321,35 @@ class OnlineStore(ABC):
                 output_len,
             )
 
+        feature_types = self._build_feature_types(grouped_refs)
+
         if requested_on_demand_feature_views:
             utils._augment_response_with_on_demand_transforms(
                 online_features_response,
                 feature_refs,
                 requested_on_demand_feature_views,
                 full_feature_names,
+                feature_types=feature_types,
             )
 
         utils._drop_unneeded_columns(
             online_features_response, requested_result_row_names
         )
-        return OnlineResponse(online_features_response)
+        return OnlineResponse(online_features_response, feature_types=feature_types)
+
+    @staticmethod
+    def _build_feature_types(
+        grouped_refs: List,
+    ) -> Dict[str, "ValueType"]:
+        """Build a mapping of feature names to ValueType from grouped feature view refs."""
+        from feast.value_type import ValueType as VT
+
+        feature_types: Dict[str, VT] = {}
+        for table, requested_features in grouped_refs:
+            for field in table.features:
+                if field.name in requested_features:
+                    feature_types[field.name] = field.dtype.to_value_type()
+        return feature_types
 
     @abstractmethod
     def update(

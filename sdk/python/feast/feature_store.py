@@ -2597,7 +2597,11 @@ class FeatureStore:
             online_features_response=online_features_response,
             data=requested_features_data,
         )
-        return OnlineResponse(online_features_response)
+        feature_types = {
+            f.name: f.dtype.to_value_type()
+            for f in requested_feature_view.features
+        }
+        return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def retrieve_online_documents_v2(
         self,
@@ -2881,7 +2885,11 @@ class FeatureStore:
             online_features_response.metadata.feature_names.val.extend(
                 features_to_request
             )
-            return OnlineResponse(online_features_response)
+            feature_types = {
+                f.name: f.dtype.to_value_type()
+                for f in table.features
+            }
+            return OnlineResponse(online_features_response, feature_types=feature_types)
 
         table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
@@ -2908,7 +2916,11 @@ class FeatureStore:
             data=entity_key_dict,
         )
 
-        return OnlineResponse(online_features_response)
+        feature_types = {
+            f.name: f.dtype.to_value_type()
+            for f in table.features
+        }
+        return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def serve(
         self,
