@@ -128,6 +128,13 @@ def feast_value_type_to_python_type(
     elif val_attr.endswith("_set_val") and val_attr != "unix_timestamp_set_val":
         val = set(val)
 
+    # Convert UUID values to uuid.UUID objects
+    if val_attr in ("uuid_val", "time_uuid_val"):
+        return uuid_module.UUID(val) if isinstance(val, str) else val
+    if val_attr in ("uuid_list_val", "time_uuid_list_val"):
+        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
+
+    # Backward compatibility: handle UUIDs stored as string_val with feature_type hint
     if feature_type in (ValueType.UUID, ValueType.TIME_UUID) and isinstance(val, str):
         return uuid_module.UUID(val)
 
@@ -422,12 +429,12 @@ PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.BYTES_LIST: (BytesList, "bytes_list_val", [np.bytes_, bytes]),
     ValueType.UUID_LIST: (
         StringList,
-        "string_list_val",
+        "uuid_list_val",
         [np.str_, str, uuid_module.UUID],
     ),
     ValueType.TIME_UUID_LIST: (
         StringList,
-        "string_list_val",
+        "time_uuid_list_val",
         [np.str_, str, uuid_module.UUID],
     ),
 }
@@ -480,8 +487,8 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.IMAGE_BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
-    ValueType.UUID: ("string_val", lambda x: str(x), {str, uuid_module.UUID}),
-    ValueType.TIME_UUID: ("string_val", lambda x: str(x), {str, uuid_module.UUID}),
+    ValueType.UUID: ("uuid_val", lambda x: str(x), {str, uuid_module.UUID}),
+    ValueType.TIME_UUID: ("time_uuid_val", lambda x: str(x), {str, uuid_module.UUID}),
 }
 
 
@@ -900,6 +907,10 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "bytes_set_val": ValueType.BYTES_SET,
     "bool_set_val": ValueType.BOOL_SET,
     "unix_timestamp_set_val": ValueType.UNIX_TIMESTAMP_SET,
+    "uuid_val": ValueType.UUID,
+    "time_uuid_val": ValueType.TIME_UUID,
+    "uuid_list_val": ValueType.UUID_LIST,
+    "time_uuid_list_val": ValueType.TIME_UUID_LIST,
 }
 
 VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {

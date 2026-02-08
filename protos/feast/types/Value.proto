@@ -53,6 +53,10 @@ message ValueType {
     FLOAT_SET = 27;
     BOOL_SET = 28;
     UNIX_TIMESTAMP_SET = 29;
+    UUID = 30;
+    TIME_UUID = 31;
+    UUID_LIST = 32;
+    TIME_UUID_LIST = 33;
   }
 }
 
@@ -88,6 +92,10 @@ message Value {
     FloatSet float_set_val = 27;
     BoolSet bool_set_val = 28;
     Int64Set unix_timestamp_set_val = 29;
+    string uuid_val = 30;
+    string time_uuid_val = 31;
+    StringList uuid_list_val = 32;
+    StringList time_uuid_list_val = 33;
   }
 }
 
