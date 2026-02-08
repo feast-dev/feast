@@ -778,6 +778,19 @@ def _convert_list_values_to_proto(
     if feast_value_type == ValueType.BOOL_LIST:
         return _convert_bool_collection_to_proto(values, field_name, proto_type)
 
+    if feast_value_type in (ValueType.UUID_LIST, ValueType.TIME_UUID_LIST):
+        # uuid.UUID objects must be converted to str for StringList proto.
+        return [
+            (
+                ProtoValue(
+                    **{field_name: proto_type(val=[str(e) for e in value])}  # type: ignore[arg-type]
+                )
+                if value is not None
+                else ProtoValue()
+            )
+            for value in values
+        ]
+
     # Generic list conversion
     return [
         ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore[arg-type]
