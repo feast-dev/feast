@@ -230,6 +230,28 @@ test-python-integration-container: ## Run Python integration tests using Docker
 		uv run python -m pytest -n 8 --integration sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
+test-python-integration-dbt: ## Run dbt integration tests
+	@echo "Running dbt integration tests..."
+	@cd sdk/python/tests/integration/dbt/test_dbt_project && \
+		echo "Installing dbt dependencies..." && \
+		dbt deps && \
+		echo "Building dbt models..." && \
+		dbt build
+	@cd sdk/python/tests/integration/dbt && \
+		echo "Setting up Feast project..." && \
+		mkdir -p feast_repo/data && \
+		echo "project: feast_dbt_test\nregistry: data/registry.db\nprovider: local\nonline_store:\n  type: sqlite\n  path: data/online_store.db" > feast_repo/feature_store.yaml
+	@cd sdk/python/tests/integration/dbt/feast_repo && \
+		echo "Testing feast dbt import..." && \
+		feast dbt import -m ../test_dbt_project/target/manifest.json -e driver_id -d file --tag feast && \
+		echo "Verifying Feast objects..." && \
+		feast feature-views list && \
+		feast entities list
+	@cd sdk/python && \
+		echo "Running pytest integration tests..." && \
+		python -m pytest tests/integration/dbt/test_dbt_integration.py -v --tb=short
+	@echo "✓ dbt integration tests completed successfully!"
+
 test-python-universal-spark: ## Run Python Spark integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
