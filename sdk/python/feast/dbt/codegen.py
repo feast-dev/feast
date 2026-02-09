@@ -248,7 +248,9 @@ class DbtCodeGenerator:
         if not entity_cols:
             raise ValueError("At least one entity column must be specified")
 
-        excluded = set(entity_cols) | {self.timestamp_field}
+        # Note: entity columns should NOT be excluded - FeatureView.__init__
+        # expects entity columns to be in the schema and will extract them
+        excluded = {self.timestamp_field}
         if exclude_columns:
             excluded.update(exclude_columns)
 

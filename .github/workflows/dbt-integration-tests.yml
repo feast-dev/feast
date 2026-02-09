@@ -1,0 +1,53 @@
+name: dbt-integration-tests
+
+# Run dbt integration tests on PRs
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+    paths:
+      - 'sdk/python/feast/dbt/**'
+      - 'sdk/python/tests/integration/dbt/**'
+      - 'sdk/python/tests/unit/dbt/**'
+      - '.github/workflows/dbt-integration-tests.yml'
+
+jobs:
+  dbt-integration-test:
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      
+      - name: Install dependencies
+        run: make install-python-dependencies-ci
+      
+      - name: Install dbt and dbt-duckdb
+        run: |
+          uv pip install --system dbt-core dbt-duckdb
+
+      - name: Run dbt integration tests
+        run: make test-python-integration-dbt
+      
+      - name: Minimize uv cache
+        run: uv cache prune --ci
