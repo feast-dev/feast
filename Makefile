@@ -60,6 +60,7 @@ format-python: ## Format Python code
 
 lint-python: ## Lint Python code
 	uv run ruff check sdk/python/feast/ sdk/python/tests/
+	uv run ruff format --check sdk/python/feast/ sdk/python/tests/
 	uv run bash -c "cd sdk/python && mypy feast"
 
 # New combined target
