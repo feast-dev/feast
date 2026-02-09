@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MYPY_CACHE_DIR="${ROOT_DIR}/sdk/python/.mypy_cache"
 PID_FILE="$MYPY_CACHE_DIR/dmypy.pid"
 
-case "$1" in
+case "${1:-}" in
   start)
     echo "🚀 Starting MyPy daemon..."
     cd ${ROOT_DIR}/sdk/python
