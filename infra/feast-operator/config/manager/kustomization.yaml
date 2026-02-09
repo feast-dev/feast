@@ -4,5 +4,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: quay.io/aniket-redhat/feast-operator
-  newTag: dev0.8
+  newName: quay.io/feastdev/feast-operator
+  newTag: 0.59.0
