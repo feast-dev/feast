@@ -239,5 +239,3 @@ infra/website/dist/
 
 # offline builds
 offline_build/
-feast_profile_demo/
-scripts/perf-monitor.py
