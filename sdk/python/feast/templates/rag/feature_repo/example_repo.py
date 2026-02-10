@@ -44,8 +44,16 @@ city_summaries_push_source = PushSource(
 rag_request_source = RequestSource(
     name="rag_request_source",
     schema=[
-        Field(name="query_text", dtype=String, description="User query text at request time."),
-        Field(name="user_id", dtype=String, description="Optional user/session id for personalization or logging."),
+        Field(
+            name="query_text",
+            dtype=String,
+            description="User query text at request time.",
+        ),
+        Field(
+            name="user_id",
+            dtype=String,
+            description="Optional user/session id for personalization or logging.",
+        ),
     ],
     description="Request-time inputs for RAG (query, user context).",
 )
@@ -121,21 +129,37 @@ city_summary_embeddings_realtime = FeatureView(
     source=city_summaries_push_source,
     ttl=timedelta(hours=2),
     online=True,
-    tags={"team": "ml-platform", "use_case": "city_qa", "type": "vector", "ingestion": "push"},
+    tags={
+        "team": "ml-platform",
+        "use_case": "city_qa",
+        "type": "vector",
+        "ingestion": "push",
+    },
 )
+
 
 # On-demand Feature View: request-time derived features for RAG
 @on_demand_feature_view(
     sources=[city_metadata, rag_request_source],
     schema=[
-        Field(name="query_text_length", dtype=Int64, description="Length of the request query (e.g. for logging or routing)."),
-        Field(name="has_user_context", dtype=Int64, description="1 if user_id was provided, else 0."),
+        Field(
+            name="query_text_length",
+            dtype=Int64,
+            description="Length of the request query (e.g. for logging or routing).",
+        ),
+        Field(
+            name="has_user_context",
+            dtype=Int64,
+            description="1 if user_id was provided, else 0.",
+        ),
     ],
 )
 def rag_request_context(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["query_text_length"] = inputs["query_text"].str.len().astype("int64")
-    df["has_user_context"] = (inputs["user_id"].fillna("").str.len() > 0).astype("int64")
+    df["has_user_context"] = (inputs["user_id"].fillna("").str.len() > 0).astype(
+        "int64"
+    )
     return df
 
 
@@ -143,8 +167,8 @@ def rag_request_context(inputs: pd.DataFrame) -> pd.DataFrame:
 city_qa_v1 = FeatureService(
     name="city_qa_v1",
     features=[
-        city_summary_embeddings,  
-        city_metadata,  
+        city_summary_embeddings,
+        city_metadata,
     ],
     description="Feature service for City Information Q&A. ",
     tags={"team": "ml-platform", "version": "v1"},
@@ -154,7 +178,7 @@ city_qa_v1 = FeatureService(
 city_qa_v2 = FeatureService(
     name="city_qa_v2",
     features=[
-        city_summary_embeddings_realtime,  
+        city_summary_embeddings_realtime,
         city_metadata,
         rag_request_context,  # Request-time derived features
     ],

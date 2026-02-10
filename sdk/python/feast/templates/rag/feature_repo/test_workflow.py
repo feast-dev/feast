@@ -3,10 +3,10 @@ from datetime import datetime
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from feast import FeatureStore
+from example_repo import city, city_metadata, city_qa_v1, city_summary_embeddings
 from transformers import AutoModel, AutoTokenizer
 
-from example_repo import city, city_metadata, city_qa_v1, city_summary_embeddings
+from feast import FeatureStore
 
 TOKENIZER = "sentence-transformers/all-MiniLM-L6-v2"
 MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -35,7 +35,7 @@ def run_model(sentences, tokenizer, model):
 
 def run_demo():
     print("City Information Q&A - RAG Demo")
-    
+
     store = FeatureStore(repo_path=".")
     print("\n[1/5] Applying feature definitions...")
     store.apply([city, city_summary_embeddings, city_metadata, city_qa_v1])
@@ -57,7 +57,9 @@ def run_demo():
     print("\n[3/6] Verifying data...")
     df = pd.read_parquet("./data/city_wikipedia_summaries_with_embeddings.parquet")
     embedding_length = len(df["vector"][0])
-    print(f"      Parquet: {len(df)} city records with {embedding_length}-dim embeddings")
+    print(
+        f"      Parquet: {len(df)} city records with {embedding_length}-dim embeddings"
+    )
 
     print("\n[4/6] Running semantic search...")
     question = "the most populous city in the state of New York"
@@ -92,7 +94,7 @@ def run_demo():
     if len(results_df) > 0:
         top_city_id = int(results_df["city_id"].iloc[0])
         print(f"      Looking up metadata for city_id={top_city_id}")
-        
+
         metadata_features = store.get_online_features(
             features=[
                 "city_metadata:state",
@@ -100,7 +102,7 @@ def run_demo():
             ],
             entity_rows=[{"city_id": top_city_id}],
         ).to_dict()
-        
+
         print(f"      State: {metadata_features['state'][0]}")
         print(f"      Summary: {metadata_features['wiki_summary'][0][:200]}...")
 
