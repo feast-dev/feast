@@ -83,6 +83,27 @@ spec:
                 x-kubernetes-validations:
                 - message: One selection required between kubernetes or oidc.
                   rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c, c)'
+              batchEngine:
+                description: BatchEngineConfig defines the batch compute engine configuration.
+                properties:
+                  configMapKey:
+                    description: Key name in the ConfigMap. Defaults to "config" if
+                      not specified.
+                    type: string
+                  configMapRef:
+                    description: Reference to a ConfigMap containing the batch engine
+                      configuration.
+                    properties:
+                      name:
+                        default: ""
+                        description: |-
+                          Name of the referent.
+                          This field is effectively required, but due to backwards compatibility is
+                          allowed to be empty.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
               cronJob:
                 description: FeastCronJob defines a CronJob to execute against a Feature
                   Store deployment.
@@ -4287,6 +4308,28 @@ spec:
                     - message: One selection required between kubernetes or oidc.
                       rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c,
                         c)'
+                  batchEngine:
+                    description: BatchEngineConfig defines the batch compute engine
+                      configuration.
+                    properties:
+                      configMapKey:
+                        description: Key name in the ConfigMap. Defaults to "config"
+                          if not specified.
+                        type: string
+                      configMapRef:
+                        description: Reference to a ConfigMap containing the batch
+                          engine configuration.
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                    type: object
                   cronJob:
                     description: FeastCronJob defines a CronJob to execute against
                       a Feature Store deployment.

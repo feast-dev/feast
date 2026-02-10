@@ -28,6 +28,22 @@ _Appears in:_
 | `oidc` _[OidcAuthz](#oidcauthz)_ |  |
 
 
+#### BatchEngineConfig
+
+
+
+BatchEngineConfig defines the batch compute engine configuration.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `configMapRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a ConfigMap containing the batch engine configuration.
+The ConfigMap should contain YAML-formatted config with 'type' and engine-specific fields. |
+| `configMapKey` _string_ | Key name in the ConfigMap. Defaults to "config" if not specified. |
+
+
 #### ContainerConfigs
 
 
@@ -226,6 +242,7 @@ _Appears in:_
 | `services` _[FeatureStoreServices](#featurestoreservices)_ |  |
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
+| `batchEngine` _[BatchEngineConfig](#batchengineconfig)_ |  |
 
 
 #### FeatureStoreStatus
