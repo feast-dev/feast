@@ -191,10 +191,14 @@ func TestGetRegistryConfig_Map(t *testing.T) {
 	// Create a RepoConfig with a map Registry
 	config := &RepoConfig{
 		Registry: map[string]interface{}{
-			"path":                "data/registry.db",
-			"registry_store_type": "local",
-			"client_id":           "test_client_id",
-			"cache_ttl_seconds":   60,
+			"path":                            "data/registry.db",
+			"registry_store_type":             "local",
+			"client_id":                       "test_client_id",
+			"cache_ttl_seconds":               60,
+			"mysql_max_open_conns":            25,
+			"mysql_max_idle_conns":            12,
+			"mysql_conn_max_lifetime_seconds": 180,
+			"mysql_query_timeout_seconds":     60,
 		},
 	}
 
@@ -206,6 +210,10 @@ func TestGetRegistryConfig_Map(t *testing.T) {
 	assert.Equal(t, "local", registryConfig.RegistryStoreType)
 	assert.Equal(t, int64(60), registryConfig.CacheTtlSeconds)
 	assert.Equal(t, "test_client_id", registryConfig.ClientId)
+	assert.Equal(t, 25, registryConfig.MySQLMaxOpenConns)
+	assert.Equal(t, 12, registryConfig.MySQLMaxIdleConns)
+	assert.Equal(t, int64(180), registryConfig.MySQLConnMaxLifetimeSeconds)
+	assert.Equal(t, int64(60), registryConfig.MySQLQueryTimeoutSeconds)
 }
 
 func TestGetRegistryConfig_String(t *testing.T) {
@@ -223,6 +231,10 @@ func TestGetRegistryConfig_String(t *testing.T) {
 	println(registryConfig.CacheTtlSeconds)
 	assert.Empty(t, registryConfig.RegistryStoreType)
 	assert.Equal(t, defaultCacheTtlSeconds, registryConfig.CacheTtlSeconds)
+	assert.Equal(t, defaultMySQLMaxOpenConns, registryConfig.MySQLMaxOpenConns)
+	assert.Equal(t, defaultMySQLMaxIdleConns, registryConfig.MySQLMaxIdleConns)
+	assert.Equal(t, defaultMySQLConnMaxLifetimeSeconds, registryConfig.MySQLConnMaxLifetimeSeconds)
+	assert.Equal(t, defaultMySQLQueryTimeoutSeconds, registryConfig.MySQLQueryTimeoutSeconds)
 }
 
 func TestGetRegistryConfig_CacheTtlSecondsTypes(t *testing.T) {

@@ -10,9 +10,15 @@ known-first-party = ["feast", "feast_serving_server", "feast_core_server"]
 default-section = "third-party"
 
 [tool.mypy]
-files = ["feast","tests"]
+files = ["feast", "tests"]
 ignore_missing_imports = true
 exclude = ["feast/embedded_go/lib"]
+# Performance optimizations
+incremental = true
+cache_dir = ".mypy_cache"
+sqlite_cache = true
+warn_unused_configs = true
+show_column_numbers = true
 
 [[tool.mypy.overrides]]
 module = "transformers.*"
