@@ -29,6 +29,6 @@ jobs:
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Imports
-        run: python -c "from feast.cli import cli"
+        run: uv run python -c "from feast.cli import cli"
       - name: Minimize uv cache
         run: uv cache prune --ci

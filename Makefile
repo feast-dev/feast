@@ -55,14 +55,36 @@ protos: compile-protos-python compile-protos-docs ## Compile protobufs for Pytho
 build: protos build-docker ## Build protobufs and Docker images
 
 format-python: ## Format Python code
-	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
+	uv run ruff check --fix sdk/python/feast/ sdk/python/tests/
+	uv run ruff format sdk/python/feast/ sdk/python/tests/
 
 lint-python: ## Lint Python code
-	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
-	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
-	
+	uv run ruff check sdk/python/feast/ sdk/python/tests/
+	uv run ruff format --check sdk/python/feast/ sdk/python/tests/
+	uv run bash -c "cd sdk/python && mypy feast"
+
+# New combined target
+precommit-check: format-python lint-python ## Run all precommit checks
+	@echo "✅ All precommit checks passed"
+
+# Install precommit hooks with correct stages
+install-precommit: ## Install precommit hooks (runs on commit, not push)
+	pip install pre-commit
+	pre-commit install --hook-type pre-commit
+	@echo "✅ Precommit hooks installed (will run on commit, not push)"
+
+# Manual full type check
+mypy-full: ## Full MyPy type checking with all files
+	uv run bash -c "cd sdk/python && mypy feast tests"
+
+# Run precommit on all files
+precommit-all: ## Run all precommit hooks on all files
+	pre-commit run --all-files
+
+# Make scripts executable
+setup-scripts: ## Make helper scripts executable
+	chmod +x scripts/uv-run.sh scripts/check-init-py.sh scripts/mypy-daemon.sh
+
 ##@ Python SDK - local
 # formerly install-python-ci-dependencies-uv-venv
 # editable install
@@ -74,23 +96,22 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-minimal-requirements.txt
 	uv pip install --no-deps -e .[minimal]
 
-##@ Python SDK - system
-# the --system flag installs dependencies in the global python context
-# instead of a venv which is useful when working in a docker container or ci.
+##@ Python SDK - CI (uses uv with virtualenv)
+# Uses uv pip sync with virtualenv for CI environments
 
 # Used in github actions/ci
-# formerly install-python-ci-dependencies-uv
-install-python-dependencies-ci: ## Install Python CI dependencies in system environment using uv
-	# Install CPU-only torch first to prevent CUDA dependency issues
-	pip uninstall torch torchvision -y || true
+install-python-dependencies-ci: ## Install Python CI dependencies using uv pip sync
+	# Create virtualenv if it doesn't exist
+	uv venv .venv
+	# Install CPU-only torch first to prevent CUDA dependency issues (Linux only)
 	@if [ "$$(uname -s)" = "Linux" ]; then \
 		echo "Installing dependencies with torch CPU index for Linux..."; \
-		uv pip sync --system --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+		uv pip sync --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
 	else \
 		echo "Installing dependencies from PyPI for macOS..."; \
-		uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+		uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
 	fi
-	uv pip install --system --no-deps -e .
+	uv pip install --no-deps -e .
 
 # Used in github actions/ci
 install-hadoop-dependencies-ci: ## Install Hadoop dependencies
@@ -151,14 +172,36 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
+	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
+
+# Fast unit tests only
+test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
+	uv run python -m pytest sdk/python/tests/unit -n auto -x --tb=short
+
+# Changed files only (requires pytest-testmon)
+test-python-changed: ## Run tests for changed files only
+	uv run python -m pytest --testmon -n 8 --tb=short sdk/python/tests
+
+# Quick smoke test for PRs
+test-python-smoke: ## Quick smoke test for development
+	uv run python -m pytest \
+		sdk/python/tests/unit/test_unit_feature_store.py \
+		sdk/python/tests/unit/test_repo_operations_validate_feast_project_name.py \
+		-n 4 --tb=short
 
 test-python-integration: ## Run Python integration tests (CI)
-	python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
+
+# Integration tests with better parallelization
+test-python-integration-parallel: ## Run integration tests with enhanced parallelization
+	uv run python -m pytest sdk/python/tests/integration \
+		-n auto --dist loadscope \
+		--timeout=300 --tb=short -v \
+		--integration --color=yes --durations=20
 
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
@@ -166,7 +209,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 	HADOOP_HOME=$$HOME/hadoop \
 	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
 	HADOOP_USER_NAME=root \
-	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
@@ -175,7 +218,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
@@ -184,7 +227,7 @@ test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 test-python-integration-container: ## Run Python integration tests using Docker
 	@(docker info > /dev/null 2>&1 && \
 		FEAST_LOCAL_ONLINE_CONTAINER=True \
-		python -m pytest -n 8 --integration sdk/python/tests \
+		uv run python -m pytest -n 8 --integration sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
 test-python-integration-dbt: ## Run dbt integration tests
@@ -242,7 +285,7 @@ test-python-historical-retrieval:
 			test_historical_features_persisting or \
 			test_historical_retrieval_fails_on_validation" \
  	 sdk/python/tests
-	 
+
 test-python-universal-trino: ## Run Python Trino integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.trino_repo_configuration \
@@ -578,7 +621,7 @@ test-python-universal-couchbase-online:	## Run Python Couchbase online store int
 		sdk/python/tests
 
 test-python-universal: ## Run all Python integration tests
-	python -m pytest -n 8 --integration sdk/python/tests
+	uv run python -m pytest -n 8 --integration sdk/python/tests
 
 ##@ Java
 
@@ -644,7 +687,7 @@ build-feature-transformation-server-docker: ## Build Feature Transformation Serv
 push-feature-server-java-docker: ## Push Feature Server Java Docker image
 	docker push $(REGISTRY)/feature-server-java:$(VERSION)
 
-build-feature-server-java-docker: ## Build Feature Server Java Docker image	
+build-feature-server-java-docker: ## Build Feature Server Java Docker image
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
@@ -749,12 +792,12 @@ build-ui-local: ## Build Feast UI locally
 	cd $(ROOT_DIR)/ui && yarn install && npm run build --omit=dev
 	rm -rf $(ROOT_DIR)/sdk/python/feast/ui/build
 	cp -r $(ROOT_DIR)/ui/build $(ROOT_DIR)/sdk/python/feast/ui/
-	
+
 format-ui: ## Format Feast UI
 	cd $(ROOT_DIR)/ui && NPM_TOKEN= yarn install && NPM_TOKEN= yarn format
 
 
-##@ Go SDK 
+##@ Go SDK
 PB_REL = https://github.com/protocolbuffers/protobuf/releases
 PB_VERSION = 30.2
 PB_ARCH := $(shell uname -m)
@@ -820,4 +863,3 @@ build-go-docker-dev: ## Build Go Docker image for development
 	docker buildx build --build-arg VERSION=dev \
 		-t feastdev/feature-server-go:dev \
 		-f go/infra/docker/feature-server/Dockerfile --load .
-
