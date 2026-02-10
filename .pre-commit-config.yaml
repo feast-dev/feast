@@ -4,28 +4,30 @@ repos:
   - repo: local
     hooks:
       # File-aware format hook - only runs on changed Python files
+      # Runs both ruff check --fix and ruff format
       - id: format-files
         name: Format Changed Files
         stages: [commit]
         language: system
         types: [python]
-        entry: uv run ruff check --fix
+        entry: bash -c 'uv run ruff check --fix "$@" && uv run ruff format "$@"' --
         pass_filenames: true
 
       # File-aware lint hook - only runs on changed Python files
+      # Runs both ruff check and ruff format --check
       - id: lint-files
         name: Lint Changed Files
         stages: [commit]
         language: system
         types: [python]
-        entry: uv run ruff check
+        entry: bash -c 'uv run ruff check "$@" && uv run ruff format --check "$@"' --
         pass_filenames: true
 
-      # Conditional template hook - only runs when template files change
+      # Conditional template hook - only runs when template files or roadmap change
       - id: template
         name: Build Templates
         stages: [commit]
         language: system
-        files: ^infra/templates/|\.jinja2$
+        files: ^infra/templates/|\.jinja2$|^docs/roadmap\.md$
         entry: make build-templates
         pass_filenames: false
