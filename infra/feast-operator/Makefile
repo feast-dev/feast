@@ -131,10 +131,10 @@ test-upgrade:
 test-previous-version:
 	go test -timeout 60m ./test/previous-version/ -v -ginkgo.v
 
-# Requires python3
+# Requires python3 with feast installed (use uv run in CI)
 .PHONY: test-datasources
 test-datasources:
-	python3 test/data-source-types/data-source-types.py
+	cd ../.. && uv run python infra/feast-operator/test/data-source-types/data-source-types.py
 	go test ./test/data-source-types/
 
 .PHONY: lint

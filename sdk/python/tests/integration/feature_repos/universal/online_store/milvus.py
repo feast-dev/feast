@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
@@ -10,7 +10,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
         super().__init__(project_name)
         self.db_path = "online_store.db"
 
-    def create_online_store(self) -> Dict[str, Any]:
+    def create_online_store(self) -> dict[str, Any]:
         return {
             "type": "milvus",
             "path": self.db_path,
