@@ -227,7 +227,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 	HADOOP_HOME=$$HOME/hadoop \
 	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
 	HADOOP_USER_NAME=root \
-	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadscope \
+	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
