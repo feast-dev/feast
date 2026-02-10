@@ -6,7 +6,7 @@ authors: ["Francisco Javier Arceo", "Yassin Nouh"]
 ---
 
 <div class="hero-image">
-  <img src="/images/blog/rocket.png" alt="Feast and dbt Integration" loading="lazy">
+  <img src="/images/blog/dbt+feast.png" alt="Feast and dbt Integration" loading="lazy">
 </div>
 
 # Streamlining AI Feature Engineering with Feast and dbt
