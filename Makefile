@@ -58,10 +58,28 @@ format-python: ## Format Python code
 	uv run ruff check --fix sdk/python/feast/ sdk/python/tests/
 	uv run ruff format sdk/python/feast/ sdk/python/tests/
 
+# File-aware format (for use with pre-commit, accepts file args)
+format-python-files: ## Format specified Python files
+	@if [ -n "$(FILES)" ]; then \
+		uv run ruff check --fix $(FILES); \
+		uv run ruff format $(FILES); \
+	else \
+		echo "Usage: make format-python-files FILES='file1.py file2.py'"; \
+	fi
+
 lint-python: ## Lint Python code
 	uv run ruff check sdk/python/feast/ sdk/python/tests/
 	uv run ruff format --check sdk/python/feast/ sdk/python/tests/
 	uv run bash -c "cd sdk/python && mypy feast"
+
+# File-aware lint (for use with pre-commit, accepts file args)
+lint-python-files: ## Lint specified Python files
+	@if [ -n "$(FILES)" ]; then \
+		uv run ruff check $(FILES); \
+		uv run ruff format --check $(FILES); \
+	else \
+		echo "Usage: make lint-python-files FILES='file1.py file2.py'"; \
+	fi
 
 # New combined target
 precommit-check: format-python lint-python ## Run all precommit checks
@@ -209,7 +227,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 	HADOOP_HOME=$$HOME/hadoop \
 	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
 	HADOOP_USER_NAME=root \
-	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadscope \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
