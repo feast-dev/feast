@@ -55,15 +55,17 @@ const (
 	DefaultOnlineStorageRequest         = "5Gi"
 	DefaultRegistryStorageRequest       = "5Gi"
 	MetricsPort                   int32 = 8000
+	DefaultOnlineGrpcPort         int32 = 50051
 
-	AuthzFeastType    FeastServiceType = "authorization"
-	OfflineFeastType  FeastServiceType = "offline"
-	OnlineFeastType   FeastServiceType = "online"
-	RegistryFeastType FeastServiceType = "registry"
-	UIFeastType       FeastServiceType = "ui"
-	ClientFeastType   FeastServiceType = "client"
-	ClientCaFeastType FeastServiceType = "client-ca"
-	CronJobFeastType  FeastServiceType = "cronjob"
+	AuthzFeastType      FeastServiceType = "authorization"
+	OfflineFeastType    FeastServiceType = "offline"
+	OnlineFeastType     FeastServiceType = "online"
+	OnlineGrpcFeastType FeastServiceType = "online-grpc"
+	RegistryFeastType   FeastServiceType = "registry"
+	UIFeastType         FeastServiceType = "ui"
+	ClientFeastType     FeastServiceType = "client"
+	ClientCaFeastType   FeastServiceType = "client-ca"
+	CronJobFeastType    FeastServiceType = "cronjob"
 
 	OfflineRemoteConfigType                 OfflineConfigType = "remote"
 	OfflineFilePersistenceDaskConfigType    OfflineConfigType = "dask"
@@ -113,6 +115,11 @@ var (
 			TargetHttpPort:  6566,
 			TargetHttpsPort: 6567,
 		},
+		OnlineGrpcFeastType: {
+			Args:            []string{"listen"},
+			TargetHttpPort:  DefaultOnlineGrpcPort,
+			TargetHttpsPort: DefaultOnlineGrpcPort,
+		},
 		RegistryFeastType: {
 			Args:                []string{"serve_registry"},
 			TargetHttpPort:      6570,
@@ -152,6 +159,19 @@ var (
 				Type:   feastdevv1.OnlineStoreReadyType,
 				Status: metav1.ConditionFalse,
 				Reason: feastdevv1.OnlineStoreFailedReason,
+			},
+		},
+		OnlineGrpcFeastType: {
+			metav1.ConditionTrue: {
+				Type:    feastdevv1.OnlineStoreGrpcReadyType,
+				Status:  metav1.ConditionTrue,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.OnlineStoreGrpcReadyMessage,
+			},
+			metav1.ConditionFalse: {
+				Type:   feastdevv1.OnlineStoreGrpcReadyType,
+				Status: metav1.ConditionFalse,
+				Reason: feastdevv1.OnlineStoreGrpcFailedReason,
 			},
 		},
 		RegistryFeastType: {
@@ -213,13 +233,6 @@ var (
 	OidcProperties       = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl, OidcClientSecret, OidcUsername, OidcPassword}
 )
 
-// Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.
-var feastServerTypes = []FeastServiceType{
-	RegistryFeastType,
-	OfflineFeastType,
-	OnlineFeastType,
-}
-
 // AuthzType defines the authorization type
 type AuthzType string
 
@@ -249,13 +262,14 @@ type FeastServices struct {
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
 // https://rtd.feast.dev/en/stable/#feast.repo_config.RepoConfig
 type RepoConfig struct {
-	Project                       string             `yaml:"project,omitempty"`
-	Provider                      FeastProviderType  `yaml:"provider,omitempty"`
-	OfflineStore                  OfflineStoreConfig `yaml:"offline_store,omitempty"`
-	OnlineStore                   OnlineStoreConfig  `yaml:"online_store,omitempty"`
-	Registry                      RegistryConfig     `yaml:"registry,omitempty"`
-	AuthzConfig                   AuthzConfig        `yaml:"auth,omitempty"`
-	EntityKeySerializationVersion int                `yaml:"entity_key_serialization_version,omitempty"`
+	Project                       string                          `yaml:"project,omitempty"`
+	Provider                      FeastProviderType               `yaml:"provider,omitempty"`
+	OfflineStore                  OfflineStoreConfig              `yaml:"offline_store,omitempty"`
+	OnlineStore                   OnlineStoreConfig               `yaml:"online_store,omitempty"`
+	Registry                      RegistryConfig                  `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig                     `yaml:"auth,omitempty"`
+	FeatureServer                 *feastdevv1.FeatureServerConfig `yaml:"feature_server,omitempty"`
+	EntityKeySerializationVersion int                             `yaml:"entity_key_serialization_version,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.

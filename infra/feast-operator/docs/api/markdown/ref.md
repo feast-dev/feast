@@ -36,6 +36,7 @@ ContainerConfigs k8s container settings for the server
 
 _Appears in:_
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [GrpcServerConfigs](#grpcserverconfigs)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
@@ -79,6 +80,7 @@ DefaultCtrConfigs k8s container settings that are applied by default
 _Appears in:_
 - [ContainerConfigs](#containerconfigs)
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [GrpcServerConfigs](#grpcserverconfigs)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
@@ -156,6 +158,46 @@ _Appears in:_
 | `init` _[FeastInitOptions](#feastinitoptions)_ |  |
 
 
+#### FeatureLoggingConfig
+
+
+
+FeatureLoggingConfig defines feature server logging settings.
+
+_Appears in:_
+- [FeatureServerConfig](#featureserverconfig)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ |  |
+| `flush_interval_secs` _integer_ | Interval of flushing logs to the destination in offline store. |
+| `write_to_disk_interval_secs` _integer_ | Interval of dumping logs collected in memory to local disk. |
+| `queue_capacity` _integer_ | Log queue capacity. |
+| `emit_timeout_micro_secs` _integer_ | Timeout for adding new log item to the queue. |
+
+
+#### FeatureServerConfig
+
+
+
+FeatureServerConfig defines feature server configuration settings.
+Fields are aligned with Feast's feature_store.yaml feature_server schema.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `type` _string_ | Feature server type selector (e.g. local, mcp) |
+| `enabled` _boolean_ | Whether the feature server should be launched. |
+| `mcp_enabled` _boolean_ | Enable MCP server support - defaults to false. |
+| `mcp_server_name` _string_ | MCP server name for identification. |
+| `mcp_server_version` _string_ | MCP server version. |
+| `mcp_transport` _string_ | Optional MCP transport configuration. |
+| `transformation_service_endpoint` _string_ | The endpoint definition for transformation_service. |
+| `feature_logging` _[FeatureLoggingConfig](#featureloggingconfig)_ | Feature logging configuration. |
+
+
 #### FeatureStore
 
 
@@ -224,6 +266,7 @@ _Appears in:_
 | `feastProject` _string_ | FeastProject is the Feast project id. This can be any alphanumeric string with underscores and hyphens, but it cannot start with an underscore or hyphen. Required. |
 | `feastProjectDir` _[FeastProjectDir](#feastprojectdir)_ |  |
 | `services` _[FeatureStoreServices](#featurestoreservices)_ |  |
+| `feature_server` _[FeatureServerConfig](#featureserverconfig)_ | FeatureServer configures the Feast feature server, including MCP support. |
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
 
@@ -267,6 +310,31 @@ OR 'url."https://api:\${TOKEN}@github.com/".insteadOf': 'https://github.com/' |
 | `featureRepoPath` _string_ | FeatureRepoPath is the relative path to the feature repo subdirectory. Default is 'feature_repo'. |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
+
+
+#### GrpcServerConfigs
+
+
+
+GrpcServerConfigs creates a gRPC feature server for the online store.
+
+_Appears in:_
+- [OnlineStore](#onlinestore)
+
+| Field | Description |
+| --- | --- |
+| `image` _string_ |  |
+| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
+| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
+| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
+| `nodeSelector` _map[string]string_ |  |
+| `replicas` _integer_ | Replicas sets the number of replicas for the gRPC service deployment. |
+| `tls` _[TlsConfigs](#tlsconfigs)_ | TLS configures TLS for the gRPC server. |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the gRPC container. |
+| `port` _integer_ | Port sets the gRPC server port. Defaults to 50051 if unset. |
+| `maxWorkers` _integer_ | MaxWorkers sets the maximum number of threads for handling gRPC calls. |
+| `registryTTLSeconds` _integer_ | RegistryTTLSeconds sets how often the registry is refreshed. |
 
 
 #### JobSpec
@@ -505,6 +573,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `server` _[ServerConfigs](#serverconfigs)_ | Creates a feature server container |
+| `grpc` _[GrpcServerConfigs](#grpcserverconfigs)_ | Creates a gRPC feature server container (feast listen) |
 | `persistence` _[OnlineStorePersistence](#onlinestorepersistence)_ |  |
 
 
@@ -563,6 +632,7 @@ OptionalCtrConfigs k8s container settings that are optional
 _Appears in:_
 - [ContainerConfigs](#containerconfigs)
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [GrpcServerConfigs](#grpcserverconfigs)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
@@ -700,6 +770,7 @@ _Appears in:_
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `nodeSelector` _map[string]string_ |  |
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
+| `replicas` _integer_ | Replicas sets the number of replicas for the service deployment. |
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |
 | `metrics` _boolean_ | Metrics exposes Prometheus-compatible metrics for the Feast server when enabled. |
@@ -766,6 +837,7 @@ _Appears in:_
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `nodeSelector` _map[string]string_ |  |
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
+| `replicas` _integer_ | Replicas sets the number of replicas for the service deployment. |
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |
 | `metrics` _boolean_ | Metrics exposes Prometheus-compatible metrics for the Feast server when enabled. |
@@ -790,6 +862,7 @@ _Appears in:_
 | --- | --- |
 | `offlineStore` _string_ |  |
 | `onlineStore` _string_ |  |
+| `onlineStoreGrpc` _string_ |  |
 | `registry` _string_ |  |
 | `registryRest` _string_ |  |
 | `ui` _string_ |  |
@@ -802,6 +875,7 @@ _Appears in:_
 TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.
 
 _Appears in:_
+- [GrpcServerConfigs](#grpcserverconfigs)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 

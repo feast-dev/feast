@@ -1,0 +1,21 @@
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-mcp-grpc
+spec:
+  feastProject: my_project
+  feature_server:
+    type: mcp
+    enabled: true
+    mcp_enabled: true
+    mcp_server_name: "feast-feature-store"
+    mcp_server_version: "1.0.0"
+    feature_logging:
+      enabled: false
+  services:
+    onlineStore:
+      server:
+        replicas: 2
+      grpc:
+        replicas: 1
+        port: 50051

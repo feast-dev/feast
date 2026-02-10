@@ -198,17 +198,30 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			Expect(resource.Status.Phase).To(Equal(feastdevv1.PendingPhase))
 
-			// check deployment
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			// check deployments per service
+			registryDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
-			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
+			Expect(registryDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(registryDeploy)).To(BeTrue())
+			Expect(registryDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			offlineDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.OfflineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(offlineDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(offlineDeploy)).To(BeTrue())
+			Expect(offlineDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			onlineDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.OnlineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(onlineDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(onlineDeploy)).To(BeTrue())
+			Expect(onlineDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			uiDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.UIFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(uiDeploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(controllerutil.HasControllerReference(uiDeploy)).To(BeTrue())
+			Expect(uiDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 			svc := &corev1.Service{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
 				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
@@ -243,7 +256,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			deployList := appsv1.DeploymentList{}
 			err = k8sClient.List(ctx, &deployList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deployList.Items).To(HaveLen(1))
+			Expect(deployList.Items).To(HaveLen(4))
 
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
@@ -264,16 +277,11 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				},
 			}
 
-			// check deployment
-			deploy := &appsv1.Deployment{}
-			objMeta := feast.GetObjectMeta()
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			// check deployments per service
+			registryDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
-			registryContainer := services.GetRegistryContainer(*deploy)
+			Expect(registryDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			registryContainer := services.GetRegistryContainer(*registryDeploy)
 			Expect(registryContainer.Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
@@ -306,7 +314,10 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
-			offlineContainer := services.GetOfflineContainer(*deploy)
+			offlineDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.OfflineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(offlineDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			offlineContainer := services.GetOfflineContainer(*offlineDeploy)
 			Expect(offlineContainer.Env).To(HaveLen(1))
 			assertEnvFrom(*offlineContainer)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
@@ -326,7 +337,10 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfigOffline).To(Equal(testConfig))
 
-			onlineContainer := services.GetOnlineContainer(*deploy)
+			onlineDeploy, err := getDeploymentByType(ctx, k8sClient, resource, services.OnlineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(onlineDeploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			onlineContainer := services.GetOnlineContainer(*onlineDeploy)
 			Expect(onlineContainer.Env).To(HaveLen(3))
 			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
@@ -395,12 +409,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			feast.Handler.FeatureStore = resource
 
 			// check registry
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      objMeta.Name,
-				Namespace: objMeta.Namespace,
-			}, deploy)
+			registryDeploy, err = getDeploymentByType(ctx, k8sClient, resource, services.RegistryFeastType)
 			Expect(err).NotTo(HaveOccurred())
-			registryContainer = services.GetRegistryContainer(*deploy)
+			registryContainer = services.GetRegistryContainer(*registryDeploy)
 			env = getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
 			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
@@ -417,7 +428,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(repoConfig).To(Equal(testConfig))
 
 			// check offline config
-			offlineContainer = services.GetRegistryContainer(*deploy)
+			offlineDeploy, err = getDeploymentByType(ctx, k8sClient, resource, services.OfflineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			offlineContainer = services.GetOfflineContainer(*offlineDeploy)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -433,7 +446,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(repoConfigOffline).To(Equal(testConfig))
 
 			// check online config
-			onlineContainer = services.GetOnlineContainer(*deploy)
+			onlineDeploy, err = getDeploymentByType(ctx, k8sClient, resource, services.OnlineFeastType)
+			Expect(err).NotTo(HaveOccurred())
+			onlineContainer = services.GetOnlineContainer(*onlineDeploy)
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -456,3 +471,32 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		})
 	})
 })
+
+func getDeploymentByType(ctx context.Context, c client.Client, resource *feastdevv1.FeatureStore, feastType services.FeastServiceType) (*appsv1.Deployment, error) {
+	deploy := &appsv1.Deployment{}
+	name := services.GetFeastServiceName(resource, feastType)
+	if err := c.Get(ctx, types.NamespacedName{Name: name, Namespace: resource.Namespace}, deploy); err == nil {
+		return deploy, nil
+	} else if !errors.IsNotFound(err) {
+		return nil, err
+	}
+
+	reqName, err := labels.NewRequirement(services.NameLabelKey, selection.Equals, []string{resource.Name})
+	if err != nil {
+		return nil, err
+	}
+	reqType, err := labels.NewRequirement(services.ServiceTypeLabelKey, selection.Equals, []string{string(feastType)})
+	if err != nil {
+		return nil, err
+	}
+	selector := labels.NewSelector().Add(*reqName, *reqType)
+	listOpts := &client.ListOptions{Namespace: resource.Namespace, LabelSelector: selector}
+	deployList := appsv1.DeploymentList{}
+	if err := c.List(ctx, &deployList, listOpts); err != nil {
+		return nil, err
+	}
+	if len(deployList.Items) == 0 {
+		return nil, fmt.Errorf("deployment for %s not found", feastType)
+	}
+	return &deployList.Items[0], nil
+}
