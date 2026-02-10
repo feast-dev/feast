@@ -64,10 +64,17 @@ def test_dynamodb_online_store_config_default():
     aws_region = "us-west-2"
     dynamodb_store_config = DynamoDBOnlineStoreConfig(region=aws_region)
     assert dynamodb_store_config.type == "dynamodb"
-    assert dynamodb_store_config.batch_size == 40
+    assert dynamodb_store_config.batch_size == 100
     assert dynamodb_store_config.endpoint_url is None
     assert dynamodb_store_config.region == aws_region
     assert dynamodb_store_config.table_name_template == "{project}.{table_name}"
+    # Verify other optimized defaults
+    assert dynamodb_store_config.max_pool_connections == 50
+    assert dynamodb_store_config.keepalive_timeout == 30.0
+    assert dynamodb_store_config.connect_timeout == 5
+    assert dynamodb_store_config.read_timeout == 10
+    assert dynamodb_store_config.total_max_retry_attempts == 3
+    assert dynamodb_store_config.retry_mode == "adaptive"
 
 
 def test_dynamodb_online_store_config_custom_params():
@@ -476,3 +483,300 @@ def test_batch_write_deduplication():
     actual = list(_latest_data_to_write(data))
     expected = [data[2], data[1], data[4]]
     assert expected == actual
+
+
+def _create_entity_key(entity_id: str) -> EntityKeyProto:
+    """Helper function to create EntityKeyProto for testing."""
+    return EntityKeyProto(
+        join_keys=["customer"], entity_values=[ValueProto(string_val=entity_id)]
+    )
+
+
+def _create_string_list_value(items: list[str]) -> ValueProto:
+    """Helper function to create ValueProto with string list."""
+    from feast.protos.feast.types.Value_pb2 import StringList
+
+    return ValueProto(string_list_val=StringList(val=items))
+
+
+def _create_int32_list_value(items: list[int]) -> ValueProto:
+    """Helper function to create ValueProto with int32 list."""
+    from feast.protos.feast.types.Value_pb2 import Int32List
+
+    return ValueProto(int32_list_val=Int32List(val=items))
+
+
+def _extract_string_list(value_proto: ValueProto) -> list[str]:
+    """Helper function to extract string list from ValueProto."""
+    return list(value_proto.string_list_val.val)
+
+
+def _extract_int32_list(value_proto: ValueProto) -> list[int]:
+    """Helper function to extract int32 list from ValueProto."""
+    return list(value_proto.int32_list_val.val)
+
+
+@mock_dynamodb
+def test_dynamodb_update_online_store_list_append(repo_config, dynamodb_online_store):
+    """Test DynamoDB update_online_store with list_append operation."""
+
+    table_name = f"{TABLE_NAME}_update_list_append"
+    create_test_table(PROJECT, table_name, REGION)
+
+    # Create initial data with existing transactions
+    initial_data = [
+        (
+            _create_entity_key("entity1"),
+            {"transactions": _create_string_list_value(["tx1", "tx2"])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    # Write initial data using standard method
+    dynamodb_online_store.online_write_batch(
+        repo_config, MockFeatureView(name=table_name), initial_data, None
+    )
+
+    # Update with list_append - should append new transaction
+    update_data = [
+        (
+            _create_entity_key("entity1"),
+            {"transactions": _create_string_list_value(["tx3"])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    update_expressions = {"transactions": "list_append(transactions, :new_val)"}
+
+    dynamodb_online_store.update_online_store(
+        repo_config,
+        MockFeatureView(name=table_name),
+        update_data,
+        update_expressions,
+        None,
+    )
+
+    # Verify result - should have all three transactions
+    result = dynamodb_online_store.online_read(
+        repo_config, MockFeatureView(name=table_name), [_create_entity_key("entity1")]
+    )
+
+    assert len(result) == 1
+    assert result[0][0] is not None  # timestamp should exist
+    assert result[0][1] is not None  # features should exist
+    transactions = result[0][1]["transactions"]
+    assert _extract_string_list(transactions) == ["tx1", "tx2", "tx3"]
+
+
+@mock_dynamodb
+def test_dynamodb_update_online_store_list_prepend(repo_config, dynamodb_online_store):
+    """Test DynamoDB update_online_store with list prepend operation."""
+
+    table_name = f"{TABLE_NAME}_update_list_prepend"
+    create_test_table(PROJECT, table_name, REGION)
+
+    # Create initial data
+    initial_data = [
+        (
+            _create_entity_key("entity1"),
+            {"recent_items": _create_string_list_value(["item2", "item3"])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    dynamodb_online_store.online_write_batch(
+        repo_config, MockFeatureView(name=table_name), initial_data, None
+    )
+
+    # Update with list prepend - should add new item at the beginning
+    update_data = [
+        (
+            _create_entity_key("entity1"),
+            {"recent_items": _create_string_list_value(["item1"])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    update_expressions = {"recent_items": "list_append(:new_val, recent_items)"}
+
+    dynamodb_online_store.update_online_store(
+        repo_config,
+        MockFeatureView(name=table_name),
+        update_data,
+        update_expressions,
+        None,
+    )
+
+    # Verify result - new item should be first
+    result = dynamodb_online_store.online_read(
+        repo_config, MockFeatureView(name=table_name), [_create_entity_key("entity1")]
+    )
+
+    assert len(result) == 1
+    recent_items = result[0][1]["recent_items"]
+    assert _extract_string_list(recent_items) == ["item1", "item2", "item3"]
+
+
+@mock_dynamodb
+def test_dynamodb_update_online_store_new_entity(repo_config, dynamodb_online_store):
+    """Test DynamoDB update_online_store with new entity (no existing data)."""
+
+    table_name = f"{TABLE_NAME}_update_new_entity"
+    create_test_table(PROJECT, table_name, REGION)
+
+    # Update entity that doesn't exist yet - should create new item
+    update_data = [
+        (
+            _create_entity_key("new_entity"),
+            {"transactions": _create_string_list_value(["tx1"])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    update_expressions = {"transactions": "list_append(transactions, :new_val)"}
+
+    dynamodb_online_store.update_online_store(
+        repo_config,
+        MockFeatureView(name=table_name),
+        update_data,
+        update_expressions,
+        None,
+    )
+
+    # Verify result - should create new item with the transaction
+    result = dynamodb_online_store.online_read(
+        repo_config,
+        MockFeatureView(name=table_name),
+        [_create_entity_key("new_entity")],
+    )
+
+    assert len(result) == 1
+    assert result[0][0] is not None  # timestamp should exist
+    assert result[0][1] is not None  # features should exist
+    transactions = result[0][1]["transactions"]
+    assert _extract_string_list(transactions) == ["tx1"]
+
+
+@mock_dynamodb
+def test_dynamodb_update_online_store_mixed_operations(
+    repo_config, dynamodb_online_store
+):
+    """Test DynamoDB update_online_store with mixed update and replace operations."""
+
+    table_name = f"{TABLE_NAME}_update_mixed"
+    create_test_table(PROJECT, table_name, REGION)
+
+    # Create initial data
+    initial_data = [
+        (
+            _create_entity_key("entity1"),
+            {
+                "transactions": _create_string_list_value(["tx1"]),
+                "user_score": ValueProto(int32_val=100),
+            },
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    dynamodb_online_store.online_write_batch(
+        repo_config, MockFeatureView(name=table_name), initial_data, None
+    )
+
+    # Update with mixed operations - append to list and replace scalar
+    update_data = [
+        (
+            _create_entity_key("entity1"),
+            {
+                "transactions": _create_string_list_value(["tx2"]),
+                "user_score": ValueProto(int32_val=150),
+            },
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    update_expressions = {
+        "transactions": "list_append(transactions, :new_val)",
+        # user_score will use standard replacement (no expression)
+    }
+
+    dynamodb_online_store.update_online_store(
+        repo_config,
+        MockFeatureView(name=table_name),
+        update_data,
+        update_expressions,
+        None,
+    )
+
+    # Verify result
+    result = dynamodb_online_store.online_read(
+        repo_config, MockFeatureView(name=table_name), [_create_entity_key("entity1")]
+    )
+
+    assert len(result) == 1
+    features = result[0][1]
+
+    # Transactions should be appended
+    transactions = features["transactions"]
+    assert _extract_string_list(transactions) == ["tx1", "tx2"]
+
+    # User score should be replaced
+    user_score = features["user_score"]
+    assert user_score.int32_val == 150
+
+
+@mock_dynamodb
+def test_dynamodb_update_online_store_int_list(repo_config, dynamodb_online_store):
+    """Test DynamoDB update_online_store with integer list."""
+
+    table_name = f"{TABLE_NAME}_update_int_list"
+    create_test_table(PROJECT, table_name, REGION)
+
+    # Create initial data with integer list
+    initial_data = [
+        (
+            _create_entity_key("entity1"),
+            {"scores": _create_int32_list_value([10, 20])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    dynamodb_online_store.online_write_batch(
+        repo_config, MockFeatureView(name=table_name), initial_data, None
+    )
+
+    # Update with list_append for integer list
+    update_data = [
+        (
+            _create_entity_key("entity1"),
+            {"scores": _create_int32_list_value([30])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+
+    update_expressions = {"scores": "list_append(scores, :new_val)"}
+
+    dynamodb_online_store.update_online_store(
+        repo_config,
+        MockFeatureView(name=table_name),
+        update_data,
+        update_expressions,
+        None,
+    )
+
+    # Verify result
+    result = dynamodb_online_store.online_read(
+        repo_config, MockFeatureView(name=table_name), [_create_entity_key("entity1")]
+    )
+
+    assert len(result) == 1
+    scores = result[0][1]["scores"]
+    assert _extract_int32_list(scores) == [10, 20, 30]

@@ -249,13 +249,14 @@ type FeastServices struct {
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
 // https://rtd.feast.dev/en/stable/#feast.repo_config.RepoConfig
 type RepoConfig struct {
-	Project                       string             `yaml:"project,omitempty"`
-	Provider                      FeastProviderType  `yaml:"provider,omitempty"`
-	OfflineStore                  OfflineStoreConfig `yaml:"offline_store,omitempty"`
-	OnlineStore                   OnlineStoreConfig  `yaml:"online_store,omitempty"`
-	Registry                      RegistryConfig     `yaml:"registry,omitempty"`
-	AuthzConfig                   AuthzConfig        `yaml:"auth,omitempty"`
-	EntityKeySerializationVersion int                `yaml:"entity_key_serialization_version,omitempty"`
+	Project                       string               `yaml:"project,omitempty"`
+	Provider                      FeastProviderType    `yaml:"provider,omitempty"`
+	OfflineStore                  OfflineStoreConfig   `yaml:"offline_store,omitempty"`
+	OnlineStore                   OnlineStoreConfig    `yaml:"online_store,omitempty"`
+	Registry                      RegistryConfig       `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig          `yaml:"auth,omitempty"`
+	EntityKeySerializationVersion int                  `yaml:"entity_key_serialization_version,omitempty"`
+	BatchEngine                   *ComputeEngineConfig `yaml:"batch_engine,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.
@@ -291,6 +292,12 @@ type RegistryConfig struct {
 type AuthzConfig struct {
 	Type           AuthzType              `yaml:"type,omitempty"`
 	OidcParameters map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// ComputeEngineConfig is the configuration for batch compute engine.
+type ComputeEngineConfig struct {
+	Type       string                 `yaml:"type,omitempty"`
+	Parameters map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 type deploymentSettings struct {

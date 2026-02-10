@@ -51,9 +51,9 @@ from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import (
     FeastError,
-    FeatureViewNotFoundException,
 )
 from feast.feast_object import FeastObject
+from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.rest import inject_user_details
@@ -127,15 +127,6 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
-
-
-class ReadDocumentRequest(BaseModel):
-    file_path: str
-
-
-class SaveDocumentRequest(BaseModel):
-    file_path: str
-    data: dict
 
 
 async def _get_features(
@@ -491,27 +482,12 @@ def get_app(
     async def _get_feast_object(
         feature_view_name: str, allow_registry_cache: bool
     ) -> FeastObject:
-        # FIXME: this logic repeated at least 3 times in the codebase - should be centralized
-        # in logging, in server and in feature_store (Python SDK)
-        try:
-            return await run_in_threadpool(
-                store.get_feature_view,
-                feature_view_name,
-                allow_registry_cache=allow_registry_cache,
-            )
-        except FeatureViewNotFoundException:
-            try:
-                return await run_in_threadpool(
-                    store.get_on_demand_feature_view,
-                    feature_view_name,
-                    allow_registry_cache=allow_registry_cache,
-                )
-            except FeatureViewNotFoundException:
-                return await run_in_threadpool(
-                    store.get_stream_feature_view,
-                    feature_view_name,
-                    allow_registry_cache=allow_registry_cache,
-                )
+        return await run_in_threadpool(
+            get_feature_view_from_feature_store,
+            store,
+            feature_view_name,
+            allow_registry_cache,
+        )
 
     @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
     async def write_to_online_store(request: WriteToFeatureStoreRequest) -> None:
@@ -541,42 +517,6 @@ def get_app(
         # Process the chat request
         # For now, just return dummy text
         return {"response": "This is a dummy response from the Feast feature server."}
-
-    @app.post("/read-document", dependencies=[Depends(inject_user_details)])
-    async def read_document_endpoint(request: ReadDocumentRequest):
-        try:
-            import os
-
-            if not os.path.exists(request.file_path):
-                return {"error": f"File not found: {request.file_path}"}
-
-            with open(request.file_path, "r", encoding="utf-8") as file:
-                content = file.read()
-
-            return {"content": content, "file_path": request.file_path}
-        except Exception as e:
-            return {"error": str(e)}
-
-    @app.post("/save-document", dependencies=[Depends(inject_user_details)])
-    async def save_document_endpoint(request: SaveDocumentRequest):
-        try:
-            import json
-            import os
-            from pathlib import Path
-
-            file_path = Path(request.file_path).resolve()
-            if not str(file_path).startswith(os.getcwd()):
-                return {"error": "Invalid file path"}
-
-            base_name = file_path.stem
-            labels_file = file_path.parent / f"{base_name}-labels.json"
-
-            with open(labels_file, "w", encoding="utf-8") as file:
-                json.dump(request.data, file, indent=2, ensure_ascii=False)
-
-            return {"success": True, "saved_to": str(labels_file)}
-        except Exception as e:
-            return {"error": str(e)}
 
     @app.get("/chat")
     async def chat_ui():

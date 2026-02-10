@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/rs/zerolog"
-	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var tracer = otel.Tracer("github.com/feast-dev/feast/go/server")

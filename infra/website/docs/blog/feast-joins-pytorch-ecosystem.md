@@ -1,7 +1,7 @@
 ---
 title: Feast Joins the PyTorch Ecosystem
 description: We're excited to announce that Feast has officially joined the PyTorch ecosystem, bringing feature stores to the broader ML community.
-date: 2025-01-26
+date: 2026-01-26
 authors: ["Francisco Javier Arceo", "Hao Xu", "Shuchu Han"]
 ---
 

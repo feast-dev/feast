@@ -83,7 +83,7 @@ AWS_REQUIRED = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 KUBERNETES_REQUIRED = ["kubernetes"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=3.7,<4",
+    "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 
 SPARK_REQUIRED = [
@@ -103,6 +103,8 @@ POSTGRES_C_REQUIRED = [
 ]
 
 OPENTELEMETRY = ["prometheus_client", "psutil"]
+
+OPENLINEAGE_REQUIRED = ["openlineage-python>=1.40.0"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
@@ -262,6 +264,7 @@ CI_REQUIRED = (
     + SINGLESTORE_REQUIRED
     + COUCHBASE_REQUIRED
     + OPENTELEMETRY
+    + OPENLINEAGE_REQUIRED
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
     + MILVUS_REQUIRED
@@ -365,6 +368,7 @@ setup(
         "singlestore": SINGLESTORE_REQUIRED,
         "couchbase": COUCHBASE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
+        "openlineage": OPENLINEAGE_REQUIRED,
         "faiss": FAISS_REQUIRED,
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,

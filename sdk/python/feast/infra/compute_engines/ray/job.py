@@ -18,6 +18,9 @@ from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.compute_engines.dag.value import DAGValue
+from feast.infra.offline_stores.contrib.ray_offline_store.ray import (
+    REMOTE_STORAGE_SCHEMES,
+)
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.infra.ray_initializer import get_ray_wrapper
@@ -205,7 +208,7 @@ class RayDAGRetrievalJob(RetrievalJob):
         destination_path = storage.file_options.uri
 
         # Check if destination already exists
-        if not destination_path.startswith(("s3://", "gs://", "hdfs://")):
+        if not destination_path.startswith(REMOTE_STORAGE_SCHEMES):
             import os
 
             if not allow_overwrite and os.path.exists(destination_path):

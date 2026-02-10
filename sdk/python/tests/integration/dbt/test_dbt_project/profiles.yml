@@ -1,0 +1,10 @@
+# Profiles for testing dbt compilation
+# We use DuckDB for local testing as it doesn't require external services
+
+test:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ':memory:'
+      threads: 1

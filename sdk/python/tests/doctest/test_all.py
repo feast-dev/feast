@@ -79,7 +79,14 @@ def test_docstrings():
                     full_name = package.__name__ + "." + name
                     try:
                         # https://github.com/feast-dev/feast/issues/5088
-                        if "ikv" not in full_name and "milvus" not in full_name:
+                        # Skip ray_transformation doctests - they hang on macOS due to
+                        # Ray worker spawning issues with uv-managed environments
+                        if (
+                            "ikv" not in full_name
+                            and "milvus" not in full_name
+                            and "openlineage" not in full_name
+                            and "ray_transformation" not in full_name
+                        ):
                             temp_module = importlib.import_module(full_name)
                             if is_pkg:
                                 next_packages.append(temp_module)

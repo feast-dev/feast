@@ -83,8 +83,6 @@ hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
 ibis = [
     "ibis-framework>=10.0.0",
-    "poetry-core<2",
-    "poetry-dynamic-versioning",
 ]
 ikv = [
     "ikvpy>=0.0.36",
@@ -104,6 +102,7 @@ milvus = [
 mssql = ["ibis-framework[mssql]>=10.0.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
+openlineage = ["openlineage-python>=1.40.0"]
 spark = ["pyspark>=4.0.0"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]==3.2.5"]
@@ -126,7 +125,7 @@ redis = [
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
-    "snowflake-connector-python[pandas]>=3.7,<4",
+    "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
@@ -179,7 +178,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]

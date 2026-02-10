@@ -75,6 +75,7 @@ type FeatureStoreSpec struct {
 	Services        *FeatureStoreServices `json:"services,omitempty"`
 	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
 	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
+	BatchEngine     *BatchEngineConfig    `json:"batchEngine,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
@@ -153,6 +154,15 @@ type FeastCronJob struct {
 
 	// The number of failed finished jobs to retain. Value must be non-negative integer.
 	FailedJobsHistoryLimit *int32 `json:"failedJobsHistoryLimit,omitempty"`
+}
+
+// BatchEngineConfig defines the batch compute engine configuration.
+type BatchEngineConfig struct {
+	// Reference to a ConfigMap containing the batch engine configuration.
+	// The ConfigMap should contain YAML-formatted config with 'type' and engine-specific fields.
+	ConfigMapRef *corev1.LocalObjectReference `json:"configMapRef,omitempty"`
+	// Key name in the ConfigMap. Defaults to "config" if not specified.
+	ConfigMapKey string `json:"configMapKey,omitempty"`
 }
 
 // JobSpec describes how the job execution will look like.
@@ -523,6 +533,44 @@ type ServerConfigs struct {
 	// required by the Feast components. Ensure that each volume mount has a corresponding
 	// volume definition in the Volumes field.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// WorkerConfigs defines the worker configuration for the Feast server.
+	// These options are primarily used for production deployments to optimize performance.
+	WorkerConfigs *WorkerConfigs `json:"workerConfigs,omitempty"`
+}
+
+// WorkerConfigs defines the worker configuration for Feast servers.
+// These settings control gunicorn worker processes for production deployments.
+type WorkerConfigs struct {
+	// Workers is the number of worker processes. Use -1 to auto-calculate based on CPU cores (2 * CPU + 1).
+	// Defaults to 1 if not specified.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	Workers *int32 `json:"workers,omitempty"`
+	// WorkerConnections is the maximum number of simultaneous clients per worker process.
+	// Defaults to 1000.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	WorkerConnections *int32 `json:"workerConnections,omitempty"`
+	// MaxRequests is the maximum number of requests a worker will process before restarting.
+	// This helps prevent memory leaks. Defaults to 1000.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	MaxRequests *int32 `json:"maxRequests,omitempty"`
+	// MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+	// thundering herd effect on worker restart. Defaults to 50.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	MaxRequestsJitter *int32 `json:"maxRequestsJitter,omitempty"`
+	// KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+	// Defaults to 30.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	KeepAliveTimeout *int32 `json:"keepAliveTimeout,omitempty"`
+	// RegistryTTLSeconds is the number of seconds after which the registry is refreshed.
+	// Higher values reduce refresh overhead but increase staleness. Defaults to 60.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	RegistryTTLSeconds *int32 `json:"registryTTLSeconds,omitempty"`
 }
 
 // RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.

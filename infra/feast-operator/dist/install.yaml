@@ -91,6 +91,27 @@ spec:
                 x-kubernetes-validations:
                 - message: One selection required between kubernetes or oidc.
                   rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c, c)'
+              batchEngine:
+                description: BatchEngineConfig defines the batch compute engine configuration.
+                properties:
+                  configMapKey:
+                    description: Key name in the ConfigMap. Defaults to "config" if
+                      not specified.
+                    type: string
+                  configMapRef:
+                    description: Reference to a ConfigMap containing the batch engine
+                      configuration.
+                    properties:
+                      name:
+                        default: ""
+                        description: |-
+                          Name of the referent.
+                          This field is effectively required, but due to backwards compatibility is
+                          allowed to be empty.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
               cronJob:
                 description: FeastCronJob defines a CronJob to execute against a Feature
                   Store deployment.
@@ -1185,6 +1206,52 @@ spec:
                               - name
                               type: object
                             type: array
+                          workerConfigs:
+                            description: WorkerConfigs defines the worker configuration
+                              for the Feast server.
+                            properties:
+                              keepAliveTimeout:
+                                description: |-
+                                  KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                  Defaults to 30.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              maxRequests:
+                                description: |-
+                                  MaxRequests is the maximum number of requests a worker will process before restarting.
+                                  This helps prevent memory leaks.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              maxRequestsJitter:
+                                description: |-
+                                  MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                  thundering herd effect on worker restart.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              registryTTLSeconds:
+                                description: RegistryTTLSeconds is the number of seconds
+                                  after which the registry is refreshed.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              workerConnections:
+                                description: |-
+                                  WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                  Defaults to 1000.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              workers:
+                                description: Workers is the number of worker processes.
+                                  Use -1 to auto-calculate based on CPU cores (2 *
+                                  CPU + 1).
+                                format: int32
+                                minimum: -1
+                                type: integer
+                            type: object
                         type: object
                     type: object
                   onlineStore:
@@ -1649,6 +1716,52 @@ spec:
                               - name
                               type: object
                             type: array
+                          workerConfigs:
+                            description: WorkerConfigs defines the worker configuration
+                              for the Feast server.
+                            properties:
+                              keepAliveTimeout:
+                                description: |-
+                                  KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                  Defaults to 30.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              maxRequests:
+                                description: |-
+                                  MaxRequests is the maximum number of requests a worker will process before restarting.
+                                  This helps prevent memory leaks.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              maxRequestsJitter:
+                                description: |-
+                                  MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                  thundering herd effect on worker restart.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              registryTTLSeconds:
+                                description: RegistryTTLSeconds is the number of seconds
+                                  after which the registry is refreshed.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              workerConnections:
+                                description: |-
+                                  WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                  Defaults to 1000.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              workers:
+                                description: Workers is the number of worker processes.
+                                  Use -1 to auto-calculate based on CPU cores (2 *
+                                  CPU + 1).
+                                format: int32
+                                minimum: -1
+                                type: integer
+                            type: object
                         type: object
                     type: object
                   registry:
@@ -2142,6 +2255,52 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              workerConfigs:
+                                description: WorkerConfigs defines the worker configuration
+                                  for the Feast server.
+                                properties:
+                                  keepAliveTimeout:
+                                    description: |-
+                                      KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                      Defaults to 30.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  maxRequests:
+                                    description: |-
+                                      MaxRequests is the maximum number of requests a worker will process before restarting.
+                                      This helps prevent memory leaks.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  maxRequestsJitter:
+                                    description: |-
+                                      MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                      thundering herd effect on worker restart.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  registryTTLSeconds:
+                                    description: RegistryTTLSeconds is the number
+                                      of seconds after which the registry is refreshed.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  workerConnections:
+                                    description: |-
+                                      WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                      Defaults to 1000.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  workers:
+                                    description: Workers is the number of worker processes.
+                                      Use -1 to auto-calculate based on CPU cores
+                                      (2 * CPU + 1).
+                                    format: int32
+                                    minimum: -1
+                                    type: integer
+                                type: object
                             type: object
                             x-kubernetes-validations:
                             - message: At least one of restAPI or grpc must be true
@@ -2640,6 +2799,52 @@ spec:
                           - name
                           type: object
                         type: array
+                      workerConfigs:
+                        description: WorkerConfigs defines the worker configuration
+                          for the Feast server.
+                        properties:
+                          keepAliveTimeout:
+                            description: |-
+                              KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                              Defaults to 30.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          maxRequests:
+                            description: |-
+                              MaxRequests is the maximum number of requests a worker will process before restarting.
+                              This helps prevent memory leaks.
+                            format: int32
+                            minimum: 0
+                            type: integer
+                          maxRequestsJitter:
+                            description: |-
+                              MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                              thundering herd effect on worker restart.
+                            format: int32
+                            minimum: 0
+                            type: integer
+                          registryTTLSeconds:
+                            description: RegistryTTLSeconds is the number of seconds
+                              after which the registry is refreshed.
+                            format: int32
+                            minimum: 0
+                            type: integer
+                          workerConnections:
+                            description: |-
+                              WorkerConnections is the maximum number of simultaneous clients per worker process.
+                              Defaults to 1000.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          workers:
+                            description: Workers is the number of worker processes.
+                              Use -1 to auto-calculate based on CPU cores (2 * CPU
+                              + 1).
+                            format: int32
+                            minimum: -1
+                            type: integer
+                        type: object
                     type: object
                   volumes:
                     description: Volumes specifies the volumes to mount in the FeatureStore
@@ -4111,6 +4316,28 @@ spec:
                     - message: One selection required between kubernetes or oidc.
                       rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c,
                         c)'
+                  batchEngine:
+                    description: BatchEngineConfig defines the batch compute engine
+                      configuration.
+                    properties:
+                      configMapKey:
+                        description: Key name in the ConfigMap. Defaults to "config"
+                          if not specified.
+                        type: string
+                      configMapRef:
+                        description: Reference to a ConfigMap containing the batch
+                          engine configuration.
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                    type: object
                   cronJob:
                     description: FeastCronJob defines a CronJob to execute against
                       a Feature Store deployment.
@@ -5219,6 +5446,52 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              workerConfigs:
+                                description: WorkerConfigs defines the worker configuration
+                                  for the Feast server.
+                                properties:
+                                  keepAliveTimeout:
+                                    description: |-
+                                      KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                      Defaults to 30.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  maxRequests:
+                                    description: |-
+                                      MaxRequests is the maximum number of requests a worker will process before restarting.
+                                      This helps prevent memory leaks.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  maxRequestsJitter:
+                                    description: |-
+                                      MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                      thundering herd effect on worker restart.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  registryTTLSeconds:
+                                    description: RegistryTTLSeconds is the number
+                                      of seconds after which the registry is refreshed.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  workerConnections:
+                                    description: |-
+                                      WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                      Defaults to 1000.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  workers:
+                                    description: Workers is the number of worker processes.
+                                      Use -1 to auto-calculate based on CPU cores
+                                      (2 * CPU + 1).
+                                    format: int32
+                                    minimum: -1
+                                    type: integer
+                                type: object
                             type: object
                         type: object
                       onlineStore:
@@ -5691,6 +5964,52 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              workerConfigs:
+                                description: WorkerConfigs defines the worker configuration
+                                  for the Feast server.
+                                properties:
+                                  keepAliveTimeout:
+                                    description: |-
+                                      KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                      Defaults to 30.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  maxRequests:
+                                    description: |-
+                                      MaxRequests is the maximum number of requests a worker will process before restarting.
+                                      This helps prevent memory leaks.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  maxRequestsJitter:
+                                    description: |-
+                                      MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                      thundering herd effect on worker restart.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  registryTTLSeconds:
+                                    description: RegistryTTLSeconds is the number
+                                      of seconds after which the registry is refreshed.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  workerConnections:
+                                    description: |-
+                                      WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                      Defaults to 1000.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  workers:
+                                    description: Workers is the number of worker processes.
+                                      Use -1 to auto-calculate based on CPU cores
+                                      (2 * CPU + 1).
+                                    format: int32
+                                    minimum: -1
+                                    type: integer
+                                type: object
                             type: object
                         type: object
                       registry:
@@ -6199,6 +6518,52 @@ spec:
                                       - name
                                       type: object
                                     type: array
+                                  workerConfigs:
+                                    description: WorkerConfigs defines the worker
+                                      configuration for the Feast server.
+                                    properties:
+                                      keepAliveTimeout:
+                                        description: |-
+                                          KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                          Defaults to 30.
+                                        format: int32
+                                        minimum: 1
+                                        type: integer
+                                      maxRequests:
+                                        description: |-
+                                          MaxRequests is the maximum number of requests a worker will process before restarting.
+                                          This helps prevent memory leaks.
+                                        format: int32
+                                        minimum: 0
+                                        type: integer
+                                      maxRequestsJitter:
+                                        description: |-
+                                          MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                          thundering herd effect on worker restart.
+                                        format: int32
+                                        minimum: 0
+                                        type: integer
+                                      registryTTLSeconds:
+                                        description: RegistryTTLSeconds is the number
+                                          of seconds after which the registry is refreshed.
+                                        format: int32
+                                        minimum: 0
+                                        type: integer
+                                      workerConnections:
+                                        description: |-
+                                          WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                          Defaults to 1000.
+                                        format: int32
+                                        minimum: 1
+                                        type: integer
+                                      workers:
+                                        description: Workers is the number of worker
+                                          processes. Use -1 to auto-calculate based
+                                          on CPU cores (2 * CPU + 1).
+                                        format: int32
+                                        minimum: -1
+                                        type: integer
+                                    type: object
                                 type: object
                                 x-kubernetes-validations:
                                 - message: At least one of restAPI or grpc must be
@@ -6704,6 +7069,52 @@ spec:
                               - name
                               type: object
                             type: array
+                          workerConfigs:
+                            description: WorkerConfigs defines the worker configuration
+                              for the Feast server.
+                            properties:
+                              keepAliveTimeout:
+                                description: |-
+                                  KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                  Defaults to 30.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              maxRequests:
+                                description: |-
+                                  MaxRequests is the maximum number of requests a worker will process before restarting.
+                                  This helps prevent memory leaks.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              maxRequestsJitter:
+                                description: |-
+                                  MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                  thundering herd effect on worker restart.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              registryTTLSeconds:
+                                description: RegistryTTLSeconds is the number of seconds
+                                  after which the registry is refreshed.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              workerConnections:
+                                description: |-
+                                  WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                  Defaults to 1000.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              workers:
+                                description: Workers is the number of worker processes.
+                                  Use -1 to auto-calculate based on CPU cores (2 *
+                                  CPU + 1).
+                                format: int32
+                                minimum: -1
+                                type: integer
+                            type: object
                         type: object
                       volumes:
                         description: Volumes specifies the volumes to mount in the
@@ -9386,6 +9797,52 @@ spec:
                               - name
                               type: object
                             type: array
+                          workerConfigs:
+                            description: WorkerConfigs defines the worker configuration
+                              for the Feast server.
+                            properties:
+                              keepAliveTimeout:
+                                description: |-
+                                  KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                  Defaults to 30.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              maxRequests:
+                                description: |-
+                                  MaxRequests is the maximum number of requests a worker will process before restarting.
+                                  This helps prevent memory leaks.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              maxRequestsJitter:
+                                description: |-
+                                  MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                  thundering herd effect on worker restart.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              registryTTLSeconds:
+                                description: RegistryTTLSeconds is the number of seconds
+                                  after which the registry is refreshed.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              workerConnections:
+                                description: |-
+                                  WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                  Defaults to 1000.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              workers:
+                                description: Workers is the number of worker processes.
+                                  Use -1 to auto-calculate based on CPU cores (2 *
+                                  CPU + 1).
+                                format: int32
+                                minimum: -1
+                                type: integer
+                            type: object
                         type: object
                     type: object
                   onlineStore:
@@ -9850,6 +10307,52 @@ spec:
                               - name
                               type: object
                             type: array
+                          workerConfigs:
+                            description: WorkerConfigs defines the worker configuration
+                              for the Feast server.
+                            properties:
+                              keepAliveTimeout:
+                                description: |-
+                                  KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                  Defaults to 30.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              maxRequests:
+                                description: |-
+                                  MaxRequests is the maximum number of requests a worker will process before restarting.
+                                  This helps prevent memory leaks.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              maxRequestsJitter:
+                                description: |-
+                                  MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                  thundering herd effect on worker restart.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              registryTTLSeconds:
+                                description: RegistryTTLSeconds is the number of seconds
+                                  after which the registry is refreshed.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              workerConnections:
+                                description: |-
+                                  WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                  Defaults to 1000.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              workers:
+                                description: Workers is the number of worker processes.
+                                  Use -1 to auto-calculate based on CPU cores (2 *
+                                  CPU + 1).
+                                format: int32
+                                minimum: -1
+                                type: integer
+                            type: object
                         type: object
                     type: object
                   registry:
@@ -10343,6 +10846,52 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              workerConfigs:
+                                description: WorkerConfigs defines the worker configuration
+                                  for the Feast server.
+                                properties:
+                                  keepAliveTimeout:
+                                    description: |-
+                                      KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                      Defaults to 30.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  maxRequests:
+                                    description: |-
+                                      MaxRequests is the maximum number of requests a worker will process before restarting.
+                                      This helps prevent memory leaks.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  maxRequestsJitter:
+                                    description: |-
+                                      MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                      thundering herd effect on worker restart.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  registryTTLSeconds:
+                                    description: RegistryTTLSeconds is the number
+                                      of seconds after which the registry is refreshed.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  workerConnections:
+                                    description: |-
+                                      WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                      Defaults to 1000.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  workers:
+                                    description: Workers is the number of worker processes.
+                                      Use -1 to auto-calculate based on CPU cores
+                                      (2 * CPU + 1).
+                                    format: int32
+                                    minimum: -1
+                                    type: integer
+                                type: object
                             type: object
                             x-kubernetes-validations:
                             - message: At least one of restAPI or grpc must be true
@@ -10841,6 +11390,52 @@ spec:
                           - name
                           type: object
                         type: array
+                      workerConfigs:
+                        description: WorkerConfigs defines the worker configuration
+                          for the Feast server.
+                        properties:
+                          keepAliveTimeout:
+                            description: |-
+                              KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                              Defaults to 30.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          maxRequests:
+                            description: |-
+                              MaxRequests is the maximum number of requests a worker will process before restarting.
+                              This helps prevent memory leaks.
+                            format: int32
+                            minimum: 0
+                            type: integer
+                          maxRequestsJitter:
+                            description: |-
+                              MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                              thundering herd effect on worker restart.
+                            format: int32
+                            minimum: 0
+                            type: integer
+                          registryTTLSeconds:
+                            description: RegistryTTLSeconds is the number of seconds
+                              after which the registry is refreshed.
+                            format: int32
+                            minimum: 0
+                            type: integer
+                          workerConnections:
+                            description: |-
+                              WorkerConnections is the maximum number of simultaneous clients per worker process.
+                              Defaults to 1000.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          workers:
+                            description: Workers is the number of worker processes.
+                              Use -1 to auto-calculate based on CPU cores (2 * CPU
+                              + 1).
+                            format: int32
+                            minimum: -1
+                            type: integer
+                        type: object
                     type: object
                   volumes:
                     description: Volumes specifies the volumes to mount in the FeatureStore
@@ -13420,6 +14015,52 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              workerConfigs:
+                                description: WorkerConfigs defines the worker configuration
+                                  for the Feast server.
+                                properties:
+                                  keepAliveTimeout:
+                                    description: |-
+                                      KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                      Defaults to 30.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  maxRequests:
+                                    description: |-
+                                      MaxRequests is the maximum number of requests a worker will process before restarting.
+                                      This helps prevent memory leaks.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  maxRequestsJitter:
+                                    description: |-
+                                      MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                      thundering herd effect on worker restart.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  registryTTLSeconds:
+                                    description: RegistryTTLSeconds is the number
+                                      of seconds after which the registry is refreshed.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  workerConnections:
+                                    description: |-
+                                      WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                      Defaults to 1000.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  workers:
+                                    description: Workers is the number of worker processes.
+                                      Use -1 to auto-calculate based on CPU cores
+                                      (2 * CPU + 1).
+                                    format: int32
+                                    minimum: -1
+                                    type: integer
+                                type: object
                             type: object
                         type: object
                       onlineStore:
@@ -13892,6 +14533,52 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              workerConfigs:
+                                description: WorkerConfigs defines the worker configuration
+                                  for the Feast server.
+                                properties:
+                                  keepAliveTimeout:
+                                    description: |-
+                                      KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                      Defaults to 30.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  maxRequests:
+                                    description: |-
+                                      MaxRequests is the maximum number of requests a worker will process before restarting.
+                                      This helps prevent memory leaks.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  maxRequestsJitter:
+                                    description: |-
+                                      MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                      thundering herd effect on worker restart.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  registryTTLSeconds:
+                                    description: RegistryTTLSeconds is the number
+                                      of seconds after which the registry is refreshed.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  workerConnections:
+                                    description: |-
+                                      WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                      Defaults to 1000.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  workers:
+                                    description: Workers is the number of worker processes.
+                                      Use -1 to auto-calculate based on CPU cores
+                                      (2 * CPU + 1).
+                                    format: int32
+                                    minimum: -1
+                                    type: integer
+                                type: object
                             type: object
                         type: object
                       registry:
@@ -14400,6 +15087,52 @@ spec:
                                       - name
                                       type: object
                                     type: array
+                                  workerConfigs:
+                                    description: WorkerConfigs defines the worker
+                                      configuration for the Feast server.
+                                    properties:
+                                      keepAliveTimeout:
+                                        description: |-
+                                          KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                          Defaults to 30.
+                                        format: int32
+                                        minimum: 1
+                                        type: integer
+                                      maxRequests:
+                                        description: |-
+                                          MaxRequests is the maximum number of requests a worker will process before restarting.
+                                          This helps prevent memory leaks.
+                                        format: int32
+                                        minimum: 0
+                                        type: integer
+                                      maxRequestsJitter:
+                                        description: |-
+                                          MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                          thundering herd effect on worker restart.
+                                        format: int32
+                                        minimum: 0
+                                        type: integer
+                                      registryTTLSeconds:
+                                        description: RegistryTTLSeconds is the number
+                                          of seconds after which the registry is refreshed.
+                                        format: int32
+                                        minimum: 0
+                                        type: integer
+                                      workerConnections:
+                                        description: |-
+                                          WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                          Defaults to 1000.
+                                        format: int32
+                                        minimum: 1
+                                        type: integer
+                                      workers:
+                                        description: Workers is the number of worker
+                                          processes. Use -1 to auto-calculate based
+                                          on CPU cores (2 * CPU + 1).
+                                        format: int32
+                                        minimum: -1
+                                        type: integer
+                                    type: object
                                 type: object
                                 x-kubernetes-validations:
                                 - message: At least one of restAPI or grpc must be
@@ -14905,6 +15638,52 @@ spec:
                               - name
                               type: object
                             type: array
+                          workerConfigs:
+                            description: WorkerConfigs defines the worker configuration
+                              for the Feast server.
+                            properties:
+                              keepAliveTimeout:
+                                description: |-
+                                  KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+                                  Defaults to 30.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              maxRequests:
+                                description: |-
+                                  MaxRequests is the maximum number of requests a worker will process before restarting.
+                                  This helps prevent memory leaks.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              maxRequestsJitter:
+                                description: |-
+                                  MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+                                  thundering herd effect on worker restart.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              registryTTLSeconds:
+                                description: RegistryTTLSeconds is the number of seconds
+                                  after which the registry is refreshed.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              workerConnections:
+                                description: |-
+                                  WorkerConnections is the maximum number of simultaneous clients per worker process.
+                                  Defaults to 1000.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              workers:
+                                description: Workers is the number of worker processes.
+                                  Use -1 to auto-calculate based on CPU cores (2 *
+                                  CPU + 1).
+                                format: int32
+                                minimum: -1
+                                type: integer
+                            type: object
                         type: object
                       volumes:
                         description: Volumes specifies the volumes to mount in the

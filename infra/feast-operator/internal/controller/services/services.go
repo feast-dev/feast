@@ -590,6 +590,32 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 			deploySettings.Args = append(deploySettings.Args, "--rest-port", strconv.Itoa(int(getTargetRestPort(feastType, tls))))
 		}
 	}
+
+	// Add worker configuration options for online store (feast serve)
+	if feastType == OnlineFeastType {
+		workerConfigs := feast.getWorkerConfigs(feastType)
+		if workerConfigs != nil {
+			if workerConfigs.Workers != nil {
+				deploySettings.Args = append(deploySettings.Args, "--workers", strconv.Itoa(int(*workerConfigs.Workers)))
+			}
+			if workerConfigs.WorkerConnections != nil {
+				deploySettings.Args = append(deploySettings.Args, "--worker-connections", strconv.Itoa(int(*workerConfigs.WorkerConnections)))
+			}
+			if workerConfigs.MaxRequests != nil {
+				deploySettings.Args = append(deploySettings.Args, "--max-requests", strconv.Itoa(int(*workerConfigs.MaxRequests)))
+			}
+			if workerConfigs.MaxRequestsJitter != nil {
+				deploySettings.Args = append(deploySettings.Args, "--max-requests-jitter", strconv.Itoa(int(*workerConfigs.MaxRequestsJitter)))
+			}
+			if workerConfigs.KeepAliveTimeout != nil {
+				deploySettings.Args = append(deploySettings.Args, "--keep-alive-timeout", strconv.Itoa(int(*workerConfigs.KeepAliveTimeout)))
+			}
+			if workerConfigs.RegistryTTLSeconds != nil {
+				deploySettings.Args = append(deploySettings.Args, "--registry_ttl_sec", strconv.Itoa(int(*workerConfigs.RegistryTTLSeconds)))
+			}
+		}
+	}
+
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)
@@ -816,6 +842,13 @@ func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastd
 func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *string {
 	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
 		return serviceConfigs.LogLevel
+	}
+	return nil
+}
+
+func (feast *FeastServices) getWorkerConfigs(feastType FeastServiceType) *feastdevv1.WorkerConfigs {
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.WorkerConfigs
 	}
 	return nil
 }
