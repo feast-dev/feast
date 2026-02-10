@@ -55,6 +55,7 @@ python test_workflow.py
 | Command | Description |
 |---------|-------------|
 | `feast apply` | Register entities, feature views, and feature services |
+| `feast materialize --disable-event-timestamp` | Load parquet data into the online store (Milvus) for vector search. Optionally add `-v city_summary_embeddings -v city_metadata` to materialize only those views. |
 | `feast feature-views list` | List registered feature views |
 | `feast entities list` | List registered entities |
 | `feast feature-services list` | List registered feature services |

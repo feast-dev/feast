@@ -1003,6 +1003,13 @@ class OnDemandFeatureView(BaseFeatureView):
             inferred_feature_names = {f.name for f in inferred_features}
             return specified_feature.name in inferred_feature_names
 
+        # Match by name and dtype when inferred features have empty description/tags
+        for inf in inferred_features:
+            if (
+                inf.name == specified_feature.name
+                and inf.dtype == specified_feature.dtype
+            ):
+                return True
         return False
 
     def _is_array_type(self, dtype) -> bool:
