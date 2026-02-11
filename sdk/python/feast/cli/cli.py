@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import click
+from click.core import ParameterSource
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
@@ -452,21 +453,19 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
         ],
         case_sensitive=False,
     ),
-    help="Specify a template for the created project",
-    default="local",
+    help="Specify a template for the created project (default: create driver + rag demos)",
 )
 @click.option(
     "--repo-path",
     help="Directory path where the repository will be created (default: create subdirectory with project name)",
 )
-@click.option(
-    "--scenario",
-    type=click.Choice(["driver", "rag"], case_sensitive=False),
-    default="driver",
-    help="Scenario/demo to create: driver (classic driver stats) or rag (RAG with vector search).",
-)
+@click.pass_context
 def init_command(
-    project_directory, minimal: bool, template: str, repo_path: str, scenario: str
+    ctx: click.Context,
+    project_directory,
+    minimal: bool,
+    template: str,
+    repo_path: str,
 ):
     """Create a new Feast repository"""
     if not project_directory:
@@ -474,8 +473,16 @@ def init_command(
 
     if minimal:
         template = "minimal"
-    elif scenario == "rag":
-        template = "rag"
+        init_repo(project_directory, template, repo_path)
+        return
+
+    # Default: create driver + rag demo repos
+    if ctx.get_parameter_source("template") == ParameterSource.DEFAULT:
+        base_path = Path(repo_path).resolve() if repo_path else Path.cwd() / project_directory
+        base_path.mkdir(parents=True, exist_ok=True)
+        init_repo("driver", "local", str(base_path / "driver"))
+        init_repo("rag", "rag", str(base_path / "rag"))
+        return
 
     init_repo(project_directory, template, repo_path)
 
