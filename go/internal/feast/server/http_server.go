@@ -19,7 +19,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/feast-dev/feast/go/internal/feast/metrics"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type httpServer struct {
@@ -341,7 +340,6 @@ func recoverMiddleware(next http.Handler) http.Handler {
 type statusWriter struct {
 	http.ResponseWriter
 	status int
-	length int
 }
 
 func (w *statusWriter) WriteHeader(status int) {
@@ -356,7 +354,6 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 		w.status = 200
 	}
 	n, err := w.ResponseWriter.Write(b)
-	w.length += n
 	return n, err
 }
 
@@ -366,6 +363,10 @@ func metricsMiddleware(next http.Handler) http.Handler {
 		sw := &statusWriter{ResponseWriter: w}
 		next.ServeHTTP(sw, r)
 		duration := time.Since(t0)
+
+		if sw.status == 0 {
+			sw.status = 200
+		}
 
 		metrics.HttpMetrics.Duration(metrics.HttpLabels{
 			Method: r.Method,
@@ -384,8 +385,7 @@ func metricsMiddleware(next http.Handler) http.Handler {
 func (s *httpServer) Serve(host string, port int) error {
 	mux := http.NewServeMux()
 	mux.Handle("/get-online-features", metricsMiddleware(recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures))))
-	mux.Handle("/metrics", promhttp.Handler())
-	mux.HandleFunc("/health", healthCheckHandler)
+	mux.Handle("/health", metricsMiddleware(http.HandlerFunc(healthCheckHandler)))
 	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 15 * time.Second}
 	err := s.server.ListenAndServe()
 	// Don't return the error if it's caused by graceful shutdown using Stop()
