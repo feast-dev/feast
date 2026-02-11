@@ -115,8 +115,12 @@ func (p *PostgresOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 					Value:     types.Value{Val: value.Val},
 				}
 			}
-		}
-		rows.Close()
+        }
+        rows.Close()
+        if err := rows.Err(); err != nil {
+            return nil, fmt.Errorf("error iterating postgres rows: %w", err)
+        }
+
 	}
 
 	return results, nil
