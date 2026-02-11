@@ -71,7 +71,8 @@ func (p *PostgresOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 	}
 
 	for _, featureViewName := range featureViewNames {
-		tableName := fmt.Sprintf(`"%s"`, tableId(p.project, featureViewName))
+		tableName := fmt.Sprintf(`"%s"`, strings.ReplaceAll(tableId(p.project, featureViewName), `"`, `""`))
+
 		query := fmt.Sprintf(
 			`SELECT entity_key, feature_name, value, event_ts FROM %s WHERE entity_key = ANY($1)`,
 			tableName,
