@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
@@ -65,14 +66,25 @@ func (p *PostgresOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 		entityKeyMap[string(*serKey)] = i
 	}
 
-	featureNamesToIdx := make(map[string]int, len(featureNames))
-	for idx, name := range featureNames {
-		featureNamesToIdx[name] = idx
+	type featureRef struct {
+		name  string
+		index int
+	}
+	featuresByView := make(map[string][]featureRef)
+	for i, viewName := range featureViewNames {
+		featuresByView[viewName] = append(featuresByView[viewName], featureRef{
+			name:  featureNames[i],
+			index: i,
+		})
 	}
 
-	for _, featureViewName := range featureViewNames {
-		tableName := fmt.Sprintf(`"%s"`, strings.ReplaceAll(tableId(p.project, featureViewName), `"`, `""`))
+	for viewName, features := range featuresByView {
+		featureNamesToIdx := make(map[string]int, len(features))
+		for _, f := range features {
+			featureNamesToIdx[f.name] = f.index
+		}
 
+		tableName := fmt.Sprintf(`"%s"`, strings.ReplaceAll(tableId(p.project, viewName), `"`, `""`))
 		query := fmt.Sprintf(
 			`SELECT entity_key, feature_name, value, event_ts FROM %s WHERE entity_key = ANY($1)`,
 			tableName,
@@ -111,17 +123,16 @@ func (p *PostgresOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 				}
 
 				results[rowIdx][featureIdx] = FeatureData{
-					Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
+					Reference: serving.FeatureReferenceV2{FeatureViewName: viewName, FeatureName: featureName},
 					Timestamp: *timestamppb.New(eventTs),
 					Value:     types.Value{Val: value.Val},
 				}
 			}
-        }
-        rows.Close()
-        if err := rows.Err(); err != nil {
-            return nil, fmt.Errorf("error iterating postgres rows: %w", err)
-        }
-
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterating postgres rows: %w", err)
+		}
 	}
 
 	return results, nil
