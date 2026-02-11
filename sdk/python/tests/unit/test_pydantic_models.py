@@ -581,6 +581,44 @@ def test_idempotent_feature_view_projection_conversion():
     assert pydantic_obj == FeatureViewProjectionModel.model_validate(pydantic_json)
 
 
+def test_feature_view_projection_backwards_compatibility():
+    # Test deserialization with minimal fields (missing new optional fields)
+    # https://github.com/ExpediaGroup/feast/pull/295/files#diff-5ad1ae3dd32afd2194e090c33d3661dcc68de8a49b1358f2a7c2796394e1f2fc
+    minimal_dict = {
+        "name": "test_projection",
+        "desired_features": [],
+        "features": [],
+        "join_key_map": {},
+    }
+    pydantic_obj = FeatureViewProjectionModel.model_validate(minimal_dict)
+    assert pydantic_obj.name == "test_projection"
+    assert pydantic_obj.name_alias is None
+    assert pydantic_obj.desired_features == []
+    assert pydantic_obj.features == []
+    assert pydantic_obj.join_key_map == {}
+    assert pydantic_obj.timestamp_field is None
+    assert pydantic_obj.date_partition_column is None
+    assert pydantic_obj.created_timestamp_column is None
+    assert pydantic_obj.batch_source is None
+
+    minimal_json = '{"name": "test_projection_json", "desired_features": [], "features": [], "join_key_map": {}}'
+    pydantic_obj_from_json = FeatureViewProjectionModel.model_validate_json(
+        minimal_json
+    )
+    assert pydantic_obj_from_json.name == "test_projection_json"
+    assert pydantic_obj_from_json.timestamp_field is None
+    assert pydantic_obj_from_json.date_partition_column is None
+    assert pydantic_obj_from_json.created_timestamp_column is None
+    assert pydantic_obj_from_json.batch_source is None
+
+    converted_python_obj = pydantic_obj.to_feature_view_projection()
+    assert converted_python_obj.name == "test_projection"
+    assert converted_python_obj.timestamp_field is None
+    assert converted_python_obj.date_partition_column is None
+    assert converted_python_obj.created_timestamp_column is None
+    assert converted_python_obj.batch_source is None
+
+
 def test_idempotent_on_demand_feature_view_conversion():
     tags = {
         "tag1": "val1",
@@ -829,6 +867,67 @@ def test_idempotent_feature_service_conversion():
 
     pydantic_json = pydantic_obj.model_dump()
     assert pydantic_obj == FeatureServiceModel.model_validate(pydantic_json)
+
+
+def test_feature_service_backwards_compatibility():
+    # Test deserialization with feature_view_projections missing optional fields
+    # https://github.com/ExpediaGroup/feast/pull/295/files#diff-5ad1ae3dd32afd2194e090c33d3661dcc68de8a49b1358f2a7c2796394e1f2fc
+    field1 = Field(name="feature1", dtype=Float32)
+    field2 = Field(name="feature2", dtype=String)
+    field1_model = FieldModel.from_field(field1)
+    field2_model = FieldModel.from_field(field2)
+
+    minimal_dict = {
+        "name": "test_feature_service",
+        "features": [],
+        "feature_view_projections": [
+            {
+                "name": "projection1",
+                "desired_features": ["feature1", "feature2"],
+                "features": [
+                    field1_model.model_dump(),
+                    field2_model.model_dump(),
+                ],
+                "join_key_map": {"entity_id": "entity_id"},
+            },
+            {
+                "name": "projection2",
+                "desired_features": [],
+                "features": [],
+                "join_key_map": {},
+            },
+        ],
+        "description": "Test feature service",
+        "tags": {"env": "test"},
+        "owner": "test@example.com",
+        "created_timestamp": None,
+        "last_updated_timestamp": None,
+    }
+    pydantic_obj = FeatureServiceModel.model_validate(minimal_dict)
+    assert pydantic_obj.name == "test_feature_service"
+    assert len(pydantic_obj.feature_view_projections) == 2
+
+    proj1 = pydantic_obj.feature_view_projections[0]
+    assert proj1.name == "projection1"
+    assert proj1.timestamp_field is None
+    assert proj1.date_partition_column is None
+    assert proj1.created_timestamp_column is None
+    assert proj1.batch_source is None
+    assert len(proj1.features) == 2
+
+    proj2 = pydantic_obj.feature_view_projections[1]
+    assert proj2.name == "projection2"
+    assert proj2.timestamp_field is None
+    assert proj2.date_partition_column is None
+    assert proj2.created_timestamp_column is None
+    assert proj2.batch_source is None
+
+    pydantic_json = pydantic_obj.model_dump_json()
+    pydantic_obj_from_json = FeatureServiceModel.model_validate_json(pydantic_json)
+    assert pydantic_obj_from_json.name == "test_feature_service"
+    assert len(pydantic_obj_from_json.feature_view_projections) == 2
+    assert pydantic_obj_from_json.feature_view_projections[0].timestamp_field is None
+    assert pydantic_obj_from_json.feature_view_projections[1].batch_source is None
 
 
 def test_idempotent_project_metadata_conversion():

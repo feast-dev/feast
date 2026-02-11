@@ -210,14 +210,14 @@ class FeatureViewProjectionModel(BaseModel):
     """
 
     name: str
-    name_alias: Optional[str]
+    name_alias: Optional[str] = None
     desired_features: List[str]
     features: List[FieldModel]
     join_key_map: Dict[str, str]
-    timestamp_field: Optional[str]
-    date_partition_column: Optional[str]
-    created_timestamp_column: Optional[str]
-    batch_source: Optional[AnyBatchDataSource]
+    timestamp_field: Optional[str] = None
+    date_partition_column: Optional[str] = None
+    created_timestamp_column: Optional[str] = None
+    batch_source: Optional[AnyBatchDataSource] = None
 
     def to_feature_view_projection(self) -> FeatureViewProjection:
         return FeatureViewProjection(

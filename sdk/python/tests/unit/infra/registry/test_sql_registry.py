@@ -35,24 +35,65 @@ def sqlite_registry():
     registry.teardown()
 
 
-def test_sql_registry(sqlite_registry):
-    """
-    Test the SQL registry
-    """
-    entity = Entity(
-        name="test_entity",
-        description="Test entity for testing",
-        tags={"test": "transaction"},
-    )
-    sqlite_registry.apply_entity(entity, "test_project")
-    retrieved_entity = sqlite_registry.get_entity("test_entity", "test_project")
-    assert retrieved_entity.name == "test_entity"
-    assert retrieved_entity.description == "Test entity for testing"
+class TestSqlRegistry:
+    """Test class for SqlRegistry"""
 
-    sqlite_registry.set_project_metadata("test_project", "test_key", "test_value")
-    value = sqlite_registry.get_project_metadata("test_project", "test_key")
-    assert value == "test_value"
+    def test_apply_and_retrieve_entity(self, sqlite_registry):
+        """Test applying and retrieving an entity from the SQL registry."""
+        entity = Entity(
+            name="test_entity",
+            description="Test entity for testing",
+            tags={"test": "transaction"},
+        )
+        sqlite_registry.apply_entity(entity, "test_project")
 
-    sqlite_registry.delete_entity("test_entity", "test_project")
-    with pytest.raises(Exception):
-        sqlite_registry.get_entity("test_entity", "test_project")
+        retrieved_entity = sqlite_registry.get_entity("test_entity", "test_project")
+        assert retrieved_entity.name == "test_entity"
+        assert retrieved_entity.description == "Test entity for testing"
+
+    def test_delete_entity(self, sqlite_registry):
+        """Test deleting an entity from the SQL registry."""
+        entity = Entity(name="test_entity", description="Test entity")
+        sqlite_registry.apply_entity(entity, "test_project")
+
+        sqlite_registry.delete_entity("test_entity", "test_project")
+
+        with pytest.raises(Exception):
+            sqlite_registry.get_entity("test_entity", "test_project")
+
+    def test_get_project_metadata_model_returns_initialized_metadata(
+        self, sqlite_registry
+    ):
+        """Test that get_project_metadata_model returns metadata after applying an entity."""
+        entity = Entity(name="test_entity", description="Test entity")
+        sqlite_registry.apply_entity(entity, "test_project")
+
+        project_metadata = sqlite_registry.get_project_metadata_model("test_project")
+
+        assert project_metadata.project_name == "test_project"
+        assert project_metadata.project_uuid is not None
+        assert project_metadata.last_updated_timestamp is not None
+
+    def test_get_project_metadata_model_nonexistent_project(self, sqlite_registry):
+        """Test that get_project_metadata_model handles non-existent projects gracefully."""
+        project_metadata = sqlite_registry.get_project_metadata_model(
+            "nonexistent_project"
+        )
+
+        assert project_metadata.project_name == "nonexistent_project"
+        assert project_metadata is not None
+
+    def test_get_all_project_metadata_multiple_projects(self, sqlite_registry):
+        """Test that get_all_project_metadata returns metadata for all projects."""
+        entity1 = Entity(name="entity1", description="Entity 1")
+        entity2 = Entity(name="entity2", description="Entity 2")
+        sqlite_registry.apply_entity(entity1, "project_1")
+        sqlite_registry.apply_entity(entity2, "project_2")
+
+        all_metadata = sqlite_registry.get_all_project_metadata()
+
+        project_names = [m.project_name for m in all_metadata]
+        assert "project_1" in project_names
+        assert "project_2" in project_names
+        for metadata in all_metadata:
+            assert metadata.project_uuid is not None

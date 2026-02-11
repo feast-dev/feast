@@ -444,7 +444,7 @@ class SqlRegistry(CachingRegistry):
         self, project: str, commit: bool
     ) -> ProjectMetadataModel:
         self._maybe_init_project_metadata(project)
-        return self._get_project_metadata_model(project)
+        return self.get_project_metadata_model(project)
 
     def _get_entity(self, name: str, project: str) -> Entity:
         return self._get_object(
@@ -1531,12 +1531,13 @@ class SqlRegistry(CachingRegistry):
                 return row._mapping["metadata_value"]
             return None
 
-    def _get_project_metadata_model(
+    def get_project_metadata_model(
         self,
         project: str,
         allow_cache: bool = False,
     ) -> ProjectMetadataModel:
         """
+        Expedia specific function used in eg-feature-store-registry to get project metadata model.
         Returns given project metdata. No supporting function in SQL Registry so implemented this here rather than using _get_last_updated_metadata and list_project_metadata.
         """
 

@@ -1300,12 +1300,14 @@ spec:
                                 enum:
                                 - snowflake.online
                                 - redis
+                                - eg-valkey
                                 - ikv
                                 - datastore
                                 - dynamodb
                                 - bigtable
                                 - postgres
                                 - cassandra
+                                - scylladb
                                 - mysql
                                 - hazelcast
                                 - singlestore
@@ -1314,6 +1316,7 @@ spec:
                                 - qdrant
                                 - couchbase.online
                                 - milvus
+                                - eg-milvus
                                 type: string
                             required:
                             - secretRef
@@ -1775,7 +1778,9 @@ spec:
                                       want to use.
                                     enum:
                                     - sql
+                                    - sql-fallback
                                     - snowflake.registry
+                                    - http
                                     type: string
                                 required:
                                 - secretRef
@@ -5293,12 +5298,14 @@ spec:
                                     enum:
                                     - snowflake.online
                                     - redis
+                                    - eg-valkey
                                     - ikv
                                     - datastore
                                     - dynamodb
                                     - bigtable
                                     - postgres
                                     - cassandra
+                                    - scylladb
                                     - mysql
                                     - hazelcast
                                     - singlestore
@@ -5307,6 +5314,7 @@ spec:
                                     - qdrant
                                     - couchbase.online
                                     - milvus
+                                    - eg-milvus
                                     type: string
                                 required:
                                 - secretRef
@@ -5780,7 +5788,9 @@ spec:
                                           you want to use.
                                         enum:
                                         - sql
+                                        - sql-fallback
                                         - snowflake.registry
+                                        - http
                                         type: string
                                     required:
                                     - secretRef

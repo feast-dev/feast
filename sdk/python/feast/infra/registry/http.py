@@ -959,6 +959,7 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}"
             response_data = self._send_request("GET", url)
+            logger.info(f"ProjectMetadata response data: {response_data}")
             return [
                 ProjectMetadataModel.model_validate(response_data).to_project_metadata()
             ]
