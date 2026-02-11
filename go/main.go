@@ -193,23 +193,33 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+	serverExited := make(chan struct{})
 	go func() {
 		defer wg.Done()
-		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-stop
-		log.Info().Msg("Stopping the gRPC server...")
-		grpcServer.GracefulStop()
-		if loggingService != nil {
-			loggingService.Stop()
+		select {
+		case <-stop:
+			// Received SIGINT/SIGTERM. Perform graceful shutdown.
+			log.Info().Msg("Stopping the gRPC server...")
+			grpcServer.GracefulStop()
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+			log.Info().Msg("Stopping metrics server...")
+			if err := metricsServer.Shutdown(context.Background()); err != nil {
+				log.Error().Err(err).Msg("Error stopping metrics server")
+			}
+			log.Info().Msg("gRPC server terminated")
+		case <-serverExited:
+			// Server exited (e.g. startup error), ensure metrics server is stopped
+			metricsServer.Shutdown(context.Background())
+			if loggingService != nil {
+				loggingService.Stop()
+			}
 		}
-		log.Info().Msg("Stopping metrics server...")
-		if err := metricsServer.Shutdown(context.Background()); err != nil {
-			log.Error().Err(err).Msg("Error stopping metrics server")
-		}
-		log.Info().Msg("gRPC server terminated")
 	}()
 
 	err = grpcServer.Serve(lis)
+	close(serverExited)
 	wg.Wait()
 	return err
 }
@@ -241,26 +251,36 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+	serverExited := make(chan struct{})
 	go func() {
 		defer wg.Done()
-		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-stop
-		log.Info().Msg("Stopping the HTTP server...")
-		err := ser.Stop()
-		if err != nil {
-			log.Error().Err(err).Msg("Error when stopping the HTTP server")
+		select {
+		case <-stop:
+			// Received SIGINT/SIGTERM. Perform graceful shutdown.
+			log.Info().Msg("Stopping the HTTP server...")
+			err := ser.Stop()
+			if err != nil {
+				log.Error().Err(err).Msg("Error when stopping the HTTP server")
+			}
+			log.Info().Msg("Stopping metrics server...")
+			if err := metricsServer.Shutdown(context.Background()); err != nil {
+				log.Error().Err(err).Msg("Error stopping metrics server")
+			}
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+			log.Info().Msg("HTTP server terminated")
+		case <-serverExited:
+			// Server exited (e.g. startup error), ensure metrics server is stopped
+			metricsServer.Shutdown(context.Background())
+			if loggingService != nil {
+				loggingService.Stop()
+			}
 		}
-		log.Info().Msg("Stopping metrics server...")
-		if err := metricsServer.Shutdown(context.Background()); err != nil {
-			log.Error().Err(err).Msg("Error stopping metrics server")
-		}
-		if loggingService != nil {
-			loggingService.Stop()
-		}
-		log.Info().Msg("HTTP server terminated")
 	}()
 
 	err = ser.Serve(host, port)
+	close(serverExited)
 	wg.Wait()
 	return err
 }
