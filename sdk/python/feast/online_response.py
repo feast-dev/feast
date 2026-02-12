@@ -103,8 +103,26 @@ class OnlineResponse:
         Args:
         include_event_timestamps: bool Optionally include feature timestamps in the table
         """
+        import uuid as uuid_module
 
-        return pa.Table.from_pydict(self.to_dict(include_event_timestamps))
+        result = self.to_dict(include_event_timestamps)
+        # Convert uuid.UUID objects to strings for PyArrow compatibility
+        for key, values in result.items():
+            first_valid = next((v for v in values if v is not None), None)
+            if isinstance(first_valid, uuid_module.UUID):
+                result[key] = [
+                    str(v) if isinstance(v, uuid_module.UUID) else v for v in values
+                ]
+            elif isinstance(first_valid, list):
+                inner = next((e for e in first_valid if e is not None), None)
+                if isinstance(inner, uuid_module.UUID):
+                    result[key] = [
+                        [str(e) if isinstance(e, uuid_module.UUID) else e for e in v]
+                        if isinstance(v, list)
+                        else v
+                        for v in values
+                    ]
+        return pa.Table.from_pydict(result)
 
     def to_tensor(
         self,
