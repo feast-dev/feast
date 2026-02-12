@@ -79,7 +79,7 @@ city_summary_embeddings = FeatureView(
         ),
     ],
     source=city_summaries_source,
-    ttl=timedelta(hours=2),
+    ttl=timedelta(days=1),
     online=True,
     tags={"team": "ml-platform", "use_case": "city_qa", "type": "vector"},
 )
