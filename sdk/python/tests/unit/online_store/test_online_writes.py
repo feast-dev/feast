@@ -33,6 +33,9 @@ from feast import (
 )
 from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.field import Field
+from feast.infra.online_stores.mongodb_online_store.mongodb_openai import (
+    MongoDBOnlineStoreConfig,
+)
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Array, Float32, Float64, Int64, PdfBytes, String, ValueType
@@ -48,9 +51,9 @@ class TestOnlineWrites(unittest.TestCase):
                     registry=os.path.join(data_dir, "registry.db"),
                     provider="local",
                     entity_key_serialization_version=3,
-                    online_store=SqliteOnlineStoreConfig(
-                        path=os.path.join(data_dir, "online.db")
-                    ),
+                    # online_store=SqliteOnlineStoreConfig(path=os.path.join(data_dir, "online.db")),
+                    # TODO Try this with MongoDBOnlineStoreConfig defaults
+                    online_store = MongoDBOnlineStoreConfig()
                 )
             )
 

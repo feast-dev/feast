@@ -23,8 +23,7 @@ import logging
 from typing import Any, Union
 
 try:
-    from pymongo import MongoClient
-    from pymongo.mongo_client import AsyncMongoClient
+    from pymongo import AsyncMongoClient, MongoClient
     from pymongo.read_preferences import ReadPreference
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -220,3 +219,10 @@ def get_collection_name(project: str, table_name: str) -> str:
     safe_table = table_name.replace("$", "_").replace("\x00", "")
 
     return f"{safe_project}_{safe_table}"
+
+# TODO
+#   - Consider removing this so that we don't create anything inside utils
+#   - get_collection_name, though safe, could easily be done manually by the user's specification of project and table name. Unless $ is often in project names
+#   - is_atlas methods. Are these accurate?
+#   - all the kwargs passed to get_client_connection are not needed. Just put in `connection_string`
+#   - _parse_read_preference is unneeded

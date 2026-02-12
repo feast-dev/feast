@@ -32,24 +32,21 @@ from pydantic import StrictBool, StrictInt, StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore, SupportedAsyncMethods
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.infra.utils.mongodb.connection_utils import (
     get_async_mongo_client,
     get_collection_name,
     get_mongo_client,
-    is_atlas,
-    is_atlas_async,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.utils import to_naive_utc
 
 try:
-    from pymongo import MongoClient
+    from pymongo import AsyncMongoClient, MongoClient, UpdateOne
     from pymongo.errors import OperationFailure
-    from pymongo import AsyncMongoClient
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -123,7 +120,8 @@ class MongoDBOnlineStore(OnlineStore):
             entity_key_hash: "md5_hash",
             features: {
                 "feature1": <protobuf_binary>,
-                "feature2": <protobuf_binary>
+                "feature2": <protobuf_binary>,
+                ...
             },
             event_timestamp: ISODate,
             created_timestamp: ISODate (optional),
@@ -204,24 +202,20 @@ class MongoDBOnlineStore(OnlineStore):
             )
             entity_key_hash = self._compute_entity_key_hash(entity_key_bin)
 
-            # Convert timestamps to naive UTC
-            timestamp = _to_naive_utc(timestamp)
-            created_ts = _to_naive_utc(created_ts) if created_ts else None
-
             # Serialize feature values
             features_dict = {}
             for feature_name, val in values.items():
-                features_dict[feature_name] = val.SerializeToString()
+                features_dict[feature_name] = val.SerializeToString()  # TODO - This is not sufficient to convert ValProto to python object
 
             # Build document
             document = {
-                "entity_key_hash": entity_key_hash,
+                "_id": entity_key_bin,  # TODO: What is entity_key_hash for? We don't need a string
                 "features": features_dict,
-                "event_timestamp": timestamp,
+                "event_timestamp": to_naive_utc(timestamp),
             }
 
             if created_ts:
-                document["created_timestamp"] = created_ts
+                document["created_timestamp"] = to_naive_utc(created_ts)
 
             # Add TTL field if configured
             if online_config.ttl_seconds:
@@ -229,22 +223,15 @@ class MongoDBOnlineStore(OnlineStore):
                 document["expire_at"] = expire_at
 
             # Upsert operation
-            bulk_operations.append({
-                "filter": {"entity_key_hash": entity_key_hash},
-                "update": {"$set": document},
-                "upsert": True,
-            })
+            bulk_operations.append(UpdateOne(filter={"_id": entity_key_bin}, update={"$set": document}, upsert=True))
 
             if progress:
                 progress(1)
 
         # Execute bulk write if there are operations
         if bulk_operations:
-            from pymongo import UpdateOne
-            collection.bulk_write([
-                UpdateOne(op["filter"], op["update"], upsert=op["upsert"])
-                for op in bulk_operations
-            ])
+            collection.bulk_write(bulk_operations)
+
 
     async def online_write_batch_async(
         self,
@@ -271,8 +258,8 @@ class MongoDBOnlineStore(OnlineStore):
                 entity_key_serialization_version=config.entity_key_serialization_version,
             )
             entity_key_hash = self._compute_entity_key_hash(entity_key_bin)
-            timestamp = _to_naive_utc(timestamp)
-            created_ts = _to_naive_utc(created_ts) if created_ts else None
+            timestamp = to_naive_utc(timestamp)
+            created_ts = to_naive_utc(created_ts) if created_ts else None
 
             features_dict = {
                 feature_name: val.SerializeToString()
@@ -358,7 +345,7 @@ class MongoDBOnlineStore(OnlineStore):
             doc = doc_map.get(entity_key_hash)
 
             if not doc:
-                results.append((None, None))
+                results.append((None, None))   # todo - is this req'd?
                 continue
 
             event_ts = doc.get("event_timestamp")
@@ -513,3 +500,7 @@ class MongoDBOnlineStore(OnlineStore):
     # def retrieve_online_documents_v2(...)
     # async def initialize(...)
     # async def close(...)
+
+
+    # TODO
+    #   - Add unique index on entity_key hash. We need not convert to a string. We can keep as bson.binary

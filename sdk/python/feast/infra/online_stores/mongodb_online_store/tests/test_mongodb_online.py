@@ -24,8 +24,8 @@ These tests cover:
 """
 
 import os
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,9 +36,10 @@ from feast.infra.online_stores.mongodb_online_store.mongodb import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.types import Int64, String, Float32
+from feast.types import Float32, Int64, String
 from feast.value_type import ValueType
 
+MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
 
 class TestMongoDBOnlineStoreConfig:
     """Test suite for MongoDBOnlineStoreConfig."""
@@ -46,7 +47,7 @@ class TestMongoDBOnlineStoreConfig:
     def test_default_config(self):
         """Test default configuration values."""
         config = MongoDBOnlineStoreConfig(
-            connection_string="mongodb://localhost:27017"
+            connection_string=MONGODB_URI
         )
 
         assert config.type == "mongodb"
@@ -100,7 +101,7 @@ class TestMongoDBOnlineStore:
         return RepoConfig(
             project="test_project",
             online_store=MongoDBOnlineStoreConfig(
-                connection_string="mongodb://localhost:27017",
+                connection_string=MONGODB_URI,
                 database="feast_test",
             ),
             registry="dummy_registry",
@@ -112,7 +113,7 @@ class TestMongoDBOnlineStore:
         return RepoConfig(
             project="test_project",
             online_store=MongoDBOnlineStoreConfig(
-                connection_string="mongodb://localhost:27017",
+                connection_string=MONGODB_URI,
                 database="feast_test",
                 ttl_seconds=86400,
             ),
@@ -155,7 +156,7 @@ class TestMongoDBOnlineStore:
     def feature_data(self, entity_keys):
         """Create test feature data."""
         data = []
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
 
         for i, key in enumerate(entity_keys):
             features = {
@@ -195,9 +196,9 @@ class TestMongoDBOnlineStore:
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
-        mock_client.__getitem__.return_value = mock_db
-        mock_db.__getitem__.return_value = mock_collection
-        mock_get_client.return_value = mock_client
+        # mock_client.__getitem__.return_value = mock_db
+        # mock_db.__getitem__.return_value = mock_collection
+        # mock_get_client.return_value = mock_client
 
         # Create store and write data
         store = MongoDBOnlineStore()
@@ -260,7 +261,7 @@ class TestMongoDBOnlineStore:
         # Mock find result
         mock_doc = {
             "entity_key_hash": "test_hash",
-            "event_timestamp": datetime.utcnow(),
+            "event_timestamp": datetime.now(UTC),
             "features": {
                 "feature1": ValueProto(string_val="test").SerializeToString(),
                 "feature2": ValueProto(float_val=1.5).SerializeToString(),
@@ -469,7 +470,7 @@ class TestMongoDBOnlineStoreAsync:
             "feature1": ValueProto(string_val="test"),
         }
 
-        data = [(entity_key, features, datetime.utcnow(), None)]
+        data = [(entity_key, features, datetime.now(UTC), None)]
 
         # Write data
         store = MongoDBOnlineStore()
@@ -591,7 +592,7 @@ class TestMongoDBOnlineStoreIntegration:
             "feature2": ValueProto(float_val=42.5),
         }
 
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
         data = [(entity_key, features, timestamp, None)]
 
         # Write data
