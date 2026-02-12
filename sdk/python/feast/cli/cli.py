@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import List, Optional
 
 import click
-from click.core import ParameterSource
 import yaml
+from click.core import ParameterSource
 from colorama import Fore, Style
 from dateutil import parser
 from pygments import formatters, highlight, lexers
@@ -478,7 +478,9 @@ def init_command(
 
     # Default: create driver + rag demo repos
     if ctx.get_parameter_source("template") == ParameterSource.DEFAULT:
-        base_path = Path(repo_path).resolve() if repo_path else Path.cwd() / project_directory
+        base_path = (
+            Path(repo_path).resolve() if repo_path else Path.cwd() / project_directory
+        )
         base_path.mkdir(parents=True, exist_ok=True)
         init_repo("driver", "local", str(base_path / "driver"))
         init_repo("rag", "rag", str(base_path / "rag"))
