@@ -75,11 +75,12 @@ lint-python: ## Lint Python code
 # File-aware lint (for use with pre-commit, accepts file args)
 lint-python-files: ## Lint specified Python files
 	@if [ -n "$(FILES)" ]; then \
-		uv run ruff check $(FILES); \
+		uv run ruff check $(FILES) && \
 		uv run ruff format --check $(FILES); \
 	else \
 		echo "Usage: make lint-python-files FILES='file1.py file2.py'"; \
 	fi
+
 
 # New combined target
 precommit-check: format-python lint-python ## Run all precommit checks
