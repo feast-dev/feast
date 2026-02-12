@@ -61,11 +61,12 @@ format-python: ## Format Python code
 # File-aware format (for use with pre-commit, accepts file args)
 format-python-files: ## Format specified Python files
 	@if [ -n "$(FILES)" ]; then \
-		uv run ruff check --fix $(FILES); \
+		uv run ruff check --fix $(FILES) && \
 		uv run ruff format $(FILES); \
 	else \
 		echo "Usage: make format-python-files FILES='file1.py file2.py'"; \
 	fi
+
 
 lint-python: ## Lint Python code
 	uv run ruff check sdk/python/feast/ sdk/python/tests/
