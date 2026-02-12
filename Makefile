@@ -58,30 +58,10 @@ format-python: ## Format Python code
 	uv run ruff check --fix sdk/python/feast/ sdk/python/tests/
 	uv run ruff format sdk/python/feast/ sdk/python/tests/
 
-# File-aware format (for use with pre-commit, accepts file args)
-format-python-files: ## Format specified Python files
-	@if [ -n "$(FILES)" ]; then \
-		uv run ruff check --fix $(FILES) && \
-		uv run ruff format $(FILES); \
-	else \
-		echo "Usage: make format-python-files FILES='file1.py file2.py'"; \
-	fi
-
-
 lint-python: ## Lint Python code
 	uv run ruff check sdk/python/feast/ sdk/python/tests/
 	uv run ruff format --check sdk/python/feast/ sdk/python/tests/
 	uv run bash -c "cd sdk/python && mypy feast"
-
-# File-aware lint (for use with pre-commit, accepts file args)
-lint-python-files: ## Lint specified Python files
-	@if [ -n "$(FILES)" ]; then \
-		uv run ruff check $(FILES) && \
-		uv run ruff format --check $(FILES); \
-	else \
-		echo "Usage: make lint-python-files FILES='file1.py file2.py'"; \
-	fi
-
 
 # New combined target
 precommit-check: format-python lint-python ## Run all precommit checks
