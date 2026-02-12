@@ -28,7 +28,7 @@ cd my_city_qa/feature_repo
 ### 2. Install dependencies
 
 ```bash
-pip install feast torch transformers
+pip install feast torch transformers pymilvus
 ```
 
 ### 3. Apply feature definitions
