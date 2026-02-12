@@ -219,7 +219,7 @@ test-python-integration: ## Run Python integration tests (CI)
 # Integration tests with better parallelization
 test-python-integration-parallel: ## Run integration tests with enhanced parallelization
 	uv run python -m pytest sdk/python/tests/integration \
-		-n auto --dist loadscope \
+		-n auto --dist loadgroup \
 		--timeout=300 --tb=short -v \
 		--integration --color=yes --durations=20
 
