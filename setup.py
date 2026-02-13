@@ -40,7 +40,7 @@ REQUIRED = [
     "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
     "pyarrow>=21.0.0",
-    "pydantic>=2.0.0",
+    "pydantic>=2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -56,7 +56,6 @@ REQUIRED = [
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
     "prometheus_client",
-    "wheel>=0.46.2",
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
@@ -96,10 +95,10 @@ SQLITE_VEC_REQUIRED = [
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
-    "psycopg[binary,pool]>=3.0.0,<4",
+    "psycopg[binary,pool]==3.2.5",
 ]
 POSTGRES_C_REQUIRED = [
-    "psycopg[c,pool]>=3.0.0,<4",
+    "psycopg[c,pool]==3.2.5",
 ]
 
 OPENTELEMETRY = ["prometheus_client", "psutil"]
@@ -123,7 +122,7 @@ AZURE_REQUIRED = [
     "azure-identity>=1.6.1",
     "SQLAlchemy>=1.4.19",
     "pyodbc>=4.0.30",
-    "pymssql",
+    "pymssql<2.3.3",
 ]
 
 IKV_REQUIRED = [
@@ -148,7 +147,7 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=10.0.0"]
 
 DELTA_REQUIRED = ["deltalake<1.0.0"]
 
-DOCLING_REQUIRED = ["docling>=2.23.0"]
+DOCLING_REQUIRED = ["docling==2.27.0"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
@@ -168,7 +167,7 @@ GO_REQUIRED = ["cffi>=1.15.0"]
 
 MILVUS_REQUIRED = ["pymilvus>2.5", "milvus-lite==2.4.12", "setuptools>=60,<81"]
 
-DBT_REQUIRED = ["dbt-artifacts-parser>=0.6.0,<1"]
+DBT_REQUIRED = ["dbt-artifacts-parser"]
 
 TORCH_REQUIRED = [
     "torch>=2.7.0",
@@ -191,9 +190,13 @@ IMAGE_REQUIRED = [
 ] + TORCH_REQUIRED
 
 RAY_REQUIRED = [
-    "ray>=2.47.0; python_version == '3.10'",
-    'codeflare-sdk>=0.31.1; python_version != "3.10"',
-    ]
+    'ray>=2.47.0; python_version == "3.10"',
+    'codeflare-sdk>=0.31.1; python_version > "3.10"',
+]
+
+SETUPTOOLS_REQUIRED = [
+    "setuptools>=60,<81",
+]
 
 CI_REQUIRED = (
     [
@@ -382,6 +385,7 @@ setup(
         "rag": RAG_REQUIRED,
         "image": IMAGE_REQUIRED,
         "ray": RAY_REQUIRED,
+        "setuptools": SETUPTOOLS_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
