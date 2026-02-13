@@ -344,6 +344,8 @@ def value_proto_to_python(val: ValueProto):
     """Utility to convert Value proto to plain form saved in MongoDB."""
     try:  # hasattr(val, "val"):
         typ = val.WhichOneof("val")
+        if typ is None:
+            return None
         val = getattr(val, typ)
         if isinstance(val, datetime):
             val = val.replace(tzinfo=datetime.UTC)
