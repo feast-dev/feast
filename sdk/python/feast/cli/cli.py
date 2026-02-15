@@ -88,7 +88,7 @@ class NoOptionDefaultFormat(click.Command):
 )
 @click.option(
     "--log-level",
-    default="warning",
+    default="info",
     help="The logging level. One of DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive).",
 )
 @click.option(
