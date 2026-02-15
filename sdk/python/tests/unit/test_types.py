@@ -1,6 +1,6 @@
 import pytest
 
-from feast.types import Array, Float32, Set, String, from_value_type
+from feast.types import Array, Float32, Set, String, TimeUuid, Uuid, from_value_type
 from feast.value_type import ValueType
 
 
@@ -41,6 +41,23 @@ def test_set_feast_type():
 
     with pytest.raises(ValueError):
         _ = Set(Set(String))
+
+
+def test_uuid_feast_type():
+    assert Uuid.to_value_type() == ValueType.UUID
+    assert from_value_type(ValueType.UUID) == Uuid
+    assert TimeUuid.to_value_type() == ValueType.TIME_UUID
+    assert from_value_type(ValueType.TIME_UUID) == TimeUuid
+
+
+def test_uuid_array_feast_type():
+    array_uuid = Array(Uuid)
+    assert array_uuid.to_value_type() == ValueType.UUID_LIST
+    assert from_value_type(array_uuid.to_value_type()) == array_uuid
+
+    array_time_uuid = Array(TimeUuid)
+    assert array_time_uuid.to_value_type() == ValueType.TIME_UUID_LIST
+    assert from_value_type(array_time_uuid.to_value_type()) == array_time_uuid
 
 
 def test_all_value_types():

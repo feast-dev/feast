@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
@@ -36,6 +37,15 @@ from feast.utils import _get_feature_view_vector_field_metadata
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
+
+
+def _json_safe(val: Any) -> Any:
+    """Convert uuid.UUID objects to strings for JSON serialization."""
+    if isinstance(val, uuid_module.UUID):
+        return str(val)
+    if isinstance(val, list):
+        return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
+    return val
 
 
 class RemoteOnlineStoreConfig(FeastConfigBaseModel):
@@ -93,15 +103,13 @@ class RemoteOnlineStore(OnlineStore):
             for join_key, entity_value_proto in zip(
                 entity_key_proto.join_keys, entity_key_proto.entity_values
             ):
-                columnar_data[join_key].append(
-                    feast_value_type_to_python_type(entity_value_proto)
-                )
+                val = feast_value_type_to_python_type(entity_value_proto)
+                columnar_data[join_key].append(_json_safe(val))
 
             # Populate feature values
             for feature_name, feature_value_proto in feature_values_proto.items():
-                columnar_data[feature_name].append(
-                    feast_value_type_to_python_type(feature_value_proto)
-                )
+                val = feast_value_type_to_python_type(feature_value_proto)
+                columnar_data[feature_name].append(_json_safe(val))
 
             # Populate timestamps
             columnar_data["event_timestamp"].append(_to_naive_utc(event_ts).isoformat())
