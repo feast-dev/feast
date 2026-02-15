@@ -28,5 +28,5 @@ class TestDependencyConflicts:
 
         # Assertions
         assert exit_code == 0
-        conflict_occured = "dependency conflicts" in err and "ERROR" not in err
-        assert not conflict_occured, "Dependency conflict detected during installation"
+        conflict_occurred = "dependency conflicts" in err and "ERROR" not in err
+        assert not conflict_occurred, "Dependency conflict detected during installation"
