@@ -640,12 +640,13 @@ class Registry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[BaseFeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
         return proto_registry_utils.list_all_feature_views(
-            registry_proto, project, tags
+            registry_proto, project, tags, skip_udf=skip_udf
         )
 
     def get_any_feature_view(

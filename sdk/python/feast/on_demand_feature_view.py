@@ -531,7 +531,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
         # Parse transformation from proto
         transformation = cls._parse_transformation_from_proto(
-            on_demand_feature_view_proto
+            on_demand_feature_view_proto, skip_udf=skip_udf
         )
 
         # Parse optional fields with defaults
@@ -603,7 +603,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @classmethod
     def _parse_transformation_from_proto(
-        cls, proto: OnDemandFeatureViewProto
+        cls, proto: OnDemandFeatureViewProto, skip_udf: bool = False
     ) -> Transformation:
         """Parse and convert the transformation from the protobuf representation."""
         feature_transformation = proto.spec.feature_transformation
@@ -616,14 +616,14 @@ class OnDemandFeatureView(BaseFeatureView):
             # Check for non-empty UDF body
             if udf_proto.body_text:
                 if mode == "pandas":
-                    return PandasTransformation.from_proto(udf_proto)
+                    return PandasTransformation.from_proto(udf_proto, skip_udf=skip_udf)
                 elif mode == "python":
-                    return PythonTransformation.from_proto(udf_proto)
+                    return PythonTransformation.from_proto(udf_proto, skip_udf=skip_udf)
                 else:
                     raise ValueError(ODFVErrorMessages.unsupported_mode_for_udf(mode))
             else:
                 # Handle backward compatibility case with empty body_text
-                return cls._handle_backward_compatible_udf(proto)
+                return cls._handle_backward_compatible_udf(proto, skip_udf=skip_udf)
 
         elif transformation_type == "substrait_transformation":
             return SubstraitTransformation.from_proto(
@@ -631,7 +631,7 @@ class OnDemandFeatureView(BaseFeatureView):
             )
         elif transformation_type is None:
             # Handle backward compatibility case where feature_transformation is cleared
-            return cls._handle_backward_compatible_udf(proto)
+            return cls._handle_backward_compatible_udf(proto, skip_udf=skip_udf)
         else:
             raise ValueError(
                 ODFVErrorMessages.unsupported_transformation_type(transformation_type)
@@ -639,7 +639,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @classmethod
     def _handle_backward_compatible_udf(
-        cls, proto: OnDemandFeatureViewProto
+        cls, proto: OnDemandFeatureViewProto, skip_udf: bool = False
     ) -> Transformation:
         """Handle backward compatibility for UDFs with empty body_text."""
         if not hasattr(proto.spec, "user_defined_function"):
@@ -653,6 +653,7 @@ class OnDemandFeatureView(BaseFeatureView):
         )
         return PandasTransformation.from_proto(
             user_defined_function_proto=backwards_compatible_udf,
+            skip_udf=skip_udf,
         )
 
     @classmethod
