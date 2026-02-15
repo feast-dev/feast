@@ -36,34 +36,60 @@ from tests.data.data_creator import (
     create_document_dataset,
     create_image_dataset,
 )
-from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
-    IntegrationTestRepoConfig,
-)
-from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
-    AVAILABLE_OFFLINE_STORES,
-    AVAILABLE_ONLINE_STORES,
-    OFFLINE_STORE_TO_PROVIDER_CONFIG,
-    Environment,
-    TestData,
-    construct_test_environment,
-    construct_universal_feature_views,
-    construct_universal_test_data,
-)
-from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
-    FileDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.entities import (  # noqa: E402
-    customer,
-    driver,
-    location,
-)
-from tests.utils.auth_permissions_util import default_store
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
-from tests.utils.ssl_certifcates_util import (
-    combine_trust_stores,
-    create_ca_trust_store,
-    generate_self_signed_cert,
-)
+
+try:
+    from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
+        IntegrationTestRepoConfig,
+    )
+    from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
+        AVAILABLE_OFFLINE_STORES,
+        AVAILABLE_ONLINE_STORES,
+        OFFLINE_STORE_TO_PROVIDER_CONFIG,
+        Environment,
+        TestData,
+        construct_test_environment,
+        construct_universal_feature_views,
+        construct_universal_test_data,
+    )
+    from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
+        FileDataSourceCreator,
+    )
+    from tests.integration.feature_repos.universal.entities import (  # noqa: E402
+        customer,
+        driver,
+        location,
+    )
+except ModuleNotFoundError:
+    IntegrationTestRepoConfig = None  # type: ignore[assignment]
+    Environment = None  # type: ignore[assignment]
+    TestData = None  # type: ignore[assignment]
+    AVAILABLE_OFFLINE_STORES = None  # type: ignore[assignment]
+    AVAILABLE_ONLINE_STORES = None  # type: ignore[assignment]
+    OFFLINE_STORE_TO_PROVIDER_CONFIG = None  # type: ignore[assignment]
+    construct_test_environment = None  # type: ignore[assignment]
+    construct_universal_feature_views = None  # type: ignore[assignment]
+    construct_universal_test_data = None  # type: ignore[assignment]
+    FileDataSourceCreator = None  # type: ignore[assignment]
+    customer = None  # type: ignore[assignment]
+    driver = None  # type: ignore[assignment]
+    location = None  # type: ignore[assignment]
+
+try:
+    from tests.utils.auth_permissions_util import default_store
+except ModuleNotFoundError:
+    default_store = None  # type: ignore[assignment]
+
+try:
+    from tests.utils.ssl_certifcates_util import (
+        combine_trust_stores,
+        create_ca_trust_store,
+        generate_self_signed_cert,
+    )
+except ModuleNotFoundError:
+    combine_trust_stores = None  # type: ignore[assignment]
+    create_ca_trust_store = None  # type: ignore[assignment]
+    generate_self_signed_cert = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +111,7 @@ for logger_name in logging.root.manager.loggerDict:  # type: ignore
 
 
 def pytest_configure(config):
-    if platform in ["darwin", "windows"]:
+    if platform == "darwin" or platform.startswith("win"):
         multiprocessing.set_start_method("spawn", force=True)
     else:
         multiprocessing.set_start_method("fork")
@@ -247,6 +273,27 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     parameter should point to the same Python object (hence, we use _config_cache dict to store those objects).
     """
     if "environment" in metafunc.fixturenames:
+        if (
+            IntegrationTestRepoConfig is None
+            or AVAILABLE_OFFLINE_STORES is None
+            or AVAILABLE_ONLINE_STORES is None
+            or OFFLINE_STORE_TO_PROVIDER_CONFIG is None
+            or FileDataSourceCreator is None
+        ):
+            metafunc.parametrize(
+                "environment",
+                [
+                    pytest.param(
+                        None,
+                        marks=pytest.mark.skip(
+                            reason="Optional integration test dependencies are not installed"
+                        ),
+                    )
+                ],
+                indirect=True,
+                ids=["missing_optional_integration_deps"],
+            )
+            return
         markers = {m.name: m for m in metafunc.definition.own_markers}
         offline_stores = None
         if "universal_offline_stores" in markers:
