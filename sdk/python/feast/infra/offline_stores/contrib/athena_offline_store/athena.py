@@ -168,7 +168,7 @@ class AthenaOfflineStore(OfflineStore):
             end_date_str,
             timestamp_field,
             date_partition_column,
-            cast_style="raw",
+            cast_style="timestamp",
             quote_fields=False,
         )
 
