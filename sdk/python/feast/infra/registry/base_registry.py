@@ -805,6 +805,23 @@ class BaseRegistry(ABC):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         raise NotImplementedError
 
+    def on_worker_init(self):
+        """
+        Called after a worker process has been forked to reinitialize resources.
+
+        This method is critical for fork-safety when using multi-worker servers
+        like Gunicorn. Resources like database connection pools, threads, and
+        file handles are not fork-safe and must be reinitialized in child processes.
+
+        Subclasses should override this method to:
+        - Dispose and recreate database connection pools
+        - Stop and restart background threads
+        - Reinitialize any other fork-unsafe resources
+
+        This is a no-op by default for registries that don't need special handling.
+        """
+        pass
+
     # Lineage operations
     def get_registry_lineage(
         self,

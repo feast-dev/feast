@@ -696,6 +696,7 @@ if sys.platform != "win32":
 
     class FeastServeApplication(gunicorn.app.base.BaseApplication):
         def __init__(self, store: "feast.FeatureStore", **options):
+            self._store = store
             self._app = get_app(
                 store=store,
                 registry_ttl_sec=options["registry_ttl_sec"],
@@ -709,6 +710,24 @@ if sys.platform != "win32":
                     self.cfg.set(key.lower(), value)
 
             self.cfg.set("worker_class", "uvicorn_worker.UvicornWorker")
+
+            # Register post_fork hook for fork-safety with SQL Registry
+            # This ensures each worker reinitializes database connections
+            # and background threads after forking
+            self.cfg.set("post_fork", self._post_fork_hook)
+
+        def _post_fork_hook(self, server, worker):
+            """
+            Gunicorn post_fork hook called in each worker after fork.
+
+            This is critical for fork-safety when using SQL Registry backends.
+            SQLAlchemy connection pools and threading.Timer objects are not
+            fork-safe and must be reinitialized in each worker process.
+            """
+            logger.debug(f"Worker {worker.pid} initializing after fork")
+            if hasattr(self._store, "registry") and self._store.registry is not None:
+                self._store.registry.on_worker_init()
+                logger.debug(f"Worker {worker.pid} registry reinitialized")
 
         def load(self):
             return self._app

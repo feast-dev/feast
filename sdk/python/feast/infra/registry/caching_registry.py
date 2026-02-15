@@ -487,3 +487,29 @@ class CachingRegistry(BaseRegistry):
 
     def _exit_handler(self):
         self.registry_refresh_thread.cancel()
+
+    def on_worker_init(self):
+        """
+        Called after a worker process has been forked to reinitialize resources.
+
+        For CachingRegistry, this method:
+        1. Cancels any inherited refresh thread from the parent process
+        2. Restarts the refresh thread if cache_mode is "thread"
+
+        This ensures each worker has its own independent refresh thread.
+        """
+        # Cancel any inherited timer from parent process
+        if hasattr(self, "registry_refresh_thread") and self.registry_refresh_thread:
+            try:
+                self.registry_refresh_thread.cancel()
+            except Exception:
+                pass  # Timer may already be invalid after fork
+
+        # Restart refresh thread if using thread cache mode
+        if self.cache_mode == "thread":
+            cache_ttl_seconds = int(self.cached_registry_proto_ttl.total_seconds())
+            if cache_ttl_seconds > 0:
+                self._start_thread_async_refresh(cache_ttl_seconds)
+                logger.debug(
+                    "CachingRegistry refresh thread restarted after fork"
+                )
