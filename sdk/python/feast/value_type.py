@@ -67,6 +67,10 @@ class ValueType(enum.Enum):
     UNIX_TIMESTAMP_SET = 29
     PDF_BYTES = 30
     IMAGE_BYTES = 31
+    JSON = 32
+    JSON_LIST = 33
+    STRUCT = 34
+    STRUCT_LIST = 35
 
 
 ListType = Union[
