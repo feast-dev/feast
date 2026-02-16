@@ -91,13 +91,12 @@ See [Creating a pull request from a fork](https://docs.github.com/en/github/coll
 
 ### Pre-commit Hooks
 Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format the codebase on commit:
-1. Ensure that you have Python (3.7 and above) with `pip`, installed.
-2. Install `pre-commit` with `pip` &amp; install pre-push hooks
+1. Ensure that you have Python (3.10 and above) with [uv](https://docs.astral.sh/uv/) installed.
+2. Install `pre-commit` and hooks:
 ```sh
-pip install pre-commit
-pre-commit install --hook-type pre-commit --hook-type pre-push
+make install-precommit
 ```
-3. On push, the pre-commit hook will run. This runs `make format` and `make lint`.
+3. On commit, the pre-commit hook will run. This runs `make format` and `make lint`.
 
 ### Signing off commits
 > :warning: Warning: using the default integrations with IDEs like VSCode or IntelliJ will not sign commits.
@@ -351,18 +350,18 @@ You can run `make test-python-integration-container` to run tests against the co
 
 ### Contrib integration tests
 #### (Contrib) Running tests for Spark offline store
-You can run `make test-python-universal-spark` to run all tests against the Spark offline store. (Note: you'll have to run `pip install -e ".[dev]"` first).
+You can run `make test-python-universal-spark` to run all tests against the Spark offline store. (Note: you'll have to run `make install-python-dependencies-dev` first).
 
 Not all tests are passing yet
 
 #### (Contrib) Running tests for Trino offline store
-You can run `make test-python-universal-trino` to run all tests against the Trino offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
+You can run `make test-python-universal-trino` to run all tests against the Trino offline store. (Note: you'll have to run `make install-python-dependencies-dev` first)
 
 #### (Contrib) Running tests for Postgres offline store
-You can run `test-python-universal-postgres-offline` to run all tests against the Postgres offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
+You can run `test-python-universal-postgres-offline` to run all tests against the Postgres offline store. (Note: you'll have to run `make install-python-dependencies-dev` first)
 
 #### (Contrib) Running tests for Postgres online store
-You can run `test-python-universal-postgres-online` to run all tests against the Postgres offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
+You can run `test-python-universal-postgres-online` to run all tests against the Postgres offline store. (Note: you'll have to run `make install-python-dependencies-dev` first)
 
 #### (Contrib) Running tests for HBase online store
 TODO

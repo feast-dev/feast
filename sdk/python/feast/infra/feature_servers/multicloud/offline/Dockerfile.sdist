@@ -131,7 +131,7 @@ RUN source /tmp/hermeto.env && \
 # This section only necessary when building from local feast source ... e.g. ".[minimal]"
 ########################
 COPY --chown=default .git ${APP_ROOT}/src/.git
-COPY --chown=default setup.py pyproject.toml README.md Makefile ${APP_ROOT}/src/
+COPY --chown=default pyproject.toml README.md Makefile ${APP_ROOT}/src/
 COPY --chown=default protos ${APP_ROOT}/src/protos
 COPY --chown=default ui ${APP_ROOT}/src/ui
 COPY --chown=default sdk/python ${APP_ROOT}/src/sdk/python

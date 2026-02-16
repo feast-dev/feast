@@ -230,6 +230,7 @@ requires = [
   "sphinx!=4.0.0",
   "wheel>=0.46.2",
 ]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = {find = {where = ["sdk/python"], exclude = ["java", "infra", "sdk/python/tests", "ui"]}}
