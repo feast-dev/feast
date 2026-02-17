@@ -1319,6 +1319,12 @@ def pa_to_redshift_value_type(pa_type: "pyarrow.DataType") -> str:
     if pa_type_as_str.startswith("map<"):
         return "super"
 
+    if pa_type_as_str == "large_string":
+        return "super"
+
+    if pa_type_as_str.startswith("struct<"):
+        return "super"
+
     # We have to take into account how arrow types map to parquet types as well.
     # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
     # Other mappings have also been adjusted accordingly.
@@ -1635,6 +1641,18 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
 
     if pa_type_as_str.startswith("python_values_to_proto_values"):
         return pa_type_as_str
+
+    if pa_type_as_str.startswith("list"):
+        return "array<string>"
+
+    if pa_type_as_str.startswith("map<"):
+        return "string"
+
+    if pa_type_as_str == "large_string":
+        return "string"
+
+    if pa_type_as_str.startswith("struct<"):
+        return "string"
 
     # We have to take into account how arrow types map to parquet types as well.
     # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.

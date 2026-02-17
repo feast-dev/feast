@@ -69,6 +69,15 @@ def pa_to_trino_value_type(pa_type_as_str: str) -> str:
     if pa_type_as_str.startswith("decimal"):
         return trino_type.format(pa_type_as_str)
 
+    if pa_type_as_str.startswith("map<"):
+        return trino_type.format("varchar")
+
+    if pa_type_as_str == "large_string":
+        return trino_type.format("varchar")
+
+    if pa_type_as_str.startswith("struct<"):
+        return trino_type.format("varchar")
+
     type_map = {
         "null": "null",
         "bool": "boolean",
