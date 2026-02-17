@@ -57,6 +57,8 @@ message ValueType {
     TIME_UUID = 31;
     UUID_LIST = 32;
     TIME_UUID_LIST = 33;
+    UUID_SET = 34;
+    TIME_UUID_SET = 35;
   }
 }
 
@@ -96,6 +98,8 @@ message Value {
     string time_uuid_val = 31;
     StringList uuid_list_val = 32;
     StringList time_uuid_list_val = 33;
+    StringSet uuid_set_val = 34;
+    StringSet time_uuid_set_val = 35;
   }
 }
 

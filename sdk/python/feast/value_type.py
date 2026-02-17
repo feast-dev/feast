@@ -69,8 +69,10 @@ class ValueType(enum.Enum):
     TIME_UUID = 31
     UUID_LIST = 32
     TIME_UUID_LIST = 33
-    PDF_BYTES = 34
-    IMAGE_BYTES = 35
+    UUID_SET = 34
+    TIME_UUID_SET = 35
+    PDF_BYTES = 36
+    IMAGE_BYTES = 37
 
 
 ListType = Union[

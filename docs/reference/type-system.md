@@ -24,6 +24,8 @@ Feast supports the following data types:
 | `Bytes` | `bytes` | Binary data |
 | `Bool` | `bool` | Boolean value |
 | `UnixTimestamp` | `datetime` | Unix timestamp (nullable) |
+| `Uuid` | `uuid.UUID` | UUID (any version) |
+| `TimeUuid` | `uuid.UUID` | Time-based UUID (version 1) |
 
 ### Array Types
 
@@ -39,6 +41,8 @@ All primitive types have corresponding array (list) types:
 | `Array(Bytes)` | `List[bytes]` | List of binary data |
 | `Array(Bool)` | `List[bool]` | List of booleans |
 | `Array(UnixTimestamp)` | `List[datetime]` | List of timestamps |
+| `Array(Uuid)` | `List[uuid.UUID]` | List of UUIDs |
+| `Array(TimeUuid)` | `List[uuid.UUID]` | List of time-based UUIDs |
 
 ### Set Types
 
@@ -54,6 +58,8 @@ All primitive types (except Map) have corresponding set types for storing unique
 | `Set(Bytes)` | `Set[bytes]` | Set of unique binary data |
 | `Set(Bool)` | `Set[bool]` | Set of unique booleans |
 | `Set(UnixTimestamp)` | `Set[datetime]` | Set of unique timestamps |
+| `Set(Uuid)` | `Set[uuid.UUID]` | Set of unique UUIDs |
+| `Set(TimeUuid)` | `Set[uuid.UUID]` | Set of unique time-based UUIDs |
 
 **Note:** Set types automatically remove duplicate values. When converting from lists or other iterables to sets, duplicates are eliminated.
 
@@ -77,7 +83,7 @@ from datetime import timedelta
 from feast import Entity, FeatureView, Field, FileSource
 from feast.types import (
     Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp,
-    Array, Set, Map
+    Uuid, TimeUuid, Array, Set, Map
 )
 
 # Define a data source
@@ -107,7 +113,9 @@ user_features = FeatureView(
         Field(name="profile_picture", dtype=Bytes),
         Field(name="is_active", dtype=Bool),
         Field(name="last_login", dtype=UnixTimestamp),
-        
+        Field(name="session_id", dtype=Uuid),
+        Field(name="event_id", dtype=TimeUuid),
+
         # Array types
         Field(name="daily_steps", dtype=Array(Int32)),
         Field(name="transaction_history", dtype=Array(Int64)),
@@ -117,13 +125,17 @@ user_features = FeatureView(
         Field(name="document_hashes", dtype=Array(Bytes)),
         Field(name="notification_settings", dtype=Array(Bool)),
         Field(name="login_timestamps", dtype=Array(UnixTimestamp)),
-        
+        Field(name="related_session_ids", dtype=Array(Uuid)),
+        Field(name="event_chain", dtype=Array(TimeUuid)),
+
         # Set types (unique values only)
         Field(name="visited_pages", dtype=Set(String)),
         Field(name="unique_categories", dtype=Set(Int32)),
         Field(name="tag_ids", dtype=Set(Int64)),
         Field(name="preferred_languages", dtype=Set(String)),
-        
+        Field(name="unique_device_ids", dtype=Set(Uuid)),
+        Field(name="unique_event_ids", dtype=Set(TimeUuid)),
+
         # Map types
         Field(name="user_preferences", dtype=Map),
         Field(name="metadata", dtype=Map),
@@ -149,6 +161,34 @@ unique_categories = {1, 2, 3, 2, 1}  # duplicates will be removed
 # Converting a list with duplicates to a set
 tag_list = [100, 200, 300, 100, 200]
 tag_ids = set(tag_list)  # {100, 200, 300}
+```
+
+### UUID Type Usage Examples
+
+UUID types store universally unique identifiers natively, with support for both random UUIDs and time-based UUIDs:
+
+```python
+import uuid
+
+# Random UUID (version 4) — use Uuid type
+session_id = uuid.uuid4()  # e.g., UUID('a8098c1a-f86e-11da-bd1a-00112444be1e')
+
+# Time-based UUID (version 1) — use TimeUuid type
+event_id = uuid.uuid1()  # e.g., UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')
+
+# UUID values are returned as uuid.UUID objects from get_online_features()
+response = store.get_online_features(
+    features=["user_features:session_id"],
+    entity_rows=[{"user_id": 1}],
+)
+result = response.to_dict()
+# result["session_id"][0] is a uuid.UUID object
+
+# UUID lists
+related_sessions = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
+
+# UUID sets (unique values)
+unique_devices = {uuid.uuid4(), uuid.uuid4()}
 ```
 
 ### Map Type Usage Examples

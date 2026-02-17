@@ -547,6 +547,55 @@ class TestUuidTypes:
         assert all(isinstance(r, uuid.UUID) for r in result)
         assert result == test_uuids
 
+    def test_uuid_set_roundtrip(self):
+        """UUID set -> proto -> set of uuid.UUID objects roundtrip."""
+        test_uuids = {uuid.uuid4(), uuid.uuid4(), uuid.uuid4()}
+        protos = python_values_to_proto_values([test_uuids], ValueType.UUID_SET)
+
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, set)
+        assert all(isinstance(r, uuid.UUID) for r in result)
+        assert result == test_uuids
+
+    def test_time_uuid_set_roundtrip(self):
+        """TIME_UUID set -> proto -> set of uuid.UUID objects roundtrip."""
+        test_uuids = {uuid.uuid1(), uuid.uuid1()}
+        protos = python_values_to_proto_values([test_uuids], ValueType.TIME_UUID_SET)
+
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, set)
+        assert all(isinstance(r, uuid.UUID) for r in result)
+        assert result == test_uuids
+
+    def test_uuid_object_set_roundtrip(self):
+        """uuid.UUID objects in set -> proto -> set of uuid.UUID roundtrip."""
+        test_uuids = {uuid.uuid4(), uuid.uuid4()}
+        protos = python_values_to_proto_values([test_uuids], ValueType.UUID_SET)
+
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, set)
+        assert result == test_uuids
+
+    def test_uuid_set_backward_compat_string_set_val(self):
+        """UUIDs stored as string_set_val (old format) still work with feature_type hint."""
+        from feast.protos.feast.types.Value_pb2 import StringSet
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        test_uuids = {uuid.uuid4(), uuid.uuid4()}
+        # Simulate old-format proto with string_set_val
+        proto = ProtoValue(string_set_val=StringSet(val=[str(u) for u in test_uuids]))
+
+        # Without feature_type, returns set of strings
+        result = feast_value_type_to_python_type(proto)
+        assert isinstance(result, set)
+        assert all(isinstance(r, str) for r in result)
+
+        # With feature_type hint, returns set of uuid.UUID
+        result = feast_value_type_to_python_type(proto, ValueType.UUID_SET)
+        assert isinstance(result, set)
+        assert all(isinstance(r, uuid.UUID) for r in result)
+        assert result == test_uuids
+
     def test_pg_uuid_type_mapping(self):
         """PostgreSQL uuid type maps to ValueType.UUID."""
         assert pg_type_to_feast_value_type("uuid") == ValueType.UUID
