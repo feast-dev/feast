@@ -176,6 +176,10 @@ This enables data scientists to easily impact the online feature retrieval path.
 5. Verify with `get_online_features` on dev branch that the transformation correctly outputs online features
 6. Submit a pull request to the staging / prod branches which impact production traffic
 
+{% hint style="info" %}
+**Note**: Transformation functions in On Demand Feature Views are optional. See the [\[Beta\] On demand feature views](../../reference/beta-on-demand-feature-view.md#optional-transformations) documentation for details on when transformations can be omitted.
+{% endhint %}
+
 ```python
 from feast import Field, RequestSource
 from feast.on_demand_feature_view import on_demand_feature_view

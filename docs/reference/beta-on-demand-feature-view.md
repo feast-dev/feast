@@ -39,6 +39,13 @@ Native Python mode supports transformations on singleton dictionaries by setting
 write transformation functions that operate on a single row at a time, making the code more intuitive and aligning with
 how data scientists typically think about data transformations.
 
+## Optional Transformations
+
+Transformation functions in On Demand Feature Views are optional. You can define an ODFV without a transformation function in the following scenarios:
+
+1. **When using aggregations**: Aggregations compute aggregate statistics and don't require a separate transformation function.
+2. **When materializing pre-transformed data**: If your data is already transformed by an external process, you can define an ODFV to serve those features without additional transformation logic.
+
 ## Aggregations
 
 On Demand Feature Views support aggregations that compute aggregate statistics over groups of rows. When using aggregations, data is grouped by entity columns (e.g., `driver_id`) and aggregated before being passed to the transformation function.
@@ -68,6 +75,37 @@ def driver_aggregated_stats(inputs):
 ```
 
 Aggregated columns are automatically named using the pattern `{function}_{column}` (e.g., `sum_trips`, `mean_rating`).
+
+#### Example: ODFV Without Transformation (Pre-transformed Data)
+
+When your data is already transformed by an external process, you can define an ODFV without a transformation function:
+
+```python
+from feast import Field, on_demand_feature_view
+from feast.types import Float64
+
+# Define an ODFV for pre-transformed features without a transformation function
+@on_demand_feature_view(
+    sources=[driver_hourly_stats_view],
+    schema=[
+        Field(name="conv_rate_adjusted", dtype=Float64),
+    ],
+    write_to_online_store=True,
+)
+def pre_transformed_conv_rate(inputs):
+    # No transformation logic - features are already transformed externally
+    pass
+```
+
+When materializing this ODFV, you can use `transform_on_write=False` to skip transformations:
+
+```python
+store.write_to_online_store(
+    feature_view_name="pre_transformed_conv_rate",
+    df=pre_transformed_data,
+    transform_on_write=False
+)
+```
 
 ## Example
 See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views.
