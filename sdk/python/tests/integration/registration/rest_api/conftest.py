@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -35,6 +36,44 @@ class FeastRestClient:
         params.setdefault("allow_cache", "false")
         url = self._build_url(endpoint)
         return requests.get(url, params=params, verify=False)
+
+
+def _wait_for_http_ready(route_url: str, timeout: int = 180, interval: int = 5) -> None:
+    """
+    Poll the HTTP endpoint until it returns a non-502 response.
+
+    After Pod/CR readiness is confirmed, the backend behind the ingress may
+    still be initializing.  This helper avoids the race condition where tests
+    start before the Feast server is ready, causing all requests to return 502.
+    """
+    health_url = f"{route_url}/api/v1/projects"
+    deadline = time.time() + timeout
+    last_status = None
+
+    print(
+        f"\n Waiting for HTTP endpoint to become ready (timeout={timeout}s): {health_url}"
+    )
+
+    while time.time() < deadline:
+        try:
+            resp = requests.get(health_url, timeout=10, verify=False)
+            last_status = resp.status_code
+            if resp.status_code != 502:
+                print(f" HTTP endpoint is ready (status={resp.status_code})")
+                return
+            print(
+                f" HTTP endpoint returned {resp.status_code}, retrying in {interval}s..."
+            )
+        except requests.exceptions.RequestException as exc:
+            last_status = str(exc)
+            print(f" HTTP request failed ({exc}), retrying in {interval}s...")
+
+        time.sleep(interval)
+
+    raise RuntimeError(
+        f"HTTP endpoint {health_url} did not become ready within {timeout}s "
+        f"(last status: {last_status})"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -141,6 +180,11 @@ def feast_rest_client():
             route_url = create_route(namespace, credit_scoring, service_name)
         if not route_url:
             raise RuntimeError("Route URL could not be fetched.")
+
+        # Wait for the HTTP endpoint to become ready before running tests.
+        # Pod/CR readiness does not guarantee the backend is serving traffic;
+        # the ingress may return 502 while the Feast server is still starting.
+        _wait_for_http_ready(route_url)
 
         print(f"\n Connected to Feast REST at: {route_url}")
         yield FeastRestClient(route_url)
