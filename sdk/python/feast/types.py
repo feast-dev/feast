@@ -208,9 +208,7 @@ class Set(ComplexFeastType):
 
     def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
         # Sets do not support MAP, UUID, or TimeUuid as base types
-        supported_set_types = [
-            t for t in SUPPORTED_BASE_TYPES if t not in (Map, Uuid, TimeUuid)
-        ]
+        supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t not in (Map,)]
         if base_type not in supported_set_types:
             raise ValueError(
                 f"Type {type(base_type)} is currently not supported as a base type for Set."
@@ -313,6 +311,8 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.TIME_UUID: TimeUuid,
     ValueType.UUID_LIST: Array(Uuid),
     ValueType.TIME_UUID_LIST: Array(TimeUuid),
+    ValueType.UUID_SET: Set(Uuid),
+    ValueType.TIME_UUID_SET: Set(TimeUuid),
 }
 
 FEAST_TYPES_TO_PYARROW_TYPES = {

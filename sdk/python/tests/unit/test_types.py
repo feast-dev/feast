@@ -60,6 +60,16 @@ def test_uuid_array_feast_type():
     assert from_value_type(array_time_uuid.to_value_type()) == array_time_uuid
 
 
+def test_uuid_set_feast_type():
+    set_uuid = Set(Uuid)
+    assert set_uuid.to_value_type() == ValueType.UUID_SET
+    assert from_value_type(set_uuid.to_value_type()) == set_uuid
+
+    set_time_uuid = Set(TimeUuid)
+    assert set_time_uuid.to_value_type() == ValueType.TIME_UUID_SET
+    assert from_value_type(set_time_uuid.to_value_type()) == set_time_uuid
+
+
 def test_all_value_types():
     for value in ValueType:
         # We do not support the NULL type.

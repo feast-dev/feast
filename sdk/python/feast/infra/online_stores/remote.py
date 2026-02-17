@@ -40,9 +40,11 @@ logger = logging.getLogger(__name__)
 
 
 def _json_safe(val: Any) -> Any:
-    """Convert uuid.UUID objects to strings for JSON serialization."""
+    """Convert uuid.UUID objects and sets to JSON-serializable form."""
     if isinstance(val, uuid_module.UUID):
         return str(val)
+    if isinstance(val, set):
+        return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
     if isinstance(val, list):
         return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
     return val

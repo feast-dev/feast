@@ -122,6 +122,14 @@ class OnlineResponse:
                         else v
                         for v in values
                     ]
+            elif isinstance(first_valid, set):
+                inner = next((e for e in first_valid if e is not None), None)
+                if isinstance(inner, uuid_module.UUID):
+                    result[key] = [
+                        [str(e) for e in v] if isinstance(v, set) else v for v in values
+                    ]
+                else:
+                    result[key] = [list(v) if isinstance(v, set) else v for v in values]
         return pa.Table.from_pydict(result)
 
     def to_tensor(

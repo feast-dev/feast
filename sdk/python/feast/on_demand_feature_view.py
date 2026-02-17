@@ -1177,6 +1177,9 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
             ValueType.UUID_LIST: [[uuid.uuid4(), uuid.uuid4()]],
             ValueType.TIME_UUID_LIST: [[uuid.uuid1(), uuid.uuid1()]],
+            # Set types
+            ValueType.UUID_SET: [{uuid.uuid4(), uuid.uuid4()}],
+            ValueType.TIME_UUID_SET: [{uuid.uuid1(), uuid.uuid1()}],
         }
 
     @staticmethod
