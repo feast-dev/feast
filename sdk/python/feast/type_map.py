@@ -402,10 +402,20 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "FLOAT_LIST": ValueType.FLOAT_LIST,
         "BOOL_LIST": ValueType.BOOL_LIST,
         "UNIX_TIMESTAMP_LIST": ValueType.UNIX_TIMESTAMP_LIST,
+        "BYTES_SET": ValueType.BYTES_SET,
+        "STRING_SET": ValueType.STRING_SET,
+        "INT32_SET": ValueType.INT32_SET,
+        "INT64_SET": ValueType.INT64_SET,
+        "DOUBLE_SET": ValueType.DOUBLE_SET,
+        "FLOAT_SET": ValueType.FLOAT_SET,
+        "BOOL_SET": ValueType.BOOL_SET,
+        "UNIX_TIMESTAMP_SET": ValueType.UNIX_TIMESTAMP_SET,
         "UUID": ValueType.UUID,
         "TIME_UUID": ValueType.TIME_UUID,
         "UUID_LIST": ValueType.UUID_LIST,
         "TIME_UUID_LIST": ValueType.TIME_UUID_LIST,
+        "UUID_SET": ValueType.UUID_SET,
+        "TIME_UUID_SET": ValueType.TIME_UUID_SET,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -1578,6 +1588,18 @@ def convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series:
         ValueType.STRING_LIST: object,
         ValueType.BYTES_LIST: object,
         ValueType.UNIX_TIMESTAMP_LIST: "datetime64[s]",
+        ValueType.UUID_LIST: object,
+        ValueType.TIME_UUID_LIST: object,
+        ValueType.BYTES_SET: object,
+        ValueType.STRING_SET: object,
+        ValueType.INT32_SET: np.int32,
+        ValueType.INT64_SET: np.int64,
+        ValueType.FLOAT_SET: np.float32,
+        ValueType.DOUBLE_SET: np.float64,
+        ValueType.BOOL_SET: np.bool_,
+        ValueType.UNIX_TIMESTAMP_SET: "datetime64[s]",
+        ValueType.UUID_SET: object,
+        ValueType.TIME_UUID_SET: object,
     }
 
     target_dtype = base_type_map.get(value_type, object)

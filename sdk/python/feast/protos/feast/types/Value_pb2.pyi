@@ -82,12 +82,12 @@ class ValueType(google.protobuf.message.Message):
         FLOAT_SET: ValueType._Enum.ValueType  # 27
         BOOL_SET: ValueType._Enum.ValueType  # 28
         UNIX_TIMESTAMP_SET: ValueType._Enum.ValueType  # 29
-        UUID: ValueType._Enum.ValueType  # 30
-        TIME_UUID: ValueType._Enum.ValueType  # 31
-        UUID_LIST: ValueType._Enum.ValueType  # 32
-        TIME_UUID_LIST: ValueType._Enum.ValueType  # 33
-        UUID_SET: ValueType._Enum.ValueType  # 34
-        TIME_UUID_SET: ValueType._Enum.ValueType  # 35
+        UUID: ValueType._Enum.ValueType  # 32
+        TIME_UUID: ValueType._Enum.ValueType  # 33
+        UUID_LIST: ValueType._Enum.ValueType  # 34
+        TIME_UUID_LIST: ValueType._Enum.ValueType  # 35
+        UUID_SET: ValueType._Enum.ValueType  # 36
+        TIME_UUID_SET: ValueType._Enum.ValueType  # 37
 
     class Enum(_Enum, metaclass=_EnumEnumTypeWrapper): ...
     INVALID: ValueType.Enum.ValueType  # 0
@@ -118,12 +118,12 @@ class ValueType(google.protobuf.message.Message):
     FLOAT_SET: ValueType.Enum.ValueType  # 27
     BOOL_SET: ValueType.Enum.ValueType  # 28
     UNIX_TIMESTAMP_SET: ValueType.Enum.ValueType  # 29
-    UUID: ValueType.Enum.ValueType  # 30
-    TIME_UUID: ValueType.Enum.ValueType  # 31
-    UUID_LIST: ValueType.Enum.ValueType  # 32
-    TIME_UUID_LIST: ValueType.Enum.ValueType  # 33
-    UUID_SET: ValueType.Enum.ValueType  # 34
-    TIME_UUID_SET: ValueType.Enum.ValueType  # 35
+    UUID: ValueType.Enum.ValueType  # 32
+    TIME_UUID: ValueType.Enum.ValueType  # 33
+    UUID_LIST: ValueType.Enum.ValueType  # 34
+    TIME_UUID_LIST: ValueType.Enum.ValueType  # 35
+    UUID_SET: ValueType.Enum.ValueType  # 36
+    TIME_UUID_SET: ValueType.Enum.ValueType  # 37
 
     def __init__(
         self,

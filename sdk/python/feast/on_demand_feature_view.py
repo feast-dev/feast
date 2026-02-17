@@ -1109,6 +1109,14 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.UUID_LIST: [[uuid.uuid4(), uuid.uuid4()]],
             ValueType.TIME_UUID_LIST: [[uuid.uuid1(), uuid.uuid1()]],
             # Set types
+            ValueType.BYTES_SET: [{b"hello world", b"foo bar"}],
+            ValueType.STRING_SET: [{"hello world", "foo bar"}],
+            ValueType.INT32_SET: [{1, 2}],
+            ValueType.INT64_SET: [{1, 2}],
+            ValueType.DOUBLE_SET: [{1.0, 2.0}],
+            ValueType.FLOAT_SET: [{1.0, 2.0}],
+            ValueType.BOOL_SET: [{True, False}],
+            ValueType.UNIX_TIMESTAMP_SET: [{_utc_now()}],
             ValueType.UUID_SET: [{uuid.uuid4(), uuid.uuid4()}],
             ValueType.TIME_UUID_SET: [{uuid.uuid1(), uuid.uuid1()}],
         }

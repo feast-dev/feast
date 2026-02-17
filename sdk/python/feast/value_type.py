@@ -65,14 +65,14 @@ class ValueType(enum.Enum):
     FLOAT_SET = 27
     BOOL_SET = 28
     UNIX_TIMESTAMP_SET = 29
-    UUID = 30
-    TIME_UUID = 31
-    UUID_LIST = 32
-    TIME_UUID_LIST = 33
-    UUID_SET = 34
-    TIME_UUID_SET = 35
-    PDF_BYTES = 36
-    IMAGE_BYTES = 37
+    PDF_BYTES = 30
+    IMAGE_BYTES = 31
+    UUID = 32
+    TIME_UUID = 33
+    UUID_LIST = 34
+    TIME_UUID_LIST = 35
+    UUID_SET = 36
+    TIME_UUID_SET = 37
 
 
 ListType = Union[
