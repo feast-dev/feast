@@ -1,9 +1,11 @@
 import os
+import platform
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from feast import Entity, FeatureView, Field, FileSource
 from feast.driver_test_data import (
@@ -17,6 +19,10 @@ from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.feature_records import validate_online_features
 
 
+@pytest.mark.skipif(
+    platform.system() == "Darwin" and os.environ.get("CI") == "true",
+    reason="Skip on macOS CI due to Ray/uv subprocess compatibility issues",
+)
 def test_e2e_local() -> None:
     """
     Tests the end-to-end workflow of apply, materialize, and online retrieval.

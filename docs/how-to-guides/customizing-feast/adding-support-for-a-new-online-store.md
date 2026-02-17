@@ -384,13 +384,12 @@ test-python-universal-cassandra:
 
 ### 5. Add Dependencies
 
-Add any dependencies for your online store to our `sdk/python/setup.py` under a new `<ONLINE_STORE>_REQUIRED` list with the packages and add it to the setup script so that if your online store is needed, users can install the necessary python packages. These packages should be defined as extras so that they are not installed by users by default.
+Add any dependencies for your online store to `pyproject.toml` under `[project.optional-dependencies]` as a new extra (e.g. `<online_store> = ["package1>=1.0", "package2"]`). These packages should be defined as extras so that they are not installed by users by default.
 
-* You will need to regenerate our requirements files. To do this, create separate pyenv environments for python 3.8, 3.9, and 3.10. In each environment, run the following commands:
+* You will need to regenerate our requirements lock files:
 
 ```
-export PYTHON=<version>
-make lock-python-ci-dependencies
+make lock-python-dependencies-all
 ```
 
 ### 6. Add Documentation

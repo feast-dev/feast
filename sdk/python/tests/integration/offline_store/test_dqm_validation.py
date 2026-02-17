@@ -290,7 +290,7 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
         local_repo.apply(
             [customer(), feature_views.customer, feature_service, reference]
         )
-        local_repo._registry.apply_saved_dataset(saved_dataset, local_repo.project)
+        local_repo.registry.apply_saved_dataset(saved_dataset, local_repo.project)
         validate_args = [
             "validate",
             "--feature-service",

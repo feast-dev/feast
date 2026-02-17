@@ -44,12 +44,13 @@ func (feast *FeastServices) getServiceFeatureStoreYaml() ([]byte, error) {
 }
 
 func (feast *FeastServices) getServiceRepoConfig() (RepoConfig, error) {
-	return getServiceRepoConfig(feast.Handler.FeatureStore, feast.extractConfigFromSecret)
+	return getServiceRepoConfig(feast.Handler.FeatureStore, feast.extractConfigFromSecret, feast.extractConfigFromConfigMap)
 }
 
 func getServiceRepoConfig(
 	featureStore *feastdevv1.FeatureStore,
-	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
+	configMapExtractionFunc func(configMapRef string, configMapKey string) (map[string]interface{}, error)) (RepoConfig, error) {
 	repoConfig, err := getBaseServiceRepoConfig(featureStore, secretExtractionFunc)
 	if err != nil {
 		return repoConfig, err
@@ -75,6 +76,13 @@ func getServiceRepoConfig(
 			if err != nil {
 				return repoConfig, err
 			}
+		}
+	}
+
+	if appliedSpec.BatchEngine != nil {
+		err := setRepoConfigBatchEngine(appliedSpec.BatchEngine, configMapExtractionFunc, &repoConfig)
+		if err != nil {
+			return repoConfig, err
 		}
 	}
 
@@ -248,6 +256,34 @@ func setRepoConfigOffline(services *feastdevv1.FeatureStoreServices, secretExtra
 	return nil
 }
 
+func setRepoConfigBatchEngine(
+	batchEngineConfig *feastdevv1.BatchEngineConfig,
+	configMapExtractionFunc func(configMapRef string, configMapKey string) (map[string]interface{}, error),
+	repoConfig *RepoConfig) error {
+	if batchEngineConfig.ConfigMapRef == nil {
+		return nil
+	}
+	configMapKey := batchEngineConfig.ConfigMapKey
+	if configMapKey == "" {
+		configMapKey = "config"
+	}
+	config, err := configMapExtractionFunc(batchEngineConfig.ConfigMapRef.Name, configMapKey)
+	if err != nil {
+		return err
+	}
+	// Extract type from config
+	engineType, ok := config["type"].(string)
+	if !ok {
+		return fmt.Errorf("batch engine config must contain 'type' field")
+	}
+	delete(config, "type")
+	repoConfig.BatchEngine = &ComputeEngineConfig{
+		Type:       engineType,
+		Parameters: config,
+	}
+	return nil
+}
+
 func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) ([]byte, error) {
 	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, secretExtractionFunc, feast)
 	if err != nil {
@@ -386,6 +422,26 @@ func (feast *FeastServices) extractConfigFromSecret(storeType string, secretRef 
 	}
 
 	return parameters, nil
+}
+
+func (feast *FeastServices) extractConfigFromConfigMap(configMapRef string, configMapKey string) (map[string]interface{}, error) {
+	configMap, err := feast.getConfigMap(configMapRef)
+	if err != nil {
+		return nil, err
+	}
+	if configMapKey == "" {
+		configMapKey = "config"
+	}
+	val, exists := configMap.Data[configMapKey]
+	if !exists {
+		return nil, fmt.Errorf("configmap key %s doesn't exist in configmap %s", configMapKey, configMapRef)
+	}
+	var config map[string]interface{}
+	err = yaml.Unmarshal([]byte(val), &config)
+	if err != nil {
+		return nil, fmt.Errorf("configmap %s contains invalid YAML in key %s", configMapRef, configMapKey)
+	}
+	return config, nil
 }
 
 func mergeStructWithDBParametersMap(parametersMap *map[string]interface{}, s interface{}) error {

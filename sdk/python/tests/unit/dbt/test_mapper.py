@@ -235,7 +235,7 @@ class TestDbtToFeastMapper:
         fv = mapper.create_feature_view(
             model=sample_model,
             source=source,
-            entity_column="driver_id",
+            entity_columns="driver_id",
         )
 
         assert fv.name == "driver_stats"
@@ -262,7 +262,7 @@ class TestDbtToFeastMapper:
         fv = mapper.create_feature_view(
             model=sample_model,
             source=source,
-            entity_column="driver_id",
+            entity_columns="driver_id",
             exclude_columns=["is_active"],
         )
 
@@ -276,14 +276,15 @@ class TestDbtToFeastMapper:
         mapper = DbtToFeastMapper(data_source_type="bigquery")
         result = mapper.create_all_from_model(
             model=sample_model,
-            entity_column="driver_id",
+            entity_columns="driver_id",
         )
 
-        assert "entity" in result
+        assert "entities" in result
         assert "data_source" in result
         assert "feature_view" in result
 
-        assert result["entity"].name == "driver_id"
+        assert len(result["entities"]) == 1
+        assert result["entities"][0].name == "driver_id"
         assert result["data_source"].name == "driver_stats_source"
         assert result["feature_view"].name == "driver_stats"
 
@@ -294,7 +295,7 @@ class TestDbtToFeastMapper:
         fv = mapper.create_feature_view(
             model=sample_model,
             source=source,
-            entity_column="driver_id",
+            entity_columns="driver_id",
         )
 
         # Find specific features and check types

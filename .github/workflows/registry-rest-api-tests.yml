@@ -145,8 +145,7 @@ jobs:
       - name: Setup and Run Registry Rest API tests
         run: |
           echo "Running Registry REST API tests..."
-          cd sdk/python
-          pytest tests/integration/registration/rest_api/test_registry_rest_api.py --integration -s
+          uv run pytest sdk/python/tests/integration/registration/rest_api/test_registry_rest_api.py --integration -s
 
       - name: Clean up docker images
         if: always()

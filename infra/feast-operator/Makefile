@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.59.0
+VERSION ?= 0.60.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -116,7 +116,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: build-installer vet lint envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v test/e2e | grep -v test/data-source-types | grep -v test/upgrade | grep -v test/previous-version) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --use-deprecated-gcs=false)" go test $$(go list ./... | grep -v test/e2e | grep -v test/data-source-types | grep -v test/upgrade | grep -v test/previous-version) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
@@ -131,10 +131,10 @@ test-upgrade:
 test-previous-version:
 	go test -timeout 60m ./test/previous-version/ -v -ginkgo.v
 
-# Requires python3
+# Requires python3 with feast installed (use uv run in CI)
 .PHONY: test-datasources
 test-datasources:
-	python3 test/data-source-types/data-source-types.py
+	cd ../.. && uv run python infra/feast-operator/test/data-source-types/data-source-types.py
 	go test ./test/data-source-types/
 
 .PHONY: lint

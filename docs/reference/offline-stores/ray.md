@@ -27,7 +27,7 @@ The template provides a complete working example with sample datasets and demons
 The Ray offline store provides:
 - Ray-based data reading from file sources (Parquet, CSV, etc.)
 - Support for local, remote, and KubeRay (Kubernetes-managed) clusters
-- Integration with various storage backends (local files, S3, GCS, HDFS)
+- Integration with various storage backends (local files, S3, GCS, HDFS, Azure Blob)
 - Efficient data filtering and column selection
 - Timestamp-based data processing with timezone awareness
 - Enterprise-ready KubeRay cluster support via CodeFlare SDK
@@ -463,6 +463,11 @@ job.persist(gcs_storage, allow_overwrite=True)
 # HDFS
 hdfs_storage = SavedDatasetFileStorage(path="hdfs://namenode:8020/datasets/driver_features.parquet")
 job.persist(hdfs_storage, allow_overwrite=True)
+
+# Azure Blob Storage / Azure Data Lake Storage Gen2
+# By setting AZURE_STORAGE_ANON=False it uses DefaultAzureCredential
+az_storage = SavedDatasetFileStorage(path="abfss://container@stc_account.dfs.core.windows.net/datasets/driver_features.parquet")
+job.persist(az_storage, allow_overwrite=True)
 ```
 
 ### Using Ray Cluster

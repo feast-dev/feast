@@ -1208,7 +1208,7 @@ def test_milvus_lite_retrieve_online_documents_v2() -> None:
         )
         documents_df = pd.DataFrame(
             {
-                "item_id": [str(i) for i in range(n)],
+                "item_id": [i for i in range(n)],
                 "author_id": [f"author_{i}" for i in range(n)],
                 "vector": [
                     np.random.random(

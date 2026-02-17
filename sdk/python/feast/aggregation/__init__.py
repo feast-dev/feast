@@ -3,7 +3,7 @@ Aggregation module for Feast.
 """
 
 from datetime import timedelta
-from typing import Optional
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from google.protobuf.duration_pb2 import Duration
 from typeguard import typechecked
@@ -97,4 +97,18 @@ class Aggregation:
         return True
 
 
-__all__ = ["Aggregation"]
+def aggregation_specs_to_agg_ops(
+    agg_specs: Iterable[Any],
+    *,
+    time_window_unsupported_error_message: str,
+) -> Dict[str, Tuple[str, str]]:
+    agg_ops: Dict[str, Tuple[str, str]] = {}
+    for agg in agg_specs:
+        if getattr(agg, "time_window", None) is not None:
+            raise ValueError(time_window_unsupported_error_message)
+        alias = f"{agg.function}_{agg.column}"
+        agg_ops[alias] = (agg.function, agg.column)
+    return agg_ops
+
+
+__all__ = ["Aggregation", "aggregation_specs_to_agg_ops"]

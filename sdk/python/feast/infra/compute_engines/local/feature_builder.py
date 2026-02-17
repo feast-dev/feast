@@ -1,5 +1,6 @@
 from typing import Union
 
+from feast.aggregation import aggregation_specs_to_agg_ops
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.backends.base import DataFrameBackend
@@ -54,7 +55,12 @@ class LocalFeatureBuilder(FeatureBuilder):
 
     def build_aggregation_node(self, view, input_node):
         agg_specs = view.aggregations
-        agg_ops = self._get_aggregate_operations(agg_specs)
+        agg_ops = aggregation_specs_to_agg_ops(
+            agg_specs,
+            time_window_unsupported_error_message=(
+                "Time window aggregation is not supported in the local compute engine."
+            ),
+        )
         group_by_keys = view.entities
         node = LocalAggregationNode(
             "agg", self.backend, group_by_keys, agg_ops, inputs=[input_node]
@@ -93,15 +99,3 @@ class LocalFeatureBuilder(FeatureBuilder):
         node = LocalOutputNode("output", self.dag_root.view, inputs=[input_node])
         self.nodes.append(node)
         return node
-
-    @staticmethod
-    def _get_aggregate_operations(agg_specs):
-        agg_ops = {}
-        for agg in agg_specs:
-            if agg.time_window is not None:
-                raise ValueError(
-                    "Time window aggregation is not supported in the local compute engine."
-                )
-            alias = f"{agg.function}_{agg.column}"
-            agg_ops[alias] = (agg.function, agg.column)
-        return agg_ops

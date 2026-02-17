@@ -25,6 +25,7 @@ import pyarrow
 from dateutil.tz import tzlocal
 from google.protobuf.timestamp_pb2 import Timestamp
 
+from feast.aggregation import aggregation_specs_to_agg_ops
 from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.entity import Entity
 from feast.errors import (
@@ -574,25 +575,6 @@ def construct_response_feature_vector(
     )
 
 
-def _get_aggregate_operations(agg_specs) -> dict:
-    """
-    Convert Aggregation specs to agg_ops format for PandasBackend.
-
-    Reused from LocalFeatureBuilder logic.
-    TODO: This logic is duplicated from feast.infra.compute_engines.local.feature_builder.LocalFeatureBuilder._get_aggregate_operations().
-    Consider refactoring to a shared utility module in the future.
-    """
-    agg_ops = {}
-    for agg in agg_specs:
-        if agg.time_window is not None:
-            raise ValueError(
-                "Time window aggregation is not supported in online serving."
-            )
-        alias = f"{agg.function}_{agg.column}"
-        agg_ops[alias] = (agg.function, agg.column)
-    return agg_ops
-
-
 def _apply_aggregations_to_response(
     response_data: Union[pyarrow.Table, Dict[str, List[Any]]],
     aggregations,
@@ -628,7 +610,12 @@ def _apply_aggregations_to_response(
         return response_data
 
     # Convert aggregations to agg_ops format
-    agg_ops = _get_aggregate_operations(aggregations)
+    agg_ops = aggregation_specs_to_agg_ops(
+        aggregations,
+        time_window_unsupported_error_message=(
+            "Time window aggregation is not supported in online serving."
+        ),
+    )
 
     # Apply aggregations using PandasBackend
     if group_keys:
@@ -1120,6 +1107,15 @@ def _get_features(
 
     _feature_refs = []
     if isinstance(_features, FeatureService):
+        # Create cache key for feature service resolution
+        cache_key = f"{_features.name}:{project}:{hash(tuple(str(fv) for fv in _features.feature_view_projections))}"
+
+        # Check cache first if caching is enabled and available
+        if allow_cache and hasattr(registry, "_feature_service_cache"):
+            if cache_key in registry._feature_service_cache:
+                return registry._feature_service_cache[cache_key]
+
+        # Resolve feature service from registry
         feature_service_from_registry = registry.get_feature_service(
             _features.name, project, allow_cache
         )
@@ -1129,10 +1125,16 @@ def _get_features(
                 "inconsistent with the version from the registry. Potentially a newer version "
                 "of the FeatureService has been applied to the registry."
             )
+
+        # Build feature reference list
         for projection in feature_service_from_registry.feature_view_projections:
             _feature_refs.extend(
                 [f"{projection.name_to_use()}:{f.name}" for f in projection.features]
             )
+
+        # Cache the result if caching is enabled and available
+        if allow_cache and hasattr(registry, "_feature_service_cache"):
+            registry._feature_service_cache[cache_key] = _feature_refs
     else:
         assert isinstance(_features, list)
         _feature_refs = _features

@@ -1,0 +1,4 @@
+product_id,event_timestamp,view_count,purchase_count,rating_avg
+prod_001,2024-01-01 00:00:00,150,25,4.5
+prod_002,2024-01-01 00:00:00,200,30,4.2
+prod_003,2024-01-01 00:00:00,100,15,4.8

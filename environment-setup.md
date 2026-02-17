@@ -1,22 +1,15 @@
-1. install anaconda, install docker
-2. create an environment for feast, selecting python 3.9. Activate the environment:
+1. Install Docker and [uv](https://docs.astral.sh/uv/getting-started/installation/)
+2. Create a virtual environment and activate it:
 ```bash
-conda create --name feast python=3.9
-conda activate feast
+uv venv --python 3.11
+source .venv/bin/activate
 ```
-3. install dependencies:
+3. Install dependencies:
 ```bash
-pip install pip-tools
-brew install mysql
-brew install xz protobuf openssl zlib
-pip install cryptography -U
-conda install protobuf
-conda install pymssql
-pip install -e ".[dev]"
-make install-python-ci-dependencies PYTHON=3.9
+make install-python-dependencies-dev
 ```
-4. start the docker daemon
-5. run unit tests:
+4. Start the Docker daemon
+5. Run unit tests:
 ```bash
 make test-python-unit
 ```

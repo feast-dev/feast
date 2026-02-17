@@ -42,8 +42,7 @@ type GCSRegistryStore struct {
 // NewGCSRegistryStore creates a GCSRegistryStore with the given configuration.
 func NewGCSRegistryStore(config *RegistryConfig, repoPath string) *GCSRegistryStore {
 	var rs GCSRegistryStore
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {

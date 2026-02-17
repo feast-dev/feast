@@ -685,9 +685,9 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             sorted_entities = sorted(
                 entities_dict.values(),
-                key=lambda x: x["vector_distance"]
-                if embedding is not None
-                else x["text_rank"],
+                key=lambda x: (
+                    x["vector_distance"] if embedding is not None else x["text_rank"]
+                ),
                 reverse=(embedding is None),
             )[:top_k]
 
