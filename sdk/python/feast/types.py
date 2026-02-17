@@ -207,7 +207,7 @@ class Set(ComplexFeastType):
     base_type: Union[PrimitiveFeastType, ComplexFeastType]
 
     def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
-        # Sets do not support MAP, UUID, or TimeUuid as base types
+        # Sets do not support MAP as a base type
         supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t not in (Map,)]
         if base_type not in supported_set_types:
             raise ValueError(
