@@ -151,3 +151,112 @@ def test_reserialize_entity_v2_key_to_v3():
         join_keys=["user"],
         entity_values=[ValueProto(int64_val=int(2**15))],
     )
+
+
+def test_single_entity_fast_path():
+    """Test that single entity optimization works correctly."""
+    entity_key_proto = EntityKeyProto(
+        join_keys=["user_id"],
+        entity_values=[ValueProto(string_val="test_user")],
+    )
+
+    serialized_key = serialize_entity_key(
+        entity_key_proto, entity_key_serialization_version=3
+    )
+    deserialized_key = deserialize_entity_key(
+        serialized_key, entity_key_serialization_version=3
+    )
+
+    assert deserialized_key == entity_key_proto
+
+
+def test_empty_entity_key():
+    """Test handling of empty entity keys."""
+    entity_key_proto = EntityKeyProto(join_keys=[], entity_values=[])
+
+    serialized_key = serialize_entity_key(
+        entity_key_proto, entity_key_serialization_version=3
+    )
+    deserialized_key = deserialize_entity_key(
+        serialized_key, entity_key_serialization_version=3
+    )
+
+    assert deserialized_key == entity_key_proto
+
+
+def test_binary_format_deterministic():
+    """Test that serialization is deterministic (same input produces same output)."""
+    entity_key_proto = EntityKeyProto(
+        join_keys=["customer", "user", "session"],
+        entity_values=[
+            ValueProto(string_val="cust1"),
+            ValueProto(string_val="user1"),
+            ValueProto(string_val="sess1"),
+        ],
+    )
+
+    # Serialize the same entity multiple times
+    serializations = []
+    for _ in range(5):
+        serialized = serialize_entity_key(
+            entity_key_proto, entity_key_serialization_version=3
+        )
+        serializations.append(serialized)
+
+    # All serializations should be identical
+    for s in serializations[1:]:
+        assert s == serializations[0], "Serialization is not deterministic"
+
+
+def test_optimization_preserves_sorting():
+    """Test that optimizations preserve the sorting behavior for multi-entity keys."""
+    # Create entity key with unsorted keys
+    entity_key_proto = EntityKeyProto(
+        join_keys=["zebra", "alpha", "beta"],
+        entity_values=[
+            ValueProto(string_val="z_val"),
+            ValueProto(string_val="a_val"),
+            ValueProto(string_val="b_val"),
+        ],
+    )
+
+    serialized = serialize_entity_key(
+        entity_key_proto, entity_key_serialization_version=3
+    )
+    deserialized = deserialize_entity_key(
+        serialized, entity_key_serialization_version=3
+    )
+
+    # Keys should be sorted in the result
+    expected_sorted_keys = ["alpha", "beta", "zebra"]
+    expected_sorted_values = ["a_val", "b_val", "z_val"]
+
+    assert deserialized.join_keys == expected_sorted_keys
+    assert [v.string_val for v in deserialized.entity_values] == expected_sorted_values
+
+
+def test_performance_bounds_single_entity():
+    """Regression test to ensure single entity performance meets minimum bounds."""
+    import time
+
+    entity_key = EntityKeyProto(
+        join_keys=["user_id"], entity_values=[ValueProto(string_val="user123")]
+    )
+
+    # Measure serialization time for 1000 operations
+    start = time.perf_counter()
+    for _ in range(1000):
+        serialize_entity_key(entity_key, entity_key_serialization_version=3)
+    serialize_time = time.perf_counter() - start
+
+    # Measure deserialization time
+    serialized = serialize_entity_key(entity_key, entity_key_serialization_version=3)
+    start = time.perf_counter()
+    for _ in range(1000):
+        deserialize_entity_key(serialized, entity_key_serialization_version=3)
+    deserialize_time = time.perf_counter() - start
+
+    # Conservative performance bounds (should be much faster with optimizations)
+    # 1000 operations should complete in < 20ms each for serialization and deserialization
+    assert serialize_time < 0.02, f"Serialization too slow: {serialize_time:.4f}s"
+    assert deserialize_time < 0.02, f"Deserialization too slow: {deserialize_time:.4f}s"
