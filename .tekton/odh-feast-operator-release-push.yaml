@@ -23,7 +23,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/opendatahub/feast-operator:v0.59.0
+    value: quay.io/opendatahub/feast-operator:v0.60.0
   - name: dockerfile
     value: Dockerfile
   - name: path-context
