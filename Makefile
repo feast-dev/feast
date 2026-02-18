@@ -69,7 +69,7 @@ precommit-check: format-python lint-python ## Run all precommit checks
 
 # Install precommit hooks with correct stages
 install-precommit: ## Install precommit hooks (runs on commit, not push)
-	pip install pre-commit
+	uv pip install pre-commit
 	pre-commit install --hook-type pre-commit
 	@echo "✅ Precommit hooks installed (will run on commit, not push)"
 
@@ -126,14 +126,6 @@ install-hadoop-dependencies-ci: ## Install Hadoop dependencies
 		tar -xzf $$HOME/hadoop-3.4.2.tar.gz -C $$HOME; \
 		mv $$HOME/hadoop-3.4.2 $$HOME/hadoop; \
 	fi
-install-python-ci-dependencies: ## Install Python CI dependencies in system environment using piptools
-	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
-	pip install --no-deps -e .
-
-# Currently used in test-end-to-end.sh
-install-python: ## Install Python requirements and develop package (setup.py develop)
-	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
-	python setup.py develop
 
 lock-python-dependencies-all: ## Recompile and lock all Python dependency sets for all supported versions
 	# Remove all existing requirements because we noticed the lock file is not always updated correctly.
@@ -141,16 +133,16 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 	rm -rf sdk/python/requirements/* 2>/dev/null || true
 	$(foreach ver,$(PYTHON_VERSIONS),\
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra ci \
+			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra ci \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --no-strip-extras setup.py \
+			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra minimal \
+			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra minimal-sdist-build \
+			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal-sdist-build \
 			--no-emit-package milvus-lite \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
@@ -199,7 +191,7 @@ test-python-integration: ## Run Python integration tests (CI)
 # Integration tests with better parallelization
 test-python-integration-parallel: ## Run integration tests with enhanced parallelization
 	uv run python -m pytest sdk/python/tests/integration \
-		-n auto --dist loadscope \
+		-n auto --dist loadgroup \
 		--timeout=300 --tb=short -v \
 		--integration --color=yes --durations=20
 
@@ -209,7 +201,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 	HADOOP_HOME=$$HOME/hadoop \
 	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
 	HADOOP_USER_NAME=root \
-	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \

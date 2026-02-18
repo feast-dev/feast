@@ -440,10 +440,10 @@ test-python-universal-spark:
 
 ### 7. Dependencies
 
-Add any dependencies for your offline store to our `sdk/python/setup.py` under a new `<OFFLINE_STORE>__REQUIRED` list with the packages and add it to the setup script so that if your offline store is needed, users can install the necessary python packages. These packages should be defined as extras so that they are not installed by users by default. You will need to regenerate our requirements files:
+Add any dependencies for your offline store to `pyproject.toml` under `[project.optional-dependencies]` as a new extra (e.g. `<offline_store> = ["package1>=1.0", "package2"]`). These packages should be defined as extras so that they are not installed by users by default. You will need to regenerate our requirements lock files:
 
 ```
-make lock-python-ci-dependencies-all
+make lock-python-dependencies-all
 ```
 
 ### 8. Add Documentation
