@@ -4,6 +4,7 @@ from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     reserialize_entity_v2_key_to_v3,
     serialize_entity_key,
+    serialize_entity_key_prefix,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -260,3 +261,78 @@ def test_performance_bounds_single_entity():
     # 1000 operations should complete in < 20ms each for serialization and deserialization
     assert serialize_time < 0.02, f"Serialization too slow: {serialize_time:.4f}s"
     assert deserialize_time < 0.02, f"Deserialization too slow: {deserialize_time:.4f}s"
+
+
+def test_non_ascii_prefix_compatibility():
+    """Critical test: ensure prefix serialization matches full entity key serialization for non-ASCII keys."""
+    # Test with non-ASCII characters that have different byte vs character lengths
+    non_ascii_keys = ["用户ID", "사용자ID", "идентификатор", "مُعرِّف"]
+
+    for key in non_ascii_keys:
+        # Test single key prefix
+        prefix_result = serialize_entity_key_prefix(
+            [key], entity_key_serialization_version=3
+        )
+
+        # Create full entity key and serialize it
+        entity_key = EntityKeyProto(
+            join_keys=[key], entity_values=[ValueProto(string_val="test_value")]
+        )
+        full_result = serialize_entity_key(
+            entity_key, entity_key_serialization_version=3
+        )
+
+        # The prefix should match the beginning of the full serialization
+        # Extract just the key portion (skip entity count, but include key metadata)
+        prefix_len = len(prefix_result)
+        assert full_result[:prefix_len] == prefix_result, (
+            f"Prefix mismatch for non-ASCII key '{key}': "
+            f"Character length: {len(key)}, "
+            f"UTF-8 byte length: {len(key.encode('utf8'))}"
+        )
+
+
+def test_ascii_prefix_compatibility():
+    """Verify prefix compatibility still works for ASCII keys."""
+    ascii_keys = ["user_id", "session_id", "device_id"]
+
+    for key in ascii_keys:
+        prefix_result = serialize_entity_key_prefix(
+            [key], entity_key_serialization_version=3
+        )
+
+        entity_key = EntityKeyProto(
+            join_keys=[key], entity_values=[ValueProto(string_val="test_value")]
+        )
+        full_result = serialize_entity_key(
+            entity_key, entity_key_serialization_version=3
+        )
+
+        prefix_len = len(prefix_result)
+        assert full_result[:prefix_len] == prefix_result, (
+            f"Prefix mismatch for ASCII key '{key}'"
+        )
+
+
+def test_multi_key_non_ascii_prefix_compatibility():
+    """Test multi-key prefix compatibility with non-ASCII characters."""
+    mixed_keys = ["user_id", "用户会话", "session_id"]  # Mix ASCII and non-ASCII
+
+    prefix_result = serialize_entity_key_prefix(
+        mixed_keys, entity_key_serialization_version=3
+    )
+
+    entity_key = EntityKeyProto(
+        join_keys=mixed_keys,
+        entity_values=[
+            ValueProto(string_val="test1"),
+            ValueProto(string_val="test2"),
+            ValueProto(string_val="test3"),
+        ],
+    )
+    full_result = serialize_entity_key(entity_key, entity_key_serialization_version=3)
+
+    prefix_len = len(prefix_result)
+    assert full_result[:prefix_len] == prefix_result, (
+        "Multi-key prefix mismatch with non-ASCII"
+    )

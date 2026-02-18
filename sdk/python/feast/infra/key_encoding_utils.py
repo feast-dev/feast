@@ -68,8 +68,11 @@ def serialize_entity_key_prefix(
     for k in sorted_keys:
         output.append(struct.pack("<I", ValueType.STRING))
         if entity_key_serialization_version > 2:
-            output.append(struct.pack("<I", len(k)))
-        output.append(k.encode("utf8"))
+            k_encoded = k.encode("utf8")
+            output.append(struct.pack("<I", len(k_encoded)))
+        else:
+            k_encoded = k.encode("utf8")
+        output.append(k_encoded)
     return b"".join(output)
 
 
