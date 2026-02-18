@@ -242,3 +242,28 @@ offline_build/
 
 # VSCode history extension files
 .history/
+
+# Java compiled
+*.class
+*.jar
+*.war
+*.ear
+
+# Go binaries
+*.exe
+*.exe~
+*.out
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~
+\#*\#
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# AgentReady reports
+.agentready/
