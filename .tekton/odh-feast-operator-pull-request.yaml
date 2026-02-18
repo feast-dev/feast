@@ -14,7 +14,7 @@ metadata:
     appstudio.openshift.io/application: automation
     appstudio.openshift.io/component: pull-request-pipelines-odh-feast-operator
     pipelines.appstudio.openshift.io/type: build
-  name: odh-feast-operator-on-pull-request
+  name: odh-feast-operator-on-pull-request-39682
   namespace: rhoai-tenant
 spec:
   params:
