@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import uuid as uuid_module
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeAlias, Union
 
 import pandas as pd
@@ -103,33 +104,8 @@ class OnlineResponse:
         Args:
         include_event_timestamps: bool Optionally include feature timestamps in the table
         """
-        import uuid as uuid_module
-
         result = self.to_dict(include_event_timestamps)
-        # Convert uuid.UUID objects to strings for PyArrow compatibility
-        for key, values in result.items():
-            first_valid = next((v for v in values if v is not None), None)
-            if isinstance(first_valid, uuid_module.UUID):
-                result[key] = [
-                    str(v) if isinstance(v, uuid_module.UUID) else v for v in values
-                ]
-            elif isinstance(first_valid, list):
-                inner = next((e for e in first_valid if e is not None), None)
-                if isinstance(inner, uuid_module.UUID):
-                    result[key] = [
-                        [str(e) if isinstance(e, uuid_module.UUID) else e for e in v]
-                        if isinstance(v, list)
-                        else v
-                        for v in values
-                    ]
-            elif isinstance(first_valid, set):
-                inner = next((e for e in first_valid if e is not None), None)
-                if isinstance(inner, uuid_module.UUID):
-                    result[key] = [
-                        [str(e) for e in v] if isinstance(v, set) else v for v in values
-                    ]
-                else:
-                    result[key] = [list(v) if isinstance(v, set) else v for v in values]
+        result = _convert_uuids_for_arrow(result)
         return pa.Table.from_pydict(result)
 
     def to_tensor(
@@ -175,3 +151,31 @@ class OnlineResponse:
                     values  # Return as-is for strings or unsupported types
                 )
         return tensor_dict
+
+
+def _convert_uuids_for_arrow(result: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
+    """Convert uuid.UUID objects and sets to Arrow-compatible types."""
+    for key, values in result.items():
+        first_valid = next((v for v in values if v is not None), None)
+        if isinstance(first_valid, uuid_module.UUID):
+            result[key] = [
+                str(v) if isinstance(v, uuid_module.UUID) else v for v in values
+            ]
+        elif isinstance(first_valid, list):
+            inner = next((e for e in first_valid if e is not None), None)
+            if isinstance(inner, uuid_module.UUID):
+                result[key] = [
+                    [str(e) if isinstance(e, uuid_module.UUID) else e for e in v]
+                    if isinstance(v, list)
+                    else v
+                    for v in values
+                ]
+        elif isinstance(first_valid, set):
+            inner = next((e for e in first_valid if e is not None), None)
+            if isinstance(inner, uuid_module.UUID):
+                result[key] = [
+                    [str(e) for e in v] if isinstance(v, set) else v for v in values
+                ]
+            else:
+                result[key] = [list(v) if isinstance(v, set) else v for v in values]
+    return result
