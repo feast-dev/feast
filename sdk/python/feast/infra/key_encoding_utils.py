@@ -66,12 +66,10 @@ def serialize_entity_key_prefix(
     if entity_key_serialization_version > 2:
         output.append(struct.pack("<I", len(sorted_keys)))
     for k in sorted_keys:
+        k_encoded = k.encode("utf8")
         output.append(struct.pack("<I", ValueType.STRING))
         if entity_key_serialization_version > 2:
-            k_encoded = k.encode("utf8")
             output.append(struct.pack("<I", len(k_encoded)))
-        else:
-            k_encoded = k.encode("utf8")
         output.append(k_encoded)
     return b"".join(output)
 
@@ -165,19 +163,7 @@ def serialize_entity_key(
         sorted_keys = [k for k, _ in pairs]
         sorted_values = [v for _, v in pairs]
 
-    # Optimized memory allocation: pre-size output buffer to reduce reallocations
-    num_entries = len(sorted_keys) + len(sorted_values)
-    if entity_key_serialization_version > 2:
-        num_entries += 1  # For key count
-
-    # Estimate capacity: ~4 entries per key/value (type, length, data), plus overhead
-    estimated_capacity = max(10, num_entries * 4)
     output: List[bytes] = []
-
-    # Pre-allocate to reduce list reallocations (Python optimization hint)
-    if estimated_capacity > 10:
-        output.extend([b""] * estimated_capacity)
-        output.clear()
 
     if entity_key_serialization_version > 2:
         output.append(struct.pack("<I", len(sorted_keys)))
@@ -191,21 +177,15 @@ def serialize_entity_key(
                 output.append(struct.pack("<I", len(k_encoded)))
             output.append(k_encoded)
 
-    # Optimize value processing by caching WhichOneof results
-    if sorted_values:
-        # Cache WhichOneof calls (can be expensive for protobuf introspection)
-        value_types = [v.WhichOneof("val") for v in sorted_values]
-
-        for i, v in enumerate(sorted_values):
-            val_bytes, value_type = _serialize_val(
-                value_types[i],  # Use cached result
-                v,
-                entity_key_serialization_version=entity_key_serialization_version,
-            )
-
-            output.append(struct.pack("<I", value_type))
-            output.append(struct.pack("<I", len(val_bytes)))
-            output.append(val_bytes)
+    for v in sorted_values:
+        val_bytes, value_type = _serialize_val(
+            v.WhichOneof("val"),
+            v,
+            entity_key_serialization_version=entity_key_serialization_version,
+        )
+        output.append(struct.pack("<I", value_type))
+        output.append(struct.pack("<I", len(val_bytes)))
+        output.append(val_bytes)
 
     return b"".join(output)
 
@@ -243,23 +223,15 @@ def deserialize_entity_key(
     num_keys = struct.unpack("<I", buffer[pos : pos + 4])[0]
     pos += 4
 
-    # Fast path for single key (avoid loop overhead)
-    if num_keys == 1:
-        # Read key type
-        if len(buffer) < pos + 4:
+    # Process all keys uniformly
+    for _ in range(num_keys):
+        if len(buffer) < pos + 8:  # Need at least 8 bytes for type + length
             raise ValueError(
-                "Invalid serialized entity key: insufficient data for key type"
+                "Invalid serialized entity key: insufficient data for key metadata"
             )
-        key_type = struct.unpack("<I", buffer[pos : pos + 4])[0]
-        pos += 4
 
-        # Read key length
-        if len(buffer) < pos + 4:
-            raise ValueError(
-                "Invalid serialized entity key: insufficient data for key length"
-            )
-        key_length = struct.unpack("<I", buffer[pos : pos + 4])[0]
-        pos += 4
+        key_type, key_length = struct.unpack("<2I", buffer[pos : pos + 8])
+        pos += 8
 
         if key_type == ValueType.STRING:
             if len(buffer) < pos + key_length:
@@ -271,29 +243,6 @@ def deserialize_entity_key(
             pos += key_length
         else:
             raise ValueError(f"Unsupported key type: {key_type}")
-    else:
-        # Multi-key processing
-        for _ in range(num_keys):
-            if len(buffer) < pos + 8:  # Need at least 8 bytes for type + length
-                raise ValueError(
-                    "Invalid serialized entity key: insufficient data for key metadata"
-                )
-
-            key_type, key_length = struct.unpack("<2I", buffer[pos : pos + 8])
-            pos += 8
-
-            if key_type == ValueType.STRING:
-                if len(buffer) < pos + key_length:
-                    raise ValueError(
-                        "Invalid serialized entity key: insufficient data for key"
-                    )
-                key = struct.unpack(f"<{key_length}s", buffer[pos : pos + key_length])[
-                    0
-                ]
-                keys.append(key.decode("utf-8").rstrip("\x00"))
-                pos += key_length
-            else:
-                raise ValueError(f"Unsupported key type: {key_type}")
 
     # Process values with bounds checking
     while pos < len(buffer):
