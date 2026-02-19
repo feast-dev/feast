@@ -1,0 +1,45 @@
+extends:
+  - "@commitlint/config-conventional"
+
+# Single source of truth for commit/PR title conventions.
+# Used by:
+#   - .pre-commit-config.yaml (commitlint hook on commit-msg)
+#   - .github/workflows/lint_pr.yml (validates PR titles in CI)
+rules:
+  type-enum:
+    - 2
+    - always
+    - - feat
+      - fix
+      - docs
+      - style
+      - refactor
+      - perf
+      - test
+      - build
+      - ci
+      - chore
+      - revert
+
+  # Scope is optional — no enforcement on allowed values.
+  scope-empty:
+    - 0
+
+  # Feast convention: subjects start with an uppercase letter.
+  # Overrides base config which defaults to "never sentence-case".
+  subject-case:
+    - 2
+    - always
+    - - sentence-case
+
+  header-max-length:
+    - 2
+    - always
+    - 100
+
+  # Relax body/footer line length from base config's strict 100-char limit.
+  # Commit bodies often contain URLs, stack traces, or formatted output.
+  body-max-line-length:
+    - 0
+  footer-max-line-length:
+    - 0
