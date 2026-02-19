@@ -39,16 +39,17 @@ Yes, this is possible. For example, you can use BigQuery as an offline store and
 
 ### How do I run `get_historical_features` without providing an entity dataframe?
 
-Feast does supports fetching historical features without passing an entity dataframe with the request. 
-- As of today, only `postgres offline feature store` is supported for entity dataframe less retrieval. Remaining offline stores would be gradually updated to support the entity df less retrieval. The stores would be selected based on priorities and user base/request. 
-- The retrieval is based on `start_date` and `end_date` parameters to the function. Here are some combinations supported.
-  - Both params are given, Returns data during the given start to end timerange.
-  - Only start_date param is given, Returns data from the start date to `now` time.
-  - Only end_date param is given, Returns data during the end_date minus TTL time in feature view.
-  - Both params are `not` given, Returns data during the TTL time in feature view to now time.
-- When multiple features are requested from multiple feature-views it is required to have entity ids in both of them for `JOIN` so that 
+Feast does support fetching historical features without passing an entity dataframe with the request.
 
-This is an area we're actively interested in contributions for. See [GitHub issue](https://github.com/feast-dev/feast/issues/1611)
+- **Supported offline stores:** Entity-less (entity dataframe–less) retrieval is supported for the **Postgres**, **Dask**, **Spark**, and **Ray** offline stores. Postgres was the first to support it; Dask, Spark, and Ray have followed. Other offline stores may be added based on priority and community demand.
+- **Date range:** Retrieval is controlled by the `start_date` and `end_date` parameters. Supported combinations:
+  - Both params given → data in the given start-to-end time range.
+  - Only `start_date` given → data from the start date to now.
+  - Only `end_date` given → data from (end_date minus feature view TTL) to end_date.
+  - Neither given → data from (TTL window) to now.
+- **Multiple feature views:** When requesting features from multiple feature views in entity-less mode, the feature views must share entity keys so that joins can be performed correctly.
+
+We welcome contributions to add or improve entity-less retrieval. See [GitHub issue #1611](https://github.com/feast-dev/feast/issues/1611).
 
 ### Does Feast provide security or access control?
 
