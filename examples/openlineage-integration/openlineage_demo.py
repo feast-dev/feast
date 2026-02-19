@@ -33,6 +33,7 @@ from feast import FeatureStore
 from feast import Entity, FeatureService, FeatureView, FileSource, Field
 from feast.types import Float32, Int64
 
+
 def create_feature_store_yaml(url: str) -> str:
     """Create a feature_store.yaml with OpenLineage configuration."""
     return f"""project: openlineage_demo
@@ -68,13 +69,13 @@ def run_demo(url: str):
         (repo_path / "feature_store.yaml").write_text(feature_store_yaml)
 
         print(f"Created demo repository at: {repo_path}")
-        print(f"feature_store.yaml:")
+        print("feature_store.yaml:")
         print("-" * 50)
         print(feature_store_yaml)
         print("-" * 50)
 
         try:
-            import openlineage.client
+            import openlineage.client  # noqa: F401
         except ImportError:
             print("OpenLineage client not installed.")
             print("Install with: pip install openlineage-python")
@@ -123,7 +124,9 @@ def run_demo(url: str):
                 Field(name="conv_rate", dtype=Float32, description="Conversion rate"),
                 Field(name="acc_rate", dtype=Float32, description="Acceptance rate"),
                 Field(
-                    name="avg_daily_trips", dtype=Int64, description="Average daily trips"
+                    name="avg_daily_trips",
+                    dtype=Int64,
+                    description="Average daily trips",
                 ),
             ],
             source=driver_stats_source,
@@ -140,12 +143,21 @@ def run_demo(url: str):
 
         try:
             fs.apply(
-                [driver, driver_stats_source, driver_hourly_stats_view, driver_stats_service]
+                [
+                    driver,
+                    driver_stats_source,
+                    driver_hourly_stats_view,
+                    driver_stats_service,
+                ]
             )
             print("Applied entities, feature views, and feature services")
             print("OpenLineage events emitted automatically:")
-            print("     - feast_feature_views_openlineage_demo (DataSources → FeatureViews)")
-            print("     - feature_service_driver_stats_service (FeatureViews → FeatureService)")
+            print(
+                "     - feast_feature_views_openlineage_demo (DataSources → FeatureViews)"
+            )
+            print(
+                "     - feature_service_driver_stats_service (FeatureViews → FeatureService)"
+            )
         except Exception as e:
             print(f"Apply failed: {e}")
 
