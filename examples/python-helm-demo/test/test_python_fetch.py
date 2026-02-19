@@ -18,8 +18,11 @@ def run_demo_http():
 
     resp_data = json.loads(r.text)
     records = pd.DataFrame.from_records(
-        columns=resp_data["metadata"]["feature_names"], 
-        data=[[r["values"][i] for r in resp_data["results"]] for i in range(len(resp_data["results"]))]
+        columns=resp_data["metadata"]["feature_names"],
+        data=[
+            [r["values"][i] for r in resp_data["results"]]
+            for i in range(len(resp_data["results"]))
+        ],
     )
     for col in sorted(records.columns):
         print(col, " : ", records[col].values)
