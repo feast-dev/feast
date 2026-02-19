@@ -14,7 +14,8 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.type_map import python_values_to_proto_values
+from feast.type_map import python_values_to_proto_values, feast_value_type_to_python_type
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +31,9 @@ class MongoDBOnlineStoreConfig(FeastConfigBaseModel):
     ] = "mongodb"
     """Online store type selector"""
     connection_string: str = "mongodb://localhost:27017"
-    database_name: str = "project"  # todo - consider changing to project_name?
-    collection_suffix: str = "features_latest"
+    database_name: str = "features"  # todo - consider removing, and using repo_config.project
+    collection_suffix: str = "latest"
     client_kwargs: Dict[str, Any] = {}
-
-
-def _store_name(project_name: str, collection_suffix: str) -> str:
-    """OnlineStore Collection's full name."""
-    return f"{project_name}_{collection_suffix}"
 
 
 class MongoDBOnlineStore(OnlineStore):
@@ -72,10 +68,6 @@ class MongoDBOnlineStore(OnlineStore):
     _client: Optional[MongoClient] = None
     _collection: Optional[Collection] = None
 
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
-
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -101,7 +93,7 @@ class MongoDBOnlineStore(OnlineStore):
             entity_key, proto_values, event_timestamp, created_timestamp = row
             entity_id = serialize_entity_key(entity_key)
             feature_updates = {
-                f"features.{table.name}.{field}": value_proto_to_python(val)
+                f"features.{table.name}.{field}": feast_value_type_to_python_type(val)
                 for field, val in proto_values.items()
             }
             update = {
@@ -122,8 +114,6 @@ class MongoDBOnlineStore(OnlineStore):
             clxn.bulk_write(ops, ordered=False)
         if progress:
             progress(1)
-
-    # ------------------------------------------------------------------
 
     def online_read(
         self,
@@ -275,7 +265,7 @@ class MongoDBOnlineStore(OnlineStore):
         The Entities are serialized in the _id. No schema needs be adjusted.
         """
         if config.online_store.type != "mongodb":
-            raise RuntimeError("config.online_store.type must be mongodb. Found ", config.online_store.type)
+            raise RuntimeError(f"{config.online_store.type = }. It must be mongodb.")
 
         clxn = self._get_collection(repo_config=config)
 
@@ -296,105 +286,48 @@ class MongoDBOnlineStore(OnlineStore):
 
     def teardown(
         self,
-        config: RepoConfig,  # TODO - Need to resolve configs (Repo and Store)
+        config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
         """
-        Tear down MongoDB resources (drop collections).
+        Drop the backing collection and close the client.
 
-        Args:
-            config: Feast repository configuration
-            tables: Feature views whose collections should be dropped
-            entities: Entities (unused for MongoDB)
+        As in update, MongoDB requires very little here.
         """
         assert config.online_store.type == "mongodb"
-        online_config: MongoDBOnlineStoreConfig = config.online_store
-
         clxn = self._get_collection(repo_config=config)
         clxn.drop()
-        self._get_client(config)
-        client = MongoClient(config.online_store.uri)
-        client.close()
+        self._get_client(config).close()
+
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    def _get_client(self, online_config: MongoDBOnlineStoreConfig):
+    def _get_client(self, config: RepoConfig):
         """Returns a connection to the server."""
+        online_store_config = config.online_store
+        if not isinstance(online_store_config, MongoDBOnlineStoreConfig):
+            raise ValueError(f"config.online_store should be MongoDBOnlineStoreConfig, got {online_store_config}")
         if self._client is None:
-            assert isinstance(online_config, MongoDBOnlineStoreConfig)
+            online_config = config.online_store
+            if not isinstance(online_config, MongoDBOnlineStoreConfig):
+                logger.warning(f"config.online_store passed to _get_client is not a MongoDBOnlineStoreConfig. It's of type {type(online_config)}")
             self._client = MongoClient(online_config.connection_string, **online_config.client_kwargs)
         return self._client
 
     def _get_collection(self, repo_config: RepoConfig) -> Collection:
         """Returns a connection to the online store collection."""
         if self._collection is None:
+            self._client = self._get_client(repo_config)
             online_config = repo_config.online_store
-            self._client = self._get_client(online_config)
             db = self._client[online_config.database_name]
             clxn_name = f"{repo_config.project}_{online_config.collection_suffix}"
             if clxn_name not in db.list_collection_names():
                 self._collection = db.create_collection(clxn_name)
             self._collection = db[clxn_name]
         return self._collection
-
-def value_proto_to_python(val: ValueProto):
-    """Utility to convert Value proto to plain form saved in MongoDB."""
-    try:  # hasattr(val, "val"):
-        typ = val.WhichOneof("val")
-        if typ is None:
-            return None
-        val = getattr(val, typ)
-        if isinstance(val, datetime):
-            val = val.replace(tzinfo=datetime.UTC)
-        return val
-    except:
-        raise ValueError(f"Unsupported ValueProto: {val}")
-
-
-def value_proto_to_python_deprecated(val: ValueProto):
-    """Utility to convert Value proto to plain form saved in MongoDB."""
-    # TODO
-    #   - Check timestamp implementation
-
-    val = val.WhichOneof("val")
-    if val == "int32_val":
-        return val.int32_val
-    if val == "float_int64_val":
-        return val.int32_list_val
-    if val == "int64_val":
-        return val.int64_val
-    if val == "int64_list_val":
-        return val.int64_list_val
-    if val == "float_val":
-        return val.float_val
-    if val == "float_list_val":
-        return val.float_list_val
-    if val == "double_val":
-        return val.double_val
-    if val == "double_list_val":
-        return val.double_list_val
-    if val == "bool_val":
-        return val.bool_val
-    if val == "bool_list_val":
-        return val.bool_list_val
-    if val == "string_val":
-        return val.string_val
-    if val == "bytes_val":
-        return val.bytes_val
-    if val == "timestamp_val":
-        return datetime.fromtimestamp(
-            val.timestamp_val.seconds + val.timestamp_val.nanos / 1e9,
-            tz=datetime.timezone.utc,
-        )
-    if val == "null_val":
-        return None
-
-    raise ValueError(f"Unsupported ValueProto val: {val}")
-
-
 
 # TODO
 #   - Implement async API
