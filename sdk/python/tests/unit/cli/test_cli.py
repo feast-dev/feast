@@ -1,13 +1,22 @@
 import os
+import platform
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 
+import pytest
 from assertpy import assertpy
 
 from tests.utils.cli_repo_creator import CliRunner
+
+# Skip all tests in this module on macOS CI due to Ray/uv subprocess compatibility issues
+# The CliRunner spawns subprocesses that hang when Ray tries to spawn workers
+pytestmark = pytest.mark.skipif(
+    platform.system() == "Darwin" and os.environ.get("CI") == "true",
+    reason="Skip CLI tests on macOS CI due to Ray/uv subprocess compatibility issues",
+)
 
 
 def test_3rd_party_providers() -> None:

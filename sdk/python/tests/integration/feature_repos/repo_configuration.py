@@ -215,7 +215,7 @@ if full_repo_configs_module is not None:
 # Replace online stores with emulated online stores if we're running local integration tests
 if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
     replacements: Dict[
-        str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
+        str, Tuple[Union[str, Dict[str, Any]], Optional[Type[OnlineStoreCreator]]]
     ] = {
         "redis": (REDIS_CONFIG, RedisOnlineStoreCreator),
         "milvus": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
