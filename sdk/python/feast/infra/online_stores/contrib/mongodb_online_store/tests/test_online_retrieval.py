@@ -1,25 +1,16 @@
 import os
-import platform
-import random
-import sqlite3
-import sys
 import time
-from typing import Any
 
-import numpy as np
 import pandas as pd
 import pytest
-import sqlite_vec
 from pandas.testing import assert_frame_equal
 
 from feast import FeatureStore, RepoConfig
 from feast.errors import FeatureViewNotFoundException
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
 from feast.torch_wrapper import get_torch
-from feast.types import ValueType
 from feast.utils import _utc_now
 from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo

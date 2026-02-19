@@ -14,8 +14,10 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.type_map import python_values_to_proto_values, feast_value_type_to_python_type
-
+from feast.type_map import (
+    feast_value_type_to_python_type,
+    python_values_to_proto_values,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -164,79 +166,6 @@ class MongoDBOnlineStore(OnlineStore):
             features_proto = {k: python_values_to_proto_values([v])[0] for k, v in features_raw.items()}  # todo refactor:  v inefficient
             results.append((ts, features_proto))
         return results
-
-            # todo v inefficient: the method below must infer types. additionally we're iterating over rows
-            #  feature.dtype is held in table.feature.dtype.
-        """
-            Feast’s online read is row-oriented in output, but type conversion is naturally column-oriented.
-            Instead of:
-                For each entity → convert each feature individually
-            You should:
-                1.	Gather values for a single feature across all entities.
-                2.	Convert them in one call.
-                3.	Then reassemble row-wise.
-            
-            Efficient Pattern
-            Assume: 
-                •	ids is ordered
-                •	requested_features is defined (handle case)
-                •	docs is your _id -> doc mapping
-            Step 1: Extract raw values column-wise
-            
- 
-            # Step 1: Extract raw values column-wise # (aligned by ordered ids column-wise)
-            raw_feature_columns = {feature: [] for feature in requested_features}
-
-            for entity_id in ids:
-                doc = docs.get(entity_id)
-                feature_dict = (
-                    doc.get("features", {}).get(table.name, {})
-                    if doc else {}
-                )
-
-                for feature in requested_features:
-                    raw_feature_columns[feature].append(
-                        feature_dict.get(feature)
-                    )
-
-            # Step 2: Convert per feature
-            # You need feature types. We can get these from the table!
-            #   The following will map feature.name to its value type. This is across columns
-            #   features_raw contains the columns for a single row (entity)
-            #   feature_type_map is done outside the entity loop
-            feature_type_map = {
-                feature.name: feature.dtype.to_value_type()
-                for feature in table.features
-            }
-            proto_feature_columns = {}
-            for feature_name, raw_values in raw_feature_columns.items():
-                proto_feature_columns[feature_name] = python_values_to_proto_values(
-                    raw_values,
-                    feature_type=feature_type_map[feature_name],
-                )
-
-            # Step 3: Reassemble row-wise
-            results = []
-
-            for i, entity_id in enumerate(ids):
-                doc = docs.get(entity_id)
-
-                if doc is None:
-                    results.append((None, None))
-                    continue
-
-                ts = doc.get("event_timestamps", {}).get(table.name)
-
-                row_features = {
-                    feature_name: proto_feature_columns[feature_name][i]
-                    for feature_name in requested_features
-                }
-
-                results.append((ts, row_features))
-
-        return results
-        """
-    # ------------------------------------------------------------------
 
     def update(
         self,

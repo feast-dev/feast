@@ -36,7 +36,6 @@ from feast.field import Field
 from feast.infra.online_stores.contrib.mongodb_online_store.mongodb import (
     MongoDBOnlineStoreConfig,
 )
-from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Array, Float32, Float64, Int64, PdfBytes, String, ValueType
 from tests.utils.test_wrappers import check_warnings
