@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import logging
+from collections import defaultdict
 from datetime import datetime
+from logging import getLogger
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from pymongo import MongoClient, UpdateOne
@@ -19,7 +20,8 @@ from feast.type_map import (
     python_values_to_proto_values,
 )
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
+
 
 class MongoDBOnlineStoreConfig(FeastConfigBaseModel):
     """MongoDB configuration.
@@ -29,11 +31,14 @@ class MongoDBOnlineStoreConfig(FeastConfigBaseModel):
     """
 
     type: Literal[
-        "mongodb", "feast.infra.online_stores.mongodb_online_store.mongodb.MongoDBOnlineStore"
+        "mongodb",
+        "feast.infra.online_stores.mongodb_online_store.mongodb.MongoDBOnlineStore",
     ] = "mongodb"
     """Online store type selector"""
     connection_string: str = "mongodb://localhost:27017"
-    database_name: str = "features"  # todo - consider removing, and using repo_config.project
+    database_name: str = (
+        "features"  # todo - consider removing, and using repo_config.project
+    )
     collection_suffix: str = "latest"
     client_kwargs: Dict[str, Any] = {}
 
@@ -74,7 +79,9 @@ class MongoDBOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
         progress: Optional[Callable[[int], Any]] = None,
     ) -> None:
         """
@@ -143,29 +150,16 @@ class MongoDBOnlineStore(OnlineStore):
             f"event_timestamps.{table.name}": 1,
         }
         if requested_features:
-            projection.update({f"features.{table.name}.{x}": 1 for x in requested_features})
+            projection.update(
+                {f"features.{table.name}.{x}": 1 for x in requested_features}
+            )
         else:
             projection[f"features.{table.name}"] = 1
 
         cursor = clxn.find(query_filter, projection=projection)
         docs = {doc["_id"]: doc for doc in cursor}
 
-        # Order and format output
-        results: List[Optional[Dict[str, ValueProto]]] = []
-        for entity_id in ids:
-            doc = docs.get(entity_id)
-            if doc is None:
-                results.append((None, None))
-                continue
-
-            # Extract timestamp
-            ts = doc.get("event_timestamps", {}).get(table.name)
-            # Extract features
-            features_raw = doc.get("features", {}).get(table.name, {})
-
-            features_proto = {k: python_values_to_proto_values([v])[0] for k, v in features_raw.items()}  # todo refactor:  v inefficient
-            results.append((ts, features_proto))
-        return results
+        return self.convert_raw_docs_to_proto_transforming(ids, docs, table)
 
     def update(
         self,
@@ -208,10 +202,11 @@ class MongoDBOnlineStore(OnlineStore):
 
         # Delete specific entities
         if entities_to_delete:
-            logger.warning(f"CHECK FORM. Can we call to_proto()?: {entities_to_delete = }")
+            logger.warning(
+                f"CHECK FORM. Can we call to_proto()?: {entities_to_delete = }"
+            )
             ids = [serialize_entity_key(e.to_proto()) for e in entities_to_delete]
             clxn.delete_many({"_id": {"$in": ids}})
-
 
     def teardown(
         self,
@@ -229,7 +224,6 @@ class MongoDBOnlineStore(OnlineStore):
         clxn.drop()
         self._get_client(config).close()
 
-
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -238,12 +232,18 @@ class MongoDBOnlineStore(OnlineStore):
         """Returns a connection to the server."""
         online_store_config = config.online_store
         if not isinstance(online_store_config, MongoDBOnlineStoreConfig):
-            raise ValueError(f"config.online_store should be MongoDBOnlineStoreConfig, got {online_store_config}")
+            raise ValueError(
+                f"config.online_store should be MongoDBOnlineStoreConfig, got {online_store_config}"
+            )
         if self._client is None:
             online_config = config.online_store
             if not isinstance(online_config, MongoDBOnlineStoreConfig):
-                logger.warning(f"config.online_store passed to _get_client is not a MongoDBOnlineStoreConfig. It's of type {type(online_config)}")
-            self._client = MongoClient(online_config.connection_string, **online_config.client_kwargs)
+                logger.warning(
+                    f"config.online_store passed to _get_client is not a MongoDBOnlineStoreConfig. It's of type {type(online_config)}"
+                )
+            self._client = MongoClient(
+                online_config.connection_string, **online_config.client_kwargs
+            )
         return self._client
 
     def _get_collection(self, repo_config: RepoConfig) -> Collection:
@@ -257,6 +257,104 @@ class MongoDBOnlineStore(OnlineStore):
                 self._collection = db.create_collection(clxn_name)
             self._collection = db[clxn_name]
         return self._collection
+
+    @staticmethod
+    def convert_raw_docs_to_proto_simply(
+        ids: list[bytes],
+        docs: dict[str, Any],
+        table: FeatureView,
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[dict[str, ValueProto]]]]:
+        """Convert values in documents retrieved from MongoDB (BSON) into ValueProto types.
+
+        The table, a FeatureView, provides a map from feature name to proto type.
+        ids is a sorted list of the serialized entity ids used in MongoDBOnlineStore.
+
+        The heavy lifting is done in feast.type_map.python_values_to_proto_values.
+        It is intended to take a list of proto values with a single type (i.e. a column).
+
+        In this method, we simply iterate over ids, calling this method each time.
+        It is naive, but straightforward.
+        """
+        feature_type_map = {
+            feature.name: feature.dtype.to_value_type() for feature in table.features
+        }
+
+        results: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        for entity_id in ids:
+            doc = docs.get(entity_id)
+            if doc is None:
+                results.append((None, None))
+                continue
+
+            # Extract timestamp
+            ts = doc.get("event_timestamps", {}).get(table.name)
+
+            # Extract features
+            features_raw = doc.get("features", {}).get(table.name, {})
+            features_proto = {
+                k: python_values_to_proto_values([v], feature_type_map[k])[0]
+                for k, v in features_raw.items()
+            }
+
+        results.append((ts, features_proto))
+
+    @staticmethod
+    def convert_raw_docs_to_proto_transforming(
+        ids: list[bytes], docs: dict[str, Any], table: FeatureView
+    ) -> List[Tuple[Optional[datetime], Optional[dict[str, ValueProto]]]]:
+        """Convert values in documents retrieved from MongoDB (BSON) into ValueProto types.
+
+        The table, a FeatureView, provides a map from feature name to proto type.
+        ids is a sorted list of the serialized entity ids used in MongoDBOnlineStore.
+
+        The heavy lifting is done in feast.type_map.python_values_to_proto_values.
+        It is intended to take a list of proto values with a single type (i.e. a column).
+
+        In this method, we simply iterate over ids, calling this method each time.
+        It is naive, but straightforward.
+        """
+        feature_type_map = {
+            feature.name: feature.dtype.to_value_type() for feature in table.features
+        }
+
+        # Step 1: Extract raw values column-wise # (aligned by ordered ids column-wise)
+        raw_feature_columns = defaultdict(list)
+        for entity_id in ids:
+            doc = docs.get(entity_id)
+            feature_dict = doc.get("features", {}).get(table.name, {}) if doc else {}
+
+            for feature, value in feature_dict.items():
+                raw_feature_columns[feature].append(value)
+
+        # Step 2: Convert per feature
+        proto_feature_columns = {}
+        for feature_name, raw_values in raw_feature_columns.items():
+            proto_feature_columns[feature_name] = python_values_to_proto_values(
+                raw_values,
+                feature_type=feature_type_map[feature_name],
+            )
+
+        # Step 3: Reassemble row-wise
+        results = []
+
+        for i, entity_id in enumerate(ids):
+            doc = docs.get(entity_id)
+
+            if doc is None:
+                results.append((None, None))
+                continue
+
+            ts = doc.get("event_timestamps", {}).get(table.name)
+
+            row_features = {
+                feature_name: proto_feature_columns[feature_name][i]
+                for feature_name in proto_feature_columns
+            }
+
+            results.append((ts, row_features))
+        return results
+
 
 # TODO
 #   - Implement async API
