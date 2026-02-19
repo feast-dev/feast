@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -20,6 +22,9 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -32,18 +37,18 @@ import (
 var tracer trace.Tracer
 
 type ServerStarter interface {
-	StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
-	StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
+	StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
+	StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
 }
 
 type RealServerStarter struct{}
 
-func (s *RealServerStarter) StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	return StartHttpServer(fs, host, port, writeLoggedFeaturesCallback, loggingOpts)
+func (s *RealServerStarter) StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
 }
 
-func (s *RealServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	return StartGrpcServer(fs, host, port, writeLoggedFeaturesCallback, loggingOpts)
+func (s *RealServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	return StartGrpcServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
 }
 
 func main() {
@@ -51,6 +56,7 @@ func main() {
 	serverType := "http"
 	host := ""
 	port := 8080
+	metricsPort := 9090
 	server := RealServerStarter{}
 	// Current Directory
 	repoPath, err := os.Getwd()
@@ -63,6 +69,7 @@ func main() {
 
 	flag.StringVar(&host, "host", host, "Specify a host for the server")
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
+	flag.IntVar(&metricsPort, "metrics-port", metricsPort, "Specify a port for the metrics server")
 	flag.Parse()
 
 	// Initialize tracer
@@ -109,9 +116,9 @@ func main() {
 	// TODO: writeLoggedFeaturesCallback is defaulted to nil. write_logged_features functionality needs to be
 	// implemented in Golang specific to OfflineStoreSink. Python Feature Server doesn't support this.
 	if serverType == "http" {
-		err = server.StartHttpServer(fs, host, port, nil, loggingOptions)
+		err = server.StartHttpServer(fs, host, port, metricsPort, nil, loggingOptions)
 	} else if serverType == "grpc" {
-		err = server.StartGrpcServer(fs, host, port, nil, loggingOptions)
+		err = server.StartGrpcServer(fs, host, port, metricsPort, nil, loggingOptions)
 	} else {
 		fmt.Println("Unknown server type. Please specify 'http' or 'grpc'.")
 	}
@@ -144,7 +151,7 @@ func constructLoggingService(fs *feast.FeatureStore, writeLoggedFeaturesCallback
 }
 
 // StartGprcServerWithLogging starts gRPC server with enabled feature logging
-func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+func StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
@@ -155,58 +162,127 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 	if err != nil {
 		return err
 	}
-
-	grpcServer := grpc.NewServer()
+	srvMetrics := grpc_prometheus.NewServerMetrics(
+		grpc_prometheus.WithServerHandlingTimeHistogram(
+			grpc_prometheus.WithHistogramBuckets([]float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}),
+		),
+	)
+	prometheus.MustRegister(srvMetrics)
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(srvMetrics.UnaryServerInterceptor()),
+	)
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+	srvMetrics.InitializeMetrics(grpcServer)
+
+	// Start metrics server
+	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", metricsPort)}
+	go func() {
+		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		metricsServer.Handler = mux
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Failed to start metrics server")
+		}
+	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+	serverExited := make(chan struct{})
 	go func() {
-		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-stop
-		log.Info().Msg("Stopping the gRPC server...")
-		grpcServer.GracefulStop()
-		if loggingService != nil {
-			loggingService.Stop()
+		defer wg.Done()
+		select {
+		case <-stop:
+			// Received SIGINT/SIGTERM. Perform graceful shutdown.
+			log.Info().Msg("Stopping the gRPC server...")
+			grpcServer.GracefulStop()
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+			log.Info().Msg("Stopping metrics server...")
+			if err := metricsServer.Shutdown(context.Background()); err != nil {
+				log.Error().Err(err).Msg("Error stopping metrics server")
+			}
+			log.Info().Msg("gRPC server terminated")
+		case <-serverExited:
+			// Server exited (e.g. startup error), ensure metrics server is stopped
+			metricsServer.Shutdown(context.Background())
+			if loggingService != nil {
+				loggingService.Stop()
+			}
 		}
-		log.Info().Msg("gRPC server terminated")
 	}()
 
-	return grpcServer.Serve(lis)
+	err = grpcServer.Serve(lis)
+	close(serverExited)
+	wg.Wait()
+	return err
 }
 
 // StartHttpServerWithLogging starts HTTP server with enabled feature logging
 // Go does not allow direct assignment to package-level functions as a way to
 // mock them for tests
-func StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
 	}
 	ser := server.NewHttpServer(fs, loggingService)
 	log.Info().Msgf("Starting a HTTP server on host %s, port %d", host, port)
+	// Start metrics server
+	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", metricsPort)}
+	go func() {
+		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		metricsServer.Handler = mux
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Failed to start metrics server")
+		}
+	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+	serverExited := make(chan struct{})
 	go func() {
-		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-stop
-		log.Info().Msg("Stopping the HTTP server...")
-		err := ser.Stop()
-		if err != nil {
-			log.Error().Err(err).Msg("Error when stopping the HTTP server")
+		defer wg.Done()
+		select {
+		case <-stop:
+			// Received SIGINT/SIGTERM. Perform graceful shutdown.
+			log.Info().Msg("Stopping the HTTP server...")
+			err := ser.Stop()
+			if err != nil {
+				log.Error().Err(err).Msg("Error when stopping the HTTP server")
+			}
+			log.Info().Msg("Stopping metrics server...")
+			if err := metricsServer.Shutdown(context.Background()); err != nil {
+				log.Error().Err(err).Msg("Error stopping metrics server")
+			}
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+			log.Info().Msg("HTTP server terminated")
+		case <-serverExited:
+			// Server exited (e.g. startup error), ensure metrics server is stopped
+			metricsServer.Shutdown(context.Background())
+			if loggingService != nil {
+				loggingService.Stop()
+			}
 		}
-		if loggingService != nil {
-			loggingService.Stop()
-		}
-		log.Info().Msg("HTTP server terminated")
 	}()
 
-	return ser.Serve(host, port)
+	err = ser.Serve(host, port)
+	close(serverExited)
+	wg.Wait()
+	return err
 }
 
 func OTELTracingEnabled() bool {
@@ -223,11 +299,15 @@ func newExporter(ctx context.Context) (*otlptrace.Exporter, error) {
 }
 
 func newTracerProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, error) {
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "FeastGoFeatureServer"
+	}
 	r, err := resource.Merge(
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("FeastGoFeatureServer"),
+			semconv.ServiceName(serviceName),
 		),
 	)
 

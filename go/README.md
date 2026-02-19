@@ -6,14 +6,27 @@ To build and run the Go Feature Server locally, create a feature_store.yaml file
 
 ```bash
     go build -o feast-go ./go/main.go
-    # start the http server
-    ./feast-go --type=http --port=8080
+    # start the http server (metrics on port 9090 by default)
+    ./feast-go --type=http --port=8080 --metrics-port=9090
     # or start the gRPC server
-    #./feast-go --type=grpc  --port=[your-choice]
+    #./feast-go --type=grpc  --port=[your-choice] --metrics-port=9091
 ```
+## Prometheus Metrics
+The server exposes Prometheus metrics at the `/metrics` endpoint on a dedicated port (default `:9090`).
+- **HTTP Mode**: Metrics server runs on port `9090` (configurable via `-metrics-port`).
+- **gRPC Mode**: Metrics server runs on port `9090` (configurable via `-metrics-port`).
+
+Key metrics include:
+- `http_request_duration_seconds`: Histogram of response latency.
+- `http_requests_total`: Counter of HTTP requests by status, method, and path.
+- Standard Go and Process metrics.
+
+A `/health` endpoint is available on the main application port (default `:8080`) for readiness probes.
+
 
 ## OTEL based observability
 The OS level env variable `ENABLE_OTEL_TRACING=="true"/"false"` (string type) is used to enable/disable this service (with Tracing only).
+You can also configure the service name using `OTEL_SERVICE_NAME` env variable (defaults to "FeastGoFeatureServer").
 
 The default exporter URL is "http://localhost:4318". The default schema of sending data to collector is **HTTP**. Please refer the following two docs about the configuration of the OTEL exporter:  
 1. https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/  

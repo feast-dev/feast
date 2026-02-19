@@ -14,13 +14,13 @@ type MockServerStarter struct {
 	mock.Mock
 }
 
-func (m *MockServerStarter) StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	args := m.Called(fs, host, port, writeLoggedFeaturesCallback, loggingOpts)
+func (m *MockServerStarter) StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	args := m.Called(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
 	return args.Error(0)
 }
 
-func (m *MockServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	args := m.Called(fs, host, port, writeLoggedFeaturesCallback, loggingOpts)
+func (m *MockServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	args := m.Called(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
 	return args.Error(0)
 }
 
@@ -34,9 +34,9 @@ func TestStartHttpServer(t *testing.T) {
 
 	loggingOpts := &logging.LoggingOptions{}
 
-	mockServerStarter.On("StartHttpServer", fs, host, port, mock.AnythingOfType("logging.OfflineStoreWriteCallback"), loggingOpts).Return(nil)
+	mockServerStarter.On("StartHttpServer", fs, host, port, 9090, mock.AnythingOfType("logging.OfflineStoreWriteCallback"), loggingOpts).Return(nil)
 
-	err := mockServerStarter.StartHttpServer(fs, host, port, writeLoggedFeaturesCallback, loggingOpts)
+	err := mockServerStarter.StartHttpServer(fs, host, port, 9090, writeLoggedFeaturesCallback, loggingOpts)
 	assert.NoError(t, err)
 	mockServerStarter.AssertExpectations(t)
 }
@@ -50,9 +50,9 @@ func TestStartGrpcServer(t *testing.T) {
 	var writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback
 	loggingOpts := &logging.LoggingOptions{}
 
-	mockServerStarter.On("StartGrpcServer", fs, host, port, mock.AnythingOfType("logging.OfflineStoreWriteCallback"), loggingOpts).Return(nil)
+	mockServerStarter.On("StartGrpcServer", fs, host, port, 9090, mock.AnythingOfType("logging.OfflineStoreWriteCallback"), loggingOpts).Return(nil)
 
-	err := mockServerStarter.StartGrpcServer(fs, host, port, writeLoggedFeaturesCallback, loggingOpts)
+	err := mockServerStarter.StartGrpcServer(fs, host, port, 9090, writeLoggedFeaturesCallback, loggingOpts)
 	assert.NoError(t, err)
 	mockServerStarter.AssertExpectations(t)
 }
@@ -67,5 +67,3 @@ func TestConstructLoggingService(t *testing.T) {
 	assert.NoError(t, err)
 	// Further assertions can be added here based on the expected behavior of constructLoggingService
 }
-
-// Note: Additional tests can be written for other functions and error scenarios.
