@@ -15,7 +15,7 @@ def run_demo():
             },
             {
                 "driver_id": 1002,
-            }
+            },
         ],
     ).to_dict()
     for key, value in sorted(features.items()):
