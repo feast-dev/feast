@@ -130,6 +130,15 @@ func extractCassandraConfig(onlineStoreConfig map[string]any) (*CassandraConfig,
 	if err != nil {
 		return nil, err
 	}
+
+	// parse user_name as fallback
+	if username == "" {
+		username, err = parseStringField(onlineStoreConfig, "user_name", "")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	cassandraConfig.username = username
 
 	// parse password
@@ -256,7 +265,7 @@ func NewCassandraOnlineStore(project string, config *registry.RepoConfig, online
 	}
 	createdSession, err := gocqltrace.CreateTracedSession(store.clusterConfigs, gocqltrace.WithService(cassandraTraceServiceName))
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to the ScyllaDB database")
+		return nil, fmt.Errorf("unable to connect to the Cassandra database")
 	}
 	store.session = createdSession
 

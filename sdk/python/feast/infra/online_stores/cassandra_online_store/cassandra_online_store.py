@@ -515,7 +515,7 @@ class CassandraOnlineStore(OnlineStore):
                             else:
                                 feature_value = getattr(valProto, str(feast_value_type))
                         else:
-                            # For all other features, use the serialized value
+                            # For all other features, use the serialized value.
                             feature_value = valProto.SerializeToString()  # type:ignore
                         feature_values += (feature_value,)
 

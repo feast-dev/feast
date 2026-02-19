@@ -4,7 +4,7 @@ registry: data/registry.db
 # The provider primarily specifies default offline / online stores & storing the registry in a given cloud
 provider: local
 online_store:
-    type: scylladb
+    type: cassandra
     hosts:
         - localhost
     load_balancing:

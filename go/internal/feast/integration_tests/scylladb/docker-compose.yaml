@@ -1,18 +1,24 @@
 services:
-  scylla:
-    image: scylladb/scylla:latest
-    container_name: scylla
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra
     ports:
       - "9042:9042"
-      - "10000:10000"
-  init-scylla:
-    image: scylladb/scylla:latest
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'DESC KEYSPACES'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+  init-cassandra:
+    image: cassandra:latest
     depends_on:
-      - scylla
+      cassandra:
+        condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "until cqlsh scylla -e 'DESC KEYSPACES'; do echo 'Waiting for Scylla...'; sleep 2; done &&
-       cqlsh scylla -e \"
+      "until cqlsh cassandra -e 'DESC KEYSPACES'; do echo 'Waiting for Cassandra...'; sleep 2; done &&
+       cqlsh cassandra -e \"
        CREATE KEYSPACE IF NOT EXISTS feast_keyspace
        WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
        \""

@@ -60,7 +60,11 @@ azure = [
     "pyodbc>=4.0.30",
     "pymssql<2.3.3"
 ]
-cassandra = ["cassandra-driver>=3.24.0,<4"]
+cassandra = [
+    "cassandra-driver>=3.24.0,<4",
+    "lz4",
+    "python-snappy",
+]
 clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
@@ -191,7 +195,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "eg-feast[aws, azure, clickhouse, couchbase, delta, docling, duckdb, eg_valkey, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, eg_milvus, mssql, mysql, opentelemetry, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
+    "eg-feast[aws, azure, clickhouse, couchbase, delta, docling, duckdb, eg_valkey, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, eg_milvus, mssql, mysql, opentelemetry, cassandra, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["eg-feast[docling, image, milvus, pytorch, rag]"]
 dev = ["eg-feast[ci]"]
