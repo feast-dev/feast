@@ -20,9 +20,11 @@ def run_demo():
 
         try:
             print("\n--- Load features into online store/materialize_incremental ---")
-            feature_views= store.list_feature_views()
+            feature_views = store.list_feature_views()
             if not feature_views:
-                raise PermissionError("No access to feature-views or no feature-views available.")
+                raise PermissionError(
+                    "No access to feature-views or no feature-views available."
+                )
             store.materialize_incremental(end_date=datetime.now())
         except PermissionError as pe:
             print(f"Permission error: {pe}")
@@ -74,9 +76,7 @@ def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: 
                 # values we're using for an on-demand transformation
                 "val_to_add": [1, 2, 3],
                 "val_to_add_2": [10, 20, 30],
-
             }
-
         )
         if for_batch_scoring:
             entity_df["event_timestamp"] = pd.to_datetime("now", utc=True)

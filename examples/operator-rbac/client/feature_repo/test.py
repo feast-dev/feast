@@ -9,6 +9,7 @@ import pandas as pd
 repo_path = os.getenv("FEAST_REPO_PATH", ".")
 store = FeatureStore(repo_path=repo_path)
 
+
 def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: bool):
     """Fetch historical features for training or batch scoring."""
     try:
@@ -38,12 +39,16 @@ def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: 
                 "transformed_conv_rate:conv_rate_plus_val2",
             ],
         ).to_df()
-        print(f"Successfully fetched {'batch scoring' if for_batch_scoring else 'training'} historical features:\n", training_df.head())
+        print(
+            f"Successfully fetched {'batch scoring' if for_batch_scoring else 'training'} historical features:\n",
+            training_df.head(),
+        )
 
     except PermissionError:
         print("\n*** PERMISSION DENIED *** Cannot fetch historical features.")
     except Exception as e:
         print(f"Unexpected error while fetching historical features: {e}")
+
 
 def fetch_online_features(store: FeatureStore, source: str = ""):
     """Fetch online features from the feature store."""
@@ -76,7 +81,9 @@ def fetch_online_features(store: FeatureStore, source: str = ""):
             entity_rows=entity_rows,
         ).to_dict()
 
-        print(f"Successfully fetched online features {'via feature service' if source else 'directly'}:\n")
+        print(
+            f"Successfully fetched online features {'via feature service' if source else 'directly'}:\n"
+        )
         for key, value in sorted(returned_features.items()):
             print(f"{key} : {value}")
 
@@ -84,6 +91,7 @@ def fetch_online_features(store: FeatureStore, source: str = ""):
         print("\n*** PERMISSION DENIED *** Cannot fetch online features.")
     except Exception as e:
         print(f"Unexpected error while fetching online features: {e}")
+
 
 def check_permissions():
     """Check user role, test various Feast operations."""
@@ -94,7 +102,9 @@ def check_permissions():
     try:
         feature_views = store.list_feature_views()
         if not feature_views:
-            print("No feature views found. You might not have access or they haven't been created.")
+            print(
+                "No feature views found. You might not have access or they haven't been created."
+            )
         else:
             print(f"Successfully listed {len(feature_views)} feature views:")
             for fv in feature_views:
@@ -117,7 +127,9 @@ def check_permissions():
         store.apply(feature_views)
         print("User has write access to the feature store.")
     except PermissionError:
-        print("\n*** PERMISSION DENIED *** User lacks permission to modify the feature store.")
+        print(
+            "\n*** PERMISSION DENIED *** User lacks permission to modify the feature store."
+        )
     except Exception as e:
         print(f"Unexpected error testing write access: {e}")
 
@@ -150,6 +162,7 @@ def check_permissions():
         print("\n*** PERMISSION DENIED *** Cannot push event (no write access).")
     except Exception as e:
         print(f"Unexpected error while pushing event: {e}")
+
 
 if __name__ == "__main__":
     check_permissions()

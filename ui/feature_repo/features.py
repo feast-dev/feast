@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import pandas as pd
-import numpy as np
 
 from feast import Entity, FeatureService, FeatureView, Field, FileSource
 from feast.data_source import RequestSource
@@ -138,6 +137,7 @@ input_request = RequestSource(
         Field(name="transaction_amt", dtype=Int64),
     ],
 )
+
 
 # Define an on demand feature view which can generate new features based on
 # existing feature views and RequestSource features
@@ -306,6 +306,7 @@ query_request = RequestSource(
     ],
 )
 
+
 # Define an on-demand feature view for similarity calculation
 @on_demand_feature_view(
     sources=[document_embeddings_view, query_request],
@@ -318,6 +319,7 @@ def document_similarity(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["similarity_score"] = 0.95  # Placeholder value
     return df
+
 
 rag_model = FeatureService(
     name="rag_retriever",
