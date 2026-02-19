@@ -26,7 +26,7 @@ def test_get_online_features() -> None:
         offline_store="file",
         online_store="mongodb",
         apply=True,
-        teardown=True
+        teardown=True,
     ) as store:
         # Write some data to two tables
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -346,7 +346,7 @@ def test_online_to_df():
         offline_store="file",
         online_store="mongodb",
         apply=True,
-        teardown=True
+        teardown=True,
     ) as store:
         # Write three tables to online store
         driver_locations_fv = store.get_feature_view(name="driver_locations")

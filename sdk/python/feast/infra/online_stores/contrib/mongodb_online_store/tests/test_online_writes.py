@@ -52,7 +52,7 @@ class TestOnlineWrites(unittest.TestCase):
                     entity_key_serialization_version=3,
                     # online_store=SqliteOnlineStoreConfig(path=os.path.join(data_dir, "online.db")),
                     # TODO Try this with MongoDBOnlineStoreConfig defaults
-                    online_store = MongoDBOnlineStoreConfig()
+                    online_store=MongoDBOnlineStoreConfig(),
                 )
             )
 
@@ -170,7 +170,7 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
                 registry=os.path.join(self.data_dir, "registry.db"),
                 provider="local",
                 entity_key_serialization_version=3,
-                online_store=MongoDBOnlineStoreConfig()
+                online_store=MongoDBOnlineStoreConfig(),
                 # online_store=SqliteOnlineStoreConfig(path=os.path.join(self.data_dir, "online.db")),
             )
         )
@@ -357,7 +357,11 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
                 "event_timestamp": [current_time] * 3,
                 "created": [current_time] * 3,
                 "conv_rate": [0.5, None, 0.7],  # Mixed values
-                "acc_rate": [0.8, 0.9, None],  # Mixed values  # todo What behavior should this have?
+                "acc_rate": [
+                    0.8,
+                    0.9,
+                    None,
+                ],  # Mixed values  # todo What behavior should this have?
                 "avg_daily_trips": [10, 12, 15],  # All valid
             }
         )
@@ -560,7 +564,7 @@ class TestOnlineWritesWithTransform(unittest.TestCase):
                     registry=os.path.join(data_dir, "registry.db"),
                     provider="local",
                     entity_key_serialization_version=3,
-                    online_store=MongoDBOnlineStoreConfig()
+                    online_store=MongoDBOnlineStoreConfig(),
                     # online_store=SqliteOnlineStoreConfig(path=os.path.join(self.data_dir, "online.db")),
                 )
             )
