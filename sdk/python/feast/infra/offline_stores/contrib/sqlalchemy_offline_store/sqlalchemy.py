@@ -588,15 +588,20 @@ def build_point_in_time_query(
             # Uppercase timestamp and created timestamp columns
             if "timestamp_field" in fv_context:
                 fv_context["timestamp_field"] = fv_context["timestamp_field"].upper()
-            if "created_timestamp_column" in fv_context and fv_context["created_timestamp_column"]:
-                fv_context["created_timestamp_column"] = fv_context["created_timestamp_column"].upper()
+            if (
+                "created_timestamp_column" in fv_context
+                and fv_context["created_timestamp_column"]
+            ):
+                fv_context["created_timestamp_column"] = fv_context[
+                    "created_timestamp_column"
+                ].upper()
             # Uppercase feature names
             if "features" in fv_context:
                 fv_context["features"] = [f.upper() for f in fv_context["features"]]
             # Update entity_selections to use uppercase
             if "entity_selections" in fv_context:
                 fv_context["entity_selections"] = [
-                    sel.upper() if '"' not in sel else sel.replace('"', '').upper()
+                    sel.upper() if '"' not in sel else sel.replace('"', "").upper()
                     for sel in fv_context["entity_selections"]
                 ]
             # Update field_mapping keys and values to uppercase
@@ -647,7 +652,7 @@ def build_point_in_time_query(
 # - ON TRUE: Not supported by all databases
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
 {# Dialect-aware helper macros #}
-{# 
+{#
    Supported dialects: postgresql, oracle, mysql, sqlite
    - postgresql: Standard SQL with some PostgreSQL extensions
    - oracle: Uppercase identifiers, NUMTODSINTERVAL, no AS for aliases, no USING
