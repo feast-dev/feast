@@ -57,15 +57,20 @@ def serialize_entity_key_prefix(
     This encoding is a partial implementation of serialize_entity_key, only operating on the keys of entities,
     and not the values.
     """
-    sorted_keys = sorted(entity_keys)
+    # Fast path optimization for single entity
+    if len(entity_keys) == 1:
+        sorted_keys = [entity_keys[0]]
+    else:
+        sorted_keys = sorted(entity_keys)
     output: List[bytes] = []
     if entity_key_serialization_version > 2:
         output.append(struct.pack("<I", len(sorted_keys)))
     for k in sorted_keys:
+        k_encoded = k.encode("utf8")
         output.append(struct.pack("<I", ValueType.STRING))
         if entity_key_serialization_version > 2:
-            output.append(struct.pack("<I", len(k)))
-        output.append(k.encode("utf8"))
+            output.append(struct.pack("<I", len(k_encoded)))
+        output.append(k_encoded)
     return b"".join(output)
 
 
@@ -148,28 +153,37 @@ def serialize_entity_key(
     if not entity_key.join_keys:
         sorted_keys = []
         sorted_values = []
+    elif len(entity_key.join_keys) == 1:
+        # Fast path: single entity, no sorting needed
+        sorted_keys = [entity_key.join_keys[0]]
+        sorted_values = [entity_key.entity_values[0]]
     else:
+        # Multi-entity: use sorting
         pairs = sorted(zip(entity_key.join_keys, entity_key.entity_values))
         sorted_keys = [k for k, _ in pairs]
         sorted_values = [v for _, v in pairs]
 
     output: List[bytes] = []
+
     if entity_key_serialization_version > 2:
         output.append(struct.pack("<I", len(sorted_keys)))
-    for k in sorted_keys:
-        output.append(struct.pack("<I", ValueType.STRING))
-        if entity_key_serialization_version > 2:
-            output.append(struct.pack("<I", len(k)))
-        output.append(k.encode("utf8"))
+
+    # Optimize key encoding by pre-encoding all strings
+    if sorted_keys:
+        encoded_keys = [k.encode("utf8") for k in sorted_keys]
+        for i, k_encoded in enumerate(encoded_keys):
+            output.append(struct.pack("<I", ValueType.STRING))
+            if entity_key_serialization_version > 2:
+                output.append(struct.pack("<I", len(k_encoded)))
+            output.append(k_encoded)
+
     for v in sorted_values:
         val_bytes, value_type = _serialize_val(
             v.WhichOneof("val"),
             v,
             entity_key_serialization_version=entity_key_serialization_version,
         )
-
         output.append(struct.pack("<I", value_type))
-
         output.append(struct.pack("<I", len(val_bytes)))
         output.append(val_bytes)
 
@@ -195,42 +209,61 @@ def deserialize_entity_key(
             "Deserialization of entity key with version < 3 is removed. Please use version 3 by setting entity_key_serialization_version=3."
             "To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md"
         )
-    offset = 0
+    # Optimized deserialization using memoryview for zero-copy slicing
+    buffer = memoryview(serialized_entity_key)
+    pos = 0
     keys = []
     values = []
 
-    num_keys = struct.unpack_from("<I", serialized_entity_key, offset)[0]
-    offset += 4
+    # Read number of keys
+    if len(buffer) < pos + 4:
+        raise ValueError(
+            "Invalid serialized entity key: insufficient data for key count"
+        )
+    num_keys = struct.unpack("<I", buffer[pos : pos + 4])[0]
+    pos += 4
 
+    # Process all keys uniformly
     for _ in range(num_keys):
-        key_type = struct.unpack_from("<I", serialized_entity_key, offset)[0]
-        offset += 4
+        if len(buffer) < pos + 8:  # Need at least 8 bytes for type + length
+            raise ValueError(
+                "Invalid serialized entity key: insufficient data for key metadata"
+            )
 
-        # Read the length of the key
-        key_length = struct.unpack_from("<I", serialized_entity_key, offset)[0]
-        offset += 4
+        key_type, key_length = struct.unpack("<2I", buffer[pos : pos + 8])
+        pos += 8
 
         if key_type == ValueType.STRING:
-            key = struct.unpack_from(f"<{key_length}s", serialized_entity_key, offset)[
-                0
-            ]
+            if len(buffer) < pos + key_length:
+                raise ValueError(
+                    "Invalid serialized entity key: insufficient data for key"
+                )
+            key = struct.unpack(f"<{key_length}s", buffer[pos : pos + key_length])[0]
             keys.append(key.decode("utf-8").rstrip("\x00"))
-            offset += key_length
+            pos += key_length
         else:
             raise ValueError(f"Unsupported key type: {key_type}")
 
-    while offset < len(serialized_entity_key):
-        (value_type,) = struct.unpack_from("<I", serialized_entity_key, offset)
-        offset += 4
+    # Process values with bounds checking
+    while pos < len(buffer):
+        if len(buffer) < pos + 8:  # Need at least 8 bytes for type + length
+            raise ValueError(
+                "Invalid serialized entity key: insufficient data for value metadata"
+            )
 
-        (value_length,) = struct.unpack_from("<I", serialized_entity_key, offset)
-        offset += 4
+        value_type, value_length = struct.unpack("<2I", buffer[pos : pos + 8])
+        pos += 8
 
-        # Read the value based on its type and length
-        value_bytes = serialized_entity_key[offset : offset + value_length]
+        if len(buffer) < pos + value_length:
+            raise ValueError(
+                "Invalid serialized entity key: insufficient data for value"
+            )
+
+        # Zero-copy slice for value bytes
+        value_bytes = buffer[pos : pos + value_length].tobytes()
         value = _deserialize_value(value_type, value_bytes)
         values.append(value)
-        offset += value_length
+        pos += value_length
 
     return EntityKeyProto(join_keys=keys, entity_values=values)
 
