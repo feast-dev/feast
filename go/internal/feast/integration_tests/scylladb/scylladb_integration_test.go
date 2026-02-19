@@ -417,3 +417,4 @@ func getAllSortedFeatureNames() []string {
 func getAllRegularFeatureNames() []string {
 	return strings.Split(ALL_REGULAR_FEATURE_NAMES, ",")
 }
+
