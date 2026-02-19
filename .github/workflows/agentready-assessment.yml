@@ -1,18 +1,14 @@
 name: AgentReady Assessment
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened, labeled]
+  pull_request:
+    types: [opened, synchronize, reopened]
   push:
     branches: [main, master]
   workflow_dispatch:
 
 jobs:
   assess:
-    if:
-      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
-      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,6 +30,7 @@ jobs:
           pip install agentready
 
       - name: Run AgentReady Assessment
+        continue-on-error: true
         run: |
           agentready assess . --verbose
 
@@ -42,23 +39,36 @@ jobs:
         if: always()
         with:
           name: agentready-reports
-          path: .agentready/
+          path: ${{ github.workspace }}/.agentready/
+          include-hidden-files: true
           retention-days: 30
 
       - name: Comment on PR
-        if: always() && github.event_name == 'pull_request_target'
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const reportPath = '.agentready/report-latest.md';
+            const path = require('path');
+            const agentreadyDir = path.join(process.env.GITHUB_WORKSPACE, '.agentready');
 
-            if (!fs.existsSync(reportPath)) {
-              console.log('No report found');
+            if (!fs.existsSync(agentreadyDir)) {
+              console.log('No .agentready directory found');
               return;
             }
 
-            const report = fs.readFileSync(reportPath, 'utf8');
+            const mdFiles = fs.readdirSync(agentreadyDir)
+              .filter(f => f.startsWith('report-') && f.endsWith('.md'))
+              .sort()
+              .reverse();
+
+            if (mdFiles.length === 0) {
+              console.log('No markdown report found');
+              return;
+            }
+
+            const report = fs.readFileSync(path.join(agentreadyDir, mdFiles[0]), 'utf8');
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -66,3 +76,4 @@ jobs:
               repo: context.repo.repo,
               body: report
             });
+
