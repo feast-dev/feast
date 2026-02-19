@@ -1496,3 +1496,269 @@ def convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series:
             return item
 
     return series.apply(convert_array_item)
+
+
+def sqlalchemy_type_to_feast_value_type(sqlalchemy_type_str: str) -> ValueType:
+    """
+    Convert a SQLAlchemy type string to a Feast ValueType.
+
+    This mapping supports common SQL types across different database backends.
+    The type string is typically the class name of the SQLAlchemy type (lowercase).
+
+    Args:
+        sqlalchemy_type_str: String representation of the SQLAlchemy type (e.g., "integer", "varchar")
+
+    Returns:
+        The corresponding Feast ValueType
+
+    Supported mappings include:
+        - Integer types: TINYINT, SMALLINT, INTEGER, BIGINT -> INT32/INT64
+        - Float types: REAL, FLOAT, DOUBLE, NUMERIC, DECIMAL -> FLOAT/DOUBLE
+        - String types: VARCHAR, CHAR, TEXT, NVARCHAR -> STRING
+        - Boolean types: BOOLEAN, BIT -> BOOL
+        - Timestamp types: TIMESTAMP, DATETIME, DATE -> UNIX_TIMESTAMP
+        - Binary types: BLOB, BINARY, VARBINARY, BYTEA -> BYTES
+    """
+    type_str = sqlalchemy_type_str.lower().strip()
+
+    # Handle parameterized types (e.g., "varchar(255)" -> "varchar")
+    if "(" in type_str:
+        type_str = type_str.split("(")[0]
+
+    type_map: Dict[str, ValueType] = {
+        # Integer types
+        "tinyint": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "smallinteger": ValueType.INT32,
+        "mediumint": ValueType.INT32,
+        "integer": ValueType.INT32,
+        "int": ValueType.INT32,
+        "int4": ValueType.INT32,
+        "int2": ValueType.INT32,
+        "bigint": ValueType.INT64,
+        "biginteger": ValueType.INT64,
+        "int8": ValueType.INT64,
+        "serial": ValueType.INT32,
+        "bigserial": ValueType.INT64,
+        # Float/Double types
+        "real": ValueType.FLOAT,
+        "float": ValueType.DOUBLE,
+        "float4": ValueType.FLOAT,
+        "float8": ValueType.DOUBLE,
+        "double": ValueType.DOUBLE,
+        "double precision": ValueType.DOUBLE,
+        "double_precision": ValueType.DOUBLE,
+        "numeric": ValueType.DOUBLE,
+        "decimal": ValueType.DOUBLE,
+        "money": ValueType.DOUBLE,
+        # String types
+        "varchar": ValueType.STRING,
+        "char": ValueType.STRING,
+        "character": ValueType.STRING,
+        "character varying": ValueType.STRING,
+        "text": ValueType.STRING,
+        "string": ValueType.STRING,
+        "nchar": ValueType.STRING,
+        "nvarchar": ValueType.STRING,
+        "ntext": ValueType.STRING,
+        "clob": ValueType.STRING,
+        "longtext": ValueType.STRING,
+        "mediumtext": ValueType.STRING,
+        "tinytext": ValueType.STRING,
+        "enum": ValueType.STRING,
+        "uuid": ValueType.STRING,
+        # Boolean types
+        "boolean": ValueType.BOOL,
+        "bool": ValueType.BOOL,
+        "bit": ValueType.BOOL,
+        # Timestamp/Date types
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        "timestamptz": ValueType.UNIX_TIMESTAMP,
+        "timestamp without time zone": ValueType.UNIX_TIMESTAMP,
+        "timestamp with time zone": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "datetime2": ValueType.UNIX_TIMESTAMP,
+        "smalldatetime": ValueType.UNIX_TIMESTAMP,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "time": ValueType.UNIX_TIMESTAMP,
+        "timetz": ValueType.UNIX_TIMESTAMP,
+        "time without time zone": ValueType.UNIX_TIMESTAMP,
+        "time with time zone": ValueType.UNIX_TIMESTAMP,
+        "interval": ValueType.UNIX_TIMESTAMP,
+        # Binary types
+        "blob": ValueType.BYTES,
+        "binary": ValueType.BYTES,
+        "varbinary": ValueType.BYTES,
+        "bytea": ValueType.BYTES,
+        "longblob": ValueType.BYTES,
+        "mediumblob": ValueType.BYTES,
+        "tinyblob": ValueType.BYTES,
+        "image": ValueType.BYTES,
+        "raw": ValueType.BYTES,
+        # NULL type
+        "null": ValueType.NULL,
+        "none": ValueType.NULL,
+    }
+
+    return type_map.get(type_str, ValueType.STRING)
+
+
+def feast_value_type_to_sqlalchemy_type(feast_type: ValueType) -> str:
+    """
+    Convert a Feast ValueType to a generic SQL type string.
+
+    This returns generic SQL types that should work across most database backends.
+    For specific database optimizations, the calling code may need to adjust these types.
+
+    Args:
+        feast_type: The Feast ValueType to convert
+
+    Returns:
+        A generic SQL type string compatible with most databases
+    """
+    type_map: Dict[ValueType, str] = {
+        ValueType.INT32: "INTEGER",
+        ValueType.INT64: "BIGINT",
+        ValueType.FLOAT: "REAL",
+        ValueType.DOUBLE: "DOUBLE PRECISION",
+        ValueType.STRING: "VARCHAR(65535)",
+        ValueType.BYTES: "BLOB",
+        ValueType.BOOL: "BOOLEAN",
+        ValueType.UNIX_TIMESTAMP: "TIMESTAMP",
+        ValueType.NULL: "VARCHAR(1)",
+        # List types - stored as JSON or TEXT in most databases
+        ValueType.INT32_LIST: "TEXT",
+        ValueType.INT64_LIST: "TEXT",
+        ValueType.FLOAT_LIST: "TEXT",
+        ValueType.DOUBLE_LIST: "TEXT",
+        ValueType.STRING_LIST: "TEXT",
+        ValueType.BYTES_LIST: "TEXT",
+        ValueType.BOOL_LIST: "TEXT",
+        ValueType.UNIX_TIMESTAMP_LIST: "TEXT",
+    }
+
+    return type_map.get(feast_type, "VARCHAR(65535)")
+
+
+def pa_to_sqlalchemy_type(pa_type: "pyarrow.DataType") -> str:
+    """
+    Convert a PyArrow DataType to a generic SQL type string.
+
+    This is useful when creating tables from PyArrow schemas or DataFrames.
+
+    Args:
+        pa_type: The PyArrow DataType to convert
+
+    Returns:
+        A generic SQL type string compatible with most databases
+    """
+    pa_type_str = str(pa_type).lower()
+
+    # Handle timestamp types
+    if pa_type_str.startswith("timestamp"):
+        if "tz=" in pa_type_str:
+            return "TIMESTAMP WITH TIME ZONE"
+        else:
+            return "TIMESTAMP"
+
+    if pa_type_str.startswith("date"):
+        return "DATE"
+
+    if pa_type_str.startswith("time"):
+        if "tz=" in pa_type_str:
+            return "TIME WITH TIME ZONE"
+        else:
+            return "TIME"
+
+    if pa_type_str.startswith("decimal"):
+        return pa_type_str.upper()
+
+    if pa_type_str.startswith("list"):
+        return "TEXT"
+
+    pa_type_map: Dict[str, str] = {
+        "null": "VARCHAR(1)",
+        "bool": "BOOLEAN",
+        "int8": "SMALLINT",
+        "int16": "SMALLINT",
+        "int32": "INTEGER",
+        "int64": "BIGINT",
+        "uint8": "SMALLINT",
+        "uint16": "INTEGER",
+        "uint32": "BIGINT",
+        "uint64": "BIGINT",
+        "float": "REAL",
+        "double": "DOUBLE PRECISION",
+        "binary": "BLOB",
+        "string": "VARCHAR(65535)",
+        "large_string": "TEXT",
+    }
+
+    return pa_type_map.get(pa_type_str, "VARCHAR(65535)")
+
+
+def sqlalchemy_type_code_to_type_str(type_code: int, dialect: str = "generic") -> str:
+    """
+    Convert a database-specific type code to a type string.
+
+    Different database drivers return different type codes. This function
+    provides a unified way to convert them to strings.
+
+    Args:
+        type_code: The numeric type code from the database cursor description
+        dialect: The SQLAlchemy dialect name (e.g., "postgresql", "mysql", "sqlite")
+
+    Returns:
+        A string representation of the type
+    """
+    # PostgreSQL type codes (from pg_type OIDs)
+    if dialect in ("postgresql", "postgres", "psycopg2", "psycopg"):
+        pg_type_map = {
+            16: "boolean",
+            17: "bytea",
+            20: "bigint",
+            21: "smallint",
+            23: "integer",
+            25: "text",
+            700: "real",
+            701: "double precision",
+            1042: "character",
+            1043: "character varying",
+            1082: "date",
+            1083: "time without time zone",
+            1114: "timestamp without time zone",
+            1184: "timestamp with time zone",
+            1700: "numeric",
+            2950: "uuid",
+        }
+        return pg_type_map.get(type_code, "unknown")
+
+    # MySQL type codes
+    if dialect in ("mysql", "mariadb", "pymysql"):
+        mysql_type_map = {
+            0: "decimal",
+            1: "tinyint",
+            2: "smallint",
+            3: "integer",
+            4: "float",
+            5: "double",
+            6: "null",
+            7: "timestamp",
+            8: "bigint",
+            9: "mediumint",
+            10: "date",
+            11: "time",
+            12: "datetime",
+            13: "year",
+            252: "blob",
+            253: "varchar",
+            254: "char",
+        }
+        return mysql_type_map.get(type_code, "unknown")
+
+    # SQLite doesn't use type codes in the same way
+    if dialect == "sqlite":
+        return "text"
+
+    # Default: return unknown
+    return "unknown"

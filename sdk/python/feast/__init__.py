@@ -5,6 +5,9 @@ from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
     AthenaSource,
 )
+from feast.infra.offline_stores.contrib.sqlalchemy_offline_store.sqlalchemy_source import (
+    SQLAlchemySource,
+)
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
@@ -53,6 +56,7 @@ __all__ = [
     "FileSource",
     "RedshiftSource",
     "SnowflakeSource",
+    "SQLAlchemySource",
     "PushSource",
     "RequestSource",
     "AthenaSource",

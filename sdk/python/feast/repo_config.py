@@ -104,6 +104,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
+    "sqlalchemy": "feast.infra.offline_stores.contrib.sqlalchemy_offline_store.sqlalchemy.SQLAlchemyOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
