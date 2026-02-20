@@ -202,13 +202,8 @@ class MongoDBOnlineStore(OnlineStore):
 
             clxn.update_many({}, {"$unset": unset_fields})
 
-        # Delete specific entities
-        if entities_to_delete:
-            logger.warning(
-                f"CHECK FORM. Can we call to_proto()?: {entities_to_delete = }"
-            )
-            ids = [serialize_entity_key(e.to_proto()) for e in entities_to_delete]
-            clxn.delete_many({"_id": {"$in": ids}})
+        # Note: entities_to_delete contains Entity definitions (metadata), not entity instances.
+        # Like other online stores, we don't need to do anything with entities_to_delete here.
 
     def teardown(
         self,
@@ -252,6 +247,7 @@ class MongoDBOnlineStore(OnlineStore):
         """Returns a connection to the online store collection."""
         if self._collection is None:
             self._client = self._get_client(repo_config)
+            assert self._client is not None
             online_config = repo_config.online_store
             db = self._client[online_config.database_name]
             clxn_name = f"{repo_config.project}_{online_config.collection_suffix}"
@@ -261,7 +257,7 @@ class MongoDBOnlineStore(OnlineStore):
     @staticmethod
     def convert_raw_docs_to_proto_simply(
         ids: list[bytes],
-        docs: dict[str, Any],
+        docs: dict[bytes, Any],
         table: FeatureView,
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[dict[str, ValueProto]]]]:
@@ -303,7 +299,7 @@ class MongoDBOnlineStore(OnlineStore):
 
     @staticmethod
     def convert_raw_docs_to_proto_transforming(
-        ids: list[bytes], docs: dict[str, Any], table: FeatureView
+        ids: list[bytes], docs: dict[bytes, Any], table: FeatureView
     ) -> List[Tuple[Optional[datetime], Optional[dict[str, ValueProto]]]]:
         """Convert values in documents retrieved from MongoDB (BSON) into ValueProto types.
 
@@ -322,7 +318,7 @@ class MongoDBOnlineStore(OnlineStore):
 
         # Step 1: Extract raw values column-wise (aligned by ordered ids)
         # We need to maintain alignment, so we append None for missing features
-        raw_feature_columns = {feature_name: [] for feature_name in feature_type_map}
+        raw_feature_columns: Dict[str, List[Any]] = {feature_name: [] for feature_name in feature_type_map}
 
         for entity_id in ids:
             doc = docs.get(entity_id)
@@ -343,7 +339,7 @@ class MongoDBOnlineStore(OnlineStore):
             )
 
         # Step 3: Reassemble row-wise
-        results = []
+        results: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
         for i, entity_id in enumerate(ids):
             doc = docs.get(entity_id)
