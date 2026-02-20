@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import datetime
 from logging import getLogger
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
@@ -32,7 +31,7 @@ class MongoDBOnlineStoreConfig(FeastConfigBaseModel):
 
     type: Literal[
         "mongodb",
-        "feast.infra.online_stores.mongodb_online_store.mongodb.MongoDBOnlineStore",
+        "feast.infra.online_stores.contrib.mongodb_online_store.mongodb.MongoDBOnlineStore",
     ] = "mongodb"
     """Online store type selector"""
     connection_string: str = "mongodb://localhost:27017"
@@ -100,7 +99,10 @@ class MongoDBOnlineStore(OnlineStore):
         ops = []
         for row in data:
             entity_key, proto_values, event_timestamp, created_timestamp = row
-            entity_id = serialize_entity_key(entity_key)
+            entity_id = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
             feature_updates = {
                 f"features.{table.name}.{field}": feast_value_type_to_python_type(val)
                 for field, val in proto_values.items()
@@ -253,8 +255,6 @@ class MongoDBOnlineStore(OnlineStore):
             online_config = repo_config.online_store
             db = self._client[online_config.database_name]
             clxn_name = f"{repo_config.project}_{online_config.collection_suffix}"
-            if clxn_name not in db.list_collection_names():
-                self._collection = db.create_collection(clxn_name)
             self._collection = db[clxn_name]
         return self._collection
 
@@ -297,7 +297,9 @@ class MongoDBOnlineStore(OnlineStore):
                 for k, v in features_raw.items()
             }
 
-        results.append((ts, features_proto))
+            results.append((ts, features_proto))
+
+        return results
 
     @staticmethod
     def convert_raw_docs_to_proto_transforming(
@@ -318,14 +320,19 @@ class MongoDBOnlineStore(OnlineStore):
             feature.name: feature.dtype.to_value_type() for feature in table.features
         }
 
-        # Step 1: Extract raw values column-wise # (aligned by ordered ids column-wise)
-        raw_feature_columns = defaultdict(list)
+        # Step 1: Extract raw values column-wise (aligned by ordered ids)
+        # We need to maintain alignment, so we append None for missing features
+        raw_feature_columns = {feature_name: [] for feature_name in feature_type_map}
+
         for entity_id in ids:
             doc = docs.get(entity_id)
             feature_dict = doc.get("features", {}).get(table.name, {}) if doc else {}
 
-            for feature, value in feature_dict.items():
-                raw_feature_columns[feature].append(value)
+            # For each expected feature, append its value or None
+            for feature_name in feature_type_map:
+                raw_feature_columns[feature_name].append(
+                    feature_dict.get(feature_name, None)
+                )
 
         # Step 2: Convert per feature
         proto_feature_columns = {}
@@ -358,3 +365,4 @@ class MongoDBOnlineStore(OnlineStore):
 
 # TODO
 #   - Implement async API
+#   - Vector Search
