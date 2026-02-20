@@ -9,6 +9,7 @@ repo_root = str(Path(__file__).resolve().parent)
 PROTO_SUBDIRS = ["core", "registry", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
 
+
 class BuildPythonProtosCommand:
     description = "Builds the proto files into Python files."
     user_options = [
@@ -75,6 +76,7 @@ class BuildPythonProtosCommand:
                 # Write the file out again
                 with open(path, "w") as file:
                     file.write(filedata)
+
 
 if __name__ == "__main__":
     BuildPythonProtosCommand().run()

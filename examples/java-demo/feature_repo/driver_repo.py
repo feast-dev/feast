@@ -14,7 +14,10 @@ driver_hourly_stats = FileSource(
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
-driver = Entity(name="driver_id", description="driver id",)
+driver = Entity(
+    name="driver_id",
+    description="driver id",
+)
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=[driver],
@@ -58,4 +61,3 @@ def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
     df["conv_rate_plus_val1"] = inputs["conv_rate"] + inputs["val_to_add"]
     df["conv_rate_plus_val2"] = inputs["conv_rate"] + inputs["val_to_add_2"]
     return df
-
