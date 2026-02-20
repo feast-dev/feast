@@ -33,7 +33,7 @@ from feast import (
 )
 from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.field import Field
-from feast.infra.online_stores.mongodb_online_store.mongodb_openai import (
+from feast.infra.online_stores.contrib.mongodb_online_store.mongodb import (
     MongoDBOnlineStoreConfig,
 )
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
