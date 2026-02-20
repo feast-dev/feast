@@ -148,7 +148,7 @@ class CliRunner:
                 entity_key_serialization_version: 3
                 """
                 )
-            elif online_store:
+            elif online_store:  # Added for mongodb, but very general
                 yaml_config = dedent(
                     f"""
                 project: {project_id}

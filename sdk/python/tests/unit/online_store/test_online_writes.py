@@ -51,9 +51,9 @@ class TestOnlineWrites(unittest.TestCase):
                     registry=os.path.join(data_dir, "registry.db"),
                     provider="local",
                     entity_key_serialization_version=3,
-                    # online_store=SqliteOnlineStoreConfig(path=os.path.join(data_dir, "online.db")),
-                    # TODO Try this with MongoDBOnlineStoreConfig defaults
-                    online_store = MongoDBOnlineStoreConfig()
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(data_dir, "online.db")
+                    ),
                 )
             )
 
