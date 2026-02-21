@@ -4,13 +4,15 @@ from datetime import datetime
 from logging import getLogger
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-from pymongo import MongoClient, UpdateOne
+from pymongo import MongoClient, AsyncMongoClient, UpdateOne
+from pymongo.asynchronous.collection import AsyncCollection
 from pymongo.collection import Collection
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.supported_async_methods import SupportedAsyncMethods
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -73,6 +75,8 @@ class MongoDBOnlineStore(OnlineStore):
 
     _client: Optional[MongoClient] = None
     _collection: Optional[Collection] = None
+    _client_async: Optional[AsyncMongoClient] = None
+    _collection_async: Optional[AsyncCollection] = None
 
     def online_write_batch(
         self,
@@ -254,6 +258,35 @@ class MongoDBOnlineStore(OnlineStore):
             self._collection = db[clxn_name]
         return self._collection
 
+    async def _get_client_async(self, config: RepoConfig) -> AsyncMongoClient:
+        """Returns an async MongoDB client."""
+        if self._client_async is None:
+            online_config = config.online_store
+            if not isinstance(online_config, MongoDBOnlineStoreConfig):
+                logger.warning(
+                    f"config.online_store passed to _get_client_async is not a MongoDBOnlineStoreConfig. It's of type {type(online_config)}"
+                )
+            self._client_async = AsyncMongoClient(
+                online_config.connection_string, **online_config.client_kwargs
+            )
+        return self._client_async
+
+    async def _get_collection_async(self, repo_config: RepoConfig) -> AsyncCollection:
+        """Returns an async connection to the online store collection."""
+        if self._collection_async is None:
+            self._client_async = await self._get_client_async(repo_config)
+            assert self._client_async is not None
+            online_config = repo_config.online_store
+            db = self._client_async[online_config.database_name]
+            clxn_name = f"{repo_config.project}_{online_config.collection_suffix}"
+            self._collection_async = db[clxn_name]
+        return self._collection_async
+
+    @property
+    def async_supported(self) -> SupportedAsyncMethods:
+        """Indicates that this online store supports async operations."""
+        return SupportedAsyncMethods(read=True, write=True)
+
     @staticmethod
     def convert_raw_docs_to_proto_simply(
         ids: list[bytes],
@@ -358,7 +391,96 @@ class MongoDBOnlineStore(OnlineStore):
             results.append((ts, row_features))
         return results
 
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+        Asynchronously reads feature values from the online store.
+
+        Args:
+            config: Feast repo configuration
+            table: FeatureView to read from
+            entity_keys: List of entity keys to read
+            requested_features: Optional list of specific features to read
+
+        Returns:
+            List of tuples (event_timestamp, feature_dict) for each entity key
+        """
+        clxn = await self._get_collection_async(config)
+
+        # Serialize entity keys
+        ids = [
+            serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
+
+        # Query MongoDB asynchronously
+        cursor = clxn.find({"_id": {"$in": ids}})
+        docs_list = await cursor.to_list(length=None)
+        docs = {doc["_id"]: doc for doc in docs_list}
+
+        # Convert to proto format
+        return self.convert_raw_docs_to_proto_transforming(ids, docs, table)
+
+    async def online_write_batch_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Asynchronously writes a batch of feature values to the online store.
+
+        Args:
+            config: Feast repo configuration
+            table: FeatureView to write to
+            data: List of tuples (entity_key, features, event_ts, created_ts)
+            progress: Optional progress callback
+        """
+        clxn = await self._get_collection_async(config)
+        ops = []
+        for row in data:
+            entity_key_proto, features, event_ts, created_ts = row
+            entity_id = serialize_entity_key(
+                entity_key_proto,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+
+            # Convert ValueProto to native Python types
+            feature_dict = {}
+            for feature_name, value_proto in features.items():
+                feature_dict[feature_name] = feast_value_type_to_python_type(value_proto)
+
+            # Build update operation
+            update_doc = {
+                "$set": {
+                    f"features.{table.name}.{feature_name}": value
+                    for feature_name, value in feature_dict.items()
+                },
+            }
+            update_doc["$set"][f"event_timestamps.{table.name}"] = event_ts
+            if created_ts:
+                update_doc["$set"]["created_timestamp"] = created_ts
+
+            ops.append(UpdateOne({"_id": entity_id}, update_doc, upsert=True))
+
+        # Execute bulk write asynchronously
+        if ops:
+            await clxn.bulk_write(ops, ordered=False)
+
+        if progress:
+            progress(len(data))
+
 
 # TODO
-#   - Implement async API
-#   - Vector Search
+#   - Vector Search (requires atlas image in testcontainers or similar)
