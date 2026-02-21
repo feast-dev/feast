@@ -24,6 +24,12 @@ from google.protobuf.message import Message
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
+from feast.errors import (
+    ConflictingFeatureViewNames,
+    FeatureViewNotFoundException,
+    OnDemandFeatureViewNotFoundException,
+    StreamFeatureViewNotFoundException,
+)
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
@@ -262,6 +268,59 @@ class BaseRegistry(ABC):
             commit: Whether the change should be persisted immediately
         """
         raise NotImplementedError
+
+    def _ensure_feature_view_name_is_unique(
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        allow_cache: bool = False,
+    ):
+        """
+        Validates that no feature view name conflict exists across feature view types.
+        Raises ConflictingFeatureViewNames if a different type already uses the name.
+
+        This is a defense-in-depth check for direct apply_feature_view() calls.
+        The primary validation happens in _validate_all_feature_views() during feast plan/apply.
+        """
+        name = feature_view.name
+        new_type = type(feature_view).__name__
+
+        def _check_conflict(getter, not_found_exc, existing_type: str):
+            try:
+                getter(name, project, allow_cache=allow_cache)
+                raise ConflictingFeatureViewNames(name, existing_type, new_type)
+            except not_found_exc:
+                pass
+
+        if isinstance(feature_view, FeatureView):
+            _check_conflict(
+                self.get_stream_feature_view,
+                StreamFeatureViewNotFoundException,
+                "StreamFeatureView",
+            )
+            _check_conflict(
+                self.get_on_demand_feature_view,
+                OnDemandFeatureViewNotFoundException,
+                "OnDemandFeatureView",
+            )
+        elif isinstance(feature_view, StreamFeatureView):
+            _check_conflict(
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+            )
+            _check_conflict(
+                self.get_on_demand_feature_view,
+                OnDemandFeatureViewNotFoundException,
+                "OnDemandFeatureView",
+            )
+        elif isinstance(feature_view, OnDemandFeatureView):
+            _check_conflict(
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+            )
+            _check_conflict(
+                self.get_stream_feature_view,
+                StreamFeatureViewNotFoundException,
+                "StreamFeatureView",
+            )
 
     @abstractmethod
     def delete_feature_view(self, name: str, project: str, commit: bool = True):

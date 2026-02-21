@@ -35,7 +35,7 @@ from feast import FeatureService, FileSource, RequestSource
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
-from feast.errors import FeatureViewNotFoundException
+from feast.errors import ConflictingFeatureViewNames, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.infra_object import Infra
@@ -2001,3 +2001,115 @@ def test_commit_for_read_only_user():
         assert len(entities) == 1
 
     write_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("test_registry", all_fixtures)
+def test_cross_type_feature_view_name_conflict(test_registry: BaseRegistry):
+    """
+    Test that feature view names must be unique across all feature view types.
+
+    This validates the fix for feast-dev/feast#5995: If a FeatureView and
+    StreamFeatureView share the same name, get_online_features would silently
+    return the wrong one (fixed order lookup). This test ensures such conflicts
+    are caught during registration.
+    """
+    project = "project"
+
+    # Create a simple entity
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
+
+    # Create a regular FeatureView
+    file_source = FileSource(name="my_file_source", path="test.parquet")
+    feature_view = FeatureView(
+        name="shared_feature_view_name",
+        entities=[entity],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+    )
+
+    # Create a StreamFeatureView with the SAME name
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+        watermark_delay_threshold=timedelta(days=1),
+    )
+
+    def simple_udf(x: int):
+        return x + 3
+
+    stream_feature_view = StreamFeatureView(
+        name="shared_feature_view_name",  # Same name as FeatureView!
+        entities=[entity],
+        ttl=timedelta(days=30),
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=stream_source,
+        udf=simple_udf,
+    )
+
+    # Register the regular FeatureView first - should succeed
+    test_registry.apply_feature_view(feature_view, project)
+
+    # Attempt to register StreamFeatureView with same name - should fail
+    with pytest.raises(ConflictingFeatureViewNames) as exc_info:
+        test_registry.apply_feature_view(stream_feature_view, project)
+
+    # Verify error message contains the conflicting types
+    error_message = str(exc_info.value)
+    assert "shared_feature_view_name" in error_message
+    assert "FeatureView" in error_message
+    assert "StreamFeatureView" in error_message
+
+    # Cleanup
+    test_registry.delete_feature_view("shared_feature_view_name", project)
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("test_registry", all_fixtures)
+def test_cross_type_feature_view_odfv_conflict(test_registry: BaseRegistry):
+    """
+    Test that OnDemandFeatureView names must be unique across all feature view types.
+    """
+    project = "project"
+
+    # Create a simple entity
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
+
+    # Create a regular FeatureView
+    file_source = FileSource(name="my_file_source", path="test.parquet")
+    feature_view = FeatureView(
+        name="shared_odfv_name",
+        entities=[entity],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+    )
+
+    # Create an OnDemandFeatureView with the SAME name
+    @on_demand_feature_view(
+        sources=[feature_view],
+        schema=[Field(name="output", dtype=Float32)],
+    )
+    def shared_odfv_name(inputs: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame({"output": inputs["feature1"] * 2})
+
+    # Register the regular FeatureView first - should succeed
+    test_registry.apply_feature_view(feature_view, project)
+
+    # Attempt to register OnDemandFeatureView with same name - should fail
+    with pytest.raises(ConflictingFeatureViewNames) as exc_info:
+        test_registry.apply_feature_view(shared_odfv_name, project)
+
+    # Verify error message contains the conflicting types
+    error_message = str(exc_info.value)
+    assert "shared_odfv_name" in error_message
+    assert "FeatureView" in error_message
+    assert "OnDemandFeatureView" in error_message
+
+    # Cleanup
+    test_registry.delete_feature_view("shared_odfv_name", project)
+    test_registry.teardown()

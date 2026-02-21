@@ -13,11 +13,20 @@
 # limitations under the License.
 
 import tempfile
+from datetime import timedelta
 
 import pytest
 
+from feast import Field
+from feast.data_source import PushSource
 from feast.entity import Entity
+from feast.errors import ConflictingFeatureViewNames
+from feast.feature_view import FeatureView
+from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.sql import SqlRegistry, SqlRegistryConfig
+from feast.stream_feature_view import StreamFeatureView
+from feast.types import Float32
+from feast.value_type import ValueType
 
 
 @pytest.fixture
@@ -56,3 +65,43 @@ def test_sql_registry(sqlite_registry):
     sqlite_registry.delete_entity("test_entity", "test_project")
     with pytest.raises(Exception):
         sqlite_registry.get_entity("test_entity", "test_project")
+
+
+def _build_feature_view(name: str, entity: Entity, source: FileSource) -> FeatureView:
+    return FeatureView(
+        name=name,
+        entities=[entity],
+        ttl=timedelta(days=1),
+        schema=[Field(name="conv_rate", dtype=Float32)],
+        source=source,
+    )
+
+
+def test_feature_view_name_conflict_between_stream_and_batch(sqlite_registry):
+    entity = Entity(
+        name="driver",
+        value_type=ValueType.STRING,
+        join_keys=["driver_id"],
+    )
+    sqlite_registry.apply_entity(entity, "test_project")
+
+    file_source = FileSource(
+        path="driver_stats.parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+
+    batch_view = _build_feature_view("driver_activity", entity, file_source)
+    sqlite_registry.apply_feature_view(batch_view, "test_project")
+
+    push_source = PushSource(name="driver_push", batch_source=file_source)
+    stream_view = StreamFeatureView(
+        name="driver_activity",
+        source=push_source,
+        entities=[entity],
+        schema=[Field(name="conv_rate", dtype=Float32)],
+        timestamp_field="event_timestamp",
+    )
+
+    with pytest.raises(ConflictingFeatureViewNames):
+        sqlite_registry.apply_feature_view(stream_view, "test_project")
