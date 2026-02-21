@@ -493,6 +493,54 @@ func getVolumeMountByType(feastType FeastServiceType, featureStore *feastdevv1.F
 	return nil
 }
 
+// isScalingEnabled returns true when the user has configured horizontal scaling
+// with either static replicas > 1 or HPA autoscaling.
+func isScalingEnabled(featureStore *feastdevv1.FeatureStore) bool {
+	services := featureStore.Status.Applied.Services
+	if services == nil || services.Scaling == nil {
+		return false
+	}
+	scaling := services.Scaling
+	if scaling.Replicas != nil && *scaling.Replicas > 1 {
+		return true
+	}
+	return scaling.Autoscaling != nil
+}
+
+// isFilePersistence returns true if any enabled service uses file-based persistence
+// (SQLite, DuckDB, Dask, registry.db, etc.) rather than an external database.
+func isFilePersistence(featureStore *feastdevv1.FeatureStore) bool {
+	services := featureStore.Status.Applied.Services
+	if services == nil {
+		return false
+	}
+
+	if services.OnlineStore != nil && services.OnlineStore.Persistence != nil &&
+		services.OnlineStore.Persistence.FilePersistence != nil {
+		return true
+	}
+
+	if services.OfflineStore != nil && services.OfflineStore.Persistence != nil &&
+		services.OfflineStore.Persistence.FilePersistence != nil {
+		return true
+	}
+
+	if IsLocalRegistry(featureStore) &&
+		services.Registry.Local.Persistence != nil &&
+		services.Registry.Local.Persistence.FilePersistence != nil {
+		// S3/GS-backed registry file persistence is safe for multi-replica
+		if services.Registry.Local.Persistence.FilePersistence.Path != "" {
+			path := services.Registry.Local.Persistence.FilePersistence.Path
+			if strings.HasPrefix(path, "s3://") || strings.HasPrefix(path, "gs://") {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
+}
+
 func boolPtr(value bool) *bool {
 	return &value
 }

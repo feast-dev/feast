@@ -18,6 +18,7 @@ package v1
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -301,6 +302,40 @@ type FeatureStoreServices struct {
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+	// Scaling configures horizontal scaling for the FeatureStore deployment.
+	// Requires DB-based persistence for all enabled services when replicas > 1 or autoscaling is configured.
+	Scaling *ScalingConfig `json:"scaling,omitempty"`
+}
+
+// ScalingConfig configures horizontal scaling for the FeatureStore deployment.
+// +kubebuilder:validation:XValidation:rule="!has(self.replicas) || !has(self.autoscaling)",message="replicas and autoscaling are mutually exclusive."
+type ScalingConfig struct {
+	// Replicas is the static number of pod replicas. Mutually exclusive with autoscaling.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+	// Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
+	// Mutually exclusive with replicas.
+	// +optional
+	Autoscaling *AutoscalingConfig `json:"autoscaling,omitempty"`
+}
+
+// AutoscalingConfig defines HPA settings for the FeatureStore deployment.
+type AutoscalingConfig struct {
+	// MinReplicas is the lower limit for the number of replicas. Defaults to 1.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	MinReplicas *int32 `json:"minReplicas,omitempty"`
+	// MaxReplicas is the upper limit for the number of replicas. Required.
+	// +kubebuilder:validation:Minimum=1
+	MaxReplicas int32 `json:"maxReplicas"`
+	// Metrics contains the specifications for which to use to calculate the desired replica count.
+	// If not set, defaults to 80% CPU utilization.
+	// +optional
+	Metrics []autoscalingv2.MetricSpec `json:"metrics,omitempty"`
+	// Behavior configures the scaling behavior of the target.
+	// +optional
+	Behavior *autoscalingv2.HorizontalPodAutoscalerBehavior `json:"behavior,omitempty"`
 }
 
 // OfflineStore configures the offline store service
@@ -690,6 +725,16 @@ type FeatureStoreStatus struct {
 	FeastVersion     string             `json:"feastVersion,omitempty"`
 	Phase            string             `json:"phase,omitempty"`
 	ServiceHostnames ServiceHostnames   `json:"serviceHostnames,omitempty"`
+	// ScalingStatus reports the current scaling state of the FeatureStore deployment.
+	ScalingStatus *ScalingStatus `json:"scalingStatus,omitempty"`
+}
+
+// ScalingStatus reports the observed scaling state.
+type ScalingStatus struct {
+	// CurrentReplicas is the current number of pod replicas.
+	CurrentReplicas int32 `json:"currentReplicas,omitempty"`
+	// DesiredReplicas is the desired number of pod replicas.
+	DesiredReplicas int32 `json:"desiredReplicas,omitempty"`
 }
 
 // ServiceHostnames defines the service hostnames in the format of <domain>:<port>, e.g. example.svc.cluster.local:80
