@@ -292,20 +292,21 @@ class BaseRegistry(ABC):
             except not_found_exc:
                 pass
 
-        if isinstance(feature_view, FeatureView):
+        # Check StreamFeatureView before FeatureView since StreamFeatureView is a subclass
+        if isinstance(feature_view, StreamFeatureView):
             _check_conflict(
-                self.get_stream_feature_view,
-                StreamFeatureViewNotFoundException,
-                "StreamFeatureView",
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
             )
             _check_conflict(
                 self.get_on_demand_feature_view,
                 OnDemandFeatureViewNotFoundException,
                 "OnDemandFeatureView",
             )
-        elif isinstance(feature_view, StreamFeatureView):
+        elif isinstance(feature_view, FeatureView):
             _check_conflict(
-                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+                self.get_stream_feature_view,
+                StreamFeatureViewNotFoundException,
+                "StreamFeatureView",
             )
             _check_conflict(
                 self.get_on_demand_feature_view,
