@@ -25,6 +25,7 @@ from typing import ClassVar, Type, TypeVar
 from google.protobuf.message import Message
 
 T = TypeVar("T", bound="ProtoSerializable")
+L = TypeVar("L", bound="LegacyProtoSerializable")
 P = TypeVar("P", bound=Message)
 
 
@@ -134,7 +135,7 @@ class LegacyProtoSerializable:
         )
 
     @classmethod
-    def from_proto(cls: Type[T], proto: Message) -> T:
+    def from_proto(cls: Type[L], proto: Message) -> L:
         """
         Create from proto using legacy or registry-based method.
 
@@ -149,7 +150,7 @@ class LegacyProtoSerializable:
         return get_registry().from_proto(proto, target_type=cls)
 
     @classmethod
-    def _from_proto_legacy(cls: Type[T], proto: Message) -> T:
+    def _from_proto_legacy(cls: Type[L], proto: Message) -> L:
         """
         Legacy from_proto implementation.
 

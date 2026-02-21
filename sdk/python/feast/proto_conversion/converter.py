@@ -21,11 +21,14 @@ Python objects and their protobuf representations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Generic, Type, TypeVar
+from typing import TYPE_CHECKING, Generic, Type, TypeVar
 
 from google.protobuf.message import Message
 
 from feast.proto_conversion.errors import DeserializationError, SerializationError
+
+if TYPE_CHECKING:
+    from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 
 # Type variables for generic converter interface
 T = TypeVar("T")  # Python object type

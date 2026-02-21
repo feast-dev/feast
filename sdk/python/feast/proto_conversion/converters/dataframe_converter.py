@@ -230,15 +230,14 @@ class OnDemandFeatureViewStrategy(ArrowConversionStrategy):
                 feature.name in [c[0] for c in columns]
                 and feature.name not in proto_values_by_column
             ):
+                pa_type = from_feast_to_pyarrow_type(feature.dtype)
                 null_column = pyarrow.array(
                     [None] * table.num_rows,
-                    type=from_feast_to_pyarrow_type(feature.dtype),
+                    type=pa_type,
                 )
                 updated_table = pyarrow.RecordBatch.from_arrays(
                     table.columns + [null_column],
-                    schema=table.schema.append(
-                        pyarrow.field(feature.name, null_column.type)
-                    ),
+                    schema=table.schema.append(pyarrow.field(feature.name, pa_type)),
                 )
                 proto_values_by_column[feature.name] = python_values_to_proto_values(
                     updated_table.column(feature.name).to_numpy(zero_copy_only=False),
@@ -258,7 +257,9 @@ class OnDemandFeatureViewStrategy(ArrowConversionStrategy):
         event_timestamps = [_coerce_datetime(val) for val in timestamp_values]
 
         # Event and created timestamps are the same for ODFV
-        return event_timestamps, event_timestamps
+        # Cast to satisfy mypy - these are the same timestamps
+        created_timestamps: List[Optional[datetime]] = list(event_timestamps)
+        return event_timestamps, created_timestamps
 
 
 class DataFrameProtoConverter:

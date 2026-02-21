@@ -27,7 +27,7 @@ The FeatureView hierarchy includes:
 - OnDemandFeatureView (computed on-demand)
 """
 
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Optional, Type, Union, cast
 
 from feast.proto_conversion.converter import ProtoConverter
 from feast.proto_conversion.errors import DeserializationError, SerializationError
@@ -61,16 +61,16 @@ class FeatureViewConverter(ProtoConverter[Any, FeatureViewProto]):
 
     def __init__(self):
         """Initialize the converter."""
-        self._feature_view_class: Optional[Type] = None
+        self._feature_view_class: Optional[Type[Any]] = None
 
     @property
-    def supported_type(self) -> Type:
+    def supported_type(self) -> Type[Any]:
         """Return the FeatureView class."""
         if self._feature_view_class is None:
             from feast.feature_view import FeatureView
 
             self._feature_view_class = FeatureView
-        return self._feature_view_class
+        return cast(Type[Any], self._feature_view_class)
 
     @property
     def proto_type(self) -> Type[FeatureViewProto]:
@@ -176,20 +176,20 @@ class OnDemandFeatureViewConverter(ProtoConverter[Any, Any]):
 
     def __init__(self):
         """Initialize the converter."""
-        self._odfv_class: Optional[Type] = None
-        self._proto_class: Optional[Type] = None
+        self._odfv_class: Optional[Type[Any]] = None
+        self._proto_class: Optional[Type[Any]] = None
 
     @property
-    def supported_type(self) -> Type:
+    def supported_type(self) -> Type[Any]:
         """Return the OnDemandFeatureView class."""
         if self._odfv_class is None:
             from feast.on_demand_feature_view import OnDemandFeatureView
 
             self._odfv_class = OnDemandFeatureView
-        return self._odfv_class
+        return cast(Type[Any], self._odfv_class)
 
     @property
-    def proto_type(self) -> Type:
+    def proto_type(self) -> Type[Any]:
         """Return the OnDemandFeatureViewProto class."""
         if self._proto_class is None:
             from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
@@ -197,7 +197,7 @@ class OnDemandFeatureViewConverter(ProtoConverter[Any, Any]):
             )
 
             self._proto_class = OnDemandFeatureViewProto
-        return self._proto_class
+        return cast(Type[Any], self._proto_class)
 
     def to_proto(self, obj: Any) -> Any:
         """
