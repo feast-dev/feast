@@ -13,33 +13,23 @@
 # limitations under the License.
 
 """
-Comprehensive tests for the proto conversion system.
+Tests for the proto conversion utilities.
 
 These tests verify:
-1. Core interfaces and registry functionality
-2. Value type conversion for all supported types
-3. Object converters (Entity, FeatureView, etc.)
-4. Error handling and edge cases
-5. Backward compatibility with existing APIs
+1. Value type conversion for all supported types
+2. Object converters (Entity, FeatureService)
+3. Error handling and edge cases
 """
 
 from datetime import datetime, timezone
 
 import numpy as np
-import pytest
 
 from feast.entity import Entity
 from feast.proto_conversion import (
     EntityConverter,
     ProtoConversionError,
-    UnsupportedTypeError,
-    ValidationError,
-    get_registry,
-    get_value_converter,
-    proto_value_to_python,
     python_values_to_proto_values,
-    register_all_converters,
-    reset_registration,
 )
 from feast.proto_conversion.converters.value_converter import (
     ListTypeHandler,
@@ -48,56 +38,9 @@ from feast.proto_conversion.converters.value_converter import (
     SetTypeHandler,
     ValueTypeConverter,
 )
+from feast.proto_conversion.errors import UnsupportedTypeError, ValidationError
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ValueType
-
-
-class TestConverterRegistry:
-    """Tests for the ConverterRegistry class."""
-
-    def setup_method(self):
-        """Reset the registry before each test."""
-        reset_registration()
-
-    def teardown_method(self):
-        """Clean up after each test."""
-        reset_registration()
-
-    def test_singleton_instance(self):
-        """Test that get_registry returns the same instance."""
-        registry1 = get_registry()
-        registry2 = get_registry()
-        assert registry1 is registry2
-
-    def test_reset_instance(self):
-        """Test that reset creates a new instance."""
-        registry1 = get_registry()
-        reset_registration()
-        registry2 = get_registry()
-        assert registry1 is not registry2
-
-    def test_register_converter(self):
-        """Test registering a converter."""
-        registry = get_registry()
-        converter = EntityConverter()
-        registry.register(converter)
-        assert registry.has_converter(Entity)
-
-    def test_get_converter(self):
-        """Test retrieving a registered converter."""
-        registry = get_registry()
-        converter = EntityConverter()
-        registry.register(converter)
-        retrieved = registry.get_converter(Entity)
-        assert isinstance(retrieved, EntityConverter)
-
-    def test_converter_not_found_error(self):
-        """Test that ConverterNotFoundError is raised for unknown types."""
-        from feast.proto_conversion import ConverterNotFoundError
-
-        registry = get_registry()
-        with pytest.raises(ConverterNotFoundError):
-            registry.get_converter(str)
 
 
 class TestValueTypeConverter:
@@ -232,10 +175,6 @@ class TestTypeHandlers:
 class TestEntityConverter:
     """Tests for Entity converter."""
 
-    def setup_method(self):
-        """Reset registration before each test."""
-        reset_registration()
-
     def test_entity_to_proto(self):
         """Test converting Entity to proto."""
         converter = EntityConverter()
@@ -288,7 +227,7 @@ class TestEntityConverter:
         assert entity == restored
 
 
-class TestModuleFunctions:
+class TestConvenienceFunctions:
     """Tests for module-level convenience functions."""
 
     def test_python_values_to_proto_values(self):
@@ -296,45 +235,6 @@ class TestModuleFunctions:
         protos = python_values_to_proto_values([1, 2, 3], ValueType.INT64)
         assert len(protos) == 3
         assert protos[0].int64_val == 1
-
-    def test_proto_value_to_python(self):
-        """Test the convenience function for proto to python."""
-        proto = ProtoValue(string_val="test")
-        result = proto_value_to_python(proto)
-        assert result == "test"
-
-    def test_get_value_converter(self):
-        """Test getting the global value converter."""
-        converter = get_value_converter()
-        assert isinstance(converter, ValueTypeConverter)
-        # Should return the same instance
-        converter2 = get_value_converter()
-        assert converter is converter2
-
-
-class TestRegistration:
-    """Tests for converter registration."""
-
-    def setup_method(self):
-        """Reset registration before each test."""
-        reset_registration()
-
-    def teardown_method(self):
-        """Clean up after each test."""
-        reset_registration()
-
-    def test_register_all_converters(self):
-        """Test registering all converters."""
-        register_all_converters()
-        registry = get_registry()
-        assert registry.has_converter(Entity)
-
-    def test_register_idempotent(self):
-        """Test that registration is idempotent."""
-        register_all_converters()
-        register_all_converters()  # Should not raise
-        registry = get_registry()
-        assert registry.has_converter(Entity)
 
 
 class TestErrorHandling:
@@ -366,31 +266,6 @@ class TestErrorHandling:
         error = ProtoConversionError("Conversion failed", cause=cause)
         assert error.cause is cause
         assert "Original error" in str(error)
-
-
-class TestBackwardCompatibility:
-    """Tests for backward compatibility with type_map.py."""
-
-    def test_compat_python_values_to_proto_values(self):
-        """Test compat layer for python_values_to_proto_values."""
-        from feast.proto_conversion.compat import (
-            python_values_to_proto_values as compat_func,
-        )
-
-        # Should work the same as the original
-        protos = compat_func([1, 2, 3], ValueType.INT64)
-        assert len(protos) == 3
-        assert protos[0].int64_val == 1
-
-    def test_compat_feast_value_type_to_python_type(self):
-        """Test compat layer for feast_value_type_to_python_type."""
-        from feast.proto_conversion.compat import (
-            feast_value_type_to_python_type as compat_func,
-        )
-
-        proto = ProtoValue(int64_val=42)
-        result = compat_func(proto)
-        assert result == 42
 
 
 class TestNumpyIntegration:
