@@ -888,6 +888,7 @@ spec:
                                 - couchbase.offline
                                 - clickhouse
                                 - ray
+                                - sqlalchemy
                                 type: string
                             required:
                             - secretRef
@@ -5123,6 +5124,7 @@ spec:
                                     - couchbase.offline
                                     - clickhouse
                                     - ray
+                                    - sqlalchemy
                                     type: string
                                 required:
                                 - secretRef
