@@ -169,7 +169,7 @@ class SQLAlchemyOfflineStore(OfflineStore):
                 SELECT {a_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression} a
-                WHERE a."{timestamp_field}" BETWEEN {start_date_str} AND {end_date_str}
+                WHERE a.{timestamp_field} BETWEEN {start_date_str} AND {end_date_str}
             ) b
             WHERE _feast_row = 1
             """
@@ -297,7 +297,13 @@ class SQLAlchemyOfflineStore(OfflineStore):
                 if not use_cte:
                     engine = SQLAlchemyOfflineStore._get_engine(config)
                     with engine.connect() as conn:
-                        conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
+                        # Oracle stores unquoted identifiers as UPPERCASE, so
+                        # don't double-quote the table name for Oracle to ensure
+                        # the DROP matches the table created by to_sql.
+                        if dialect == "oracle":
+                            conn.execute(text(f"DROP TABLE {table_name}"))
+                        else:
+                            conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
                         conn.commit()
 
         return SQLAlchemyRetrievalJob(
@@ -347,9 +353,11 @@ class SQLAlchemyOfflineStore(OfflineStore):
             start_date, end_date, timestamp_field, dialect
         )
 
+        # Oracle doesn't use AS for table aliases
+        alias_keyword = "" if dialect == "oracle" else "AS "
         query = f"""
             SELECT {field_string}
-            FROM {from_expression} AS paftoq_alias
+            FROM {from_expression} {alias_keyword}paftoq_alias
             WHERE {timestamp_filter}
         """
 
@@ -442,11 +450,11 @@ def _format_timestamp(dt: datetime, dialect: str) -> str:
 
     if dialect in ("postgresql", "postgres"):
         return f"'{dt_str}'::timestamptz"
+    elif dialect == "oracle":
+        return f"TO_TIMESTAMP('{dt_str}', 'YYYY-MM-DD HH24:MI:SS')"
     elif dialect in ("mysql", "mariadb"):
         return f"'{dt_str}'"
     elif dialect == "sqlite":
-        return f"'{dt_str}'"
-    elif dialect in ("mssql", "oracle"):
         return f"'{dt_str}'"
     else:
         return f"'{dt_str}'"
@@ -463,11 +471,11 @@ def _build_timestamp_filter(
 
     if start_date:
         start_str = _format_timestamp(start_date, dialect)
-        conditions.append(f'"{timestamp_field}" >= {start_str}')
+        conditions.append(f"{timestamp_field} >= {start_str}")
 
     if end_date:
         end_str = _format_timestamp(end_date, dialect)
-        conditions.append(f'"{timestamp_field}" <= {end_str}')
+        conditions.append(f"{timestamp_field} <= {end_str}")
 
     if conditions:
         return " AND ".join(conditions)
@@ -476,8 +484,15 @@ def _build_timestamp_filter(
 
 
 def _append_alias(field_names: List[str], alias: str) -> List[str]:
-    """Append table alias to field names."""
-    return [f'{alias}."{field_name}"' for field_name in field_names]
+    """Append table alias to field names.
+
+    Column names are NOT double-quoted so that each database's default
+    identifier folding applies:
+      - PostgreSQL folds unquoted → lowercase  (matches lowercase columns)
+      - Oracle     folds unquoted → UPPERCASE  (matches UPPERCASE columns)
+      - MySQL / SQLite are case-insensitive
+    """
+    return [f"{alias}.{field_name}" for field_name in field_names]
 
 
 def _get_entity_schema(
@@ -488,10 +503,16 @@ def _get_entity_schema(
     if isinstance(entity_df, pd.DataFrame):
         return dict(zip(entity_df.columns, entity_df.dtypes))
     elif isinstance(entity_df, str):
-        df_query = f"({entity_df}) AS sub"
+        dialect = _get_dialect(config.offline_store.connection_string)
+        alias_keyword = "" if dialect == "oracle" else "AS "
+        df_query = f"({entity_df}) {alias_keyword}sub"
         engine = SQLAlchemyOfflineStore._get_engine(config)
         with engine.connect() as conn:
-            df = pd.read_sql(f"SELECT * FROM {df_query} LIMIT 0", conn)
+            if dialect == "oracle":
+                query = f"SELECT * FROM {df_query} WHERE ROWNUM = 0"
+            else:
+                query = f"SELECT * FROM {df_query} LIMIT 0"
+            df = pd.read_sql(query, conn)
             return dict(zip(df.columns, df.dtypes))
     else:
         raise InvalidEntityType(type(entity_df))
@@ -517,12 +538,15 @@ def _get_entity_df_event_timestamp_range(
         )
     elif isinstance(entity_df, str):
         engine = SQLAlchemyOfflineStore._get_engine(config)
+        dialect = _get_dialect(config.offline_store.connection_string)
+        # Oracle doesn't use AS for table aliases
+        alias_keyword = "" if dialect == "oracle" else "AS "
         with engine.connect() as conn:
             query = f"""
                 SELECT
                     MIN({entity_df_event_timestamp_col}) AS min_ts,
                     MAX({entity_df_event_timestamp_col}) AS max_ts
-                FROM ({entity_df}) AS tmp_alias
+                FROM ({entity_df}) {alias_keyword}tmp_alias
                 """
             result = conn.execute(text(query))
             row = result.fetchone()
@@ -544,8 +568,14 @@ def _upload_entity_df(
     if isinstance(entity_df, pd.DataFrame):
         _df_to_table(config, entity_df, table_name)
     elif isinstance(entity_df, str):
+        dialect = _get_dialect(config.offline_store.connection_string)
         with engine.connect() as conn:
-            conn.execute(text(f'CREATE TABLE "{table_name}" AS ({entity_df})'))
+            # Oracle stores unquoted identifiers as UPPERCASE - don't use
+            # double quotes so the table name matches template references.
+            if dialect == "oracle":
+                conn.execute(text(f"CREATE TABLE {table_name} AS ({entity_df})"))
+            else:
+                conn.execute(text(f'CREATE TABLE "{table_name}" AS ({entity_df})'))
             conn.commit()
     else:
         raise InvalidEntityType(type(entity_df))
@@ -569,7 +599,7 @@ def build_point_in_time_query(
     feature_view_query_contexts: List[dict],
     left_table_query_string: str,
     entity_df_event_timestamp_col: str,
-    entity_df_columns: KeysView[str],
+    entity_df_columns: Union[KeysView[str], List[str]],
     query_template: str,
     full_feature_names: bool = False,
     use_cte: bool = False,
@@ -774,8 +804,27 @@ FROM base_entities base
 {% for featureview in featureviews %}
 {% set outer_loop_index = loop.index0 %}
 LEFT JOIN (
-    {% if dialect == 'oracle' %}
-    {# Oracle doesn't support DISTINCT ON, use ROW_NUMBER instead #}
+    {% if dialect == 'postgresql' %}
+    {# PostgreSQL supports DISTINCT ON for deduplication #}
+    SELECT DISTINCT ON ({% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %})
+        event_timestamp,
+        {% for entity in featureview.entities %}
+        "{{ entity }}",
+        {% endfor %}
+        {% for feature in featureview.features %}
+        "{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if not loop.last %},{% endif %}
+        {% endfor %}
+    FROM "{{ featureview.name }}__data" {{ table_alias('fv_sub_' ~ outer_loop_index) }}
+    WHERE fv_sub_{{ outer_loop_index }}.event_timestamp <= base.event_timestamp
+    {% if featureview.ttl != 0 %}
+    AND fv_sub_{{ outer_loop_index }}.event_timestamp >= {{ timestamp_minus_seconds('base.event_timestamp', featureview.ttl) }}
+    {% endif %}
+    {% for entity in featureview.entities %}
+    AND fv_sub_{{ outer_loop_index }}."{{ entity }}" = base."{{ entity }}"
+    {% endfor %}
+    ORDER BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, event_timestamp DESC
+    {% else %}
+    {# All other dialects: use ROW_NUMBER() for deduplication (universal SQL) #}
     SELECT event_timestamp,
         {% for entity in featureview.entities %}
         "{{ entity }}",
@@ -789,27 +838,9 @@ LEFT JOIN (
                 PARTITION BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}
                 ORDER BY event_timestamp DESC
             ) AS rn
-        FROM "{{ featureview.name }}__data" fv_sub_{{ outer_loop_index }}
-    ) ranked
+        FROM "{{ featureview.name }}__data" {{ table_alias('fv_sub_' ~ outer_loop_index) }}
+    ) {{ table_alias('ranked') }}
     WHERE ranked.rn = 1
-    {% else %}
-    SELECT DISTINCT ON ({% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %})
-        event_timestamp,
-        {% for entity in featureview.entities %}
-        "{{ entity }}",
-        {% endfor %}
-        {% for feature in featureview.features %}
-        "{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if not loop.last %},{% endif %}
-        {% endfor %}
-    FROM "{{ featureview.name }}__data" fv_sub_{{ outer_loop_index }}
-    WHERE fv_sub_{{ outer_loop_index }}.event_timestamp <= base.event_timestamp
-    {% if featureview.ttl != 0 %}
-    AND fv_sub_{{ outer_loop_index }}.event_timestamp >= {{ timestamp_minus_seconds('base.event_timestamp', featureview.ttl) }}
-    {% endif %}
-    {% for entity in featureview.entities %}
-    AND fv_sub_{{ outer_loop_index }}."{{ entity }}" = base."{{ entity }}"
-    {% endfor %}
-    ORDER BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, event_timestamp DESC
     {% endif %}
 ) {{ table_alias('fv_' ~ outer_loop_index) }} {{ on_true() }}
 {% endfor %}

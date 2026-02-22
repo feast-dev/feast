@@ -270,7 +270,16 @@ class SQLAlchemySource(DataSource):
             **config.offline_store.sqlalchemy_config_kwargs,
         )
 
-        query = f"SELECT * FROM {self.get_table_query_string()} AS sub LIMIT 0"
+        dialect = engine.dialect.name
+        from_expression = self.get_table_query_string()
+        # Oracle doesn't use AS for table aliases; also LIMIT is not supported
+        alias_keyword = "" if dialect == "oracle" else "AS "
+        if dialect == "oracle":
+            query = (
+                f"SELECT * FROM {from_expression} {alias_keyword}sub WHERE ROWNUM = 0"
+            )
+        else:
+            query = f"SELECT * FROM {from_expression} {alias_keyword}sub LIMIT 0"
 
         with engine.connect() as conn:
             result = conn.execute(text(query))
@@ -299,7 +308,9 @@ class SQLAlchemySource(DataSource):
         else:
             return f"({self._sqlalchemy_options._query})"
 
-    def get_table_query_string_with_alias(self, alias: str = "subquery") -> str:
+    def get_table_query_string_with_alias(
+        self, alias: str = "subquery", dialect: str = "generic"
+    ) -> str:
         """Returns a string for use in FROM clause with alias.
 
         Most SQL databases require all subqueries in FROM clauses to have aliases.
@@ -307,10 +318,12 @@ class SQLAlchemySource(DataSource):
 
         Args:
             alias: The alias to use for query-based sources. Defaults to "subquery".
+            dialect: The SQL dialect (e.g., "oracle", "postgresql"). Oracle doesn't
+                use AS for table aliases. Defaults to "generic" (uses AS).
 
         Returns:
             For table-based sources: the table name (no alias needed).
-            For query-based sources: "(query) AS alias".
+            For query-based sources: "(query) [AS] alias".
 
         Example::
 
@@ -323,7 +336,8 @@ class SQLAlchemySource(DataSource):
                 return f"{self._sqlalchemy_options._schema}.{self._sqlalchemy_options._table}"
             return f"{self._sqlalchemy_options._table}"
         else:
-            return f"({self._sqlalchemy_options._query}) AS {alias}"
+            alias_keyword = "" if dialect == "oracle" else "AS "
+            return f"({self._sqlalchemy_options._query}) {alias_keyword}{alias}"
 
     @property
     def table(self) -> Optional[str]:

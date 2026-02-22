@@ -128,6 +128,9 @@ Example Python usage:
     store.apply([driver, driver_stats_fv])
 """
 
+from feast.infra.offline_stores.contrib.sqlalchemy_offline_store.tests.data_source import (
+    SQLAlchemyDataSourceCreator,
+)
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -136,6 +139,6 @@ FULL_REPO_CONFIGS = [
     # SQLite configuration (in-memory for testing)
     IntegrationTestRepoConfig(
         provider="local",
-        offline_store_creator="feast.infra.offline_stores.contrib.sqlalchemy_offline_store.tests.data_source.SQLAlchemyDataSourceCreator",
+        offline_store_creator=SQLAlchemyDataSourceCreator,
     ),
 ]

@@ -22,12 +22,18 @@ with the SQLAlchemy offline store in integration tests.
 from typing import Dict, List, Optional
 
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
+from feast.infra.offline_stores.contrib.sqlalchemy_offline_store.sqlalchemy import (
+    SQLAlchemyOfflineStoreConfig,
+)
 from feast.infra.offline_stores.contrib.sqlalchemy_offline_store.sqlalchemy_source import (
     SQLAlchemySource,
 )
+from feast.repo_config import FeastConfigBaseModel
+from feast.saved_dataset import SavedDatasetStorage
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -41,8 +47,6 @@ class SQLAlchemyDataSourceCreator(DataSourceCreator):
     By default, it uses SQLite for in-memory testing, but can be configured
     to use any database by providing a connection string.
     """
-
-    tables: List[str] = []
 
     def __init__(
         self,
@@ -62,15 +66,16 @@ class SQLAlchemyDataSourceCreator(DataSourceCreator):
         super().__init__(project_name, *args, **kwargs)
         self.connection_string = connection_string
         self.project_name = project_name
+        self.tables: List[str] = []
         self.engine = create_engine(connection_string)
 
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field: str = "ts",
-        created_timestamp_column: Optional[str] = None,
+        created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = None,
     ) -> DataSource:
         """
         Create a SQLAlchemy data source from a DataFrame.
@@ -94,15 +99,29 @@ class SQLAlchemyDataSourceCreator(DataSourceCreator):
         return SQLAlchemySource(
             name=destination_name,
             table=table_name,
-            timestamp_field=timestamp_field,
+            timestamp_field=timestamp_field or "ts",
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {},
         )
 
-    def create_saved_dataset_destination(self) -> str:
+    def create_offline_store_config(self) -> FeastConfigBaseModel:
+        """Create offline store config for SQLAlchemy."""
+        return SQLAlchemyOfflineStoreConfig(
+            connection_string=self.connection_string,
+        )
+
+    def create_saved_dataset_destination(self) -> SavedDatasetStorage:
         """Create a destination for saved datasets."""
-        table_name = f"saved_dataset_{self.project_name}"
-        return table_name
+        # Not implemented for SQLAlchemy yet
+        raise NotImplementedError(
+            "Saved dataset storage is not yet implemented for SQLAlchemy offline store."
+        )
+
+    def create_logged_features_destination(self) -> LoggingDestination:
+        """Create a destination for logged features."""
+        raise NotImplementedError(
+            "Logging destination is not yet implemented for SQLAlchemy offline store."
+        )
 
     def get_prefixed_table_name(self, destination_name: str) -> str:
         """Get the prefixed table name for a destination."""
@@ -112,6 +131,6 @@ class SQLAlchemyDataSourceCreator(DataSourceCreator):
         """Clean up test tables."""
         with self.engine.connect() as conn:
             for table in self.tables:
-                conn.execute(f"DROP TABLE IF EXISTS {table}")
+                conn.execute(text(f"DROP TABLE IF EXISTS {table}"))
             conn.commit()
         self.tables = []
