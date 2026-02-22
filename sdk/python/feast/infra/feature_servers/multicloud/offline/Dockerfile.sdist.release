@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-311:1
+FROM registry.access.redhat.com/ubi9/python-312:1
 
 ENV APACHE_ARROW_VERSION="17.0.0"
 ENV MILVUS_LITE_VERSION="2.4.12"

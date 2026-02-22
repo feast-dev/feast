@@ -1,6 +1,7 @@
-FROM registry.access.redhat.com/ubi9/python-311:1
+FROM registry.access.redhat.com/ubi9/python-312:1
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+ENV UV_CACHE_DIR=/tmp/uv-cache
 COPY requirements.txt requirements.txt
 RUN uv pip install -r requirements.txt
 
