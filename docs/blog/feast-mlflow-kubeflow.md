@@ -14,6 +14,8 @@ These tools are not competitors. Each one occupies a distinct role:
 
 Together they form a complete, open-source foundation for operationalizing ML.
 
+This topic has been explored by the community before — the post ["Feast with AI: Feed Your MLflow Models with Feature Store"](https://blog.qooba.net/2021/05/22/feast-with-ai-feed-your-mlflow-models-with-feature-store/) by [@qooba](https://github.com/qooba) is an excellent early look at combining Feast and MLflow. This post builds on that work and extends the story to include Kubeflow Pipelines and the Kubeflow Training Operator.
+
 ---
 
 ## The AI/ML Lifecycle
