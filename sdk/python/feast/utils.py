@@ -1436,27 +1436,27 @@ def _convert_rows_to_protobuf(
     requested_features: List[str],
     read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
 ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[ValueProto]]]:
-    # Pre-calculate the length to avoid repeated calculations
     n_rows = len(read_rows)
 
-    # Create single instances of commonly used values
     null_value = ValueProto()
     null_status = FieldStatus.NOT_FOUND
-    null_timestamp = Timestamp()
     present_status = FieldStatus.PRESENT
+
+    # Pre-compute timestamps once per entity (not per feature)
+    # This reduces O(features * entities) to O(entities) for timestamp conversion
+    row_timestamps = []
+    for row_ts, _ in read_rows:
+        ts_proto = Timestamp()
+        if row_ts is not None:
+            ts_proto.FromDatetime(row_ts)
+        row_timestamps.append(ts_proto)
 
     requested_features_vectors = []
     for feature_name in requested_features:
-        ts_vector = [null_timestamp] * n_rows
+        ts_vector = list(row_timestamps)  # Shallow copy of pre-computed timestamps
         status_vector = [null_status] * n_rows
         value_vector = [null_value] * n_rows
-        for idx, read_row in enumerate(read_rows):
-            row_ts_proto = Timestamp()
-            row_ts, feature_data = read_row
-            # TODO (Ly): reuse whatever timestamp if row_ts is None?
-            if row_ts is not None:
-                row_ts_proto.FromDatetime(row_ts)
-            ts_vector[idx] = row_ts_proto
+        for idx, (_, feature_data) in enumerate(read_rows):
             if (feature_data is not None) and (feature_name in feature_data):
                 status_vector[idx] = present_status
                 value_vector[idx] = feature_data[feature_name]
