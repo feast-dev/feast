@@ -519,6 +519,7 @@ maturin==1.12.2 \
     --hash=sha256:f1c2e4ee43bf286b052091a3b2356a157978985837c7aed42354deb2947a4006
     # via
     #   cryptography
+    #   orjson
     #   pydantic-core
     #   rpds-py
     #   watchfiles
