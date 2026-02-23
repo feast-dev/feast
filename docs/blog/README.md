@@ -19,3 +19,7 @@ Welcome to the Feast blog! Here you'll find articles about feature store develop
 {% content-ref url="rbac-role-based-access-controls.md" %}
 [rbac-role-based-access-controls.md](rbac-role-based-access-controls.md)
 {% endcontent-ref %}
+
+{% content-ref url="feast-mlflow-kubeflow.md" %}
+[feast-mlflow-kubeflow.md](feast-mlflow-kubeflow.md)
+{% endcontent-ref %}
