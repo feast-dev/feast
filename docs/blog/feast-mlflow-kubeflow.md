@@ -8,7 +8,7 @@ Building production-ready machine learning systems requires more than a great mo
 
 These tools are not competitors. Each one occupies a distinct role:
 
-* **Feast** manages feature data: defining, storing, and serving features consistently for both training and inference.
+* **Feast** manages feature data: defining, transforming, storing, and serving features consistently for both training and inference. It also tracks feature lineage and supports data quality monitoring.
 * **MLflow** tracks experiments: logging runs, metrics, parameters, artifacts, and candidate models.
 * **Kubeflow** orchestrates ML workflows: running distributed training, hyperparameter sweeps, and end-to-end pipelines on Kubernetes.
 
@@ -50,7 +50,7 @@ Raw Data ──► Feast (Feature Engineering & Storage)
 
 ## Feast: Feature Development, Iteration, and Serving
 
-Feast is the data layer of the ML stack. Its core job is to make the same feature logic available both at training time (via the offline store) and at inference time (via the online store), eliminating training–serving skew.
+Feast is the data layer of the ML stack. Its core job is to make the same feature logic available both at training time (via the offline store) and at inference time (via the online store), eliminating training–serving skew. Beyond storage and serving, Feast also handles **feature transformations**, **feature lineage tracking**, and **data quality monitoring** — capabilities that are essential when moving features from experimentation to production.
 
 ### Defining features
 
@@ -113,6 +113,56 @@ features = store.get_online_features(
     entity_rows=[{"driver_id": 1001}],
 ).to_dict()
 ```
+
+### Feature transformations
+
+Feast supports on-demand feature transformations, allowing you to define transformation logic that runs at retrieval time — both offline (for training) and online (for serving) — using the same Python function. This eliminates the need to duplicate transformation code across training and inference pipelines:
+
+```python
+from feast import on_demand_feature_view, Field
+from feast.types import Float64
+
+@on_demand_feature_view(
+    sources=["driver_hourly_stats"],
+    schema=[Field(name="conv_acc_ratio", dtype=Float64)],
+)
+def driver_ratios(inputs):
+    df = inputs.copy()
+    df["conv_acc_ratio"] = df["conv_rate"] / (df["acc_rate"] + 1e-6)
+    return df[["conv_acc_ratio"]]
+```
+
+Using `on_demand_feature_view` ensures that the same transformation logic is applied whether features are retrieved from the offline store for training or from the online store at inference time, preventing transformation skew.
+
+### Feature lineage
+
+The Feast feature registry acts as the single source of truth for feature definitions. Every `FeatureView`, data source, entity, and transformation is registered and versioned in the registry. This gives you full lineage from raw data source through transformation logic to the feature values consumed by a model — a critical requirement for debugging, auditing, and regulatory compliance.
+
+You can inspect the lineage of any feature programmatically:
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(repo_path=".")
+feature_view = store.get_feature_view("driver_hourly_stats")
+print(feature_view.source)   # upstream data source
+print(feature_view.schema)   # feature schema
+```
+
+### Data quality monitoring
+
+Feast integrates with data quality frameworks to detect feature drift, stale data, and schema violations before they silently degrade model performance. You can attach expectations to a feature view so that data is validated during materialization:
+
+```python
+from feast import FeatureView
+from feast.data_quality import DataQualityStats
+
+# After materialization, inspect stats tracked by Feast
+stats = store.get_saved_dataset("driver_stats_validation").to_df()
+print(stats.describe())
+```
+
+Monitoring feature distributions over time — and comparing them to the distributions seen during training — allows you to detect training–serving skew early, before it causes silent model degradation in production.
 
 ### Feast Feature Registry vs. MLflow Model Registry
 
