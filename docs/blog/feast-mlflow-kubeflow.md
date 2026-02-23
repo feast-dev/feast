@@ -1,6 +1,15 @@
-# Feast + MLflow + Kubeflow: A Unified AI/ML Lifecycle
+---
+title: Feast + MLflow + Kubeflow: A Unified AI/ML Lifecycle
+description: Learn how to use Feast, MLflow, and Kubeflow to power your AI/ML Lifecycle
+date: 2026-02-23
+authors: ["Francisco Javier Arceo", "Nikhil Kathole"]
+---
 
-*February 2026* | *Francisco Javier Arceo*
+<div class="hero-image">
+  <img src="/images/blog/feast-mlflow-kubeflow.png" alt="Feast, MLflow, and Kubeflow" loading="lazy">
+</div>
+
+# Feast + MLflow + Kubeflow: A Unified AI/ML Lifecycle
 
 ## Overview
 
