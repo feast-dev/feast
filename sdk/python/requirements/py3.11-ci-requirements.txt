@@ -3147,7 +3147,9 @@ orjson==3.11.7 \
     --hash=sha256:f4f7c956b5215d949a1f65334cf9d7612dde38f20a95f2315deef167def91a6f \
     --hash=sha256:f50979824bde13d32b4320eedd513431c921102796d86be3eee0b58e58a3ecd1 \
     --hash=sha256:f904c24bdeabd4298f7a977ef14ca2a022ca921ed670b92ecd16ab6f3d01f867
-    # via trino
+    # via
+    #   feast (pyproject.toml)
+    #   trino
 overrides==7.7.0 \
     --hash=sha256:55158fa3d93b98cc75299b1e67078ad9003ca27945c76162c1c0766d6f91820a \
     --hash=sha256:c7ed9d062f78b8e4c1a7b70bd8796b35ead4d9f510227ef9c5dc7626c60d7e49
@@ -5719,9 +5721,9 @@ thriftpy2==0.6.0 \
     --hash=sha256:f6b86112cca7bd04151ce248d781763ea5f74cc18d148476c6d16cee32db81ac \
     --hash=sha256:f837ab85ae93b118766b8b28a1cec47a1daddee303e1f986a595c56379062a5c
     # via happybase
-tifffile==2026.2.15 \
-    --hash=sha256:28fe145c615fe3d33d40c2d4c9cc848f7631fd30af852583c4186069458895b2 \
-    --hash=sha256:d9b427d269a708c58400e8ce5a702b26b2502087537beb88b8e29ba7ba825a90
+tifffile==2026.2.16 \
+    --hash=sha256:9d509a9121431c7228c1f6f71736a73af155bdeb60c324ab09c9eb2e83cfc4b6 \
+    --hash=sha256:ea76cb4d8aa290f7f164840dfe4e244d104bd90c84d5ee1e6de6d84fd4745a48
     # via scikit-image
 timm==1.0.24 \
     --hash=sha256:8301ac783410c6ad72c73c49326af6d71a9e4d1558238552796e825c2464913f \
