@@ -525,17 +525,29 @@ func isFilePersistence(featureStore *feastdevv1.FeatureStore) bool {
 		return true
 	}
 
-	if IsLocalRegistry(featureStore) &&
-		services.Registry.Local.Persistence != nil &&
-		services.Registry.Local.Persistence.FilePersistence != nil {
-		// S3/GS-backed registry file persistence is safe for multi-replica
-		if services.Registry.Local.Persistence.FilePersistence.Path != "" {
-			path := services.Registry.Local.Persistence.FilePersistence.Path
-			if strings.HasPrefix(path, "s3://") || strings.HasPrefix(path, "gs://") {
-				return false
-			}
-		}
+	// When no registry is configured, the deployment defaults to a file-based
+	// registry (registry.db). Only a remote registry or an explicit local
+	// registry with DB persistence is safe for multi-replica.
+	if services.Registry == nil {
 		return true
+	}
+	if isRemoteRegistry(featureStore) {
+		return false
+	}
+	if IsLocalRegistry(featureStore) {
+		if services.Registry.Local.Persistence == nil ||
+			services.Registry.Local.Persistence.DBPersistence == nil {
+			// S3/GS-backed registry file persistence is safe for multi-replica
+			if services.Registry.Local.Persistence != nil &&
+				services.Registry.Local.Persistence.FilePersistence != nil &&
+				services.Registry.Local.Persistence.FilePersistence.Path != "" {
+				path := services.Registry.Local.Persistence.FilePersistence.Path
+				if strings.HasPrefix(path, "s3://") || strings.HasPrefix(path, "gs://") {
+					return false
+				}
+			}
+			return true
+		}
 	}
 
 	return false

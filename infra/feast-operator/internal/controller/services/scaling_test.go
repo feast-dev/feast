@@ -192,6 +192,36 @@ var _ = Describe("Horizontal Scaling", func() {
 			}
 			Expect(isFilePersistence(featureStore)).To(BeFalse())
 		})
+
+		It("should return true when no registry is configured (implicit file-based default)", func() {
+			featureStore.Status.Applied.Services.Registry = nil
+			Expect(isFilePersistence(featureStore)).To(BeTrue())
+		})
+
+		It("should return true when local registry has no persistence configured", func() {
+			featureStore.Status.Applied.Services.Registry = &feastdevv1.Registry{
+				Local: &feastdevv1.LocalRegistryConfig{},
+			}
+			Expect(isFilePersistence(featureStore)).To(BeTrue())
+		})
+
+		It("should return true when local registry has empty persistence", func() {
+			featureStore.Status.Applied.Services.Registry = &feastdevv1.Registry{
+				Local: &feastdevv1.LocalRegistryConfig{
+					Persistence: &feastdevv1.RegistryPersistence{},
+				},
+			}
+			Expect(isFilePersistence(featureStore)).To(BeTrue())
+		})
+
+		It("should return false when remote registry is configured", func() {
+			featureStore.Status.Applied.Services.Registry = &feastdevv1.Registry{
+				Remote: &feastdevv1.RemoteRegistryConfig{
+					Hostname: ptr("registry.example.com"),
+				},
+			}
+			Expect(isFilePersistence(featureStore)).To(BeFalse())
+		})
 	})
 
 	Describe("validateScaling", func() {
@@ -225,6 +255,28 @@ var _ = Describe("Horizontal Scaling", func() {
 			featureStore.Status.Applied.Services.Registry.Local.Persistence = &feastdevv1.RegistryPersistence{
 				FilePersistence: &feastdevv1.RegistryFilePersistence{
 					Path: "gs://my-bucket/registry.db",
+				},
+			}
+			Expect(feast.validateScaling()).To(Succeed())
+		})
+
+		It("should reject scaling when no registry is configured (implicit file-based default)", func() {
+			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
+				Replicas: ptr(int32(3)),
+			}
+			featureStore.Status.Applied.Services.Registry = nil
+			err := feast.validateScaling()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("DB-backed persistence"))
+		})
+
+		It("should succeed with scaling and remote registry", func() {
+			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
+				Replicas: ptr(int32(3)),
+			}
+			featureStore.Status.Applied.Services.Registry = &feastdevv1.Registry{
+				Remote: &feastdevv1.RemoteRegistryConfig{
+					Hostname: ptr("registry.example.com"),
 				},
 			}
 			Expect(feast.validateScaling()).To(Succeed())
