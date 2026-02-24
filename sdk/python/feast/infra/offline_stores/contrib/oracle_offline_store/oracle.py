@@ -104,7 +104,17 @@ def _build_data_source_writer(config: RepoConfig):
         allow_overwrite: bool = False,
     ):
         assert isinstance(data_source, OracleSource)
-        con.insert(table_name=data_source.table_ref, obj=table.to_pandas())
+        table_ref = data_source.table_ref
+
+        if mode == "overwrite":
+            if not allow_overwrite:
+                raise ValueError(
+                    f"Table '{table_ref}' already exists. "
+                    f"Set allow_overwrite=True to truncate and replace data."
+                )
+            con.raw_sql(f"TRUNCATE TABLE {table_ref}")
+
+        con.insert(table_name=table_ref, obj=table.to_pandas())
 
     return _write_data_source
 
