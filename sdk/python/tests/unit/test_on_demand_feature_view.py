@@ -451,10 +451,12 @@ def test_on_demand_feature_view_without_transformation():
     # Test 2: Verify transform_arrow returns table as-is
     import pyarrow as pa
 
-    test_table = pa.table({
-        "user_id": ["user1", "user2"],
-        "value": [1.0, 2.0],
-    })
+    test_table = pa.table(
+        {
+            "user_id": ["user1", "user2"],
+            "value": [1.0, 2.0],
+        }
+    )
 
     result = odfv_no_transform.transform_arrow(test_table)
     assert result == test_table
