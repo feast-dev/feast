@@ -45,7 +45,7 @@ from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
-from feast.types import ComplexFeastType, PrimitiveFeastType, from_feast_to_pyarrow_type
+from feast.types import ComplexFeastType, PrimitiveFeastType
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -265,6 +265,58 @@ def _coerce_datetime(ts):
         return ts
 
 
+def _columns_to_proto_values(
+    table: pyarrow.RecordBatch,
+    columns: List[Tuple[str, ValueType]],
+    allow_missing: bool = False,
+) -> Dict[str, List[ValueProto]]:
+    """Convert table columns to proto values dict.
+
+    Args:
+        table: PyArrow RecordBatch containing the data.
+        columns: List of (column_name, value_type) tuples to convert.
+        allow_missing: If True, skip columns not found in table. If False, raise ValueError.
+
+    Returns:
+        Dict mapping column names to lists of ValueProto.
+    """
+    result: Dict[str, List[ValueProto]] = {}
+    for column, value_type in columns:
+        if column in table.column_names:
+            result[column] = python_values_to_proto_values(
+                table.column(column).to_numpy(zero_copy_only=False), value_type
+            )
+        elif not allow_missing:
+            raise ValueError(f"Column {column} not found in table")
+    return result
+
+
+def _build_entity_keys(
+    num_rows: int,
+    join_keys: Dict[str, ValueType],
+    proto_values: Dict[str, List[ValueProto]],
+) -> List[EntityKeyProto]:
+    """Build entity key protos for each row.
+
+    Args:
+        num_rows: Number of rows to generate entity keys for.
+        join_keys: Dict mapping join key names to their value types.
+        proto_values: Dict mapping column names to lists of ValueProto values.
+
+    Returns:
+        List of EntityKeyProto, one per row.
+    """
+    return [
+        EntityKeyProto(
+            join_keys=list(join_keys.keys()),
+            entity_values=[
+                proto_values[k][idx] for k in join_keys if k in proto_values
+            ],
+        )
+        for idx in range(num_rows)
+    ]
+
+
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
     feature_view: Union["FeatureView", "BaseFeatureView", "OnDemandFeatureView"],
@@ -295,20 +347,11 @@ def _convert_arrow_fv_to_proto(
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
     ] + list(join_keys.items())
 
-    proto_values_by_column = {
-        column: python_values_to_proto_values(
-            table.column(column).to_numpy(zero_copy_only=False), value_type
-        )
-        for column, value_type in columns
-    }
+    proto_values_by_column = _columns_to_proto_values(
+        table, columns, allow_missing=False
+    )
 
-    entity_keys = [
-        EntityKeyProto(
-            join_keys=join_keys,
-            entity_values=[proto_values_by_column[k][idx] for k in join_keys],
-        )
-        for idx in range(table.num_rows)
-    ]
+    entity_keys = _build_entity_keys(table.num_rows, join_keys, proto_values_by_column)
 
     # Serialize the features per row
     feature_dict = {
@@ -356,62 +399,36 @@ def _convert_arrow_odfv_to_proto(
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
     ] + list(join_keys.items())
 
-    proto_values_by_column = {
-        column: python_values_to_proto_values(
-            table.column(column).to_numpy(zero_copy_only=False), value_type
-        )
-        for column, value_type in columns
-        if column in table.column_names
-    }
+    # Convert columns that exist in the table
+    proto_values_by_column = _columns_to_proto_values(
+        table, columns, allow_missing=True
+    )
 
-    # Ensure join keys are included in proto_values_by_column, but check if they exist first
+    # Ensure join keys are included, creating null values if missing from table
     for join_key, value_type in join_keys.items():
         if join_key not in proto_values_by_column:
-            # Check if the join key exists in the table before trying to access it
             if join_key in table.column_names:
                 proto_values_by_column[join_key] = python_values_to_proto_values(
                     table.column(join_key).to_numpy(zero_copy_only=False), value_type
                 )
             else:
-                # Create null/default values if the join key isn't in the table
-                null_column = [None] * table.num_rows
+                # Create null proto values directly (no need to build a PyArrow array)
                 proto_values_by_column[join_key] = python_values_to_proto_values(
-                    null_column, value_type
+                    [None] * table.num_rows, value_type
                 )
 
-    # Adding On Demand Features
+    # Cache column names set to avoid recreating list in loop
+    column_names = {c[0] for c in columns}
+
+    # Adding On Demand Features that are missing from proto_values
     for feature in feature_view.features:
-        if (
-            feature.name in [c[0] for c in columns]
-            and feature.name not in proto_values_by_column
-        ):
-            # initializing the column as null
-            null_column = pyarrow.array(
-                [None] * table.num_rows,
-                type=from_feast_to_pyarrow_type(feature.dtype),
-            )
-            updated_table = pyarrow.RecordBatch.from_arrays(
-                table.columns + [null_column],
-                schema=table.schema.append(
-                    pyarrow.field(feature.name, null_column.type)  # type: ignore[attr-defined]
-                ),
-            )
+        if feature.name in column_names and feature.name not in proto_values_by_column:
+            # Create null proto values directly (more efficient than building PyArrow array)
             proto_values_by_column[feature.name] = python_values_to_proto_values(
-                updated_table.column(feature.name).to_numpy(zero_copy_only=False),
-                feature.dtype.to_value_type(),
+                [None] * table.num_rows, feature.dtype.to_value_type()
             )
 
-    entity_keys = [
-        EntityKeyProto(
-            join_keys=join_keys,
-            entity_values=[
-                proto_values_by_column[k][idx]
-                for k in join_keys
-                if k in proto_values_by_column
-            ],
-        )
-        for idx in range(table.num_rows)
-    ]
+    entity_keys = _build_entity_keys(table.num_rows, join_keys, proto_values_by_column)
 
     # Serialize the features per row
     feature_dict = {
@@ -420,7 +437,7 @@ def _convert_arrow_odfv_to_proto(
         if feature.name in proto_values_by_column
     }
     if feature_view.write_to_online_store:
-        table_columns = [col.name for col in table.schema]
+        table_columns = {col.name for col in table.schema}
         for feature in feature_view.schema:
             if feature.name not in feature_dict and feature.name in table_columns:
                 feature_dict[feature.name] = proto_values_by_column[feature.name]
@@ -428,11 +445,10 @@ def _convert_arrow_odfv_to_proto(
     features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]
 
     # We need to artificially add event_timestamps and created_timestamps
-    event_timestamps = []
-    timestamp_values = pd.to_datetime([_utc_now() for i in range(table.num_rows)])
-
-    for val in timestamp_values:
-        event_timestamps.append(_coerce_datetime(val))
+    now = _utc_now()
+    event_timestamps = [
+        _coerce_datetime(pd.Timestamp(now)) for _ in range(table.num_rows)
+    ]
 
     # setting them equivalent
     created_timestamps = event_timestamps
