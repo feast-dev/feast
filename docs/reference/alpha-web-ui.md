@@ -35,6 +35,18 @@ Options:
 
 This will spin up a Web UI on localhost which automatically refreshes its view of the registry every `registry_ttl_sec`
 
+#### Curl Generator Feature Server URL
+
+The Curl Generator uses a default Feature Server URL when building the example curl command. You can configure
+this default at build time using:
+
+```bash
+REACT_APP_FEAST_FEATURE_SERVER_URL="http://your-server:6566"
+```
+
+If this environment variable is not set, the UI falls back to `http://localhost:6566`. A user-edited value in
+the UI is still stored in localStorage and will take precedence for that browser.
+
 ### Importing as a module to integrate with an existing React App
 
 This is the recommended way to use Feast UI for teams maintaining their own internal UI for their deployment of Feast.
