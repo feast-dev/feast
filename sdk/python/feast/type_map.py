@@ -635,9 +635,9 @@ def _python_set_to_proto_values(
                     for list_item in json_values
                 ]
             return [
-                ProtoValue(**{set_field_name: set_proto_type(val=v)})
+                ProtoValue(**{set_field_name: set_proto_type(val=v)})  # type: ignore[arg-type]
                 if v is not None
-                else ProtoValue()  # type: ignore
+                else ProtoValue()
                 for v in json_values
             ]
         raise _type_err(sample, set_valid_types[0])
@@ -657,9 +657,9 @@ def _python_set_to_proto_values(
 
     # Generic set conversion
     return [
-        ProtoValue(**{set_field_name: set_proto_type(val=value)})
+        ProtoValue(**{set_field_name: set_proto_type(val=value)})  # type: ignore[arg-type]
         if value is not None
-        else ProtoValue()  # type: ignore
+        else ProtoValue()
         for value in converted_values
     ]
 
@@ -699,8 +699,8 @@ def _convert_list_values_to_proto(
                     [bool(item) for item in list_item] for list_item in json_values
                 ]
             return [
-                ProtoValue(**{field_name: proto_type(val=v)})
-                for v in json_values  # type: ignore
+                ProtoValue(**{field_name: proto_type(val=v)})  # type: ignore[arg-type]
+                for v in json_values
             ]
         raise _type_err(sample, valid_types[0])
 
@@ -717,9 +717,9 @@ def _convert_list_values_to_proto(
 
     # Generic list conversion
     return [
-        ProtoValue(**{field_name: proto_type(val=value)})
+        ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore[arg-type]
         if value is not None
-        else ProtoValue()  # type: ignore
+        else ProtoValue()
         for value in values
     ]
 
