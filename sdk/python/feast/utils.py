@@ -704,13 +704,54 @@ def _augment_response_with_on_demand_transforms(
                 }:
                     initial_response_arrow = initial_response.to_arrow()
 
-                # For passthrough, the features come directly from sources
-                # The initial_response already contains source feature data
-                transformed_features = (
-                    initial_response_dict
-                    if odfv.mode == "python"
-                    else initial_response_arrow
-                )
+                # For passthrough ODFVs, we need to rename source FV features to ODFV features
+                # Build mapping from source feature names to ODFV feature names
+                source_to_odfv_mapping = {}
+                odfv_projection_name = odfv.projection.name_to_use()
+
+                for (
+                    source_fv_projection
+                ) in odfv.source_feature_view_projections.values():
+                    source_fv_name = source_fv_projection.name
+                    for feature in source_fv_projection.features:
+                        # Source feature name in initial_response
+                        if full_feature_names:
+                            source_feature_ref = f"{source_fv_name}__{feature.name}"
+                            odfv_feature_ref = f"{odfv_projection_name}__{feature.name}"
+                        else:
+                            source_feature_ref = feature.name
+                            odfv_feature_ref = feature.name
+                        source_to_odfv_mapping[source_feature_ref] = odfv_feature_ref
+
+                # Rename features from source FV names to ODFV names
+                if odfv.mode == "python":
+                    assert initial_response_dict is not None
+                    transformed_features = {
+                        source_to_odfv_mapping[k]: v
+                        for k, v in initial_response_dict.items()
+                        if k in source_to_odfv_mapping
+                    }
+                else:  # pandas or substrait
+                    assert initial_response_arrow is not None
+                    # For pyarrow.Table, rename columns
+                    rename_mapping = {
+                        k: v
+                        for k, v in source_to_odfv_mapping.items()
+                        if k in initial_response_arrow.column_names
+                    }
+                    if rename_mapping:
+                        # Create new table with renamed columns
+                        new_columns = []
+                        new_names = []
+                        for col_name in initial_response_arrow.column_names:
+                            if col_name in rename_mapping:
+                                new_columns.append(initial_response_arrow[col_name])
+                                new_names.append(rename_mapping[col_name])
+                        transformed_features = pyarrow.table(
+                            {name: col for name, col in zip(new_names, new_columns)}
+                        )
+                    else:
+                        transformed_features = pyarrow.table({})
             # Apply aggregations if configured.
             elif odfv.aggregations:
                 if odfv.mode == "python":
