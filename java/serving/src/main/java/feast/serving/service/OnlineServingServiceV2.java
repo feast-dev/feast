@@ -204,6 +204,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                 ServingAPIProto.FeatureList.newBuilder()
                     .addAllVal(
                         retrievedFeatureReferences.stream()
+                            .limit(userRequestedFeaturesSize)
                             .map(FeatureUtil::getFeatureReference)
                             .collect(Collectors.toList()))));
 
