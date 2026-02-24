@@ -14,12 +14,9 @@ from feast import flags_helper, utils
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.feature_view import (
-    FeatureView,
-    _mode_to_string,
-    _serialize_data_source,
-)
+from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.proto_utils import mode_to_string, serialize_data_source
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
@@ -237,8 +234,8 @@ class StreamFeatureView(FeatureView):
         meta = self.to_proto_meta()
         ttl_duration = self.get_ttl_duration()
 
-        batch_source_proto = _serialize_data_source(self.batch_source)
-        stream_source_proto = _serialize_data_source(self.stream_source)
+        batch_source_proto = serialize_data_source(self.batch_source)
+        stream_source_proto = serialize_data_source(self.stream_source)
 
         udf_proto, feature_transformation = None, None
         if self.udf:
@@ -279,7 +276,7 @@ class StreamFeatureView(FeatureView):
             stream_source=stream_source_proto,
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
-            mode=_mode_to_string(self.mode),
+            mode=mode_to_string(self.mode),
             enable_tiling=self.enable_tiling,
             tiling_hop_size=tiling_hop_size_duration,
         )

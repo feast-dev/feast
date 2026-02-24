@@ -13,13 +13,10 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestSource
 from feast.entity import Entity
 from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
-from feast.feature_view import (
-    DUMMY_ENTITY_NAME,
-    FeatureView,
-    _transformation_to_proto,
-)
+from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
+from feast.proto_utils import transformation_to_proto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -472,7 +469,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        feature_transformation = _transformation_to_proto(self.feature_transformation)
+        feature_transformation = transformation_to_proto(self.feature_transformation)
 
         spec = OnDemandFeatureViewSpec(
             name=self.name,

@@ -14,7 +14,7 @@
 import copy
 import warnings
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message
@@ -26,6 +26,11 @@ from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
+from feast.proto_utils import (
+    mode_to_string,
+    serialize_data_source,
+    transformation_to_proto,
+)
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -36,85 +41,11 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
-from feast.protos.feast.core.Transformation_pb2 import (
-    FeatureTransformationV2 as FeatureTransformationProto,
-)
-from feast.protos.feast.core.Transformation_pb2 import (
-    SubstraitTransformationV2 as SubstraitTransformationProto,
-)
-from feast.protos.feast.core.Transformation_pb2 import (
-    UserDefinedFunctionV2 as UserDefinedFunctionProto,
-)
 from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
-
-
-def _serialize_data_source(source: Optional["DataSource"]) -> Optional[Message]:
-    """Serialize a data source to proto with class type annotation.
-
-    Args:
-        source: The data source to serialize, or None.
-
-    Returns:
-        The serialized proto with data_source_class_type set, or None if source is None.
-    """
-    if source is None:
-        return None
-    proto = source.to_proto()
-    proto.data_source_class_type = (
-        f"{source.__class__.__module__}.{source.__class__.__name__}"
-    )
-    return proto
-
-
-def _transformation_to_proto(
-    transformation: Optional[Any],
-) -> Optional[FeatureTransformationProto]:
-    """Convert a transformation to FeatureTransformationProto.
-
-    Args:
-        transformation: The transformation object with a to_proto() method.
-
-    Returns:
-        A FeatureTransformationProto wrapping the transformation, or None.
-    """
-    if transformation is None:
-        return None
-
-    if not hasattr(transformation, "to_proto"):
-        return None
-
-    transformation_proto = transformation.to_proto()
-
-    if isinstance(transformation_proto, UserDefinedFunctionProto):
-        return FeatureTransformationProto(
-            user_defined_function=transformation_proto,
-        )
-    elif isinstance(transformation_proto, SubstraitTransformationProto):
-        return FeatureTransformationProto(
-            substrait_transformation=transformation_proto,
-        )
-    return None
-
-
-def _mode_to_string(mode: Optional[Union["TransformationMode", str]]) -> str:
-    """Convert mode to string value.
-
-    Args:
-        mode: A TransformationMode enum or string, or None.
-
-    Returns:
-        The string representation of the mode, or empty string if None.
-    """
-    if mode is None:
-        return ""
-    if isinstance(mode, TransformationMode):
-        return mode.value
-    return mode
-
 
 # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
 DUMMY_ENTITY_ID = "__dummy_id"
@@ -485,8 +416,8 @@ class FeatureView(BaseFeatureView):
     ) -> FeatureViewSpecProto:
         ttl_duration = self.get_ttl_duration()
 
-        batch_source_proto = _serialize_data_source(self.batch_source)
-        stream_source_proto = _serialize_data_source(self.stream_source)
+        batch_source_proto = serialize_data_source(self.batch_source)
+        stream_source_proto = serialize_data_source(self.stream_source)
 
         source_view_protos = None
         if self.source_views:
@@ -496,7 +427,7 @@ class FeatureView(BaseFeatureView):
 
         feature_transformation_proto = None
         if hasattr(self, "feature_transformation") and self.feature_transformation:
-            feature_transformation_proto = _transformation_to_proto(
+            feature_transformation_proto = transformation_to_proto(
                 self.feature_transformation
             )
 
@@ -515,7 +446,7 @@ class FeatureView(BaseFeatureView):
             stream_source=stream_source_proto,
             source_views=source_view_protos,
             feature_transformation=feature_transformation_proto,
-            mode=_mode_to_string(self.mode),
+            mode=mode_to_string(self.mode),
         )
 
     def to_proto_meta(self):
