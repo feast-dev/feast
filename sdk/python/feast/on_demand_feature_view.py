@@ -417,8 +417,9 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def _validate_transformation_config(self) -> None:
         """Validate transformation configuration."""
+        # Passthrough ODFVs (no transformation) are allowed
         if not self.feature_transformation:
-            raise ValueError(ODFVErrorMessages.no_transformation_provided())
+            return
 
         # Validate mode compatibility with transformation type
         if self.mode in ("pandas", "python"):
@@ -623,8 +624,16 @@ class OnDemandFeatureView(BaseFeatureView):
     @classmethod
     def _parse_transformation_from_proto(
         cls, proto: OnDemandFeatureViewProto
-    ) -> Transformation:
-        """Parse and convert the transformation from the protobuf representation."""
+    ) -> Optional[Transformation]:
+        """Parse and convert the transformation from the protobuf representation.
+
+        Returns None for passthrough ODFVs that have no transformation.
+        """
+        # Check if feature_transformation field is set at all
+        if not proto.spec.HasField("feature_transformation"):
+            # No transformation - this is a passthrough ODFV
+            return None
+
         feature_transformation = proto.spec.feature_transformation
         transformation_type = feature_transformation.WhichOneof("transformation")
         mode = proto.spec.mode
@@ -632,8 +641,8 @@ class OnDemandFeatureView(BaseFeatureView):
         if transformation_type == "user_defined_function":
             udf_proto = feature_transformation.user_defined_function
 
-            # Check for non-empty UDF body
-            if udf_proto.body_text:
+            # Check for non-empty UDF body (either pickled body or body_text)
+            if udf_proto.body or udf_proto.body_text:
                 if mode == "pandas":
                     return PandasTransformation.from_proto(udf_proto)
                 elif mode == "python":
@@ -641,7 +650,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 else:
                     raise ValueError(ODFVErrorMessages.unsupported_mode_for_udf(mode))
             else:
-                # Handle backward compatibility case with empty body_text
+                # Handle backward compatibility case with empty body and body_text
                 return cls._handle_backward_compatible_udf(proto)
 
         elif transformation_type == "substrait_transformation":
@@ -649,7 +658,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 feature_transformation.substrait_transformation
             )
         elif transformation_type is None:
-            # Handle backward compatibility case where feature_transformation is cleared
+            # feature_transformation is set but empty - check for backward compatibility
             return cls._handle_backward_compatible_udf(proto)
         else:
             raise ValueError(
@@ -843,6 +852,10 @@ class OnDemandFeatureView(BaseFeatureView):
         if not isinstance(pa_table, pyarrow.Table):
             raise TypeError("transform_arrow only accepts pyarrow.Table")
 
+        # For passthrough ODFVs (no transformation), return input unchanged
+        if self.feature_transformation is None:
+            return pa_table
+
         # Apply common preprocessing to ensure both full and short feature names exist
         pa_table, columns_to_cleanup = self._preprocess_arrow_table(pa_table)
 
@@ -926,6 +939,10 @@ class OnDemandFeatureView(BaseFeatureView):
         Returns:
             Dictionary with transformed features
         """
+        # For passthrough ODFVs (no transformation), return input unchanged
+        if self.feature_transformation is None:
+            return feature_dict
+
         # Preprocess to ensure both full and short feature names exist
         preprocessed_dict, columns_to_cleanup = self._preprocess_feature_dict(
             feature_dict

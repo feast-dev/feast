@@ -97,11 +97,28 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .filter(r -> this.registryRepository.isOnDemandFeatureReference(r))
             .collect(Collectors.toList());
 
-    // Filter to only include on-demand feature views that have transformers defined
+    // Separate on-demand features into those with and without transformers
     List<FeatureReferenceV2> onDemandFeatureReferencesWithTransformers =
         onDemandFeatureReferences.stream()
             .filter(r -> this.onlineTransformationService.hasTransformers(r))
             .collect(Collectors.toList());
+
+    List<FeatureReferenceV2> passthroughOnDemandFeatureReferences =
+        onDemandFeatureReferences.stream()
+            .filter(r -> !this.onlineTransformationService.hasTransformers(r))
+            .collect(Collectors.toList());
+
+    // For passthrough ODFVs, extract their source feature dependencies
+    List<FeatureReferenceV2> passthroughOnDemandFeatureSources =
+        this.onlineTransformationService.extractOnDemandFeaturesDependencies(
+            passthroughOnDemandFeatureReferences);
+
+    // Add passthrough ODFV source features to retrieval list
+    for (FeatureReferenceV2 passthroughSource : passthroughOnDemandFeatureSources) {
+      if (!retrievedFeatureReferences.contains(passthroughSource)) {
+        retrievedFeatureReferences.add(passthroughSource);
+      }
+    }
 
     // ToDo (pyalex): refactor transformation service to delete unused left part of the returned
     // Pair from extractRequestDataFeatureNamesAndOnDemandFeatureSources.
@@ -193,7 +210,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
 
     if (!onDemandFeatureReferencesWithTransformers.isEmpty()) {
-      // Handle ODFVs. For each ODFV reference, we send a TransformFeaturesRequest to the FTS.
+      // Handle ODFVs with transformations. For each ODFV reference, we send a TransformFeaturesRequest to the FTS.
       // The request should contain the entity data, the retrieved features, and the request context
       // data.
       this.populateOnDemandFeatures(
@@ -203,6 +220,17 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           request,
           features,
           responseBuilder);
+    }
+
+    if (!passthroughOnDemandFeatureReferences.isEmpty()) {
+      // Handle passthrough ODFVs (no transformation). Map source features to ODFV feature names.
+      this.populatePassthroughOnDemandFeatures(
+          passthroughOnDemandFeatureReferences,
+          passthroughOnDemandFeatureSources,
+          retrievedFeatureReferences,
+          features,
+          responseBuilder,
+          now);
     }
 
     populateHistogramMetrics(entityRows, retrievedFeatureReferences);
@@ -399,6 +427,103 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           responseBuilder);
     }
   }
+
+  /**
+   * Populate passthrough on-demand features (those without transformations) by mapping
+   * source features to ODFV feature names.
+   *
+   * @param passthroughOnDemandFeatureReferences List of passthrough ODFV feature references
+   * @param passthroughOnDemandFeatureSources List of source features for passthrough ODFVs
+   * @param retrievedFeatureReferences List of all retrieved feature references
+   * @param features Retrieved feature values
+   * @param responseBuilder Response builder to populate
+   * @param now Current timestamp
+   */
+  private void populatePassthroughOnDemandFeatures(
+      List<FeatureReferenceV2> passthroughOnDemandFeatureReferences,
+      List<FeatureReferenceV2> passthroughOnDemandFeatureSources,
+      List<FeatureReferenceV2> retrievedFeatureReferences,
+      List<List<Feature>> features,
+      ServingAPIProto.GetOnlineFeaturesResponse.Builder responseBuilder,
+      Timestamp now) {
+
+    Timestamp nullTimestamp = Timestamp.newBuilder().build();
+    ValueProto.Value nullValue = ValueProto.Value.newBuilder().build();
+
+    // For each passthrough ODFV feature requested
+    for (FeatureReferenceV2 passthroughFeatureRef : passthroughOnDemandFeatureReferences) {
+      // Find the corresponding source feature for this passthrough ODFV
+      // For passthrough ODFVs, the ODFV feature name should match a source feature name
+      String odfvName = passthroughFeatureRef.getFeatureViewName();
+      String featureName = passthroughFeatureRef.getFeatureName();
+
+      // Find the source feature that provides this data
+      FeatureReferenceV2 sourceFeatureRef = null;
+      int sourceFeatureIdx = -1;
+
+      for (FeatureReferenceV2 sourceRef : passthroughOnDemandFeatureSources) {
+        if (sourceRef.getFeatureName().equals(featureName)) {
+          sourceFeatureRef = sourceRef;
+          sourceFeatureIdx = retrievedFeatureReferences.indexOf(sourceRef);
+          break;
+        }
+      }
+
+      if (sourceFeatureRef == null || sourceFeatureIdx == -1) {
+        // Source feature not found, add null values
+        ServingAPIProto.GetOnlineFeaturesResponse.FeatureVector.Builder vectorBuilder =
+            responseBuilder.addResultsBuilder();
+        for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
+          vectorBuilder.addValues(nullValue);
+          vectorBuilder.addStatuses(FieldStatus.NOT_FOUND);
+          vectorBuilder.addEventTimestamps(nullTimestamp);
+        }
+        responseBuilder.getMetadataBuilder().getFeatureNamesBuilder()
+            .addVal(FeatureUtil.getFeatureReference(passthroughFeatureRef));
+        continue;
+      }
+
+      // Get value type and max age for the passthrough feature
+      ValueProto.ValueType.Enum valueType =
+          this.registryRepository.getFeatureSpec(passthroughFeatureRef).getValueType();
+      Duration maxAge = this.registryRepository.getMaxAge(passthroughFeatureRef);
+
+      // Build feature vector by copying from source feature
+      ServingAPIProto.GetOnlineFeaturesResponse.FeatureVector.Builder vectorBuilder =
+          responseBuilder.addResultsBuilder();
+
+      for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
+        Feature sourceFeature = features.get(rowIdx).get(sourceFeatureIdx);
+
+        if (sourceFeature == null) {
+          vectorBuilder.addValues(nullValue);
+          vectorBuilder.addStatuses(FieldStatus.NOT_FOUND);
+          vectorBuilder.addEventTimestamps(nullTimestamp);
+          continue;
+        }
+
+        ValueProto.Value featureValue = sourceFeature.getFeatureValue(valueType);
+        if (featureValue == null) {
+          vectorBuilder.addValues(nullValue);
+          vectorBuilder.addStatuses(FieldStatus.NOT_FOUND);
+          vectorBuilder.addEventTimestamps(nullTimestamp);
+          continue;
+        }
+
+        vectorBuilder.addValues(featureValue);
+        vectorBuilder.addStatuses(
+            getFeatureStatus(featureValue, checkOutsideMaxAge(sourceFeature, now, maxAge)));
+        vectorBuilder.addEventTimestamps(sourceFeature.getEventTimestamp());
+      }
+
+      // Add feature name to metadata
+      responseBuilder.getMetadataBuilder().getFeatureNamesBuilder()
+          .addVal(FeatureUtil.getFeatureReference(passthroughFeatureRef));
+
+      populateCountMetrics(passthroughFeatureRef, vectorBuilder);
+    }
+  }
+
   /**
    * Generate Field level Status metadata for the given valueMap.
    *
