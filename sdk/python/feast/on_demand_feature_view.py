@@ -246,9 +246,16 @@ class OnDemandFeatureView(BaseFeatureView):
                 features.append(field)
 
         self.features = features
-        self.feature_transformation = (
-            feature_transformation or self.get_feature_transformation()
-        )
+
+        # Allow ODFVs without transformations (passthrough mode)
+        if feature_transformation:
+            self.feature_transformation = feature_transformation
+        elif udf:
+            self.feature_transformation = self.get_feature_transformation()
+        else:
+            # No transformation - this is a passthrough ODFV
+            self.feature_transformation = None
+
         self.write_to_online_store = write_to_online_store
         self.singleton = singleton
         if self.singleton and self.mode != "python":
@@ -469,25 +476,57 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        feature_transformation = transformation_to_proto(self.feature_transformation)
+        user_defined_function_proto = cast(
+            UserDefinedFunctionProto,
+            self.feature_transformation.to_proto()
+            if self.feature_transformation
+            and isinstance(
+                self.feature_transformation,
+                (PandasTransformation, PythonTransformation),
+            )
+            else None,
+        )
 
-        spec = OnDemandFeatureViewSpec(
-            name=self.name,
-            entities=self.entities or None,
-            entity_columns=[
+        substrait_transformation_proto = (
+            self.feature_transformation.to_proto()
+            if self.feature_transformation
+            and isinstance(self.feature_transformation, SubstraitTransformation)
+            else None
+        )
+
+        # Only create feature_transformation if there's an actual transformation
+        feature_transformation = None
+        if (
+            user_defined_function_proto is not None
+            or substrait_transformation_proto is not None
+        ):
+            feature_transformation = FeatureTransformationProto(
+                user_defined_function=user_defined_function_proto,
+                substrait_transformation=substrait_transformation_proto,
+            )
+
+        spec_kwargs = {
+            "name": self.name,
+            "entities": self.entities if self.entities else None,
+            "entity_columns": [
                 field.to_proto() for field in self.entity_columns if self.entity_columns
             ],
-            features=[feature.to_proto() for feature in self.features],
-            sources=sources,
-            feature_transformation=feature_transformation,
-            mode=self.mode,
-            description=self.description,
-            tags=self.tags,
-            owner=self.owner,
-            write_to_online_store=self.write_to_online_store,
-            singleton=self.singleton or False,
-            aggregations=self.aggregations,
-        )
+            "features": [feature.to_proto() for feature in self.features],
+            "sources": sources,
+            "mode": self.mode,
+            "description": self.description,
+            "tags": self.tags,
+            "owner": self.owner,
+            "write_to_online_store": self.write_to_online_store,
+            "singleton": self.singleton if self.singleton else False,
+            "aggregations": self.aggregations,
+        }
+
+        # Only include feature_transformation if it exists
+        if feature_transformation is not None:
+            spec_kwargs["feature_transformation"] = feature_transformation
+
+        spec = OnDemandFeatureViewSpec(**spec_kwargs)
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
