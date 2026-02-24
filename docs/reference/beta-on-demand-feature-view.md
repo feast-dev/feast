@@ -81,20 +81,17 @@ Aggregated columns are automatically named using the pattern `{function}_{column
 When your data is already transformed by an external process, you can define an ODFV without a transformation function:
 
 ```python
-from feast import Field, on_demand_feature_view
+from feast import OnDemandFeatureView, Field
 from feast.types import Float64
 
-# Define an ODFV for pre-transformed features without a transformation function
-@on_demand_feature_view(
+pre_transformed_conv_rate = OnDemandFeatureView(
+    name="pre_transformed_conv_rate",
     sources=[driver_hourly_stats_view],
     schema=[
         Field(name="conv_rate_adjusted", dtype=Float64),
     ],
     write_to_online_store=True,
 )
-def pre_transformed_conv_rate(inputs):
-    # No transformation logic - features are already transformed externally
-    pass
 ```
 
 When materializing this ODFV, you can use `transform_on_write=False` to skip transformations:
