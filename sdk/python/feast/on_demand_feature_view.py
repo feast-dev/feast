@@ -775,6 +775,10 @@ class OnDemandFeatureView(BaseFeatureView):
         if not isinstance(ibis_table, Table):
             raise TypeError("transform_ibis only accepts ibis.expr.types.Table")
 
+        # For passthrough ODFVs (no transformation), return input unchanged
+        if self.feature_transformation is None:
+            return ibis_table
+
         if not isinstance(self.feature_transformation, SubstraitTransformation):
             raise TypeError(
                 "The feature_transformation is not SubstraitTransformation type while calling transform_ibis()."
@@ -1072,7 +1076,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sample_values = {k: v[0] for k, v in sample_values.items()}
 
         # Default value for missing types
-        default_value = None if not singleton else [None]
+        default_value = [None] if not singleton else None
 
         feature_dict = {}
 
