@@ -98,6 +98,7 @@ milvus = [
     "feast[setuptools]"
 ]
 mssql = ["ibis-framework[mssql]>=10.0.0"]
+oracle = ["ibis-framework[oracle]>=10.0.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
 openlineage = ["openlineage-python>=1.40.0"]
@@ -148,7 +149,7 @@ test = [
 ]
 
 ci = [
-    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, oracle, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
     "virtualenv==20.23.0",
     "dbt-artifacts-parser",
