@@ -973,6 +973,16 @@ class OnDemandFeatureView(BaseFeatureView):
         return preprocessed_dict, columns_to_cleanup
 
     def infer_features(self) -> None:
+        # For passthrough ODFVs (no transformation), features must be explicitly defined
+        if not self.feature_transformation:
+            if not self.features:
+                raise RegistryInferenceFailure(
+                    "OnDemandFeatureView",
+                    f"OnDemandFeatureView '{self.name}' has no transformation, so features must be explicitly specified in the schema parameter.",
+                )
+            # Features are already set, nothing to infer
+            return
+
         random_input = self._construct_random_input(singleton=self.singleton)
         inferred_features = self.feature_transformation.infer_features(
             random_input=random_input, singleton=self.singleton
