@@ -690,6 +690,7 @@ def _augment_response_with_on_demand_transforms(
     odfv_result_names = set()
     for odfv_name, _feature_refs in odfv_feature_refs.items():
         odfv = requested_odfv_map[odfv_name]
+        transformed_features: Union[Dict[str, List[Any]], pyarrow.Table, None] = None
         if not odfv.write_to_online_store:
             # For passthrough ODFVs (no transformation, no aggregations),
             # extract features from sources and add to response
@@ -749,6 +750,11 @@ def _augment_response_with_on_demand_transforms(
                     raise Exception(
                         f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
                     )
+
+            # Ensure transformed_features was set by one of the branches above
+            assert transformed_features is not None, (
+                f"transformed_features should be set for ODFV {odfv_name}"
+            )
 
             transformed_columns = (
                 transformed_features.column_names

@@ -136,7 +136,7 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: dict[str, FeatureViewProjection]
     source_request_sources: dict[str, RequestSource]
-    feature_transformation: Transformation
+    feature_transformation: Optional[Transformation]
     mode: str
     description: str
     tags: dict[str, str]
@@ -506,28 +506,23 @@ class OnDemandFeatureView(BaseFeatureView):
                 substrait_transformation=substrait_transformation_proto,
             )
 
-        spec_kwargs = {
-            "name": self.name,
-            "entities": self.entities if self.entities else None,
-            "entity_columns": [
+        spec = OnDemandFeatureViewSpec(
+            name=self.name,
+            entities=self.entities if self.entities else None,
+            entity_columns=[
                 field.to_proto() for field in self.entity_columns if self.entity_columns
             ],
-            "features": [feature.to_proto() for feature in self.features],
-            "sources": sources,
-            "mode": self.mode,
-            "description": self.description,
-            "tags": self.tags,
-            "owner": self.owner,
-            "write_to_online_store": self.write_to_online_store,
-            "singleton": self.singleton if self.singleton else False,
-            "aggregations": self.aggregations,
-        }
-
-        # Only include feature_transformation if it exists
-        if feature_transformation is not None:
-            spec_kwargs["feature_transformation"] = feature_transformation
-
-        spec = OnDemandFeatureViewSpec(**spec_kwargs)
+            features=[feature.to_proto() for feature in self.features],
+            sources=sources,
+            mode=self.mode,
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
+            write_to_online_store=self.write_to_online_store,
+            singleton=self.singleton if self.singleton else False,
+            aggregations=[agg.to_proto() for agg in self.aggregations],
+            feature_transformation=feature_transformation,
+        )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
