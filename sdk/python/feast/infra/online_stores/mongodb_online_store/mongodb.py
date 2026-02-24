@@ -139,6 +139,15 @@ class MongoDBOnlineStore(OnlineStore):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Read features for a batch of entities.
+
+        Args:
+            config: Feast repo configuration
+            table: FeatureView to read from
+            entity_keys: List of entity keys to read
+            requested_features: Optional list of specific features to read
+
+        Returns:
+            List of tuples (event_timestamp, feature_dict) for each entity key
         """
         clxn = self._get_collection(config)
 
@@ -223,7 +232,15 @@ class MongoDBOnlineStore(OnlineStore):
         assert config.online_store.type == "mongodb"
         clxn = self._get_collection(repo_config=config)
         clxn.drop()
-        self._get_client(config).close()
+        if self._client:
+            self._client.close()
+
+    async def close(self) -> None:
+        """Close the async MongoDB client and release its resources."""
+        if self._client_async is not None:
+            await self._client_async.close()
+            self._client_async = None
+            self._collection_async = None
 
     # ------------------------------------------------------------------
     # Helpers
@@ -288,22 +305,25 @@ class MongoDBOnlineStore(OnlineStore):
         return SupportedAsyncMethods(read=True, write=True)
 
     @staticmethod
-    def convert_raw_docs_to_proto_simply(
+    def convert_raw_docs_to_proto_naive(
         ids: list[bytes],
         docs: dict[bytes, Any],
         table: FeatureView,
-        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[dict[str, ValueProto]]]]:
         """Convert values in documents retrieved from MongoDB (BSON) into ValueProto types.
 
-        The table, a FeatureView, provides a map from feature name to proto type.
-        ids is a sorted list of the serialized entity ids used in MongoDBOnlineStore.
-
         The heavy lifting is done in feast.type_map.python_values_to_proto_values.
-        It is intended to take a list of proto values with a single type (i.e. a column).
+        However, it is intended to take a list of proto values with a single type (i.e. a column).
 
-        In this method, we simply iterate over ids, calling this method each time.
-        It is naive, but straightforward.
+        In this version, we simply iterate over ids, calling this method each time.
+        It is naive, but straightforward. # TODO Remove if transforming is faster.
+
+        Args:
+            ids: sorted list of the serialized entity ids requested.
+            docs: results of collection find.
+            table: The FeatureView of the read, providing the types.
+        Returns:
+            List of tuples (event_timestamp, feature_dict) for each entity key
         """
         feature_type_map = {
             feature.name: feature.dtype.to_value_type() for feature in table.features
@@ -336,14 +356,20 @@ class MongoDBOnlineStore(OnlineStore):
     ) -> List[Tuple[Optional[datetime], Optional[dict[str, ValueProto]]]]:
         """Convert values in documents retrieved from MongoDB (BSON) into ValueProto types.
 
-        The table, a FeatureView, provides a map from feature name to proto type.
-        ids is a sorted list of the serialized entity ids used in MongoDBOnlineStore.
-
         The heavy lifting is done in feast.type_map.python_values_to_proto_values.
-        It is intended to take a list of proto values with a single type (i.e. a column).
+        The issue is that it is column-oriented, expecting a list of proto values with a single type.
+        MongoDB lookups are row-oriented, plus we need to ensure ordering of ids.
+        So we transform twice to minimize calls to the python/proto converter.
 
-        In this method, we simply iterate over ids, calling this method each time.
-        It is naive, but straightforward.
+        Luckily, the table, a FeatureView, provides a map from feature name to proto type
+        so we don't have to infer types for each feature value.
+
+        Args:
+            ids: sorted list of the serialized entity ids requested.
+            docs: results of collection find.
+            table: The FeatureView of the read, providing the types.
+        Returns:
+            List of tuples (event_timestamp, feature_dict) for each entity key
         """
         feature_type_map = {
             feature.name: feature.dtype.to_value_type() for feature in table.features
@@ -421,10 +447,20 @@ class MongoDBOnlineStore(OnlineStore):
             for entity_key in entity_keys
         ]
 
-        # Query MongoDB asynchronously
-        cursor = clxn.find({"_id": {"$in": ids}})
-        docs_list = await cursor.to_list(length=None)
-        docs = {doc["_id"]: doc for doc in docs_list}
+        query_filter = {"_id": {"$in": ids}}
+        projection = {
+            "_id": 1,
+            f"event_timestamps.{table.name}": 1,
+        }
+        if requested_features:
+            projection.update(
+                {f"features.{table.name}.{x}": 1 for x in requested_features}
+            )
+        else:
+            projection[f"features.{table.name}"] = 1
+
+        cursor = clxn.find(query_filter, projection=projection)
+        docs = {doc["_id"]: doc async for doc in cursor}
 
         # Convert to proto format
         return self.convert_raw_docs_to_proto_transforming(ids, docs, table)
