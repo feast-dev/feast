@@ -20,7 +20,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureServiceProto;
+import feast.proto.core.OnDemandFeatureViewProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
@@ -452,16 +454,24 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     // For each passthrough ODFV feature requested
     for (FeatureReferenceV2 passthroughFeatureRef : passthroughOnDemandFeatureReferences) {
-      // Find the corresponding source feature for this passthrough ODFV
-      // For passthrough ODFVs, the ODFV feature name should match a source feature name
       String odfvName = passthroughFeatureRef.getFeatureViewName();
       String featureName = passthroughFeatureRef.getFeatureName();
 
-      // Find the source feature that provides this data
+      // Get the ODFV spec to find the correct source feature view for this feature
+      OnDemandFeatureViewProto.OnDemandFeatureViewSpec odfvSpec =
+          this.registryRepository.getOnDemandFeatureViewSpec(passthroughFeatureRef);
+
+      // Find which source feature view provides this feature
+      // Extract source dependencies for this specific ODFV
+      List<FeatureReferenceV2> thisOdfvSources =
+          this.onlineTransformationService.extractOnDemandFeaturesDependencies(
+              Lists.newArrayList(passthroughFeatureRef));
+
+      // Find the source feature that matches this feature name
       FeatureReferenceV2 sourceFeatureRef = null;
       int sourceFeatureIdx = -1;
 
-      for (FeatureReferenceV2 sourceRef : passthroughOnDemandFeatureSources) {
+      for (FeatureReferenceV2 sourceRef : thisOdfvSources) {
         if (sourceRef.getFeatureName().equals(featureName)) {
           sourceFeatureRef = sourceRef;
           sourceFeatureIdx = retrievedFeatureReferences.indexOf(sourceRef);
@@ -483,10 +493,31 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
         continue;
       }
 
-      // Get value type and max age for the passthrough feature
-      ValueProto.ValueType.Enum valueType =
-          this.registryRepository.getFeatureSpec(passthroughFeatureRef).getValueType();
-      Duration maxAge = this.registryRepository.getMaxAge(passthroughFeatureRef);
+      // Find the feature spec within the ODFV
+      ValueProto.ValueType.Enum valueType = null;
+      for (FeatureProto.FeatureSpecV2 featureSpec : odfvSpec.getFeaturesList()) {
+        if (featureSpec.getName().equals(featureName)) {
+          valueType = featureSpec.getValueType();
+          break;
+        }
+      }
+
+      if (valueType == null) {
+        // Feature not found in ODFV spec, add null values
+        ServingAPIProto.GetOnlineFeaturesResponse.FeatureVector.Builder vectorBuilder =
+            responseBuilder.addResultsBuilder();
+        for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
+          vectorBuilder.addValues(nullValue);
+          vectorBuilder.addStatuses(FieldStatus.NOT_FOUND);
+          vectorBuilder.addEventTimestamps(nullTimestamp);
+        }
+        responseBuilder.getMetadataBuilder().getFeatureNamesBuilder()
+            .addVal(FeatureUtil.getFeatureReference(passthroughFeatureRef));
+        continue;
+      }
+
+      // For passthrough ODFVs, use the source feature's max age
+      Duration maxAge = this.registryRepository.getMaxAge(sourceFeatureRef);
 
       // Build feature vector by copying from source feature
       ServingAPIProto.GetOnlineFeaturesResponse.FeatureVector.Builder vectorBuilder =
