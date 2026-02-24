@@ -791,13 +791,20 @@ def _get_entity_maps(
 ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
     # TODO(felixwang9817): Support entities that have different types for different feature views.
     entities = registry.list_entities(project, allow_cache=True)
+
+    entity_by_name: Dict[str, "Entity"] = {entity.name: entity for entity in entities}
+
     entity_name_to_join_key_map: Dict[str, str] = {}
     entity_type_map: Dict[str, ValueType] = {}
     for entity in entities:
         entity_name_to_join_key_map[entity.name] = entity.join_key
     for feature_view in feature_views:
         for entity_name in feature_view.entities:
-            entity = registry.get_entity(entity_name, project, allow_cache=True)
+            entity = entity_by_name.get(entity_name)
+            if entity is None:
+                from feast.errors import EntityNotFoundException
+
+                raise EntityNotFoundException(entity_name, project=project)
             # User directly uses join_key as the entity reference in the entity_rows for the
             # entity mapping case.
             entity_name = feature_view.projection.join_key_map.get(
