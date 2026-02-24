@@ -2034,6 +2034,10 @@ class FeatureStore:
         Raises:
             Exception: For unsupported OnDemandFeatureView modes
         """
+        # For passthrough ODFVs (no transformation), return input unchanged
+        if feature_view.feature_transformation is None:
+            return df
+
         if feature_view.mode == "python" and isinstance(
             feature_view.feature_transformation, PythonTransformation
         ):
