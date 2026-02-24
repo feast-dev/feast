@@ -413,7 +413,7 @@ def point_in_time_join(
             else:
                 alias = "".join(random.choices(string.ascii_uppercase, k=10))
 
-                feature_table = feature_table.alias(alias=alias).sql(
+                feature_table = feature_table.alias(alias).sql(
                     f"SELECT *, {event_expire_timestamp_fn(timestamp_field, ttl)} AS event_expire_timestamp FROM {alias}"
                 )
 

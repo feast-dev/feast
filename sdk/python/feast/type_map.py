@@ -1181,6 +1181,61 @@ def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
     return type_map[mssql_type_as_str.lower()]
 
 
+def oracle_to_feast_value_type(oracle_type_as_str: str) -> ValueType:
+    """Convert an Oracle/ibis type string to a Feast ValueType.
+
+    Handles type strings returned by ibis schema introspection for the
+    Oracle backend (e.g. "int64", "float64", "string", "timestamp", "decimal")
+    as well as Oracle native type names.
+    """
+    type_str = oracle_type_as_str.lower().strip()
+
+    # Handle parameterized types like "decimal(10, 2)"
+    if "(" in type_str:
+        type_str = type_str.split("(")[0]
+
+    type_map: Dict[str, ValueType] = {
+        # Ibis types returned by Oracle backend
+        "int8": ValueType.INT32,
+        "int16": ValueType.INT32,
+        "int32": ValueType.INT32,
+        "int64": ValueType.INT64,
+        "float16": ValueType.FLOAT,
+        "float32": ValueType.FLOAT,
+        "float64": ValueType.DOUBLE,
+        "decimal": ValueType.DOUBLE,
+        "string": ValueType.STRING,
+        "binary": ValueType.BYTES,
+        "boolean": ValueType.BOOL,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "time": ValueType.UNIX_TIMESTAMP,
+        "null": ValueType.NULL,
+        # Oracle native type names
+        "number": ValueType.DOUBLE,
+        "varchar2": ValueType.STRING,
+        "nvarchar2": ValueType.STRING,
+        "char": ValueType.STRING,
+        "nchar": ValueType.STRING,
+        "clob": ValueType.STRING,
+        "nclob": ValueType.STRING,
+        "blob": ValueType.BYTES,
+        "raw": ValueType.BYTES,
+        "long raw": ValueType.BYTES,
+        "long": ValueType.STRING,
+        "integer": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "float": ValueType.DOUBLE,
+        "double precision": ValueType.DOUBLE,
+        "real": ValueType.FLOAT,
+        "binary_float": ValueType.FLOAT,
+        "binary_double": ValueType.DOUBLE,
+        "interval": ValueType.UNIX_TIMESTAMP,
+    }
+
+    return type_map.get(type_str, ValueType.STRING)
+
+
 def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
     # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
     # MS Sql types: https://docs.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver16
