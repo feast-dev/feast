@@ -23,7 +23,7 @@ These tools are not competitors. Each one occupies a distinct role:
 
 Together they form a complete, open-source foundation for operationalizing ML.
 
-This topic has been explored by the community before — the post ["Feast with AI: Feed Your MLflow Models with Feature Store"](https://blog.qooba.net/2021/05/22/feast-with-ai-feed-your-mlflow-models-with-feature-store/) by [@qooba](https://github.com/qooba) is an excellent early look at combining Feast and MLflow. This post builds on that work and extends the story to include Kubeflow Pipelines and the Kubeflow Training Operator.
+This topic has been explored by the community before — the post ["Feast with AI: Feed Your MLflow Models with Feature Store"](https://blog.qooba.net/2021/05/22/feast-with-ai-feed-your-mlflow-models-with-feature-store/) by [@qooba](https://github.com/qooba) is an excellent early look at combining Feast and MLflow. For a hands-on, end-to-end example of Feast and Kubeflow working together, see ["From Raw Data to Model Serving: A Blueprint for the AI/ML Lifecycle with Kubeflow and Feast"](/blog/kubeflow-fraud-detection-e2e) by Helber Belmiro. This post builds on that prior work and brings all three tools — Feast, MLflow, and Kubeflow — into a single narrative.
 
 ---
 
@@ -132,7 +132,7 @@ from feast import on_demand_feature_view, Field
 from feast.types import Float64
 
 @on_demand_feature_view(
-    sources=["driver_hourly_stats"],
+    sources=[driver_stats],
     schema=[Field(name="conv_acc_ratio", dtype=Float64)],
 )
 def driver_ratios(inputs):
@@ -140,6 +140,8 @@ def driver_ratios(inputs):
     df["conv_acc_ratio"] = df["conv_rate"] / (df["acc_rate"] + 1e-6)
     return df[["conv_acc_ratio"]]
 ```
+
+Here `driver_stats` is the `FeatureView` object defined earlier. The `sources` parameter accepts `FeatureView`, `RequestSource`, or `FeatureViewProjection` objects.
 
 Using `on_demand_feature_view` ensures that the same transformation logic is applied whether features are retrieved from the offline store for training or from the online store at inference time, preventing transformation skew.
 
@@ -158,20 +160,47 @@ print(feature_view.source)   # upstream data source
 print(feature_view.schema)   # feature schema
 ```
 
+For cross-system lineage that extends beyond Feast into upstream data pipelines and downstream model training, Feast also supports native [OpenLineage integration](/blog/feast-openlineage-integration). Enabling it in your `feature_store.yaml` automatically emits lineage events on `feast apply` and `feast materialize`, letting you visualize the full data flow in tools like [Marquez](https://marquezproject.ai/).
+
 ### Data quality monitoring
 
-Feast integrates with data quality frameworks to detect feature drift, stale data, and schema violations before they silently degrade model performance. You can attach expectations to a feature view so that data is validated during materialization:
+Feast integrates with data quality frameworks like [Great Expectations](https://greatexpectations.io/) to detect feature drift, stale data, and schema violations before they silently degrade model performance. The workflow centers on Feast's `SavedDataset` and `ValidationReference` APIs: you save a profiled dataset during training, define a profiler using Great Expectations, and then validate new feature data against that reference in subsequent runs.
 
 ```python
-from feast import FeatureView
-from feast.data_quality import DataQualityStats
+from feast import FeatureStore
+from feast.dqm.profilers.ge_profiler import ge_profiler
+from great_expectations.core import ExpectationSuite
+from great_expectations.dataset import PandasDataset
 
-# After materialization, inspect stats tracked by Feast
-stats = store.get_saved_dataset("driver_stats_validation").to_df()
-print(stats.describe())
+store = FeatureStore(repo_path=".")
+
+@ge_profiler
+def my_profiler(dataset: PandasDataset) -> ExpectationSuite:
+    dataset.expect_column_values_to_be_between("conv_rate", min_value=0, max_value=1)
+    dataset.expect_column_values_to_be_between("acc_rate", min_value=0, max_value=1)
+    return dataset.get_expectation_suite()
+
+reference_job = store.get_historical_features(
+    entity_df=entity_df,
+    features=["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"],
+)
+
+dataset = store.create_saved_dataset(
+    from_=reference_job,
+    name="driver_stats_validation",
+    storage=storage,
+)
+
+reference = dataset.as_reference(name="driver_stats_ref", profiler=my_profiler)
+
+new_job = store.get_historical_features(
+    entity_df=new_entity_df,
+    features=["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"],
+)
+new_job.to_df(validation_reference=reference)
 ```
 
-Monitoring feature distributions over time — and comparing them to the distributions seen during training — allows you to detect training–serving skew early, before it causes silent model degradation in production.
+If validation fails, Feast raises a `ValidationFailed` exception with details on which expectations were violated. Monitoring feature distributions over time — and comparing them to the distributions seen during training — allows you to detect training–serving skew early, before it causes silent model degradation in production.
 
 ### Feast Feature Registry vs. MLflow Model Registry
 
@@ -276,7 +305,6 @@ Kubeflow Pipelines lets you compose the entire workflow — feature retrieval, t
 
 ```python
 from kfp import dsl
-from kfp.components import func_to_container_op
 
 @dsl.component(base_image="python:3.10-slim", packages_to_install=["feast", "mlflow", "scikit-learn", "pandas", "pyarrow"])
 def retrieve_features(entity_df_path: str, feature_store_repo: str, output_path: dsl.Output[dsl.Dataset]):
@@ -353,12 +381,12 @@ mlflow.register_model(f"runs:/{best_run_id}/model", "driver_conversion_model")
 
 ### Step 3: Promote to production
 
-Transitioning the model to "Production" in MLflow signals that it is ready for deployment. At this point, you also know the exact subset of Feast features required by that model — these are the features to materialize and serve.
+Promoting the model in MLflow signals that it is ready for deployment. At this point, you also know the exact subset of Feast features required by that model — these are the features to materialize and serve.
 
 ```python
 client = mlflow.tracking.MlflowClient()
-client.transition_model_version_stage(
-    name="driver_conversion_model", version="3", stage="Production"
+client.set_registered_model_alias(
+    name="driver_conversion_model", alias="production", version="3"
 )
 ```
 
