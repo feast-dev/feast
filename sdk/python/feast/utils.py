@@ -839,7 +839,9 @@ def _augment_response_with_on_demand_transforms(
             new_selected_subset = [
                 f for f in selected_subset if f not in existing_feature_names
             ]
-            online_features_response.metadata.feature_names.val.extend(new_selected_subset)
+            online_features_response.metadata.feature_names.val.extend(
+                new_selected_subset
+            )
             for feature_idx, feature_name in enumerate(selected_subset):
                 if feature_name in existing_feature_names:
                     continue
