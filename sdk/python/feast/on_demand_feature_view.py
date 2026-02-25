@@ -628,6 +628,11 @@ class OnDemandFeatureView(BaseFeatureView):
         """
         # Check if feature_transformation field is set at all
         if not proto.spec.HasField("feature_transformation"):
+            # Old protos stored the transformation in the top-level user_defined_function
+            # field rather than inside feature_transformation. Fall through to the
+            # backward-compatibility handler so those protos are not silently dropped.
+            if proto.spec.HasField("user_defined_function"):
+                return cls._handle_backward_compatible_udf(proto)
             # No transformation - this is a passthrough ODFV
             return None
 
