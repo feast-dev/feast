@@ -94,7 +94,7 @@ online_store:
 ```
 {% endcode %}
 
-The full set of configuration options is available in [MongoDBOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.contrib.mongodb_online_store.mongodb.MongoDBOnlineStoreConfig).
+The full set of configuration options is available in [MongoDBOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.mongodb_online_store.mongodb.MongoDBOnlineStoreConfig).
 
 ## Data Model
 

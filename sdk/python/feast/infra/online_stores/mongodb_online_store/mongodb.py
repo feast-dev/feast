@@ -31,10 +31,7 @@ class MongoDBOnlineStoreConfig(FeastConfigBaseModel):
     see https://pymongo.readthedocs.io/en/stable/api/pymongo/mongo_client.html
     """
 
-    type: Literal[
-        "mongodb",
-        "feast.infra.online_stores.contrib.mongodb_online_store.mongodb.MongoDBOnlineStore",
-    ] = "mongodb"
+    type: Literal["mongodb"] = "mongodb"
     """Online store type selector"""
     connection_string: str = "mongodb://localhost:27017"
     database_name: str = (
@@ -67,9 +64,10 @@ class MongoDBOnlineStore(OnlineStore):
             },
         },
         "event_timestamps": {
-            "driver_stats": 2026-01-01 12:00:00+00:00 }
-            "pricing":: 2026-01-21 12:00:00+00:00 }
-        "created_timestamp": 2026-01-21 12:00:00+00:00
+            "driver_stats": "2026-01-01 12:00:00+00:00",
+            "pricing": "2026-01-21 12:00:00+00:00"
+        },
+        "created_timestamp": "2026-01-21 12:00:00+00:00"
     }
     """
 
@@ -128,7 +126,7 @@ class MongoDBOnlineStore(OnlineStore):
         if ops:
             clxn.bulk_write(ops, ordered=False)
         if progress:
-            progress(1)
+            progress(len(data))
 
     def online_read(
         self,
@@ -229,7 +227,8 @@ class MongoDBOnlineStore(OnlineStore):
 
         As in update, MongoDB requires very little here.
         """
-        assert config.online_store.type == "mongodb"
+        if not isinstance(config.online_store, MongoDBOnlineStoreConfig):
+            raise RuntimeError(f"{config.online_store.type = }. It must be mongodb.")
         clxn = self._get_collection(repo_config=config)
         clxn.drop()
         if self._client:
@@ -255,10 +254,6 @@ class MongoDBOnlineStore(OnlineStore):
             )
         if self._client is None:
             online_config = config.online_store
-            if not isinstance(online_config, MongoDBOnlineStoreConfig):
-                logger.warning(
-                    f"config.online_store passed to _get_client is not a MongoDBOnlineStoreConfig. It's of type {type(online_config)}"
-                )
             self._client = MongoClient(
                 online_config.connection_string, **online_config.client_kwargs
             )
@@ -505,8 +500,7 @@ class MongoDBOnlineStore(OnlineStore):
                 },
             }
             update_doc["$set"][f"event_timestamps.{table.name}"] = event_ts
-            if created_ts:
-                update_doc["$set"]["created_timestamp"] = created_ts
+            update_doc["$set"]["created_timestamp"] = created_ts
 
             ops.append(UpdateOne({"_id": entity_id}, update_doc, upsert=True))
 
