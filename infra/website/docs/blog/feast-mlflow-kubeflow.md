@@ -23,6 +23,33 @@ These tools are not competitors. Each one occupies a distinct role:
 
 Together they form a complete, open-source foundation for operationalizing ML.
 
+### How are Feast, MLflow, and Kubeflow different?
+
+If you are new to these tools, it is natural to wonder whether they overlap. The short answer is: they solve fundamentally different problems in the ML lifecycle. The table below makes this concrete.
+
+| Capability | Feast | MLflow | Kubeflow |
+|---|---|---|---|
+| Define and version feature schemas | Yes | No | No |
+| Store and serve features (online + offline) | Yes | No | No |
+| Point-in-time-correct feature retrieval | Yes | No | No |
+| Feature transformations (training = serving) | Yes | No | No |
+| Feature lineage and registry | Yes | No | No |
+| Data quality validation on features | Yes | No | No |
+| Log experiments, metrics, and parameters | No | Yes | No |
+| Track and compare model versions | No | Yes | No |
+| Model registry (promote / alias models) | No | Yes | No |
+| Orchestrate multi-step ML pipelines | No | No | Yes (Pipelines) |
+| Distributed training on Kubernetes | No | No | Yes (Training Operator) |
+| Hyperparameter tuning | No | Yes (with Optuna, etc.) | Yes (Katib) |
+
+A few common misconceptions:
+
+* **"Can't MLflow track my features?"** — MLflow can *log* feature names as parameters, but it does not *define*, *store*, *transform*, or *serve* features. It has no concept of an offline store, an online store, or point-in-time joins. Feast fills that gap.
+* **"Doesn't Kubeflow handle everything end-to-end?"** — Kubeflow orchestrates *workflows* — it tells your pipeline steps when to run and where. But it does not provide feature storage, experiment tracking, or model versioning. You still need Feast for the data layer and MLflow for the experiment layer.
+* **"Why do I need Feast if I just read from a database?"** — Without Feast, teams typically duplicate feature logic between training scripts and serving endpoints, which leads to training–serving skew. Feast guarantees the same transformation and retrieval logic is used in both contexts.
+
+With that context, the rest of this post walks through each tool in detail and shows how they hand off to one another in practice.
+
 This topic has been explored by the community before — the post ["Feast with AI: Feed Your MLflow Models with Feature Store"](https://blog.qooba.net/2021/05/22/feast-with-ai-feed-your-mlflow-models-with-feature-store/) by [@qooba](https://github.com/qooba) is an excellent early look at combining Feast and MLflow. For a hands-on, end-to-end example of Feast and Kubeflow working together, see ["From Raw Data to Model Serving: A Blueprint for the AI/ML Lifecycle with Kubeflow and Feast"](/blog/kubeflow-fraud-detection-e2e) by Helber Belmiro. This post builds on that prior work and brings all three tools — Feast, MLflow, and Kubeflow — into a single narrative.
 
 ---
@@ -208,7 +235,7 @@ A common question is how the **Feast feature registry** relates to the **MLflow 
 
 | | Feast Feature Registry | MLflow Model Registry |
 |---|---|---|
-| **What it tracks** | Feature definitions, schemas, data sources, entity relationships | Model artifacts, versions, stage transitions (Staging → Production) |
+| **What it tracks** | Feature definitions, schemas, data sources, entity relationships | Model artifacts, versions, model aliases (e.g., "production", "staging") |
 | **Primary users** | Feature engineers, data scientists, ML platform teams | Data scientists, ML engineers |
 | **Relationship to production** | Defines what data is available for training *and* serving | Tracks which model version is promoted to production |
 | **Scope** | All features ever defined — a superset of what any one model uses | All model versions, including candidates that never ship |
