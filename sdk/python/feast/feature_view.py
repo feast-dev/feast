@@ -26,6 +26,11 @@ from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
+from feast.proto_utils import (
+    mode_to_string,
+    serialize_data_source,
+    transformation_to_proto,
+)
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -35,9 +40,6 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 )
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
-)
-from feast.protos.feast.core.Transformation_pb2 import (
-    FeatureTransformationV2 as FeatureTransformationProto,
 )
 from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
@@ -414,15 +416,9 @@ class FeatureView(BaseFeatureView):
     ) -> FeatureViewSpecProto:
         ttl_duration = self.get_ttl_duration()
 
-        batch_source_proto = None
-        if self.batch_source:
-            batch_source_proto = self.batch_source.to_proto()
-            batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
+        batch_source_proto = serialize_data_source(self.batch_source)
+        stream_source_proto = serialize_data_source(self.stream_source)
 
-        stream_source_proto = None
-        if self.stream_source:
-            stream_source_proto = self.stream_source.to_proto()
-            stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
         source_view_protos = None
         if self.source_views:
             source_view_protos = [
@@ -431,30 +427,8 @@ class FeatureView(BaseFeatureView):
 
         feature_transformation_proto = None
         if hasattr(self, "feature_transformation") and self.feature_transformation:
-            from feast.protos.feast.core.Transformation_pb2 import (
-                SubstraitTransformationV2 as SubstraitTransformationProto,
-            )
-            from feast.protos.feast.core.Transformation_pb2 import (
-                UserDefinedFunctionV2 as UserDefinedFunctionProto,
-            )
-
-            transformation_proto = self.feature_transformation.to_proto()
-
-            if isinstance(transformation_proto, UserDefinedFunctionProto):
-                feature_transformation_proto = FeatureTransformationProto(
-                    user_defined_function=transformation_proto,
-                )
-            elif isinstance(transformation_proto, SubstraitTransformationProto):
-                feature_transformation_proto = FeatureTransformationProto(
-                    substrait_transformation=transformation_proto,
-                )
-
-        mode_str = ""
-        if self.mode:
-            mode_str = (
-                self.mode.value
-                if isinstance(self.mode, TransformationMode)
-                else self.mode
+            feature_transformation_proto = transformation_to_proto(
+                self.feature_transformation
             )
 
         return FeatureViewSpecProto(
@@ -472,7 +446,7 @@ class FeatureView(BaseFeatureView):
             stream_source=stream_source_proto,
             source_views=source_view_protos,
             feature_transformation=feature_transformation_proto,
-            mode=mode_str,
+            mode=mode_to_string(self.mode),
         )
 
     def to_proto_meta(self):

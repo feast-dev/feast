@@ -16,6 +16,7 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.proto_utils import mode_to_string, serialize_data_source
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
@@ -233,15 +234,8 @@ class StreamFeatureView(FeatureView):
         meta = self.to_proto_meta()
         ttl_duration = self.get_ttl_duration()
 
-        batch_source_proto = None
-        if self.batch_source:
-            batch_source_proto = self.batch_source.to_proto()
-            batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
-
-        stream_source_proto = None
-        if self.stream_source:
-            stream_source_proto = self.stream_source.to_proto()
-            stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
+        batch_source_proto = serialize_data_source(self.batch_source)
+        stream_source_proto = serialize_data_source(self.stream_source)
 
         udf_proto, feature_transformation = None, None
         if self.udf:
@@ -259,10 +253,6 @@ class StreamFeatureView(FeatureView):
             feature_transformation = FeatureTransformationProto(
                 user_defined_function=udf_proto_v2,
             )
-
-        mode = (
-            self.mode.value if isinstance(self.mode, TransformationMode) else self.mode
-        )
 
         # Serialize tiling configuration
         tiling_hop_size_duration = None
@@ -282,11 +272,11 @@ class StreamFeatureView(FeatureView):
             owner=self.owner,
             ttl=ttl_duration,
             online=self.online,
-            batch_source=batch_source_proto or None,
-            stream_source=stream_source_proto or None,
+            batch_source=batch_source_proto,
+            stream_source=stream_source_proto,
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
-            mode=mode,
+            mode=mode_to_string(self.mode),
             enable_tiling=self.enable_tiling,
             tiling_hop_size=tiling_hop_size_duration,
         )
