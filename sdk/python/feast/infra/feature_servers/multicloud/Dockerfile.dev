@@ -27,6 +27,7 @@ RUN yalc add @feast-dev/feast-ui && \
 
 WORKDIR ${APP_ROOT}/src
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+ENV UV_CACHE_DIR=/tmp/uv-cache
 RUN uv pip install --require-hashes --no-deps -r sdk/python/requirements/py3.11-minimal-requirements.txt
 RUN uv pip install --no-deps -e .[minimal]
 
