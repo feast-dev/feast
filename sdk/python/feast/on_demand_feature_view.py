@@ -26,6 +26,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandSource,
 )
 from feast.protos.feast.core.Transformation_pb2 import (
+    FeatureTransformationV2 as FeatureTransformationProto,
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
 from feast.transformation.base import Transformation
