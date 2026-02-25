@@ -1,13 +1,19 @@
 """
-Unit tests for MongoDB online store using testcontainers.
+Unit tests for MongoDB online store.
 
-This test requires Docker to be running. It will be skipped if Docker is not available.
+Docker-dependent tests are marked with ``@_requires_docker`` and are skipped when
+Docker is unavailable.  Pure Python tests (no container needed) run in all environments.
 """
+
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from feast import FeatureView, Field, FileSource
+from feast.infra.online_stores.mongodb_online_store.mongodb import MongoDBOnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.types import Int64
 from feast.utils import _utc_now
 from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
@@ -28,8 +34,8 @@ try:
 except ImportError:
     pass
 
-# Skip all tests in this module if Docker is not available
-pytestmark = pytest.mark.skipif(
+# Applied per-test so that pure Python tests still run without Docker.
+_requires_docker = pytest.mark.skipif(
     not docker_available,
     reason="Docker is not available or not running. Start Docker daemon to run these tests.",
 )
@@ -55,6 +61,7 @@ def mongodb_connection_string(mongodb_container):
     return f"mongodb://test:test@localhost:{exposed_port}"  # pragma: allowlist secret
 
 
+@_requires_docker
 def test_mongodb_online_features(mongodb_connection_string):
     """
     Test reading from MongoDB online store using testcontainers.
@@ -174,4 +181,87 @@ def test_mongodb_online_features(mongodb_connection_string):
             full_feature_names=False,
         ).to_dict()
 
-        assert "trips" in result
+        assert result["trips"] == [None]
+
+
+# ---------------------------------------------------------------------------
+# Pure Python tests — no Docker required
+# ---------------------------------------------------------------------------
+
+
+def _make_fv(*field_names: str) -> FeatureView:
+    """Build a minimal FeatureView with Int64 features for use in unit tests."""
+    return FeatureView(
+        name="test_fv",
+        entities=[],
+        schema=[Field(name=n, dtype=Int64) for n in field_names],
+        source=FileSource(path="fake.parquet", timestamp_field="event_timestamp"),
+        ttl=timedelta(days=1),
+    )
+
+
+def test_convert_raw_docs_missing_entity():
+    """Entity key absent from docs → result tuple is (None, None) for that position."""
+    fv = _make_fv("score")
+    ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    ids = [b"present", b"missing"]
+    docs = {
+        b"present": {
+            "features": {"test_fv": {"score": 42}},
+            "event_timestamps": {"test_fv": ts},
+        }
+    }
+
+    results = MongoDBOnlineStore._convert_raw_docs_to_proto(ids, docs, fv)
+
+    assert len(results) == 2
+    ts_out, feats_out = results[0]
+    assert ts_out == ts
+    assert feats_out["score"].int64_val == 42
+    assert results[1] == (None, None)
+
+
+def test_convert_raw_docs_partial_doc():
+    """Entity exists but one feature key is absent → empty ValueProto for that feature."""
+    fv = _make_fv("present_feat", "missing_feat")
+    ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    ids = [b"entity1"]
+    docs = {
+        b"entity1": {
+            # missing_feat intentionally omitted (e.g. schema migration scenario)
+            "features": {"test_fv": {"present_feat": 99}},
+            "event_timestamps": {"test_fv": ts},
+        }
+    }
+
+    results = MongoDBOnlineStore._convert_raw_docs_to_proto(ids, docs, fv)
+
+    assert len(results) == 1
+    ts_out, feats_out = results[0]
+    assert ts_out == ts
+    assert feats_out["present_feat"].int64_val == 99
+    assert feats_out["missing_feat"] == ValueProto()  # null / not-set
+
+
+def test_convert_raw_docs_ordering():
+    """Result order matches the ids list regardless of dict insertion order in docs."""
+    fv = _make_fv("score")
+    ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    # Request entity keys in z → a → m order
+    ids = [b"entity_z", b"entity_a", b"entity_m"]
+
+    # docs is in a different order (simulating arbitrary MongoDB cursor return order)
+    docs = {
+        b"entity_a": {"features": {"test_fv": {"score": 2}}, "event_timestamps": {"test_fv": ts}},
+        b"entity_m": {"features": {"test_fv": {"score": 3}}, "event_timestamps": {"test_fv": ts}},
+        b"entity_z": {"features": {"test_fv": {"score": 1}}, "event_timestamps": {"test_fv": ts}},
+    }
+
+    results = MongoDBOnlineStore._convert_raw_docs_to_proto(ids, docs, fv)
+
+    assert len(results) == 3
+    # Results must follow the ids order: z=1, a=2, m=3
+    assert results[0][1]["score"].int64_val == 1  # entity_z
+    assert results[1][1]["score"].int64_val == 2  # entity_a
+    assert results[2][1]["score"].int64_val == 3  # entity_m
