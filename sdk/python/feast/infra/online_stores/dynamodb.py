@@ -507,14 +507,21 @@ class DynamoDBOnlineStore(OnlineStore):
             return self._process_batch_get_response(table_name, response, batches[0])
 
         # Execute batch requests in parallel for multiple batches
+        # Note: boto3 resources are NOT thread-safe, so we create a new resource per thread
         def fetch_batch(batch: List[str]) -> Dict[str, Any]:
-            batch_entity_ids = self._to_resource_batch_get_payload(
-                online_config, table_instance.name, batch
+            thread_resource = _initialize_dynamodb_resource(
+                online_config.region,
+                online_config.endpoint_url,
+                online_config.session_based_auth,
             )
-            return dynamodb_resource.batch_get_item(RequestItems=batch_entity_ids)
+            batch_entity_ids = self._to_resource_batch_get_payload(
+                online_config, table_name, batch
+            )
+            return thread_resource.batch_get_item(RequestItems=batch_entity_ids)
 
         # Use ThreadPoolExecutor for parallel I/O
-        max_workers = min(len(batches), batch_size)
+        # Cap at 10 workers to avoid excessive thread creation
+        max_workers = min(len(batches), 10)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             responses = list(executor.map(fetch_batch, batches))
 
