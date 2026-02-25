@@ -253,9 +253,18 @@ def test_convert_raw_docs_ordering():
 
     # docs is in a different order (simulating arbitrary MongoDB cursor return order)
     docs = {
-        b"entity_a": {"features": {"test_fv": {"score": 2}}, "event_timestamps": {"test_fv": ts}},
-        b"entity_m": {"features": {"test_fv": {"score": 3}}, "event_timestamps": {"test_fv": ts}},
-        b"entity_z": {"features": {"test_fv": {"score": 1}}, "event_timestamps": {"test_fv": ts}},
+        b"entity_a": {
+            "features": {"test_fv": {"score": 2}},
+            "event_timestamps": {"test_fv": ts},
+        },
+        b"entity_m": {
+            "features": {"test_fv": {"score": 3}},
+            "event_timestamps": {"test_fv": ts},
+        },
+        b"entity_z": {
+            "features": {"test_fv": {"score": 1}},
+            "event_timestamps": {"test_fv": ts},
+        },
     }
 
     results = MongoDBOnlineStore._convert_raw_docs_to_proto(ids, docs, fv)

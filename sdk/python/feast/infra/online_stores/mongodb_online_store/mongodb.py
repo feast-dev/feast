@@ -4,7 +4,7 @@ from datetime import datetime
 from logging import getLogger
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-from pymongo import MongoClient, AsyncMongoClient, UpdateOne
+from pymongo import AsyncMongoClient, MongoClient, UpdateOne
 from pymongo.asynchronous.collection import AsyncCollection
 from pymongo.collection import Collection
 
@@ -299,7 +299,6 @@ class MongoDBOnlineStore(OnlineStore):
         """Indicates that this online store supports async operations."""
         return SupportedAsyncMethods(read=True, write=True)
 
-
     @staticmethod
     def _convert_raw_docs_to_proto(
         ids: list[bytes], docs: dict[bytes, Any], table: FeatureView
@@ -327,7 +326,9 @@ class MongoDBOnlineStore(OnlineStore):
 
         # Step 1: Extract raw values column-wise (aligned by ordered ids)
         # We need to maintain alignment, so we append None for missing features
-        raw_feature_columns: Dict[str, List[Any]] = {feature_name: [] for feature_name in feature_type_map}
+        raw_feature_columns: Dict[str, List[Any]] = {
+            feature_name: [] for feature_name in feature_type_map
+        }
 
         for entity_id in ids:
             doc = docs.get(entity_id)
@@ -445,7 +446,9 @@ class MongoDBOnlineStore(OnlineStore):
             # Convert ValueProto to native Python types
             feature_dict = {}
             for feature_name, value_proto in features.items():
-                feature_dict[feature_name] = feast_value_type_to_python_type(value_proto)
+                feature_dict[feature_name] = feast_value_type_to_python_type(
+                    value_proto
+                )
 
             # Build update operation
             update_doc = {
