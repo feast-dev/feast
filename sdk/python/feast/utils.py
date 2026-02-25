@@ -833,8 +833,16 @@ def _augment_response_with_on_demand_transforms(
 
             odfv_result_names |= set(selected_subset)
 
-            online_features_response.metadata.feature_names.val.extend(selected_subset)
-            for feature_idx in range(len(selected_subset)):
+            existing_feature_names = set(
+                online_features_response.metadata.feature_names.val
+            )
+            new_selected_subset = [
+                f for f in selected_subset if f not in existing_feature_names
+            ]
+            online_features_response.metadata.feature_names.val.extend(new_selected_subset)
+            for feature_idx, feature_name in enumerate(selected_subset):
+                if feature_name in existing_feature_names:
+                    continue
                 online_features_response.results.append(
                     GetOnlineFeaturesResponse.FeatureVector(
                         values=proto_values[feature_idx],

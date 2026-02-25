@@ -21,7 +21,9 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureProto;
+import feast.proto.core.FeatureReferenceProto;
 import feast.proto.core.FeatureServiceProto;
+import feast.proto.core.FeatureViewProto;
 import feast.proto.core.OnDemandFeatureViewProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
@@ -462,21 +464,56 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       OnDemandFeatureViewProto.OnDemandFeatureViewSpec odfvSpec =
           this.registryRepository.getOnDemandFeatureViewSpec(passthroughFeatureRef);
 
-      // Find which source feature view provides this feature
-      // Extract source dependencies for this specific ODFV
-      List<FeatureReferenceV2> thisOdfvSources =
-          this.onlineTransformationService.extractOnDemandFeaturesDependencies(
-              Lists.newArrayList(passthroughFeatureRef));
-
-      // Find the source feature that matches this feature name
+      // Find the source feature view that provides this feature by scanning the ODFV sources map.
+      // Matching on feature name alone is ambiguous when multiple source feature views each expose
+      // features — two source FVs could have a feature with the same name. We must match on both
+      // feature view name and feature name.
       FeatureReferenceV2 sourceFeatureRef = null;
       int sourceFeatureIdx = -1;
 
-      for (FeatureReferenceV2 sourceRef : thisOdfvSources) {
-        if (sourceRef.getFeatureName().equals(featureName)) {
-          sourceFeatureRef = sourceRef;
-          sourceFeatureIdx = retrievedFeatureReferences.indexOf(sourceRef);
-          break;
+      outer:
+      for (OnDemandFeatureViewProto.OnDemandSource source : odfvSpec.getSourcesMap().values()) {
+        switch (source.getSourceCase()) {
+          case FEATURE_VIEW_PROJECTION:
+            FeatureReferenceProto.FeatureViewProjection projection =
+                source.getFeatureViewProjection();
+            for (FeatureProto.FeatureSpecV2 featureSpec : projection.getFeatureColumnsList()) {
+              if (featureSpec.getName().equals(featureName)) {
+                FeatureReferenceV2 candidate =
+                    FeatureReferenceV2.newBuilder()
+                        .setFeatureViewName(projection.getFeatureViewName())
+                        .setFeatureName(featureName)
+                        .build();
+                int idx = retrievedFeatureReferences.indexOf(candidate);
+                if (idx != -1) {
+                  sourceFeatureRef = candidate;
+                  sourceFeatureIdx = idx;
+                  break outer;
+                }
+              }
+            }
+            break;
+          case FEATURE_VIEW:
+            FeatureViewProto.FeatureViewSpec featureViewSpec =
+                source.getFeatureView().getSpec();
+            for (FeatureProto.FeatureSpecV2 featureSpec : featureViewSpec.getFeaturesList()) {
+              if (featureSpec.getName().equals(featureName)) {
+                FeatureReferenceV2 candidate =
+                    FeatureReferenceV2.newBuilder()
+                        .setFeatureViewName(featureViewSpec.getName())
+                        .setFeatureName(featureName)
+                        .build();
+                int idx = retrievedFeatureReferences.indexOf(candidate);
+                if (idx != -1) {
+                  sourceFeatureRef = candidate;
+                  sourceFeatureIdx = idx;
+                  break outer;
+                }
+              }
+            }
+            break;
+          default:
+            break;
         }
       }
 
