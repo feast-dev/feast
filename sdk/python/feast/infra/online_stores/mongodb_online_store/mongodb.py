@@ -172,7 +172,7 @@ class MongoDBOnlineStore(OnlineStore):
         cursor = clxn.find(query_filter, projection=projection)
         docs = {doc["_id"]: doc for doc in cursor}
 
-        return self.convert_raw_docs_to_proto_transforming(ids, docs, table)
+        return self._convert_raw_docs_to_proto_transforming(ids, docs, table)
 
     def update(
         self,
@@ -300,7 +300,7 @@ class MongoDBOnlineStore(OnlineStore):
         return SupportedAsyncMethods(read=True, write=True)
 
     @staticmethod
-    def convert_raw_docs_to_proto_naive(
+    def _convert_raw_docs_to_proto_naive(
         ids: list[bytes],
         docs: dict[bytes, Any],
         table: FeatureView,
@@ -346,7 +346,7 @@ class MongoDBOnlineStore(OnlineStore):
         return results
 
     @staticmethod
-    def convert_raw_docs_to_proto_transforming(
+    def _convert_raw_docs_to_proto_transforming(
         ids: list[bytes], docs: dict[bytes, Any], table: FeatureView
     ) -> List[Tuple[Optional[datetime], Optional[dict[str, ValueProto]]]]:
         """Convert values in documents retrieved from MongoDB (BSON) into ValueProto types.
@@ -458,7 +458,7 @@ class MongoDBOnlineStore(OnlineStore):
         docs = {doc["_id"]: doc async for doc in cursor}
 
         # Convert to proto format
-        return self.convert_raw_docs_to_proto_transforming(ids, docs, table)
+        return self._convert_raw_docs_to_proto_transforming(ids, docs, table)
 
     async def online_write_batch_async(
         self,
