@@ -16,7 +16,6 @@ from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentEr
 from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
-from feast.proto_utils import transformation_to_proto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -27,6 +26,8 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 )
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2 as FeatureTransformationProto,
+)
+from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
 from feast.transformation.base import Transformation
