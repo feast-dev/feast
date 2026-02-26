@@ -499,12 +499,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
         # Only create feature_transformation if there's an actual transformation
         feature_transformation = None
-        if (
-            user_defined_function_proto is not None
-            or substrait_transformation_proto is not None
-        ):
+        if user_defined_function_proto is not None:
             feature_transformation = FeatureTransformationProto(
                 user_defined_function=user_defined_function_proto,
+            )
+        elif substrait_transformation_proto is not None:
+            feature_transformation = FeatureTransformationProto(
                 substrait_transformation=substrait_transformation_proto,
             )
 
