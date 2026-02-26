@@ -58,7 +58,7 @@ class FeatureView(google.protobuf.message.Message):
 global___FeatureView = FeatureView
 
 class FeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 17
+    """Next available id: 18
     TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
     """
 
@@ -95,6 +95,7 @@ class FeatureViewSpec(google.protobuf.message.Message):
     SOURCE_VIEWS_FIELD_NUMBER: builtins.int
     FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
     MODE_FIELD_NUMBER: builtins.int
+    ENABLE_VALIDATION_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -141,6 +142,8 @@ class FeatureViewSpec(google.protobuf.message.Message):
         """Feature transformation for batch feature views"""
     mode: builtins.str
     """The transformation mode (e.g., "python", "pandas", "spark", "sql", "ray")"""
+    enable_validation: builtins.bool
+    """Whether schema validation is enabled during materialization"""
     def __init__(
         self,
         *,
@@ -160,9 +163,10 @@ class FeatureViewSpec(google.protobuf.message.Message):
         source_views: collections.abc.Iterable[global___FeatureViewSpec] | None = ...,
         feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
         mode: builtins.str = ...,
+        enable_validation: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 

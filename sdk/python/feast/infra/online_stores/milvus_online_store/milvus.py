@@ -56,6 +56,12 @@ PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["int64_list_val"]: DataType.FLOAT_VECTOR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["double_list_val"]: DataType.FLOAT_VECTOR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_list_val"]: DataType.BINARY_VECTOR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["map_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["map_list_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["json_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["json_list_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["struct_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["struct_list_val"]: DataType.VARCHAR,
 }
 
 FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING: Dict[
@@ -433,6 +439,19 @@ class MilvusOnlineStore(OnlineStore):
                                 "double_list_val",
                             ]:
                                 getattr(val, proto_attr).val.extend(field_value)
+                            elif proto_attr in [
+                                "map_val",
+                                "map_list_val",
+                                "struct_val",
+                                "struct_list_val",
+                                "json_list_val",
+                            ]:
+                                if isinstance(field_value, str) and field_value:
+                                    try:
+                                        proto_bytes = base64.b64decode(field_value)
+                                        val.ParseFromString(proto_bytes)
+                                    except Exception:
+                                        setattr(val, "string_val", field_value)
                             else:
                                 setattr(val, proto_attr, field_value)
                         else:

@@ -12,14 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from typing import Dict, Optional
 
 from typeguard import typechecked
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.types import FeastType, from_value_type
+from feast.types import FeastType, Struct, from_value_type
 from feast.value_type import ValueType
+
+STRUCT_SCHEMA_TAG = "feast:struct_schema"
 
 
 @typechecked
@@ -115,13 +118,21 @@ class Field:
 
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
+        from feast.types import Array
+
         value_type = self.dtype.to_value_type()
         vector_search_metric = self.vector_search_metric or ""
+        tags = dict(self.tags)
+        # Persist Struct field schema in tags
+        if isinstance(self.dtype, Struct):
+            tags[STRUCT_SCHEMA_TAG] = _serialize_struct_schema(self.dtype)
+        elif isinstance(self.dtype, Array) and isinstance(self.dtype.base_type, Struct):
+            tags[STRUCT_SCHEMA_TAG] = _serialize_struct_schema(self.dtype.base_type)
         return FieldProto(
             name=self.name,
             value_type=value_type.value,
             description=self.description,
-            tags=self.tags,
+            tags=tags,
             vector_index=self.vector_index,
             vector_length=self.vector_length,
             vector_search_metric=vector_search_metric,
@@ -136,13 +147,30 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         value_type = ValueType(field_proto.value_type)
+        tags = dict(field_proto.tags)
         vector_search_metric = getattr(field_proto, "vector_search_metric", "")
         vector_index = getattr(field_proto, "vector_index", False)
         vector_length = getattr(field_proto, "vector_length", 0)
+
+        # Reconstruct Struct type from persisted schema in tags
+        from feast.types import Array
+
+        dtype: FeastType
+        if value_type == ValueType.STRUCT and STRUCT_SCHEMA_TAG in tags:
+            dtype = _deserialize_struct_schema(tags[STRUCT_SCHEMA_TAG])
+            user_tags = {k: v for k, v in tags.items() if k != STRUCT_SCHEMA_TAG}
+        elif value_type == ValueType.STRUCT_LIST and STRUCT_SCHEMA_TAG in tags:
+            inner_struct = _deserialize_struct_schema(tags[STRUCT_SCHEMA_TAG])
+            dtype = Array(inner_struct)
+            user_tags = {k: v for k, v in tags.items() if k != STRUCT_SCHEMA_TAG}
+        else:
+            dtype = from_value_type(value_type=value_type)
+            user_tags = tags
+
         return cls(
             name=field_proto.name,
-            dtype=from_value_type(value_type=value_type),
-            tags=dict(field_proto.tags),
+            dtype=dtype,
+            tags=user_tags,
             description=field_proto.description,
             vector_index=vector_index,
             vector_length=vector_length,
@@ -163,3 +191,75 @@ class Field:
             description=feature.description,
             tags=feature.labels,
         )
+
+
+def _feast_type_to_str(feast_type: FeastType) -> str:
+    """Convert a FeastType to a string representation for serialization."""
+    from feast.types import (
+        Array,
+        PrimitiveFeastType,
+    )
+
+    if isinstance(feast_type, PrimitiveFeastType):
+        return feast_type.name
+    elif isinstance(feast_type, Struct):
+        nested = {
+            name: _feast_type_to_str(ft) for name, ft in feast_type.fields.items()
+        }
+        return json.dumps({"__struct__": nested})
+    elif isinstance(feast_type, Array):
+        return f"Array({_feast_type_to_str(feast_type.base_type)})"
+    else:
+        return str(feast_type)
+
+
+def _str_to_feast_type(type_str: str) -> FeastType:
+    """Convert a string representation back to a FeastType."""
+    from feast.types import (
+        Array,
+        PrimitiveFeastType,
+    )
+
+    # Check if it's an Array type
+    if type_str.startswith("Array(") and type_str.endswith(")"):
+        inner = type_str[6:-1]
+        base_type = _str_to_feast_type(inner)
+        return Array(base_type)
+
+    # Check if it's a nested Struct (JSON encoded)
+    if type_str.startswith("{"):
+        try:
+            parsed = json.loads(type_str)
+            if "__struct__" in parsed:
+                fields = {
+                    name: _str_to_feast_type(ft_str)
+                    for name, ft_str in parsed["__struct__"].items()
+                }
+                return Struct(fields)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Must be a PrimitiveFeastType name
+    try:
+        return PrimitiveFeastType[type_str]
+    except KeyError:
+        from feast.types import String
+
+        return String
+
+
+def _serialize_struct_schema(struct_type: Struct) -> str:
+    """Serialize a Struct's field schema to a JSON string for tag storage."""
+    schema_dict = {}
+    for name, feast_type in struct_type.fields.items():
+        schema_dict[name] = _feast_type_to_str(feast_type)
+    return json.dumps(schema_dict)
+
+
+def _deserialize_struct_schema(schema_str: str) -> Struct:
+    """Deserialize a JSON string from tags back to a Struct type."""
+    schema_dict = json.loads(schema_str)
+    fields = {}
+    for name, type_str in schema_dict.items():
+        fields[name] = _str_to_feast_type(type_str)
+    return Struct(fields)

@@ -59,7 +59,7 @@ class StreamFeatureView(google.protobuf.message.Message):
 global___StreamFeatureView = StreamFeatureView
 
 class StreamFeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 20"""
+    """Next available id: 21"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -97,6 +97,7 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
     FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
     ENABLE_TILING_FIELD_NUMBER: builtins.int
     TILING_HOP_SIZE_FIELD_NUMBER: builtins.int
+    ENABLE_VALIDATION_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -152,6 +153,8 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
         """Hop size for tiling (e.g., 5 minutes). Determines the granularity of pre-aggregated tiles.
         If not specified, defaults to 5 minutes. Only used when enable_tiling is true.
         """
+    enable_validation: builtins.bool
+    """Whether schema validation is enabled during materialization"""
     def __init__(
         self,
         *,
@@ -174,8 +177,9 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
         feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
         enable_tiling: builtins.bool = ...,
         tiling_hop_size: google.protobuf.duration_pb2.Duration | None = ...,
+        enable_validation: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "tiling_hop_size", b"tiling_hop_size", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "batch_source", b"batch_source", "description", b"description", "enable_tiling", b"enable_tiling", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "tiling_hop_size", b"tiling_hop_size", "timestamp_field", b"timestamp_field", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "batch_source", b"batch_source", "description", b"description", "enable_tiling", b"enable_tiling", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "tiling_hop_size", b"tiling_hop_size", "timestamp_field", b"timestamp_field", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> None: ...
 
 global___StreamFeatureViewSpec = StreamFeatureViewSpec

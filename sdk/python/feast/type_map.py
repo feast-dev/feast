@@ -83,6 +83,30 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
         return None
     val = getattr(field_value_proto, val_attr)
 
+    # Handle JSON types — stored as strings but returned as parsed Python objects
+    if val_attr == "json_val":
+        try:
+            return json.loads(val)
+        except (json.JSONDecodeError, TypeError):
+            return val
+    elif val_attr == "json_list_val":
+        result = []
+        for v in val.val:
+            if isinstance(v, str):
+                try:
+                    result.append(json.loads(v))
+                except (json.JSONDecodeError, TypeError):
+                    result.append(v)
+            else:
+                result.append(v)
+        return result
+
+    # Handle Struct types — stored using Map proto, returned as dicts
+    if val_attr == "struct_val":
+        return _handle_map_value(val)
+    elif val_attr == "struct_list_val":
+        return _handle_map_list_value(val)
+
     # Handle Map and MapList types FIRST (before generic list processing)
     if val_attr == "map_val":
         return _handle_map_value(val)
@@ -162,7 +186,7 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
         ValueType.UNIX_TIMESTAMP: "datetime64[ns]",
     }
     if (
-        value_type.name == "MAP"
+        value_type.name in ("MAP", "JSON", "STRUCT")
         or value_type.name.endswith("_LIST")
         or value_type.name.endswith("_SET")
     ):
@@ -375,6 +399,12 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "FLOAT_LIST": ValueType.FLOAT_LIST,
         "BOOL_LIST": ValueType.BOOL_LIST,
         "UNIX_TIMESTAMP_LIST": ValueType.UNIX_TIMESTAMP_LIST,
+        "MAP": ValueType.MAP,
+        "MAP_LIST": ValueType.MAP_LIST,
+        "JSON": ValueType.JSON,
+        "JSON_LIST": ValueType.JSON_LIST,
+        "STRUCT": ValueType.STRUCT,
+        "STRUCT_LIST": ValueType.STRUCT_LIST,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -803,20 +833,108 @@ def _python_value_to_proto_value(
     """
     # Handle Map types
     if feast_value_type == ValueType.MAP:
-        return [
-            ProtoValue(map_val=_python_dict_to_map_proto(value))
-            if value is not None
-            else ProtoValue()
-            for value in values
-        ]
+        result = []
+        for value in values:
+            if value is None:
+                result.append(ProtoValue())
+            else:
+                if isinstance(value, str):
+                    value = json.loads(value)
+                if not isinstance(value, dict):
+                    raise TypeError(
+                        f"Expected dict for MAP type, got {type(value).__name__}: {value!r}"
+                    )
+                result.append(ProtoValue(map_val=_python_dict_to_map_proto(value)))
+        return result
 
     if feast_value_type == ValueType.MAP_LIST:
-        return [
-            ProtoValue(map_list_val=_python_list_to_map_list_proto(value))
-            if value is not None
-            else ProtoValue()
-            for value in values
-        ]
+        result = []
+        for value in values:
+            if value is None:
+                result.append(ProtoValue())
+            else:
+                if isinstance(value, str):
+                    value = json.loads(value)
+                if not isinstance(value, list):
+                    raise TypeError(
+                        f"Expected list for MAP_LIST type, got {type(value).__name__}: {value!r}"
+                    )
+                result.append(
+                    ProtoValue(map_list_val=_python_list_to_map_list_proto(value))
+                )
+        return result
+
+    # Handle JSON type — serialize Python objects as JSON strings
+    if feast_value_type == ValueType.JSON:
+        result = []
+        for value in values:
+            if value is None:
+                result.append(ProtoValue())
+            else:
+                if isinstance(value, str):
+                    try:
+                        json.loads(value)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        raise ValueError(
+                            f"Invalid JSON string for JSON type: {e}"
+                        ) from e
+                    json_str = value
+                else:
+                    json_str = json.dumps(value)
+                result.append(ProtoValue(json_val=json_str))
+        return result
+
+    if feast_value_type == ValueType.JSON_LIST:
+        result = []
+        for value in values:
+            if value is None:
+                result.append(ProtoValue())
+            else:
+                json_strings = []
+                for v in value:
+                    if isinstance(v, str):
+                        try:
+                            json.loads(v)
+                        except (json.JSONDecodeError, TypeError) as e:
+                            raise ValueError(
+                                f"Invalid JSON string in JSON_LIST: {e}"
+                            ) from e
+                        json_strings.append(v)
+                    else:
+                        json_strings.append(json.dumps(v))
+                result.append(ProtoValue(json_list_val=StringList(val=json_strings)))
+        return result
+
+    # Handle Struct type — reuses Map proto for storage
+    if feast_value_type == ValueType.STRUCT:
+        result = []
+        for value in values:
+            if value is None:
+                result.append(ProtoValue())
+            else:
+                if isinstance(value, str):
+                    value = json.loads(value)
+                if not isinstance(value, dict):
+                    value = (
+                        dict(value)
+                        if hasattr(value, "items")
+                        else {"_value": str(value)}
+                    )
+                result.append(ProtoValue(struct_val=_python_dict_to_map_proto(value)))
+        return result
+
+    if feast_value_type == ValueType.STRUCT_LIST:
+        result = []
+        for value in values:
+            if value is None:
+                result.append(ProtoValue())
+            else:
+                if isinstance(value, str):
+                    value = json.loads(value)
+                result.append(
+                    ProtoValue(struct_list_val=_python_list_to_map_list_proto(value))
+                )
+        return result
 
     # Get sample for type checking
     sample = next(filter(_non_empty_value, values), None)
@@ -928,6 +1046,10 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "unix_timestamp_list_val": ValueType.UNIX_TIMESTAMP_LIST,
     "map_val": ValueType.MAP,
     "map_list_val": ValueType.MAP_LIST,
+    "json_val": ValueType.JSON,
+    "json_list_val": ValueType.JSON_LIST,
+    "struct_val": ValueType.STRUCT,
+    "struct_list_val": ValueType.STRUCT_LIST,
     "int32_set_val": ValueType.INT32_SET,
     "int64_set_val": ValueType.INT64_SET,
     "double_set_val": ValueType.DOUBLE_SET,
@@ -967,6 +1089,12 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
 
     if pa_type_as_str.startswith("timestamp"):
         value_type = ValueType.UNIX_TIMESTAMP
+    elif pa_type_as_str.startswith("map<"):
+        value_type = ValueType.MAP
+    elif pa_type_as_str == "large_string":
+        value_type = ValueType.STRING
+    elif pa_type_as_str.startswith("struct<") or pa_type_as_str.startswith("struct{"):
+        value_type = ValueType.STRUCT
     else:
         type_map = {
             "int32": ValueType.INT32,
@@ -1012,6 +1140,9 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "BOOL": ValueType.BOOL,
         "BOOLEAN": ValueType.BOOL,  # legacy sql data type
         "NULL": ValueType.NULL,
+        "JSON": ValueType.JSON,
+        "STRUCT": ValueType.STRUCT,
+        "RECORD": ValueType.STRUCT,
     }
 
     value_type = type_map.get(bq_type_as_str, ValueType.STRING)
@@ -1036,6 +1167,7 @@ def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,
         "nvarchar(max)": ValueType.STRING,
+        "json": ValueType.JSON,
         "real": ValueType.FLOAT,
         "smallint": ValueType.INT32,
         "tinyint": ValueType.INT32,
@@ -1064,6 +1196,13 @@ def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
 
     if pa_type_as_str.startswith("decimal"):
         return pa_type_as_str
+
+    if pa_type_as_str.startswith("map<"):
+        return "nvarchar(max)"
+    if pa_type_as_str == "large_string":
+        return "nvarchar(max)"
+    if pa_type_as_str.startswith("struct<") or pa_type_as_str.startswith("struct{"):
+        return "nvarchar(max)"
 
     # We have to take into account how arrow types map to parquet types as well.
     # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
@@ -1105,7 +1244,8 @@ def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
         "varchar": ValueType.STRING,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "timestamptz": ValueType.UNIX_TIMESTAMP,
-        "super": ValueType.BYTES,
+        "super": ValueType.MAP,
+        "json": ValueType.JSON,
         # skip date, geometry, hllsketch, time, timetz
     }
 
@@ -1126,6 +1266,10 @@ def snowflake_type_to_feast_value_type(snowflake_type: str) -> ValueType:
         "TIMESTAMP_TZ": ValueType.UNIX_TIMESTAMP,
         "TIMESTAMP_LTZ": ValueType.UNIX_TIMESTAMP,
         "TIMESTAMP_NTZ": ValueType.UNIX_TIMESTAMP,
+        "VARIANT": ValueType.MAP,
+        "OBJECT": ValueType.MAP,
+        "ARRAY": ValueType.STRING_LIST,
+        "JSON": ValueType.JSON,
     }
     return type_map[snowflake_type]
 
@@ -1172,6 +1316,15 @@ def pa_to_redshift_value_type(pa_type: "pyarrow.DataType") -> str:
     if pa_type_as_str.startswith("list"):
         return "super"
 
+    if pa_type_as_str.startswith("map<"):
+        return "super"
+
+    if pa_type_as_str == "large_string":
+        return "super"
+
+    if pa_type_as_str.startswith("struct<"):
+        return "super"
+
     # We have to take into account how arrow types map to parquet types as well.
     # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
     # Other mappings have also been adjusted accordingly.
@@ -1208,8 +1361,7 @@ def _non_empty_value(value: Any) -> bool:
 
 
 def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
-    # TODO not all spark types are convertible
-    # Current non-convertible types: interval, map, struct, structfield, binary
+    # Current non-convertible types: interval, struct, structfield, binary
     type_map: Dict[str, ValueType] = {
         "null": ValueType.UNKNOWN,
         "byte": ValueType.BYTES,
@@ -1235,14 +1387,24 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
         "array<date>": ValueType.UNIX_TIMESTAMP_LIST,
     }
-    if spark_type_as_str.startswith("decimal"):
-        spark_type_as_str = "decimal"
-    if spark_type_as_str.startswith("array<decimal"):
-        spark_type_as_str = "array<decimal>"
-    # TODO: Find better way of doing this.
-    if not isinstance(spark_type_as_str, str) or spark_type_as_str not in type_map:
+    if not isinstance(spark_type_as_str, str):
         return ValueType.NULL
-    return type_map[spark_type_as_str.lower()]
+    spark_type_lower = spark_type_as_str.lower()
+    if spark_type_lower.startswith("map<"):
+        return ValueType.MAP
+    if spark_type_lower.startswith("array<map<"):
+        return ValueType.MAP_LIST
+    if spark_type_lower.startswith("struct<"):
+        return ValueType.STRUCT
+    if spark_type_lower.startswith("array<struct<"):
+        return ValueType.STRUCT_LIST
+    if spark_type_lower.startswith("decimal"):
+        spark_type_lower = "decimal"
+    if spark_type_lower.startswith("array<decimal"):
+        spark_type_lower = "array<decimal>"
+    if spark_type_lower not in type_map:
+        return ValueType.NULL
+    return type_map[spark_type_lower]
 
 
 def spark_schema_to_np_dtypes(dtypes: List[Tuple[str, str]]) -> Iterator[np.dtype]:
@@ -1269,6 +1431,12 @@ def arrow_to_pg_type(t_str: str) -> str:
     try:
         if t_str.startswith("timestamp") or t_str.startswith("datetime"):
             return "timestamptz" if "tz=" in t_str else "timestamp"
+        if t_str.startswith("map<"):
+            return "jsonb"
+        if t_str == "large_string":
+            return "jsonb"
+        if t_str.startswith("struct<") or t_str.startswith("struct{"):
+            return "jsonb"
         return {
             "null": "null",
             "bool": "boolean",
@@ -1329,6 +1497,10 @@ def pg_type_to_feast_value_type(type_str: str) -> ValueType:
         "numeric": ValueType.DOUBLE,
         "uuid": ValueType.STRING,
         "uuid[]": ValueType.STRING_LIST,
+        "json": ValueType.MAP,
+        "jsonb": ValueType.MAP,
+        "json[]": ValueType.MAP_LIST,
+        "jsonb[]": ValueType.MAP_LIST,
     }
     value = (
         type_map[type_str.lower()]
@@ -1362,6 +1534,14 @@ def feast_value_type_to_pa(
         ValueType.BYTES_LIST: pyarrow.list_(pyarrow.binary()),
         ValueType.BOOL_LIST: pyarrow.list_(pyarrow.bool_()),
         ValueType.UNIX_TIMESTAMP_LIST: pyarrow.list_(pyarrow.timestamp(timestamp_unit)),
+        ValueType.MAP: pyarrow.map_(pyarrow.string(), pyarrow.string()),
+        ValueType.MAP_LIST: pyarrow.list_(
+            pyarrow.map_(pyarrow.string(), pyarrow.string())
+        ),
+        ValueType.JSON: pyarrow.large_string(),
+        ValueType.JSON_LIST: pyarrow.list_(pyarrow.large_string()),
+        ValueType.STRUCT: pyarrow.struct([]),
+        ValueType.STRUCT_LIST: pyarrow.list_(pyarrow.struct([])),
         ValueType.NULL: pyarrow.null(),
     }
     return type_map[feast_type]
@@ -1442,7 +1622,9 @@ def athena_to_feast_value_type(athena_type_as_str: str) -> ValueType:
         "varchar": ValueType.STRING,
         "string": ValueType.STRING,
         "timestamp": ValueType.UNIX_TIMESTAMP,
-        # skip date,decimal,array,map,struct
+        "json": ValueType.JSON,
+        "struct": ValueType.STRUCT,
+        "map": ValueType.MAP,
     }
     return type_map[athena_type_as_str.lower()]
 
@@ -1459,6 +1641,18 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
 
     if pa_type_as_str.startswith("python_values_to_proto_values"):
         return pa_type_as_str
+
+    if pa_type_as_str.startswith("list"):
+        return "array<string>"
+
+    if pa_type_as_str.startswith("map<"):
+        return "string"
+
+    if pa_type_as_str == "large_string":
+        return "string"
+
+    if pa_type_as_str.startswith("struct<"):
+        return "string"
 
     # We have to take into account how arrow types map to parquet types as well.
     # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
@@ -1529,6 +1723,8 @@ def convert_scalar_column(
         return series.astype("string")
     elif value_type == ValueType.UNIX_TIMESTAMP:
         return pd.to_datetime(series, unit="s", errors="coerce")
+    elif value_type in (ValueType.JSON, ValueType.STRUCT, ValueType.MAP):
+        return series
     else:
         return series.astype(target_pandas_type)
 

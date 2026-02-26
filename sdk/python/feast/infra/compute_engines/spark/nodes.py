@@ -1,10 +1,28 @@
+import json
+import logging
 from datetime import datetime, timedelta
-from typing import Callable, List, Optional, Union, cast
+from typing import Callable, Dict, List, Optional, Set, Union, cast
 
 import pandas as pd
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 from pyspark.sql.pandas.types import from_arrow_schema
+from pyspark.sql.types import (
+    ArrayType,
+    BinaryType,
+    BooleanType,
+    DoubleType,
+    FloatType,
+    IntegerType,
+    LongType,
+    MapType,
+    StringType,
+    StructType,
+    TimestampType,
+)
+from pyspark.sql.types import (
+    DataType as SparkDataType,
+)
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
@@ -28,6 +46,103 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def from_feast_to_spark_type(feast_type) -> Optional[SparkDataType]:
+    """Convert a Feast type to a PySpark DataType.
+
+    Returns None if the Feast type cannot be mapped.
+    """
+    from feast.types import (
+        Array,
+        PrimitiveFeastType,
+        Set,
+        Struct,
+    )
+
+    if isinstance(feast_type, Struct):
+        from pyspark.sql.types import StructField
+
+        spark_fields = []
+        for name, ftype in feast_type.fields.items():
+            spark_type = from_feast_to_spark_type(ftype)
+            if spark_type is None:
+                return None
+            spark_fields.append(StructField(name, spark_type, nullable=True))
+        return StructType(spark_fields)
+
+    if isinstance(feast_type, PrimitiveFeastType):
+        mapping = {
+            PrimitiveFeastType.BYTES: BinaryType(),
+            PrimitiveFeastType.STRING: StringType(),
+            PrimitiveFeastType.INT32: IntegerType(),
+            PrimitiveFeastType.INT64: LongType(),
+            PrimitiveFeastType.FLOAT64: DoubleType(),
+            PrimitiveFeastType.FLOAT32: FloatType(),
+            PrimitiveFeastType.BOOL: BooleanType(),
+            PrimitiveFeastType.UNIX_TIMESTAMP: TimestampType(),
+            PrimitiveFeastType.MAP: MapType(StringType(), StringType()),
+            PrimitiveFeastType.JSON: StringType(),
+        }
+        return mapping.get(feast_type)
+
+    if isinstance(feast_type, Array):
+        base_type = feast_type.base_type
+        if isinstance(base_type, Struct):
+            inner = from_feast_to_spark_type(base_type)
+            return ArrayType(inner) if inner else None
+        if isinstance(base_type, PrimitiveFeastType):
+            if base_type == PrimitiveFeastType.MAP:
+                return ArrayType(MapType(StringType(), StringType()))
+            inner = from_feast_to_spark_type(base_type)
+            return ArrayType(inner) if inner else None
+
+    if isinstance(feast_type, Set):
+        inner = from_feast_to_spark_type(feast_type.base_type)
+        return ArrayType(inner) if inner else None
+
+    return None
+
+
+def _spark_types_compatible(expected: SparkDataType, actual: SparkDataType) -> bool:
+    """Check if two Spark types are compatible for validation purposes.
+
+    Exact match is always compatible. Beyond that, we allow common
+    representations that arise from different data source encodings.
+    """
+    if expected == actual:
+        return True
+
+    # Map ↔ Struct: data sources may encode maps as structs or vice versa
+    if isinstance(expected, MapType) and isinstance(actual, (MapType, StructType)):
+        return True
+    if isinstance(expected, StructType) and isinstance(actual, (StructType, MapType)):
+        return True
+
+    # Json (StringType) is always compatible with StringType
+    if isinstance(expected, StringType) and isinstance(actual, StringType):
+        return True
+
+    # Integer widening: IntegerType ↔ LongType
+    if isinstance(expected, (IntegerType, LongType)) and isinstance(
+        actual, (IntegerType, LongType)
+    ):
+        return True
+
+    # Float widening: FloatType ↔ DoubleType
+    if isinstance(expected, (FloatType, DoubleType)) and isinstance(
+        actual, (FloatType, DoubleType)
+    ):
+        return True
+
+    # Array compatibility: compare element types
+    if isinstance(expected, ArrayType) and isinstance(actual, ArrayType):
+        return _spark_types_compatible(expected.elementType, actual.elementType)
+
+    return False
+
 
 ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
@@ -510,3 +625,107 @@ class SparkTransformationNode(DAGNode):
         return DAGValue(
             data=transformed_df, format=DAGFormat.SPARK, metadata={"transformed": True}
         )
+
+
+class SparkValidationNode(DAGNode):
+    """
+    Spark node for validating feature data against the declared schema.
+
+    Checks that all expected columns are present in the Spark DataFrame,
+    validates column types using native Spark types, and checks JSON
+    well-formedness for Json columns.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        expected_columns: Dict[str, Optional[SparkDataType]],
+        json_columns: Optional[Set[str]] = None,
+        inputs: Optional[List[DAGNode]] = None,
+    ):
+        super().__init__(name, inputs=inputs)
+        self.expected_columns = expected_columns
+        self.json_columns = json_columns or set()
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.SPARK)
+        spark_df: DataFrame = input_value.data
+
+        if not self.expected_columns:
+            context.node_outputs[self.name] = input_value
+            return input_value
+
+        self._validate_schema(spark_df)
+
+        logger.debug("[Validation: %s] Schema validation passed.", self.name)
+        context.node_outputs[self.name] = input_value
+        return input_value
+
+    def _validate_schema(self, spark_df: DataFrame):
+        """Validate the Spark DataFrame against the expected schema.
+
+        Checks for missing columns, type mismatches using native Spark types,
+        and JSON well-formedness for declared Json columns.
+        """
+        actual_columns = set(spark_df.columns)
+        expected_names = set(self.expected_columns.keys())
+
+        missing = expected_names - actual_columns
+        if missing:
+            raise ValueError(
+                f"[Validation: {self.name}] Missing expected columns: {missing}. "
+                f"Actual columns: {sorted(actual_columns)}"
+            )
+
+        # Type validation using native Spark types
+        schema = spark_df.schema
+        for col_name, expected_type in self.expected_columns.items():
+            if expected_type is None:
+                continue
+            try:
+                actual_field = schema[col_name]
+            except (KeyError, IndexError):
+                continue
+            actual_type = actual_field.dataType
+            if not _spark_types_compatible(expected_type, actual_type):
+                logger.warning(
+                    "[Validation: %s] Column '%s' type mismatch: expected %s, got %s",
+                    self.name,
+                    col_name,
+                    expected_type.simpleString(),
+                    actual_type.simpleString(),
+                )
+
+        # Validate JSON well-formedness for declared Json columns
+        if self.json_columns:
+            sample_rows = spark_df.limit(1000).collect()
+            for col_name in self.json_columns:
+                if col_name not in actual_columns:
+                    continue
+
+                invalid_count = 0
+                first_error = None
+                first_error_row = None
+
+                for i, row in enumerate(sample_rows):
+                    value = row[col_name]
+                    if value is None:
+                        continue
+                    if not isinstance(value, str):
+                        continue
+                    try:
+                        json.loads(value)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        invalid_count += 1
+                        if first_error is None:
+                            first_error = str(e)
+                            first_error_row = i
+
+                if invalid_count > 0:
+                    raise ValueError(
+                        f"[Validation: {self.name}] Column '{col_name}' declared as "
+                        f"Json contains {invalid_count} invalid JSON value(s) in "
+                        f"sampled rows. First error at row {first_error_row}: "
+                        f"{first_error}"
+                    )
