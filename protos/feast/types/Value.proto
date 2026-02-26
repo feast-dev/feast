@@ -53,6 +53,10 @@ message ValueType {
     FLOAT_SET = 27;
     BOOL_SET = 28;
     UNIX_TIMESTAMP_SET = 29;
+    JSON = 32;
+    JSON_LIST = 33;
+    STRUCT = 34;
+    STRUCT_LIST = 35;
   }
 }
 
@@ -88,6 +92,10 @@ message Value {
     FloatSet float_set_val = 27;
     BoolSet bool_set_val = 28;
     Int64Set unix_timestamp_set_val = 29;
+    string json_val = 32;
+    StringList json_list_val = 33;
+    Map struct_val = 34;
+    MapList struct_list_val = 35;
   }
 }
 

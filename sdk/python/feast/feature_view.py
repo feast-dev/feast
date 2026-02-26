@@ -109,6 +109,7 @@ class FeatureView(BaseFeatureView):
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
+    enable_validation: bool
 
     def __init__(
         self,
@@ -125,6 +126,7 @@ class FeatureView(BaseFeatureView):
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
+        enable_validation: bool = False,
     ):
         """
         Creates a FeatureView object.
@@ -150,11 +152,14 @@ class FeatureView(BaseFeatureView):
                 primary maintainer.
             mode (optional): The transformation mode for feature transformations. Only meaningful
                 when transformations are applied. Choose from TransformationMode enum values.
+            enable_validation (optional): If True, enables schema validation during materialization
+                to check that data conforms to the declared feature types. Default is False.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
         self.name = name
+        self.enable_validation = enable_validation
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
         schema = schema or []
@@ -281,6 +286,7 @@ class FeatureView(BaseFeatureView):
             online=self.online,
             offline=self.offline,
             sink_source=self.batch_source if self.source_views else None,
+            enable_validation=self.enable_validation,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -309,6 +315,7 @@ class FeatureView(BaseFeatureView):
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.source_views != other.source_views
             or self.materialization_intervals != other.materialization_intervals
+            or self.enable_validation != other.enable_validation
         ):
             return False
 
@@ -447,6 +454,7 @@ class FeatureView(BaseFeatureView):
             source_views=source_view_protos,
             feature_transformation=feature_transformation_proto,
             mode=mode_to_string(self.mode),
+            enable_validation=self.enable_validation,
         )
 
     def to_proto_meta(self):
@@ -615,6 +623,9 @@ class FeatureView(BaseFeatureView):
                 f"There are some mismatches in your feature view: {feature_view.name} registered entities. Please check if you have applied your entities correctly."
                 f"Entities: {feature_view.entities} vs Entity Columns: {feature_view.entity_columns}"
             )
+
+        # Restore enable_validation from proto field.
+        feature_view.enable_validation = feature_view_proto.spec.enable_validation
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.

@@ -24,6 +24,7 @@ Feature views consist of:
 * (optional, but recommended) a schema specifying one or more [features](feature-view.md#field) (without this, Feast will infer the schema by reading from the data source)
 * (optional, but recommended) metadata (for example, description, or other free-form metadata via `tags`)
 * (optional) a TTL, which limits how far back Feast will look when generating historical datasets
+* (optional) `enable_validation=True`, which enables schema validation during materialization (see [Schema Validation](#schema-validation) below)
 
 Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view.
 
@@ -158,6 +159,43 @@ Together with [data sources](data-ingestion.md), they indicate to Feast where to
 Feature names must be unique within a [feature view](feature-view.md#feature-view).
 
 Each field can have additional metadata associated with it, specified as key-value [tags](https://rtd.feast.dev/en/master/feast.html#feast.field.Field).
+
+## Schema Validation
+
+Feature views support an optional `enable_validation` parameter that enables schema validation during materialization and historical feature retrieval. When enabled, Feast verifies that:
+
+- All declared feature columns are present in the input data.
+- Column data types match the expected Feast types (mismatches are logged as warnings).
+
+This is useful for catching data quality issues early in the pipeline. To enable it:
+
+```python
+from feast import FeatureView, Field
+from feast.types import Int32, Int64, Float32, Json, Map, String, Struct
+
+validated_fv = FeatureView(
+    name="validated_features",
+    entities=[driver],
+    schema=[
+        Field(name="trips_today", dtype=Int64),
+        Field(name="rating", dtype=Float32),
+        Field(name="preferences", dtype=Map),
+        Field(name="config", dtype=Json),  # opaque JSON data
+        Field(name="address", dtype=Struct({"street": String, "city": String, "zip": Int32})),  # typed struct
+    ],
+    source=my_source,
+    enable_validation=True,  # enables schema checks
+)
+```
+
+**JSON vs Map vs Struct**: These three complex types serve different purposes:
+- **`Map`**: Schema-free dictionary with string keys. Use when the keys and values are dynamic.
+- **`Json`**: Opaque JSON data stored as a string. Backends use native JSON types (`jsonb`, `VARIANT`). Use for configuration blobs or API responses where you don't need field-level typing.
+- **`Struct`**: Schema-aware structured type with named, typed fields. Persisted through the registry via Field tags. Use when you know the exact structure and want type safety.
+
+Validation is supported in all compute engines (Local, Spark, and Ray). When a required column is missing, a `ValueError` is raised. Type mismatches are logged as warnings but do not block execution, allowing for safe gradual adoption.
+
+The `enable_validation` parameter is also available on `BatchFeatureView` and `StreamFeatureView`, as well as their respective decorators (`@batch_feature_view` and `@stream_feature_view`).
 
 ## \[Alpha] On demand feature views
 
