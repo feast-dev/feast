@@ -55,8 +55,8 @@ hermeto fetch-deps \
 "sdk/python/feast/infra/feature_servers/multicloud/requirements.txt"
 ],
   "requirements_build_files": [
-"sdk/python/requirements/py3.11-minimal-sdist-requirements.txt",
-"sdk/python/requirements/py3.11-minimal-sdist-requirements-build.txt"
+"sdk/python/requirements/py3.12-minimal-sdist-requirements.txt",
+"sdk/python/requirements/py3.12-minimal-sdist-requirements-build.txt"
 ],
   "allow_binary": "false"
 }'
