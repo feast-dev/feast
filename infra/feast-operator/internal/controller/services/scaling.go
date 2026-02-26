@@ -17,11 +17,11 @@ limitations under the License.
 package services
 
 import (
-	"errors"
-
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -31,39 +31,18 @@ const (
 	defaultHPAMinReplicas    int32 = 1
 )
 
-// validateScaling checks that scaling configuration is compatible with the
-// persistence backends. File-based stores (SQLite, DuckDB, registry.db)
-// cannot be safely shared across replicas.
-func (feast *FeastServices) validateScaling() error {
-	cr := feast.Handler.FeatureStore
-	if !isScalingEnabled(cr) {
-		return nil
-	}
-	if isFilePersistence(cr) {
-		return errors.New(
-			"horizontal scaling (replicas > 1 or autoscaling) requires DB-backed persistence " +
-				"for all enabled services. File-based persistence (SQLite, DuckDB, registry.db) " +
-				"is incompatible with multiple replicas")
-	}
-	return nil
-}
-
 // getDesiredReplicas returns the replica count the operator should set on the
 // Deployment. When autoscaling is configured the Deployment replicas field is
-// left to the HPA (nil is returned). Otherwise the static replica count is
-// returned, defaulting to 1 when no scaling config is present.
+// left to the HPA (nil is returned). Otherwise the static replica count from
+// spec.replicas is returned.
 func (feast *FeastServices) getDesiredReplicas() *int32 {
 	cr := feast.Handler.FeatureStore
-	if cr.Status.Applied.Services == nil || cr.Status.Applied.Services.Scaling == nil {
+	services := cr.Status.Applied.Services
+	if services != nil && services.Scaling != nil && services.Scaling.Autoscaling != nil {
 		return nil
 	}
-	scaling := cr.Status.Applied.Services.Scaling
-	if scaling.Autoscaling != nil {
-		// HPA manages replicas; do not set them on the Deployment
-		return nil
-	}
-	if scaling.Replicas != nil {
-		r := *scaling.Replicas
+	if cr.Status.Applied.Replicas != nil {
+		r := *cr.Status.Applied.Replicas
 		return &r
 	}
 	return nil
@@ -155,26 +134,26 @@ func defaultHPAMetrics() []autoscalingv2.MetricSpec {
 	}
 }
 
-// updateScalingStatus updates the scaling status fields based on the current deployment state.
-func (feast *FeastServices) updateScalingStatus() {
+// updateScalingStatus updates the scaling status fields using the deployment
+func (feast *FeastServices) updateScalingStatus(deploy *appsv1.Deployment) {
 	cr := feast.Handler.FeatureStore
+
+	cr.Status.Replicas = deploy.Status.ReadyReplicas
+	labels := feast.getLabels()
+	cr.Status.Selector = metav1.FormatLabelSelector(metav1.SetAsLabelSelector(labels))
+
 	if !isScalingEnabled(cr) {
 		cr.Status.ScalingStatus = nil
 		return
 	}
 
-	deployment, err := feast.GetDeployment()
-	if err != nil {
-		return
-	}
-
 	var desired int32
-	if deployment.Spec.Replicas != nil {
-		desired = *deployment.Spec.Replicas
+	if deploy.Spec.Replicas != nil {
+		desired = *deploy.Spec.Replicas
 	}
 
 	cr.Status.ScalingStatus = &feastdevv1.ScalingStatus{
-		CurrentReplicas: deployment.Status.ReadyReplicas,
+		CurrentReplicas: deploy.Status.ReadyReplicas,
 		DesiredReplicas: desired,
 	}
 }

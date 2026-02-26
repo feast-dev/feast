@@ -712,6 +712,14 @@ spec:
                 x-kubernetes-validations:
                 - message: One selection required between init or git.
                   rule: '[has(self.git), has(self.init)].exists_one(c, c)'
+              replicas:
+                default: 1
+                description: |-
+                  Replicas is the desired number of pod replicas. Used by the scale sub-resource.
+                  Mutually exclusive with services.
+                format: int32
+                minimum: 1
+                type: integer
               services:
                 description: FeatureStoreServices defines the desired feast services.
                   An ephemeral onlineStore feature server is deployed by default.
@@ -2355,12 +2363,12 @@ spec:
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
                   scaling:
                     description: Scaling configures horizontal scaling for the FeatureStore
-                      deployment.
+                      deployment (e.g. HPA autoscaling).
                     properties:
                       autoscaling:
                         description: |-
                           Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
-                          Mutually exclusive with replicas.
+                          Mutually exclusive with spec.replicas.
                         properties:
                           behavior:
                             description: Behavior configures the scaling behavior
@@ -2924,16 +2932,7 @@ spec:
                         required:
                         - maxReplicas
                         type: object
-                      replicas:
-                        description: Replicas is the static number of pod replicas.
-                          Mutually exclusive with autoscaling.
-                        format: int32
-                        minimum: 1
-                        type: integer
                     type: object
-                    x-kubernetes-validations:
-                    - message: replicas and autoscaling are mutually exclusive.
-                      rule: '!has(self.replicas) || !has(self.autoscaling)'
                   securityContext:
                     description: PodSecurityContext holds pod-level security attributes
                       and common container settings.
@@ -4838,7 +4837,37 @@ spec:
                 type: object
             required:
             - feastProject
+            - replicas
             type: object
+            x-kubernetes-validations:
+            - message: replicas > 1 and services.scaling.autoscaling are mutually
+                exclusive.
+              rule: self.replicas <= 1 || !has(self.services) || !has(self.services.scaling)
+                || !has(self.services.scaling.autoscaling)
+            - message: Scaling requires DB-backed persistence for the online store.
+                Configure services.onlineStore.persistence.store when using replicas
+                > 1 or autoscaling.
+              rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                || !has(self.services.scaling.autoscaling)) || (has(self.services)
+                && has(self.services.onlineStore) && has(self.services.onlineStore.persistence)
+                && has(self.services.onlineStore.persistence.store))
+            - message: Scaling requires DB-backed persistence for the offline store.
+                Configure services.offlineStore.persistence.store when using replicas
+                > 1 or autoscaling.
+              rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                || !has(self.services.scaling.autoscaling)) || (!has(self.services)
+                || !has(self.services.offlineStore) || (has(self.services.offlineStore.persistence)
+                && has(self.services.offlineStore.persistence.store)))
+            - message: Scaling requires DB-backed or remote registry. Configure registry.local.persistence.store
+                or use a remote registry when using replicas > 1 or autoscaling. S3/GCS-backed
+                registry is also allowed.
+              rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                || !has(self.services.scaling.autoscaling)) || (has(self.services)
+                && has(self.services.registry) && (has(self.services.registry.remote)
+                || (has(self.services.registry.local) && has(self.services.registry.local.persistence)
+                && (has(self.services.registry.local.persistence.store) || (has(self.services.registry.local.persistence.file)
+                && has(self.services.registry.local.persistence.file.path) && (self.services.registry.local.persistence.file.path.startsWith('s3://')
+                || self.services.registry.local.persistence.file.path.startsWith('gs://')))))))
           status:
             description: FeatureStoreStatus defines the observed state of FeatureStore
             properties:
@@ -5526,6 +5555,14 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required between init or git.
                       rule: '[has(self.git), has(self.init)].exists_one(c, c)'
+                  replicas:
+                    default: 1
+                    description: |-
+                      Replicas is the desired number of pod replicas. Used by the scale sub-resource.
+                      Mutually exclusive with services.
+                    format: int32
+                    minimum: 1
+                    type: integer
                   services:
                     description: FeatureStoreServices defines the desired feast services.
                       An ephemeral onlineStore feature server is deployed by default.
@@ -7202,12 +7239,12 @@ spec:
                             c)'
                       scaling:
                         description: Scaling configures horizontal scaling for the
-                          FeatureStore deployment.
+                          FeatureStore deployment (e.g. HPA autoscaling).
                         properties:
                           autoscaling:
                             description: |-
                               Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
-                              Mutually exclusive with replicas.
+                              Mutually exclusive with spec.replicas.
                             properties:
                               behavior:
                                 description: Behavior configures the scaling behavior
@@ -7774,16 +7811,7 @@ spec:
                             required:
                             - maxReplicas
                             type: object
-                          replicas:
-                            description: Replicas is the static number of pod replicas.
-                              Mutually exclusive with autoscaling.
-                            format: int32
-                            minimum: 1
-                            type: integer
                         type: object
-                        x-kubernetes-validations:
-                        - message: replicas and autoscaling are mutually exclusive.
-                          rule: '!has(self.replicas) || !has(self.autoscaling)'
                       securityContext:
                         description: PodSecurityContext holds pod-level security attributes
                           and common container settings.
@@ -9704,7 +9732,39 @@ spec:
                     type: object
                 required:
                 - feastProject
+                - replicas
                 type: object
+                x-kubernetes-validations:
+                - message: replicas > 1 and services.scaling.autoscaling are mutually
+                    exclusive.
+                  rule: self.replicas <= 1 || !has(self.services) || !has(self.services.scaling)
+                    || !has(self.services.scaling.autoscaling)
+                - message: Scaling requires DB-backed persistence for the online store.
+                    Configure services.onlineStore.persistence.store when using replicas
+                    > 1 or autoscaling.
+                  rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                    || !has(self.services.scaling.autoscaling)) || (has(self.services)
+                    && has(self.services.onlineStore) && has(self.services.onlineStore.persistence)
+                    && has(self.services.onlineStore.persistence.store))
+                - message: Scaling requires DB-backed persistence for the offline
+                    store. Configure services.offlineStore.persistence.store when
+                    using replicas > 1 or autoscaling.
+                  rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                    || !has(self.services.scaling.autoscaling)) || (!has(self.services)
+                    || !has(self.services.offlineStore) || (has(self.services.offlineStore.persistence)
+                    && has(self.services.offlineStore.persistence.store)))
+                - message: Scaling requires DB-backed or remote registry. Configure
+                    registry.local.persistence.store or use a remote registry when
+                    using replicas > 1 or autoscaling. S3/GCS-backed registry is also
+                    allowed.
+                  rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                    || !has(self.services.scaling.autoscaling)) || (has(self.services)
+                    && has(self.services.registry) && (has(self.services.registry.remote)
+                    || (has(self.services.registry.local) && has(self.services.registry.local.persistence)
+                    && (has(self.services.registry.local.persistence.store) || (has(self.services.registry.local.persistence.file)
+                    && has(self.services.registry.local.persistence.file.path) &&
+                    (self.services.registry.local.persistence.file.path.startsWith('s3://')
+                    || self.services.registry.local.persistence.file.path.startsWith('gs://')))))))
               clientConfigMap:
                 description: ConfigMap in this namespace containing a client `feature_store.yaml`
                   for this feast deployment
@@ -9769,6 +9829,11 @@ spec:
                 type: string
               phase:
                 type: string
+              replicas:
+                description: Replicas is the current number of ready pod replicas
+                  (used by the scale sub-resource).
+                format: int32
+                type: integer
               scalingStatus:
                 description: ScalingStatus reports the current scaling state of the
                   FeatureStore deployment.
@@ -9782,6 +9847,10 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              selector:
+                description: Selector is the label selector for pods managed by the
+                  FeatureStore deployment (used by the scale sub-resource).
+                type: string
               serviceHostnames:
                 description: ServiceHostnames defines the service hostnames in the
                   format of <domain>:<port>, e.g. example.svc.cluster.local:80
@@ -9802,6 +9871,10 @@ spec:
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
       status: {}
   - additionalPrinterColumns:
     - jsonPath: .status.phase

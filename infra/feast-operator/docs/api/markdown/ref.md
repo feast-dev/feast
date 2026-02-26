@@ -241,8 +241,8 @@ _Appears in:_
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
-| `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment.
-Requires DB-based persistence for all enabled services when replicas > 1 or autoscaling is configured. |
+| `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
+For static replicas, use spec.replicas instead. |
 
 
 #### FeatureStoreSpec
@@ -263,6 +263,8 @@ _Appears in:_
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
 | `batchEngine` _[BatchEngineConfig](#batchengineconfig)_ |  |
+| `replicas` _integer_ | Replicas is the desired number of pod replicas. Used by the scale sub-resource.
+Mutually exclusive with services.scaling.autoscaling. |
 
 
 #### FeatureStoreStatus
@@ -283,6 +285,8 @@ _Appears in:_
 | `feastVersion` _string_ |  |
 | `phase` _string_ |  |
 | `serviceHostnames` _[ServiceHostnames](#servicehostnames)_ |  |
+| `replicas` _integer_ | Replicas is the current number of ready pod replicas (used by the scale sub-resource). |
+| `selector` _string_ | Selector is the label selector for pods managed by the FeatureStore deployment (used by the scale sub-resource). |
 | `scalingStatus` _[ScalingStatus](#scalingstatus)_ | ScalingStatus reports the current scaling state of the FeatureStore deployment. |
 
 
@@ -779,9 +783,8 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `replicas` _integer_ | Replicas is the static number of pod replicas. Mutually exclusive with autoscaling. |
 | `autoscaling` _[AutoscalingConfig](#autoscalingconfig)_ | Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
-Mutually exclusive with replicas. |
+Mutually exclusive with spec.replicas. |
 
 
 #### ScalingStatus

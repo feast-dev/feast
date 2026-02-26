@@ -27,13 +27,17 @@ Users may also be able to build an engine to scale up materialization using exis
 
 ### Horizontal Scaling with the Feast Operator
 
-When running Feast on Kubernetes with the [Feast Operator](./feast-on-kubernetes.md), you can horizontally scale the FeatureStore deployment by adding a `scaling` field to the `services` section of the FeatureStore CR.
+When running Feast on Kubernetes with the [Feast Operator](./feast-on-kubernetes.md), you can horizontally scale the FeatureStore deployment using `spec.replicas` or HPA autoscaling. The FeatureStore CRD implements the Kubernetes [scale sub-resource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#scale-subresource), so you can also use `kubectl scale`:
+
+```bash
+kubectl scale featurestore/my-feast --replicas=3
+```
 
 **Prerequisites:** Horizontal scaling requires **DB-backed persistence** for all enabled services (online store, offline store, and registry). File-based persistence (SQLite, DuckDB, `registry.db`) is incompatible with multiple replicas because these backends do not support concurrent access from multiple pods.
 
 #### Static Replicas
 
-Set a fixed number of replicas:
+Set a fixed number of replicas via `spec.replicas`:
 
 ```yaml
 apiVersion: feast.dev/v1
@@ -42,9 +46,8 @@ metadata:
   name: sample-scaling
 spec:
   feastProject: my_project
+  replicas: 3
   services:
-    scaling:
-      replicas: 3
     onlineStore:
       persistence:
         store:
@@ -62,7 +65,7 @@ spec:
 
 #### Autoscaling with HPA
 
-Configure a HorizontalPodAutoscaler to dynamically scale based on metrics:
+Configure a HorizontalPodAutoscaler to dynamically scale based on metrics. HPA autoscaling is configured under `services.scaling.autoscaling` and is mutually exclusive with `spec.replicas > 1`:
 
 ```yaml
 apiVersion: feast.dev/v1
@@ -110,19 +113,19 @@ When autoscaling is configured, the operator automatically sets the deployment s
 #### Validation Rules
 
 The operator enforces the following rules:
-- `replicas` and `autoscaling` are **mutually exclusive** -- you cannot set both.
+- `spec.replicas > 1` and `services.scaling.autoscaling` are **mutually exclusive** -- you cannot set both.
 - Scaling with `replicas > 1` or any `autoscaling` config is **rejected** if any enabled service uses file-based persistence.
 - S3 (`s3://`) and GCS (`gs://`) backed registry file persistence is allowed with scaling, since these object stores support concurrent readers.
 
 #### Using KEDA (Kubernetes Event-Driven Autoscaling)
 
-[KEDA](https://keda.sh) is also supported as an external autoscaler. Rather than using the built-in `autoscaling` field, you can create a KEDA `ScaledObject` that targets the Feast deployment directly.
+[KEDA](https://keda.sh) is also supported as an external autoscaler. KEDA should target the FeatureStore's scale sub-resource directly (since it implements the Kubernetes scale API). This is the recommended approach because the operator manages the Deployment's replica count from `spec.replicas` — targeting the Deployment directly would conflict with the operator's reconciliation.
 
-When using KEDA, do **not** set the `scaling.autoscaling` field -- KEDA manages its own HPA. The operator will preserve the replica count set by KEDA since it does not override externally managed replicas.
+When using KEDA, do **not** set `scaling.autoscaling` or `spec.replicas > 1` -- KEDA manages the replica count through the scale sub-resource.
 
-There are a few things you must configure manually when using KEDA:
+1. **Ensure DB-backed persistence** -- The CRD's CEL validation rules automatically enforce DB-backed persistence when KEDA scales `spec.replicas` above 1 via the scale sub-resource. The operator also automatically switches the deployment strategy to `RollingUpdate` when `replicas > 1`.
 
-1. **Set the deployment strategy to `RollingUpdate`** -- The operator defaults to `Recreate` when no `scaling` config is present, which causes downtime on scale events. Override it explicitly:
+2. **Configure the FeatureStore** with DB-backed persistence:
 
 ```yaml
 apiVersion: feast.dev/v1
@@ -132,8 +135,6 @@ metadata:
 spec:
   feastProject: my_project
   services:
-    deploymentStrategy:
-      type: RollingUpdate
     onlineStore:
       persistence:
         store:
@@ -149,9 +150,7 @@ spec:
               name: feast-data-stores
 ```
 
-2. **Ensure DB-backed persistence** -- The operator's persistence validation only applies when the built-in `scaling` field is used. With KEDA, you are responsible for ensuring all enabled services use DB-backed persistence (not SQLite, DuckDB, or local `registry.db`).
-
-3. **Create a KEDA `ScaledObject`** targeting the Feast deployment:
+3. **Create a KEDA `ScaledObject`** targeting the FeatureStore resource:
 
 ```yaml
 apiVersion: keda.sh/v1alpha1
@@ -160,8 +159,10 @@ metadata:
   name: feast-scaledobject
 spec:
   scaleTargetRef:
-    name: feast-sample-keda   # must match the Feast deployment name
-  minReplicaCount: 2
+    apiVersion: feast.dev/v1
+    kind: FeatureStore
+    name: sample-keda
+  minReplicaCount: 1
   maxReplicaCount: 10
   triggers:
   - type: prometheus

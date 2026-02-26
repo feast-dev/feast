@@ -24,11 +24,11 @@ Teams have been manually patching Deployments or creating external HPAs, but thi
 
 # The Solution: Native Scaling Support
 
-The Feast Operator now supports three scaling modes through a new `scaling` field in the FeatureStore CR:
+The Feast Operator now supports three scaling modes. The FeatureStore CRD implements the Kubernetes **scale sub-resource**, which means you can also scale with `kubectl scale featurestore/my-feast --replicas=3`.
 
 ## 1. Static Replicas
 
-The simplest approach — set a fixed number of replicas:
+The simplest approach — set a fixed number of replicas via `spec.replicas`:
 
 ```yaml
 apiVersion: feast.dev/v1
@@ -37,9 +37,8 @@ metadata:
   name: production-feast
 spec:
   feastProject: my_project
+  replicas: 3
   services:
-    scaling:
-      replicas: 3
     onlineStore:
       persistence:
         store:
@@ -59,7 +58,7 @@ This gives you high availability and load distribution with a predictable resour
 
 ## 2. HPA Autoscaling
 
-For workloads with variable traffic patterns, the operator can create and manage a `HorizontalPodAutoscaler` directly:
+For workloads with variable traffic patterns, the operator can create and manage a `HorizontalPodAutoscaler` directly. HPA autoscaling is configured under `services.scaling.autoscaling` and is mutually exclusive with `spec.replicas > 1`:
 
 ```yaml
 apiVersion: feast.dev/v1
@@ -107,9 +106,9 @@ The operator creates the HPA as an owned resource — it's automatically cleaned
 
 ## 3. External Autoscalers (KEDA, Custom HPAs)
 
-For teams using [KEDA](https://keda.sh) or other external autoscalers, the operator is designed to stay out of the way. When no `scaling` field is set, the operator preserves whatever replica count an external controller sets on the Deployment.
+For teams using [KEDA](https://keda.sh) or other external autoscalers, KEDA should target the FeatureStore's scale sub-resource directly (since it implements the Kubernetes scale API). This is the recommended approach because the operator manages the Deployment's replica count from `spec.replicas` — targeting the Deployment directly would conflict with the operator's reconciliation.
 
-To use KEDA, configure the FeatureStore with an explicit `RollingUpdate` strategy and DB-backed persistence, then create a KEDA `ScaledObject` targeting the Feast Deployment:
+When using KEDA, do **not** set `spec.replicas > 1` or `services.scaling.autoscaling` — KEDA manages the replica count through the scale sub-resource. Configure the FeatureStore with DB-backed persistence, then create a KEDA `ScaledObject` targeting the FeatureStore resource:
 
 ```yaml
 apiVersion: feast.dev/v1
@@ -119,8 +118,6 @@ metadata:
 spec:
   feastProject: my_project
   services:
-    deploymentStrategy:
-      type: RollingUpdate
     onlineStore:
       persistence:
         store:
@@ -141,8 +138,10 @@ metadata:
   name: feast-scaledobject
 spec:
   scaleTargetRef:
-    name: feast-keda-feast    # matches the Feast deployment name
-  minReplicaCount: 2
+    apiVersion: feast.dev/v1
+    kind: FeatureStore
+    name: keda-feast
+  minReplicaCount: 1
   maxReplicaCount: 10
   triggers:
   - type: prometheus
@@ -153,21 +152,20 @@ spec:
       threshold: "100"
 ```
 
-This gives you the full power of KEDA's 50+ event-driven triggers while the operator manages the rest of the Feast deployment lifecycle.
+When KEDA scales up `spec.replicas` via the scale sub-resource, the CRD's CEL validation rules automatically ensure DB-backed persistence is configured. The operator also automatically switches the deployment strategy to `RollingUpdate` when `replicas > 1`. This gives you the full power of KEDA's 50+ event-driven triggers with built-in safety checks.
 
 # Safety First: Persistence Validation
 
 Not all persistence backends are safe for multi-replica deployments. File-based stores like SQLite, DuckDB, and local `registry.db` use single-writer file locks that don't work across pods.
 
-The operator enforces this at reconciliation time — if you configure scaling with file-based persistence, you'll get a clear error:
+The operator enforces this at admission time via CEL validation rules on the CRD — if you try to create or update a FeatureStore with scaling and file-based persistence, the API server rejects the request immediately:
 
 ```
-horizontal scaling (replicas > 1 or autoscaling) requires DB-backed persistence
-for all enabled services. File-based persistence (SQLite, DuckDB, registry.db)
-is incompatible with multiple replicas
+Scaling requires DB-backed persistence for the online store.
+Configure services.onlineStore.persistence.store when using replicas > 1 or autoscaling.
 ```
 
-This validation applies to all enabled services (online store, offline store, and registry). Object-store-backed registry paths (`s3://` and `gs://`) are treated as safe since they support concurrent readers.
+This validation applies to all enabled services (online store, offline store, and registry) and is enforced for both direct CR updates and `kubectl scale` commands via the scale sub-resource. Object-store-backed registry paths (`s3://` and `gs://`) are treated as safe since they support concurrent readers.
 
 | Persistence Type | Compatible with Scaling? |
 |---|---|
@@ -184,7 +182,7 @@ This validation applies to all enabled services (online store, offline store, an
 
 The implementation adds three key behaviors to the operator's reconciliation loop:
 
-**1. Replica management** — When static replicas are configured, the operator sets them on the Deployment. When HPA is configured, the operator leaves the `replicas` field unset so the HPA controller can manage it. When neither is configured, existing replicas are preserved (supporting external autoscalers).
+**1. Replica management** — The operator sets the Deployment's replica count from `spec.replicas` (which defaults to 1). When HPA is configured, the operator leaves the `replicas` field unset so the HPA controller can manage it. External autoscalers like KEDA can update the replica count through the FeatureStore's scale sub-resource, which updates `spec.replicas` and triggers the operator to reconcile.
 
 **2. Deployment strategy** — The operator automatically switches from `Recreate` (the default for single-replica) to `RollingUpdate` when scaling is enabled. This prevents the "kill-all-pods-then-start-new-ones" behavior that would cause downtime during scaling events. Users can always override this with an explicit `deploymentStrategy` in the CR.
 
@@ -211,16 +209,17 @@ Scaling is designed to work seamlessly with existing operator features:
 
 **1. Ensure DB-backed persistence** for all enabled services (online store, offline store, registry).
 
-**2. Add a `scaling` field** to your FeatureStore CR:
+**2. Configure scaling** in your FeatureStore CR — use either static replicas or HPA (mutually exclusive):
 
 ```yaml
-services:
-  scaling:
-    replicas: 3          # static replicas
-    # -- OR --
-    # autoscaling:        # HPA
-    #   minReplicas: 2
-    #   maxReplicas: 10
+spec:
+  replicas: 3            # static replicas (top-level)
+  # -- OR --
+  # services:
+  #   scaling:
+  #     autoscaling:      # HPA
+  #       minReplicas: 2
+  #       maxReplicas: 10
 ```
 
 **3. Apply** the updated CR:

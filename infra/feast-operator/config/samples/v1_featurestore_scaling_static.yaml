@@ -38,9 +38,8 @@ metadata:
   namespace: test
 spec:
   feastProject: my_project
+  replicas: 3
   services:
-    scaling:
-      replicas: 3
     onlineStore:
       persistence:
         store:

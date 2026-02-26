@@ -75,9 +75,6 @@ func (feast *FeastServices) Deploy() error {
 		return err
 	}
 
-	if err := feast.validateScaling(); err != nil {
-		return err
-	}
 	if err := feast.createServiceAccount(); err != nil {
 		return err
 	}
@@ -96,8 +93,6 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployCronJob(); err != nil {
 		return err
 	}
-
-	feast.updateScalingStatus()
 
 	return nil
 }
@@ -352,6 +347,8 @@ func (feast *FeastServices) createDeployment() error {
 		logger.Info("Successfully reconciled", "Deployment", deploy.Name, "operation", op)
 	}
 
+	feast.updateScalingStatus(deploy)
+
 	return nil
 }
 
@@ -397,9 +394,8 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 	cr := feast.Handler.FeatureStore
 
 	// Determine replica count:
-	// - Static replicas from scaling config take precedence
-	// - When HPA is configured, preserve existing value so the HPA controller manages it
-	// - Otherwise preserve the existing value (supports external autoscalers)
+	// - spec.replicas is set on the Deployment (defaults to 1)
+	// - When HPA is configured, replicas is left unset so the HPA controller manages it
 	replicas := deploy.Spec.Replicas
 	if desired := feast.getDesiredReplicas(); desired != nil {
 		replicas = desired
