@@ -945,6 +945,12 @@ class DynamoDBOnlineStore(OnlineStore):
             return list(value_proto.bool_list_val.val)
         elif value_proto.HasField("bytes_list_val"):
             return list(value_proto.bytes_list_val.val)
+        elif value_proto.HasField("map_list_val"):
+            return list(value_proto.map_list_val.val)
+        elif value_proto.HasField("json_list_val"):
+            return list(value_proto.json_list_val.val)
+        elif value_proto.HasField("struct_list_val"):
+            return list(value_proto.struct_list_val.val)
         return []
 
     def _set_list_values(
@@ -965,6 +971,12 @@ class DynamoDBOnlineStore(OnlineStore):
             result.bool_list_val.val.extend(values)
         elif template.HasField("bytes_list_val"):
             result.bytes_list_val.val.extend(values)
+        elif template.HasField("map_list_val"):
+            result.map_list_val.val.extend(values)
+        elif template.HasField("json_list_val"):
+            result.json_list_val.val.extend(values)
+        elif template.HasField("struct_list_val"):
+            result.struct_list_val.val.extend(values)
 
     async def _update_item_with_expression_async(
         self,
