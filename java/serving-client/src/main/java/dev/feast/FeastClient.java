@@ -176,6 +176,46 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
+   * Create a client with a pre-configured stub.
+   *
+   * @param stub pre-configured {@link ServingServiceBlockingStub}
+   * @param credentials optional {@link CallCredentials}
+   * @param requestTimeout timeout in milliseconds, use 0 for no timeout
+   * @return {@link FeastClient}
+   */
+  public static FeastClient createWithStub(
+      ServingServiceBlockingStub stub, Optional<CallCredentials> credentials, long requestTimeout) {
+    if (requestTimeout < 0) {
+      throw new IllegalArgumentException("Request timeout can't be negative");
+    }
+    return new FeastClient(stub, credentials, requestTimeout);
+  }
+
+  /**
+   * Create a client with a pre-configured stub.
+   *
+   * @param stub pre-configured {@link ServingServiceBlockingStub}
+   * @param requestTimeout timeout in milliseconds, use 0 for no timeout
+   * @return {@link FeastClient}
+   */
+  public static FeastClient createWithStub(ServingServiceBlockingStub stub, long requestTimeout) {
+    if (requestTimeout < 0) {
+      throw new IllegalArgumentException("Request timeout can't be negative");
+    }
+    return new FeastClient(stub, Optional.empty(), requestTimeout);
+  }
+
+  /**
+   * Create a client with a pre-configured stub.
+   *
+   * @param stub pre-configured {@link ServingServiceBlockingStub}
+   * @return {@link FeastClient}
+   */
+  public static FeastClient createWithStub(ServingServiceBlockingStub stub) {
+    return new FeastClient(stub, Optional.empty(), 0);
+  }
+
+  /**
    * Obtain info about Feast Serving.
    *
    * @return {@link GetFeastServingInfoResponse} containing Feast version, Serving type etc.
@@ -599,13 +639,35 @@ public class FeastClient implements AutoCloseable {
 
   protected FeastClient(
       ManagedChannel channel, Optional<CallCredentials> credentials, long requestTimeout) {
-    this.channel = channel;
-    this.requestTimeout = requestTimeout;
-    TracingClientInterceptor tracingInterceptor =
-        TracingClientInterceptor.newBuilder().withTracer(GlobalTracer.get()).build();
+    this(channel, null, credentials, requestTimeout);
+  }
 
-    ServingServiceBlockingStub servingStub =
-        ServingServiceGrpc.newBlockingStub(tracingInterceptor.intercept(channel));
+  protected FeastClient(
+      ServingServiceBlockingStub stub, Optional<CallCredentials> credentials, long requestTimeout) {
+    this(null, stub, credentials, requestTimeout);
+  }
+
+  private FeastClient(
+      ManagedChannel channel,
+      ServingServiceBlockingStub stub,
+      Optional<CallCredentials> credentials,
+      long requestTimeout) {
+
+    this.requestTimeout = requestTimeout;
+    ServingServiceBlockingStub servingStub;
+
+    if (stub != null) {
+      servingStub = stub;
+      this.channel = null;
+    } else if (channel != null) {
+      this.channel = channel;
+      TracingClientInterceptor tracingInterceptor =
+          TracingClientInterceptor.newBuilder().withTracer(GlobalTracer.get()).build();
+
+      servingStub = ServingServiceGrpc.newBlockingStub(tracingInterceptor.intercept(channel));
+    } else {
+      throw new IllegalArgumentException("Either channel or stub must be provided");
+    }
 
     if (credentials.isPresent()) {
       servingStub = servingStub.withCallCredentials(credentials.get());

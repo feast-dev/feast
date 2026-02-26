@@ -390,6 +390,120 @@ public class FeastClientTest {
     assertEquals(new HashMap<String, List<FieldStatus>>() {}, rows.get(0).getStatuses());
   }
 
+  @Test
+  public void shouldCreateClientWithStub() throws Exception {
+    String serverName = InProcessServerBuilder.generateName();
+    this.grpcRule.register(
+        InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(this.servingMock)
+            .build()
+            .start());
+
+    ManagedChannel channel =
+        this.grpcRule.register(
+            InProcessChannelBuilder.forName(serverName).directExecutor().build());
+
+    feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub stub =
+        feast.proto.serving.ServingServiceGrpc.newBlockingStub(channel);
+
+    FeastClient client = FeastClient.createWithStub(stub);
+    shouldGetOnlineFeaturesFeatureRef(client);
+    client.close();
+  }
+
+  @Test
+  public void shouldCreateClientWithStubAndTimeout() throws Exception {
+    String serverName = InProcessServerBuilder.generateName();
+    this.grpcRule.register(
+        InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(this.servingMock)
+            .build()
+            .start());
+
+    ManagedChannel channel =
+        this.grpcRule.register(
+            InProcessChannelBuilder.forName(serverName).directExecutor().build());
+
+    feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub stub =
+        feast.proto.serving.ServingServiceGrpc.newBlockingStub(channel);
+
+    FeastClient client = FeastClient.createWithStub(stub, TIMEOUT_MILLIS);
+    shouldGetOnlineFeaturesFeatureService(client);
+    client.close();
+  }
+
+  @Test
+  public void shouldCreateClientWithStubAndCredentials() throws Exception {
+    String serverName = InProcessServerBuilder.generateName();
+    this.grpcRule.register(
+        InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(this.servingMock)
+            .build()
+            .start());
+
+    ManagedChannel channel =
+        this.grpcRule.register(
+            InProcessChannelBuilder.forName(serverName).directExecutor().build());
+
+    feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub stub =
+        feast.proto.serving.ServingServiceGrpc.newBlockingStub(channel);
+
+    FeastClient client = FeastClient.createWithStub(stub, Optional.empty(), TIMEOUT_MILLIS);
+    shouldGetOnlineFeaturesWithoutStatus(client);
+    client.close();
+  }
+
+  @Test
+  public void shouldGetOnlineFeaturesRangeWithStub() throws Exception {
+    String serverName = InProcessServerBuilder.generateName();
+    this.grpcRule.register(
+        InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(this.servingMock)
+            .build()
+            .start());
+
+    ManagedChannel channel =
+        this.grpcRule.register(
+            InProcessChannelBuilder.forName(serverName).directExecutor().build());
+
+    feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub stub =
+        feast.proto.serving.ServingServiceGrpc.newBlockingStub(channel);
+
+    FeastClient client = FeastClient.createWithStub(stub);
+    shouldGetOnlineFeaturesRangeWithClient(client);
+    client.close();
+  }
+
+  @Test
+  public void shouldThrowExceptionForNegativeTimeout() {
+    String serverName = InProcessServerBuilder.generateName();
+    try {
+      this.grpcRule.register(
+          InProcessServerBuilder.forName(serverName)
+              .directExecutor()
+              .addService(this.servingMock)
+              .build()
+              .start());
+
+      ManagedChannel channel =
+          this.grpcRule.register(
+              InProcessChannelBuilder.forName(serverName).directExecutor().build());
+
+      feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub stub =
+          feast.proto.serving.ServingServiceGrpc.newBlockingStub(channel);
+
+      IllegalArgumentException exception =
+          assertThrows(IllegalArgumentException.class, () -> FeastClient.createWithStub(stub, -1));
+      assertEquals("Request timeout can't be negative", exception.getMessage());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static GetOnlineFeaturesRequest getFakeOnlineFeaturesRefRequest() {
     // setup mock serving service stub
     return GetOnlineFeaturesRequest.newBuilder()
