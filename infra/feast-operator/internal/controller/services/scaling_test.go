@@ -550,22 +550,21 @@ var _ = Describe("Horizontal Scaling", func() {
 	})
 
 	Describe("HPA Configuration", func() {
-		It("should create an HPA with default CPU metrics", func() {
+		It("should build an HPA with default CPU metrics", func() {
 			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
 				Autoscaling: &feastdevv1.AutoscalingConfig{
 					MaxReplicas: 10,
 				},
 			}
 
-			hpa := feast.initHPA()
-			Expect(feast.setHPA(hpa)).To(Succeed())
+			hpa := feast.buildHPA()
 			Expect(hpa.Spec.MaxReplicas).To(Equal(int32(10)))
 			Expect(*hpa.Spec.MinReplicas).To(Equal(int32(1)))
 			Expect(hpa.Spec.Metrics).To(HaveLen(1))
 			Expect(hpa.Spec.Metrics[0].Resource.Name).To(Equal(corev1.ResourceCPU))
 		})
 
-		It("should create an HPA with custom min replicas", func() {
+		It("should build an HPA with custom min replicas", func() {
 			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
 				Autoscaling: &feastdevv1.AutoscalingConfig{
 					MinReplicas: ptr(int32(2)),
@@ -573,8 +572,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				},
 			}
 
-			hpa := feast.initHPA()
-			Expect(feast.setHPA(hpa)).To(Succeed())
+			hpa := feast.buildHPA()
 			Expect(*hpa.Spec.MinReplicas).To(Equal(int32(2)))
 			Expect(hpa.Spec.MaxReplicas).To(Equal(int32(10)))
 		})
@@ -586,11 +584,25 @@ var _ = Describe("Horizontal Scaling", func() {
 				},
 			}
 
-			hpa := feast.initHPA()
-			Expect(feast.setHPA(hpa)).To(Succeed())
+			hpa := feast.buildHPA()
 			Expect(hpa.Spec.ScaleTargetRef.APIVersion).To(Equal("apps/v1"))
 			Expect(hpa.Spec.ScaleTargetRef.Kind).To(Equal("Deployment"))
 			Expect(hpa.Spec.ScaleTargetRef.Name).To(Equal(GetFeastName(featureStore)))
+		})
+
+		It("should set TypeMeta and owner reference for SSA", func() {
+			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
+				Autoscaling: &feastdevv1.AutoscalingConfig{
+					MaxReplicas: 5,
+				},
+			}
+
+			hpa := feast.buildHPA()
+			Expect(hpa.TypeMeta.APIVersion).To(Equal("autoscaling/v2"))
+			Expect(hpa.TypeMeta.Kind).To(Equal("HorizontalPodAutoscaler"))
+			Expect(hpa.OwnerReferences).To(HaveLen(1))
+			Expect(hpa.OwnerReferences[0].Name).To(Equal(featureStore.Name))
+			Expect(*hpa.OwnerReferences[0].Controller).To(BeTrue())
 		})
 	})
 

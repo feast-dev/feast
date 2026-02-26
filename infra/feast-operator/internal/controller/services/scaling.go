@@ -22,13 +22,14 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
 	defaultHPACPUUtilization int32 = 80
 	defaultHPAMinReplicas    int32 = 1
+	fieldManager                   = "feast-operator"
 )
 
 // getDesiredReplicas returns the replica count the operator should set on the
@@ -49,45 +50,35 @@ func (feast *FeastServices) getDesiredReplicas() *int32 {
 }
 
 // createOrDeleteHPA reconciles the HorizontalPodAutoscaler for the FeatureStore
-// deployment. If autoscaling is not configured, any existing HPA is deleted.
+// deployment using Server-Side Apply. If autoscaling is not configured, any
+// existing HPA is deleted.
 func (feast *FeastServices) createOrDeleteHPA() error {
 	cr := feast.Handler.FeatureStore
-	hpa := feast.initHPA()
 
 	scaling := cr.Status.Applied.Services.Scaling
 	if scaling == nil || scaling.Autoscaling == nil {
+		hpa := &autoscalingv2.HorizontalPodAutoscaler{
+			ObjectMeta: feast.GetObjectMeta(),
+		}
+		hpa.SetGroupVersionKind(autoscalingv2.SchemeGroupVersion.WithKind("HorizontalPodAutoscaler"))
 		return feast.Handler.DeleteOwnedFeastObj(hpa)
 	}
 
+	hpa := feast.buildHPA()
 	logger := log.FromContext(feast.Handler.Context)
-	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, hpa, controllerutil.MutateFn(func() error {
-		return feast.setHPA(hpa)
-	})); err != nil {
+	if err := feast.Handler.Client.Patch(feast.Handler.Context, hpa,
+		client.Apply, client.FieldOwner(fieldManager), client.ForceOwnership); err != nil {
 		return err
-	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
-		logger.Info("Successfully reconciled", "HorizontalPodAutoscaler", hpa.Name, "operation", op)
 	}
+	logger.Info("Successfully applied", "HorizontalPodAutoscaler", hpa.Name)
 
 	return nil
 }
 
-func (feast *FeastServices) initHPA() *autoscalingv2.HorizontalPodAutoscaler {
-	hpa := &autoscalingv2.HorizontalPodAutoscaler{
-		ObjectMeta: feast.GetObjectMeta(),
-	}
-	hpa.SetGroupVersionKind(autoscalingv2.SchemeGroupVersion.WithKind("HorizontalPodAutoscaler"))
-	return hpa
-}
-
-func (feast *FeastServices) setHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) error {
+// buildHPA constructs the fully desired HPA state for Server-Side Apply.
+func (feast *FeastServices) buildHPA() *autoscalingv2.HorizontalPodAutoscaler {
 	cr := feast.Handler.FeatureStore
-	scaling := cr.Status.Applied.Services.Scaling
-	if scaling == nil || scaling.Autoscaling == nil {
-		return nil
-	}
-	autoscaling := scaling.Autoscaling
-
-	hpa.Labels = feast.getLabels()
+	autoscaling := cr.Status.Applied.Services.Scaling.Autoscaling
 
 	deploy := feast.initFeastDeploy()
 	minReplicas := defaultHPAMinReplicas
@@ -95,27 +86,46 @@ func (feast *FeastServices) setHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) e
 		minReplicas = *autoscaling.MinReplicas
 	}
 
-	hpa.Spec = autoscalingv2.HorizontalPodAutoscalerSpec{
-		ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-			Name:       deploy.Name,
-		},
-		MinReplicas: &minReplicas,
-		MaxReplicas: autoscaling.MaxReplicas,
-	}
-
+	metrics := defaultHPAMetrics()
 	if len(autoscaling.Metrics) > 0 {
-		hpa.Spec.Metrics = autoscaling.Metrics
-	} else {
-		hpa.Spec.Metrics = defaultHPAMetrics()
+		metrics = autoscaling.Metrics
 	}
 
-	if autoscaling.Behavior != nil {
-		hpa.Spec.Behavior = autoscaling.Behavior
+	isController := true
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: autoscalingv2.SchemeGroupVersion.String(),
+			Kind:       "HorizontalPodAutoscaler",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      feast.GetObjectMeta().Name,
+			Namespace: feast.GetObjectMeta().Namespace,
+			Labels:    feast.getLabels(),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         feastdevv1.GroupVersion.String(),
+					Kind:               "FeatureStore",
+					Name:               cr.Name,
+					UID:                cr.UID,
+					Controller:         &isController,
+					BlockOwnerDeletion: &isController,
+				},
+			},
+		},
+		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				APIVersion: appsv1.SchemeGroupVersion.String(),
+				Kind:       "Deployment",
+				Name:       deploy.Name,
+			},
+			MinReplicas: &minReplicas,
+			MaxReplicas: autoscaling.MaxReplicas,
+			Metrics:     metrics,
+			Behavior:    autoscaling.Behavior,
+		},
 	}
 
-	return controllerutil.SetControllerReference(cr, hpa, feast.Handler.Scheme)
+	return hpa
 }
 
 func defaultHPAMetrics() []autoscalingv2.MetricSpec {
