@@ -17,11 +17,16 @@ limitations under the License.
 package services
 
 import (
+	"encoding/json"
+
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	hpaac "k8s.io/client-go/applyconfigurations/autoscaling/v2"
+	metaac "k8s.io/client-go/applyconfigurations/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -50,8 +55,8 @@ func (feast *FeastServices) getDesiredReplicas() *int32 {
 }
 
 // createOrDeleteHPA reconciles the HorizontalPodAutoscaler for the FeatureStore
-// deployment using Server-Side Apply. If autoscaling is not configured, any
-// existing HPA is deleted.
+// deployment using Server-Side Apply with typed apply configurations. If
+// autoscaling is not configured, any existing HPA is deleted.
 func (feast *FeastServices) createOrDeleteHPA() error {
 	cr := feast.Handler.FeatureStore
 
@@ -64,10 +69,17 @@ func (feast *FeastServices) createOrDeleteHPA() error {
 		return feast.Handler.DeleteOwnedFeastObj(hpa)
 	}
 
-	hpa := feast.buildHPA()
+	hpaAC := feast.buildHPAApplyConfig()
+	data, err := json.Marshal(hpaAC)
+	if err != nil {
+		return err
+	}
+
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: feast.GetObjectMeta()}
 	logger := log.FromContext(feast.Handler.Context)
 	if err := feast.Handler.Client.Patch(feast.Handler.Context, hpa,
-		client.Apply, client.FieldOwner(fieldManager), client.ForceOwnership); err != nil {
+		client.RawPatch(types.ApplyPatchType, data),
+		client.FieldOwner(fieldManager), client.ForceOwnership); err != nil {
 		return err
 	}
 	logger.Info("Successfully applied", "HorizontalPodAutoscaler", hpa.Name)
@@ -75,73 +87,96 @@ func (feast *FeastServices) createOrDeleteHPA() error {
 	return nil
 }
 
-// buildHPA constructs the fully desired HPA state for Server-Side Apply.
-func (feast *FeastServices) buildHPA() *autoscalingv2.HorizontalPodAutoscaler {
+// buildHPAApplyConfig constructs the fully desired HPA state as a typed apply
+// configuration for Server-Side Apply.
+func (feast *FeastServices) buildHPAApplyConfig() *hpaac.HorizontalPodAutoscalerApplyConfiguration {
 	cr := feast.Handler.FeatureStore
 	autoscaling := cr.Status.Applied.Services.Scaling.Autoscaling
-
+	objMeta := feast.GetObjectMeta()
 	deploy := feast.initFeastDeploy()
+
 	minReplicas := defaultHPAMinReplicas
 	if autoscaling.MinReplicas != nil {
 		minReplicas = *autoscaling.MinReplicas
 	}
 
-	metrics := defaultHPAMetrics()
+	hpa := hpaac.HorizontalPodAutoscaler(objMeta.Name, objMeta.Namespace).
+		WithLabels(feast.getLabels()).
+		WithOwnerReferences(
+			metaac.OwnerReference().
+				WithAPIVersion(feastdevv1.GroupVersion.String()).
+				WithKind("FeatureStore").
+				WithName(cr.Name).
+				WithUID(cr.UID).
+				WithController(true).
+				WithBlockOwnerDeletion(true),
+		).
+		WithSpec(hpaac.HorizontalPodAutoscalerSpec().
+			WithScaleTargetRef(
+				hpaac.CrossVersionObjectReference().
+					WithAPIVersion(appsv1.SchemeGroupVersion.String()).
+					WithKind("Deployment").
+					WithName(deploy.Name),
+			).
+			WithMinReplicas(minReplicas).
+			WithMaxReplicas(autoscaling.MaxReplicas),
+		)
+
 	if len(autoscaling.Metrics) > 0 {
-		metrics = autoscaling.Metrics
+		hpa.Spec.Metrics = convertMetrics(autoscaling.Metrics)
+	} else {
+		hpa.Spec.Metrics = defaultHPAMetrics()
 	}
 
-	isController := true
-	hpa := &autoscalingv2.HorizontalPodAutoscaler{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: autoscalingv2.SchemeGroupVersion.String(),
-			Kind:       "HorizontalPodAutoscaler",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      feast.GetObjectMeta().Name,
-			Namespace: feast.GetObjectMeta().Namespace,
-			Labels:    feast.getLabels(),
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         feastdevv1.GroupVersion.String(),
-					Kind:               "FeatureStore",
-					Name:               cr.Name,
-					UID:                cr.UID,
-					Controller:         &isController,
-					BlockOwnerDeletion: &isController,
-				},
-			},
-		},
-		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
-			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
-				APIVersion: appsv1.SchemeGroupVersion.String(),
-				Kind:       "Deployment",
-				Name:       deploy.Name,
-			},
-			MinReplicas: &minReplicas,
-			MaxReplicas: autoscaling.MaxReplicas,
-			Metrics:     metrics,
-			Behavior:    autoscaling.Behavior,
-		},
+	if autoscaling.Behavior != nil {
+		hpa.Spec.Behavior = convertBehavior(autoscaling.Behavior)
 	}
 
 	return hpa
 }
 
-func defaultHPAMetrics() []autoscalingv2.MetricSpec {
-	utilization := defaultHPACPUUtilization
-	return []autoscalingv2.MetricSpec{
-		{
-			Type: autoscalingv2.ResourceMetricSourceType,
-			Resource: &autoscalingv2.ResourceMetricSource{
-				Name: corev1.ResourceCPU,
-				Target: autoscalingv2.MetricTarget{
-					Type:               autoscalingv2.UtilizationMetricType,
-					AverageUtilization: &utilization,
-				},
-			},
-		},
+func defaultHPAMetrics() []hpaac.MetricSpecApplyConfiguration {
+	return []hpaac.MetricSpecApplyConfiguration{
+		*hpaac.MetricSpec().
+			WithType(autoscalingv2.ResourceMetricSourceType).
+			WithResource(
+				hpaac.ResourceMetricSource().
+					WithName(corev1.ResourceCPU).
+					WithTarget(
+						hpaac.MetricTarget().
+							WithType(autoscalingv2.UtilizationMetricType).
+							WithAverageUtilization(defaultHPACPUUtilization),
+					),
+			),
 	}
+}
+
+// convertMetrics converts standard API metric specs to their apply configuration
+// equivalents via JSON round-trip (the types share identical JSON schemas).
+func convertMetrics(metrics []autoscalingv2.MetricSpec) []hpaac.MetricSpecApplyConfiguration {
+	data, err := json.Marshal(metrics)
+	if err != nil {
+		return nil
+	}
+	var result []hpaac.MetricSpecApplyConfiguration
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil
+	}
+	return result
+}
+
+// convertBehavior converts a standard API behavior spec to its apply configuration
+// equivalent via JSON round-trip.
+func convertBehavior(behavior *autoscalingv2.HorizontalPodAutoscalerBehavior) *hpaac.HorizontalPodAutoscalerBehaviorApplyConfiguration {
+	data, err := json.Marshal(behavior)
+	if err != nil {
+		return nil
+	}
+	result := &hpaac.HorizontalPodAutoscalerBehaviorApplyConfiguration{}
+	if err := json.Unmarshal(data, result); err != nil {
+		return nil
+	}
+	return result
 }
 
 // updateScalingStatus updates the scaling status fields using the deployment

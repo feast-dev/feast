@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -550,21 +551,21 @@ var _ = Describe("Horizontal Scaling", func() {
 	})
 
 	Describe("HPA Configuration", func() {
-		It("should build an HPA with default CPU metrics", func() {
+		It("should build an HPA apply config with default CPU metrics", func() {
 			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
 				Autoscaling: &feastdevv1.AutoscalingConfig{
 					MaxReplicas: 10,
 				},
 			}
 
-			hpa := feast.buildHPA()
-			Expect(hpa.Spec.MaxReplicas).To(Equal(int32(10)))
+			hpa := feast.buildHPAApplyConfig()
+			Expect(*hpa.Spec.MaxReplicas).To(Equal(int32(10)))
 			Expect(*hpa.Spec.MinReplicas).To(Equal(int32(1)))
 			Expect(hpa.Spec.Metrics).To(HaveLen(1))
-			Expect(hpa.Spec.Metrics[0].Resource.Name).To(Equal(corev1.ResourceCPU))
+			Expect(*hpa.Spec.Metrics[0].Resource.Name).To(Equal(corev1.ResourceCPU))
 		})
 
-		It("should build an HPA with custom min replicas", func() {
+		It("should build an HPA apply config with custom min replicas", func() {
 			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
 				Autoscaling: &feastdevv1.AutoscalingConfig{
 					MinReplicas: ptr(int32(2)),
@@ -572,9 +573,9 @@ var _ = Describe("Horizontal Scaling", func() {
 				},
 			}
 
-			hpa := feast.buildHPA()
+			hpa := feast.buildHPAApplyConfig()
 			Expect(*hpa.Spec.MinReplicas).To(Equal(int32(2)))
-			Expect(hpa.Spec.MaxReplicas).To(Equal(int32(10)))
+			Expect(*hpa.Spec.MaxReplicas).To(Equal(int32(10)))
 		})
 
 		It("should set correct scale target reference", func() {
@@ -584,10 +585,10 @@ var _ = Describe("Horizontal Scaling", func() {
 				},
 			}
 
-			hpa := feast.buildHPA()
-			Expect(hpa.Spec.ScaleTargetRef.APIVersion).To(Equal("apps/v1"))
-			Expect(hpa.Spec.ScaleTargetRef.Kind).To(Equal("Deployment"))
-			Expect(hpa.Spec.ScaleTargetRef.Name).To(Equal(GetFeastName(featureStore)))
+			hpa := feast.buildHPAApplyConfig()
+			Expect(*hpa.Spec.ScaleTargetRef.APIVersion).To(Equal("apps/v1"))
+			Expect(*hpa.Spec.ScaleTargetRef.Kind).To(Equal("Deployment"))
+			Expect(*hpa.Spec.ScaleTargetRef.Name).To(Equal(GetFeastName(featureStore)))
 		})
 
 		It("should set TypeMeta and owner reference for SSA", func() {
@@ -597,12 +598,38 @@ var _ = Describe("Horizontal Scaling", func() {
 				},
 			}
 
-			hpa := feast.buildHPA()
-			Expect(hpa.TypeMeta.APIVersion).To(Equal("autoscaling/v2"))
-			Expect(hpa.TypeMeta.Kind).To(Equal("HorizontalPodAutoscaler"))
+			hpa := feast.buildHPAApplyConfig()
+			Expect(*hpa.Kind).To(Equal("HorizontalPodAutoscaler"))
+			Expect(*hpa.APIVersion).To(Equal("autoscaling/v2"))
 			Expect(hpa.OwnerReferences).To(HaveLen(1))
-			Expect(hpa.OwnerReferences[0].Name).To(Equal(featureStore.Name))
+			Expect(*hpa.OwnerReferences[0].Name).To(Equal(featureStore.Name))
 			Expect(*hpa.OwnerReferences[0].Controller).To(BeTrue())
+		})
+
+		It("should convert custom metrics via JSON round-trip", func() {
+			customMetrics := []autoscalingv2.MetricSpec{
+				{
+					Type: autoscalingv2.ResourceMetricSourceType,
+					Resource: &autoscalingv2.ResourceMetricSource{
+						Name: corev1.ResourceMemory,
+						Target: autoscalingv2.MetricTarget{
+							Type:               autoscalingv2.UtilizationMetricType,
+							AverageUtilization: ptr(int32(75)),
+						},
+					},
+				},
+			}
+			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
+				Autoscaling: &feastdevv1.AutoscalingConfig{
+					MaxReplicas: 10,
+					Metrics:     customMetrics,
+				},
+			}
+
+			hpa := feast.buildHPAApplyConfig()
+			Expect(hpa.Spec.Metrics).To(HaveLen(1))
+			Expect(*hpa.Spec.Metrics[0].Resource.Name).To(Equal(corev1.ResourceMemory))
+			Expect(*hpa.Spec.Metrics[0].Resource.Target.AverageUtilization).To(Equal(int32(75)))
 		})
 	})
 
