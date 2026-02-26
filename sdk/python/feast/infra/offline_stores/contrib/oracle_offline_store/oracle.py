@@ -112,7 +112,7 @@ def _build_data_source_writer(config: RepoConfig):
                     f"Table '{table_ref}' already exists. "
                     f"Set allow_overwrite=True to truncate and replace data."
                 )
-            con.raw_sql(f"TRUNCATE TABLE {table_ref}")
+            con.truncate_table(table_ref)
 
         con.insert(table_name=table_ref, obj=table.to_pandas())
 
