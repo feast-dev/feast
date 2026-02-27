@@ -98,11 +98,12 @@ milvus = [
     "feast[setuptools]"
 ]
 mongodb = [
-    "pymongo>=4.6.0,<5.0.0",
+    "pymongo>=4.13.0,<5.0.0",
     "dnspython>=2.0.0",
 ]
 mssql = ["ibis-framework[mssql]>=10.0.0"]
 mysql = ["pymysql", "types-PyMySQL"]
+openlineage = ["openlineage-python>=1.40.0"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=4.0.0"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
