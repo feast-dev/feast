@@ -84,6 +84,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.createOrDeleteHPA(); err != nil {
 		return err
 	}
+	if err := feast.createOrDeletePDB(); err != nil {
+		return err
+	}
 	if err := feast.deployClient(); err != nil {
 		return err
 	}
@@ -431,6 +434,8 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountEmptyDirVolumes(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
 	feast.applyNodeSelector(podSpec)
+	feast.applyTopologySpread(podSpec)
+	feast.applyAffinity(podSpec)
 
 	return nil
 }
@@ -918,6 +923,54 @@ func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
 	// This preserves pre-existing selectors while adding operator requirements
 	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, mergedNodeSelector)
 	podSpec.NodeSelector = finalNodeSelector
+}
+
+func (feast *FeastServices) applyTopologySpread(podSpec *corev1.PodSpec) {
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	// User-provided explicit constraints take precedence (including empty array to disable)
+	if services != nil && services.TopologySpreadConstraints != nil {
+		podSpec.TopologySpreadConstraints = services.TopologySpreadConstraints
+		return
+	}
+
+	if !isScalingEnabled(cr) {
+		return
+	}
+
+	podSpec.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{{
+		MaxSkew:           1,
+		TopologyKey:       "topology.kubernetes.io/zone",
+		WhenUnsatisfiable: corev1.ScheduleAnyway,
+		LabelSelector:     metav1.SetAsLabelSelector(feast.getLabels()),
+	}}
+}
+
+func (feast *FeastServices) applyAffinity(podSpec *corev1.PodSpec) {
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	if services != nil && services.Affinity != nil {
+		podSpec.Affinity = services.Affinity
+		return
+	}
+
+	if !isScalingEnabled(cr) {
+		return
+	}
+
+	podSpec.Affinity = &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+				Weight: 100,
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					TopologyKey:   "kubernetes.io/hostname",
+					LabelSelector: metav1.SetAsLabelSelector(feast.getLabels()),
+				},
+			}},
+		},
+	}
 }
 
 // mergeNodeSelectors merges existing and operator node selectors

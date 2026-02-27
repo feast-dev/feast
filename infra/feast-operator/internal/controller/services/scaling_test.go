@@ -29,8 +29,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+func ptrIntStr(v intstr.IntOrString) *intstr.IntOrString {
+	return &v
+}
 
 var _ = Describe("Horizontal Scaling", func() {
 	var (
@@ -630,6 +635,288 @@ var _ = Describe("Horizontal Scaling", func() {
 			Expect(hpa.Spec.Metrics).To(HaveLen(1))
 			Expect(*hpa.Spec.Metrics[0].Resource.Name).To(Equal(corev1.ResourceMemory))
 			Expect(*hpa.Spec.Metrics[0].Resource.Target.AverageUtilization).To(Equal(int32(75)))
+		})
+	})
+
+	Describe("PDB Configuration", func() {
+		It("should build a PDB apply config with maxUnavailable", func() {
+			maxUnavail := intstr.FromInt(1)
+			featureStore.Status.Applied.Services.PDB = &feastdevv1.PDBConfig{
+				MaxUnavailable: &maxUnavail,
+			}
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+
+			pdb := feast.buildPDBApplyConfig()
+			Expect(*pdb.Kind).To(Equal("PodDisruptionBudget"))
+			Expect(*pdb.APIVersion).To(Equal("policy/v1"))
+			Expect(pdb.Spec.MaxUnavailable).NotTo(BeNil())
+			Expect(pdb.Spec.MaxUnavailable.IntValue()).To(Equal(1))
+			Expect(pdb.Spec.MinAvailable).To(BeNil())
+			Expect(pdb.Spec.Selector.MatchLabels).To(HaveKeyWithValue(NameLabelKey, featureStore.Name))
+		})
+
+		It("should build a PDB apply config with minAvailable", func() {
+			minAvail := intstr.FromString("50%")
+			featureStore.Status.Applied.Services.PDB = &feastdevv1.PDBConfig{
+				MinAvailable: &minAvail,
+			}
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+
+			pdb := feast.buildPDBApplyConfig()
+			Expect(pdb.Spec.MinAvailable).NotTo(BeNil())
+			Expect(pdb.Spec.MinAvailable.String()).To(Equal("50%"))
+			Expect(pdb.Spec.MaxUnavailable).To(BeNil())
+		})
+
+		It("should set owner reference on PDB for SSA", func() {
+			maxUnavail := intstr.FromInt(1)
+			featureStore.Status.Applied.Services.PDB = &feastdevv1.PDBConfig{
+				MaxUnavailable: &maxUnavail,
+			}
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+
+			pdb := feast.buildPDBApplyConfig()
+			Expect(pdb.OwnerReferences).To(HaveLen(1))
+			Expect(*pdb.OwnerReferences[0].Name).To(Equal(featureStore.Name))
+			Expect(*pdb.OwnerReferences[0].Controller).To(BeTrue())
+		})
+	})
+
+	Describe("CEL admission validation rejects invalid PDB configurations", func() {
+		dbOnlineStore := &feastdevv1.OnlineStore{
+			Persistence: &feastdevv1.OnlineStorePersistence{
+				DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
+					Type:      "redis",
+					SecretRef: corev1.LocalObjectReference{Name: "redis-secret"},
+				},
+			},
+		}
+		dbRegistry := &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Persistence: &feastdevv1.RegistryPersistence{
+					DBPersistence: &feastdevv1.RegistryDBStorePersistence{
+						Type:      "sql",
+						SecretRef: corev1.LocalObjectReference{Name: "registry-secret"},
+					},
+				},
+			},
+		}
+
+		It("should reject PDB with both minAvailable and maxUnavailable set", func() {
+			fs := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-both", Namespace: "default"},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: "celtest",
+					Replicas:     ptr(int32(3)),
+					Services: &feastdevv1.FeatureStoreServices{
+						OnlineStore: dbOnlineStore,
+						Registry:    dbRegistry,
+						PDB: &feastdevv1.PDBConfig{
+							MinAvailable:   ptrIntStr(intstr.FromInt(1)),
+							MaxUnavailable: ptrIntStr(intstr.FromInt(1)),
+						},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, fs)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Exactly one of minAvailable or maxUnavailable"))
+		})
+
+		It("should reject PDB with neither minAvailable nor maxUnavailable set", func() {
+			fs := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-none", Namespace: "default"},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: "celtest",
+					Replicas:     ptr(int32(3)),
+					Services: &feastdevv1.FeatureStoreServices{
+						OnlineStore: dbOnlineStore,
+						Registry:    dbRegistry,
+						PDB:         &feastdevv1.PDBConfig{},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, fs)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Exactly one of minAvailable or maxUnavailable"))
+		})
+
+		It("should accept PDB with only maxUnavailable", func() {
+			fs := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-maxu", Namespace: "default"},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: "celtest",
+					Replicas:     ptr(int32(3)),
+					Services: &feastdevv1.FeatureStoreServices{
+						OnlineStore: dbOnlineStore,
+						Registry:    dbRegistry,
+						PDB: &feastdevv1.PDBConfig{
+							MaxUnavailable: ptrIntStr(intstr.FromInt(1)),
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, fs)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, fs)).To(Succeed())
+		})
+
+		It("should accept PDB with only minAvailable", func() {
+			fs := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-mina", Namespace: "default"},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: "celtest",
+					Replicas:     ptr(int32(3)),
+					Services: &feastdevv1.FeatureStoreServices{
+						OnlineStore: dbOnlineStore,
+						Registry:    dbRegistry,
+						PDB: &feastdevv1.PDBConfig{
+							MinAvailable: ptrIntStr(intstr.FromString("50%")),
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, fs)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, fs)).To(Succeed())
+		})
+	})
+
+	Describe("Topology Spread", func() {
+		It("should auto-inject soft zone constraint when replicas > 1 and no explicit constraints", func() {
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+
+			podSpec := &corev1.PodSpec{}
+			feast.applyTopologySpread(podSpec)
+
+			Expect(podSpec.TopologySpreadConstraints).To(HaveLen(1))
+			Expect(podSpec.TopologySpreadConstraints[0].TopologyKey).To(Equal("topology.kubernetes.io/zone"))
+			Expect(podSpec.TopologySpreadConstraints[0].WhenUnsatisfiable).To(Equal(corev1.ScheduleAnyway))
+			Expect(podSpec.TopologySpreadConstraints[0].MaxSkew).To(Equal(int32(1)))
+			Expect(podSpec.TopologySpreadConstraints[0].LabelSelector.MatchLabels).To(HaveKeyWithValue(NameLabelKey, featureStore.Name))
+		})
+
+		It("should auto-inject when autoscaling is configured", func() {
+			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
+				Autoscaling: &feastdevv1.AutoscalingConfig{MaxReplicas: 5},
+			}
+
+			podSpec := &corev1.PodSpec{}
+			feast.applyTopologySpread(podSpec)
+
+			Expect(podSpec.TopologySpreadConstraints).To(HaveLen(1))
+			Expect(podSpec.TopologySpreadConstraints[0].WhenUnsatisfiable).To(Equal(corev1.ScheduleAnyway))
+		})
+
+		It("should not inject when replicas is 1 and no autoscaling", func() {
+			podSpec := &corev1.PodSpec{}
+			feast.applyTopologySpread(podSpec)
+
+			Expect(podSpec.TopologySpreadConstraints).To(BeEmpty())
+		})
+
+		It("should use user-provided constraints instead of defaults", func() {
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Services.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{{
+				MaxSkew:           2,
+				TopologyKey:       "kubernetes.io/hostname",
+				WhenUnsatisfiable: corev1.DoNotSchedule,
+				LabelSelector:     metav1.SetAsLabelSelector(map[string]string{"custom": "label"}),
+			}}
+
+			podSpec := &corev1.PodSpec{}
+			feast.applyTopologySpread(podSpec)
+
+			Expect(podSpec.TopologySpreadConstraints).To(HaveLen(1))
+			Expect(podSpec.TopologySpreadConstraints[0].TopologyKey).To(Equal("kubernetes.io/hostname"))
+			Expect(podSpec.TopologySpreadConstraints[0].WhenUnsatisfiable).To(Equal(corev1.DoNotSchedule))
+			Expect(podSpec.TopologySpreadConstraints[0].MaxSkew).To(Equal(int32(2)))
+		})
+
+		It("should disable auto-injection when empty array is set", func() {
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Services.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{}
+
+			podSpec := &corev1.PodSpec{}
+			feast.applyTopologySpread(podSpec)
+
+			Expect(podSpec.TopologySpreadConstraints).To(BeEmpty())
+		})
+	})
+
+	Describe("Pod Anti-Affinity", func() {
+		It("should auto-inject soft node anti-affinity when replicas > 1", func() {
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+
+			podSpec := &corev1.PodSpec{}
+			feast.applyAffinity(podSpec)
+
+			Expect(podSpec.Affinity).NotTo(BeNil())
+			Expect(podSpec.Affinity.PodAntiAffinity).NotTo(BeNil())
+			terms := podSpec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+			Expect(terms).To(HaveLen(1))
+			Expect(terms[0].Weight).To(Equal(int32(100)))
+			Expect(terms[0].PodAffinityTerm.TopologyKey).To(Equal("kubernetes.io/hostname"))
+			Expect(terms[0].PodAffinityTerm.LabelSelector.MatchLabels).To(HaveKeyWithValue(NameLabelKey, featureStore.Name))
+		})
+
+		It("should auto-inject when autoscaling is configured", func() {
+			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
+				Autoscaling: &feastdevv1.AutoscalingConfig{MaxReplicas: 5},
+			}
+
+			podSpec := &corev1.PodSpec{}
+			feast.applyAffinity(podSpec)
+
+			Expect(podSpec.Affinity).NotTo(BeNil())
+			Expect(podSpec.Affinity.PodAntiAffinity).NotTo(BeNil())
+		})
+
+		It("should not inject when replicas is 1 and no autoscaling", func() {
+			podSpec := &corev1.PodSpec{}
+			feast.applyAffinity(podSpec)
+
+			Expect(podSpec.Affinity).To(BeNil())
+		})
+
+		It("should use user-provided affinity instead of defaults", func() {
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Services.Affinity = &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+						TopologyKey:   "kubernetes.io/hostname",
+						LabelSelector: metav1.SetAsLabelSelector(map[string]string{"custom": "label"}),
+					}},
+				},
+			}
+
+			podSpec := &corev1.PodSpec{}
+			feast.applyAffinity(podSpec)
+
+			Expect(podSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution).To(HaveLen(1))
+			Expect(podSpec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution).To(BeEmpty())
+			Expect(podSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey).To(Equal("kubernetes.io/hostname"))
+		})
+
+		It("should allow user to set node affinity alongside anti-affinity", func() {
+			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Services.Affinity = &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+							MatchExpressions: []corev1.NodeSelectorRequirement{{
+								Key:      "gpu",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"true"},
+							}},
+						}},
+					},
+				},
+			}
+
+			podSpec := &corev1.PodSpec{}
+			feast.applyAffinity(podSpec)
+
+			Expect(podSpec.Affinity.NodeAffinity).NotTo(BeNil())
+			Expect(podSpec.Affinity.PodAntiAffinity).To(BeNil())
 		})
 	})
 

@@ -23,10 +23,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	hpaac "k8s.io/client-go/applyconfigurations/autoscaling/v2"
 	metaac "k8s.io/client-go/applyconfigurations/meta/v1"
+	pdbac "k8s.io/client-go/applyconfigurations/policy/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -177,6 +179,69 @@ func convertBehavior(behavior *autoscalingv2.HorizontalPodAutoscalerBehavior) *h
 		return nil
 	}
 	return result
+}
+
+// createOrDeletePDB reconciles the PodDisruptionBudget for the FeatureStore
+// deployment using Server-Side Apply. If PDB is not configured or scaling is
+// not enabled, any existing PDB is deleted.
+func (feast *FeastServices) createOrDeletePDB() error {
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	if services == nil || services.PDB == nil || !isScalingEnabled(cr) {
+		pdb := &policyv1.PodDisruptionBudget{ObjectMeta: feast.GetObjectMeta()}
+		pdb.SetGroupVersionKind(policyv1.SchemeGroupVersion.WithKind("PodDisruptionBudget"))
+		return feast.Handler.DeleteOwnedFeastObj(pdb)
+	}
+
+	pdbAC := feast.buildPDBApplyConfig()
+	data, err := json.Marshal(pdbAC)
+	if err != nil {
+		return err
+	}
+
+	pdb := &policyv1.PodDisruptionBudget{ObjectMeta: feast.GetObjectMeta()}
+	logger := log.FromContext(feast.Handler.Context)
+	if err := feast.Handler.Client.Patch(feast.Handler.Context, pdb,
+		client.RawPatch(types.ApplyPatchType, data),
+		client.FieldOwner(fieldManager), client.ForceOwnership); err != nil {
+		return err
+	}
+	logger.Info("Successfully applied", "PodDisruptionBudget", pdb.Name)
+
+	return nil
+}
+
+// buildPDBApplyConfig constructs the fully desired PDB state as a typed apply
+// configuration for Server-Side Apply.
+func (feast *FeastServices) buildPDBApplyConfig() *pdbac.PodDisruptionBudgetApplyConfiguration {
+	cr := feast.Handler.FeatureStore
+	pdbConfig := cr.Status.Applied.Services.PDB
+	objMeta := feast.GetObjectMeta()
+
+	pdb := pdbac.PodDisruptionBudget(objMeta.Name, objMeta.Namespace).
+		WithLabels(feast.getLabels()).
+		WithOwnerReferences(
+			metaac.OwnerReference().
+				WithAPIVersion(feastdevv1.GroupVersion.String()).
+				WithKind("FeatureStore").
+				WithName(cr.Name).
+				WithUID(cr.UID).
+				WithController(true).
+				WithBlockOwnerDeletion(true),
+		).
+		WithSpec(pdbac.PodDisruptionBudgetSpec().
+			WithSelector(metaac.LabelSelector().WithMatchLabels(feast.getLabels())),
+		)
+
+	if pdbConfig.MinAvailable != nil {
+		pdb.Spec.WithMinAvailable(*pdbConfig.MinAvailable)
+	}
+	if pdbConfig.MaxUnavailable != nil {
+		pdb.Spec.WithMaxUnavailable(*pdbConfig.MaxUnavailable)
+	}
+
+	return pdb
 }
 
 // updateScalingStatus updates the scaling status fields using the deployment
