@@ -71,71 +71,17 @@ func (feast *FeastServices) Deploy() error {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initCaConfigMap())
 	}
 
-	services := feast.Handler.FeatureStore.Status.Applied.Services
-	if feast.isOfflineStore() {
-		err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence)
-		if err != nil {
-			return err
-		}
-
-		if err = feast.deployFeastServiceByType(OfflineFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(OfflineFeastType); err != nil {
-			return err
-		}
-	}
-
-	if feast.isOnlineStore() {
-		err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence)
-		if err != nil {
-			return err
-		}
-
-		if err = feast.deployFeastServiceByType(OnlineFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
-			return err
-		}
-	}
-
-	if feast.isLocalRegistry() {
-		err := feast.validateRegistryPersistence(services.Registry.Local.Persistence)
-		if err != nil {
-			return err
-		}
-
-		if err = feast.deployFeastServiceByType(RegistryFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(RegistryFeastType); err != nil {
-			return err
-		}
-	}
-	if feast.isUiServer() {
-		if err = feast.deployFeastServiceByType(UIFeastType); err != nil {
-			return err
-		}
-		if err = feast.createRoute(UIFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(UIFeastType); err != nil {
-			return err
-		}
-		if err := feast.removeRoute(UIFeastType); err != nil {
-			return err
-		}
+	if err := feast.reconcileServices(); err != nil {
+		return err
 	}
 
 	if err := feast.createServiceAccount(); err != nil {
 		return err
 	}
 	if err := feast.createDeployment(); err != nil {
+		return err
+	}
+	if err := feast.createOrDeleteHPA(); err != nil {
 		return err
 	}
 	if err := feast.deployClient(); err != nil {
@@ -146,6 +92,69 @@ func (feast *FeastServices) Deploy() error {
 	}
 	if err := feast.deployCronJob(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// reconcileServices validates persistence and deploys or removes each feast
+// service type based on the applied spec.
+func (feast *FeastServices) reconcileServices() error {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+
+	if feast.isOfflineStore() {
+		if err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence); err != nil {
+			return err
+		}
+		if err := feast.deployFeastServiceByType(OfflineFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(OfflineFeastType); err != nil {
+			return err
+		}
+	}
+
+	if feast.isOnlineStore() {
+		if err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence); err != nil {
+			return err
+		}
+		if err := feast.deployFeastServiceByType(OnlineFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
+			return err
+		}
+	}
+
+	if feast.isLocalRegistry() {
+		if err := feast.validateRegistryPersistence(services.Registry.Local.Persistence); err != nil {
+			return err
+		}
+		if err := feast.deployFeastServiceByType(RegistryFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(RegistryFeastType); err != nil {
+			return err
+		}
+	}
+
+	if feast.isUiServer() {
+		if err := feast.deployFeastServiceByType(UIFeastType); err != nil {
+			return err
+		}
+		if err := feast.createRoute(UIFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(UIFeastType); err != nil {
+			return err
+		}
+		if err := feast.removeRoute(UIFeastType); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -338,6 +347,8 @@ func (feast *FeastServices) createDeployment() error {
 		logger.Info("Successfully reconciled", "Deployment", deploy.Name, "operation", op)
 	}
 
+	feast.updateScalingStatus(deploy)
+
 	return nil
 }
 
@@ -381,7 +392,14 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType
 
 func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 	cr := feast.Handler.FeatureStore
+
+	// Determine replica count:
+	// - spec.replicas is set on the Deployment (defaults to 1)
+	// - When HPA is configured, replicas is left unset so the HPA controller manages it
 	replicas := deploy.Spec.Replicas
+	if desired := feast.getDesiredReplicas(); desired != nil {
+		replicas = desired
+	}
 
 	deploy.Labels = feast.getLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
@@ -634,6 +652,11 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 func (feast *FeastServices) getDeploymentStrategy() appsv1.DeploymentStrategy {
 	if feast.Handler.FeatureStore.Status.Applied.Services.DeploymentStrategy != nil {
 		return *feast.Handler.FeatureStore.Status.Applied.Services.DeploymentStrategy
+	}
+	if isScalingEnabled(feast.Handler.FeatureStore) {
+		return appsv1.DeploymentStrategy{
+			Type: appsv1.RollingUpdateDeploymentStrategyType,
+		}
 	}
 	return appsv1.DeploymentStrategy{
 		Type: appsv1.RecreateDeploymentStrategyType,
