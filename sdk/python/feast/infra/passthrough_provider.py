@@ -46,6 +46,7 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.rate_limiter import TokenBucketRateLimiter  # provider-level write limiter
 from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.sorted_feature_view import SortedFeatureView
@@ -62,15 +63,14 @@ DEFAULT_BATCH_SIZE = 10_000
 
 
 class PassthroughProvider(Provider):
-    """
-    The passthrough provider delegates all operations to the underlying online and offline stores.
-    """
+    """The passthrough provider delegates all operations to the underlying online and offline stores."""
 
     def __init__(self, config: RepoConfig):
         self.repo_config = config
         self._offline_store = None
         self._online_store = None
         self._batch_engine: Optional[ComputeEngine] = None
+        self._write_token_limiters: Dict[str, TokenBucketRateLimiter] = {}
 
     @property
     def online_store(self):
@@ -199,8 +199,66 @@ class PassthroughProvider(Provider):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        if self.online_store:
-            self.online_store.online_write_batch(config, table, data, progress)
+        """
+        Write data to the online store in rate-limited batches.
+        Uses TokenBucketRateLimiter to throttle writes.
+        """
+
+        # Resolve configured rate limit
+        rate_limit = self._resolve_write_rate_limit(config, table)
+        fv_name = getattr(table, "name", "global") if table is not None else "global"
+        limiter_key = f"{config.project}:{fv_name}"
+
+        # If rate limit is 0 or unset, bypass limiter
+        if rate_limit <= 0:
+            if self.online_store:
+                self.online_store.online_write_batch(config, table, data, progress)
+            return
+
+        # Create or reuse per-feature-view limiter
+        # Calculate percent_usage based on available CPU cores
+        # More processes = lower percent_usage to reduce token contention
+        num_spark_driver_cores = int(os.environ.get("SPARK_DRIVER_CORES", 1))
+
+        if num_spark_driver_cores > 2:
+            num_processes = num_spark_driver_cores - 1
+            # Decrease percent_usage as processes increase to allow fair sharing
+            # 2 processes -> 0.50, 4 processes -> 0.40, 8 processes -> 0.30
+            percent_usage = max(0.6 / (num_processes / 2), 0.25)
+        else:
+            # Single process - can use more tokens per batch
+            percent_usage = 0.9
+
+        interval = 1.0  # seconds
+
+        limiter = self._write_token_limiters.get(limiter_key)
+        if limiter is None or limiter.rate != rate_limit:
+            limiter = TokenBucketRateLimiter(
+                rate=rate_limit, interval=interval, percent_usage=percent_usage
+            )
+            self._write_token_limiters[limiter_key] = limiter
+            logger.info(
+                f"[Limiter] Initialized rate limiter for {limiter_key} at {rate_limit} writes/sec"
+            )
+
+        # Process data in dynamically sized batches based on token availability
+        total_records = len(data)
+        index = 0
+
+        while index < total_records:
+            available = limiter.get_available_tokens()
+            # Ensure we always make progress (at least 1 record)
+            batch_size = min(max(available, 1), total_records - index)
+
+            batch = data[index : index + batch_size]
+            limiter.wait_for_tokens(len(batch))  # blocks until tokens available
+
+            if self.online_store:
+                self.online_store.online_write_batch(config, table, batch, progress)
+
+            index += batch_size
+            if progress:
+                progress(batch_size)
 
     async def online_write_batch_async(
         self,
@@ -215,6 +273,41 @@ class PassthroughProvider(Provider):
             await self.online_store.online_write_batch_async(
                 config, table, data, progress
             )
+
+    def _resolve_write_rate_limit(
+        self,
+        config: RepoConfig,
+        table: Union[FeatureView, BaseFeatureView, OnDemandFeatureView],
+    ) -> int:
+        """Resolve write_rate_limit using precedence:
+        1. feature view tag 'write_rate_limit'
+        2. config.online_store.write_rate_limit
+        3. fallback 0
+        """
+        # 1) Feature view tag override
+        if table is not None and hasattr(table, "tags") and table.tags:
+            tag_val = table.tags.get("write_rate_limit")
+            if tag_val is not None:
+                try:
+                    return int(tag_val)
+                except Exception:
+                    logger.warning(
+                        "Invalid write_rate_limit on feature view %s: %s; falling back",
+                        getattr(table, "name", "<unknown>"),
+                        tag_val,
+                    )
+
+        # 2) Project / online store level config
+        try:
+            if config.online_store and hasattr(config.online_store, "write_rate_limit"):
+                return int(getattr(config.online_store, "write_rate_limit") or 0)
+        except Exception:
+            logger.warning(
+                "Invalid write_rate_limit on online_store config; falling back to 0"
+            )
+
+        # 3) Fallback to 0 (no rate limit)
+        return 0
 
     def offline_write_batch(
         self,
@@ -407,7 +500,6 @@ class PassthroughProvider(Provider):
 
             # Input table is split into smaller chunks and processed in parallel
             chunks = self.split_table(num_processes, table)
-
             chunks_to_parallelize = [
                 (chunk, feature_view, join_keys) for chunk in chunks
             ]
@@ -465,7 +557,6 @@ class PassthroughProvider(Provider):
             table = _run_pyarrow_field_mapping(
                 table, feature_view.batch_source.field_mapping
             )
-
         self.offline_write_batch(self.repo_config, feature_view, table, None)
 
     def materialize_single_feature_view(
@@ -544,7 +635,6 @@ class PassthroughProvider(Provider):
             full_feature_names=full_feature_names,
             **kwargs,
         )
-
         return job
 
     def retrieve_saved_dataset(
@@ -554,10 +644,8 @@ class PassthroughProvider(Provider):
             ref.replace(":", "__") if dataset.full_feature_names else ref.split(":")[1]
             for ref in dataset.features
         ]
-
         # ToDo: replace hardcoded value
         event_ts_column = "event_timestamp"
-
         return self.offline_store.pull_all_from_table_or_query(
             config=config,
             data_source=dataset.storage.to_data_source(),
@@ -578,7 +666,6 @@ class PassthroughProvider(Provider):
         assert feature_service.logging_config is not None, (
             "Logging should be configured for the feature service before calling this function"
         )
-
         self.offline_store.write_logged_features(
             config=config,
             data=logs,
@@ -598,7 +685,6 @@ class PassthroughProvider(Provider):
         assert feature_service.logging_config is not None, (
             "Logging should be configured for the feature service before calling this function"
         )
-
         logging_source = FeatureServiceLoggingSource(feature_service, config.project)
         schema = logging_source.get_schema(registry)
         logging_config = feature_service.logging_config
