@@ -720,6 +720,14 @@ spec:
                 x-kubernetes-validations:
                 - message: One selection required between init or git.
                   rule: '[has(self.git), has(self.init)].exists_one(c, c)'
+              replicas:
+                default: 1
+                description: |-
+                  Replicas is the desired number of pod replicas. Used by the scale sub-resource.
+                  Mutually exclusive with services.
+                format: int32
+                minimum: 1
+                type: integer
               services:
                 description: FeatureStoreServices defines the desired feast services.
                   An ephemeral onlineStore feature server is deployed by default.
@@ -2361,6 +2369,578 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  scaling:
+                    description: Scaling configures horizontal scaling for the FeatureStore
+                      deployment (e.g. HPA autoscaling).
+                    properties:
+                      autoscaling:
+                        description: |-
+                          Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
+                          Mutually exclusive with spec.replicas.
+                        properties:
+                          behavior:
+                            description: Behavior configures the scaling behavior
+                              of the target.
+                            properties:
+                              scaleDown:
+                                description: scaleDown is scaling policy for scaling
+                                  Down.
+                                properties:
+                                  policies:
+                                    description: policies is a list of potential scaling
+                                      polices which can be used during scaling.
+                                    items:
+                                      description: HPAScalingPolicy is a single policy
+                                        which must hold true for a specified past
+                                        interval.
+                                      properties:
+                                        periodSeconds:
+                                          description: periodSeconds specifies the
+                                            window of time for which the policy should
+                                            hold true.
+                                          format: int32
+                                          type: integer
+                                        type:
+                                          description: type is used to specify the
+                                            scaling policy.
+                                          type: string
+                                        value:
+                                          description: |-
+                                            value contains the amount of change which is permitted by the policy.
+                                            It must be greater than zero
+                                          format: int32
+                                          type: integer
+                                      required:
+                                      - periodSeconds
+                                      - type
+                                      - value
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                  selectPolicy:
+                                    description: |-
+                                      selectPolicy is used to specify which policy should be used.
+                                      If not set, the default value Max is used.
+                                    type: string
+                                  stabilizationWindowSeconds:
+                                    description: |-
+                                      stabilizationWindowSeconds is the number of seconds for which past recommendations should be
+                                      considered while scaling up
+                                    format: int32
+                                    type: integer
+                                type: object
+                              scaleUp:
+                                description: scaleUp is scaling policy for scaling
+                                  Up.
+                                properties:
+                                  policies:
+                                    description: policies is a list of potential scaling
+                                      polices which can be used during scaling.
+                                    items:
+                                      description: HPAScalingPolicy is a single policy
+                                        which must hold true for a specified past
+                                        interval.
+                                      properties:
+                                        periodSeconds:
+                                          description: periodSeconds specifies the
+                                            window of time for which the policy should
+                                            hold true.
+                                          format: int32
+                                          type: integer
+                                        type:
+                                          description: type is used to specify the
+                                            scaling policy.
+                                          type: string
+                                        value:
+                                          description: |-
+                                            value contains the amount of change which is permitted by the policy.
+                                            It must be greater than zero
+                                          format: int32
+                                          type: integer
+                                      required:
+                                      - periodSeconds
+                                      - type
+                                      - value
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                  selectPolicy:
+                                    description: |-
+                                      selectPolicy is used to specify which policy should be used.
+                                      If not set, the default value Max is used.
+                                    type: string
+                                  stabilizationWindowSeconds:
+                                    description: |-
+                                      stabilizationWindowSeconds is the number of seconds for which past recommendations should be
+                                      considered while scaling up
+                                    format: int32
+                                    type: integer
+                                type: object
+                            type: object
+                          maxReplicas:
+                            description: MaxReplicas is the upper limit for the number
+                              of replicas. Required.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          metrics:
+                            description: Metrics contains the specifications for which
+                              to use to calculate the desired replica count.
+                            items:
+                              description: |-
+                                MetricSpec specifies how to scale based on a single metric
+                                (only `type` and one other matching field should be set at on
+                              properties:
+                                containerResource:
+                                  description: |-
+                                    containerResource refers to a resource metric (such as those specified in
+                                    requests and limits) known to Kubernetes descr
+                                  properties:
+                                    container:
+                                      description: container is the name of the container
+                                        in the pods of the scaling target
+                                      type: string
+                                    name:
+                                      description: name is the name of the resource
+                                        in question.
+                                      type: string
+                                    target:
+                                      description: target specifies the target value
+                                        for the given metric
+                                      properties:
+                                        averageUtilization:
+                                          description: "averageUtilization is the
+                                            target value of the average of the\nresource
+                                            metric across all relevant pods, represented
+                                            as a "
+                                          format: int32
+                                          type: integer
+                                        averageValue:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: |-
+                                            averageValue is the target value of the average of the
+                                            metric across all relevant pods (as a quantity)
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                        type:
+                                          description: type represents whether the
+                                            metric type is Utilization, Value, or
+                                            AverageValue
+                                          type: string
+                                        value:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: value is the target value of
+                                            the metric (as a quantity).
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                      required:
+                                      - type
+                                      type: object
+                                  required:
+                                  - container
+                                  - name
+                                  - target
+                                  type: object
+                                external:
+                                  description: |-
+                                    external refers to a global metric that is not associated
+                                    with any Kubernetes object.
+                                  properties:
+                                    metric:
+                                      description: metric identifies the target metric
+                                        by name and selector
+                                      properties:
+                                        name:
+                                          description: name is the name of the given
+                                            metric
+                                          type: string
+                                        selector:
+                                          description: "selector is the string-encoded
+                                            form of a standard kubernetes label selector
+                                            for the given metric\nWhen set, it is
+                                            passed "
+                                          properties:
+                                            matchExpressions:
+                                              description: matchExpressions is a list
+                                                of label selector requirements. The
+                                                requirements are ANDed.
+                                              items:
+                                                description: |-
+                                                  A label selector requirement is a selector that contains values, a key, and an operator that
+                                                  relates the key and values.
+                                                properties:
+                                                  key:
+                                                    description: key is the label
+                                                      key that the selector applies
+                                                      to.
+                                                    type: string
+                                                  operator:
+                                                    description: |-
+                                                      operator represents a key's relationship to a set of values.
+                                                      Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                    type: string
+                                                  values:
+                                                    description: |-
+                                                      values is an array of string values. If the operator is In or NotIn,
+                                                      the values array must be non-empty.
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                            matchLabels:
+                                              additionalProperties:
+                                                type: string
+                                              description: matchLabels is a map of
+                                                {key,value} pairs.
+                                              type: object
+                                          type: object
+                                          x-kubernetes-map-type: atomic
+                                      required:
+                                      - name
+                                      type: object
+                                    target:
+                                      description: target specifies the target value
+                                        for the given metric
+                                      properties:
+                                        averageUtilization:
+                                          description: "averageUtilization is the
+                                            target value of the average of the\nresource
+                                            metric across all relevant pods, represented
+                                            as a "
+                                          format: int32
+                                          type: integer
+                                        averageValue:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: |-
+                                            averageValue is the target value of the average of the
+                                            metric across all relevant pods (as a quantity)
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                        type:
+                                          description: type represents whether the
+                                            metric type is Utilization, Value, or
+                                            AverageValue
+                                          type: string
+                                        value:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: value is the target value of
+                                            the metric (as a quantity).
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                      required:
+                                      - type
+                                      type: object
+                                  required:
+                                  - metric
+                                  - target
+                                  type: object
+                                object:
+                                  description: |-
+                                    object refers to a metric describing a single kubernetes object
+                                    (for example, hits-per-second on an Ingress object).
+                                  properties:
+                                    describedObject:
+                                      description: describedObject specifies the descriptions
+                                        of a object,such as kind,name apiVersion
+                                      properties:
+                                        apiVersion:
+                                          description: apiVersion is the API version
+                                            of the referent
+                                          type: string
+                                        kind:
+                                          description: 'kind is the kind of the referent;
+                                            More info: https://git.k8s.'
+                                          type: string
+                                        name:
+                                          description: 'name is the name of the referent;
+                                            More info: https://kubernetes.'
+                                          type: string
+                                      required:
+                                      - kind
+                                      - name
+                                      type: object
+                                    metric:
+                                      description: metric identifies the target metric
+                                        by name and selector
+                                      properties:
+                                        name:
+                                          description: name is the name of the given
+                                            metric
+                                          type: string
+                                        selector:
+                                          description: "selector is the string-encoded
+                                            form of a standard kubernetes label selector
+                                            for the given metric\nWhen set, it is
+                                            passed "
+                                          properties:
+                                            matchExpressions:
+                                              description: matchExpressions is a list
+                                                of label selector requirements. The
+                                                requirements are ANDed.
+                                              items:
+                                                description: |-
+                                                  A label selector requirement is a selector that contains values, a key, and an operator that
+                                                  relates the key and values.
+                                                properties:
+                                                  key:
+                                                    description: key is the label
+                                                      key that the selector applies
+                                                      to.
+                                                    type: string
+                                                  operator:
+                                                    description: |-
+                                                      operator represents a key's relationship to a set of values.
+                                                      Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                    type: string
+                                                  values:
+                                                    description: |-
+                                                      values is an array of string values. If the operator is In or NotIn,
+                                                      the values array must be non-empty.
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                            matchLabels:
+                                              additionalProperties:
+                                                type: string
+                                              description: matchLabels is a map of
+                                                {key,value} pairs.
+                                              type: object
+                                          type: object
+                                          x-kubernetes-map-type: atomic
+                                      required:
+                                      - name
+                                      type: object
+                                    target:
+                                      description: target specifies the target value
+                                        for the given metric
+                                      properties:
+                                        averageUtilization:
+                                          description: "averageUtilization is the
+                                            target value of the average of the\nresource
+                                            metric across all relevant pods, represented
+                                            as a "
+                                          format: int32
+                                          type: integer
+                                        averageValue:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: |-
+                                            averageValue is the target value of the average of the
+                                            metric across all relevant pods (as a quantity)
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                        type:
+                                          description: type represents whether the
+                                            metric type is Utilization, Value, or
+                                            AverageValue
+                                          type: string
+                                        value:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: value is the target value of
+                                            the metric (as a quantity).
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                      required:
+                                      - type
+                                      type: object
+                                  required:
+                                  - describedObject
+                                  - metric
+                                  - target
+                                  type: object
+                                pods:
+                                  description: |-
+                                    pods refers to a metric describing each pod in the current scale target
+                                    (for example, transactions-processed-per-second)
+                                  properties:
+                                    metric:
+                                      description: metric identifies the target metric
+                                        by name and selector
+                                      properties:
+                                        name:
+                                          description: name is the name of the given
+                                            metric
+                                          type: string
+                                        selector:
+                                          description: "selector is the string-encoded
+                                            form of a standard kubernetes label selector
+                                            for the given metric\nWhen set, it is
+                                            passed "
+                                          properties:
+                                            matchExpressions:
+                                              description: matchExpressions is a list
+                                                of label selector requirements. The
+                                                requirements are ANDed.
+                                              items:
+                                                description: |-
+                                                  A label selector requirement is a selector that contains values, a key, and an operator that
+                                                  relates the key and values.
+                                                properties:
+                                                  key:
+                                                    description: key is the label
+                                                      key that the selector applies
+                                                      to.
+                                                    type: string
+                                                  operator:
+                                                    description: |-
+                                                      operator represents a key's relationship to a set of values.
+                                                      Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                    type: string
+                                                  values:
+                                                    description: |-
+                                                      values is an array of string values. If the operator is In or NotIn,
+                                                      the values array must be non-empty.
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                            matchLabels:
+                                              additionalProperties:
+                                                type: string
+                                              description: matchLabels is a map of
+                                                {key,value} pairs.
+                                              type: object
+                                          type: object
+                                          x-kubernetes-map-type: atomic
+                                      required:
+                                      - name
+                                      type: object
+                                    target:
+                                      description: target specifies the target value
+                                        for the given metric
+                                      properties:
+                                        averageUtilization:
+                                          description: "averageUtilization is the
+                                            target value of the average of the\nresource
+                                            metric across all relevant pods, represented
+                                            as a "
+                                          format: int32
+                                          type: integer
+                                        averageValue:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: |-
+                                            averageValue is the target value of the average of the
+                                            metric across all relevant pods (as a quantity)
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                        type:
+                                          description: type represents whether the
+                                            metric type is Utilization, Value, or
+                                            AverageValue
+                                          type: string
+                                        value:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: value is the target value of
+                                            the metric (as a quantity).
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                      required:
+                                      - type
+                                      type: object
+                                  required:
+                                  - metric
+                                  - target
+                                  type: object
+                                resource:
+                                  description: |-
+                                    resource refers to a resource metric (such as those specified in
+                                    requests and limits) known to Kubernetes describing eac
+                                  properties:
+                                    name:
+                                      description: name is the name of the resource
+                                        in question.
+                                      type: string
+                                    target:
+                                      description: target specifies the target value
+                                        for the given metric
+                                      properties:
+                                        averageUtilization:
+                                          description: "averageUtilization is the
+                                            target value of the average of the\nresource
+                                            metric across all relevant pods, represented
+                                            as a "
+                                          format: int32
+                                          type: integer
+                                        averageValue:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: |-
+                                            averageValue is the target value of the average of the
+                                            metric across all relevant pods (as a quantity)
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                        type:
+                                          description: type represents whether the
+                                            metric type is Utilization, Value, or
+                                            AverageValue
+                                          type: string
+                                        value:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: value is the target value of
+                                            the metric (as a quantity).
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                      required:
+                                      - type
+                                      type: object
+                                  required:
+                                  - name
+                                  - target
+                                  type: object
+                                type:
+                                  description: type is the type of metric source.
+                                  type: string
+                              required:
+                              - type
+                              type: object
+                            type: array
+                          minReplicas:
+                            description: MinReplicas is the lower limit for the number
+                              of replicas. Defaults to 1.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                        required:
+                        - maxReplicas
+                        type: object
+                    type: object
                   securityContext:
                     description: PodSecurityContext holds pod-level security attributes
                       and common container settings.
@@ -4265,7 +4845,37 @@ spec:
                 type: object
             required:
             - feastProject
+            - replicas
             type: object
+            x-kubernetes-validations:
+            - message: replicas > 1 and services.scaling.autoscaling are mutually
+                exclusive.
+              rule: self.replicas <= 1 || !has(self.services) || !has(self.services.scaling)
+                || !has(self.services.scaling.autoscaling)
+            - message: Scaling requires DB-backed persistence for the online store.
+                Configure services.onlineStore.persistence.store when using replicas
+                > 1 or autoscaling.
+              rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                || !has(self.services.scaling.autoscaling)) || (has(self.services)
+                && has(self.services.onlineStore) && has(self.services.onlineStore.persistence)
+                && has(self.services.onlineStore.persistence.store))
+            - message: Scaling requires DB-backed persistence for the offline store.
+                Configure services.offlineStore.persistence.store when using replicas
+                > 1 or autoscaling.
+              rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                || !has(self.services.scaling.autoscaling)) || (!has(self.services)
+                || !has(self.services.offlineStore) || (has(self.services.offlineStore.persistence)
+                && has(self.services.offlineStore.persistence.store)))
+            - message: Scaling requires DB-backed or remote registry. Configure registry.local.persistence.store
+                or use a remote registry when using replicas > 1 or autoscaling. S3/GCS-backed
+                registry is also allowed.
+              rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                || !has(self.services.scaling.autoscaling)) || (has(self.services)
+                && has(self.services.registry) && (has(self.services.registry.remote)
+                || (has(self.services.registry.local) && has(self.services.registry.local.persistence)
+                && (has(self.services.registry.local.persistence.store) || (has(self.services.registry.local.persistence.file)
+                && has(self.services.registry.local.persistence.file.path) && (self.services.registry.local.persistence.file.path.startsWith('s3://')
+                || self.services.registry.local.persistence.file.path.startsWith('gs://')))))))
           status:
             description: FeatureStoreStatus defines the observed state of FeatureStore
             properties:
@@ -4953,6 +5563,14 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required between init or git.
                       rule: '[has(self.git), has(self.init)].exists_one(c, c)'
+                  replicas:
+                    default: 1
+                    description: |-
+                      Replicas is the desired number of pod replicas. Used by the scale sub-resource.
+                      Mutually exclusive with services.
+                    format: int32
+                    minimum: 1
+                    type: integer
                   services:
                     description: FeatureStoreServices defines the desired feast services.
                       An ephemeral onlineStore feature server is deployed by default.
@@ -6627,6 +7245,581 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      scaling:
+                        description: Scaling configures horizontal scaling for the
+                          FeatureStore deployment (e.g. HPA autoscaling).
+                        properties:
+                          autoscaling:
+                            description: |-
+                              Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
+                              Mutually exclusive with spec.replicas.
+                            properties:
+                              behavior:
+                                description: Behavior configures the scaling behavior
+                                  of the target.
+                                properties:
+                                  scaleDown:
+                                    description: scaleDown is scaling policy for scaling
+                                      Down.
+                                    properties:
+                                      policies:
+                                        description: policies is a list of potential
+                                          scaling polices which can be used during
+                                          scaling.
+                                        items:
+                                          description: HPAScalingPolicy is a single
+                                            policy which must hold true for a specified
+                                            past interval.
+                                          properties:
+                                            periodSeconds:
+                                              description: periodSeconds specifies
+                                                the window of time for which the policy
+                                                should hold true.
+                                              format: int32
+                                              type: integer
+                                            type:
+                                              description: type is used to specify
+                                                the scaling policy.
+                                              type: string
+                                            value:
+                                              description: |-
+                                                value contains the amount of change which is permitted by the policy.
+                                                It must be greater than zero
+                                              format: int32
+                                              type: integer
+                                          required:
+                                          - periodSeconds
+                                          - type
+                                          - value
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      selectPolicy:
+                                        description: |-
+                                          selectPolicy is used to specify which policy should be used.
+                                          If not set, the default value Max is used.
+                                        type: string
+                                      stabilizationWindowSeconds:
+                                        description: |-
+                                          stabilizationWindowSeconds is the number of seconds for which past recommendations should be
+                                          considered while scaling up
+                                        format: int32
+                                        type: integer
+                                    type: object
+                                  scaleUp:
+                                    description: scaleUp is scaling policy for scaling
+                                      Up.
+                                    properties:
+                                      policies:
+                                        description: policies is a list of potential
+                                          scaling polices which can be used during
+                                          scaling.
+                                        items:
+                                          description: HPAScalingPolicy is a single
+                                            policy which must hold true for a specified
+                                            past interval.
+                                          properties:
+                                            periodSeconds:
+                                              description: periodSeconds specifies
+                                                the window of time for which the policy
+                                                should hold true.
+                                              format: int32
+                                              type: integer
+                                            type:
+                                              description: type is used to specify
+                                                the scaling policy.
+                                              type: string
+                                            value:
+                                              description: |-
+                                                value contains the amount of change which is permitted by the policy.
+                                                It must be greater than zero
+                                              format: int32
+                                              type: integer
+                                          required:
+                                          - periodSeconds
+                                          - type
+                                          - value
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      selectPolicy:
+                                        description: |-
+                                          selectPolicy is used to specify which policy should be used.
+                                          If not set, the default value Max is used.
+                                        type: string
+                                      stabilizationWindowSeconds:
+                                        description: |-
+                                          stabilizationWindowSeconds is the number of seconds for which past recommendations should be
+                                          considered while scaling up
+                                        format: int32
+                                        type: integer
+                                    type: object
+                                type: object
+                              maxReplicas:
+                                description: MaxReplicas is the upper limit for the
+                                  number of replicas. Required.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              metrics:
+                                description: Metrics contains the specifications for
+                                  which to use to calculate the desired replica count.
+                                items:
+                                  description: |-
+                                    MetricSpec specifies how to scale based on a single metric
+                                    (only `type` and one other matching field should be set at on
+                                  properties:
+                                    containerResource:
+                                      description: |-
+                                        containerResource refers to a resource metric (such as those specified in
+                                        requests and limits) known to Kubernetes descr
+                                      properties:
+                                        container:
+                                          description: container is the name of the
+                                            container in the pods of the scaling target
+                                          type: string
+                                        name:
+                                          description: name is the name of the resource
+                                            in question.
+                                          type: string
+                                        target:
+                                          description: target specifies the target
+                                            value for the given metric
+                                          properties:
+                                            averageUtilization:
+                                              description: "averageUtilization is
+                                                the target value of the average of
+                                                the\nresource metric across all relevant
+                                                pods, represented as a "
+                                              format: int32
+                                              type: integer
+                                            averageValue:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: |-
+                                                averageValue is the target value of the average of the
+                                                metric across all relevant pods (as a quantity)
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            type:
+                                              description: type represents whether
+                                                the metric type is Utilization, Value,
+                                                or AverageValue
+                                              type: string
+                                            value:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: value is the target value
+                                                of the metric (as a quantity).
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                          required:
+                                          - type
+                                          type: object
+                                      required:
+                                      - container
+                                      - name
+                                      - target
+                                      type: object
+                                    external:
+                                      description: |-
+                                        external refers to a global metric that is not associated
+                                        with any Kubernetes object.
+                                      properties:
+                                        metric:
+                                          description: metric identifies the target
+                                            metric by name and selector
+                                          properties:
+                                            name:
+                                              description: name is the name of the
+                                                given metric
+                                              type: string
+                                            selector:
+                                              description: "selector is the string-encoded
+                                                form of a standard kubernetes label
+                                                selector for the given metric\nWhen
+                                                set, it is passed "
+                                              properties:
+                                                matchExpressions:
+                                                  description: matchExpressions is
+                                                    a list of label selector requirements.
+                                                    The requirements are ANDed.
+                                                  items:
+                                                    description: |-
+                                                      A label selector requirement is a selector that contains values, a key, and an operator that
+                                                      relates the key and values.
+                                                    properties:
+                                                      key:
+                                                        description: key is the label
+                                                          key that the selector applies
+                                                          to.
+                                                        type: string
+                                                      operator:
+                                                        description: |-
+                                                          operator represents a key's relationship to a set of values.
+                                                          Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                        type: string
+                                                      values:
+                                                        description: |-
+                                                          values is an array of string values. If the operator is In or NotIn,
+                                                          the values array must be non-empty.
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                        x-kubernetes-list-type: atomic
+                                                    required:
+                                                    - key
+                                                    - operator
+                                                    type: object
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                                matchLabels:
+                                                  additionalProperties:
+                                                    type: string
+                                                  description: matchLabels is a map
+                                                    of {key,value} pairs.
+                                                  type: object
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                          required:
+                                          - name
+                                          type: object
+                                        target:
+                                          description: target specifies the target
+                                            value for the given metric
+                                          properties:
+                                            averageUtilization:
+                                              description: "averageUtilization is
+                                                the target value of the average of
+                                                the\nresource metric across all relevant
+                                                pods, represented as a "
+                                              format: int32
+                                              type: integer
+                                            averageValue:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: |-
+                                                averageValue is the target value of the average of the
+                                                metric across all relevant pods (as a quantity)
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            type:
+                                              description: type represents whether
+                                                the metric type is Utilization, Value,
+                                                or AverageValue
+                                              type: string
+                                            value:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: value is the target value
+                                                of the metric (as a quantity).
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                          required:
+                                          - type
+                                          type: object
+                                      required:
+                                      - metric
+                                      - target
+                                      type: object
+                                    object:
+                                      description: |-
+                                        object refers to a metric describing a single kubernetes object
+                                        (for example, hits-per-second on an Ingress object).
+                                      properties:
+                                        describedObject:
+                                          description: describedObject specifies the
+                                            descriptions of a object,such as kind,name
+                                            apiVersion
+                                          properties:
+                                            apiVersion:
+                                              description: apiVersion is the API version
+                                                of the referent
+                                              type: string
+                                            kind:
+                                              description: 'kind is the kind of the
+                                                referent; More info: https://git.k8s.'
+                                              type: string
+                                            name:
+                                              description: 'name is the name of the
+                                                referent; More info: https://kubernetes.'
+                                              type: string
+                                          required:
+                                          - kind
+                                          - name
+                                          type: object
+                                        metric:
+                                          description: metric identifies the target
+                                            metric by name and selector
+                                          properties:
+                                            name:
+                                              description: name is the name of the
+                                                given metric
+                                              type: string
+                                            selector:
+                                              description: "selector is the string-encoded
+                                                form of a standard kubernetes label
+                                                selector for the given metric\nWhen
+                                                set, it is passed "
+                                              properties:
+                                                matchExpressions:
+                                                  description: matchExpressions is
+                                                    a list of label selector requirements.
+                                                    The requirements are ANDed.
+                                                  items:
+                                                    description: |-
+                                                      A label selector requirement is a selector that contains values, a key, and an operator that
+                                                      relates the key and values.
+                                                    properties:
+                                                      key:
+                                                        description: key is the label
+                                                          key that the selector applies
+                                                          to.
+                                                        type: string
+                                                      operator:
+                                                        description: |-
+                                                          operator represents a key's relationship to a set of values.
+                                                          Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                        type: string
+                                                      values:
+                                                        description: |-
+                                                          values is an array of string values. If the operator is In or NotIn,
+                                                          the values array must be non-empty.
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                        x-kubernetes-list-type: atomic
+                                                    required:
+                                                    - key
+                                                    - operator
+                                                    type: object
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                                matchLabels:
+                                                  additionalProperties:
+                                                    type: string
+                                                  description: matchLabels is a map
+                                                    of {key,value} pairs.
+                                                  type: object
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                          required:
+                                          - name
+                                          type: object
+                                        target:
+                                          description: target specifies the target
+                                            value for the given metric
+                                          properties:
+                                            averageUtilization:
+                                              description: "averageUtilization is
+                                                the target value of the average of
+                                                the\nresource metric across all relevant
+                                                pods, represented as a "
+                                              format: int32
+                                              type: integer
+                                            averageValue:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: |-
+                                                averageValue is the target value of the average of the
+                                                metric across all relevant pods (as a quantity)
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            type:
+                                              description: type represents whether
+                                                the metric type is Utilization, Value,
+                                                or AverageValue
+                                              type: string
+                                            value:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: value is the target value
+                                                of the metric (as a quantity).
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                          required:
+                                          - type
+                                          type: object
+                                      required:
+                                      - describedObject
+                                      - metric
+                                      - target
+                                      type: object
+                                    pods:
+                                      description: |-
+                                        pods refers to a metric describing each pod in the current scale target
+                                        (for example, transactions-processed-per-second)
+                                      properties:
+                                        metric:
+                                          description: metric identifies the target
+                                            metric by name and selector
+                                          properties:
+                                            name:
+                                              description: name is the name of the
+                                                given metric
+                                              type: string
+                                            selector:
+                                              description: "selector is the string-encoded
+                                                form of a standard kubernetes label
+                                                selector for the given metric\nWhen
+                                                set, it is passed "
+                                              properties:
+                                                matchExpressions:
+                                                  description: matchExpressions is
+                                                    a list of label selector requirements.
+                                                    The requirements are ANDed.
+                                                  items:
+                                                    description: |-
+                                                      A label selector requirement is a selector that contains values, a key, and an operator that
+                                                      relates the key and values.
+                                                    properties:
+                                                      key:
+                                                        description: key is the label
+                                                          key that the selector applies
+                                                          to.
+                                                        type: string
+                                                      operator:
+                                                        description: |-
+                                                          operator represents a key's relationship to a set of values.
+                                                          Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                        type: string
+                                                      values:
+                                                        description: |-
+                                                          values is an array of string values. If the operator is In or NotIn,
+                                                          the values array must be non-empty.
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                        x-kubernetes-list-type: atomic
+                                                    required:
+                                                    - key
+                                                    - operator
+                                                    type: object
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                                matchLabels:
+                                                  additionalProperties:
+                                                    type: string
+                                                  description: matchLabels is a map
+                                                    of {key,value} pairs.
+                                                  type: object
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                          required:
+                                          - name
+                                          type: object
+                                        target:
+                                          description: target specifies the target
+                                            value for the given metric
+                                          properties:
+                                            averageUtilization:
+                                              description: "averageUtilization is
+                                                the target value of the average of
+                                                the\nresource metric across all relevant
+                                                pods, represented as a "
+                                              format: int32
+                                              type: integer
+                                            averageValue:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: |-
+                                                averageValue is the target value of the average of the
+                                                metric across all relevant pods (as a quantity)
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            type:
+                                              description: type represents whether
+                                                the metric type is Utilization, Value,
+                                                or AverageValue
+                                              type: string
+                                            value:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: value is the target value
+                                                of the metric (as a quantity).
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                          required:
+                                          - type
+                                          type: object
+                                      required:
+                                      - metric
+                                      - target
+                                      type: object
+                                    resource:
+                                      description: |-
+                                        resource refers to a resource metric (such as those specified in
+                                        requests and limits) known to Kubernetes describing eac
+                                      properties:
+                                        name:
+                                          description: name is the name of the resource
+                                            in question.
+                                          type: string
+                                        target:
+                                          description: target specifies the target
+                                            value for the given metric
+                                          properties:
+                                            averageUtilization:
+                                              description: "averageUtilization is
+                                                the target value of the average of
+                                                the\nresource metric across all relevant
+                                                pods, represented as a "
+                                              format: int32
+                                              type: integer
+                                            averageValue:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: |-
+                                                averageValue is the target value of the average of the
+                                                metric across all relevant pods (as a quantity)
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            type:
+                                              description: type represents whether
+                                                the metric type is Utilization, Value,
+                                                or AverageValue
+                                              type: string
+                                            value:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              description: value is the target value
+                                                of the metric (as a quantity).
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                          required:
+                                          - type
+                                          type: object
+                                      required:
+                                      - name
+                                      - target
+                                      type: object
+                                    type:
+                                      description: type is the type of metric source.
+                                      type: string
+                                  required:
+                                  - type
+                                  type: object
+                                type: array
+                              minReplicas:
+                                description: MinReplicas is the lower limit for the
+                                  number of replicas. Defaults to 1.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                            required:
+                            - maxReplicas
+                            type: object
+                        type: object
                       securityContext:
                         description: PodSecurityContext holds pod-level security attributes
                           and common container settings.
@@ -8547,7 +9740,39 @@ spec:
                     type: object
                 required:
                 - feastProject
+                - replicas
                 type: object
+                x-kubernetes-validations:
+                - message: replicas > 1 and services.scaling.autoscaling are mutually
+                    exclusive.
+                  rule: self.replicas <= 1 || !has(self.services) || !has(self.services.scaling)
+                    || !has(self.services.scaling.autoscaling)
+                - message: Scaling requires DB-backed persistence for the online store.
+                    Configure services.onlineStore.persistence.store when using replicas
+                    > 1 or autoscaling.
+                  rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                    || !has(self.services.scaling.autoscaling)) || (has(self.services)
+                    && has(self.services.onlineStore) && has(self.services.onlineStore.persistence)
+                    && has(self.services.onlineStore.persistence.store))
+                - message: Scaling requires DB-backed persistence for the offline
+                    store. Configure services.offlineStore.persistence.store when
+                    using replicas > 1 or autoscaling.
+                  rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                    || !has(self.services.scaling.autoscaling)) || (!has(self.services)
+                    || !has(self.services.offlineStore) || (has(self.services.offlineStore.persistence)
+                    && has(self.services.offlineStore.persistence.store)))
+                - message: Scaling requires DB-backed or remote registry. Configure
+                    registry.local.persistence.store or use a remote registry when
+                    using replicas > 1 or autoscaling. S3/GCS-backed registry is also
+                    allowed.
+                  rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
+                    || !has(self.services.scaling.autoscaling)) || (has(self.services)
+                    && has(self.services.registry) && (has(self.services.registry.remote)
+                    || (has(self.services.registry.local) && has(self.services.registry.local.persistence)
+                    && (has(self.services.registry.local.persistence.store) || (has(self.services.registry.local.persistence.file)
+                    && has(self.services.registry.local.persistence.file.path) &&
+                    (self.services.registry.local.persistence.file.path.startsWith('s3://')
+                    || self.services.registry.local.persistence.file.path.startsWith('gs://')))))))
               clientConfigMap:
                 description: ConfigMap in this namespace containing a client `feature_store.yaml`
                   for this feast deployment
@@ -8612,6 +9837,28 @@ spec:
                 type: string
               phase:
                 type: string
+              replicas:
+                description: Replicas is the current number of ready pod replicas
+                  (used by the scale sub-resource).
+                format: int32
+                type: integer
+              scalingStatus:
+                description: ScalingStatus reports the current scaling state of the
+                  FeatureStore deployment.
+                properties:
+                  currentReplicas:
+                    description: CurrentReplicas is the current number of pod replicas.
+                    format: int32
+                    type: integer
+                  desiredReplicas:
+                    description: DesiredReplicas is the desired number of pod replicas.
+                    format: int32
+                    type: integer
+                type: object
+              selector:
+                description: Selector is the label selector for pods managed by the
+                  FeatureStore deployment (used by the scale sub-resource).
+                type: string
               serviceHostnames:
                 description: ServiceHostnames defines the service hostnames in the
                   format of <domain>:<port>, e.g. example.svc.cluster.local:80
@@ -8632,6 +9879,10 @@ spec:
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
       status: {}
   - additionalPrinterColumns:
     - jsonPath: .status.phase
@@ -17325,6 +18576,18 @@ rules:
   - tokenreviews
   verbs:
   - create
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - batch
   resources:
