@@ -181,14 +181,14 @@ func convertBehavior(behavior *autoscalingv2.HorizontalPodAutoscalerBehavior) *h
 	return result
 }
 
-// createOrDeletePDB reconciles the PodDisruptionBudget for the FeatureStore
-// deployment using Server-Side Apply. If PDB is not configured or scaling is
-// not enabled, any existing PDB is deleted.
-func (feast *FeastServices) createOrDeletePDB() error {
+// applyOrDeletePDB reconciles the PodDisruptionBudget for the FeatureStore
+// deployment using Server-Side Apply. If PodDisruptionBudgets is not configured
+// or scaling is not enabled, any existing PDB is deleted.
+func (feast *FeastServices) applyOrDeletePDB() error {
 	cr := feast.Handler.FeatureStore
 	services := cr.Status.Applied.Services
 
-	if services == nil || services.PDB == nil || !isScalingEnabled(cr) {
+	if services == nil || services.PodDisruptionBudgets == nil || !isScalingEnabled(cr) {
 		pdb := &policyv1.PodDisruptionBudget{ObjectMeta: feast.GetObjectMeta()}
 		pdb.SetGroupVersionKind(policyv1.SchemeGroupVersion.WithKind("PodDisruptionBudget"))
 		return feast.Handler.DeleteOwnedFeastObj(pdb)
@@ -216,7 +216,7 @@ func (feast *FeastServices) createOrDeletePDB() error {
 // configuration for Server-Side Apply.
 func (feast *FeastServices) buildPDBApplyConfig() *pdbac.PodDisruptionBudgetApplyConfiguration {
 	cr := feast.Handler.FeatureStore
-	pdbConfig := cr.Status.Applied.Services.PDB
+	pdbConfig := cr.Status.Applied.Services.PodDisruptionBudgets
 	objMeta := feast.GetObjectMeta()
 
 	pdb := pdbac.PodDisruptionBudget(objMeta.Name, objMeta.Namespace).

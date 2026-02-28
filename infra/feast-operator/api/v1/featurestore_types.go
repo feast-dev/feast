@@ -315,10 +315,10 @@ type FeatureStoreServices struct {
 	// Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
 	// For static replicas, use spec.replicas instead.
 	Scaling *ScalingConfig `json:"scaling,omitempty"`
-	// PDB configures a PodDisruptionBudget for the FeatureStore deployment.
+	// PodDisruptionBudgets configures a PodDisruptionBudget for the FeatureStore deployment.
 	// Only created when scaling is enabled (replicas > 1 or autoscaling).
 	// +optional
-	PDB *PDBConfig `json:"pdb,omitempty"`
+	PodDisruptionBudgets *PDBConfig `json:"podDisruptionBudgets,omitempty"`
 	// TopologySpreadConstraints defines how pods are spread across topology domains.
 	// When scaling is enabled and this is not set, the operator auto-injects a soft
 	// zone-spread constraint (whenUnsatisfiable: ScheduleAnyway).

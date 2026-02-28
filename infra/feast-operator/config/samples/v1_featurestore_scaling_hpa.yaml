@@ -50,7 +50,7 @@ spec:
             target:
               type: Utilization
               averageUtilization: 70
-    pdb:
+    podDisruptionBudgets:
       maxUnavailable: 1
     onlineStore:
       persistence:

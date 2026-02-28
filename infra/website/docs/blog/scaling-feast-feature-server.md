@@ -1,8 +1,8 @@
 ---
 title: Feature Server High-Availability and Auto-Scaling on Kubernetes
 description: The Feast Operator now supports horizontal scaling with static replicas, HPA autoscaling, KEDA, and high-availability features including PodDisruptionBudgets and topology spread constraints.
-date: 2026-02-27
-authors: ["Nikhil Kathole"]
+date: 2026-03-02
+authors: ["Nikhil Kathole", "Antonin Stefanutti"]
 ---
 
 # Feature Server High-Availability and Auto-Scaling on Kubernetes
@@ -79,7 +79,7 @@ spec:
             target:
               type: Utilization
               averageUtilization: 70
-    pdb:
+    podDisruptionBudgets:
       maxUnavailable: 1
     onlineStore:
       persistence:
@@ -204,7 +204,7 @@ For protection during voluntary disruptions (node drains, cluster upgrades), you
 spec:
   replicas: 3
   services:
-    pdb:
+    podDisruptionBudgets:
       maxUnavailable: 1
     onlineStore:
       # ...
@@ -275,7 +275,7 @@ Scaling is designed to work seamlessly with existing operator features:
 spec:
   replicas: 3            # static replicas (top-level)
   services:
-    pdb:                 # optional: protect against disruptions
+    podDisruptionBudgets:                 # optional: protect against disruptions
       maxUnavailable: 1
   # -- OR --
   # services:
@@ -283,7 +283,7 @@ spec:
   #     autoscaling:      # HPA
   #       minReplicas: 2
   #       maxReplicas: 10
-  #   pdb:
+  #   podDisruptionBudgets:
   #     maxUnavailable: 1
 ```
 

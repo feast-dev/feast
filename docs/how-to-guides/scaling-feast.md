@@ -86,7 +86,7 @@ spec:
             target:
               type: Utilization
               averageUtilization: 70
-    pdb:
+    podDisruptionBudgets:
       maxUnavailable: 1
     onlineStore:
       persistence:
@@ -173,10 +173,10 @@ spec:
 spec:
   replicas: 3
   services:
-    pdb:
+    podDisruptionBudgets:
       maxUnavailable: 1       # at most 1 pod unavailable during disruptions
     # -- OR --
-    # pdb:
+    # podDisruptionBudgets:
     #   minAvailable: "50%"   # at least 50% of pods must remain available
     # ...
 ```

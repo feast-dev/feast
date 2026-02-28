@@ -84,7 +84,7 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.createOrDeleteHPA(); err != nil {
 		return err
 	}
-	if err := feast.createOrDeletePDB(); err != nil {
+	if err := feast.applyOrDeletePDB(); err != nil {
 		return err
 	}
 	if err := feast.deployClient(); err != nil {

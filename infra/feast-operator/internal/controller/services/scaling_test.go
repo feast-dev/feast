@@ -30,12 +30,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-func ptrIntStr(v intstr.IntOrString) *intstr.IntOrString {
-	return &v
-}
 
 var _ = Describe("Horizontal Scaling", func() {
 	var (
@@ -64,7 +61,7 @@ var _ = Describe("Horizontal Scaling", func() {
 						Server: &feastdevv1.ServerConfigs{
 							ContainerConfigs: feastdevv1.ContainerConfigs{
 								DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-									Image: ptr("test-image"),
+									Image: ptr.To("test-image"),
 								},
 							},
 						},
@@ -83,11 +80,11 @@ var _ = Describe("Horizontal Scaling", func() {
 								ServerConfigs: feastdevv1.ServerConfigs{
 									ContainerConfigs: feastdevv1.ContainerConfigs{
 										DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-											Image: ptr("test-image"),
+											Image: ptr.To("test-image"),
 										},
 									},
 								},
-								GRPC: ptr(true),
+								GRPC: ptr.To(true),
 							},
 							Persistence: &feastdevv1.RegistryPersistence{
 								DBPersistence: &feastdevv1.RegistryDBStorePersistence{
@@ -126,12 +123,12 @@ var _ = Describe("Horizontal Scaling", func() {
 		})
 
 		It("should return false when replicas=1", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(1))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(1))
 			Expect(isScalingEnabled(featureStore)).To(BeFalse())
 		})
 
 		It("should return true when replicas > 1", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			Expect(isScalingEnabled(featureStore)).To(BeTrue())
 		})
 
@@ -171,7 +168,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-valid-db", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry:    dbRegistry,
@@ -187,7 +184,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-no-online", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						Registry: dbRegistry,
 					},
@@ -203,7 +200,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-file-online", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: &feastdevv1.OnlineStore{
 							Persistence: &feastdevv1.OnlineStorePersistence{
@@ -226,7 +223,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-file-offline", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry:    dbRegistry,
@@ -250,7 +247,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-no-registry", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 					},
@@ -266,7 +263,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-file-registry", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry: &feastdevv1.Registry{
@@ -291,7 +288,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-s3-registry", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry: &feastdevv1.Registry{
@@ -315,7 +312,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-gs-registry", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry: &feastdevv1.Registry{
@@ -339,12 +336,12 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-remote-reg", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry: &feastdevv1.Registry{
 							Remote: &feastdevv1.RemoteRegistryConfig{
-								Hostname: ptr("registry.example.com:80"),
+								Hostname: ptr.To("registry.example.com:80"),
 							},
 						},
 					},
@@ -359,7 +356,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-rep1-file", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(1)),
+					Replicas:     ptr.To(int32(1)),
 				},
 			}
 			Expect(k8sClient.Create(ctx, fs)).To(Succeed())
@@ -400,7 +397,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-online-nop", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: &feastdevv1.OnlineStore{},
 						Registry:    dbRegistry,
@@ -417,7 +414,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-mutual-excl", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						Scaling: &feastdevv1.ScalingConfig{
 							Autoscaling: &feastdevv1.AutoscalingConfig{MaxReplicas: 5},
@@ -441,7 +438,7 @@ var _ = Describe("Horizontal Scaling", func() {
 		})
 
 		It("should return static replicas when configured", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			replicas := feast.getDesiredReplicas()
 			Expect(replicas).NotTo(BeNil())
 			Expect(*replicas).To(Equal(int32(3)))
@@ -465,13 +462,13 @@ var _ = Describe("Horizontal Scaling", func() {
 		})
 
 		It("should default to RollingUpdate when scaling is enabled via replicas", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			strategy := feast.getDeploymentStrategy()
 			Expect(strategy.Type).To(Equal(appsv1.RollingUpdateDeploymentStrategyType))
 		})
 
 		It("should respect user-defined strategy even with scaling", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			featureStore.Status.Applied.Services.DeploymentStrategy = &appsv1.DeploymentStrategy{
 				Type: appsv1.RecreateDeploymentStrategyType,
 			}
@@ -486,7 +483,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 					},
 				},
@@ -502,11 +499,11 @@ var _ = Describe("Horizontal Scaling", func() {
 						ServerConfigs: feastdevv1.ServerConfigs{
 							ContainerConfigs: feastdevv1.ContainerConfigs{
 								DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-									Image: ptr("test-image"),
+									Image: ptr.To("test-image"),
 								},
 							},
 						},
-						GRPC: ptr(true),
+						GRPC: ptr.To(true),
 					},
 					Persistence: &feastdevv1.RegistryPersistence{
 						FilePersistence: &feastdevv1.RegistryFilePersistence{
@@ -519,7 +516,7 @@ var _ = Describe("Horizontal Scaling", func() {
 
 		It("should set static replicas on the deployment", func() {
 			setFilePersistence()
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 
 			deployment := feast.initFeastDeploy()
 			Expect(feast.setDeployment(deployment)).To(Succeed())
@@ -573,7 +570,7 @@ var _ = Describe("Horizontal Scaling", func() {
 		It("should build an HPA apply config with custom min replicas", func() {
 			featureStore.Status.Applied.Services.Scaling = &feastdevv1.ScalingConfig{
 				Autoscaling: &feastdevv1.AutoscalingConfig{
-					MinReplicas: ptr(int32(2)),
+					MinReplicas: ptr.To(int32(2)),
 					MaxReplicas: 10,
 				},
 			}
@@ -619,7 +616,7 @@ var _ = Describe("Horizontal Scaling", func() {
 						Name: corev1.ResourceMemory,
 						Target: autoscalingv2.MetricTarget{
 							Type:               autoscalingv2.UtilizationMetricType,
-							AverageUtilization: ptr(int32(75)),
+							AverageUtilization: ptr.To(int32(75)),
 						},
 					},
 				},
@@ -641,10 +638,10 @@ var _ = Describe("Horizontal Scaling", func() {
 	Describe("PDB Configuration", func() {
 		It("should build a PDB apply config with maxUnavailable", func() {
 			maxUnavail := intstr.FromInt(1)
-			featureStore.Status.Applied.Services.PDB = &feastdevv1.PDBConfig{
+			featureStore.Status.Applied.Services.PodDisruptionBudgets = &feastdevv1.PDBConfig{
 				MaxUnavailable: &maxUnavail,
 			}
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 
 			pdb := feast.buildPDBApplyConfig()
 			Expect(*pdb.Kind).To(Equal("PodDisruptionBudget"))
@@ -657,10 +654,10 @@ var _ = Describe("Horizontal Scaling", func() {
 
 		It("should build a PDB apply config with minAvailable", func() {
 			minAvail := intstr.FromString("50%")
-			featureStore.Status.Applied.Services.PDB = &feastdevv1.PDBConfig{
+			featureStore.Status.Applied.Services.PodDisruptionBudgets = &feastdevv1.PDBConfig{
 				MinAvailable: &minAvail,
 			}
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 
 			pdb := feast.buildPDBApplyConfig()
 			Expect(pdb.Spec.MinAvailable).NotTo(BeNil())
@@ -670,10 +667,10 @@ var _ = Describe("Horizontal Scaling", func() {
 
 		It("should set owner reference on PDB for SSA", func() {
 			maxUnavail := intstr.FromInt(1)
-			featureStore.Status.Applied.Services.PDB = &feastdevv1.PDBConfig{
+			featureStore.Status.Applied.Services.PodDisruptionBudgets = &feastdevv1.PDBConfig{
 				MaxUnavailable: &maxUnavail,
 			}
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 
 			pdb := feast.buildPDBApplyConfig()
 			Expect(pdb.OwnerReferences).To(HaveLen(1))
@@ -707,13 +704,13 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-both", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry:    dbRegistry,
-						PDB: &feastdevv1.PDBConfig{
-							MinAvailable:   ptrIntStr(intstr.FromInt(1)),
-							MaxUnavailable: ptrIntStr(intstr.FromInt(1)),
+						PodDisruptionBudgets: &feastdevv1.PDBConfig{
+							MinAvailable:   ptr.To(intstr.FromInt(1)),
+							MaxUnavailable: ptr.To(intstr.FromInt(1)),
 						},
 					},
 				},
@@ -728,11 +725,11 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-none", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
-						OnlineStore: dbOnlineStore,
-						Registry:    dbRegistry,
-						PDB:         &feastdevv1.PDBConfig{},
+						OnlineStore:          dbOnlineStore,
+						Registry:             dbRegistry,
+						PodDisruptionBudgets: &feastdevv1.PDBConfig{},
 					},
 				},
 			}
@@ -746,12 +743,12 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-maxu", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry:    dbRegistry,
-						PDB: &feastdevv1.PDBConfig{
-							MaxUnavailable: ptrIntStr(intstr.FromInt(1)),
+						PodDisruptionBudgets: &feastdevv1.PDBConfig{
+							MaxUnavailable: ptr.To(intstr.FromInt(1)),
 						},
 					},
 				},
@@ -765,12 +762,12 @@ var _ = Describe("Horizontal Scaling", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-mina", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "celtest",
-					Replicas:     ptr(int32(3)),
+					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
 						Registry:    dbRegistry,
-						PDB: &feastdevv1.PDBConfig{
-							MinAvailable: ptrIntStr(intstr.FromString("50%")),
+						PodDisruptionBudgets: &feastdevv1.PDBConfig{
+							MinAvailable: ptr.To(intstr.FromString("50%")),
 						},
 					},
 				},
@@ -782,7 +779,7 @@ var _ = Describe("Horizontal Scaling", func() {
 
 	Describe("Topology Spread", func() {
 		It("should auto-inject soft zone constraint when replicas > 1 and no explicit constraints", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 
 			podSpec := &corev1.PodSpec{}
 			feast.applyTopologySpread(podSpec)
@@ -814,7 +811,7 @@ var _ = Describe("Horizontal Scaling", func() {
 		})
 
 		It("should use user-provided constraints instead of defaults", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			featureStore.Status.Applied.Services.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{{
 				MaxSkew:           2,
 				TopologyKey:       "kubernetes.io/hostname",
@@ -832,7 +829,7 @@ var _ = Describe("Horizontal Scaling", func() {
 		})
 
 		It("should disable auto-injection when empty array is set", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			featureStore.Status.Applied.Services.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{}
 
 			podSpec := &corev1.PodSpec{}
@@ -844,7 +841,7 @@ var _ = Describe("Horizontal Scaling", func() {
 
 	Describe("Pod Anti-Affinity", func() {
 		It("should auto-inject soft node anti-affinity when replicas > 1", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 
 			podSpec := &corev1.PodSpec{}
 			feast.applyAffinity(podSpec)
@@ -878,7 +875,7 @@ var _ = Describe("Horizontal Scaling", func() {
 		})
 
 		It("should use user-provided affinity instead of defaults", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			featureStore.Status.Applied.Services.Affinity = &corev1.Affinity{
 				PodAntiAffinity: &corev1.PodAntiAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
@@ -897,7 +894,7 @@ var _ = Describe("Horizontal Scaling", func() {
 		})
 
 		It("should allow user to set node affinity alongside anti-affinity", func() {
-			featureStore.Status.Applied.Replicas = ptr(int32(3))
+			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			featureStore.Status.Applied.Services.Affinity = &corev1.Affinity{
 				NodeAffinity: &corev1.NodeAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -995,7 +992,7 @@ var _ = Describe("Horizontal Scaling", func() {
 
 		It("should read the status replicas from the scale sub-resource", func() {
 			fs := newDBFeatureStore("scale-sub-status")
-			fs.Spec.Replicas = ptr(int32(2))
+			fs.Spec.Replicas = ptr.To(int32(2))
 			Expect(k8sClient.Create(ctx, fs)).To(Succeed())
 			defer func() { Expect(k8sClient.Delete(ctx, fs)).To(Succeed()) }()
 

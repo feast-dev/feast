@@ -2514,9 +2514,9 @@ spec:
                             type: object
                         type: object
                     type: object
-                  pdb:
-                    description: PDB configures a PodDisruptionBudget for the FeatureStore
-                      deployment.
+                  podDisruptionBudgets:
+                    description: PodDisruptionBudgets configures a PodDisruptionBudget
+                      for the FeatureStore deployment.
                     properties:
                       maxUnavailable:
                         anyOf:
@@ -8236,9 +8236,9 @@ spec:
                                 type: object
                             type: object
                         type: object
-                      pdb:
-                        description: PDB configures a PodDisruptionBudget for the
-                          FeatureStore deployment.
+                      podDisruptionBudgets:
+                        description: PodDisruptionBudgets configures a PodDisruptionBudget
+                          for the FeatureStore deployment.
                         properties:
                           maxUnavailable:
                             anyOf:

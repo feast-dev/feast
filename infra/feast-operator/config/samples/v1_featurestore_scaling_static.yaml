@@ -46,7 +46,7 @@ spec:
   feastProject: my_project
   replicas: 3
   services:
-    pdb:
+    podDisruptionBudgets:
       maxUnavailable: 1
     # Uncomment to enforce strict spreading across AWS availability zones:
     # topologySpreadConstraints:

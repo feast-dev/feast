@@ -381,8 +381,8 @@ func (in *FeatureStoreServices) DeepCopyInto(out *FeatureStoreServices) {
 		*out = new(ScalingConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.PDB != nil {
-		in, out := &in.PDB, &out.PDB
+	if in.PodDisruptionBudgets != nil {
+		in, out := &in.PodDisruptionBudgets, &out.PodDisruptionBudgets
 		*out = new(PDBConfig)
 		(*in).DeepCopyInto(*out)
 	}

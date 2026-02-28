@@ -243,7 +243,7 @@ _Appears in:_
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
 | `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
 For static replicas, use spec.replicas instead. |
-| `pdb` _[PDBConfig](#pdbconfig)_ | PDB configures a PodDisruptionBudget for the FeatureStore deployment.
+| `podDisruptionBudgets` _[PDBConfig](#pdbconfig)_ | PodDisruptionBudgets configures a PodDisruptionBudget for the FeatureStore deployment.
 Only created when scaling is enabled (replicas > 1 or autoscaling). |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | TopologySpreadConstraints defines how pods are spread across topology domains.
 When scaling is enabled and this is not set, the operator auto-injects a soft
