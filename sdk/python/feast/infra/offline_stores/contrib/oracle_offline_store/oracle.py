@@ -6,7 +6,7 @@ import ibis
 import pandas as pd
 import pyarrow
 from ibis.expr.types import Table
-from pydantic import StrictInt, StrictStr
+from pydantic import StrictInt, StrictStr, model_validator
 
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -61,13 +61,14 @@ def _read_oracle_table(con, data_source: DataSource) -> Table:
     return con.table(data_source.table_ref)
 
 
-def _build_data_source_reader(config: RepoConfig):
+def _build_data_source_reader(config: RepoConfig, con=None):
     """Build a reader that returns Oracle-backend ibis tables.
 
     Used by ``pull_latest`` and ``pull_all`` where all operations happen on a
     single backend (Oracle) and no cross-backend joins are needed.
     """
-    con = get_ibis_connection(config)
+    if con is None:
+        con = get_ibis_connection(config)
 
     def _read_data_source(data_source: DataSource, repo_path: str = "") -> Table:
         return _read_oracle_table(con, data_source)
@@ -75,7 +76,7 @@ def _build_data_source_reader(config: RepoConfig):
     return _read_data_source
 
 
-def _build_data_source_reader_for_retrieval(config: RepoConfig):
+def _build_data_source_reader_for_retrieval(config: RepoConfig, con=None):
     """Build a reader that materializes Oracle data into an in-memory table.
 
     Used by ``get_historical_features`` which joins feature tables with an
@@ -83,7 +84,8 @@ def _build_data_source_reader_for_retrieval(config: RepoConfig):
     same backend for computed columns like ``entity_row_id`` to survive the
     join — converting to memtable ensures this.
     """
-    con = get_ibis_connection(config)
+    if con is None:
+        con = get_ibis_connection(config)
 
     def _read_data_source(data_source: DataSource, repo_path: str = "") -> Table:
         table = _read_oracle_table(con, data_source)
@@ -92,9 +94,10 @@ def _build_data_source_reader_for_retrieval(config: RepoConfig):
     return _read_data_source
 
 
-def _build_data_source_writer(config: RepoConfig):
+def _build_data_source_writer(config: RepoConfig, con=None):
     """Build a function that writes data to an Oracle table via ibis."""
-    con = get_ibis_connection(config)
+    if con is None:
+        con = get_ibis_connection(config)
 
     def _write_data_source(
         table: Table,
@@ -125,10 +128,10 @@ class OracleOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["oracle"] = "oracle"
     """Offline store type selector"""
 
-    user: StrictStr = "system"
+    user: StrictStr
     """Oracle database user"""
 
-    password: StrictStr = "oracle123"
+    password: StrictStr
     """Oracle database password"""
 
     host: StrictStr = "localhost"
@@ -148,6 +151,18 @@ class OracleOfflineStoreConfig(FeastConfigBaseModel):
 
     dsn: Optional[StrictStr] = None
     """Oracle DSN string (mutually exclusive with service_name and sid)"""
+
+    @model_validator(mode="after")
+    def _validate_connection_params(self):
+        exclusive = [
+            f for f in ("service_name", "sid", "dsn") if getattr(self, f) is not None
+        ]
+        if len(exclusive) > 1:
+            raise ValueError(
+                f"Only one of 'service_name', 'sid', or 'dsn' may be set, "
+                f"but got: {', '.join(exclusive)}"
+            )
+        return self
 
 
 class OracleOfflineStore(OfflineStore):
@@ -186,6 +201,9 @@ class OracleOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         **kwargs,
     ) -> RetrievalJob:
+        # Single connection reused across the entire call.
+        con = get_ibis_connection(config)
+
         # Handle non-entity retrieval mode (start_date/end_date only)
         if entity_df is None:
             start_date: Optional[datetime] = kwargs.get("start_date")
@@ -212,7 +230,6 @@ class OracleOfflineStore(OfflineStore):
                 start_date = start_date.replace(tzinfo=timezone.utc)
 
             # Build a synthetic entity_df from the feature source data
-            con = get_ibis_connection(config)
             all_entities: set = set()
             for fv in feature_views:
                 all_entities.update(e.name for e in fv.entity_columns)
@@ -234,8 +251,7 @@ class OracleOfflineStore(OfflineStore):
             entity_df = pd.concat(entity_dfs, ignore_index=True).drop_duplicates()
 
         # If entity_df is a SQL string, execute it to get a DataFrame
-        if type(entity_df) == str:
-            con = get_ibis_connection(config)
+        if isinstance(entity_df, str):
             entity_df = con.sql(entity_df).execute()
 
         # Use the retrieval reader which materializes Oracle data into
@@ -249,8 +265,8 @@ class OracleOfflineStore(OfflineStore):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
-            data_source_reader=_build_data_source_reader_for_retrieval(config),
-            data_source_writer=_build_data_source_writer(config),
+            data_source_reader=_build_data_source_reader_for_retrieval(config, con=con),
+            data_source_writer=_build_data_source_writer(config, con=con),
         )
 
     @staticmethod
