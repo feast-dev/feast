@@ -82,8 +82,7 @@ def test_docstrings():
                         # Skip ray_transformation doctests - they hang on macOS due to
                         # Ray worker spawning issues with uv-managed environments
                         if (
-                            "ikv" not in full_name
-                            and "milvus" not in full_name
+                            "milvus" not in full_name
                             and "openlineage" not in full_name
                             and "ray_transformation" not in full_name
                         ):

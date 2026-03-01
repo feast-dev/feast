@@ -711,7 +711,6 @@ spec:
                         - hbase
                         - cassandra
                         - hazelcast
-                        - ikv
                         - couchbase
                         - clickhouse
                         type: string
@@ -1391,7 +1390,6 @@ spec:
                                 enum:
                                 - snowflake.online
                                 - redis
-                                - ikv
                                 - datastore
                                 - dynamodb
                                 - bigtable
@@ -5554,7 +5552,6 @@ spec:
                             - hbase
                             - cassandra
                             - hazelcast
-                            - ikv
                             - couchbase
                             - clickhouse
                             type: string
@@ -6244,7 +6241,6 @@ spec:
                                     enum:
                                     - snowflake.online
                                     - redis
-                                    - ikv
                                     - datastore
                                     - dynamodb
                                     - bigtable
@@ -10553,7 +10549,6 @@ spec:
                         - hbase
                         - cassandra
                         - hazelcast
-                        - ikv
                         - couchbase
                         - clickhouse
                         type: string
@@ -11225,7 +11220,6 @@ spec:
                                 enum:
                                 - snowflake.online
                                 - redis
-                                - ikv
                                 - datastore
                                 - dynamodb
                                 - bigtable
@@ -14764,7 +14758,6 @@ spec:
                             - hbase
                             - cassandra
                             - hazelcast
-                            - ikv
                             - couchbase
                             - clickhouse
                             type: string
@@ -15446,7 +15439,6 @@ spec:
                                     enum:
                                     - snowflake.online
                                     - redis
-                                    - ikv
                                     - datastore
                                     - dynamodb
                                     - bigtable

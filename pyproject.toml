@@ -85,9 +85,6 @@ hbase = ["happybase>=1.2.0,<3"]
 ibis = [
     "ibis-framework>=10.0.0",
 ]
-ikv = [
-    "ikvpy>=0.0.36",
-]
 k8s = ["kubernetes"]
 image = [
     "feast[pytorch]",
@@ -179,7 +176,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
@@ -250,14 +247,14 @@ include = ["*.py", "*.pyi"]
 
 [tool.ruff.format]
 # exclude a few common directories in the root of the project
-exclude = [ 
-  ".eggs", 
-  ".git", 
-  ".hg", 
+exclude = [
+  ".eggs",
+  ".git",
+  ".hg",
   ".mypy_cache",
-  ".tox", 
-  ".venv", 
-  "_build", 
+  ".tox",
+  ".venv",
+  "_build",
   "buck-out",
   "build",
   "dist",
