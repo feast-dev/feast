@@ -179,7 +179,6 @@ ci = [
     "types-requests<2.31.0",
     "types-setuptools",
     "types-tabulate",
-    "virtualenv<20.24.2",
 ]
 nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]

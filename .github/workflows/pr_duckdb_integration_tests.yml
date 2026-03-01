@@ -25,6 +25,7 @@ jobs:
         uses: prefix-dev/setup-pixi@v0.8.1
         with:
           pixi-version: v0.46.0
+          environments: duckdb-tests
           cache: true
       - name: Run DuckDB offline store integration tests
         run: make test-python-universal-duckdb-offline
