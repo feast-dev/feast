@@ -1176,8 +1176,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.1.dev4352+g916587042.d20260301
-  sha256: 90603970d6675ae41e62121ded991a8e4427c972f76f096f089d7cf175c5a12f
+  version: 0.1.dev4355+gbef92406d
+  sha256: 81344cfbfaeed4422c9d9be34b59d741f9c4a72af93849368e1379724e482da4
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -1289,36 +1289,23 @@ packages:
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0,<44 ; extra == 'test'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mssql,mysql,openlineage,opentelemetry,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
   - virtualenv==20.23.0 ; extra == 'ci'
-  - cryptography>=43.0,<44 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
   - ruff>=0.8.0 ; extra == 'ci'
   - mypy-protobuf>=3.1 ; extra == 'ci'
   - grpcio-tools>=1.56.2,<=1.62.3 ; extra == 'ci'
   - grpcio-testing>=1.56.2,<=1.62.3 ; extra == 'ci'
   - httpx==0.27.2 ; extra == 'ci'
-  - minio==7.2.11 ; extra == 'ci'
   - mock==2.0.0 ; extra == 'ci'
   - moto<5 ; extra == 'ci'
   - mypy>=1.4.1,<1.11.3 ; extra == 'ci'
   - urllib3>=2.6.3,<3 ; extra == 'ci'
   - psutil==5.9.0 ; extra == 'ci'
-  - py>=1.11.0 ; extra == 'ci'
-  - pytest>=6.0.0,<8 ; extra == 'ci'
-  - pytest-asyncio<=0.24.0 ; extra == 'ci'
   - pytest-cov ; extra == 'ci'
-  - pytest-xdist ; extra == 'ci'
-  - pytest-benchmark>=3.4.1,<4 ; extra == 'ci'
-  - pytest-lazy-fixture==0.6.3 ; extra == 'ci'
-  - pytest-timeout==1.4.2 ; extra == 'ci'
-  - pytest-ordering~=0.6.0 ; extra == 'ci'
-  - pytest-mock==1.10.4 ; extra == 'ci'
-  - pytest-env ; extra == 'ci'
   - sphinx>4.0.0,<7 ; extra == 'ci'
   - sqlglot[rs]>=23.4 ; extra == 'ci'
-  - testcontainers==4.9.0 ; extra == 'ci'
-  - python-keycloak==4.2.2 ; extra == 'ci'
   - pre-commit<3.3.2 ; extra == 'ci'
   - assertpy==1.1 ; extra == 'ci'
   - pip-tools ; extra == 'ci'
@@ -1332,8 +1319,6 @@ packages:
   - types-requests<2.31.0 ; extra == 'ci'
   - types-setuptools ; extra == 'ci'
   - types-tabulate ; extra == 'ci'
-  - virtualenv<20.24.2 ; extra == 'ci'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mssql,mysql,openlineage,opentelemetry,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,trino] ; extra == 'ci'
   - feast[docling,image,milvus,pytorch,rag] ; extra == 'nlp'
   - feast[ci] ; extra == 'dev'
   - feast[ci] ; extra == 'docs'
