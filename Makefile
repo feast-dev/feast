@@ -245,6 +245,9 @@ test-python-integration-dbt: ## Run dbt integration tests
 		python -m pytest tests/integration/dbt/test_dbt_integration.py -v --tb=short
 	@echo "✓ dbt integration tests completed successfully!"
 
+test-python-universal-duckdb-offline: ## Run Python DuckDB offline store integration tests
+	pixi run -e duckdb-tests test
+
 test-python-universal-spark: ## Run Python Spark integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
