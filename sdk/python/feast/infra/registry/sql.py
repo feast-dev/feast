@@ -250,17 +250,7 @@ class SqlRegistry(CachingRegistry):
         ), "SqlRegistry needs a valid registry_config"
 
         self.registry_config = registry_config
-
-        self.write_engine: Engine = create_engine(
-            registry_config.path, **registry_config.sqlalchemy_config_kwargs
-        )
-        if registry_config.read_path:
-            self.read_engine: Engine = create_engine(
-                registry_config.read_path,
-                **registry_config.sqlalchemy_config_kwargs,
-            )
-        else:
-            self.read_engine = self.write_engine
+        self._init_engines()
         metadata.create_all(self.write_engine)
         self.thread_pool_executor_worker_count = (
             registry_config.thread_pool_executor_worker_count
@@ -277,6 +267,62 @@ class SqlRegistry(CachingRegistry):
         self._sync_feast_metadata_to_projects_table()
         if not self.purge_feast_metadata:
             self._maybe_init_project_metadata(project)
+
+    def _init_engines(self):
+        """Initialize SQLAlchemy engines. Can be called to reinitialize after fork."""
+        self.write_engine: Engine = create_engine(
+            self.registry_config.path, **self.registry_config.sqlalchemy_config_kwargs
+        )
+        if self.registry_config.read_path:
+            self.read_engine: Engine = create_engine(
+                self.registry_config.read_path,
+                **self.registry_config.sqlalchemy_config_kwargs,
+            )
+        else:
+            self.read_engine = self.write_engine
+
+    def reinitialize_engines(self):
+        """
+        Reinitialize SQLAlchemy engines after a process fork.
+
+        This method is critical for fork-safety when using multi-worker servers
+        like Gunicorn. SQLAlchemy's connection pools are not fork-safe - the
+        internal state (locks, conditions, connections) becomes corrupted when
+        a process forks. This method disposes the old engines and creates fresh
+        ones with new connection pools.
+
+        Should be called in a post_fork hook when running with multiple workers.
+        """
+        # Dispose existing engines to clean up connection pools
+        if hasattr(self, "write_engine") and self.write_engine is not None:
+            self.write_engine.dispose()
+        if (
+            hasattr(self, "read_engine")
+            and self.read_engine is not None
+            and self.read_engine is not self.write_engine
+        ):
+            self.read_engine.dispose()
+
+        # Reinitialize with fresh engines
+        self._init_engines()
+        logger.debug("SqlRegistry engines reinitialized after fork")
+
+    def on_worker_init(self):
+        """
+        Called after a worker process has been forked to reinitialize resources.
+
+        For SqlRegistry, this method:
+        1. Reinitializes SQLAlchemy engines (disposes old pools, creates new ones)
+        2. Calls parent class to handle refresh thread restart
+
+        This is critical for fork-safety when using multi-worker servers like
+        Gunicorn with SQL Registry backends.
+        """
+        # First reinitialize the database engines
+        self.reinitialize_engines()
+
+        # Then call parent to handle refresh thread
+        super().on_worker_init()
 
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: dict = {}
