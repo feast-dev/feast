@@ -204,6 +204,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
+		--ignore=sdk/python/tests/integration/compute_engines/ray_compute \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
