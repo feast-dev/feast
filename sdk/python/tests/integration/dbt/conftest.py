@@ -29,4 +29,7 @@ def pytest_collection_modifyitems(config, items):  # noqa: ARG001
             reason="dbt manifest.json not found - run 'dbt build' first or use dbt-integration-test workflow"
         )
         for item in items:
-            item.add_marker(skip_marker)
+            if str(TEST_DBT_PROJECT_DIR) in str(item.fspath) or "/dbt/" in str(
+                item.fspath
+            ):
+                item.add_marker(skip_marker)

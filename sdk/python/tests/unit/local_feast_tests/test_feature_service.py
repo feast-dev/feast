@@ -71,7 +71,7 @@ def test_apply_with_fv_inference() -> None:
 
             fs = store.get_feature_service("all_stats")
             assert len(fs.feature_view_projections) == 2
-            assert len(fs.feature_view_projections[0].features) == 3
+            assert len(fs.feature_view_projections[0].features) == 6
             assert len(fs.feature_view_projections[0].desired_features) == 0
             assert len(fs.feature_view_projections[1].features) == 2
             assert len(fs.feature_view_projections[1].desired_features) == 0
