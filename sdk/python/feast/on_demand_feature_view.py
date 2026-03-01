@@ -1011,7 +1011,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sample_values = {k: v[0] for k, v in sample_values.items()}
 
         # Default value for missing types
-        default_value = None if not singleton else [None]
+        default_value = [None] if not singleton else None
 
         feature_dict = {}
 
