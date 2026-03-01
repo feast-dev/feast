@@ -15,7 +15,7 @@ COPY pyproject.toml pyproject.toml
 COPY README.md README.md
 
 # Install dependencies
-RUN --mount=source=.git,target=.git,type=bind uv pip install --system --no-cache-dir '.[gcp,aws]'
+RUN --mount=source=.git,target=.git,type=bind uv pip install --system --no-cache-dir '.[gcp,aws,grpcio]'
 
 # Start feature transformation server
 CMD [ "python", "app.py" ]
