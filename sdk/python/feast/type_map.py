@@ -1092,7 +1092,7 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
     elif pa_type_as_str.startswith("map<"):
         value_type = ValueType.MAP
     elif pa_type_as_str == "large_string":
-        value_type = ValueType.STRING
+        value_type = ValueType.JSON
     elif pa_type_as_str.startswith("struct<") or pa_type_as_str.startswith("struct{"):
         value_type = ValueType.STRUCT
     else:
