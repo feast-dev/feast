@@ -395,22 +395,7 @@ test-python-universal-postgres-offline: ## Run Python Postgres integration tests
  			sdk/python/tests
 
 test-python-universal-ray-offline: ## Run Python Ray offline store integration tests
-	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.ray_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.ray_offline_store.tests \
-		python -m pytest -n 8 --integration \
-			-m "not universal_online_stores and not benchmark" \
-			-k "not test_historical_retrieval_with_validation and \
-				not test_universal_cli and \
-				not test_go_feature_server and \
-				not test_feature_logging and \
-				not test_logged_features_validation and \
-				not test_lambda_materialization_consistency and \
-				not gcs_registry and \
-				not s3_registry and \
-				not test_snowflake and \
-				not test_spark" \
-			sdk/python/tests
+	pixi run -e ray-tests test
 
 test-python-ray-compute-engine: ## Run Python Ray compute engine tests
 	PYTHONPATH='.' \
