@@ -118,14 +118,6 @@ BIGTABLE_CONFIG = {
     "instance": os.getenv("BIGTABLE_INSTANCE_ID", "feast-integration-tests"),
 }
 
-IKV_CONFIG = {
-    "type": "ikv",
-    "account_id": os.getenv("IKV_ACCOUNT_ID", ""),
-    "account_passkey": os.getenv("IKV_ACCOUNT_PASSKEY", ""),
-    "store_name": os.getenv("IKV_STORE_NAME", ""),
-    "mount_directory": os.getenv("IKV_MOUNT_DIR", ""),
-}
-
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
@@ -172,10 +164,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["milvus"] = (MILVUS_CONFIG, None)
 
-    # Uncomment to test using private IKV account. Currently not enabled as
-    # there is no dedicated IKV instance for CI testing and there is no
-    # containerized version of IKV.
-    # AVAILABLE_ONLINE_STORES["ikv"] = (IKV_CONFIG, None)
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
