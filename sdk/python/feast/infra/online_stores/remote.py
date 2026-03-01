@@ -418,7 +418,7 @@ class RemoteOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         table: FeatureView,
         requested_features: Optional[List[str]] = None,
-    ) -> str:
+    ) -> dict:
         api_requested_features = []
         if requested_features is not None:
             for requested_feature in requested_features:
@@ -432,13 +432,10 @@ class RemoteOnlineStore(OnlineStore):
                 getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))
             )
 
-        req_body = json.dumps(
-            {
-                "features": api_requested_features,
-                "entities": {entity_key: entity_values},
-            }
-        )
-        return req_body
+        return {
+            "features": api_requested_features,
+            "entities": {entity_key: entity_values},
+        }
 
     def _construct_online_documents_api_json_request(
         self,
@@ -447,21 +444,18 @@ class RemoteOnlineStore(OnlineStore):
         embedding: Optional[List[float]] = None,
         top_k: Optional[int] = None,
         distance_metric: Optional[str] = "L2",
-    ) -> str:
+    ) -> dict:
         api_requested_features = []
         if requested_features is not None:
             for requested_feature in requested_features:
                 api_requested_features.append(f"{table.name}:{requested_feature}")
 
-        req_body = json.dumps(
-            {
-                "features": api_requested_features,
-                "query": embedding,
-                "top_k": top_k,
-                "distance_metric": distance_metric,
-            }
-        )
-        return req_body
+        return {
+            "features": api_requested_features,
+            "query": embedding,
+            "top_k": top_k,
+            "distance_metric": distance_metric,
+        }
 
     def _construct_online_documents_v2_api_json_request(
         self,
@@ -472,23 +466,20 @@ class RemoteOnlineStore(OnlineStore):
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
         api_version: Optional[int] = 2,
-    ) -> str:
+    ) -> dict:
         api_requested_features = []
         if requested_features is not None:
             for requested_feature in requested_features:
                 api_requested_features.append(f"{table.name}:{requested_feature}")
 
-        req_body = json.dumps(
-            {
-                "features": api_requested_features,
-                "query": embedding,
-                "top_k": top_k,
-                "distance_metric": distance_metric,
-                "query_string": query_string,
-                "api_version": api_version,
-            }
-        )
-        return req_body
+        return {
+            "features": api_requested_features,
+            "query": embedding,
+            "top_k": top_k,
+            "distance_metric": distance_metric,
+            "query_string": query_string,
+            "api_version": api_version,
+        }
 
     def _get_event_ts(self, response_json) -> datetime:
         event_ts = ""
@@ -574,33 +565,33 @@ class RemoteOnlineStore(OnlineStore):
 
 @rest_error_handling_decorator
 def get_remote_online_features(
-    session: requests.Session, config: RepoConfig, req_body: str
+    session: requests.Session, config: RepoConfig, req_body: dict
 ) -> requests.Response:
     if config.online_store.cert:
         return session.post(
             f"{config.online_store.path}/get-online-features",
-            data=req_body,
+            json=req_body,
             verify=config.online_store.cert,
         )
     else:
         return session.post(
-            f"{config.online_store.path}/get-online-features", data=req_body
+            f"{config.online_store.path}/get-online-features", json=req_body
         )
 
 
 @rest_error_handling_decorator
 def get_remote_online_documents(
-    session: requests.Session, config: RepoConfig, req_body: str
+    session: requests.Session, config: RepoConfig, req_body: dict
 ) -> requests.Response:
     if config.online_store.cert:
         return session.post(
             f"{config.online_store.path}/retrieve-online-documents",
-            data=req_body,
+            json=req_body,
             verify=config.online_store.cert,
         )
     else:
         return session.post(
-            f"{config.online_store.path}/retrieve-online-documents", data=req_body
+            f"{config.online_store.path}/retrieve-online-documents", json=req_body
         )
 
 

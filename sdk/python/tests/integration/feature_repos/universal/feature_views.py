@@ -16,7 +16,18 @@ from feast import (
 from feast.data_source import DataSource, RequestSource
 from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import PandasTransformation
-from feast.types import Array, FeastType, Float32, Float64, Int32, Int64, String
+from feast.types import (
+    Array,
+    FeastType,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    Json,
+    Map,
+    String,
+    Struct,
+)
 from tests.integration.feature_repos.universal.entities import (
     customer,
     driver,
@@ -193,6 +204,12 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
             Field(name="acc_rate", dtype=Float32),
             Field(name="avg_daily_trips", dtype=Int32),
             Field(name=d.join_key, dtype=Int64),
+            Field(name="driver_metadata", dtype=Map),
+            Field(name="driver_config", dtype=Json),
+            Field(
+                name="driver_profile",
+                dtype=Struct({"name": String, "age": String}),
+            ),
         ],
         source=source,
         ttl=timedelta(hours=2),
@@ -213,6 +230,12 @@ def create_driver_hourly_stats_batch_feature_view(
             Field(name="conv_rate", dtype=Float32),
             Field(name="acc_rate", dtype=Float32),
             Field(name="avg_daily_trips", dtype=Int32),
+            Field(name="driver_metadata", dtype=Map),
+            Field(name="driver_config", dtype=Json),
+            Field(
+                name="driver_profile",
+                dtype=Struct({"name": String, "age": String}),
+            ),
         ],
         source=source,
         ttl=timedelta(hours=2),

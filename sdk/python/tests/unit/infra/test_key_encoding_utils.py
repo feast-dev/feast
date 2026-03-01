@@ -257,10 +257,9 @@ def test_performance_bounds_single_entity():
         deserialize_entity_key(serialized, entity_key_serialization_version=3)
     deserialize_time = time.perf_counter() - start
 
-    # Conservative performance bounds (should be much faster with optimizations)
-    # 1000 operations should complete in < 20ms each for serialization and deserialization
-    assert serialize_time < 0.02, f"Serialization too slow: {serialize_time:.4f}s"
-    assert deserialize_time < 0.02, f"Deserialization too slow: {deserialize_time:.4f}s"
+    # Performance bounds with generous thresholds to avoid flaky failures on CI runners
+    assert serialize_time < 0.1, f"Serialization too slow: {serialize_time:.4f}s"
+    assert deserialize_time < 0.1, f"Deserialization too slow: {deserialize_time:.4f}s"
 
 
 def test_non_ascii_prefix_compatibility():

@@ -47,7 +47,7 @@ jobs:
           uv pip install --system dbt-core dbt-duckdb
 
       - name: Run dbt integration tests
-        run: make test-python-integration-dbt
+        run: uv run make test-python-integration-dbt
       
       - name: Minimize uv cache
         run: uv cache prune --ci
