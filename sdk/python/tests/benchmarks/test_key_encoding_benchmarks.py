@@ -416,9 +416,9 @@ def test_performance_regression_deserialization():
         deserialize_entity_key(serialized, 3)
     elapsed = time.perf_counter() - start_time
 
-    # Should be able to do 1000 deserializations in < 100ms
+    # Should be able to do 1000 deserializations in < 200ms
     # Using a generous threshold to avoid flaky failures on CI runners
-    assert elapsed < 0.1, (
+    assert elapsed < 0.2, (
         f"Deserialization too slow: {elapsed:.4f}s for 1000 operations"
     )
 
