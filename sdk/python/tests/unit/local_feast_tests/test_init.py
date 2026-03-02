@@ -68,7 +68,7 @@ def test_repo_init_with_underscore_in_project_name() -> None:
         """
             )
         )
-        result = runner.run(["apply"], cwd=repo_dir)
+        result = runner.run(["apply"], cwd=repo_dir / "feature_repo")
         assert result.returncode != 0
 
 
