@@ -946,15 +946,15 @@ def test_dynamodb_online_store_online_read_many_batches(dynamodb_online_store):
 
 
 @mock_dynamodb
-def test_dynamodb_online_store_max_workers_capped_at_10(dynamodb_online_store):
-    """Verify ThreadPoolExecutor max_workers is capped at 10, not batch_size.
+def test_dynamodb_online_store_max_workers_capped_at_config(dynamodb_online_store):
+    """Verify ThreadPoolExecutor max_workers uses max_read_workers config.
 
     Bug: Old code used min(len(batches), batch_size) which fails with small batch_size.
-    Fix: New code uses min(len(batches), 10) to ensure proper parallelization.
+    Fix: New code uses min(len(batches), max_read_workers) for proper parallelization.
 
     This test uses batch_size=5 with 15 batches to expose the bug:
     - OLD (buggy): max_workers = min(15, 5) = 5  (insufficient parallelism)
-    - NEW (fixed): max_workers = min(15, 10) = 10 (correct cap)
+    - NEW (fixed): max_workers = min(15, 10) = 10 (uses max_read_workers default)
     """
     # Use small batch_size to expose the bug
     small_batch_config = RepoConfig(
@@ -998,13 +998,14 @@ def test_dynamodb_online_store_max_workers_capped_at_10(dynamodb_online_store):
 
 
 @mock_dynamodb
-def test_dynamodb_online_store_thread_safety_new_resource_per_thread(
+def test_dynamodb_online_store_thread_safety_uses_shared_client(
     dynamodb_online_store,
 ):
-    """Verify each thread creates its own boto3 resource for thread-safety.
+    """Verify multi-batch reads use a shared thread-safe boto3 client.
 
-    boto3 resources are NOT thread-safe, so we must create a new resource
-    per thread when using ThreadPoolExecutor.
+    boto3 clients ARE thread-safe, so we share a single client across threads
+    for better performance (avoids creating new sessions per thread).
+    https://docs.aws.amazon.com/boto3/latest/guide/clients.html#multithreading-or-multiprocessing-with-clients
     """
     config = RepoConfig(
         registry=REGISTRY,
@@ -1023,16 +1024,16 @@ def test_dynamodb_online_store_thread_safety_new_resource_per_thread(
 
     entity_keys, features, *rest = zip(*data)
 
-    # Track resources created to verify thread-safety
-    resources_created = []
-    original_init = boto3.resource
+    # Track clients created to verify thread-safety via shared client
+    clients_created = []
+    original_client = boto3.client
 
-    def tracking_resource(*args, **kwargs):
-        resource = original_init(*args, **kwargs)
-        resources_created.append(id(resource))
-        return resource
+    def tracking_client(*args, **kwargs):
+        client = original_client(*args, **kwargs)
+        clients_created.append(id(client))
+        return client
 
-    with patch.object(boto3, "resource", side_effect=tracking_resource):
+    with patch.object(boto3, "client", side_effect=tracking_client):
         returned_items = dynamodb_online_store.online_read(
             config=config,
             table=MockFeatureView(name=db_table_name),
@@ -1042,18 +1043,10 @@ def test_dynamodb_online_store_thread_safety_new_resource_per_thread(
     # Verify results are correct (functional correctness)
     assert len(returned_items) == n_samples
 
-    # Verify multiple resources were created (thread-safety)
-    # Each of the 3 batches should create its own resource
-    # (plus potentially 1 for _get_dynamodb_resource cache initialization)
-    assert len(resources_created) >= 3, (
-        f"Expected at least 3 unique resources for 3 batches, "
-        f"got {len(resources_created)}"
-    )
-
-    # Verify the resources are actually different objects (not reused)
-    # At least the batch resources should be unique
-    unique_resources = set(resources_created)
-    assert len(unique_resources) >= 3, (
-        f"Expected at least 3 unique resource IDs, "
-        f"got {len(unique_resources)} unique out of {len(resources_created)}"
+    # Verify only one client was created (shared across threads)
+    # The client is cached and reused for all batch requests
+    dynamodb_clients = [c for c in clients_created]
+    assert len(set(dynamodb_clients)) == 1, (
+        f"Expected 1 shared client for thread-safety, "
+        f"got {len(set(dynamodb_clients))} unique clients"
     )
