@@ -282,7 +282,10 @@ class OracleOfflineStore(OfflineStore):
         # Compute entity timestamp range so the reader can pre-filter
         # Oracle tables instead of loading them entirely into memory.
         entity_ts_range: Optional[tuple] = None
-        if isinstance(entity_df, pd.DataFrame) and "event_timestamp" in entity_df.columns:
+        if (
+            isinstance(entity_df, pd.DataFrame)
+            and "event_timestamp" in entity_df.columns
+        ):
             ts_series = pd.to_datetime(entity_df["event_timestamp"], utc=True)
             entity_ts_range = (
                 ts_series.min().to_pydatetime(),
