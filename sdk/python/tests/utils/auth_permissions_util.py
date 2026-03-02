@@ -36,7 +36,7 @@ def default_store(
     permissions: list[Permission],
 ):
     runner = CliRunner()
-    result = runner.run(["init", PROJECT_NAME], cwd=temp_dir)
+    result = runner.run(["init", PROJECT_NAME, "--template", "local"], cwd=temp_dir)
     repo_path = os.path.join(temp_dir, PROJECT_NAME, "feature_repo")
     assert result.returncode == 0
 

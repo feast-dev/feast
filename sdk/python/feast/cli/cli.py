@@ -59,6 +59,7 @@ from feast.repo_operations import (
     create_feature_store,
     generate_project_name,
     init_repo,
+    is_valid_name,
     plan,
     registry_dump,
     teardown,
@@ -477,6 +478,12 @@ def init_command(
         return
 
     if ctx.get_parameter_source("template") == ParameterSource.DEFAULT:
+        if not is_valid_name(project_directory):
+            raise click.BadParameter(
+                "Name should be alphanumeric values, underscores, and hyphens but not "
+                "start with an underscore or hyphen.",
+                param_hint="PROJECT_DIRECTORY",
+            )
         base_path = (
             Path(repo_path).resolve() if repo_path else Path.cwd() / project_directory
         )

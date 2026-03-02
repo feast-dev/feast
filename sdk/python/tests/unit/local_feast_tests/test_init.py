@@ -16,7 +16,8 @@ def test_repo_init() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         result = runner.run(["init", "my_project"], cwd=temp_path)
-        repo_path = temp_path / "my_project" / "feature_repo"
+        # Default init creates my_project/driver/ and my_project/rag/ with shared registry
+        repo_path = temp_path / "my_project" / "driver" / "feature_repo"
         assert result.returncode == 0
         result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0
@@ -43,17 +44,19 @@ def test_repo_init_with_underscore_in_project_name() -> None:
             result = runner.run(["init", repo_name], cwd=temp_path)
             assert result.returncode != 0
 
-        # `feast init` should succeed with underscore in repo name
+        # `feast init` should succeed with underscore in repo name (use single-template for single feature_repo)
         valid_repo_names = ["test_1"]
         for repo_name in valid_repo_names:
-            result = runner.run(["init", repo_name], cwd=temp_path)
+            result = runner.run(
+                ["init", repo_name, "--template", "local"], cwd=temp_path
+            )
             assert result.returncode == 0
 
         # `feast apply` should fail with underscore in project name
         project_name = "test_1"
         repo_dir = temp_path / project_name
         data_dir = repo_dir / "data"
-        repo_config = repo_dir / "feature_store.yaml"
+        repo_config = repo_dir / "feature_repo" / "feature_store.yaml"
         repo_config.write_text(
             dedent(
                 f"""

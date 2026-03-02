@@ -26,7 +26,9 @@ def test_cli_chdir() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         # Make sure the path is absolute by resolving any symlinks
         temp_path = Path(temp_dir).resolve()
-        result = runner.run(["init", "my_project"], cwd=temp_path)
+        result = runner.run(
+            ["init", "my_project", "--template", "local"], cwd=temp_path
+        )
         repo_path = str(temp_path / "my_project" / "feature_repo")
         assert result.returncode == 0
 
