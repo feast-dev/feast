@@ -445,17 +445,13 @@ class RedisOnlineStore(OnlineStore):
         ts_key = f"_ts:{feature_view}"
         ts_val = res_val.pop(ts_key)
         if ts_val:
-            res_ts.ParseFromString(
-                ts_val if isinstance(ts_val, bytes) else bytes(ts_val)
-            )
+            res_ts.ParseFromString(ts_val)
 
         res: Dict[str, ValueProto] = {}
         for feature_name, val_bin in res_val.items():
             val = ValueProto()
             if val_bin:
-                val.ParseFromString(
-                    val_bin if isinstance(val_bin, bytes) else bytes(val_bin)
-                )
+                val.ParseFromString(val_bin)
             res[feature_name] = val
 
         if not res:
