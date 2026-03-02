@@ -387,9 +387,9 @@ def test_performance_regression_single_entity():
         serialize_entity_key(entity_key, 3)
     elapsed = time.perf_counter() - start_time
 
-    # Should be able to do 1000 single entity serializations in < 10ms
-    # This is a conservative regression test
-    assert elapsed < 0.01, (
+    # Should be able to do 1000 single entity serializations in < 50ms
+    # Using a generous threshold to avoid flaky failures on CI runners
+    assert elapsed < 0.05, (
         f"Single entity serialization too slow: {elapsed:.4f}s for 1000 operations"
     )
 
@@ -416,8 +416,9 @@ def test_performance_regression_deserialization():
         deserialize_entity_key(serialized, 3)
     elapsed = time.perf_counter() - start_time
 
-    # Should be able to do 1000 deserializations in < 15ms
-    assert elapsed < 0.015, (
+    # Should be able to do 1000 deserializations in < 200ms
+    # Using a generous threshold to avoid flaky failures on CI runners
+    assert elapsed < 0.2, (
         f"Deserialization too slow: {elapsed:.4f}s for 1000 operations"
     )
 

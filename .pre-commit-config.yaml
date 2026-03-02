@@ -14,6 +14,7 @@ repos:
         stages: [commit]
         language: system
         types: [python]
+        exclude: '_pb2\.py$'
         entry: bash -c 'uv run ruff check --fix "$@" && uv run ruff format "$@"' --
         pass_filenames: true
 
@@ -24,6 +25,7 @@ repos:
         stages: [commit]
         language: system
         types: [python]
+        exclude: '_pb2\.py$'
         entry: bash -c 'uv run ruff check "$@" && uv run ruff format --check "$@"' --
         pass_filenames: true
 

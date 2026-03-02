@@ -289,6 +289,12 @@ Feast automatically maps dbt/warehouse column types to Feast types:
 | `TIMESTAMP`, `DATETIME` | `UnixTimestamp` |
 | `BYTES`, `BINARY` | `Bytes` |
 | `ARRAY<type>` | `Array(type)` |
+| `JSON`, `JSONB` | `Map` (or `Json` if declared in schema) |
+| `VARIANT`, `OBJECT` | `Map` |
+| `SUPER` | `Map` |
+| `MAP<string,string>` | `Map` |
+| `STRUCT`, `RECORD` | `Struct` (BigQuery) |
+| `struct<...>` | `Struct` (Spark) |
 
 Snowflake `NUMBER(precision, scale)` types are handled specially:
 - Scale > 0: `Float64`

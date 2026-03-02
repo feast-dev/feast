@@ -121,6 +121,7 @@ class StreamFeatureView(FeatureView):
         stream_engine: Optional[Dict[str, Any]] = None,
         enable_tiling: bool = False,
         tiling_hop_size: Optional[timedelta] = None,
+        enable_validation: bool = False,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -184,6 +185,7 @@ class StreamFeatureView(FeatureView):
             source=source,  # type: ignore[arg-type]
             mode=mode,
             sink_source=sink_source,
+            enable_validation=enable_validation,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
@@ -279,6 +281,7 @@ class StreamFeatureView(FeatureView):
             mode=mode_to_string(self.mode),
             enable_tiling=self.enable_tiling,
             tiling_hop_size=tiling_hop_size_duration,
+            enable_validation=self.enable_validation,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -340,6 +343,7 @@ class StreamFeatureView(FeatureView):
                 and sfv_proto.spec.tiling_hop_size.ToNanoseconds() != 0
                 else None
             ),
+            enable_validation=sfv_proto.spec.enable_validation,
         )
 
         if batch_source:
@@ -393,6 +397,7 @@ class StreamFeatureView(FeatureView):
             udf=self.udf,
             udf_string=self.udf_string,
             feature_transformation=self.feature_transformation,
+            enable_validation=self.enable_validation,
         )
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
@@ -418,6 +423,7 @@ def stream_feature_view(
     aggregations: Optional[List[Aggregation]] = None,
     mode: Optional[str] = "spark",
     timestamp_field: Optional[str] = "",
+    enable_validation: bool = False,
 ):
     """
     Creates an StreamFeatureView object with the given user function as udf.
@@ -449,6 +455,7 @@ def stream_feature_view(
             aggregations=aggregations,
             mode=mode,
             timestamp_field=timestamp_field,
+            enable_validation=enable_validation,
         )
         functools.update_wrapper(wrapper=stream_feature_view_obj, wrapped=user_function)
         return stream_feature_view_obj

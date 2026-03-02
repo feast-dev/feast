@@ -1,3 +1,4 @@
+import logging
 from typing import Union
 
 from feast.aggregation import aggregation_specs_to_agg_ops
@@ -16,6 +17,9 @@ from feast.infra.compute_engines.local.nodes import (
     LocalValidationNode,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.types import PrimitiveFeastType, from_feast_to_pyarrow_type
+
+logger = logging.getLogger(__name__)
 
 
 class LocalFeatureBuilder(FeatureBuilder):
@@ -88,7 +92,36 @@ class LocalFeatureBuilder(FeatureBuilder):
         return node
 
     def build_validation_node(self, view, input_node):
-        validation_config = view.validation_config
+        validation_config = getattr(view, "validation_config", None) or {}
+
+        if not validation_config.get("columns") and hasattr(view, "features"):
+            columns = {}
+            json_columns = set()
+            for feature in view.features:
+                try:
+                    columns[feature.name] = from_feast_to_pyarrow_type(feature.dtype)
+                except (ValueError, KeyError):
+                    logger.debug(
+                        "Could not resolve PyArrow type for feature '%s' "
+                        "(dtype=%s), skipping type check for this column.",
+                        feature.name,
+                        feature.dtype,
+                    )
+                    columns[feature.name] = None
+                # Track which columns are Json type for content validation
+                if (
+                    isinstance(feature.dtype, PrimitiveFeastType)
+                    and feature.dtype.name == "JSON"
+                ):
+                    json_columns.add(feature.name)
+            if columns:
+                validation_config = {**validation_config, "columns": columns}
+            if json_columns:
+                validation_config = {
+                    **validation_config,
+                    "json_columns": json_columns,
+                }
+
         node = LocalValidationNode(
             "validate", validation_config, self.backend, inputs=[input_node]
         )
