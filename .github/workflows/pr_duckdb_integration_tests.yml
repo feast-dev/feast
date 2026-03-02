@@ -1,0 +1,31 @@
+name: pr-duckdb-integration-tests
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+
+jobs:
+  integration-test-duckdb-offline:
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.repository.full_name }}
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: recursive
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.63.1
+          environments: duckdb-tests
+          cache: true
+      - name: Run DuckDB offline store integration tests
+        run: make test-python-universal-duckdb-offline
