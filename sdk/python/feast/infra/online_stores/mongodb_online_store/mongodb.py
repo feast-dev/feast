@@ -233,6 +233,8 @@ class MongoDBOnlineStore(OnlineStore):
         clxn.drop()
         if self._client:
             self._client.close()
+            self._client = None
+            self._collection = None
 
     async def close(self) -> None:
         """Close the async MongoDB client and release its resources."""
