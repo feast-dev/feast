@@ -130,10 +130,27 @@ mcp = ["fastapi_mcp"]
 
 dbt = ["dbt-artifacts-parser"]
 
+test = [
+    "pytest>=6.0.0,<8",
+    "pytest-xdist>=3.8.0",
+    "pytest-timeout==1.4.2",
+    "pytest-lazy-fixture==0.6.3",
+    "pytest-ordering~=0.6.0",
+    "pytest-mock==1.10.4",
+    "pytest-env",
+    "pytest-benchmark>=3.4.1,<4",
+    "pytest-asyncio<=0.24.0",
+    "py>=1.11.0",
+    "testcontainers==4.9.0",
+    "minio==7.2.11",
+    "python-keycloak==4.2.2",
+    "cryptography>=43.0,<44",
+]
+
 ci = [
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
     "virtualenv==20.23.0",
-    "cryptography>=43.0,<44",
     "dbt-artifacts-parser",
     "ruff>=0.8.0",
     "mypy-protobuf>=3.1",
@@ -141,27 +158,14 @@ ci = [
     "grpcio-testing>=1.56.2,<=1.62.3",
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx==0.27.2",
-    "minio==7.2.11",
     "mock==2.0.0",
     "moto<5",
     "mypy>=1.4.1,<1.11.3",
     "urllib3>=2.6.3,<3",
     "psutil==5.9.0",
-    "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
-    "pytest>=6.0.0,<8",
-    "pytest-asyncio<=0.24.0",
     "pytest-cov",
-    "pytest-xdist",
-    "pytest-benchmark>=3.4.1,<4",
-    "pytest-lazy-fixture==0.6.3",
-    "pytest-timeout==1.4.2",
-    "pytest-ordering~=0.6.0",
-    "pytest-mock==1.10.4",
-    "pytest-env",
     "Sphinx>4.0.0,<7",
     "sqlglot[rs]>=23.4",
-    "testcontainers==4.9.0",
-    "python-keycloak==4.2.2",
     "pre-commit<3.3.2",
     "assertpy==1.1",
     "pip-tools",
@@ -175,8 +179,6 @@ ci = [
     "types-requests<2.31.0",
     "types-setuptools",
     "types-tabulate",
-    "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
@@ -267,3 +269,30 @@ exclude = [
 dev = [
     "pytest-xdist>=3.8.0",
 ]
+
+# Pixi configuration
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
+
+[tool.pixi.feature.duckdb-tests.dependencies]
+python = "~=3.10.0"
+
+[tool.pixi.feature.duckdb-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["duckdb", "delta", "grpcio", "test"] }
+
+[tool.pixi.feature.duckdb-tests.tasks]
+test = { cmd = "python -m pytest -n 8 --integration -m 'not ray_offline_stores_only' --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.integration.feature_repos.duckdb_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+
+[tool.pixi.feature.ray-tests.dependencies]
+python = "~=3.10.0"
+
+[tool.pixi.feature.ray-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["ray", "grpcio", "test"] }
+
+[tool.pixi.feature.ray-tests.tasks]
+test = { cmd = "python -m pytest -n 8 --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.integration.feature_repos.ray_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+
+[tool.pixi.environments]
+duckdb-tests = ["duckdb-tests"]
+ray-tests = ["ray-tests"]

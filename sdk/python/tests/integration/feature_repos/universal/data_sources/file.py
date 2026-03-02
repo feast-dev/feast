@@ -24,7 +24,6 @@ from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
-from feast.infra.offline_stores.duckdb import DuckDBOfflineStoreConfig
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
     SavedDatasetFileStorage,
@@ -344,28 +343,6 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def teardown(self):
         self.minio.stop()
         self.f.close()
-
-
-# TODO split up DataSourceCreator and OfflineStoreCreator
-class DuckDBDataSourceCreator(FileDataSourceCreator):
-    def create_offline_store_config(self):
-        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
-        return self.duckdb_offline_store_config
-
-
-class DuckDBDeltaDataSourceCreator(DeltaFileSourceCreator):
-    def create_offline_store_config(self):
-        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
-        return self.duckdb_offline_store_config
-
-
-class DuckDBDeltaS3DataSourceCreator(DeltaS3FileSourceCreator):
-    def create_offline_store_config(self):
-        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig(
-            staging_location="s3://test/staging",
-            staging_location_endpoint_override=self.endpoint_url,
-        )
-        return self.duckdb_offline_store_config
 
 
 class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):

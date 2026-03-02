@@ -101,6 +101,10 @@ def pytest_configure(config):
         "markers",
         "universal_offline_stores: mark tests that can be run against different offline stores",
     )
+    config.addinivalue_line(
+        "markers",
+        "ray_offline_stores_only: mark tests that currently only work with Ray offline store",
+    )
 
 
 def pytest_addoption(parser):
