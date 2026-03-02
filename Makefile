@@ -185,6 +185,7 @@ test-python-integration: ## Run Python integration tests (CI)
 	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
+		--ignore=sdk/python/tests/integration/registration \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -198,13 +199,11 @@ test-python-integration-parallel: ## Run integration tests with enhanced paralle
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	HADOOP_HOME=$$HOME/hadoop \
-	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
-	HADOOP_USER_NAME=root \
 	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
 		--ignore=sdk/python/tests/integration/compute_engines/ray_compute \
+		--ignore=sdk/python/tests/integration/registration \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -244,6 +243,15 @@ test-python-integration-dbt: ## Run dbt integration tests
 		echo "Running pytest integration tests..." && \
 		python -m pytest tests/integration/dbt/test_dbt_integration.py -v --tb=short
 	@echo "✓ dbt integration tests completed successfully!"
+
+test-python-registration: ## Run Python registration integration tests (local)
+	pixi run -e registration-tests test
+
+test-python-registration-ci: ## Run Python registration integration tests (CI)
+	HADOOP_HOME=$$HOME/hadoop \
+	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
+	HADOOP_USER_NAME=root \
+	pixi run -e registration-tests test-ci
 
 test-python-universal-duckdb-offline: ## Run Python DuckDB offline store integration tests
 	pixi run -e duckdb-tests test
