@@ -44,6 +44,7 @@ dependencies = [
     "bigtree>=0.19.2",
     "pyjwt",
     "orjson>=3.9.0",
+    "python-multipart>=0.0.22",
 ]
 
 [project.optional-dependencies]
@@ -133,7 +134,7 @@ dbt = ["dbt-artifacts-parser"]
 ci = [
     "build",
     "virtualenv==20.23.0",
-    "cryptography>=43.0,<44",
+    "cryptography>=46.0.5",
     "dbt-artifacts-parser",
     "ruff>=0.8.0",
     "mypy-protobuf>=3.1",
