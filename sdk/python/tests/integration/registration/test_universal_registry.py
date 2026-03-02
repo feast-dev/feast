@@ -2209,7 +2209,9 @@ def test_registry_cache_expiration(test_registry):
     sql_fallback_fixtures,
 )
 def test_expedia_search_projects_success(test_registry):
-    from feast.expediagroup.search import ExpediaSearchProjectsRequest
+    from feast.protos.feast.registry.RegistryServer_pb2 import (
+        ExpediaSearchProjectsRequest as ExpediaSearchProjectsRequestProto,
+    )
 
     # Create projects with different attributes
     project1 = Project(
@@ -2269,9 +2271,8 @@ def test_expedia_search_projects_success(test_registry):
     test_registry.apply_feature_view(fv2, project2.name)
 
     # Test search without filters
-    request = ExpediaSearchProjectsRequest(
+    request = ExpediaSearchProjectsRequestProto(
         search_text="",
-        updated_at=None,
         page_size=10,
         page_index=0,
     )
@@ -2282,31 +2283,29 @@ def test_expedia_search_projects_success(test_registry):
 
     # Find our projects in the response
     project_names = [
-        p.project.name for p in response.projects_and_related_feature_views
+        p.project.spec.name for p in response.projects_and_related_feature_views
     ]
     assert project1.name in project_names
     assert project2.name in project_names
     assert project3.name in project_names
 
     # Test search with text filter
-    request = ExpediaSearchProjectsRequest(
+    request = ExpediaSearchProjectsRequestProto(
         search_text="test",
-        updated_at=None,
         page_size=10,
         page_index=0,
     )
     response = test_registry.expedia_search_projects(request)
 
     project_names = [
-        p.project.name for p in response.projects_and_related_feature_views
+        p.project.spec.name for p in response.projects_and_related_feature_views
     ]
     assert project1.name in project_names
     # Note: project2 and project3 may not contain "test" in their project_id
 
     # Test pagination
-    request = ExpediaSearchProjectsRequest(
+    request = ExpediaSearchProjectsRequestProto(
         search_text="",
-        updated_at=None,
         page_size=1,
         page_index=0,
     )
@@ -2317,13 +2316,13 @@ def test_expedia_search_projects_success(test_registry):
 
     # Test that feature views are included
     for project_and_fvs in response.projects_and_related_feature_views:
-        if project_and_fvs.project.name == project1.name:
+        if project_and_fvs.project.spec.name == project1.name:
             assert len(project_and_fvs.feature_views) == 1
-            assert project_and_fvs.feature_views[0].name == "feature_view_1"
-        elif project_and_fvs.project.name == project2.name:
+            assert project_and_fvs.feature_views[0].spec.name == "feature_view_1"
+        elif project_and_fvs.project.spec.name == project2.name:
             assert len(project_and_fvs.feature_views) == 1
-            assert project_and_fvs.feature_views[0].name == "feature_view_2"
-        elif project_and_fvs.project.name == project3.name:
+            assert project_and_fvs.feature_views[0].spec.name == "feature_view_2"
+        elif project_and_fvs.project.spec.name == project3.name:
             assert len(project_and_fvs.feature_views) == 0
 
     test_registry.teardown()
@@ -2335,7 +2334,11 @@ def test_expedia_search_projects_success(test_registry):
     sql_fallback_fixtures,
 )
 def test_expedia_search_feature_views_success(test_registry):
-    from feast.expediagroup.search import ExpediaSearchFeatureViewsRequest
+    from google.protobuf.wrappers_pb2 import BoolValue
+
+    from feast.protos.feast.registry.RegistryServer_pb2 import (
+        ExpediaSearchFeatureViewsRequest as ExpediaSearchFeatureViewsRequestProto,
+    )
 
     # Create project
     project = Project(name="test_project", description="Test project")
@@ -2396,13 +2399,8 @@ def test_expedia_search_feature_views_success(test_registry):
     test_registry.apply_feature_view(fv3, project.name)
 
     # Test search without filters
-    request = ExpediaSearchFeatureViewsRequest(
+    request = ExpediaSearchFeatureViewsRequestProto(
         search_text="",
-        online=None,
-        application="",
-        team="",
-        created_at=None,
-        updated_at=None,
         page_size=10,
         page_index=0,
     )
@@ -2411,90 +2409,68 @@ def test_expedia_search_feature_views_success(test_registry):
     assert response.total_feature_views >= 3
     assert len(response.feature_views) >= 3
 
-    fv_names = [fv.name for fv in response.feature_views]
+    fv_names = [fv.spec.name for fv in response.feature_views]
     assert fv1.name in fv_names
     assert fv2.name in fv_names
     assert fv3.name in fv_names
 
     # Test search with text filter
-    request = ExpediaSearchFeatureViewsRequest(
+    request = ExpediaSearchFeatureViewsRequestProto(
         search_text="search",
-        online=None,
-        application=None,
-        team=None,
-        created_at=None,
-        updated_at=None,
         page_size=10,
         page_index=0,
     )
     response = test_registry.expedia_search_feature_views(request)
 
-    fv_names = [fv.name for fv in response.feature_views]
+    fv_names = [fv.spec.name for fv in response.feature_views]
     assert fv1.name in fv_names  # contains "search"
     # Note: fv2 and fv3 may not contain "search" based on search implementation
 
     # Test filter by online status
-    request = ExpediaSearchFeatureViewsRequest(
+    request = ExpediaSearchFeatureViewsRequestProto(
         search_text="",
-        online=True,
-        application="",
-        team="",
-        created_at=None,
-        updated_at=None,
+        online=BoolValue(value=True),
         page_size=10,
         page_index=0,
     )
     response = test_registry.expedia_search_feature_views(request)
 
-    fv_names = [fv.name for fv in response.feature_views]
+    fv_names = [fv.spec.name for fv in response.feature_views]
     assert fv1.name in fv_names  # online=True
     assert fv2.name not in fv_names  # online=False
     assert fv3.name in fv_names  # online=True
 
     # Test filter by team
-    request = ExpediaSearchFeatureViewsRequest(
+    request = ExpediaSearchFeatureViewsRequestProto(
         search_text="",
-        online=None,
-        application="",
         team="team1",
-        created_at=None,
-        updated_at=None,
         page_size=10,
         page_index=0,
     )
     response = test_registry.expedia_search_feature_views(request)
 
-    fv_names = [fv.name for fv in response.feature_views]
+    fv_names = [fv.spec.name for fv in response.feature_views]
     assert fv1.name in fv_names  # team=team1
     assert fv2.name not in fv_names  # team=team2
     assert fv3.name in fv_names  # team=team1
 
     # Test filter by application
-    request = ExpediaSearchFeatureViewsRequest(
+    request = ExpediaSearchFeatureViewsRequestProto(
         search_text="",
-        online=None,
         application="app1",
-        team="",
-        created_at=None,
-        updated_at=None,
         page_size=10,
         page_index=0,
     )
     response = test_registry.expedia_search_feature_views(request)
 
-    fv_names = [fv.name for fv in response.feature_views]
+    fv_names = [fv.spec.name for fv in response.feature_views]
     assert fv1.name in fv_names  # application=app1
     assert fv2.name not in fv_names  # application=app2
     assert fv3.name not in fv_names  # application=app3
 
     # Test pagination
-    request = ExpediaSearchFeatureViewsRequest(
+    request = ExpediaSearchFeatureViewsRequestProto(
         search_text="",
-        online=None,
-        application="",
-        team="",
-        created_at=None,
-        updated_at=None,
         page_size=1,
         page_index=0,
     )
@@ -2504,19 +2480,16 @@ def test_expedia_search_feature_views_success(test_registry):
     assert response.total_page_indices >= 3
 
     # Test combined filters
-    request = ExpediaSearchFeatureViewsRequest(
+    request = ExpediaSearchFeatureViewsRequestProto(
         search_text="",
-        online=True,
-        application="",
+        online=BoolValue(value=True),
         team="team1",
-        created_at=None,
-        updated_at=None,
         page_size=10,
         page_index=0,
     )
     response = test_registry.expedia_search_feature_views(request)
 
-    fv_names = [fv.name for fv in response.feature_views]
+    fv_names = [fv.spec.name for fv in response.feature_views]
     assert fv1.name in fv_names  # online=True and team=team1
     assert fv2.name not in fv_names  # online=False
     assert fv3.name in fv_names  # online=True and team=team1
@@ -2531,11 +2504,12 @@ def test_expedia_search_feature_views_success(test_registry):
 )
 def test_expedia_search_projects_raises_type_error_for_non_sql_registry(test_registry):
     """Test that ExpediaSearchProjects raises TypeError for non-SQL registries."""
-    from feast.expediagroup.search import ExpediaSearchProjectsRequest
+    from feast.protos.feast.registry.RegistryServer_pb2 import (
+        ExpediaSearchProjectsRequest as ExpediaSearchProjectsRequestProto,
+    )
 
-    request = ExpediaSearchProjectsRequest(
+    request = ExpediaSearchProjectsRequestProto(
         search_text="",
-        updated_at=None,
         page_size=10,
         page_index=0,
     )
@@ -2558,15 +2532,12 @@ def test_expedia_search_feature_views_raises_type_error_for_non_sql_registry(
     test_registry,
 ):
     """Test that ExpediaSearchFeatureViews raises TypeError for non-SQL registries."""
-    from feast.expediagroup.search import ExpediaSearchFeatureViewsRequest
+    from feast.protos.feast.registry.RegistryServer_pb2 import (
+        ExpediaSearchFeatureViewsRequest as ExpediaSearchFeatureViewsRequestProto,
+    )
 
-    request = ExpediaSearchFeatureViewsRequest(
+    request = ExpediaSearchFeatureViewsRequestProto(
         search_text="",
-        online=None,
-        application="",
-        team="",
-        created_at=None,
-        updated_at=None,
         page_size=10,
         page_index=0,
     )

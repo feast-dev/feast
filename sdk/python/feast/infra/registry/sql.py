@@ -46,13 +46,6 @@ from feast.errors import (
 from feast.expediagroup.pydantic_models.project_metadata_model import (
     ProjectMetadataModel,
 )
-from feast.expediagroup.search import (
-    ExpediaProjectAndRelatedFeatureViews,
-    ExpediaSearchFeatureViewsRequest,
-    ExpediaSearchFeatureViewsResponse,
-    ExpediaSearchProjectsRequest,
-    ExpediaSearchProjectsResponse,
-)
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
@@ -83,6 +76,21 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 )
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
+)
+from feast.protos.feast.registry.RegistryServer_pb2 import (
+    ExpediaProjectAndRelatedFeatureViews as ExpediaProjectAndRelatedFeatureViewsProto,
+)
+from feast.protos.feast.registry.RegistryServer_pb2 import (
+    ExpediaSearchFeatureViewsRequest as ExpediaSearchFeatureViewsRequestProto,
+)
+from feast.protos.feast.registry.RegistryServer_pb2 import (
+    ExpediaSearchFeatureViewsResponse as ExpediaSearchFeatureViewsResponseProto,
+)
+from feast.protos.feast.registry.RegistryServer_pb2 import (
+    ExpediaSearchProjectsRequest as ExpediaSearchProjectsRequestProto,
+)
+from feast.protos.feast.registry.RegistryServer_pb2 import (
+    ExpediaSearchProjectsResponse as ExpediaSearchProjectsResponseProto,
 )
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
@@ -1565,15 +1573,14 @@ class SqlRegistry(CachingRegistry):
 
     def expedia_search_projects(
         self,
-        request: ExpediaSearchProjectsRequest,
-    ) -> ExpediaSearchProjectsResponse:
-        # Unpack fields from the request object
-        (
-            search_text,
-            updated_at,
-            page_size,
-            page_index,
-        ) = request
+        request: ExpediaSearchProjectsRequestProto,
+    ) -> ExpediaSearchProjectsResponseProto:
+        search_text = request.search_text
+        updated_at = (
+            request.updated_at.ToDatetime() if request.HasField("updated_at") else None
+        )
+        page_size = request.page_size if request.page_size > 0 else 10
+        page_index = request.page_index
 
         # 1. Query projects table for matching projects
         with self.read_engine.begin() as conn:
@@ -1619,13 +1626,12 @@ class SqlRegistry(CachingRegistry):
 
             rows = conn.execute(stmt, params).all()
 
-            project_objs: List[Project] = []
+            project_protos: List[ProjectProto] = []
             project_ids: List[str] = []
             for row in rows:
                 project_id = row._mapping["project_id"]
                 project_proto = ProjectProto.FromString(row._mapping["project_proto"])
-                project = Project.from_proto(project_proto)
-                project_objs.append(project)
+                project_protos.append(project_proto)
                 project_ids.append(project_id)
 
         # 2. Fetch all feature views for these projects
@@ -1635,49 +1641,48 @@ class SqlRegistry(CachingRegistry):
             ).where(feature_views.c.project_id.in_(project_ids))
             feature_view_rows = conn.execute(feature_views_stmt).all()
 
-        feature_views_by_project: Dict[str, List[FeatureView]] = {}
+        fv_protos_by_project: Dict[str, List[FeatureViewProto]] = {}
         for row in feature_view_rows:
             project_id = row._mapping["project_id"]
             feature_view_proto = FeatureViewProto.FromString(
                 row._mapping["feature_view_proto"]
             )
-            fv = FeatureView.from_proto(feature_view_proto)
-            feature_views_by_project.setdefault(project_id, []).append(fv)
+            feature_view_proto.spec.project = project_id
+            fv_protos_by_project.setdefault(project_id, []).append(feature_view_proto)
 
-        # 3. Build ExpediaProjectAndRelatedFeatureViews objects
-        projects_and_related_feature_views = []
-        for project in project_objs:
-            obj = ExpediaProjectAndRelatedFeatureViews(
-                project=project,
-                feature_views=feature_views_by_project.get(project.name, []),
-            )
-            projects_and_related_feature_views.append(obj)
+        # 3. Build response proto directly
+        response = ExpediaSearchProjectsResponseProto()
+        response.total_projects = total_count
+        response.total_page_indices = total_page_indices
+        for i, project_proto in enumerate(project_protos):
+            project_id = project_ids[i]
+            entry = ExpediaProjectAndRelatedFeatureViewsProto()
+            entry.project.CopyFrom(project_proto)
+            entry.feature_views.extend(fv_protos_by_project.get(project_id, []))
+            response.projects_and_related_feature_views.append(entry)
 
-        return ExpediaSearchProjectsResponse(
-            projects_and_related_feature_views=projects_and_related_feature_views,
-            total_projects=total_count,
-            total_page_indices=total_page_indices,
-        )
+        return response
 
     def expedia_search_feature_views(
         self,
-        request: ExpediaSearchFeatureViewsRequest,
-    ) -> ExpediaSearchFeatureViewsResponse:
-        # Unpack fields from the request object
-        (
-            search_text,
-            online,
-            application,
-            team,
-            created_at,
-            updated_at,
-            page_size,
-            page_index,
-        ) = request
+        request: ExpediaSearchFeatureViewsRequestProto,
+    ) -> ExpediaSearchFeatureViewsResponseProto:
+        search_text = request.search_text
+        online = request.online.value if request.HasField("online") else None
+        application = request.application
+        team = request.team
+        created_at = (
+            request.created_at.ToDatetime() if request.HasField("created_at") else None
+        )
+        updated_at = (
+            request.updated_at.ToDatetime() if request.HasField("updated_at") else None
+        )
+        page_size = request.page_size if request.page_size > 0 else 10
+        page_index = request.page_index
 
         offset = page_index * page_size
-        results = []
-        filtered_results = []
+        results: List[FeatureViewProto] = []
+        filtered_results: List[FeatureViewProto] = []
         in_memory_filtering_required = any(
             [online is not None, application, team, created_at, updated_at]
         )
@@ -1707,8 +1712,7 @@ class SqlRegistry(CachingRegistry):
                         row._mapping["feature_view_proto"]
                     )
                     feature_view_proto.spec.project = row._mapping["project_id"]
-                    fv = FeatureView.from_proto(feature_view_proto)
-                    results.append(fv)
+                    results.append(feature_view_proto)
 
                 total_stmt = select(func.count()).select_from(feature_views)
                 if search_text:  # Only add search filter if search_text is not empty
@@ -1729,11 +1733,11 @@ class SqlRegistry(CachingRegistry):
                     total_count = conn.execute(total_stmt).scalar() or 0
                 total_page_indices = (total_count + page_size - 1) // page_size
 
-                return ExpediaSearchFeatureViewsResponse(
-                    feature_views=results,
-                    total_feature_views=total_count,
-                    total_page_indices=total_page_indices,
-                )
+                response = ExpediaSearchFeatureViewsResponseProto()
+                response.feature_views.extend(results)
+                response.total_feature_views = total_count
+                response.total_page_indices = total_page_indices
+                return response
 
             stmt = select(feature_views)
             if search_text:
@@ -1750,37 +1754,41 @@ class SqlRegistry(CachingRegistry):
                     row._mapping["feature_view_proto"]
                 )
                 feature_view_proto.spec.project = row._mapping["project_id"]
-                fv = FeatureView.from_proto(feature_view_proto)
                 add_to_results = True
 
-                if online is not None and fv.online != online:
+                if online is not None and feature_view_proto.spec.online != online:
                     add_to_results = False
-                if application and fv.tags.get("application") != application:
+                if (
+                    application
+                    and feature_view_proto.spec.tags.get("application") != application
+                ):
                     add_to_results = False
-                if team and fv.tags.get("team") != team:
+                if team and feature_view_proto.spec.tags.get("team") != team:
                     add_to_results = False
                 if (
                     created_at is not None
-                    and fv.created_timestamp
-                    and fv.created_timestamp < created_at
+                    and feature_view_proto.meta.HasField("created_timestamp")
+                    and feature_view_proto.meta.created_timestamp.ToDatetime()
+                    < created_at
                 ):
                     add_to_results = False
                 if (
                     updated_at is not None
-                    and fv.last_updated_timestamp
-                    and fv.last_updated_timestamp < updated_at
+                    and feature_view_proto.meta.HasField("last_updated_timestamp")
+                    and feature_view_proto.meta.last_updated_timestamp.ToDatetime()
+                    < updated_at
                 ):
                     add_to_results = False
 
                 if add_to_results:
-                    filtered_results.append(fv)
+                    filtered_results.append(feature_view_proto)
 
             total_count = len(filtered_results)
             total_page_indices = (total_count + page_size - 1) // page_size
             paginated_results = filtered_results[offset : offset + page_size]
 
-        return ExpediaSearchFeatureViewsResponse(
-            feature_views=paginated_results,
-            total_feature_views=total_count,
-            total_page_indices=total_page_indices,
-        )
+        response = ExpediaSearchFeatureViewsResponseProto()
+        response.feature_views.extend(paginated_results)
+        response.total_feature_views = total_count
+        response.total_page_indices = total_page_indices
+        return response
