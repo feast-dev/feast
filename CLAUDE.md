@@ -139,10 +139,3 @@ Feast supports Python and Go SDKs. Changes to core functionality may require upd
 2. Set up your development environment
 3. Run relevant tests before submitting PRs
 4. Ensure code passes linting and type checking
-
-## Agent Skills
-
-The Feast User Guide agent skill is located at `Agent-Skill/SKILL.md`. To enable it, create a symbolic link in the `.claude/skills/` folder:
-
-mkdir -p .claude/skills
-ln -s ../../Agent-Skill .claude/skills/Agent-Skill
