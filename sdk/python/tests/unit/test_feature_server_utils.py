@@ -38,6 +38,7 @@ from feast.feature_server_utils import (
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
+    GetOnlineFeaturesResponseMetadata,
 )
 from feast.protos.feast.types.Value_pb2 import (
     BoolList,
@@ -159,12 +160,12 @@ class TestMetadataToDict:
     """Tests for _metadata_to_dict function (matches proto_json.patch() format)."""
 
     def test_empty_metadata(self):
-        metadata = GetOnlineFeaturesResponse.FieldValues()
+        metadata = GetOnlineFeaturesResponseMetadata()
         result = _metadata_to_dict(metadata)
         assert result == {}
 
     def test_metadata_with_feature_names(self):
-        metadata = GetOnlineFeaturesResponse.FieldValues()
+        metadata = GetOnlineFeaturesResponseMetadata()
         metadata.feature_names.val.extend(["feature1", "feature2", "feature3"])
         result = _metadata_to_dict(metadata)
         assert result == {"feature_names": ["feature1", "feature2", "feature3"]}
