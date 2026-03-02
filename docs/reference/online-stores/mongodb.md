@@ -37,7 +37,7 @@ registry: data/registry.db
 provider: local
 online_store:
   type: mongodb
-  connection_string: "mongodb+srv://username:password@cluster.mongodb.net/"
+  connection_string: "mongodb+srv://username:password@cluster.mongodb.net/"  # pragma: allowlist secret
   database_name: feast_online_store
 ```
 {% endcode %}
@@ -51,7 +51,7 @@ registry: data/registry.db
 provider: local
 online_store:
   type: mongodb
-  connection_string: "mongodb://username:password@localhost:27017/"
+  connection_string: "mongodb://username:password@localhost:27017/"  # pragma: allowlist secret
   database_name: feast_online_store
   collection_suffix: features
 ```
