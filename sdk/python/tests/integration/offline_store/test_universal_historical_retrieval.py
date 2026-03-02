@@ -25,9 +25,6 @@ from tests.integration.feature_repos.universal.data_sources.file import (
     RemoteOfflineStoreDataSourceCreator,
     RemoteOfflineTlsStoreDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.snowflake import (
-    SnowflakeDataSourceCreator,
-)
 from tests.integration.feature_repos.universal.entities import (
     customer,
     driver,
@@ -279,7 +276,7 @@ def test_historical_features_with_entities_from_query(
         raise pytest.skip("Offline source is not sql-based")
 
     data_source_creator = environment.data_source_creator
-    if isinstance(data_source_creator, SnowflakeDataSourceCreator):
+    if type(data_source_creator).__name__ == "SnowflakeDataSourceCreator":
         entity_df_query = f"""
         SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp"
         FROM "{orders_table}"
