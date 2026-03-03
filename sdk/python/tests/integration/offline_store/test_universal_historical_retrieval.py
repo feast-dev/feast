@@ -16,16 +16,16 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.types import Float32, Int32, String
 from feast.utils import _utc_now
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     RemoteOfflineOidcAuthStoreDataSourceCreator,
     RemoteOfflineStoreDataSourceCreator,
     RemoteOfflineTlsStoreDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.entities import (
+from tests.universal.feature_repos.universal.entities import (
     customer,
     driver,
     location,

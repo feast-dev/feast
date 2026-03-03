@@ -3,7 +3,7 @@
 from feast.infra.offline_stores.contrib.ray_repo_configuration import (
     RayDataSourceCreator,
 )
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
 

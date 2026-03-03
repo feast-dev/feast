@@ -9,10 +9,10 @@ import pytest
 from feast import FeatureView, Field
 from feast.types import Float32, Int32, Json, Map, String, Struct
 from feast.utils import _utc_now
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import driver
+from tests.universal.feature_repos.universal.entities import driver
 
 
 @pytest.mark.integration

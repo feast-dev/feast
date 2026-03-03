@@ -14,7 +14,7 @@ from feast import Entity, FileSource
 from feast.data_source import DataSource
 from feast.infra.ray_initializer import shutdown_ray
 from feast.utils import _utc_now
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_test_environment,
 )
 

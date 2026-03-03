@@ -14,10 +14,10 @@ from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
 )
 from feast.infra.utils.postgres.connection_utils import df_to_postgres_table
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.online_store_creator import (
+from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 

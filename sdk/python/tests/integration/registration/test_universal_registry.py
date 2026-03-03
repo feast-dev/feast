@@ -56,7 +56,7 @@ from feast.stream_feature_view import Aggregation, StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.utils import _utc_now
 from feast.value_type import ValueType
-from tests.integration.feature_repos.universal.entities import driver
+from tests.universal.feature_repos.universal.entities import driver
 
 
 @pytest.fixture

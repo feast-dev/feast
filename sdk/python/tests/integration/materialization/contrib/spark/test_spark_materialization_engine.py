@@ -10,13 +10,13 @@ from feast.infra.offline_stores.contrib.spark_offline_store.tests.data_source im
 )
 from feast.types import Float32
 from tests.data.data_creator import create_basic_driver_dataset
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_test_environment,
 )
-from tests.integration.feature_repos.universal.online_store.redis import (
+from tests.universal.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency

@@ -6,7 +6,7 @@ from feast.driver_test_data import (
     create_driver_hourly_stats_df,
     create_global_daily_stats_df,
 )
-from tests.integration.feature_repos.universal.feature_views import TAGS
+from tests.universal.feature_repos.universal.feature_views import TAGS
 from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 

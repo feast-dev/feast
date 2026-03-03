@@ -1,7 +1,7 @@
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.universal.online_store.postgres import (
+from tests.universal.feature_repos.universal.online_store.postgres import (
     PostgresOnlineStoreCreator,
 )
 

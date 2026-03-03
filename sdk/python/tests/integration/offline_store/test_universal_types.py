@@ -17,8 +17,8 @@ from feast.types import (
 )
 from feast.utils import _utc_now
 from tests.data.data_creator import create_basic_driver_dataset
-from tests.integration.feature_repos.universal.entities import driver
-from tests.integration.feature_repos.universal.feature_views import driver_feature_view
+from tests.universal.feature_repos.universal.entities import driver
+from tests.universal.feature_repos.universal.feature_views import driver_feature_view
 from tests.utils.type_test_utils import (
     TypeTestConfig,
     get_feast_type,

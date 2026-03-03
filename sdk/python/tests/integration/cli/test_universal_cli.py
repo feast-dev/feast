@@ -7,7 +7,7 @@ import pytest
 from assertpy import assertpy
 
 from feast.feature_store import FeatureStore
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
 )
 from tests.utils.basic_read_write_test import basic_rw_test

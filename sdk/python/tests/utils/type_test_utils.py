@@ -11,7 +11,7 @@ from feast.types import (
     UnixTimestamp,
 )
 from tests.data.data_creator import create_basic_driver_dataset
-from tests.integration.feature_repos.universal.feature_views import driver_feature_view
+from tests.universal.feature_repos.universal.feature_views import driver_feature_view
 
 
 @dataclass(frozen=True, repr=True)

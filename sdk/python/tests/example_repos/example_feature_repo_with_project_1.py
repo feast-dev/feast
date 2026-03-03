@@ -6,7 +6,7 @@ from feast import Entity, FeatureService, FeatureView, Field, FileSource, PushSo
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.project import Project
 from feast.types import Array, Float32, Int64, String
-from tests.integration.feature_repos.universal.feature_views import TAGS
+from tests.universal.feature_repos.universal.feature_views import TAGS
 
 # Note that file source paths are not validated, so there doesn't actually need to be any data
 # at the paths for these file sources. Since these paths are effectively fake, this example
