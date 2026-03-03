@@ -70,6 +70,32 @@ class RemoteOnlineStore(OnlineStore):
     remote online store implementation wrapper to communicate with feast online server.
     """
 
+    @staticmethod
+    def _proto_value_to_transport_value(proto_value: ValueProto) -> Any:
+        """
+        Convert a proto Value to a JSON-serializable Python value suitable for
+        HTTP transport.  Unlike ``feast_value_type_to_python_type``, this keeps
+        ``json_val`` as a raw string so the receiving server can reconstruct a
+        DataFrame whose column types match the original (string for JSON, dict
+        for Map/Struct).  Parsing JSON strings into dicts would cause PyArrow to
+        infer a struct column on the server, which can crash with complex nested
+        types (lists inside dicts).
+        """
+        val_attr = proto_value.WhichOneof("val")
+        if val_attr is None:
+            return None
+
+        # Keep JSON values as raw strings for correct DataFrame reconstruction.
+        # Parsing them into dicts causes PyArrow to infer struct columns on the
+        # server whose nested lists round-trip as numpy arrays, breaking
+        # json.dumps during proto conversion.
+        if val_attr == "json_val":
+            return getattr(proto_value, val_attr)
+        if val_attr == "json_list_val":
+            return list(getattr(proto_value, val_attr).val)
+
+        return feast_value_type_to_python_type(proto_value)
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -97,10 +123,11 @@ class RemoteOnlineStore(OnlineStore):
                     feast_value_type_to_python_type(entity_value_proto)
                 )
 
-            # Populate feature values
+            # Populate feature values – use transport-safe conversion that
+            # preserves JSON strings instead of parsing them into dicts.
             for feature_name, feature_value_proto in feature_values_proto.items():
                 columnar_data[feature_name].append(
-                    feast_value_type_to_python_type(feature_value_proto)
+                    self._proto_value_to_transport_value(feature_value_proto)
                 )
 
             # Populate timestamps
