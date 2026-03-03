@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, regexp_replace
 from pyspark.testing.utils import assertDataFrameEqual
 
@@ -50,28 +49,9 @@ def remove_extra_spaces_sql(df, column_name):
     return sql
 
 
-@pytest.fixture
-def spark_fixture():
-    spark = (
-        SparkSession.builder.appName("Testing PySpark Example")
-        .config("spark.driver.host", "127.0.0.1")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .getOrCreate()
-    )
-    try:
-        yield spark
-    finally:
-        spark.stop()
-
-
 @patch("feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session")
 def test_spark_transformation(spark_fixture):
-    spark = (
-        SparkSession.builder.appName("Testing PySpark Example")
-        .config("spark.driver.host", "127.0.0.1")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .getOrCreate()
-    )
+    spark = spark_fixture
     df = get_sample_df(spark)
 
     spark_transformation = Transformation(
@@ -87,12 +67,7 @@ def test_spark_transformation(spark_fixture):
 
 @patch("feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session")
 def test_spark_transformation_init_transformation(spark_fixture):
-    spark = (
-        SparkSession.builder.appName("Testing PySpark Example")
-        .config("spark.driver.host", "127.0.0.1")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .getOrCreate()
-    )
+    spark = spark_fixture
     df = get_sample_df(spark)
 
     spark_transformation = SparkTransformation(
@@ -108,12 +83,7 @@ def test_spark_transformation_init_transformation(spark_fixture):
 
 @patch("feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session")
 def test_spark_transformation_sql(spark_fixture):
-    spark = (
-        SparkSession.builder.appName("Testing PySpark Example")
-        .config("spark.driver.host", "127.0.0.1")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .getOrCreate()
-    )
+    spark = spark_fixture
     df = get_sample_df(spark)
 
     spark_transformation = SparkTransformation(
