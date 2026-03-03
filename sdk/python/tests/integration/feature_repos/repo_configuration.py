@@ -100,15 +100,6 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", RemoteOfflineTlsStoreDataSourceCreator),
 ]
 
-try:
-    from feast.infra.offline_stores.contrib.ray_repo_configuration import (
-        RayDataSourceCreator,
-    )
-
-    AVAILABLE_OFFLINE_STORES.append(("local", RayDataSourceCreator))
-except ImportError:
-    pass
-
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
     AVAILABLE_OFFLINE_STORES.extend(
         [

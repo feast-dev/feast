@@ -6,7 +6,7 @@ import pytest
 import requests
 from kubernetes import client, config
 
-from tests.integration.registration.rest_api.support import (
+from tests.integration.rest_api.support import (
     applyFeastProject,
     create_feast_project,
     create_namespace,
