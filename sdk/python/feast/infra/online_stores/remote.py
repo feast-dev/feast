@@ -94,6 +94,15 @@ class RemoteOnlineStore(OnlineStore):
         if val_attr == "json_list_val":
             return list(getattr(proto_value, val_attr).val)
 
+        # Map/Struct types are converted to Python dicts by
+        # feast_value_type_to_python_type.  Serialise them to JSON strings
+        # so the server-side DataFrame gets VARCHAR columns instead of
+        # PyArrow struct columns that can crash with complex nested types.
+        if val_attr in ("map_val", "struct_val"):
+            return json.dumps(feast_value_type_to_python_type(proto_value))
+        if val_attr in ("map_list_val", "struct_list_val"):
+            return [json.dumps(v) for v in feast_value_type_to_python_type(proto_value)]
+
         return feast_value_type_to_python_type(proto_value)
 
     def online_write_batch(
