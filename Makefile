@@ -186,6 +186,7 @@ test-python-integration: ## Run Python integration tests (CI)
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
 		--ignore=sdk/python/tests/integration/registration \
+		--ignore=sdk/python/tests/integration/compute_engines/ray_compute \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -402,13 +403,8 @@ test-python-universal-postgres-offline: ## Run Python Postgres integration tests
  				not test_spark" \
  			sdk/python/tests
 
-test-python-universal-ray-offline: ## Run Python Ray offline store integration tests
+test-python-ray-integration: ## Run all Python Ray integration tests (offline store + compute engine)
 	pixi run -e ray-tests test
-
-test-python-ray-compute-engine: ## Run Python Ray compute engine tests
-	PYTHONPATH='.' \
-		python -m pytest -v --integration \
-			sdk/python/tests/integration/compute_engines/ray_compute/
 
 test-python-universal-postgres-online: ## Run Python Postgres integration tests
 	PYTHONPATH='.' \
