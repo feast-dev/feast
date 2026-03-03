@@ -53,6 +53,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
     ) -> DataSource:
         destination_name = self.get_prefixed_table_name(destination_name)
 
+        df = self.serialize_complex_columns(df)
         with GetSnowflakeConnection(self.offline_store_config) as conn:
             write_pandas(conn, df, destination_name, auto_create_table=True)
 

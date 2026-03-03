@@ -409,7 +409,7 @@ class SnowflakeOfflineStore(OfflineStore):
             )
 
         if table.schema != pa_schema:
-            table = table.cast(pa_schema)
+            table = offline_utils.cast_arrow_table_to_schema(table, pa_schema)
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn

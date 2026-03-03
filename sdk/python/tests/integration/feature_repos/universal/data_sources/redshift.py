@@ -55,6 +55,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
     ) -> DataSource:
         destination_name = self.get_prefixed_table_name(destination_name)
 
+        df = self.serialize_complex_columns(df)
         aws_utils.upload_df_to_redshift(
             self.client,
             self.offline_store_config.cluster_id,

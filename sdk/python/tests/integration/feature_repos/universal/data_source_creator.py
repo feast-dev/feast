@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
@@ -13,6 +14,29 @@ from feast.saved_dataset import SavedDatasetStorage
 class DataSourceCreator(ABC):
     def __init__(self, project_name: str, *args, **kwargs):
         self.project_name = project_name
+
+    @staticmethod
+    def serialize_complex_columns(df: pd.DataFrame) -> pd.DataFrame:
+        """Serialize dict columns (Map/Struct types) to JSON strings.
+
+        Backends like Snowflake, BigQuery, and Redshift cannot natively
+        ingest Python dicts via their bulk-load paths (VARIANT, STRUCT,
+        super types cause issues).  Converting them to JSON strings lets
+        the data be stored as VARCHAR/STRING instead.
+
+        List columns with primitive values (int, float, str, bool) are
+        left untouched since backends handle those as native ARRAY types.
+        """
+        df = df.copy()
+        for col in df.columns:
+            if df[col].dropna().empty:
+                continue
+            sample = df[col].dropna().iloc[0]
+            if isinstance(sample, dict):
+                df[col] = df[col].apply(
+                    lambda v: json.dumps(v) if v is not None else None
+                )
+        return df
 
     @abstractmethod
     def create_data_source(

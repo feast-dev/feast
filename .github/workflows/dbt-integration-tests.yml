@@ -13,6 +13,10 @@ on:
       - 'sdk/python/tests/unit/dbt/**'
       - '.github/workflows/dbt-integration-tests.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dbt-integration-test:
     if:

@@ -80,6 +80,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         # `BigQueryOfflineStore.offline_write_batch`, but since we're bypassing that API here, we should follow the same
         # rule. The schema of this initial dataframe determines the schema in the newly created BigQuery table.
         df = make_df_tzaware(df)
+        df = self.serialize_complex_columns(df)
         job = self.client.load_table_from_dataframe(df, destination_name)
         job.result()
 

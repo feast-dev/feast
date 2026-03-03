@@ -416,7 +416,7 @@ class BigQueryOfflineStore(OfflineStore):
             )
 
         if table.schema != pa_schema:
-            table = table.cast(pa_schema)
+            table = offline_utils.cast_arrow_table_to_schema(table, pa_schema)
         project_id = (
             config.offline_store.billing_project_id or config.offline_store.project_id
         )
@@ -833,12 +833,17 @@ def arrow_schema_to_bq_schema(arrow_schema: pyarrow.Schema) -> List[SchemaField]
     bq_schema = []
 
     for field in arrow_schema:
-        if pyarrow.types.is_list(field.type):
+        if pyarrow.types.is_struct(field.type) or pyarrow.types.is_map(field.type):
+            detected_mode = "NULLABLE"
+            detected_type = "STRING"
+        elif pyarrow.types.is_list(field.type):
             detected_mode = "REPEATED"
-            detected_type = _ARROW_SCALAR_IDS_TO_BQ[field.type.value_type.id]
+            detected_type = _ARROW_SCALAR_IDS_TO_BQ.get(
+                field.type.value_type.id, "STRING"
+            )
         else:
             detected_mode = "NULLABLE"
-            detected_type = _ARROW_SCALAR_IDS_TO_BQ[field.type.id]
+            detected_type = _ARROW_SCALAR_IDS_TO_BQ.get(field.type.id, "STRING")
 
         bq_schema.append(
             SchemaField(name=field.name, field_type=detected_type, mode=detected_mode)
