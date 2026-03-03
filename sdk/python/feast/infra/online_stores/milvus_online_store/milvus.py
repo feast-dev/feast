@@ -87,6 +87,10 @@ for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.VARCHAR
         elif base_value_type == ValueType.BOOL:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.BINARY_VECTOR
+    elif isinstance(feast_type, ComplexFeastType):
+        milvus_type = PROTO_TO_MILVUS_TYPE_MAPPING.get(value_type)
+        if milvus_type:
+            FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = milvus_type
 
 
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -179,6 +183,8 @@ class MilvusOnlineStore(OnlineStore):
             fields_to_add = [f for f in table.schema if f.name not in fields_to_exclude]
             for field in fields_to_add:
                 dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
+                if dtype is None and isinstance(field.dtype, ComplexFeastType):
+                    dtype = DataType.VARCHAR
                 if dtype:
                     if dtype == DataType.FLOAT_VECTOR:
                         fields.append(

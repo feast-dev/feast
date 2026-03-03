@@ -293,7 +293,7 @@ test-compute = { cmd = "python -m pytest -v --integration sdk/python/tests/integ
 test = { depends-on = ["test-offline", "test-compute"] }
 
 [tool.pixi.feature.registration-tests.pypi-dependencies]
-feast = { path = ".", editable = true, extras = ["aws", "gcp", "grpcio", "postgres", "mysql", "snowflake", "spark", "test"] }
+feast = { path = ".", editable = true, extras = ["aws", "gcp", "grpcio", "postgres", "mysql", "redis", "snowflake", "spark", "test"] }
 grpcio-testing = ">=1.56.2,<=1.62.3"
 
 [tool.pixi.feature.registration-tests.tasks]
