@@ -385,7 +385,7 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
     ```
 3.  Next, set up your offline store to run the universal integration tests. These are integration tests specifically intended to test offline and online stores against Feast API functionality, to ensure that the Feast APIs works with your offline store.
 
-    * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different offline store classes for testing.
+    * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/universal/feature_repos/repo_configuration.py` which stores different offline store classes for testing.
     * To overwrite the default configurations to use your own offline store, you can simply create your own file that contains a `FULL_REPO_CONFIGS` dictionary, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline store that you would like Feast to test with.
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:

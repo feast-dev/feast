@@ -36,10 +36,10 @@ from tests.data.data_creator import (
     create_document_dataset,
     create_image_dataset,
 )
-from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
+from tests.universal.feature_repos.integration_test_repo_config import (  # noqa: E402
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
+from tests.universal.feature_repos.repo_configuration import (  # noqa: E402
     AVAILABLE_OFFLINE_STORES,
     AVAILABLE_ONLINE_STORES,
     OFFLINE_STORE_TO_PROVIDER_CONFIG,
@@ -49,10 +49,10 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     construct_universal_feature_views,
     construct_universal_test_data,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
+from tests.universal.feature_repos.universal.data_sources.file import (  # noqa: E402
     FileDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.entities import (  # noqa: E402
+from tests.universal.feature_repos.universal.entities import (  # noqa: E402
     customer,
     driver,
     location,

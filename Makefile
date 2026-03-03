@@ -409,7 +409,7 @@ test-python-ray-integration: ## Run all Python Ray integration tests (offline st
 test-python-universal-postgres-online: ## Run Python Postgres integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_online_store.postgres_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -428,7 +428,7 @@ test-python-universal-postgres-online: ## Run Python Postgres integration tests
  test-python-universal-pgvector-online: ## Run Python Postgres integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_online_store.pgvector_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -450,7 +450,7 @@ test-python-universal-postgres-online: ## Run Python Postgres integration tests
 test-python-universal-mysql-online: ## Run Python MySQL integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.mysql_online_store.mysql_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.mysql \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -469,7 +469,7 @@ test-python-universal-mysql-online: ## Run Python MySQL integration tests
 test-python-universal-cassandra: ## Run Python Cassandra integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration \
-	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
+	PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
 	sdk/python/tests/integration/offline_store/test_feature_logging.py \
 		--ignore=sdk/python/tests/integration/offline_store/test_validation.py \
@@ -480,7 +480,7 @@ test-python-universal-cassandra: ## Run Python Cassandra integration tests
 test-python-universal-hazelcast: ## Run Python Hazelcast integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.hazelcast_online_store.hazelcast_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.hazelcast \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.hazelcast \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -499,7 +499,7 @@ test-python-universal-hazelcast: ## Run Python Hazelcast integration tests
 test-python-universal-cassandra-no-cloud-providers: ## Run Python Cassandra integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration \
-	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
+	PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
 	-k "not test_lambda_materialization_consistency   and \
 	  not test_apply_entity_integration               and \
@@ -516,7 +516,7 @@ test-python-universal-cassandra-no-cloud-providers: ## Run Python Cassandra inte
 test-python-universal-elasticsearch-online: ## Run Python Elasticsearch online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.elasticsearch_online_store.elasticsearch_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.elasticsearch \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -535,7 +535,7 @@ test-python-universal-elasticsearch-online: ## Run Python Elasticsearch online s
 test-python-universal-milvus-online: ## Run Python Milvus online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.milvus_online_store.milvus_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.milvus \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.milvus \
 		python -m pytest -n 8 --integration \
 		-k "test_retrieve_online_milvus_documents" \
  			sdk/python/tests --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py
@@ -543,7 +543,7 @@ test-python-universal-milvus-online: ## Run Python Milvus online store integrati
 test-python-universal-singlestore-online: ## Run Python Singlestore online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.singlestore_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.singlestore \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.singlestore \
 		python -m pytest -n 8 --integration \
 			-k "not test_universal_cli and \
 				not gcs_registry and \
@@ -554,7 +554,7 @@ test-python-universal-singlestore-online: ## Run Python Singlestore online store
 test-python-universal-qdrant-online: ## Run Python Qdrant online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.qdrant_online_store.qdrant_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.qdrant \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.qdrant \
 		python -m pytest -n 8 --integration \
  			-k "test_retrieve_online_documents" \
  			sdk/python/tests/integration/online_store/test_universal_online.py
@@ -589,7 +589,7 @@ test-python-universal-couchbase-offline: ## Run Python Couchbase offline store i
 test-python-universal-couchbase-online:	## Run Python Couchbase online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.couchbase_online_store.couchbase_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.couchbase \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.couchbase \
 		python -m pytest -n 8 --integration \
 			-k "not test_universal_cli and \
 				not test_go_feature_server and \
