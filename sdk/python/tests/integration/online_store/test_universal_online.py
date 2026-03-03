@@ -32,12 +32,12 @@ from feast.types import (
 )
 from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     Environment,
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import driver, item
-from tests.integration.feature_repos.universal.feature_views import (
+from tests.universal.feature_repos.universal.entities import driver, item
+from tests.universal.feature_repos.universal.feature_views import (
     TAGS,
     create_driver_hourly_stats_feature_view,
     create_item_embeddings_feature_view,

@@ -4,10 +4,10 @@ import pytest
 
 from feast.data_source import PushMode
 from feast.utils import _utc_now
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import location
+from tests.universal.feature_repos.universal.entities import location
 
 
 @pytest.mark.integration

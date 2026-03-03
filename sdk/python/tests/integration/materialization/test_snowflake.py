@@ -9,13 +9,13 @@ from feast.feature_view import DUMMY_ENTITY_FIELD, FeatureView
 from feast.types import Array, Bool, Bytes, Float64, Int32, Int64, String, UnixTimestamp
 from feast.utils import _utc_now
 from tests.data.data_creator import create_basic_driver_dataset
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_test_environment,
 )
-from tests.integration.feature_repos.universal.data_sources.snowflake import (
+from tests.universal.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
 )
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency

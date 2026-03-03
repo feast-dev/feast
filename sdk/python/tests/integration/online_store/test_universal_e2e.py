@@ -2,8 +2,8 @@ from datetime import timedelta
 
 import pytest
 
-from tests.integration.feature_repos.universal.entities import driver
-from tests.integration.feature_repos.universal.feature_views import driver_feature_view
+from tests.universal.feature_repos.universal.entities import driver
+from tests.universal.feature_repos.universal.feature_views import driver_feature_view
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
 
