@@ -28,7 +28,7 @@ from feast.types import (
     String,
     Struct,
 )
-from tests.integration.feature_repos.universal.entities import (
+from tests.universal.feature_repos.universal.entities import (
     customer,
     driver,
     item,

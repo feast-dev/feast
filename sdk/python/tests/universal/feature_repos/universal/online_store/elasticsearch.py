@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from testcontainers.elasticsearch import ElasticSearchContainer
 
-from tests.integration.feature_repos.universal.online_store_creator import (
+from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 

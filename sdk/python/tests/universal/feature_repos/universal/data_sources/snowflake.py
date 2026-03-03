@@ -18,7 +18,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     write_pandas,
 )
 from feast.repo_config import FeastConfigBaseModel
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 

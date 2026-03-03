@@ -14,7 +14,7 @@ from feast.infra.offline_stores.redshift_source import (
 )
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 

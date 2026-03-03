@@ -17,7 +17,7 @@ from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse_sour
 )
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 from feast.infra.utils.clickhouse.connection_utils import get_client
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 

@@ -31,7 +31,7 @@ from feast.infra.offline_stores.file_source import (
 from feast.infra.offline_stores.remote import RemoteOfflineStoreConfig
 from feast.repo_config import FeastConfigBaseModel, RegistryConfig
 from feast.wait import wait_retry_backoff  # noqa: E402
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 from tests.utils.auth_permissions_util import include_auth_config

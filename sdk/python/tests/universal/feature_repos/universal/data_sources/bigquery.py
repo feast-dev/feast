@@ -15,7 +15,7 @@ from feast.infra.offline_stores.bigquery_source import (
     SavedDatasetBigQueryStorage,
 )
 from feast.utils import make_df_tzaware
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 

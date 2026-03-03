@@ -1,4 +1,4 @@
-from sdk.python.tests.integration.feature_repos.universal.online_store_creator import (
+from sdk.python.tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 

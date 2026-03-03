@@ -3,13 +3,13 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Optional, Type, Union
 
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.online_store_creator import (
+from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 

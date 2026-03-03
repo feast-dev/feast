@@ -217,7 +217,7 @@ make test-python-integration-local
 To test across clouds, on top of setting up Redis, you also need GCP / AWS / Snowflake setup.
 
 > Note: you can manually control what tests are run today by inspecting
-> [RepoConfiguration](https://github.com/feast-dev/feast/blob/master/sdk/python/tests/integration/feature_repos/repo_configuration.py)
+> [RepoConfiguration](https://github.com/feast-dev/feast/blob/master/sdk/python/tests/universal/feature_repos/repo_configuration.py)
 > and commenting out tests that are added to `DEFAULT_FULL_REPO_CONFIGS`
 
 **GCP**

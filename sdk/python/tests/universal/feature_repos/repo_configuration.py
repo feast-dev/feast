@@ -33,20 +33,20 @@ from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import MaterializationConfig, RegistryConfig, RepoConfig
 from feast.utils import _utc_now
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
     RegistryLocation,
 )
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
     RemoteOfflineOidcAuthStoreDataSourceCreator,
     RemoteOfflineStoreDataSourceCreator,
     RemoteOfflineTlsStoreDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.feature_views import (
+from tests.universal.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_source,
     create_customer_daily_profile_feature_view,
@@ -58,7 +58,7 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_order_feature_view,
     create_pushable_feature_view,
 )
-from tests.integration.feature_repos.universal.online_store_creator import (
+from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 
@@ -114,13 +114,13 @@ AVAILABLE_ONLINE_STORES: Dict[
 
 # Only configure Cloud DWH if running full integration tests
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
-    from tests.integration.feature_repos.universal.data_sources.bigquery import (
+    from tests.universal.feature_repos.universal.data_sources.bigquery import (
         BigQueryDataSourceCreator,
     )
-    from tests.integration.feature_repos.universal.data_sources.redshift import (
+    from tests.universal.feature_repos.universal.data_sources.redshift import (
         RedshiftDataSourceCreator,
     )
-    from tests.integration.feature_repos.universal.data_sources.snowflake import (
+    from tests.universal.feature_repos.universal.data_sources.snowflake import (
         SnowflakeDataSourceCreator,
     )
 
@@ -181,19 +181,19 @@ if full_repo_configs_module is not None:
 
 # Replace online stores with emulated online stores if we're running local integration tests
 if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
-    from tests.integration.feature_repos.universal.online_store.bigtable import (
+    from tests.universal.feature_repos.universal.online_store.bigtable import (
         BigtableOnlineStoreCreator,
     )
-    from tests.integration.feature_repos.universal.online_store.datastore import (
+    from tests.universal.feature_repos.universal.online_store.datastore import (
         DatastoreOnlineStoreCreator,
     )
-    from tests.integration.feature_repos.universal.online_store.dynamodb import (
+    from tests.universal.feature_repos.universal.online_store.dynamodb import (
         DynamoDBOnlineStoreCreator,
     )
-    from tests.integration.feature_repos.universal.online_store.milvus import (
+    from tests.universal.feature_repos.universal.online_store.milvus import (
         MilvusOnlineStoreCreator,
     )
-    from tests.integration.feature_repos.universal.online_store.redis import (
+    from tests.universal.feature_repos.universal.online_store.redis import (
         RedisOnlineStoreCreator,
     )
 

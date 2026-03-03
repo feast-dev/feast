@@ -4,7 +4,7 @@ from typing import Dict
 
 from testcontainers.core.container import DockerContainer
 
-from tests.integration.feature_repos.universal.online_store_creator import (
+from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 

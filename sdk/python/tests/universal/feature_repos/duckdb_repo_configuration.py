@@ -1,5 +1,5 @@
 from feast.infra.offline_stores.duckdb import DuckDBOfflineStoreConfig
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     DeltaFileSourceCreator,
     DeltaS3FileSourceCreator,
     FileDataSourceCreator,

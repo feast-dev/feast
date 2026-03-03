@@ -2,7 +2,7 @@ from typing import Dict
 
 from testcontainers.mysql import MySqlContainer
 
-from tests.integration.feature_repos.universal.online_store_creator import (
+from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 
