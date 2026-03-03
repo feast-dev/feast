@@ -247,6 +247,31 @@ def test_convert_raw_docs_partial_doc():
     assert feats_out["missing_feat"] == ValueProto()  # null / not-set
 
 
+def test_convert_raw_docs_entity_exists_but_fv_not_written():
+    """Entity doc exists (written by another FV) but this FV was never written → (None, None).
+
+    MongoDB stores all feature views for the same entity in one document.
+    If FV "driver_stats" was written, an entity doc exists for driver_1.
+    A subsequent read for FV "pricing" (never written) must return (None, None),
+    not a truthy dict of empty ValueProtos.
+    """
+    pricing_fv = _make_fv("price")
+    ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    ids = [b"driver_1"]
+    # doc was created by driver_stats, pricing key is absent entirely
+    docs = {
+        b"driver_1": {
+            "features": {"driver_stats": {"acc_rate": 0.9}},
+            "event_timestamps": {"driver_stats": ts},
+        }
+    }
+
+    results = MongoDBOnlineStore._convert_raw_docs_to_proto(ids, docs, pricing_fv)
+
+    assert len(results) == 1
+    assert results[0] == (None, None)
+
+
 def test_convert_raw_docs_ordering():
     """Result order matches the ids list regardless of dict insertion order in docs."""
     fv = _make_fv("score")

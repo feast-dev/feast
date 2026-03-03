@@ -365,6 +365,13 @@ class MongoDBOnlineStore(OnlineStore):
                 results.append((None, None))
                 continue
 
+            # Entity document exists (written by some other feature view), but
+            # this specific feature view was never written → treat as not found.
+            fv_features = doc.get("features", {}).get(table.name)
+            if fv_features is None:
+                results.append((None, None))
+                continue
+
             ts = doc.get("event_timestamps", {}).get(table.name)
 
             row_features = {
