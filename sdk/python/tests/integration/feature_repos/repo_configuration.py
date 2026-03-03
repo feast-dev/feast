@@ -100,9 +100,6 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", RemoteOfflineTlsStoreDataSourceCreator),
 ]
 
-# Ray offline store tests are run separately via `make test-python-universal-ray`
-# so we don't include them in the default offline store list.
-
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
     AVAILABLE_OFFLINE_STORES.extend(
         [
