@@ -212,7 +212,7 @@ test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
 	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
-		-m "rbac_remote_integration_test" \
+		-m "rbac_remote_integration_test and not ray_offline_stores_only" \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
