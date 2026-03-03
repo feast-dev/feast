@@ -353,7 +353,7 @@ class RedshiftOfflineStore(OfflineStore):
             )
 
         if table.schema != pa_schema:
-            table = table.cast(pa_schema)
+            table = offline_utils.cast_arrow_table_to_schema(table, pa_schema)
 
         redshift_options = feature_view.batch_source.redshift_options
         redshift_client = aws_utils.get_redshift_data_client(

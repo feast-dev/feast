@@ -435,6 +435,9 @@ def fake_ingest_data():
         "conv_rate": [0.5],
         "acc_rate": [0.6],
         "avg_daily_trips": [4],
+        "driver_metadata": [None],
+        "driver_config": [None],
+        "driver_profile": [None],
         "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
         "created": [pd.Timestamp(_utc_now()).round("ms")],
     }
