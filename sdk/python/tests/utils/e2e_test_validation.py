@@ -10,21 +10,15 @@ import yaml
 
 from feast import FeatureStore, FeatureView, RepoConfig
 from feast.utils import _utc_now
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.bigquery import (
-    BigQueryDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
     FileParquetDatasetSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.redshift import (
-    RedshiftDataSourceCreator,
 )
 
 
@@ -225,6 +219,13 @@ NULLABLE_ONLINE_STORE_CONFIGS: List[IntegrationTestRepoConfig] = [
 
 # Only test if this is NOT a local test
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    from tests.universal.feature_repos.universal.data_sources.bigquery import (
+        BigQueryDataSourceCreator,
+    )
+    from tests.universal.feature_repos.universal.data_sources.redshift import (
+        RedshiftDataSourceCreator,
+    )
+
     NULLABLE_ONLINE_STORE_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(

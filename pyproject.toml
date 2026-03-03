@@ -277,24 +277,32 @@ dev = [
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64"]
 
-[tool.pixi.feature.duckdb-tests.dependencies]
+[tool.pixi.feature.py310.dependencies]
 python = "~=3.10.0"
 
 [tool.pixi.feature.duckdb-tests.pypi-dependencies]
 feast = { path = ".", editable = true, extras = ["duckdb", "delta", "grpcio", "test"] }
 
 [tool.pixi.feature.duckdb-tests.tasks]
-test = { cmd = "python -m pytest -n 8 --integration -m 'not ray_offline_stores_only' --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.integration.feature_repos.duckdb_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
-
-[tool.pixi.feature.ray-tests.dependencies]
-python = "~=3.10.0"
+test = { cmd = "python -m pytest -n 8 --integration -m 'not ray_offline_stores_only' --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.duckdb_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
 
 [tool.pixi.feature.ray-tests.pypi-dependencies]
 feast = { path = ".", editable = true, extras = ["ray", "grpcio", "test"] }
 
 [tool.pixi.feature.ray-tests.tasks]
-test = { cmd = "python -m pytest -n 8 --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.integration.feature_repos.ray_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.ray_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+test-compute = { cmd = "python -m pytest -v --integration sdk/python/tests/integration/compute_engines/ray_compute", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test = { depends-on = ["test-offline", "test-compute"] }
+
+[tool.pixi.feature.registration-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["aws", "gcp", "grpcio", "postgres", "mysql", "redis", "snowflake", "spark", "test"] }
+grpcio-testing = ">=1.56.2,<=1.62.3"
+
+[tool.pixi.feature.registration-tests.tasks]
+test = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test-ci = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = "." } }
 
 [tool.pixi.environments]
-duckdb-tests = ["duckdb-tests"]
-ray-tests = ["ray-tests"]
+duckdb-tests = ["py310", "duckdb-tests"]
+ray-tests = ["py310", "ray-tests"]
+registration-tests = ["py310", "registration-tests"]

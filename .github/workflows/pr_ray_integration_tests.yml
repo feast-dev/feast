@@ -7,8 +7,12 @@ on:
       - synchronize
       - labeled
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  integration-test-ray-offline:
+  integration-test-ray:
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
@@ -27,5 +31,5 @@ jobs:
           pixi-version: v0.63.1
           environments: ray-tests
           cache: true
-      - name: Run Ray offline store integration tests
-        run: make test-python-universal-ray-offline
+      - name: Run Ray integration tests (offline store + compute engine)
+        run: make test-python-ray-integration
