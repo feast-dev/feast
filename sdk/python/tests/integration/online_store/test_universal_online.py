@@ -258,6 +258,9 @@ def test_write_to_online_store(environment, universal_data_sources):
         "conv_rate": [0.85],
         "acc_rate": [0.91],
         "avg_daily_trips": [14],
+        "driver_metadata": [None],
+        "driver_config": [None],
+        "driver_profile": [None],
         "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
         "created": [pd.Timestamp(_utc_now()).round("ms")],
     }
@@ -435,6 +438,9 @@ def setup_feature_store_universal_feature_views(
         "conv_rate": [0.5, 0.3],
         "acc_rate": [0.6, 0.4],
         "avg_daily_trips": [4, 5],
+        "driver_metadata": [None, None],
+        "driver_config": [None, None],
+        "driver_profile": [None, None],
         "event_timestamp": [
             pd.to_datetime(1646263500, utc=True, unit="s"),
             pd.to_datetime(1646263600, utc=True, unit="s"),

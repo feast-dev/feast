@@ -1,7 +1,6 @@
 import logging
-from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -10,22 +9,46 @@ import pytest
 
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.types import (
-    Array,
-    Bool,
-    FeastType,
     Float32,
     Float64,
     Int32,
     Int64,
     String,
-    UnixTimestamp,
 )
 from feast.utils import _utc_now
 from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
+from tests.utils.type_test_utils import (
+    TypeTestConfig,
+    get_feast_type,
+    get_type_test_fixtures,
+    populate_test_configs,
+)
 
 logger = logging.getLogger(__name__)
+
+
+OFFLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs()
+
+
+@pytest.fixture(
+    params=OFFLINE_TYPE_TEST_CONFIGS,
+    ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
+)
+def offline_types_test_fixtures(request, environment):
+    config: TypeTestConfig = request.param
+    if environment.provider == "aws" and config.feature_is_list is True:
+        pytest.skip("Redshift doesn't support list features")
+    if (
+        environment.data_source_creator.__class__.__name__
+        == "ClickhouseDataSourceCreator"
+        and config.feature_is_list
+        and not config.has_empty_list
+    ):
+        pytest.skip("Clickhouse doesn't support Nullable(Array) type features")
+
+    return get_type_test_fixtures(request, environment)
 
 
 @pytest.mark.integration
@@ -48,7 +71,7 @@ def test_entity_inference_types_match(environment, entity_type):
         data_source=data_source,
         name=f"fv_entity_type_{entity_type.name.lower()}",
         infer_entities=True,  # Forces entity inference by not including a field for the entity.
-        dtype=_get_feast_type("int32", False),
+        dtype=get_feast_type("int32", False),
         entity_type=entity_type,
     )
 
@@ -88,7 +111,7 @@ def test_feature_get_historical_features_types_match(
     fv = driver_feature_view(
         data_source=data_source,
         name="get_historical_features_types_match",
-        dtype=_get_feast_type(config.feature_dtype, config.feature_is_list),
+        dtype=get_feast_type(config.feature_dtype, config.feature_is_list),
     )
     fs.apply([fv, entity])
 
@@ -125,88 +148,6 @@ def test_feature_get_historical_features_types_match(
         config.feature_is_list,
         historical_features,
     )
-
-
-@pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["sqlite"])
-def test_feature_get_online_features_types_match(
-    online_types_test_fixtures, environment
-):
-    config, data_source, fv = online_types_test_fixtures
-    entity = driver()
-    fv = driver_feature_view(
-        data_source=data_source,
-        name="get_online_features_types_match",
-        dtype=_get_feast_type(config.feature_dtype, config.feature_is_list),
-    )
-    fs = environment.feature_store
-    features = [fv.name + ":value"]
-    fs.apply([fv, entity])
-    fs.materialize(
-        environment.start_date,
-        environment.end_date
-        - timedelta(hours=1),  # throwing out last record to make sure
-        # we can successfully infer type even from all empty values
-    )
-
-    online_features = fs.get_online_features(
-        features=features,
-        entity_rows=[{"driver_id": 1}],
-    ).to_dict()
-
-    feature_list_dtype_to_expected_online_response_value_type = {
-        "int32": int,
-        "int64": int,
-        "float": float,
-        "string": str,
-        "bool": bool,
-        "datetime": datetime,
-    }
-    expected_dtype = feature_list_dtype_to_expected_online_response_value_type[
-        config.feature_dtype
-    ]
-
-    assert len(online_features["value"]) == 1
-
-    if config.feature_is_list:
-        for feature in online_features["value"]:
-            assert isinstance(feature, list), "Feature value should be a list"
-            assert config.has_empty_list or len(feature) > 0, (
-                "List of values should not be empty"
-            )
-            for element in feature:
-                assert isinstance(element, expected_dtype)
-    else:
-        for feature in online_features["value"]:
-            assert isinstance(feature, expected_dtype)
-
-
-def _get_feast_type(feature_dtype: str, feature_is_list: bool) -> FeastType:
-    dtype: Optional[FeastType] = None
-    if feature_is_list is True:
-        if feature_dtype == "int32":
-            dtype = Array(Int32)
-        elif feature_dtype == "int64":
-            dtype = Array(Int64)
-        elif feature_dtype == "float":
-            dtype = Array(Float32)
-        elif feature_dtype == "bool":
-            dtype = Array(Bool)
-        elif feature_dtype == "datetime":
-            dtype = Array(UnixTimestamp)
-    else:
-        if feature_dtype == "int32":
-            dtype = Int32
-        elif feature_dtype == "int64":
-            dtype = Int64
-        elif feature_dtype == "float":
-            dtype = Float32
-        elif feature_dtype == "bool":
-            dtype = Bool
-        elif feature_dtype == "datetime":
-            dtype = UnixTimestamp
-    assert dtype
-    return dtype
 
 
 def assert_expected_historical_feature_types(
@@ -293,96 +234,3 @@ def assert_expected_arrow_types(
         assert arrow_type_checker(pa_type.value_type)
     else:
         assert arrow_type_checker(pa_type)
-
-
-def populate_test_configs(offline: bool):
-    feature_dtypes = [
-        "int32",
-        "int64",
-        "float",
-        "bool",
-        "datetime",
-    ]
-    configs: List[TypeTestConfig] = []
-    for feature_dtype in feature_dtypes:
-        for feature_is_list in [True, False]:
-            for has_empty_list in [True, False]:
-                # For non list features `has_empty_list` does nothing
-                if feature_is_list is False and has_empty_list is True:
-                    continue
-
-                configs.append(
-                    TypeTestConfig(
-                        feature_dtype=feature_dtype,
-                        feature_is_list=feature_is_list,
-                        has_empty_list=has_empty_list,
-                    )
-                )
-    return configs
-
-
-@dataclass(frozen=True, repr=True)
-class TypeTestConfig:
-    feature_dtype: str
-    feature_is_list: bool
-    has_empty_list: bool
-
-
-OFFLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=True)
-ONLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=False)
-
-
-@pytest.fixture(
-    params=OFFLINE_TYPE_TEST_CONFIGS,
-    ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
-)
-def offline_types_test_fixtures(request, environment):
-    config: TypeTestConfig = request.param
-    if environment.provider == "aws" and config.feature_is_list is True:
-        pytest.skip("Redshift doesn't support list features")
-    if (
-        environment.data_source_creator.__class__.__name__
-        == "ClickhouseDataSourceCreator"
-        and config.feature_is_list
-        and not config.has_empty_list
-    ):
-        pytest.skip("Clickhouse doesn't support Nullable(Array) type features")
-
-    return get_fixtures(request, environment)
-
-
-@pytest.fixture(
-    params=ONLINE_TYPE_TEST_CONFIGS,
-    ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
-)
-def online_types_test_fixtures(request, environment):
-    return get_fixtures(request, environment)
-
-
-def get_fixtures(request, environment):
-    config: TypeTestConfig = request.param
-    # Lower case needed because Redshift lower-cases all table names
-    destination_name = (
-        f"feature_type_{config.feature_dtype}{config.feature_is_list}".replace(
-            ".", ""
-        ).lower()
-    )
-    config = request.param
-    df = create_basic_driver_dataset(
-        Int64,
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
-    )
-    data_source = environment.data_source_creator.create_data_source(
-        df,
-        destination_name=destination_name,
-        field_mapping={"ts_1": "ts"},
-    )
-    fv = driver_feature_view(
-        data_source=data_source,
-        name=destination_name,
-        dtype=_get_feast_type(config.feature_dtype, config.feature_is_list),
-    )
-
-    return config, data_source, fv

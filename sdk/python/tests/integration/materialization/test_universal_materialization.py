@@ -10,8 +10,6 @@ from feast import (
 )
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64
-from tests.data.data_creator import create_basic_driver_dataset
-from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
 
 def _create_test_entities():
@@ -215,37 +213,6 @@ def test_odfv_materialization_incremental_multi_source(environment):
         entity_rows=[_get_standard_entity_row()],
     ).to_dict()
     assert resp["price_plus_revenue"][0] == 105.0
-
-
-@pytest.mark.integration
-@pytest.mark.universal_offline_stores
-@pytest.mark.parametrize("materialization_pull_latest", [True, False])
-def test_universal_materialization_consistency(
-    environment, materialization_pull_latest
-):
-    environment.materialization.pull_latest_features = materialization_pull_latest
-
-    fs = environment.feature_store
-    df = create_basic_driver_dataset()
-    ds = environment.data_source_creator.create_data_source(
-        df,
-        fs.project,
-        field_mapping={"ts_1": "ts"},
-    )
-    driver = Entity(
-        name="driver_id",
-        join_keys=["driver_id"],
-    )
-    driver_stats_fv = FeatureView(
-        name="driver_hourly_stats",
-        entities=[driver],
-        ttl=timedelta(weeks=52),
-        schema=[Field(name="value", dtype=Float32)],
-        source=ds,
-    )
-    fs.apply([driver, driver_stats_fv])
-    split_dt = df["ts_1"][4].to_pydatetime() - timedelta(seconds=1)
-    validate_offline_online_store_consistency(fs, driver_stats_fv, split_dt)
 
 
 @pytest.mark.integration

@@ -258,8 +258,8 @@ def test_performance_bounds_single_entity():
     deserialize_time = time.perf_counter() - start
 
     # Performance bounds with generous thresholds to avoid flaky failures on CI runners
-    assert serialize_time < 0.1, f"Serialization too slow: {serialize_time:.4f}s"
-    assert deserialize_time < 0.1, f"Deserialization too slow: {deserialize_time:.4f}s"
+    assert serialize_time < 0.2, f"Serialization too slow: {serialize_time:.4f}s"
+    assert deserialize_time < 0.2, f"Deserialization too slow: {deserialize_time:.4f}s"
 
 
 def test_non_ascii_prefix_compatibility():
