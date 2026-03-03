@@ -16,15 +16,9 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.bigquery import (
-    BigQueryDataSourceCreator,
-)
 from tests.integration.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
     FileParquetDatasetSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.redshift import (
-    RedshiftDataSourceCreator,
 )
 
 
@@ -225,6 +219,13 @@ NULLABLE_ONLINE_STORE_CONFIGS: List[IntegrationTestRepoConfig] = [
 
 # Only test if this is NOT a local test
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    from tests.integration.feature_repos.universal.data_sources.bigquery import (
+        BigQueryDataSourceCreator,
+    )
+    from tests.integration.feature_repos.universal.data_sources.redshift import (
+        RedshiftDataSourceCreator,
+    )
+
     NULLABLE_ONLINE_STORE_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(
