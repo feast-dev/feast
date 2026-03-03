@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import pytest
 from pyspark.sql.functions import col, regexp_replace
 from pyspark.testing.utils import assertDataFrameEqual
 
@@ -49,49 +48,58 @@ def remove_extra_spaces_sql(df, column_name):
     return sql
 
 
-@patch("feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session")
 def test_spark_transformation(spark_fixture):
-    spark = spark_fixture
-    df = get_sample_df(spark)
+    with patch(
+        "feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session"
+    ) as m:
+        m.return_value = spark_fixture
+        spark = spark_fixture
+        df = get_sample_df(spark)
 
-    spark_transformation = Transformation(
-        mode=TransformationMode.SPARK,
-        udf=remove_extra_spaces,
-        udf_string="remove extra spaces",
-    )
+        spark_transformation = Transformation(
+            mode=TransformationMode.SPARK,
+            udf=remove_extra_spaces,
+            udf_string="remove extra spaces",
+        )
 
-    transformed_df = spark_transformation.transform(df, "name")
-    expected_df = get_expected_df(spark)
-    assertDataFrameEqual(transformed_df, expected_df)
+        transformed_df = spark_transformation.transform(df, "name")
+        expected_df = get_expected_df(spark)
+        assertDataFrameEqual(transformed_df, expected_df)
 
 
-@patch("feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session")
 def test_spark_transformation_init_transformation(spark_fixture):
-    spark = spark_fixture
-    df = get_sample_df(spark)
+    with patch(
+        "feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session"
+    ) as m:
+        m.return_value = spark_fixture
+        spark = spark_fixture
+        df = get_sample_df(spark)
 
-    spark_transformation = SparkTransformation(
-        mode=TransformationMode.SPARK,
-        udf=remove_extra_spaces,
-        udf_string="remove extra spaces",
-    )
+        spark_transformation = SparkTransformation(
+            mode=TransformationMode.SPARK,
+            udf=remove_extra_spaces,
+            udf_string="remove extra spaces",
+        )
 
-    transformed_df = spark_transformation.transform(df, "name")
-    expected_df = get_expected_df(spark)
-    assertDataFrameEqual(transformed_df, expected_df)
+        transformed_df = spark_transformation.transform(df, "name")
+        expected_df = get_expected_df(spark)
+        assertDataFrameEqual(transformed_df, expected_df)
 
 
-@patch("feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session")
 def test_spark_transformation_sql(spark_fixture):
-    spark = spark_fixture
-    df = get_sample_df(spark)
+    with patch(
+        "feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session"
+    ) as m:
+        m.return_value = spark_fixture
+        spark = spark_fixture
+        df = get_sample_df(spark)
 
-    spark_transformation = SparkTransformation(
-        mode=TransformationMode.SPARK_SQL,
-        udf=remove_extra_spaces_sql,
-        udf_string="remove extra spaces sql",
-    )
+        spark_transformation = SparkTransformation(
+            mode=TransformationMode.SPARK_SQL,
+            udf=remove_extra_spaces_sql,
+            udf_string="remove extra spaces sql",
+        )
 
-    transformed_df = spark_transformation.transform(df, "name")
-    expected_df = get_expected_df(spark)
-    assertDataFrameEqual(transformed_df, expected_df)
+        transformed_df = spark_transformation.transform(df, "name")
+        expected_df = get_expected_df(spark)
+        assertDataFrameEqual(transformed_df, expected_df)
