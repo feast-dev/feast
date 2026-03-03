@@ -184,7 +184,9 @@ test-python-smoke: ## Quick smoke test for development
 test-python-integration: ## Run Python integration tests (CI)
 	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
-		-m "not rbac_remote_integration_test" \
+		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
+		--ignore=sdk/python/tests/integration/registration \
+		--ignore=sdk/python/tests/integration/compute_engines/ray_compute \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -198,12 +200,11 @@ test-python-integration-parallel: ## Run integration tests with enhanced paralle
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	HADOOP_HOME=$$HOME/hadoop \
-	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
-	HADOOP_USER_NAME=root \
 	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
-		-m "not rbac_remote_integration_test" \
+		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
+		--ignore=sdk/python/tests/integration/compute_engines/ray_compute \
+		--ignore=sdk/python/tests/integration/registration \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -212,7 +213,7 @@ test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
 	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
-		-m "rbac_remote_integration_test" \
+		-m "rbac_remote_integration_test and not ray_offline_stores_only" \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -243,6 +244,18 @@ test-python-integration-dbt: ## Run dbt integration tests
 		echo "Running pytest integration tests..." && \
 		python -m pytest tests/integration/dbt/test_dbt_integration.py -v --tb=short
 	@echo "✓ dbt integration tests completed successfully!"
+
+test-python-registration: ## Run Python registration integration tests (local)
+	pixi run -e registration-tests test
+
+test-python-registration-ci: ## Run Python registration integration tests (CI)
+	HADOOP_HOME=$$HOME/hadoop \
+	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
+	HADOOP_USER_NAME=root \
+	pixi run -e registration-tests test-ci
+
+test-python-universal-duckdb-offline: ## Run Python DuckDB offline store integration tests
+	pixi run -e duckdb-tests test
 
 test-python-universal-spark: ## Run Python Spark integration tests
 	PYTHONPATH='.' \
@@ -390,28 +403,8 @@ test-python-universal-postgres-offline: ## Run Python Postgres integration tests
  				not test_spark" \
  			sdk/python/tests
 
-test-python-universal-ray-offline: ## Run Python Ray offline store integration tests
-	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.ray_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.ray_offline_store.tests \
-		python -m pytest -n 8 --integration \
-			-m "not universal_online_stores and not benchmark" \
-			-k "not test_historical_retrieval_with_validation and \
-				not test_universal_cli and \
-				not test_go_feature_server and \
-				not test_feature_logging and \
-				not test_logged_features_validation and \
-				not test_lambda_materialization_consistency and \
-				not gcs_registry and \
-				not s3_registry and \
-				not test_snowflake and \
-				not test_spark" \
-			sdk/python/tests
-
-test-python-ray-compute-engine: ## Run Python Ray compute engine tests
-	PYTHONPATH='.' \
-		python -m pytest -v --integration \
-			sdk/python/tests/integration/compute_engines/ray_compute/
+test-python-ray-integration: ## Run all Python Ray integration tests (offline store + compute engine)
+	pixi run -e ray-tests test
 
 test-python-universal-postgres-online: ## Run Python Postgres integration tests
 	PYTHONPATH='.' \

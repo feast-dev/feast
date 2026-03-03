@@ -13,6 +13,10 @@ on:
       - 'sdk/python/tests/unit/dbt/**'
       - '.github/workflows/dbt-integration-tests.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dbt-integration-test:
     if:
@@ -47,7 +51,7 @@ jobs:
           uv pip install --system dbt-core dbt-duckdb
 
       - name: Run dbt integration tests
-        run: make test-python-integration-dbt
+        run: uv run make test-python-integration-dbt
       
       - name: Minimize uv cache
         run: uv cache prune --ci

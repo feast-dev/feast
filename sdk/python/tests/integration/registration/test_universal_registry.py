@@ -386,33 +386,41 @@ def mock_remote_registry():
     yield registry
 
 
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "False":
-    all_fixtures = [lazy_fixture("s3_registry"), lazy_fixture("gcs_registry")]
+all_fixtures = [
+    lazy_fixture("local_registry"),
+    pytest.param(
+        lazy_fixture("pg_registry"),
+        marks=pytest.mark.xdist_group(name="pg_registry"),
+    ),
+    pytest.param(
+        lazy_fixture("mysql_registry"),
+        marks=pytest.mark.xdist_group(name="mysql_registry"),
+    ),
+    lazy_fixture("sqlite_registry"),
+    pytest.param(
+        lazy_fixture("mock_remote_registry"),
+        marks=pytest.mark.rbac_remote_integration_test,
+    ),
+]
+
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    all_fixtures.extend(
+        [
+            lazy_fixture("s3_registry"),
+            lazy_fixture("gcs_registry"),
+            pytest.param(
+                lazy_fixture("hdfs_registry"),
+                marks=pytest.mark.xdist_group(name="hdfs_registry"),
+            ),
+        ]
+    )
 else:
-    all_fixtures = [
-        lazy_fixture("local_registry"),
+    all_fixtures.append(
         pytest.param(
             lazy_fixture("minio_registry"),
             marks=pytest.mark.xdist_group(name="minio_registry"),
-        ),
-        pytest.param(
-            lazy_fixture("pg_registry"),
-            marks=pytest.mark.xdist_group(name="pg_registry"),
-        ),
-        pytest.param(
-            lazy_fixture("mysql_registry"),
-            marks=pytest.mark.xdist_group(name="mysql_registry"),
-        ),
-        lazy_fixture("sqlite_registry"),
-        pytest.param(
-            lazy_fixture("mock_remote_registry"),
-            marks=pytest.mark.rbac_remote_integration_test,
-        ),
-        pytest.param(
-            lazy_fixture("hdfs_registry"),
-            marks=pytest.mark.xdist_group(name="hdfs_registry"),
-        ),
-    ]
+        )
+    )
 
 sql_fixtures = [
     pytest.param(

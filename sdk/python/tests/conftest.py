@@ -101,6 +101,10 @@ def pytest_configure(config):
         "markers",
         "universal_offline_stores: mark tests that can be run against different offline stores",
     )
+    config.addinivalue_line(
+        "markers",
+        "ray_offline_stores_only: mark tests that currently only work with Ray offline store",
+    )
 
 
 def pytest_addoption(parser):
@@ -431,6 +435,9 @@ def fake_ingest_data():
         "conv_rate": [0.5],
         "acc_rate": [0.6],
         "avg_daily_trips": [4],
+        "driver_metadata": [None],
+        "driver_config": [None],
+        "driver_profile": [None],
         "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
         "created": [pd.Timestamp(_utc_now()).round("ms")],
     }
