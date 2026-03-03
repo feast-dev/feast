@@ -4,9 +4,14 @@ from datetime import datetime
 from logging import getLogger
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-from pymongo import AsyncMongoClient, MongoClient, UpdateOne
-from pymongo.asynchronous.collection import AsyncCollection
-from pymongo.collection import Collection
+try:
+    from pymongo import AsyncMongoClient, MongoClient, UpdateOne
+    from pymongo.asynchronous.collection import AsyncCollection
+    from pymongo.collection import Collection
+except ImportError as e:
+    from feast.errors import FeastExtrasDependencyImportError
+
+    raise FeastExtrasDependencyImportError("mongodb", str(e))
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView

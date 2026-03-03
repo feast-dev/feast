@@ -9,8 +9,12 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from feast import FeatureView, Field, FileSource
-from feast.infra.online_stores.mongodb_online_store.mongodb import MongoDBOnlineStore
+pytest.importorskip("pymongo")
+
+from feast import FeatureView, Field, FileSource  # noqa: E402
+from feast.infra.online_stores.mongodb_online_store.mongodb import (  # noqa: E402
+    MongoDBOnlineStore,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Int64
