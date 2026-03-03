@@ -23,6 +23,7 @@ from sqlalchemy import (  # type: ignore
     update,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import IntegrityError
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
@@ -1028,8 +1029,15 @@ class SqlRegistry(CachingRegistry):
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
-                insert_stmt = insert(feast_metadata).values(values)
-                conn.execute(insert_stmt)
+                try:
+                    with conn.begin_nested():
+                        conn.execute(insert(feast_metadata).values(values))
+                except IntegrityError:
+                    logger.info(
+                        "Project metadata for %s already initialized by "
+                        "another process.",
+                        project,
+                    )
 
     def _delete_object(
         self,
