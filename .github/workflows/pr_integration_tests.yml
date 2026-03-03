@@ -7,10 +7,10 @@ on:
       - synchronize
       - labeled
 
-# concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
-#concurrency:
-#  group: pr-integration-tests-${{ github.event.pull_request.number }}
-#  cancel-in-progress: true
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   actions: write
   pull-requests: read

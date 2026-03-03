@@ -16,19 +16,16 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.types import Float32, Int32, String
 from feast.utils import _utc_now
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     RemoteOfflineOidcAuthStoreDataSourceCreator,
     RemoteOfflineStoreDataSourceCreator,
     RemoteOfflineTlsStoreDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.snowflake import (
-    SnowflakeDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.entities import (
+from tests.universal.feature_repos.universal.entities import (
     customer,
     driver,
     location,
@@ -279,7 +276,7 @@ def test_historical_features_with_entities_from_query(
         raise pytest.skip("Offline source is not sql-based")
 
     data_source_creator = environment.data_source_creator
-    if isinstance(data_source_creator, SnowflakeDataSourceCreator):
+    if type(data_source_creator).__name__ == "SnowflakeDataSourceCreator":
         entity_df_query = f"""
         SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp"
         FROM "{orders_table}"
