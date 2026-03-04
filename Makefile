@@ -538,7 +538,7 @@ test-python-universal-elasticsearch-online: ## Run Python Elasticsearch online s
 test-python-universal-mongodb-online: ## Run Python MongoDB online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.mongodb_online_store.mongodb_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mongodb \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.mongodb \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
