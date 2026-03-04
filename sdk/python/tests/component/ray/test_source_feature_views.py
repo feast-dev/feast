@@ -10,7 +10,7 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
 )
 from feast.types import Float32, Int32, Int64
-from tests.integration.compute_engines.ray_compute.ray_shared_utils import (
+from tests.component.ray.ray_shared_utils import (
     create_entity_df,
     create_feature_dataset,
     create_unique_sink_source,

@@ -1,9 +1,6 @@
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-import pytest
-from pyspark.sql import SparkSession
-
 from feast.aggregation import Aggregation
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
@@ -17,22 +14,6 @@ from feast.infra.compute_engines.spark.nodes import (
 from tests.example_repos.example_feature_repo_with_bfvs import (
     driver,
 )
-
-
-@pytest.fixture(scope="session")
-def spark_session():
-    spark = (
-        SparkSession.builder.appName("FeastSparkTests")
-        .master("local[*]")
-        .config("spark.sql.shuffle.partitions", "1")
-        .config("spark.driver.host", "127.0.0.1")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .getOrCreate()
-    )
-
-    yield spark
-
-    spark.stop()
 
 
 def test_spark_transformation_node_executes_udf(spark_session):

@@ -19,7 +19,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
 )
 from feast.types import Float32, Int32, Int64
-from tests.integration.compute_engines.spark.utils import (
+from tests.component.spark.utils import (
     _check_offline_features,
     _check_online_features,
     create_entity_df,

@@ -21,7 +21,7 @@ from feast.infra.offline_stores.contrib.ray_offline_store.ray import (
 )
 from feast.transformation.ray_transformation import RayTransformation
 from feast.types import Float32, Int32, Int64
-from tests.integration.compute_engines.ray_compute.ray_shared_utils import (
+from tests.component.ray.ray_shared_utils import (
     driver,
     now,
 )

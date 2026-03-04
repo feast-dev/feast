@@ -4,7 +4,7 @@ This module exposes fixtures from ray_shared_utils.py so they can be
 auto-discovered by pytest.
 """
 
-from tests.integration.compute_engines.ray_compute.ray_shared_utils import (
+from tests.component.ray.ray_shared_utils import (
     entity_df,
     feature_dataset,
     ray_environment,
