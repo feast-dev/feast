@@ -116,6 +116,7 @@ qdrant = ["qdrant-client>=1.12.0"]
 rag = [
     "transformers>=4.36.0",
     "datasets>=3.6.0",
+    "sentence-transformers>=3.0.0",
 ]
 ray = [
 'ray>=2.47.0; python_version == "3.10"',
