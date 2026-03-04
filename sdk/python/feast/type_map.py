@@ -1014,9 +1014,6 @@ def python_values_to_proto_values(
         else:
             value_type = python_type_to_feast_value_type("", sample)
 
-    if value_type == ValueType.UNKNOWN:
-        raise TypeError("Couldn't infer value type from empty value")
-
     proto_values = _python_value_to_proto_value(value_type, values)
 
     if len(proto_values) != len(values):
