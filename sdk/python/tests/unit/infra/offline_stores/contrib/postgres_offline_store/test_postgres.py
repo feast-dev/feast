@@ -903,17 +903,31 @@ class TestNonEntityRetrieval:
         # No LATERAL joins
         assert "LATERAL" not in query
 
-        # LOCF CTEs present
-        assert "stacked" in query.lower()
-        assert "stacked_with_group" in query.lower()
-        assert "filled" in query.lower()
+        # Per-FV LOCF CTEs present (independent forward-fill per feature view)
+        assert "fv1__stacked" in query
+        assert "fv1__grouped" in query
+        assert "fv1__filled" in query
+        assert "fv2__stacked" in query
+        assert "fv2__grouped" in query
+        assert "fv2__filled" in query
         assert "spine" in query.lower()
+
+        # No global stacked/stacked_with_group/filled (replaced by per-FV CTEs)
+        assert '"stacked_with_group"' not in query
 
         # Correct ORDER BY for deterministic grouping
         assert "is_spine ASC" in query
 
+        # Explicit ROWS framing for deterministic window functions
+        assert "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW" in query
+
         # FIRST_VALUE used for forward-fill
         assert "FIRST_VALUE" in query
+
+        # Per-FV filled results joined back to spine
+        assert "LEFT JOIN" in query
+        assert '"fv1__f"' in query or "fv1__filled" in query
+        assert '"fv2__f"' in query or "fv2__filled" in query
 
         # TTL CASE for fv1 (ttl=86400)
         assert "86400 * interval" in query
