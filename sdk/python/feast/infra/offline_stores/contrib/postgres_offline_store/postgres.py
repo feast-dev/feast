@@ -159,6 +159,21 @@ class PostgreSQLOfflineStore(OfflineStore):
             else:
                 start_date = make_tzaware(start_date)
 
+            # Compute lookback_start_date for LOCF: pull feature data
+            # from (start_date - max_ttl) so window functions can
+            # forward-fill the last observation before start_date.
+            max_ttl_seconds = 0
+            for fv in feature_views:
+                if fv.ttl and isinstance(fv.ttl, timedelta):
+                    max_ttl_seconds = max(
+                        max_ttl_seconds, int(fv.ttl.total_seconds())
+                    )
+            lookback_start_date: Optional[datetime] = (
+                start_date - timedelta(seconds=max_ttl_seconds)
+                if max_ttl_seconds > 0
+                else start_date
+            )
+
             entity_df = pd.DataFrame(
                 {
                     "event_timestamp": pd.date_range(
@@ -166,6 +181,8 @@ class PostgreSQLOfflineStore(OfflineStore):
                     )[:1]  # Just one row
                 }
             )
+        else:
+            lookback_start_date = None
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -230,6 +247,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     use_cte=use_cte,
                     start_date=start_date,
                     end_date=end_date,
+                    lookback_start_date=lookback_start_date,
                 )
             finally:
                 # Only cleanup if we created a table
@@ -444,6 +462,7 @@ def build_point_in_time_query(
     use_cte: bool = False,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    lookback_start_date: Optional[datetime] = None,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -474,6 +493,7 @@ def build_point_in_time_query(
         "use_cte": use_cte,
         "start_date": start_date,
         "end_date": end_date,
+        "lookback_start_date": lookback_start_date,
     }
 
     query = template.render(template_context)
@@ -536,30 +556,68 @@ WHERE "{{ featureviews[0].timestamp_field }}" BETWEEN '{{ start_date }}' AND '{{
 AND "{{ featureviews[0].timestamp_field }}" >= '{{ featureviews[0].min_event_timestamp }}'
 {% endif %}
 {% else %}
-WITH
+{# --- LOCF (Last Observation Carried Forward) path for multi-FV date-range --- #}
+
+{# Collect deduplicated entity list across all FVs #}
+{% set all_entities = [] %}
 {% for featureview in featureviews %}
-"{{ featureview.name }}__data" AS (
+    {% for entity in featureview.entities %}
+        {% if entity not in all_entities %}
+            {% set _ = all_entities.append(entity) %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+
+{# Build list of output feature names per FV for consistent column ordering #}
+{% set all_feature_cols = [] %}
+{% for featureview in featureviews %}
+    {% for feature in featureview.features %}
+        {% if full_feature_names %}
+            {% set _ = all_feature_cols.append(featureview.name ~ '__' ~ featureview.field_mapping.get(feature, feature)) %}
+        {% else %}
+            {% set _ = all_feature_cols.append(featureview.field_mapping.get(feature, feature)) %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+
+WITH
+{# --- Per-FV __data: pull feature rows from lookback_start_date..end_date --- #}
+{% for featureview in featureviews %}
+"{{ featureview.name }}__data_raw" AS (
     SELECT
         "{{ featureview.timestamp_field }}" AS event_timestamp,
-        {% if featureview.created_timestamp_column %}
-        "{{ featureview.created_timestamp_column }}" AS created_timestamp,
-        {% endif %}
         {% for entity in featureview.entities %}
         "{{ entity }}",
         {% endfor %}
         {% for feature in featureview.features %}
-        "{{ feature }}" AS {% if full_feature_names %}"{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}"{% else %}"{{ featureview.field_mapping.get(feature, feature) }}"{% endif %}{% if not loop.last %},{% endif %}
+        "{{ feature }}" AS "{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if not loop.last %},{% endif %}
         {% endfor %}
+        {% if featureview.created_timestamp_column %}
+        , "{{ featureview.created_timestamp_column }}" AS created_timestamp
+        {% endif %}
     FROM {{ featureview.table_subquery }} AS sub
-    WHERE "{{ featureview.timestamp_field }}" BETWEEN '{{ start_date }}' AND '{{ end_date }}'
-    {% if featureview.ttl != 0 and featureview.min_event_timestamp %}
-    AND "{{ featureview.timestamp_field }}" >= '{{ featureview.min_event_timestamp }}'
-    {% endif %}
+    WHERE "{{ featureview.timestamp_field }}" BETWEEN '{{ lookback_start_date or start_date }}' AND '{{ end_date }}'
 ),
+{% if featureview.created_timestamp_column %}
+"{{ featureview.name }}__data" AS (
+    SELECT * FROM (
+        SELECT *,
+            ROW_NUMBER() OVER (
+                PARTITION BY {% for entity in featureview.entities %}"{{ entity }}", {% endfor %}event_timestamp
+                ORDER BY created_timestamp DESC
+            ) AS __rn
+        FROM "{{ featureview.name }}__data_raw"
+    ) __dedup WHERE __rn = 1
+),
+{% else %}
+"{{ featureview.name }}__data" AS (
+    SELECT * FROM "{{ featureview.name }}__data_raw"
+),
+{% endif %}
 {% endfor %}
 
--- Create a base query with all unique entity + timestamp combinations
-base_entities AS (
+{# --- Spine: prediction timeline = distinct (entity, timestamp) in [start_date, end_date] --- #}
+spine AS (
     {% for featureview in featureviews %}
     SELECT DISTINCT
         event_timestamp,
@@ -567,58 +625,132 @@ base_entities AS (
         "{{ entity }}"{% if not loop.last %},{% endif %}
         {% endfor %}
     FROM "{{ featureview.name }}__data"
+    WHERE event_timestamp BETWEEN '{{ start_date }}' AND '{{ end_date }}'
     {% if not loop.last %}
     UNION
     {% endif %}
     {% endfor %}
+),
+
+{# --- CTE 1: Stack spine + feature rows via UNION ALL --- #}
+stacked AS (
+    {# Spine rows: is_spine=1, feature_anchor NULL, all features NULL, per-FV timestamps NULL #}
+    SELECT
+        event_timestamp,
+        {% for entity in all_entities %}
+        "{{ entity }}",
+        {% endfor %}
+        1 AS is_spine,
+        NULL::int AS feature_anchor
+        {% for feat in all_feature_cols %}
+        , NULL AS "{{ feat }}"
+        {% endfor %}
+        {% for featureview in featureviews %}
+        , NULL::timestamptz AS "{{ featureview.name }}__feature_ts"
+        {% endfor %}
+    FROM spine
+
+    {% for featureview in featureviews %}
+    UNION ALL
+    {# Feature rows for {{ featureview.name }}: is_spine=0, feature_anchor=1 #}
+    SELECT
+        event_timestamp,
+        {% for entity in all_entities %}
+        {% if entity in featureview.entities %}
+        "{{ entity }}",
+        {% else %}
+        NULL AS "{{ entity }}",
+        {% endif %}
+        {% endfor %}
+        0 AS is_spine,
+        1 AS feature_anchor
+        {# Emit this FV's features; NULL for other FVs' features #}
+        {% for fv_inner in featureviews %}
+            {% for feature in fv_inner.features %}
+                {% if full_feature_names %}
+                    {% set col_name = fv_inner.name ~ '__' ~ fv_inner.field_mapping.get(feature, feature) %}
+                {% else %}
+                    {% set col_name = fv_inner.field_mapping.get(feature, feature) %}
+                {% endif %}
+                {% if fv_inner.name == featureview.name %}
+        , "{{ col_name }}"
+                {% else %}
+        , NULL AS "{{ col_name }}"
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+        {# Per-FV feature timestamp: this FV gets event_timestamp, others NULL #}
+        {% for fv_inner in featureviews %}
+            {% if fv_inner.name == featureview.name %}
+        , event_timestamp AS "{{ fv_inner.name }}__feature_ts"
+            {% else %}
+        , NULL::timestamptz AS "{{ fv_inner.name }}__feature_ts"
+            {% endif %}
+        {% endfor %}
+    FROM "{{ featureview.name }}__data"
+    {% endfor %}
+),
+
+{# --- CTE 2: Group boundaries via COUNT (only feature rows increment) --- #}
+stacked_with_group AS (
+    SELECT *,
+        COUNT(feature_anchor) OVER (
+            PARTITION BY {% for entity in all_entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}
+            ORDER BY event_timestamp ASC, is_spine ASC
+        ) AS value_group_id
+    FROM stacked
+),
+
+{# --- CTE 3: Forward-fill features + feature timestamps via FIRST_VALUE --- #}
+filled AS (
+    SELECT
+        event_timestamp,
+        {% for entity in all_entities %}
+        "{{ entity }}",
+        {% endfor %}
+        is_spine
+        {% for feat in all_feature_cols %}
+        , FIRST_VALUE("{{ feat }}") OVER (
+            PARTITION BY {% for entity in all_entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, value_group_id
+            ORDER BY event_timestamp ASC, is_spine ASC
+        ) AS "{{ feat }}"
+        {% endfor %}
+        {% for featureview in featureviews %}
+        , FIRST_VALUE("{{ featureview.name }}__feature_ts") OVER (
+            PARTITION BY {% for entity in all_entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, value_group_id
+            ORDER BY event_timestamp ASC, is_spine ASC
+        ) AS "{{ featureview.name }}__filled_ts"
+        {% endfor %}
+    FROM stacked_with_group
 )
 
+{# --- CTE 4: Filter spine + TTL validation --- #}
 SELECT
-    base.event_timestamp,
-    {% set all_entities = [] %}
+    event_timestamp,
+    {% for entity in all_entities %}
+    "{{ entity }}",
+    {% endfor %}
+    {% set total_features = featureviews|map(attribute='features')|map('length')|sum %}
+    {% set feat_idx = namespace(count=0) %}
     {% for featureview in featureviews %}
-        {% for entity in featureview.entities %}
-            {% if entity not in all_entities %}
-                {% set _ = all_entities.append(entity) %}
+        {% for feature in featureview.features %}
+            {% set feat_idx.count = feat_idx.count + 1 %}
+            {% if full_feature_names %}
+                {% set col_name = featureview.name ~ '__' ~ featureview.field_mapping.get(feature, feature) %}
+            {% else %}
+                {% set col_name = featureview.field_mapping.get(feature, feature) %}
+            {% endif %}
+            {% if featureview.ttl != 0 %}
+    CASE WHEN (event_timestamp - "{{ featureview.name }}__filled_ts") <= {{ featureview.ttl }} * interval '1' second
+         THEN "{{ col_name }}" ELSE NULL END AS "{{ col_name }}"{% if feat_idx.count < total_features %},{% endif %}
+            {% else %}
+    "{{ col_name }}"{% if feat_idx.count < total_features %},{% endif %}
             {% endif %}
         {% endfor %}
     {% endfor %}
-    {% for entity in all_entities %}
-    base."{{ entity }}",
-    {% endfor %}
-    {% set total_features = featureviews|map(attribute='features')|map('length')|sum %}
-    {% set feature_counter = namespace(count=0) %}
-    {% for featureview in featureviews %}
-        {% set outer_loop_index = loop.index0 %}
-        {% for feature in featureview.features %}
-        {% set feature_counter.count = feature_counter.count + 1 %}
-        fv_{{ outer_loop_index }}."{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if feature_counter.count < total_features %},{% endif %}
-        {% endfor %}
-    {% endfor %}
-FROM base_entities base
-{% for featureview in featureviews %}
-{% set outer_loop_index = loop.index0 %}
-LEFT JOIN LATERAL (
-    SELECT DISTINCT ON ({% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %})
-        event_timestamp,
-        {% for entity in featureview.entities %}
-        "{{ entity }}",
-        {% endfor %}
-        {% for feature in featureview.features %}
-        "{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if not loop.last %},{% endif %}
-        {% endfor %}
-    FROM "{{ featureview.name }}__data" fv_sub_{{ outer_loop_index }}
-    WHERE fv_sub_{{ outer_loop_index }}.event_timestamp <= base.event_timestamp
-    {% if featureview.ttl != 0 %}
-    AND fv_sub_{{ outer_loop_index }}.event_timestamp >= base.event_timestamp - {{ featureview.ttl }} * interval '1' second
-    {% endif %}
-    {% for entity in featureview.entities %}
-    AND fv_sub_{{ outer_loop_index }}."{{ entity }}" = base."{{ entity }}"
-    {% endfor %}
-    ORDER BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, event_timestamp DESC
-) AS fv_{{ outer_loop_index }} ON true
-{% endfor %}
-ORDER BY base.event_timestamp
+FROM filled
+WHERE is_spine = 1
+ORDER BY event_timestamp
 {% endif %}
 {% else %}
 WITH
