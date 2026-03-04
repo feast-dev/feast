@@ -165,9 +165,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             max_ttl_seconds = 0
             for fv in feature_views:
                 if fv.ttl and isinstance(fv.ttl, timedelta):
-                    max_ttl_seconds = max(
-                        max_ttl_seconds, int(fv.ttl.total_seconds())
-                    )
+                    max_ttl_seconds = max(max_ttl_seconds, int(fv.ttl.total_seconds()))
             lookback_start_date: Optional[datetime] = (
                 start_date - timedelta(seconds=max_ttl_seconds)
                 if max_ttl_seconds > 0
