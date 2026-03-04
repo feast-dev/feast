@@ -72,7 +72,9 @@ def test_docstrings():
 
         for package in current_packages:
             try:
-                for _, name, is_pkg in pkgutil.walk_packages(package.__path__):
+                for _, name, is_pkg in pkgutil.walk_packages(
+                    package.__path__, onerror=lambda _: None
+                ):
                     if name in FILES_TO_IGNORE:
                         continue
 
