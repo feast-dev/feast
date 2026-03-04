@@ -138,16 +138,6 @@ class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"On demand feature view {name} does not exist")
 
 
-class StreamFeatureViewNotFoundException(FeastObjectNotFoundException):
-    def __init__(self, name, project=None):
-        if project:
-            super().__init__(
-                f"Stream feature view {name} does not exist in project {project}"
-            )
-        else:
-            super().__init__(f"Stream feature view {name} does not exist")
-
-
 class RequestDataNotFoundInEntityDfException(FeastObjectNotFoundException):
     def __init__(self, feature_name, feature_view_name):
         super().__init__(

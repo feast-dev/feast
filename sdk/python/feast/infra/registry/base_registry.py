@@ -27,8 +27,6 @@ from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
     FeatureViewNotFoundException,
-    OnDemandFeatureViewNotFoundException,
-    StreamFeatureViewNotFoundException,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -293,24 +291,25 @@ class BaseRegistry(ABC):
                 pass
 
         # Check StreamFeatureView before FeatureView since StreamFeatureView is a subclass
+        # Note: All getters raise FeatureViewNotFoundException (not type-specific exceptions)
         if isinstance(feature_view, StreamFeatureView):
             _check_conflict(
                 self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
             )
             _check_conflict(
                 self.get_on_demand_feature_view,
-                OnDemandFeatureViewNotFoundException,
+                FeatureViewNotFoundException,
                 "OnDemandFeatureView",
             )
         elif isinstance(feature_view, FeatureView):
             _check_conflict(
                 self.get_stream_feature_view,
-                StreamFeatureViewNotFoundException,
+                FeatureViewNotFoundException,
                 "StreamFeatureView",
             )
             _check_conflict(
                 self.get_on_demand_feature_view,
-                OnDemandFeatureViewNotFoundException,
+                FeatureViewNotFoundException,
                 "OnDemandFeatureView",
             )
         elif isinstance(feature_view, OnDemandFeatureView):
@@ -319,7 +318,7 @@ class BaseRegistry(ABC):
             )
             _check_conflict(
                 self.get_stream_feature_view,
-                StreamFeatureViewNotFoundException,
+                FeatureViewNotFoundException,
                 "StreamFeatureView",
             )
 
