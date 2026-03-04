@@ -846,44 +846,143 @@ class TestNonEntityRetrieval:
         # Should not include TTL filtering when TTL is 0 or min_event_timestamp is None
         assert 'AND "event_timestamp" >=' not in query_no_ttl
 
-    def test_lateral_join_ttl_constraints(self):
-        """Test that LATERAL JOINs include proper TTL constraints"""
-        from jinja2 import BaseLoader, Environment
+    def test_locf_template_multi_fv_date_range(self):
+        """Test that multi-FV date-range uses LOCF (no LATERAL) with correct CTEs"""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
 
-        lateral_template = """
-        FROM "{{ featureview.name }}__data" fv_sub_{{ outer_loop_index }}
-        WHERE fv_sub_{{ outer_loop_index }}.event_timestamp <= base.event_timestamp
-        {% if featureview.ttl != 0 %}
-        AND fv_sub_{{ outer_loop_index }}.event_timestamp >= base.event_timestamp - {{ featureview.ttl }} * interval '1' second
-        {% endif %}
-        """
-
-        template = Environment(loader=BaseLoader()).from_string(source=lateral_template)
-
-        # Test with TTL
-        context = {
-            "featureview": {
-                "name": "user_features",
-                "ttl": 86400,  # 1 day
+        fv_contexts = [
+            {
+                "name": "fv1",
+                "ttl": 86400,
+                "entities": ["entity1_id"],
+                "features": ["feat_a"],
+                "field_mapping": {},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"public"."fv1_table"',
+                "entity_selections": ['"entity1_id" AS "entity1_id"'],
+                "min_event_timestamp": "2023-01-01T00:00:00",
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
             },
-            "outer_loop_index": 0,
-        }
+            {
+                "name": "fv2",
+                "ttl": 3600,
+                "entities": ["entity1_id"],
+                "features": ["feat_b", "feat_c"],
+                "field_mapping": {},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"public"."fv2_table"',
+                "entity_selections": ['"entity1_id" AS "entity1_id"'],
+                "min_event_timestamp": "2023-01-06T23:00:00",
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
 
-        query = template.render(context)
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+        lookback = start - timedelta(seconds=86400)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=lookback,
+        )
+
+        # No LATERAL joins
+        assert "LATERAL" not in query
+
+        # LOCF CTEs present
+        assert "stacked" in query.lower()
+        assert "stacked_with_group" in query.lower()
+        assert "filled" in query.lower()
+        assert "spine" in query.lower()
+
+        # Correct ORDER BY for deterministic grouping
+        assert "is_spine ASC" in query
+
+        # FIRST_VALUE used for forward-fill
+        assert "FIRST_VALUE" in query
+
+        # TTL CASE for fv1 (ttl=86400)
         assert "86400 * interval" in query
-        assert "base.event_timestamp -" in query
+        # TTL CASE for fv2 (ttl=3600)
+        assert "3600 * interval" in query
 
-        # Test without TTL
-        context_no_ttl = {
-            "featureview": {
-                "name": "user_features",
-                "ttl": 0,  # No TTL
+        # lookback_start_date used in feature __data range
+        assert str(lookback.date()) in query
+
+        # is_spine filter
+        assert "is_spine = 1" in query
+
+    def test_locf_template_no_ttl(self):
+        """Test LOCF template with TTL=0 does not emit CASE for TTL"""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        fv_contexts = [
+            {
+                "name": "fv1",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f1"],
+                "field_mapping": {},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"fv1_t"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
             },
-            "outer_loop_index": 0,
-        }
+            {
+                "name": "fv2",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f2"],
+                "field_mapping": {},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"fv2_t"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
 
-        query_no_ttl = template.render(context_no_ttl)
-        assert "interval" not in query_no_ttl
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        # No LATERAL, no TTL CASE
+        assert "LATERAL" not in query
+        assert "CASE WHEN" not in query
+        assert "FIRST_VALUE" in query
 
     def test_api_non_entity_functionality(self):
         """Test that FeatureStore API accepts non-entity parameters correctly"""
