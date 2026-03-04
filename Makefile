@@ -164,7 +164,10 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
+	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
+		--ignore=sdk/python/tests/component/ray \
+		--ignore=sdk/python/tests/component/spark \
+		sdk/python/tests
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
@@ -186,7 +189,7 @@ test-python-integration: ## Run Python integration tests (CI)
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
 		--ignore=sdk/python/tests/integration/registration \
-		--ignore=sdk/python/tests/integration/compute_engines/ray_compute \
+		--ignore=sdk/python/tests/component/ray \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -203,7 +206,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
-		--ignore=sdk/python/tests/integration/compute_engines/ray_compute \
+		--ignore=sdk/python/tests/component/ray \
 		--ignore=sdk/python/tests/integration/registration \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
