@@ -24,7 +24,7 @@ from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RegistryConfig, RepoConfig
 from feast.stream_feature_view import stream_feature_view
 from feast.types import Array, Bytes, Float32, Int64, String, ValueType, from_value_type
-from tests.integration.feature_repos.universal.feature_views import TAGS
+from tests.universal.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.data_source_test_creator import prep_file_source
 
