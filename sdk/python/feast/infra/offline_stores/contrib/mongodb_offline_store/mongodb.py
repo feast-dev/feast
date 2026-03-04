@@ -1,4 +1,4 @@
-# Copyright 2025 The Feast Authors
+# Copyright 2026 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,9 +44,6 @@ from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
-# Print RuntimeWarning only once per process.
-warnings.simplefilter("once", RuntimeWarning)
-
 
 class MongoDBOfflineStoreConfig(FeastConfigBaseModel):
     """Configuration for the MongoDB offline store."""
@@ -75,7 +72,11 @@ class MongoDBOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        assert isinstance(data_source, MongoDBSource)
+        if not isinstance(data_source, MongoDBSource):
+            raise ValueError(
+                f"MongoDBOfflineStore expected a MongoDBSource, "
+                f"got {type(data_source).__name__!r}."
+            )
         warnings.warn(
             "MongoDB offline store is in alpha. API may change without notice.",
             RuntimeWarning,
@@ -130,7 +131,11 @@ class MongoDBOfflineStore(OfflineStore):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
-        assert isinstance(data_source, MongoDBSource)
+        if not isinstance(data_source, MongoDBSource):
+            raise ValueError(
+                f"MongoDBOfflineStore expected a MongoDBSource, "
+                f"got {type(data_source).__name__!r}."
+            )
         warnings.warn(
             "MongoDB offline store is in alpha. API may change without notice.",
             RuntimeWarning,
@@ -157,7 +162,11 @@ def _build_data_source_reader(config: RepoConfig) -> Callable[[DataSource, str],
             raise FeastExtrasDependencyImportError(
                 "mongodb", "pymongo is not installed."
             )
-        assert isinstance(data_source, MongoDBSource)
+        if not isinstance(data_source, MongoDBSource):
+            raise ValueError(
+                f"MongoDBOfflineStore reader expected a MongoDBSource, "
+                f"got {type(data_source).__name__!r}."
+            )
         connection_string = config.offline_store.connection_string
         db_name = data_source.database or config.offline_store.database
         client: Any = MongoClient(connection_string, tz_aware=True)
@@ -204,11 +213,15 @@ def _build_data_source_writer(
             raise FeastExtrasDependencyImportError(
                 "mongodb", "pymongo is not installed."
             )
-        assert isinstance(data_source, MongoDBSource)
+        if not isinstance(data_source, MongoDBSource):
+            raise ValueError(
+                f"MongoDBOfflineStore writer expected a MongoDBSource, "
+                f"got {type(data_source).__name__!r}."
+            )
         connection_string = config.offline_store.connection_string
         db_name = data_source.database or config.offline_store.database
         location = f"{db_name}.{data_source.collection}"
-        client: Any = MongoClient(connection_string)
+        client: Any = MongoClient(connection_string, tz_aware=True)
         try:
             coll = client[db_name][data_source.collection]
             if mode == "overwrite":

@@ -1,4 +1,4 @@
-# Copyright 2025 The Feast Authors
+# Copyright 2026 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 import json
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, cast
 
 try:
     from pymongo import MongoClient
@@ -29,6 +29,7 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 )
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.type_map import mongodb_to_feast_value_type
 from feast.value_type import ValueType
 
 
@@ -58,25 +59,6 @@ def _infer_python_type_str(value: Any) -> Optional[str]:
     return None
 
 
-def mongodb_to_feast_value_type(type_str: str) -> ValueType:
-    """Map a Python type string (from pymongo) to a Feast ValueType."""
-    _MAP: Dict[str, ValueType] = {
-        "str": ValueType.STRING,
-        "int": ValueType.INT64,
-        "float": ValueType.DOUBLE,
-        "bool": ValueType.BOOL,
-        "bytes": ValueType.BYTES,
-        "datetime": ValueType.UNIX_TIMESTAMP,
-        "list[str]": ValueType.STRING_LIST,
-        "list[int]": ValueType.INT64_LIST,
-        "list[float]": ValueType.DOUBLE_LIST,
-        "list[bool]": ValueType.BOOL_LIST,
-        "list[bytes]": ValueType.BYTES_LIST,
-        "list[datetime]": ValueType.UNIX_TIMESTAMP_LIST,
-    }
-    return _MAP.get(type_str, ValueType.UNKNOWN)
-
-
 class MongoDBOptions:
     """Options for a MongoDB data source (database + collection)."""
 
@@ -85,6 +67,7 @@ class MongoDBOptions:
         self._collection = collection
 
     def to_proto(self) -> DataSourceProto.CustomSourceOptions:
+        """Serialize database and collection names as JSON into a CustomSourceOptions proto."""
         return DataSourceProto.CustomSourceOptions(
             configuration=json.dumps(
                 {"database": self._database, "collection": self._collection}
@@ -95,12 +78,28 @@ class MongoDBOptions:
     def from_proto(
         cls, options_proto: DataSourceProto.CustomSourceOptions
     ) -> "MongoDBOptions":
+        """Deserialize a CustomSourceOptions proto back into a MongoDBOptions instance."""
         config = json.loads(options_proto.configuration.decode("utf8"))
         return cls(database=config["database"], collection=config["collection"])
 
 
 class MongoDBSource(DataSource):
-    """A MongoDB collection as a Feast offline data source."""
+    """A MongoDB collection used as a Feast offline data source.
+
+    ``name`` is the logical Feast name for this source. If omitted, it defaults
+    to the value of ``collection``.  At least one of ``name`` or ``collection``
+    must be supplied.
+
+    ``database`` is the MongoDB database that contains the collection.  When
+    omitted it falls back to ``MongoDBOfflineStoreConfig.database`` at query
+    time, so a single store-level default can be shared across many sources.
+
+    ``schema_sample_size`` controls how many documents are randomly sampled
+    when Feast infers the collection schema (used by ``feast apply`` and
+    ``get_table_column_names_and_types``).  Increase it for collections with
+    highly variable document shapes; decrease it to speed up ``feast apply``
+    at the cost of schema coverage.
+    """
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
         return DataSourceProto.CUSTOM_SOURCE
@@ -120,8 +119,8 @@ class MongoDBSource(DataSource):
     ):
         if name is None and collection is None:
             raise DataSourceNoNameException()
-        name = name or collection
-        assert name
+        # At least one of name / collection is non-None; cast to satisfy the type checker.
+        name = cast(str, name or collection)
 
         self._mongodb_options = MongoDBOptions(
             database=database or "",
@@ -196,6 +195,8 @@ class MongoDBSource(DataSource):
         return data_source_proto
 
     def validate(self, config: RepoConfig):
+        # No upfront schema validation is required for MongoDB; the connection
+        # is exercised lazily when features are actually retrieved.
         pass
 
     @staticmethod
@@ -208,6 +209,12 @@ class MongoDBSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
+        """Sample documents from the collection to infer field names and their Feast type strings.
+
+        Uses ``$sample`` to fetch up to ``schema_sample_size`` documents, then
+        picks the most-frequent Python type observed per field.  The ``_id``
+        field is always excluded.
+        """
         if MongoClient is None:
             raise FeastExtrasDependencyImportError(
                 "mongodb", "pymongo is not installed."
