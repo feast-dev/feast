@@ -46,7 +46,7 @@ online_store:
 | ------ | ---- | ------- | ----------- |
 | `region` | string | | AWS region for DynamoDB |
 | `table_name_template` | string | `{project}.{table_name}` | Template for table names |
-| `batch_size` | int | `40` | Number of items per BatchGetItem/BatchWriteItem request (max 100) |
+| `batch_size` | int | `100` | Number of items per BatchGetItem/BatchWriteItem request (max 100) |
 | `max_read_workers` | int | `10` | Maximum parallel threads for batch read operations. Higher values improve throughput for large batch reads but increase resource usage |
 | `consistent_reads` | bool | `false` | Whether to use strongly consistent reads (higher latency, guaranteed latest data) |
 | `tags` | dict | `null` | AWS resource tags added to each table |
