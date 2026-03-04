@@ -6,6 +6,7 @@ import traceback
 import unittest
 
 import feast
+from feast.errors import FeastExtrasDependencyImportError
 from feast.utils import _utc_now
 
 FILES_TO_IGNORE = {"app"}
@@ -89,7 +90,11 @@ def test_docstrings():
                             temp_module = importlib.import_module(full_name)
                             if is_pkg:
                                 next_packages.append(temp_module)
-                    except ModuleNotFoundError:
+                    except (ModuleNotFoundError, FeastExtrasDependencyImportError):
+                        # ModuleNotFoundError: optional system dependency missing
+                        # FeastExtrasDependencyImportError: optional Python extra
+                        # missing (e.g. pymongo, couchbase). Gracefully skip so
+                        # the doctest run is not aborted for unrelated modules.
                         pass
 
                     # Retrieve the setup and teardown functions defined in this file.
