@@ -1,7 +1,8 @@
 from typing import Any, Dict
 
 from testcontainers.mongodb import MongoDbContainer
-from tests.integration.feature_repos.universal.online_store_creator import (
+
+from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 

@@ -19,7 +19,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Int64
 from feast.utils import _utc_now
-from tests.integration.feature_repos.universal.feature_views import TAGS
+from tests.universal.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 # Check if Docker is available
