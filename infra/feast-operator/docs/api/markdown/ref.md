@@ -243,6 +243,15 @@ _Appears in:_
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
 | `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
 For static replicas, use spec.replicas instead. |
+| `podDisruptionBudgets` _[PDBConfig](#pdbconfig)_ | PodDisruptionBudgets configures a PodDisruptionBudget for the FeatureStore deployment.
+Only created when scaling is enabled (replicas > 1 or autoscaling). |
+| `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | TopologySpreadConstraints defines how pods are spread across topology domains.
+When scaling is enabled and this is not set, the operator auto-injects a soft
+zone-spread constraint (whenUnsatisfiable: ScheduleAnyway).
+Set to an empty array to disable auto-injection. |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
+When scaling is enabled and this is not set, the operator auto-injects a soft
+pod anti-affinity rule to prefer spreading pods across nodes. |
 
 
 #### FeatureStoreSpec
@@ -615,6 +624,24 @@ _Appears in:_
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `nodeSelector` _map[string]string_ |  |
+
+
+#### PDBConfig
+
+
+
+PDBConfig configures a PodDisruptionBudget for the FeatureStore deployment.
+Exactly one of minAvailable or maxUnavailable must be set.
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `minAvailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#intorstring-intstr-util)_ | MinAvailable specifies the minimum number/percentage of pods that must remain available.
+Mutually exclusive with maxUnavailable. |
+| `maxUnavailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#intorstring-intstr-util)_ | MaxUnavailable specifies the maximum number/percentage of pods that can be unavailable.
+Mutually exclusive with minAvailable. |
 
 
 #### PvcConfig

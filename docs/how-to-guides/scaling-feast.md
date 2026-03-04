@@ -86,6 +86,8 @@ spec:
             target:
               type: Utilization
               averageUtilization: 70
+    podDisruptionBudgets:
+      maxUnavailable: 1
     onlineStore:
       persistence:
         store:
@@ -107,7 +109,7 @@ spec:
 ```
 
 {% hint style="info" %}
-When autoscaling is configured, the operator automatically sets the deployment strategy to `RollingUpdate` (instead of the default `Recreate`) to ensure zero-downtime scaling. You can override this by explicitly setting `deploymentStrategy` in the CR.
+When autoscaling is configured, the operator automatically sets the deployment strategy to `RollingUpdate` (instead of the default `Recreate`) to ensure zero-downtime scaling, and auto-injects soft pod anti-affinity and zone topology spread constraints. You can override any of these by explicitly setting `deploymentStrategy`, `affinity`, or `topologySpreadConstraints` in the CR.
 {% endhint %}
 
 #### Validation Rules
@@ -116,6 +118,72 @@ The operator enforces the following rules:
 - `spec.replicas > 1` and `services.scaling.autoscaling` are **mutually exclusive** -- you cannot set both.
 - Scaling with `replicas > 1` or any `autoscaling` config is **rejected** if any enabled service uses file-based persistence.
 - S3 (`s3://`) and GCS (`gs://`) backed registry file persistence is allowed with scaling, since these object stores support concurrent readers.
+
+#### High Availability
+
+When scaling is enabled (`replicas > 1` or `autoscaling`), the operator provides HA features to improve resilience:
+
+**Pod Anti-Affinity** — The operator automatically injects a soft (`preferredDuringSchedulingIgnoredDuringExecution`) pod anti-affinity rule that prefers spreading pods across different nodes. This prevents multiple replicas from being co-located on the same node, improving resilience to node failures. You can override this by providing your own `affinity` configuration:
+
+```yaml
+spec:
+  replicas: 3
+  services:
+    # Override with custom affinity (e.g. strict anti-affinity)
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              feast.dev/name: my-feast
+    # ...
+```
+
+**Topology Spread Constraints** — The operator automatically injects a soft zone-spread constraint (`whenUnsatisfiable: ScheduleAnyway`) that distributes pods across availability zones. This is a best-effort spread — if zones are unavailable, pods will still be scheduled. You can override this with explicit constraints or disable it with an empty array:
+
+```yaml
+spec:
+  replicas: 3
+  services:
+    # Override with custom topology spread (e.g. strict zone spreading)
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          feast.dev/name: my-feast
+    # ...
+```
+
+To disable the auto-injected topology spread:
+
+```yaml
+spec:
+  replicas: 3
+  services:
+    topologySpreadConstraints: []
+    # ...
+```
+
+**PodDisruptionBudget** — You can configure a PDB to limit voluntary disruptions (e.g. during node drains or cluster upgrades). The PDB is only created when scaling is enabled. Exactly one of `minAvailable` or `maxUnavailable` must be set:
+
+```yaml
+spec:
+  replicas: 3
+  services:
+    podDisruptionBudgets:
+      maxUnavailable: 1       # at most 1 pod unavailable during disruptions
+    # -- OR --
+    # podDisruptionBudgets:
+    #   minAvailable: "50%"   # at least 50% of pods must remain available
+    # ...
+```
+
+{% hint style="info" %}
+The PDB is not auto-injected — you must explicitly configure it. This is intentional because a misconfigured PDB (e.g. `minAvailable` equal to the replica count) can block node drains and cluster upgrades.
+{% endhint %}
 
 #### Using KEDA (Kubernetes Event-Driven Autoscaling)
 

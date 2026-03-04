@@ -30,7 +30,7 @@ stringData:
     user: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
 ---
-# HPA autoscaling: 2-10 replicas with DB-backed persistence
+# HPA autoscaling: 2-10 replicas with DB-backed persistence and HA
 apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
@@ -50,6 +50,8 @@ spec:
             target:
               type: Utilization
               averageUtilization: 70
+    podDisruptionBudgets:
+      maxUnavailable: 1
     onlineStore:
       persistence:
         store:

@@ -65,9 +65,11 @@ spec:
 > _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
 
 {% hint style="success" %}
-**Scaling:** The Feast Operator supports horizontal scaling via static replicas, HPA autoscaling, or external autoscalers like [KEDA](https://keda.sh). Scaling requires DB-backed persistence for all enabled services.
+**Scaling & High Availability:** The Feast Operator supports horizontal scaling via static replicas, HPA autoscaling, or external autoscalers like [KEDA](https://keda.sh). Scaling requires DB-backed persistence for all enabled services.
 
-See the [Horizontal Scaling with the Feast Operator](./scaling-feast.md#horizontal-scaling-with-the-feast-operator) guide for configuration details, or check the general recommendations on [how to scale Feast](./scaling-feast.md).
+When scaling is enabled, the operator auto-injects soft pod anti-affinity and zone topology spread constraints for resilience. You can also configure a PodDisruptionBudget to protect against voluntary disruptions.
+
+See the [Horizontal Scaling with the Feast Operator](./scaling-feast.md#horizontal-scaling-with-the-feast-operator) guide for configuration details, including [HA options](./scaling-feast.md#high-availability), or check the general recommendations on [how to scale Feast](./scaling-feast.md).
 {% endhint %}
 
 > _Sample scaling CRs are available at [`v1_featurestore_scaling_static.yaml`](../../infra/feast-operator/config/samples/v1_featurestore_scaling_static.yaml) and [`v1_featurestore_scaling_hpa.yaml`](../../infra/feast-operator/config/samples/v1_featurestore_scaling_hpa.yaml)._

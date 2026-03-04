@@ -27,11 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
-
-func ptr[T any](v T) *T {
-	return &v
-}
 
 func (feast *FeastServices) refreshFeatureStore(ctx context.Context, key types.NamespacedName) {
 	fs := &feastdevv1.FeatureStore{}
@@ -54,8 +51,8 @@ var _ = Describe("Registry Service", func() {
 	)
 
 	var setFeatureStoreServerConfig = func(grpcEnabled, restEnabled bool) {
-		featureStore.Spec.Services.Registry.Local.Server.GRPC = ptr(grpcEnabled)
-		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr(restEnabled)
+		featureStore.Spec.Services.Registry.Local.Server.GRPC = ptr.To(grpcEnabled)
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(restEnabled)
 		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
 		Expect(feast.ApplyDefaults()).To(Succeed())
 		applySpecToStatus(featureStore)
@@ -83,12 +80,12 @@ var _ = Describe("Registry Service", func() {
 								ServerConfigs: feastdevv1.ServerConfigs{
 									ContainerConfigs: feastdevv1.ContainerConfigs{
 										DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-											Image: ptr("test-image"),
+											Image: ptr.To("test-image"),
 										},
 									},
 								},
-								GRPC:    ptr(true),
-								RestAPI: ptr(false),
+								GRPC:    ptr.To(true),
+								RestAPI: ptr.To(false),
 							},
 						},
 					},
@@ -248,7 +245,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 							NodeSelector: &onlineNodeSelector,
@@ -284,7 +281,7 @@ var _ = Describe("Registry Service", func() {
 			featureStore.Spec.Services.UI = &feastdevv1.ServerConfigs{
 				ContainerConfigs: feastdevv1.ContainerConfigs{
 					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-						Image: ptr("test-image"),
+						Image: ptr.To("test-image"),
 					},
 					OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 						NodeSelector: &uiNodeSelector,
@@ -332,7 +329,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 							NodeSelector: &onlineNodeSelector,
@@ -349,7 +346,7 @@ var _ = Describe("Registry Service", func() {
 			featureStore.Spec.Services.UI = &feastdevv1.ServerConfigs{
 				ContainerConfigs: feastdevv1.ContainerConfigs{
 					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-						Image: ptr("test-image"),
+						Image: ptr.To("test-image"),
 					},
 					OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 						NodeSelector: &uiNodeSelector,
@@ -377,7 +374,7 @@ var _ = Describe("Registry Service", func() {
 
 		It("should enable metrics on the online service when configured", func() {
 			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
-				Server: &feastdevv1.ServerConfigs{Metrics: ptr(true)},
+				Server: &feastdevv1.ServerConfigs{Metrics: ptr.To(true)},
 			}
 
 			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
@@ -451,7 +448,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 					},
 					WorkerConfigs: &feastdevv1.WorkerConfigs{
@@ -503,7 +500,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 					},
 					WorkerConfigs: &feastdevv1.WorkerConfigs{
@@ -545,7 +542,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 					},
 					// WorkerConfigs is not set (nil)

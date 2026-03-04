@@ -30,7 +30,13 @@ stringData:
     user: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
 ---
-# Static scaling: 3 replicas with DB-backed persistence
+# Static scaling: 3 replicas with DB-backed persistence, PDB, and HA
+#
+# By default the operator auto-injects:
+# - Soft pod anti-affinity (prefer different nodes)
+# - Soft zone topology spread (prefer different zones, e.g. us-east-1a, us-east-1b, us-east-1c)
+#
+# To enforce strict zone spreading on AWS (DoNotSchedule), uncomment topologySpreadConstraints below.
 apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
@@ -40,6 +46,16 @@ spec:
   feastProject: my_project
   replicas: 3
   services:
+    podDisruptionBudgets:
+      maxUnavailable: 1
+    # Uncomment to enforce strict spreading across AWS availability zones:
+    # topologySpreadConstraints:
+    # - maxSkew: 1
+    #   topologyKey: topology.kubernetes.io/zone
+    #   whenUnsatisfiable: DoNotSchedule
+    #   labelSelector:
+    #     matchLabels:
+    #       feast.dev/name: sample-scaling-static
     onlineStore:
       persistence:
         store:
