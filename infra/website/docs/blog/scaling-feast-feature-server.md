@@ -1,11 +1,11 @@
 ---
-title: Scaling the Feast Feature Server on Kubernetes
-description: The Feast Operator now supports horizontal scaling with static replicas, HPA autoscaling, and external autoscalers like KEDA — enabling production-grade, high-availability feature serving.
-date: 2026-02-21
-authors: ["Nikhil Kathole"]
+title: Feature Server High-Availability and Auto-Scaling on Kubernetes
+description: The Feast Operator now supports horizontal scaling with static replicas, HPA autoscaling, KEDA, and high-availability features including PodDisruptionBudgets and topology spread constraints.
+date: 2026-03-02
+authors: ["Nikhil Kathole", "Antonin Stefanutti"]
 ---
 
-# Scaling the Feast Feature Server on Kubernetes
+# Feature Server High-Availability and Auto-Scaling on Kubernetes
 
 As ML systems move from experimentation to production, the feature server often becomes a critical bottleneck. A single-replica deployment might handle development traffic, but production workloads — real-time inference, batch scoring, multiple consuming services — demand the ability to scale horizontally.
 
@@ -79,6 +79,8 @@ spec:
             target:
               type: Utilization
               averageUtilization: 70
+    podDisruptionBudgets:
+      maxUnavailable: 1
     onlineStore:
       persistence:
         store:
@@ -102,7 +104,7 @@ spec:
               name: feast-data-stores
 ```
 
-The operator creates the HPA as an owned resource — it's automatically cleaned up if you remove the autoscaling configuration or delete the FeatureStore CR. If no custom metrics are specified, the operator defaults to **80% CPU utilization**.
+The operator creates the HPA as an owned resource — it's automatically cleaned up if you remove the autoscaling configuration or delete the FeatureStore CR. If no custom metrics are specified, the operator defaults to **80% CPU utilization**. The operator also auto-injects soft pod anti-affinity (node-level) and topology spread constraints (zone-level) to improve resilience — see the [High Availability](#high-availability) section for details.
 
 ## 3. External Autoscalers (KEDA, Custom HPAs)
 
@@ -154,6 +156,62 @@ spec:
 
 When KEDA scales up `spec.replicas` via the scale sub-resource, the CRD's CEL validation rules automatically ensure DB-backed persistence is configured. The operator also automatically switches the deployment strategy to `RollingUpdate` when `replicas > 1`. This gives you the full power of KEDA's 50+ event-driven triggers with built-in safety checks.
 
+# High Availability
+
+Scaling to multiple replicas is only half the story — you also need to ensure pods are spread across failure domains and protected during disruptions. The operator includes two HA features that activate when scaling is enabled:
+
+## Pod Anti-Affinity
+
+When scaling is enabled, the operator **automatically injects** a soft pod anti-affinity rule that prefers spreading pods across different nodes:
+
+```yaml
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        topologyKey: kubernetes.io/hostname
+        labelSelector:
+          matchLabels:
+            feast.dev/name: my-feast
+```
+
+This means the scheduler will *try* to place each replica on a separate node, but won't prevent scheduling if nodes are constrained. You can override this with your own `affinity` configuration in the CR, or set it to an explicit value to customize the behavior (e.g. `requiredDuringSchedulingIgnoredDuringExecution` for strict anti-affinity).
+
+## Topology Spread Constraints
+
+When `replicas > 1` or autoscaling is configured, the operator **automatically injects** a soft zone-spread constraint:
+
+```yaml
+topologySpreadConstraints:
+- maxSkew: 1
+  topologyKey: topology.kubernetes.io/zone
+  whenUnsatisfiable: ScheduleAnyway
+  labelSelector:
+    matchLabels:
+      feast.dev/name: my-feast
+```
+
+This distributes pods across availability zones on a best-effort basis. If your cluster has 3 zones and 3 replicas, each zone gets one pod. If zones are unavailable, pods still get scheduled rather than staying pending.
+
+You can override this with explicit constraints (e.g. strict `DoNotSchedule`) or disable it entirely by setting `topologySpreadConstraints: []`.
+
+## PodDisruptionBudgets
+
+For protection during voluntary disruptions (node drains, cluster upgrades), you can configure a PDB:
+
+```yaml
+spec:
+  replicas: 3
+  services:
+    podDisruptionBudgets:
+      maxUnavailable: 1
+    onlineStore:
+      # ...
+```
+
+The PDB requires explicit configuration — it's not auto-injected because a misconfigured PDB can block node drains. The operator enforces that exactly one of `minAvailable` or `maxUnavailable` is set via CEL validation. The PDB is only created when scaling is enabled and is automatically cleaned up when scaling is disabled.
+
 # Safety First: Persistence Validation
 
 Not all persistence backends are safe for multi-replica deployments. File-based stores like SQLite, DuckDB, and local `registry.db` use single-writer file locks that don't work across pods.
@@ -188,6 +246,8 @@ The implementation adds three key behaviors to the operator's reconciliation loo
 
 **3. HPA lifecycle** — The operator creates, updates, and deletes the HPA as an owned resource tied to the FeatureStore CR. Removing the `autoscaling` configuration automatically cleans up the HPA.
 
+**4. HA features** — The operator auto-injects soft topology spread constraints across zones when scaling is enabled, and manages PodDisruptionBudgets as owned resources when explicitly configured.
+
 The scaling status is reported back on the FeatureStore status:
 
 ```yaml
@@ -209,17 +269,22 @@ Scaling is designed to work seamlessly with existing operator features:
 
 **1. Ensure DB-backed persistence** for all enabled services (online store, offline store, registry).
 
-**2. Configure scaling** in your FeatureStore CR — use either static replicas or HPA (mutually exclusive):
+**2. Configure scaling** in your FeatureStore CR — use either static replicas or HPA (mutually exclusive). Optionally add a PDB for disruption protection:
 
 ```yaml
 spec:
   replicas: 3            # static replicas (top-level)
+  services:
+    podDisruptionBudgets:                 # optional: protect against disruptions
+      maxUnavailable: 1
   # -- OR --
   # services:
   #   scaling:
   #     autoscaling:      # HPA
   #       minReplicas: 2
   #       maxReplicas: 10
+  #   podDisruptionBudgets:
+  #     maxUnavailable: 1
 ```
 
 **3. Apply** the updated CR:
