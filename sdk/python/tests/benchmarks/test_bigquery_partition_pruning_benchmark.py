@@ -4,11 +4,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from feast.infra.offline_stores.bigquery import BigQueryOfflineStore, BigQueryOfflineStoreConfig
+from feast.infra.offline_stores.bigquery import (
+    BigQueryOfflineStore,
+    BigQueryOfflineStoreConfig,
+)
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
-
 
 __doc__ = """
 Environment variables:
@@ -50,7 +52,9 @@ def _estimate_bytes_processed(project: str, location: str | None, sql: str) -> i
 
 @pytest.mark.benchmark(group="bigquery_partition_pruning")
 @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
-def test_bigquery_partition_pruning_bytes_processed(mock_get_bigquery_client, benchmark):
+def test_bigquery_partition_pruning_bytes_processed(
+    mock_get_bigquery_client, benchmark
+):
     mock_get_bigquery_client.return_value = Mock()
 
     project = _required_env("FEAST_BQ_BENCH_PROJECT")
@@ -112,10 +116,14 @@ def test_bigquery_partition_pruning_bytes_processed(mock_get_bigquery_client, be
         return bytes_without, bytes_with
 
     bytes_without, bytes_with = benchmark(measure)
-    benchmark.extra_info["total_bytes_processed_without_partition_filter"] = bytes_without
+    benchmark.extra_info["total_bytes_processed_without_partition_filter"] = (
+        bytes_without
+    )
     benchmark.extra_info["total_bytes_processed_with_partition_filter"] = bytes_with
     if bytes_without > 0:
-        benchmark.extra_info["bytes_ratio_with_over_without"] = bytes_with / bytes_without
+        benchmark.extra_info["bytes_ratio_with_over_without"] = (
+            bytes_with / bytes_without
+        )
 
     if os.environ.get("FEAST_BQ_BENCH_REQUIRE_REDUCTION", "").lower() in (
         "1",
