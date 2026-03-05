@@ -18,8 +18,6 @@ jobs:
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
       github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    env:
-      PYTHON: "3.10"
     steps:
       - uses: actions/checkout@v4
         with:

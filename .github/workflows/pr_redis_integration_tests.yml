@@ -31,9 +31,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: ${{ github.event.repository.full_name }}
-          ref: ${{ github.ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
           submodules: recursive
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.8.1

@@ -4,8 +4,6 @@ import tempfile
 import time
 from typing import Iterator
 
-from google.cloud import bigquery
-
 from feast import BigQuerySource, FileSource
 from feast.data_format import ParquetFormat
 
@@ -24,6 +22,8 @@ def prep_file_source(df, timestamp_field=None) -> Iterator[FileSource]:
 
 
 def simple_bq_source_using_table_arg(df, timestamp_field=None) -> BigQuerySource:
+    from google.cloud import bigquery
+
     client = bigquery.Client()
     gcp_project = client.project
     bigquery_dataset = f"ds_{time.time_ns()}"
