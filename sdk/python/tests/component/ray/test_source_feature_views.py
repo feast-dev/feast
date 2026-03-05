@@ -59,7 +59,6 @@ def create_derived_feature_view(
     )
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_compute_engine_single_source_feature_view(ray_environment, temp_dir):
     """Test Ray compute engine with a single source feature view."""
@@ -90,7 +89,6 @@ def test_ray_compute_engine_single_source_feature_view(ray_environment, temp_dir
     assert f"{derived_fv.name}__acc_rate" in result_df.columns
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_compute_engine_materialization_with_source_feature_views(
     ray_environment, temp_dir
@@ -120,7 +118,6 @@ def test_ray_compute_engine_materialization_with_source_feature_views(
         print("Materialization completed synchronously (no job object returned)")
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_compute_engine_cycle_detection(ray_environment, temp_dir):
     """Test Ray compute engine cycle detection in feature view dependencies."""
@@ -190,7 +187,6 @@ def test_ray_compute_engine_cycle_detection(ray_environment, temp_dir):
     assert f"{fv3.name}__conv_rate" in result_df.columns
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_compute_engine_error_handling(ray_environment, temp_dir):
     """Test Ray compute engine error handling with invalid source feature views."""
@@ -248,7 +244,6 @@ def test_ray_compute_engine_error_handling(ray_environment, temp_dir):
     assert result_df[f"{valid_fv.name}__conv_rate"].notna().all()
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_compute_engine_performance_with_source_feature_views(
     ray_environment, temp_dir

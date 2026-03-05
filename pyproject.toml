@@ -298,7 +298,7 @@ feast = { path = ".", editable = true, extras = ["aws", "grpcio", "test"] }
 [tool.pixi.feature.aws-tests.tasks]
 test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.aws_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
 test-online = { cmd = "python -m pytest -v --integration sdk/python/tests/integration/online_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.aws_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
-test-component = { cmd = "python -m pytest -v --integration sdk/python/tests/component/aws", env = { PYTHONPATH = "." } }
+test-component = { cmd = "python -m pytest -v sdk/python/tests/component/aws", env = { PYTHONPATH = "." } }
 test = { depends-on = ["test-offline", "test-online", "test-component"] }
 
 [tool.pixi.feature.gcp-tests.pypi-dependencies]
@@ -307,7 +307,7 @@ feast = { path = ".", editable = true, extras = ["gcp", "grpcio", "test"] }
 [tool.pixi.feature.gcp-tests.tasks]
 test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.gcp_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
 test-online = { cmd = "python -m pytest -v --integration sdk/python/tests/integration/online_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.gcp_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
-test-component = { cmd = "python -m pytest -v --integration sdk/python/tests/component/gcp", env = { PYTHONPATH = "." } }
+test-component = { cmd = "python -m pytest -v sdk/python/tests/component/gcp", env = { PYTHONPATH = "." } }
 test = { depends-on = ["test-offline", "test-online", "test-component"] }
 
 [tool.pixi.feature.snowflake-tests.pypi-dependencies]
@@ -316,7 +316,7 @@ feast = { path = ".", editable = true, extras = ["snowflake", "grpcio", "test"] 
 [tool.pixi.feature.snowflake-tests.tasks]
 test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.snowflake_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
 test-online = { cmd = "python -m pytest -v --integration sdk/python/tests/integration/online_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.snowflake_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
-test-component = { cmd = "python -m pytest -v --integration sdk/python/tests/component/snowflake", env = { PYTHONPATH = "." } }
+test-component = { cmd = "python -m pytest -v sdk/python/tests/component/snowflake", env = { PYTHONPATH = "." } }
 test = { depends-on = ["test-offline", "test-online", "test-component"] }
 
 [tool.pixi.feature.milvus-tests.pypi-dependencies]
@@ -331,7 +331,7 @@ feast = { path = ".", editable = true, extras = ["grpcio", "test"] }
 
 [tool.pixi.feature.remote-tests.tasks]
 test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.remote_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
-test-component = { cmd = "python -m pytest -v --integration sdk/python/tests/component/remote", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test-component = { cmd = "python -m pytest -v sdk/python/tests/component/remote", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
 test = { depends-on = ["test-offline", "test-component"] }
 
 [tool.pixi.feature.redis-tests.pypi-dependencies]
@@ -339,7 +339,7 @@ feast = { path = ".", editable = true, extras = ["redis", "grpcio", "test"] }
 
 [tool.pixi.feature.redis-tests.tasks]
 test-online = { cmd = "python -m pytest -v --integration sdk/python/tests/integration/online_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.redis_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
-test-component = { cmd = "python -m pytest -v --integration sdk/python/tests/component/redis", env = { PYTHONPATH = "." } }
+test-component = { cmd = "python -m pytest -v sdk/python/tests/component/redis", env = { PYTHONPATH = "." } }
 test = { depends-on = ["test-online", "test-component"] }
 
 [tool.pixi.feature.registration-tests.pypi-dependencies]

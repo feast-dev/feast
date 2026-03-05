@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import cast
 from unittest.mock import MagicMock
 
-import pytest
 from pyspark.sql import DataFrame
 from tqdm import tqdm
 
@@ -30,7 +29,6 @@ from tests.component.spark.utils import (
 )
 
 
-@pytest.mark.integration
 def test_spark_compute_engine_get_historical_features():
     spark_environment = create_spark_environment()
     fs = spark_environment.feature_store
@@ -100,7 +98,6 @@ def test_spark_compute_engine_get_historical_features():
         spark_environment.teardown()
 
 
-@pytest.mark.integration
 def test_spark_compute_engine_materialize():
     """
     Test the SparkComputeEngine materialize method.

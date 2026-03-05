@@ -35,7 +35,6 @@ from tests.utils.http_server import free_port
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.integration
 @pytest.mark.rbac_remote_integration_test
 @pytest.mark.parametrize(
     "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True
@@ -280,7 +279,6 @@ def _overwrite_remote_client_feature_store_yaml(
         repo_config_file.write(config_content)
 
 
-@pytest.mark.integration
 @pytest.mark.rbac_remote_integration_test
 @pytest.mark.parametrize(
     "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True

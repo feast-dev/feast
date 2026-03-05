@@ -44,7 +44,6 @@ SNOWFLAKE_ONLINE_CONFIG = {
 
 
 @pytest.mark.parametrize("online_store", [SNOWFLAKE_ONLINE_CONFIG, "sqlite"])
-@pytest.mark.integration
 def test_snowflake_materialization_consistency(online_store):
     snowflake_config = IntegrationTestRepoConfig(
         online_store=online_store,
@@ -103,7 +102,6 @@ def test_snowflake_materialization_consistency(online_store):
 )
 @pytest.mark.parametrize("feature_is_empty_list", [False])
 @pytest.mark.parametrize("online_store", [SNOWFLAKE_ONLINE_CONFIG, "sqlite"])
-@pytest.mark.integration
 def test_snowflake_materialization_consistency_internal_with_lists(
     feature_dtype, feast_dtype, feature_is_empty_list, online_store
 ):
@@ -189,7 +187,6 @@ def test_snowflake_materialization_consistency_internal_with_lists(
         snowflake_environment.data_source_creator.teardown()
 
 
-@pytest.mark.integration
 def test_snowflake_materialization_entityless_fv():
     snowflake_config = IntegrationTestRepoConfig(
         online_store=SNOWFLAKE_ONLINE_CONFIG,
