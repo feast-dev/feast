@@ -715,9 +715,9 @@ build-feature-server-dev: ## Build Feature Server Dev Docker image
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
 
 build-feature-server-dev-docker: ## Build Feature Server Dev Docker image
-	docker buildx build \
+	docker buildx build $(if $(DOCKER_PLATFORMS),--platform $(DOCKER_PLATFORMS),) \
 		-t $(REGISTRY)/feature-server:$(VERSION) \
-		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev $(if $(filter true,$(DOCKER_PUSH)),--push,--load) .
 
 build-feature-server-dev-docker_on_mac: ## Build Feature Server Dev Docker image on Mac
 	docker buildx build --platform linux/amd64 \
