@@ -20539,6 +20539,7 @@ spec:
     protocol: TCP
     targetPort: 8443
   selector:
+    app.kubernetes.io/name: feast-operator
     control-plane: controller-manager
 ---
 apiVersion: apps/v1
@@ -20554,12 +20555,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      app.kubernetes.io/name: feast-operator
       control-plane: controller-manager
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
+        app.kubernetes.io/name: feast-operator
         control-plane: controller-manager
     spec:
       containers:

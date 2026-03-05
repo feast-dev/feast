@@ -409,6 +409,10 @@ func DeployOperatorFromCode(testDir string, skipBuilds bool) {
 		_, err = Run(cmd, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+		By("deleting existing controller-manager deployment to allow selector changes on upgrade")
+		cmd = exec.Command("kubectl", "delete", "deployment", ControllerDeploymentName, "-n", FeastControllerNamespace, "--ignore-not-found=true")
+		_, _ = Run(cmd, testDir)
+
 		By("deploying the controller-manager")
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectimage), fmt.Sprintf("FS_IMG=%s", feastLocalImage))
 		_, err = Run(cmd, testDir)
