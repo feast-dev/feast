@@ -85,6 +85,7 @@ def test_docstrings():
                             "milvus" not in full_name
                             and "openlineage" not in full_name
                             and "ray_transformation" not in full_name
+                            and "qdrant" not in full_name
                         ):
                             temp_module = importlib.import_module(full_name)
                             if is_pkg:
