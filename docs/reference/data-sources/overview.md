@@ -5,7 +5,7 @@
 In Feast, each batch data source is associated with corresponding offline stores.
 For example, a `SnowflakeSource` can only be processed by the Snowflake offline store, while a `FileSource` can be processed by both File and DuckDB offline stores.
 Otherwise, the primary difference between batch data sources is the set of supported types.
-Feast has an internal type system, and aims to support eight primitive types (`bytes`, `string`, `int32`, `int64`, `float32`, `float64`, `bool`, and `timestamp`) along with the corresponding array types.
+Feast has an internal type system that supports primitive types (`bytes`, `string`, `int32`, `int64`, `float32`, `float64`, `bool`, `timestamp`), array types, set types, map/JSON types, and struct types.
 However, not every batch data source supports all of these types.
 
 For more details on the Feast type system, see [here](../type-system.md).
@@ -29,3 +29,9 @@ Below is a matrix indicating which data sources support which types.
 | `bool`      | yes | yes | yes       | yes | yes | yes | yes | yes |
 | `timestamp` | yes | yes | yes       | yes | yes | yes | yes | yes |
 | array types | yes | yes | yes       | no  | yes | yes | yes | no  |
+| `Map`       | yes | no  | yes       | yes | yes | yes | yes | no  |
+| `Json`      | yes | yes | yes       | yes | yes | no  | no  | no  |
+| `Struct`    | yes | yes | no        | no  | yes | yes | no  | no  |
+| set types   | yes* | no | no       | no  | no  | no  | no  | no  |
+
+\* **Set types** are defined in Feast's proto and Python type system but are **not inferred** by any backend. They must be explicitly declared in the feature view schema and are best suited for online serving use cases. See [Type System](../type-system.md#set-types) for details.
