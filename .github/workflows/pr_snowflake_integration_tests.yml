@@ -1,0 +1,41 @@
+name: pr-snowflake-integration-tests
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-test-snowflake:
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.repository.full_name }}
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: recursive
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.63.1
+          environments: snowflake-tests
+          cache: true
+      - name: Run Snowflake integration tests
+        env:
+          SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
+          SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
+          SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
+          SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
+          SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
+        run: make test-python-snowflake-integration
