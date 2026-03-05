@@ -1,5 +1,6 @@
 import logging
 import threading
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -133,3 +134,109 @@ def test_clickhouse_config_handles_none_additional_client_args():
     config = ClickhouseConfig(**raw_config)
 
     assert config.additional_client_args is None
+
+
+class TestNonEntityRetrieval:
+    """Test the non-entity retrieval logic (entity_df=None) for ClickHouse."""
+
+    _MODULE = "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse"
+
+    def _call_get_historical_features(self, feature_views, **kwargs):
+        """Call get_historical_features with entity_df=None, mocking the pipeline."""
+        from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+            ClickhouseOfflineStore,
+            ClickhouseOfflineStoreConfig,
+        )
+        from feast.repo_config import RepoConfig
+
+        config = RepoConfig(
+            project="test_project",
+            registry="test_registry",
+            provider="local",
+            offline_store=ClickhouseOfflineStoreConfig(
+                type="clickhouse",
+                host="localhost",
+                port=9000,
+                database="test_db",
+                user="default",
+                password="password",
+            ),
+        )
+
+        end = kwargs.get("end_date", datetime(2023, 1, 7, tzinfo=timezone.utc))
+
+        with (
+            patch.multiple(
+                self._MODULE,
+                _upload_entity_df=MagicMock(),
+                _get_entity_schema=MagicMock(
+                    return_value={"event_timestamp": "timestamp"}
+                ),
+                _get_entity_df_event_timestamp_range=MagicMock(
+                    return_value=(end - timedelta(days=1), end)
+                ),
+            ),
+            patch(
+                f"{self._MODULE}.offline_utils.get_expected_join_keys",
+                return_value=[],
+            ),
+            patch(
+                f"{self._MODULE}.offline_utils.assert_expected_columns_in_entity_df",
+            ),
+            patch(
+                f"{self._MODULE}.offline_utils.get_feature_view_query_context",
+                return_value=[],
+            ),
+        ):
+            refs = [f"{fv.name}:feature1" for fv in feature_views]
+            return ClickhouseOfflineStore.get_historical_features(
+                config=config,
+                feature_views=feature_views,
+                feature_refs=refs,
+                entity_df=None,
+                registry=MagicMock(),
+                project="test_project",
+                **kwargs,
+            )
+
+    @staticmethod
+    def _make_feature_view(name, ttl=None):
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView, Field
+        from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse_source import (
+            ClickhouseSource,
+        )
+        from feast.types import Float32
+
+        return FeatureView(
+            name=name,
+            entities=[Entity(name="driver_id", join_keys=["driver_id"])],
+            ttl=ttl,
+            source=ClickhouseSource(
+                name=f"{name}_source",
+                table=f"{name}_table",
+                timestamp_field="event_timestamp",
+            ),
+            schema=[
+                Field(name="feature1", dtype=Float32),
+            ],
+        )
+
+    def test_non_entity_mode_with_end_date(self):
+        """entity_df=None with explicit end_date produces a valid RetrievalJob."""
+        from feast.infra.offline_stores.offline_store import RetrievalJob
+
+        fv = self._make_feature_view("test_fv")
+        job = self._call_get_historical_features(
+            [fv],
+            end_date=datetime(2023, 1, 7, tzinfo=timezone.utc),
+        )
+        assert isinstance(job, RetrievalJob)
+
+    def test_non_entity_mode_defaults_end_date(self):
+        """entity_df=None without end_date defaults to now."""
+        from feast.infra.offline_stores.offline_store import RetrievalJob
+
+        fv = self._make_feature_view("test_fv")
+        job = self._call_get_historical_features([fv])
+        assert isinstance(job, RetrievalJob)

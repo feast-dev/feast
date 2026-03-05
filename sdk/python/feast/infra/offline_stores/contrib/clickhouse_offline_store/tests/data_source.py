@@ -118,6 +118,18 @@ class ClickhouseDataSourceCreator(DataSourceCreator):
         pass
 
 
+def _make_offline_store_config(clickhouse_container):
+    """Build a ClickhouseOfflineStoreConfig pointing at the test container."""
+    return ClickhouseOfflineStoreConfig(
+        type="clickhouse",
+        host=clickhouse_container.get_container_host_ip(),
+        port=clickhouse_container.get_exposed_port(8123),
+        database=CLICKHOUSE_OFFLINE_DB,
+        user=CLICKHOUSE_USER,
+        password=CLICKHOUSE_PASSWORD,
+    )
+
+
 def test_get_client_with_additional_params(clickhouse_container):
     """
     Test that get_client works with a real ClickHouse container and properly passes
@@ -142,3 +154,71 @@ def test_get_client_with_additional_params(clickhouse_container):
 
     # Verify the send_receive_timeout was applied
     assert client.timeout._read == 60
+
+
+def test_non_entity_retrieval(clickhouse_container):
+    """Integration test: get_historical_features with entity_df=None returns real data."""
+    from datetime import datetime, timedelta, timezone
+    from unittest.mock import MagicMock
+
+    from feast.feature_view import FeatureView, Field
+    from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+        ClickhouseOfflineStore,
+        df_to_clickhouse_table,
+    )
+    from feast.repo_config import RepoConfig
+    from feast.types import Float32
+
+    offline_config = _make_offline_store_config(clickhouse_container)
+    repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=offline_config,
+    )
+
+    # Seed a feature table with real data
+    now = datetime.now(tz=timezone.utc)
+    feature_df = pd.DataFrame(
+        {
+            "event_timestamp": [now - timedelta(hours=2), now - timedelta(hours=1)],
+            "feature_value": [1.0, 2.0],
+        }
+    )
+    table_name = "test_non_entity_features"
+    client = get_client(offline_config)
+    client.command(f"DROP TABLE IF EXISTS {table_name}")
+    df_to_clickhouse_table(offline_config, feature_df, table_name, "event_timestamp")
+
+    source = ClickhouseSource(
+        name=table_name,
+        table=table_name,
+        timestamp_field="event_timestamp",
+    )
+    fv = FeatureView(
+        name="test_fv",
+        entities=[],
+        ttl=timedelta(days=1),
+        source=source,
+        schema=[Field(name="feature_value", dtype=Float32)],
+    )
+
+    registry = MagicMock()
+    registry.list_on_demand_feature_views.return_value = []
+
+    job = ClickhouseOfflineStore.get_historical_features(
+        config=repo_config,
+        feature_views=[fv],
+        feature_refs=["test_fv:feature_value"],
+        entity_df=None,
+        registry=registry,
+        project="test_project",
+        end_date=now,
+    )
+
+    result_df = job.to_df()
+    assert len(result_df) > 0
+    assert "feature_value" in result_df.columns
+
+    # Cleanup
+    client.command(f"DROP TABLE IF EXISTS {table_name}")
