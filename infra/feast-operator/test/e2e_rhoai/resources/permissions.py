@@ -9,11 +9,16 @@ from feast.saved_dataset import SavedDataset
 
 perm_namespace = ["test-ns-feast"]
 
-WITHOUT_DATA_SOURCE = [Project, Entity, FeatureService, SavedDataset] + ALL_FEATURE_VIEW_TYPES
+WITHOUT_DATA_SOURCE = [
+    Project,
+    Entity,
+    FeatureService,
+    SavedDataset,
+] + ALL_FEATURE_VIEW_TYPES
 
 test_perm = Permission(
     name="feast-auth",
     types=WITHOUT_DATA_SOURCE,
     policy=NamespaceBasedPolicy(namespaces=perm_namespace),
-    actions=[AuthzedAction.DESCRIBE] + READ
+    actions=[AuthzedAction.DESCRIBE] + READ,
 )
