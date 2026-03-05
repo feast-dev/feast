@@ -475,6 +475,7 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"couchbase.online",
 	"milvus",
 	"hybrid",
+	"mongodb",
 }
 
 // LocalRegistryConfig configures the registry service
