@@ -8,11 +8,13 @@ try:
     from pymongo import AsyncMongoClient, MongoClient, UpdateOne
     from pymongo.asynchronous.collection import AsyncCollection
     from pymongo.collection import Collection
+    from pymongo.driver_info import DriverInfo
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("mongodb", str(e))
 
+import feast.version
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -27,6 +29,8 @@ from feast.type_map import (
 )
 
 logger = getLogger(__name__)
+
+DRIVER_METADATA = DriverInfo(name="Feast", version=feast.version.get_version())
 
 
 class MongoDBOnlineStoreConfig(FeastConfigBaseModel):
@@ -262,7 +266,9 @@ class MongoDBOnlineStore(OnlineStore):
         if self._client is None:
             online_config = config.online_store
             self._client = MongoClient(
-                online_config.connection_string, **online_config.client_kwargs
+                online_config.connection_string,
+                driver=DRIVER_METADATA,
+                **online_config.client_kwargs,
             )
         return self._client
 
@@ -286,7 +292,9 @@ class MongoDBOnlineStore(OnlineStore):
                     f"config.online_store passed to _get_client_async is not a MongoDBOnlineStoreConfig. It's of type {type(online_config)}"
                 )
             self._client_async = AsyncMongoClient(
-                online_config.connection_string, **online_config.client_kwargs
+                online_config.connection_string,
+                driver=DRIVER_METADATA,
+                **online_config.client_kwargs,
             )
         return self._client_async
 
