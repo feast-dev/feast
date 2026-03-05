@@ -2,7 +2,7 @@
 name = "feast"
 description = "Python SDK for Feast"
 readme = "README.md"
-requires-python = "==3.10.0"
+requires-python = ">=3.10.0"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 classifiers = [
