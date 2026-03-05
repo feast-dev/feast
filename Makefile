@@ -662,7 +662,7 @@ build-feature-server-docker: ## Build Feature Server Docker image
 	docker buildx build \
 		-t $(REGISTRY)/feature-server:$(VERSION) \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile \
-		--load sdk/python/feast/infra/feature_servers/multicloud
+		--load .
 
 push-feature-transformation-server-docker: ## Push Feature Transformation Server Docker image
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
