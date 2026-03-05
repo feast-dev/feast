@@ -286,7 +286,7 @@ func (feast *FeastServices) GetCustomCertificatesBundle() CustomCertificatesBund
 	configMapList := &corev1.ConfigMapList{}
 	labelSelector := client.MatchingLabels{caBundleAnnotation: "true"}
 
-	err := feast.Handler.Client.List(
+	err := feast.Handler.List(
 		feast.Handler.Context,
 		configMapList,
 		client.InNamespace(feast.Handler.FeatureStore.Namespace),

@@ -87,8 +87,8 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// Clean up namespace registry entry even if the CR is not found
 			if err := r.cleanupNamespaceRegistry(ctx, &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      req.NamespacedName.Name,
-					Namespace: req.NamespacedName.Namespace,
+					Name:      req.Name,
+					Namespace: req.Namespace,
 				},
 			}); err != nil {
 				logger.Error(err, "Failed to clean up namespace registry entry for deleted FeatureStore")

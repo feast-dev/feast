@@ -65,7 +65,7 @@ func (authz *FeastAuthorization) deployKubernetesAuth() error {
 
 func (authz *FeastAuthorization) removeOrphanedRoles() {
 	roleList := &rbacv1.RoleList{}
-	err := authz.Handler.Client.List(context.TODO(), roleList, &client.ListOptions{
+	err := authz.Handler.List(context.TODO(), roleList, &client.ListOptions{
 		Namespace:     authz.Handler.FeatureStore.Namespace,
 		LabelSelector: labels.SelectorFromSet(authz.getLabels()),
 	})

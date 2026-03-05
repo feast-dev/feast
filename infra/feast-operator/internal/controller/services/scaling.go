@@ -79,7 +79,7 @@ func (feast *FeastServices) createOrDeleteHPA() error {
 
 	hpa := &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: feast.GetObjectMeta()}
 	logger := log.FromContext(feast.Handler.Context)
-	if err := feast.Handler.Client.Patch(feast.Handler.Context, hpa,
+	if err := feast.Handler.Patch(feast.Handler.Context, hpa,
 		client.RawPatch(types.ApplyPatchType, data),
 		client.FieldOwner(fieldManager), client.ForceOwnership); err != nil {
 		return err
@@ -202,7 +202,7 @@ func (feast *FeastServices) applyOrDeletePDB() error {
 
 	pdb := &policyv1.PodDisruptionBudget{ObjectMeta: feast.GetObjectMeta()}
 	logger := log.FromContext(feast.Handler.Context)
-	if err := feast.Handler.Client.Patch(feast.Handler.Context, pdb,
+	if err := feast.Handler.Patch(feast.Handler.Context, pdb,
 		client.RawPatch(types.ApplyPatchType, data),
 		client.FieldOwner(fieldManager), client.ForceOwnership); err != nil {
 		return err

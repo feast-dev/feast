@@ -124,7 +124,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 			}
 
 			if services.Registry.Local.Server != nil {
-				setDefaultCtrConfigs(&services.Registry.Local.Server.ContainerConfigs.DefaultCtrConfigs)
+				setDefaultCtrConfigs(&services.Registry.Local.Server.DefaultCtrConfigs)
 				// Set default for GRPC: true if nil
 				if services.Registry.Local.Server.GRPC == nil {
 					defaultGRPC := true
@@ -155,7 +155,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		}
 
 		if services.OfflineStore.Server != nil {
-			setDefaultCtrConfigs(&services.OfflineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+			setDefaultCtrConfigs(&services.OfflineStore.Server.DefaultCtrConfigs)
 		}
 	}
 
@@ -182,10 +182,10 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 	if services.OnlineStore.Server == nil {
 		services.OnlineStore.Server = &feastdevv1.ServerConfigs{}
 	}
-	setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+	setDefaultCtrConfigs(&services.OnlineStore.Server.DefaultCtrConfigs)
 
 	if services.UI != nil {
-		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs)
+		setDefaultCtrConfigs(&services.UI.DefaultCtrConfigs)
 	}
 
 	if applied.CronJob == nil {
@@ -285,7 +285,7 @@ func (feast *FeastServices) getSecret(secretRef string) (*corev1.Secret, error) 
 	logger := log.FromContext(feast.Handler.Context)
 	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretRef, Namespace: feast.Handler.FeatureStore.Namespace}}
 	objectKey := client.ObjectKeyFromObject(secret)
-	if err := feast.Handler.Client.Get(feast.Handler.Context, objectKey, secret); err != nil {
+	if err := feast.Handler.Get(feast.Handler.Context, objectKey, secret); err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Error(err, "invalid secret "+secretRef+" for offline store")
 		}
@@ -299,7 +299,7 @@ func (feast *FeastServices) getConfigMap(configMapRef string) (*corev1.ConfigMap
 	logger := log.FromContext(feast.Handler.Context)
 	configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: configMapRef, Namespace: feast.Handler.FeatureStore.Namespace}}
 	objectKey := client.ObjectKeyFromObject(configMap)
-	if err := feast.Handler.Client.Get(feast.Handler.Context, objectKey, configMap); err != nil {
+	if err := feast.Handler.Get(feast.Handler.Context, objectKey, configMap); err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Error(err, "invalid configmap "+configMapRef+" for batch engine")
 		}

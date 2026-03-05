@@ -15,7 +15,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.22.9
+      - name: Operator lint
+        run: make -C infra/feast-operator lint
       - name: Operator tests
-        run: make -C infra/feast-operator test
+        run: make -C infra/feast-operator test SKIP_LINT=1
       - name: After code formatting, check for uncommitted differences
         run: git diff --exit-code infra/feast-operator

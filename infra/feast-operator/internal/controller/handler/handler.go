@@ -10,7 +10,7 @@ import (
 func (handler *FeastHandler) DeleteOwnedFeastObj(obj client.Object) error {
 	name := obj.GetName()
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	if err := handler.Client.Get(handler.Context, client.ObjectKeyFromObject(obj), obj); err != nil {
+	if err := handler.Get(handler.Context, client.ObjectKeyFromObject(obj), obj); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
@@ -18,7 +18,7 @@ func (handler *FeastHandler) DeleteOwnedFeastObj(obj client.Object) error {
 	}
 	for _, ref := range obj.GetOwnerReferences() {
 		if *ref.Controller && ref.UID == handler.FeatureStore.UID {
-			if err := handler.Client.Delete(handler.Context, obj); err != nil {
+			if err := handler.Delete(handler.Context, obj); err != nil {
 				return err
 			}
 			log.FromContext(handler.Context).Info("Successfully deleted", kind, name)

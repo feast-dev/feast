@@ -381,9 +381,9 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType
 	}
 
 	// PVCs are immutable, so we only create... we don't update an existing one.
-	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKeyFromObject(pvc), pvc)
+	err = feast.Handler.Get(feast.Handler.Context, client.ObjectKeyFromObject(pvc), pvc)
 	if err != nil && apierrors.IsNotFound(err) {
-		err = feast.Handler.Client.Create(feast.Handler.Context, pvc)
+		err = feast.Handler.Create(feast.Handler.Context, pvc)
 		if err != nil {
 			return err
 		}
@@ -895,7 +895,7 @@ func (feast *FeastServices) isMetricsEnabled(feastType FeastServiceType) bool {
 
 func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *map[string]string {
 	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
-		return serviceConfigs.ContainerConfigs.OptionalCtrConfigs.NodeSelector
+		return serviceConfigs.NodeSelector
 	}
 	return nil
 }
@@ -1116,7 +1116,7 @@ func (feast *FeastServices) getRemoteRegistryFeastHandler() (*FeastServices, err
 			return nil, errors.New("FeatureStore '" + crNsName.Name + "' can't reference itself in `spec.services.registry.remote.feastRef`")
 		}
 		remoteFeastObj := &feastdevv1.FeatureStore{}
-		if err := feast.Handler.Client.Get(feast.Handler.Context, nsName, remoteFeastObj); err != nil {
+		if err := feast.Handler.Get(feast.Handler.Context, nsName, remoteFeastObj); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil, errors.New("Referenced FeatureStore '" + feastRemoteRef.Name + "' was not found")
 			}
@@ -1180,7 +1180,7 @@ func (feast *FeastServices) isOnlineStore() bool {
 }
 
 func (feast *FeastServices) noLocalCoreServerConfigured() bool {
-	return !(feast.isRegistryServer() || feast.isOnlineServer() || feast.isOfflineServer())
+	return !feast.isRegistryServer() && !feast.isOnlineServer() && !feast.isOfflineServer()
 }
 
 func (feast *FeastServices) isUiServer() bool {
@@ -1241,21 +1241,21 @@ func (feast *FeastServices) initRoute(feastType FeastServiceType) *routev1.Route
 }
 
 func applyCtrConfigs(container *corev1.Container, containerConfigs feastdevv1.ContainerConfigs) {
-	if containerConfigs.DefaultCtrConfigs.Image != nil {
-		container.Image = *containerConfigs.DefaultCtrConfigs.Image
+	if containerConfigs.Image != nil {
+		container.Image = *containerConfigs.Image
 	}
 	// apply optional container configs
-	if containerConfigs.OptionalCtrConfigs.Env != nil {
-		container.Env = envOverride(container.Env, *containerConfigs.OptionalCtrConfigs.Env)
+	if containerConfigs.Env != nil {
+		container.Env = envOverride(container.Env, *containerConfigs.Env)
 	}
-	if containerConfigs.OptionalCtrConfigs.EnvFrom != nil {
-		container.EnvFrom = *containerConfigs.OptionalCtrConfigs.EnvFrom
+	if containerConfigs.EnvFrom != nil {
+		container.EnvFrom = *containerConfigs.EnvFrom
 	}
-	if containerConfigs.OptionalCtrConfigs.ImagePullPolicy != nil {
-		container.ImagePullPolicy = *containerConfigs.OptionalCtrConfigs.ImagePullPolicy
+	if containerConfigs.ImagePullPolicy != nil {
+		container.ImagePullPolicy = *containerConfigs.ImagePullPolicy
 	}
-	if containerConfigs.OptionalCtrConfigs.Resources != nil {
-		container.Resources = *containerConfigs.OptionalCtrConfigs.Resources
+	if containerConfigs.Resources != nil {
+		container.Resources = *containerConfigs.Resources
 	}
 }
 

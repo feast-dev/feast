@@ -209,7 +209,7 @@ var _ = Describe("Registry Service", func() {
 				"kubernetes.io/os": "linux",
 				"node-type":        "compute",
 			}
-			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &nodeSelector
+			featureStore.Spec.Services.Registry.Local.Server.NodeSelector = &nodeSelector
 			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
 			Expect(feast.ApplyDefaults()).To(Succeed())
 			applySpecToStatus(featureStore)
@@ -234,7 +234,7 @@ var _ = Describe("Registry Service", func() {
 				"kubernetes.io/os": "linux",
 				"node-type":        "compute",
 			}
-			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &registryNodeSelector
+			featureStore.Spec.Services.Registry.Local.Server.NodeSelector = &registryNodeSelector
 
 			// Set NodeSelector for online store service
 			onlineNodeSelector := map[string]string{
@@ -418,7 +418,7 @@ var _ = Describe("Registry Service", func() {
 		It("should handle empty NodeSelector gracefully", func() {
 			// Set empty NodeSelector
 			emptyNodeSelector := map[string]string{}
-			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &emptyNodeSelector
+			featureStore.Spec.Services.Registry.Local.Server.NodeSelector = &emptyNodeSelector
 			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
 			Expect(feast.ApplyDefaults()).To(Succeed())
 			applySpecToStatus(featureStore)

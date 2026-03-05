@@ -1,40 +1,16 @@
+version: "2"
+
 run:
   timeout: 5m
   allow-parallel-runners: true
 
-issues:
-  # don't skip warning about doc comments
-  # don't exclude the default set of lint
-  exclude-use-default: false
-  # restore some of the defaults
-  # (fill in the rest as needed)
-  exclude-rules:
-    - path: "api/*"
-      linters:
-        - lll
-    - path: "internal/*"
-      linters:
-        - dupl
-        - lll
-    - path: "test/*"
-      linters:
-        - lll
-    - path: "upgrade/*"
-      linters:
-        - lll
-    - path: "previous-version/*"
-      linters:
-        - lll
 linters:
-  disable-all: true
+  default: none
   enable:
     - dupl
     - errcheck
     - goconst
     - gocyclo
-    - gofmt
-    - goimports
-    - gosimple
     - govet
     - ineffassign
     - lll
@@ -44,12 +20,52 @@ linters:
     - prealloc
     - revive
     - staticcheck
-    - typecheck
     - unconvert
     - unparam
     - unused
-
-linters-settings:
-  revive:
+    - kubeapilinter
+  settings:
+    revive:
+      rules:
+        - name: comment-spacings
+    custom:
+      kubeapilinter:
+        type: module
+        description: Kube API Linter lints Kube like APIs based on API conventions and best practices.
+        settings:
+          linters:
+            disable:
+              - "*"
+            enable:
+              - commentstart
+              - optionalorrequired
+              - defaults
+              - nonpointerstructs
+              - conditions
+          lintersConfig: {}
+  exclusions:
     rules:
-      - name: comment-spacings
+      - path: "api/.*"
+        linters:
+          - lll
+      - path: "internal/.*"
+        linters:
+          - dupl
+          - lll
+      - path: "test/.*"
+        linters:
+          - lll
+      - path: "upgrade/.*"
+        linters:
+          - lll
+      - path: "previous-version/.*"
+        linters:
+          - lll
+      - path-except: "api/.*"
+        linters:
+          - kubeapilinter
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

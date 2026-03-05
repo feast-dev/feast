@@ -243,7 +243,7 @@ func (feast *FeastServices) AddToNamespaceRegistry() error {
 
 	// Get the existing ConfigMap
 	cm := &corev1.ConfigMap{}
-	err = feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
+	err = feast.Handler.Get(feast.Handler.Context, types.NamespacedName{
 		Name:      NamespaceRegistryConfigMapName,
 		Namespace: targetNamespace,
 	}, cm)
@@ -306,7 +306,7 @@ func (feast *FeastServices) AddToNamespaceRegistry() error {
 	cm.Data[NamespaceRegistryDataKey] = string(dataBytes)
 
 	// Update the ConfigMap
-	if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
+	if err := feast.Handler.Update(feast.Handler.Context, cm); err != nil {
 		return fmt.Errorf("failed to update namespace registry ConfigMap: %w", err)
 	}
 
@@ -331,7 +331,7 @@ func (feast *FeastServices) RemoveFromNamespaceRegistry() error {
 
 	// Get the existing ConfigMap
 	cm := &corev1.ConfigMap{}
-	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
+	err = feast.Handler.Get(feast.Handler.Context, client.ObjectKey{
 		Name:      NamespaceRegistryConfigMapName,
 		Namespace: targetNamespace,
 	}, cm)
@@ -414,7 +414,7 @@ func (feast *FeastServices) RemoveFromNamespaceRegistry() error {
 	cm.Data[NamespaceRegistryDataKey] = string(dataBytes)
 
 	// Update the ConfigMap
-	if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
+	if err := feast.Handler.Update(feast.Handler.Context, cm); err != nil {
 		return fmt.Errorf("failed to update namespace registry ConfigMap: %w", err)
 	}
 

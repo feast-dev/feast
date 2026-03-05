@@ -114,8 +114,13 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+TEST_DEPS = build-installer vet envtest
+ifndef SKIP_LINT
+TEST_DEPS += lint
+endif
+
 .PHONY: test
-test: build-installer vet lint envtest ## Run tests.
+test: $(TEST_DEPS) ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --use-deprecated-gcs=false)" go test $$(go list ./... | grep -v test/e2e | grep -v test/data-source-types | grep -v test/upgrade | grep -v test/previous-version) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
@@ -138,12 +143,12 @@ test-datasources:
 	go test ./test/data-source-types/
 
 .PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter & yamllint
-	$(GOLANGCI_LINT) run
+lint: golangci-lint-custom ## Run golangci-lint linter & yamllint
+	$(GOLANGCI_LINT_CUSTOM) run
 
 .PHONY: lint-fix
-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
-	$(GOLANGCI_LINT) run --fix
+lint-fix: golangci-lint-custom ## Run golangci-lint linter and perform fixes
+	$(GOLANGCI_LINT_CUSTOM) run --fix
 
 ##@ Build
 
@@ -236,6 +241,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+GOLANGCI_LINT_CUSTOM = $(LOCALBIN)/golangci-lint-kube-api-linter
 ENVSUBST = $(LOCALBIN)/envsubst
 
 ## Tool Versions
@@ -243,7 +249,7 @@ KUSTOMIZE_VERSION ?= v5.4.2
 CONTROLLER_TOOLS_VERSION ?= v0.15.0
 CRD_REF_DOCS_VERSION ?= v0.1.0
 ENVTEST_VERSION ?= release-0.18
-GOLANGCI_LINT_VERSION ?= v1.59.1
+GOLANGCI_LINT_VERSION ?= v2.8.0
 ENVSUBST_VERSION ?= v1.4.2
 
 .PHONY: kustomize
@@ -264,7 +270,12 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+.PHONY: golangci-lint-custom
+golangci-lint-custom: $(GOLANGCI_LINT_CUSTOM) ## Build custom golangci-lint with kube-api-linter.
+$(GOLANGCI_LINT_CUSTOM): $(GOLANGCI_LINT) .custom-gcl.yml
+	$(GOLANGCI_LINT) custom
 
 .PHONY: envsubst
 envsubst: $(ENVSUBST) ## Download envsubst locally if necessary.
