@@ -118,12 +118,20 @@ jobs:
           password: ${{ secrets.QUAYIO_CI_TOKEN }}
       - name: Build image
         run: |
-          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
+          if [[ "${{ matrix.component }}" == "feature-server-dev" ]]; then
+            docker buildx build \
+              --platform linux/amd64,linux/arm64 \
+              -t ${REGISTRY}/feature-server:${GITHUB_SHA} \
+              -t ${REGISTRY}/feature-server:develop \
+              -f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev \
+              --push .
+          else
+            make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
+          fi
       - name: Push image
         run: |
           if [[ "${{ matrix.component }}" == "feature-server-dev" ]]; then
-            docker tag ${REGISTRY}/feature-server:${GITHUB_SHA} ${REGISTRY}/feature-server:develop
-            docker push ${REGISTRY}/feature-server --all-tags
+            echo "feature-server dev image pushed via buildx during build step"
           else
             docker tag ${REGISTRY}/${{ matrix.component }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.component }}:develop
             docker push ${REGISTRY}/${{ matrix.component }} --all-tags
