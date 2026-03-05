@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import requests
-from botocore.exceptions import BotoCoreError
 
 from feast import FeatureStore
 from feast.entity import Entity
@@ -619,7 +618,7 @@ def test_online_store_cleanup(environment, universal_data_sources):
     def eventually_apply() -> Tuple[None, bool]:
         try:
             fs.apply([simple_driver_fv])
-        except BotoCoreError:
+        except Exception:
             return None, False
 
         return None, True
