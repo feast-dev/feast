@@ -311,6 +311,120 @@ requests.post(
     data=json.dumps(materialize_data))
 ```
 
+## Prometheus Metrics
+
+The Python feature server can expose Prometheus-compatible metrics on a dedicated
+HTTP endpoint (default port `8000`). Metrics are **opt-in** and carry zero overhead
+when disabled.
+
+### Enabling metrics
+
+**Option 1 — CLI flag** (useful for one-off runs):
+
+```bash
+feast serve --metrics
+```
+
+**Option 2 — `feature_store.yaml`** (recommended for production):
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+```
+
+Either option is sufficient. When both are set, metrics are enabled.
+
+### Per-category control
+
+By default, enabling metrics turns on **all** categories. You can selectively
+disable individual categories within the same `metrics` block:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    resource: true          # CPU / memory gauges
+    request: false          # disable endpoint latency & request counters
+    online_features: true   # online feature retrieval counters
+    push: true              # push request counters
+    materialization: true   # materialization counters & duration
+    freshness: true         # feature freshness gauges
+```
+
+Any category set to `false` will emit no metrics and start no background
+threads (e.g., setting `freshness: false` prevents the registry polling
+thread from starting). All categories default to `true`.
+
+### Available metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `feast_feature_server_cpu_usage` | Gauge | — | Process CPU usage % |
+| `feast_feature_server_memory_usage` | Gauge | — | Process memory usage % |
+| `feast_feature_server_request_total` | Counter | `endpoint`, `status` | Total requests per endpoint |
+| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | Request latency with p50/p95/p99 support |
+| `feast_online_features_request_total` | Counter | — | Total online feature retrieval requests |
+| `feast_online_features_entity_count` | Histogram | — | Entity rows per online feature request |
+| `feast_push_request_total` | Counter | `push_source`, `mode` | Push requests by source and mode |
+| `feast_materialization_total` | Counter | `feature_view`, `status` | Materialization runs (success/failure) |
+| `feast_materialization_duration_seconds` | Histogram | `feature_view` | Materialization duration per feature view |
+| `feast_feature_freshness_seconds` | Gauge | `feature_view`, `project` | Seconds since last materialization |
+
+### Scraping with Prometheus
+
+```yaml
+scrape_configs:
+  - job_name: feast
+    static_configs:
+      - targets: ["localhost:8000"]
+```
+
+### Kubernetes / Feast Operator
+
+Set `metrics: true` in your FeatureStore CR:
+
+```yaml
+spec:
+  services:
+    onlineStore:
+      server:
+        metrics: true
+```
+
+The operator automatically exposes port 8000 and creates the corresponding
+Service port so Prometheus can discover it.
+
+### Multi-worker and multi-replica (HPA) support
+
+Feast uses Prometheus **multiprocess mode** so that metrics are correct
+regardless of the number of Gunicorn workers or Kubernetes replicas.
+
+**How it works:**
+
+* Each Gunicorn worker writes metric values to shared files in a
+  temporary directory (`PROMETHEUS_MULTIPROCESS_DIR`).  Feast creates
+  this directory automatically; you can override it by setting the
+  environment variable yourself.
+* The metrics HTTP server on port 8000 aggregates all workers'
+  metric files using `MultiProcessCollector`, so a single scrape
+  returns accurate totals.
+* Gunicorn hooks clean up dead-worker files automatically
+  (`child_exit` → `mark_process_dead`).
+* CPU and memory gauges use `multiprocess_mode=liveall` — Prometheus
+  shows per-worker values distinguished by a `pid` label.
+* Feature freshness gauges use `multiprocess_mode=max` — Prometheus
+  shows the worst-case staleness (all workers compute the same value).
+* Counters and histograms (request counts, latency, materialization)
+  are automatically summed across workers.
+
+**Multiple replicas (HPA):** Each pod runs its own metrics endpoint.
+Prometheus adds an `instance` label per pod, so there is no
+duplication.  Use `sum(rate(...))` or `histogram_quantile(...)` across
+instances as usual.
+
 ## Starting the feature server in TLS(SSL) mode
 
 Enabling TLS mode ensures that data between the Feast client and server is transmitted securely. For an ideal production environment, it is recommended to start the feature server in TLS mode.
