@@ -27,9 +27,8 @@ jobs:
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          pixi-version: v0.39.5
+          pixi-version: v0.63.1
           environments: remote-tests
-          locked: false
-          frozen: false
+          cache: true
       - name: Test remote integration tests
         run: make test-python-remote-integration
