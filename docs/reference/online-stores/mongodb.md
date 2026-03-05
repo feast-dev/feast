@@ -1,11 +1,11 @@
-# MongoDB online store (Alpha)
+# MongoDB online store (Preview)
 
 ## Description
 
 The [MongoDB](https://www.mongodb.com/) online store provides support for materializing feature values into MongoDB for serving online features.
 
 {% hint style="warning" %}
-The MongoDB online store is currently in **alpha development**. Some functionality may be unstable, and breaking changes may occur in future releases.
+The MongoDB online store is currently in **preview**. Some functionality may be unstable, and breaking changes may occur in future releases.
 {% endhint %}
 
 ## Features
