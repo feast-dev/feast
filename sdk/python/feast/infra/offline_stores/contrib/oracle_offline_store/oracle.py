@@ -240,7 +240,7 @@ class OracleOfflineStore(OfflineStore):
                 end_date = end_date.replace(tzinfo=timezone.utc)
 
             if start_date is None:
-                max_ttl = max(
+                max_ttl_seconds = max(
                     (
                         int(fv.ttl.total_seconds())
                         for fv in feature_views
@@ -249,7 +249,7 @@ class OracleOfflineStore(OfflineStore):
                     default=0,
                 )
                 start_date = end_date - timedelta(
-                    seconds=max_ttl if max_ttl > 0 else 30 * 86400
+                    seconds=max_ttl_seconds if max_ttl_seconds > 0 else 30 * 86400
                 )
             elif start_date.tzinfo is None:
                 start_date = start_date.replace(tzinfo=timezone.utc)
@@ -292,14 +292,12 @@ class OracleOfflineStore(OfflineStore):
                 ts_series.max().to_pydatetime(),
             )
 
-        max_ttl = max(
-            (
-                fv.ttl
-                for fv in feature_views
-                if fv.ttl and isinstance(fv.ttl, timedelta)
-            ),
-            default=timedelta(0),
-        )
+        ttl_values = [
+            fv.ttl
+            for fv in feature_views
+            if fv.ttl and isinstance(fv.ttl, timedelta)
+        ]
+        max_ttl: timedelta = max(ttl_values) if ttl_values else timedelta(0)
 
         # Use the retrieval reader which materializes Oracle data into
         # in-memory tables so the point-in-time join with the entity
