@@ -1192,7 +1192,7 @@ def oracle_to_feast_value_type(oracle_type_as_str: str) -> ValueType:
 
     # Handle parameterized types like "decimal(10, 2)"
     if "(" in type_str:
-        type_str = type_str.split("(")[0]
+        type_str = type_str.split("(")[0].strip()
 
     type_map: Dict[str, ValueType] = {
         # Ibis types returned by Oracle backend
