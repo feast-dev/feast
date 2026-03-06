@@ -293,9 +293,7 @@ class OracleOfflineStore(OfflineStore):
             )
 
         ttl_values = [
-            fv.ttl
-            for fv in feature_views
-            if fv.ttl and isinstance(fv.ttl, timedelta)
+            fv.ttl for fv in feature_views if fv.ttl and isinstance(fv.ttl, timedelta)
         ]
         max_ttl: timedelta = max(ttl_values) if ttl_values else timedelta(0)
 
