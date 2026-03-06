@@ -288,8 +288,8 @@ class MongoDBOnlineStore(OnlineStore):
         if self._client_async is None:
             online_config = config.online_store
             if not isinstance(online_config, MongoDBOnlineStoreConfig):
-                logger.warning(
-                    f"config.online_store passed to _get_client_async is not a MongoDBOnlineStoreConfig. It's of type {type(online_config)}"
+                raise ValueError(
+                    f"config.online_store should be MongoDBOnlineStoreConfig, got {online_config}"
                 )
             self._client_async = AsyncMongoClient(
                 online_config.connection_string,
