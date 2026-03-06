@@ -143,7 +143,7 @@ test = [
     "py>=1.11.0",
     "testcontainers==4.9.0",
     "minio==7.2.11",
-    "python-keycloak==4.2.2",
+    "python-keycloak>=4.7.3",
     "cryptography>=43.0,<44",
     "assertpy==1.1",
 ]
@@ -330,7 +330,7 @@ test = { depends-on = ["test-online"] }
 feast = { path = ".", editable = true, extras = ["grpcio", "test"] }
 
 [tool.pixi.feature.remote-tests.tasks]
-test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.remote_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+test-offline = { cmd = "python -m pytest -n auto --dist loadgroup -v --integration -m 'not ray_offline_stores_only' --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.remote_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
 test-component = { cmd = "python -m pytest -v sdk/python/tests/component/remote", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
 test = { depends-on = ["test-offline", "test-component"] }
 

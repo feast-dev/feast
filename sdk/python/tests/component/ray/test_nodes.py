@@ -55,15 +55,6 @@ class DummyRetrievalJob:
         return self._ray_dataset
 
 
-@pytest.fixture(scope="session")
-def ray_session():
-    """Initialize Ray session for testing."""
-    if not ray.is_initialized():
-        ray.init(num_cpus=2, ignore_reinit_error=True, include_dashboard=False)
-    yield ray
-    ray.shutdown()
-
-
 @pytest.fixture
 def ray_config():
     """Create Ray compute engine configuration for testing."""
