@@ -291,7 +291,7 @@ feast = { path = ".", editable = true, extras = ["ray", "grpcio", "test"] }
 
 [tool.pixi.feature.ray-tests.tasks]
 test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.ray_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
-test-compute = { cmd = "python -m pytest -v --integration sdk/python/tests/integration/compute_engines/ray_compute", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test-compute = { cmd = "python -m pytest -v --integration sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
 test = { depends-on = ["test-offline", "test-compute"] }
 
 [tool.pixi.feature.registration-tests.pypi-dependencies]

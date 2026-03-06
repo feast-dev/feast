@@ -22,6 +22,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -314,6 +315,21 @@ type FeatureStoreServices struct {
 	// Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
 	// For static replicas, use spec.replicas instead.
 	Scaling *ScalingConfig `json:"scaling,omitempty"`
+	// PodDisruptionBudgets configures a PodDisruptionBudget for the FeatureStore deployment.
+	// Only created when scaling is enabled (replicas > 1 or autoscaling).
+	// +optional
+	PodDisruptionBudgets *PDBConfig `json:"podDisruptionBudgets,omitempty"`
+	// TopologySpreadConstraints defines how pods are spread across topology domains.
+	// When scaling is enabled and this is not set, the operator auto-injects a soft
+	// zone-spread constraint (whenUnsatisfiable: ScheduleAnyway).
+	// Set to an empty array to disable auto-injection.
+	// +optional
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+	// Affinity defines the pod scheduling constraints for the FeatureStore deployment.
+	// When scaling is enabled and this is not set, the operator auto-injects a soft
+	// pod anti-affinity rule to prefer spreading pods across nodes.
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // ScalingConfig configures horizontal scaling for the FeatureStore deployment.
@@ -340,6 +356,20 @@ type AutoscalingConfig struct {
 	// Behavior configures the scaling behavior of the target.
 	// +optional
 	Behavior *autoscalingv2.HorizontalPodAutoscalerBehavior `json:"behavior,omitempty"`
+}
+
+// PDBConfig configures a PodDisruptionBudget for the FeatureStore deployment.
+// Exactly one of minAvailable or maxUnavailable must be set.
+// +kubebuilder:validation:XValidation:rule="[has(self.minAvailable), has(self.maxUnavailable)].exists_one(c, c)",message="Exactly one of minAvailable or maxUnavailable must be set."
+type PDBConfig struct {
+	// MinAvailable specifies the minimum number/percentage of pods that must remain available.
+	// Mutually exclusive with maxUnavailable.
+	// +optional
+	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
+	// MaxUnavailable specifies the maximum number/percentage of pods that can be unavailable.
+	// Mutually exclusive with minAvailable.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 }
 
 // OfflineStore configures the offline store service
