@@ -1,3 +1,4 @@
+import logging
 from typing import Union
 
 from pyspark.sql import SparkSession
@@ -12,9 +13,14 @@ from feast.infra.compute_engines.spark.nodes import (
     SparkJoinNode,
     SparkReadNode,
     SparkTransformationNode,
+    SparkValidationNode,
     SparkWriteNode,
+    from_feast_to_spark_type,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.types import PrimitiveFeastType
+
+logger = logging.getLogger(__name__)
 
 
 class SparkFeatureBuilder(FeatureBuilder):
@@ -115,4 +121,30 @@ class SparkFeatureBuilder(FeatureBuilder):
         return node
 
     def build_validation_node(self, view, input_node):
-        pass
+        expected_columns = {}
+        json_columns: set = set()
+        if hasattr(view, "features"):
+            for feature in view.features:
+                spark_type = from_feast_to_spark_type(feature.dtype)
+                if spark_type is None:
+                    logger.debug(
+                        "Could not resolve Spark type for feature '%s' "
+                        "(dtype=%s), skipping type check for this column.",
+                        feature.name,
+                        feature.dtype,
+                    )
+                expected_columns[feature.name] = spark_type
+                if (
+                    isinstance(feature.dtype, PrimitiveFeastType)
+                    and feature.dtype.name == "JSON"
+                ):
+                    json_columns.add(feature.name)
+
+        node = SparkValidationNode(
+            f"{view.name}:validate",
+            expected_columns=expected_columns,
+            json_columns=json_columns,
+            inputs=[input_node],
+        )
+        self.nodes.append(node)
+        return node

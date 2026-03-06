@@ -37,7 +37,7 @@ message StreamFeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 20
+// Next available id: 21
 message StreamFeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
@@ -99,5 +99,8 @@ message StreamFeatureViewSpec {
     // Hop size for tiling (e.g., 5 minutes). Determines the granularity of pre-aggregated tiles.
     // If not specified, defaults to 5 minutes. Only used when enable_tiling is true.
     google.protobuf.Duration tiling_hop_size = 19;
+
+    // Whether schema validation is enabled during materialization
+    bool enable_validation = 20;
 }
 

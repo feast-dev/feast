@@ -17,6 +17,7 @@ from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentEr
 from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
+from feast.proto_utils import transformation_to_proto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -24,9 +25,6 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureViewMeta,
     OnDemandFeatureViewSpec,
     OnDemandSource,
-)
-from feast.protos.feast.core.Transformation_pb2 import (
-    FeatureTransformationV2 as FeatureTransformationProto,
 )
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
@@ -472,29 +470,11 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        user_defined_function_proto = cast(
-            UserDefinedFunctionProto,
-            self.feature_transformation.to_proto()
-            if isinstance(
-                self.feature_transformation,
-                (PandasTransformation, PythonTransformation),
-            )
-            else None,
-        )
+        feature_transformation = transformation_to_proto(self.feature_transformation)
 
-        substrait_transformation_proto = (
-            self.feature_transformation.to_proto()
-            if isinstance(self.feature_transformation, SubstraitTransformation)
-            else None
-        )
-
-        feature_transformation = FeatureTransformationProto(
-            user_defined_function=user_defined_function_proto,
-            substrait_transformation=substrait_transformation_proto,
-        )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
-            entities=self.entities if self.entities else None,
+            entities=self.entities or None,
             entity_columns=[
                 field.to_proto() for field in self.entity_columns if self.entity_columns
             ],
@@ -506,7 +486,7 @@ class OnDemandFeatureView(BaseFeatureView):
             tags=self.tags,
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
-            singleton=self.singleton if self.singleton else False,
+            singleton=self.singleton or False,
             aggregations=self.aggregations,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)

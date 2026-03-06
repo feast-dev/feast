@@ -28,6 +28,24 @@ _Appears in:_
 | `oidc` _[OidcAuthz](#oidcauthz)_ |  |
 
 
+#### AutoscalingConfig
+
+
+
+AutoscalingConfig defines HPA settings for the FeatureStore deployment.
+
+_Appears in:_
+- [ScalingConfig](#scalingconfig)
+
+| Field | Description |
+| --- | --- |
+| `minReplicas` _integer_ | MinReplicas is the lower limit for the number of replicas. Defaults to 1. |
+| `maxReplicas` _integer_ | MaxReplicas is the upper limit for the number of replicas. Required. |
+| `metrics` _[MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metricspec-v2-autoscaling) array_ | Metrics contains the specifications for which to use to calculate the desired replica count.
+If not set, defaults to 80% CPU utilization. |
+| `behavior` _[HorizontalPodAutoscalerBehavior](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerbehavior-v2-autoscaling)_ | Behavior configures the scaling behavior of the target. |
+
+
 #### BatchEngineConfig
 
 
@@ -223,6 +241,17 @@ _Appears in:_
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
+| `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
+For static replicas, use spec.replicas instead. |
+| `podDisruptionBudgets` _[PDBConfig](#pdbconfig)_ | PodDisruptionBudgets configures a PodDisruptionBudget for the FeatureStore deployment.
+Only created when scaling is enabled (replicas > 1 or autoscaling). |
+| `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | TopologySpreadConstraints defines how pods are spread across topology domains.
+When scaling is enabled and this is not set, the operator auto-injects a soft
+zone-spread constraint (whenUnsatisfiable: ScheduleAnyway).
+Set to an empty array to disable auto-injection. |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
+When scaling is enabled and this is not set, the operator auto-injects a soft
+pod anti-affinity rule to prefer spreading pods across nodes. |
 
 
 #### FeatureStoreSpec
@@ -243,6 +272,8 @@ _Appears in:_
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
 | `batchEngine` _[BatchEngineConfig](#batchengineconfig)_ |  |
+| `replicas` _integer_ | Replicas is the desired number of pod replicas. Used by the scale sub-resource.
+Mutually exclusive with services.scaling.autoscaling. |
 
 
 #### FeatureStoreStatus
@@ -263,6 +294,9 @@ _Appears in:_
 | `feastVersion` _string_ |  |
 | `phase` _string_ |  |
 | `serviceHostnames` _[ServiceHostnames](#servicehostnames)_ |  |
+| `replicas` _integer_ | Replicas is the current number of ready pod replicas (used by the scale sub-resource). |
+| `selector` _string_ | Selector is the label selector for pods managed by the FeatureStore deployment (used by the scale sub-resource). |
+| `scalingStatus` _[ScalingStatus](#scalingstatus)_ | ScalingStatus reports the current scaling state of the FeatureStore deployment. |
 
 
 #### GitCloneOptions
@@ -592,6 +626,24 @@ _Appears in:_
 | `nodeSelector` _map[string]string_ |  |
 
 
+#### PDBConfig
+
+
+
+PDBConfig configures a PodDisruptionBudget for the FeatureStore deployment.
+Exactly one of minAvailable or maxUnavailable must be set.
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `minAvailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#intorstring-intstr-util)_ | MinAvailable specifies the minimum number/percentage of pods that must remain available.
+Mutually exclusive with maxUnavailable. |
+| `maxUnavailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#intorstring-intstr-util)_ | MaxUnavailable specifies the maximum number/percentage of pods that can be unavailable.
+Mutually exclusive with minAvailable. |
+
+
 #### PvcConfig
 
 
@@ -745,6 +797,36 @@ _Appears in:_
 | `hostname` _string_ | Host address of the remote registry service - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80` |
 | `feastRef` _[FeatureStoreRef](#featurestoreref)_ | Reference to an existing `FeatureStore` CR in the same k8s cluster. |
 | `tls` _[TlsRemoteRegistryConfigs](#tlsremoteregistryconfigs)_ |  |
+
+
+#### ScalingConfig
+
+
+
+ScalingConfig configures horizontal scaling for the FeatureStore deployment.
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `autoscaling` _[AutoscalingConfig](#autoscalingconfig)_ | Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
+Mutually exclusive with spec.replicas. |
+
+
+#### ScalingStatus
+
+
+
+ScalingStatus reports the observed scaling state.
+
+_Appears in:_
+- [FeatureStoreStatus](#featurestorestatus)
+
+| Field | Description |
+| --- | --- |
+| `currentReplicas` _integer_ | CurrentReplicas is the current number of pod replicas. |
+| `desiredReplicas` _integer_ | DesiredReplicas is the desired number of pod replicas. |
 
 
 #### SecretKeyNames

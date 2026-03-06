@@ -21,7 +21,7 @@ from feast.repo_config import RegistryConfig
 from feast.torch_wrapper import get_torch
 from feast.types import ValueType
 from feast.utils import _utc_now
-from tests.integration.feature_repos.universal.feature_views import TAGS
+from tests.universal.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 

@@ -1,6 +1,7 @@
+import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 
 import dill
 import pandas as pd
@@ -847,3 +848,127 @@ class RayWriteNode(DAGNode):
                 ),
             },
         )
+
+
+class RayValidationNode(DAGNode):
+    """
+    Ray node for validating feature data against the declared schema.
+
+    Checks that all expected columns are present and logs warnings for
+    type mismatches.  Validation runs once on the first batch to avoid
+    per-batch overhead; the full dataset is passed through unchanged.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        expected_columns: Dict[str, Optional[pa.DataType]],
+        json_columns: Optional[Set[str]] = None,
+        inputs: Optional[List[DAGNode]] = None,
+    ):
+        super().__init__(name, inputs=inputs)
+        self.expected_columns = expected_columns
+        self.json_columns = json_columns or set()
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        input_value = self.get_single_input_value(context)
+        dataset = input_value.data
+
+        if not self.expected_columns:
+            context.node_outputs[self.name] = input_value
+            return input_value
+
+        expected_names = set(self.expected_columns.keys())
+
+        schema = dataset.schema()
+        actual_columns = set(schema.names)
+
+        missing = expected_names - actual_columns
+        if missing:
+            raise ValueError(
+                f"[Validation: {self.name}] Missing expected columns: {missing}. "
+                f"Actual columns: {sorted(actual_columns)}"
+            )
+
+        for col_name, expected_type in self.expected_columns.items():
+            if expected_type is None:
+                continue
+            actual_field = schema.field(col_name)
+            actual_type = actual_field.type
+            if actual_type != expected_type:
+                # Map type compatibility
+                if pa.types.is_map(expected_type) and (
+                    pa.types.is_map(actual_type)
+                    or pa.types.is_struct(actual_type)
+                    or pa.types.is_list(actual_type)
+                ):
+                    continue
+
+                # JSON type compatibility (large_string / string)
+                if pa.types.is_large_string(expected_type) and (
+                    pa.types.is_string(actual_type)
+                    or pa.types.is_large_string(actual_type)
+                ):
+                    continue
+
+                # Struct type compatibility
+                if pa.types.is_struct(expected_type) and (
+                    pa.types.is_struct(actual_type)
+                    or pa.types.is_map(actual_type)
+                    or pa.types.is_list(actual_type)
+                ):
+                    continue
+
+                logger.warning(
+                    "[Validation: %s] Column '%s' type mismatch: expected %s, got %s",
+                    self.name,
+                    col_name,
+                    expected_type,
+                    actual_type,
+                )
+
+        # Validate JSON well-formedness for declared Json columns
+        if self.json_columns:
+            try:
+                first_batch = dataset.take_batch(1000)
+            except Exception:
+                logger.debug(
+                    "[Validation: %s] Could not sample batch for JSON validation.",
+                    self.name,
+                )
+                first_batch = None
+
+            if first_batch is not None:
+                for col_name in self.json_columns:
+                    if col_name not in first_batch:
+                        continue
+
+                    values = first_batch[col_name]
+                    invalid_count = 0
+                    first_error = None
+                    first_error_row = None
+
+                    for i, value in enumerate(values):
+                        if value is None:
+                            continue
+                        if not isinstance(value, str):
+                            continue
+                        try:
+                            json.loads(value)
+                        except (json.JSONDecodeError, TypeError) as e:
+                            invalid_count += 1
+                            if first_error is None:
+                                first_error = str(e)
+                                first_error_row = i
+
+                    if invalid_count > 0:
+                        raise ValueError(
+                            f"[Validation: {self.name}] Column '{col_name}' declared "
+                            f"as Json contains {invalid_count} invalid JSON value(s) "
+                            f"in sampled batch. First error at row {first_error_row}: "
+                            f"{first_error}"
+                        )
+
+        logger.debug("[Validation: %s] Schema validation passed.", self.name)
+        context.node_outputs[self.name] = input_value
+        return input_value

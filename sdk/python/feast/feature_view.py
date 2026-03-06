@@ -26,6 +26,11 @@ from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
+from feast.proto_utils import (
+    mode_to_string,
+    serialize_data_source,
+    transformation_to_proto,
+)
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -35,9 +40,6 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 )
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
-)
-from feast.protos.feast.core.Transformation_pb2 import (
-    FeatureTransformationV2 as FeatureTransformationProto,
 )
 from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
@@ -107,6 +109,7 @@ class FeatureView(BaseFeatureView):
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
+    enable_validation: bool
 
     def __init__(
         self,
@@ -123,6 +126,7 @@ class FeatureView(BaseFeatureView):
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
+        enable_validation: bool = False,
     ):
         """
         Creates a FeatureView object.
@@ -148,11 +152,14 @@ class FeatureView(BaseFeatureView):
                 primary maintainer.
             mode (optional): The transformation mode for feature transformations. Only meaningful
                 when transformations are applied. Choose from TransformationMode enum values.
+            enable_validation (optional): If True, enables schema validation during materialization
+                to check that data conforms to the declared feature types. Default is False.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
         self.name = name
+        self.enable_validation = enable_validation
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
         schema = schema or []
@@ -279,6 +286,7 @@ class FeatureView(BaseFeatureView):
             online=self.online,
             offline=self.offline,
             sink_source=self.batch_source if self.source_views else None,
+            enable_validation=self.enable_validation,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -307,6 +315,7 @@ class FeatureView(BaseFeatureView):
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.source_views != other.source_views
             or self.materialization_intervals != other.materialization_intervals
+            or self.enable_validation != other.enable_validation
         ):
             return False
 
@@ -414,15 +423,9 @@ class FeatureView(BaseFeatureView):
     ) -> FeatureViewSpecProto:
         ttl_duration = self.get_ttl_duration()
 
-        batch_source_proto = None
-        if self.batch_source:
-            batch_source_proto = self.batch_source.to_proto()
-            batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
+        batch_source_proto = serialize_data_source(self.batch_source)
+        stream_source_proto = serialize_data_source(self.stream_source)
 
-        stream_source_proto = None
-        if self.stream_source:
-            stream_source_proto = self.stream_source.to_proto()
-            stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
         source_view_protos = None
         if self.source_views:
             source_view_protos = [
@@ -431,30 +434,8 @@ class FeatureView(BaseFeatureView):
 
         feature_transformation_proto = None
         if hasattr(self, "feature_transformation") and self.feature_transformation:
-            from feast.protos.feast.core.Transformation_pb2 import (
-                SubstraitTransformationV2 as SubstraitTransformationProto,
-            )
-            from feast.protos.feast.core.Transformation_pb2 import (
-                UserDefinedFunctionV2 as UserDefinedFunctionProto,
-            )
-
-            transformation_proto = self.feature_transformation.to_proto()
-
-            if isinstance(transformation_proto, UserDefinedFunctionProto):
-                feature_transformation_proto = FeatureTransformationProto(
-                    user_defined_function=transformation_proto,
-                )
-            elif isinstance(transformation_proto, SubstraitTransformationProto):
-                feature_transformation_proto = FeatureTransformationProto(
-                    substrait_transformation=transformation_proto,
-                )
-
-        mode_str = ""
-        if self.mode:
-            mode_str = (
-                self.mode.value
-                if isinstance(self.mode, TransformationMode)
-                else self.mode
+            feature_transformation_proto = transformation_to_proto(
+                self.feature_transformation
             )
 
         return FeatureViewSpecProto(
@@ -472,7 +453,8 @@ class FeatureView(BaseFeatureView):
             stream_source=stream_source_proto,
             source_views=source_view_protos,
             feature_transformation=feature_transformation_proto,
-            mode=mode_str,
+            mode=mode_to_string(self.mode),
+            enable_validation=self.enable_validation,
         )
 
     def to_proto_meta(self):
@@ -641,6 +623,9 @@ class FeatureView(BaseFeatureView):
                 f"There are some mismatches in your feature view: {feature_view.name} registered entities. Please check if you have applied your entities correctly."
                 f"Entities: {feature_view.entities} vs Entity Columns: {feature_view.entity_columns}"
             )
+
+        # Restore enable_validation from proto field.
+        feature_view.enable_validation = feature_view_proto.spec.enable_validation
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.

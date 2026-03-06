@@ -164,7 +164,10 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") sdk/python/tests
+	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
+		--ignore=sdk/python/tests/component/ray \
+		--ignore=sdk/python/tests/component/spark \
+		sdk/python/tests
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
@@ -184,7 +187,9 @@ test-python-smoke: ## Quick smoke test for development
 test-python-integration: ## Run Python integration tests (CI)
 	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
-		-m "not rbac_remote_integration_test" \
+		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
+		--ignore=sdk/python/tests/integration/registration \
+		--ignore=sdk/python/tests/component/ray \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -198,12 +203,11 @@ test-python-integration-parallel: ## Run integration tests with enhanced paralle
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	HADOOP_HOME=$$HOME/hadoop \
-	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
-	HADOOP_USER_NAME=root \
 	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
-		-m "not rbac_remote_integration_test" \
+		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
+		--ignore=sdk/python/tests/component/ray \
+		--ignore=sdk/python/tests/integration/registration \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -212,7 +216,7 @@ test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
 	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
-		-m "rbac_remote_integration_test" \
+		-m "rbac_remote_integration_test and not ray_offline_stores_only" \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -243,6 +247,18 @@ test-python-integration-dbt: ## Run dbt integration tests
 		echo "Running pytest integration tests..." && \
 		python -m pytest tests/integration/dbt/test_dbt_integration.py -v --tb=short
 	@echo "✓ dbt integration tests completed successfully!"
+
+test-python-registration: ## Run Python registration integration tests (local)
+	pixi run -e registration-tests test
+
+test-python-registration-ci: ## Run Python registration integration tests (CI)
+	HADOOP_HOME=$$HOME/hadoop \
+	CLASSPATH="$$( $$HADOOP_HOME/bin/hadoop classpath --glob ):$$CLASSPATH" \
+	HADOOP_USER_NAME=root \
+	pixi run -e registration-tests test-ci
+
+test-python-universal-duckdb-offline: ## Run Python DuckDB offline store integration tests
+	pixi run -e duckdb-tests test
 
 test-python-universal-spark: ## Run Python Spark integration tests
 	PYTHONPATH='.' \
@@ -390,33 +406,13 @@ test-python-universal-postgres-offline: ## Run Python Postgres integration tests
  				not test_spark" \
  			sdk/python/tests
 
-test-python-universal-ray-offline: ## Run Python Ray offline store integration tests
-	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.ray_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.ray_offline_store.tests \
-		python -m pytest -n 8 --integration \
-			-m "not universal_online_stores and not benchmark" \
-			-k "not test_historical_retrieval_with_validation and \
-				not test_universal_cli and \
-				not test_go_feature_server and \
-				not test_feature_logging and \
-				not test_logged_features_validation and \
-				not test_lambda_materialization_consistency and \
-				not gcs_registry and \
-				not s3_registry and \
-				not test_snowflake and \
-				not test_spark" \
-			sdk/python/tests
-
-test-python-ray-compute-engine: ## Run Python Ray compute engine tests
-	PYTHONPATH='.' \
-		python -m pytest -v --integration \
-			sdk/python/tests/integration/compute_engines/ray_compute/
+test-python-ray-integration: ## Run all Python Ray integration tests (offline store + compute engine)
+	pixi run -e ray-tests test
 
 test-python-universal-postgres-online: ## Run Python Postgres integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_online_store.postgres_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -435,7 +431,7 @@ test-python-universal-postgres-online: ## Run Python Postgres integration tests
  test-python-universal-pgvector-online: ## Run Python Postgres integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_online_store.pgvector_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -457,7 +453,7 @@ test-python-universal-postgres-online: ## Run Python Postgres integration tests
 test-python-universal-mysql-online: ## Run Python MySQL integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.mysql_online_store.mysql_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.mysql \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -476,7 +472,7 @@ test-python-universal-mysql-online: ## Run Python MySQL integration tests
 test-python-universal-cassandra: ## Run Python Cassandra integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration \
-	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
+	PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
 	sdk/python/tests/integration/offline_store/test_feature_logging.py \
 		--ignore=sdk/python/tests/integration/offline_store/test_validation.py \
@@ -487,7 +483,7 @@ test-python-universal-cassandra: ## Run Python Cassandra integration tests
 test-python-universal-hazelcast: ## Run Python Hazelcast integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.hazelcast_online_store.hazelcast_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.hazelcast \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.hazelcast \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -506,7 +502,7 @@ test-python-universal-hazelcast: ## Run Python Hazelcast integration tests
 test-python-universal-cassandra-no-cloud-providers: ## Run Python Cassandra integration tests
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration \
-	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
+	PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
 	-k "not test_lambda_materialization_consistency   and \
 	  not test_apply_entity_integration               and \
@@ -523,7 +519,7 @@ test-python-universal-cassandra-no-cloud-providers: ## Run Python Cassandra inte
 test-python-universal-elasticsearch-online: ## Run Python Elasticsearch online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.elasticsearch_online_store.elasticsearch_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.elasticsearch \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -542,7 +538,7 @@ test-python-universal-elasticsearch-online: ## Run Python Elasticsearch online s
 test-python-universal-milvus-online: ## Run Python Milvus online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.milvus_online_store.milvus_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.milvus \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.milvus \
 		python -m pytest -n 8 --integration \
 		-k "test_retrieve_online_milvus_documents" \
  			sdk/python/tests --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py
@@ -550,7 +546,7 @@ test-python-universal-milvus-online: ## Run Python Milvus online store integrati
 test-python-universal-singlestore-online: ## Run Python Singlestore online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.singlestore_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.singlestore \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.singlestore \
 		python -m pytest -n 8 --integration \
 			-k "not test_universal_cli and \
 				not gcs_registry and \
@@ -561,7 +557,7 @@ test-python-universal-singlestore-online: ## Run Python Singlestore online store
 test-python-universal-qdrant-online: ## Run Python Qdrant online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.qdrant_online_store.qdrant_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.qdrant \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.qdrant \
 		python -m pytest -n 8 --integration \
  			-k "test_retrieve_online_documents" \
  			sdk/python/tests/integration/online_store/test_universal_online.py
@@ -596,7 +592,7 @@ test-python-universal-couchbase-offline: ## Run Python Couchbase offline store i
 test-python-universal-couchbase-online:	## Run Python Couchbase online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.couchbase_online_store.couchbase_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.couchbase \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.couchbase \
 		python -m pytest -n 8 --integration \
 			-k "not test_universal_cli and \
 				not test_go_feature_server and \

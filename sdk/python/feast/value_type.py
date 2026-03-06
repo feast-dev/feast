@@ -67,12 +67,16 @@ class ValueType(enum.Enum):
     UNIX_TIMESTAMP_SET = 29
     PDF_BYTES = 30
     IMAGE_BYTES = 31
-    UUID = 32
-    TIME_UUID = 33
-    UUID_LIST = 34
-    TIME_UUID_LIST = 35
-    UUID_SET = 36
-    TIME_UUID_SET = 37
+    JSON = 32
+    JSON_LIST = 33
+    STRUCT = 34
+    STRUCT_LIST = 35
+    UUID = 36
+    TIME_UUID = 37
+    UUID_LIST = 38
+    TIME_UUID_LIST = 39
+    UUID_SET = 40
+    TIME_UUID_SET = 41
 
 
 ListType = Union[

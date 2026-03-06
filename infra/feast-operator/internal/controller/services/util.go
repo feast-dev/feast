@@ -493,6 +493,16 @@ func getVolumeMountByType(feastType FeastServiceType, featureStore *feastdevv1.F
 	return nil
 }
 
+// isScalingEnabled returns true when the user has configured horizontal scaling
+// with either static replicas > 1 or HPA autoscaling.
+func isScalingEnabled(featureStore *feastdevv1.FeatureStore) bool {
+	if featureStore.Status.Applied.Replicas != nil && *featureStore.Status.Applied.Replicas > 1 {
+		return true
+	}
+	services := featureStore.Status.Applied.Services
+	return services != nil && services.Scaling != nil && services.Scaling.Autoscaling != nil
+}
+
 func boolPtr(value bool) *bool {
 	return &value
 }

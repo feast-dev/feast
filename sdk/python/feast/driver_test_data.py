@@ -136,9 +136,37 @@ def create_driver_hourly_stats_df(drivers, start_date, end_date) -> pd.DataFrame
     df_all_drivers["conv_rate"] = np.random.random(size=rows).astype(np.float32)
     df_all_drivers["acc_rate"] = np.random.random(size=rows).astype(np.float32)
     df_all_drivers["avg_daily_trips"] = np.random.randint(0, 1000, size=rows).astype(
-        np.int32
+        np.int64
     )
     df_all_drivers["created"] = pd.to_datetime(pd.Timestamp.now(tz=None).round("ms"))
+
+    # Complex type columns for Map, Json, and Struct examples
+    import json as _json
+
+    df_all_drivers["driver_metadata"] = [
+        {
+            "vehicle_type": np.random.choice(["sedan", "suv", "truck"]),
+            "rating": str(round(np.random.uniform(3.0, 5.0), 1)),
+        }
+        for _ in range(len(df_all_drivers))
+    ]
+    df_all_drivers["driver_config"] = [
+        _json.dumps(
+            {
+                "max_distance_km": int(np.random.randint(10, 200)),
+                "preferred_zones": list(
+                    np.random.choice(
+                        ["north", "south", "east", "west"], size=2, replace=False
+                    )
+                ),
+            }
+        )
+        for _ in range(len(df_all_drivers))
+    ]
+    df_all_drivers["driver_profile"] = [
+        {"name": f"driver_{driver_id}", "age": str(int(np.random.randint(25, 60)))}
+        for driver_id in df_all_drivers["driver_id"]
+    ]
 
     # Create duplicate rows that should be filtered by created timestamp
     # TODO: These duplicate rows area indirectly being filtered out by the point in time join already. We need to

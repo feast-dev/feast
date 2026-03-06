@@ -97,6 +97,7 @@ class BatchFeatureView(FeatureView):
         feature_transformation: Optional[Transformation] = None,
         batch_engine: Optional[Dict[str, Any]] = None,
         aggregations: Optional[List[Aggregation]] = None,
+        enable_validation: bool = False,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -136,6 +137,7 @@ class BatchFeatureView(FeatureView):
             source=source,  # type: ignore[arg-type]
             sink_source=sink_source,
             mode=mode,
+            enable_validation=enable_validation,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
@@ -169,6 +171,7 @@ def batch_feature_view(
     description: str = "",
     owner: str = "",
     schema: Optional[List[Field]] = None,
+    enable_validation: bool = False,
 ):
     """
     Creates a BatchFeatureView object with the given user-defined function (UDF) as the transformation.
@@ -199,6 +202,7 @@ def batch_feature_view(
             schema=schema,
             udf=user_function,
             udf_string=udf_string,
+            enable_validation=enable_validation,
         )
         functools.update_wrapper(wrapper=batch_feature_view_obj, wrapped=user_function)
         return batch_feature_view_obj

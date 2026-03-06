@@ -2,10 +2,10 @@ import pytest
 
 from feast.errors import SavedDatasetLocationAlreadyExists
 from feast.saved_dataset import SavedDatasetStorage
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import (
+from tests.universal.feature_repos.universal.entities import (
     customer,
     driver,
     location,
