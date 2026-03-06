@@ -155,7 +155,8 @@ features = store.get_online_features(
 Feast supports on-demand feature transformations, allowing you to define transformation logic that runs at retrieval time — both offline (for training) and online (for serving) — using the same Python function. This eliminates the need to duplicate transformation code across training and inference pipelines:
 
 ```python
-from feast import on_demand_feature_view, Field
+from feast.on_demand_feature_view import on_demand_feature_view
+from feast import Field
 from feast.types import Float64
 
 @on_demand_feature_view(
@@ -289,6 +290,66 @@ with mlflow.start_run():
 ```
 
 Logging `feature_store.yaml` together with the model artifact ensures that, at any future point, the exact set of Feast feature definitions used for that run can be reproduced.
+
+### Feature selection with MLflow
+
+One of the most powerful uses of Feast + MLflow together is systematic **feature selection**: training models with different subsets of Feast features and using MLflow's comparison UI to identify which combination produces the best results. This is far more rigorous than manually trying feature sets in a notebook, and the results are often counterintuitive.
+
+The pattern is to loop over candidate feature subsets, retrieve each one from Feast, train a model, and log the metrics and feature names as a separate MLflow run:
+
+```python
+import mlflow
+import mlflow.sklearn
+from feast import FeatureStore
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
+import pandas as pd
+
+store = FeatureStore(repo_path=".")
+
+entity_df = pd.read_parquet("data/driver_labels.parquet")
+
+# Define candidate feature subsets to compare
+feature_subsets = {
+    "acc_rate_only":         ["driver_hourly_stats:acc_rate"],
+    "acc_rate_trips":        ["driver_hourly_stats:acc_rate", "driver_hourly_stats:avg_daily_trips"],
+    "all_features":          ["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate",
+                              "driver_hourly_stats:avg_daily_trips"],
+}
+
+with mlflow.start_run(run_name="feast_feature_selection"):
+    for subset_name, feature_refs in feature_subsets.items():
+        feature_df = store.get_historical_features(
+            entity_df=entity_df,
+            features=feature_refs,
+        ).to_df()
+
+        feature_cols = [ref.split(":")[1] for ref in feature_refs]
+        X = feature_df[feature_cols]
+        y = feature_df["label"]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        with mlflow.start_run(run_name=subset_name, nested=True):
+            mlflow.log_param("features", feature_cols)
+            model = LogisticRegression()
+            model.fit(X_train, y_train)
+            auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
+            mlflow.log_metric("auc", auc)
+            mlflow.sklearn.log_model(model, artifact_path="model")
+```
+
+After running, the MLflow UI lets you sort all nested runs by AUC and immediately see which feature subset wins. The results can be surprising — for example, with synthetic driver data a single feature may outperform the full feature set:
+
+| Features | Model | AUC |
+|---|---|---|
+| `acc_rate` only | LogisticRegression | 0.645 |
+| `acc_rate` + `avg_daily_trips` | LogisticRegression | 0.613 |
+| All 3 features | LogisticRegression | 0.570 |
+
+This is exactly the kind of insight MLflow's comparison interface is built for. You can sort runs by AUC, filter by which features were included, and visualize performance across experiments. Note that with synthetic data these numbers won't carry real meaning — the point is that the tooling makes it trivial to *observe* these differences systematically and let data drive the feature selection decision.
+
+Once you have identified the winning subset, the Feast registry ensures that only those features need to be materialized into the online store for production serving.
 
 ### Hyperparameter sweeps
 
