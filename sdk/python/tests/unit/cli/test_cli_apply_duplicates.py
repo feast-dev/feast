@@ -8,7 +8,7 @@ from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 def test_cli_apply_duplicated_featureview_names() -> None:
     run_simple_apply_test(
         example_repo_file_name="example_feature_repo_with_duplicated_featureview_names.py",
-        expected_error=b"Please ensure that all feature view names are case-insensitively unique",
+        expected_error=b"Feature view names must be case-insensitively unique",
     )
 
 
@@ -152,9 +152,7 @@ def test_cli_apply_imported_featureview_with_duplication() -> None:
         rc, output = runner.run_with_output(["apply"], cwd=repo_path)
 
         assert rc != 0
-        assert (
-            b"More than one feature view with name driver_hourly_stats found." in output
-        )
+        assert b"Multiple FeatureViews with name 'driver_hourly_stats' found." in output
 
 
 def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
@@ -195,6 +193,5 @@ def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
 
         assert (
             rc != 0
-            and b"Please ensure that all feature view names are case-insensitively unique"
-            in output
+            and b"Feature view names must be case-insensitively unique" in output
         )

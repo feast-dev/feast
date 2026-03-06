@@ -58,6 +58,7 @@ from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_
 from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
+    ConflictingFeatureViewNames,
     DataFrameSerializationError,
     DataSourceRepeatNamesException,
     FeatureViewNotFoundException,
@@ -3255,18 +3256,25 @@ def _print_materialization_log(
 
 
 def _validate_feature_views(feature_views: List[BaseFeatureView]):
-    """Verify feature views have case-insensitively unique names"""
-    fv_names = set()
+    """Verify feature views have case-insensitively unique names across all types.
+
+    This validates that no two feature views (of any type: FeatureView,
+    StreamFeatureView, OnDemandFeatureView) share the same case-insensitive name.
+    This is critical because get_online_features uses get_any_feature_view which
+    resolves names in a fixed order, potentially returning the wrong feature view.
+    """
+    fv_by_name: Dict[str, BaseFeatureView] = {}
     for fv in feature_views:
         case_insensitive_fv_name = fv.name.lower()
-        if case_insensitive_fv_name in fv_names:
-            raise ValueError(
-                f"More than one feature view with name {case_insensitive_fv_name} found. "
-                f"Please ensure that all feature view names are case-insensitively unique. "
-                f"It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
+        if case_insensitive_fv_name in fv_by_name:
+            existing_fv = fv_by_name[case_insensitive_fv_name]
+            raise ConflictingFeatureViewNames(
+                fv.name,
+                existing_type=type(existing_fv).__name__,
+                new_type=type(fv).__name__,
             )
         else:
-            fv_names.add(case_insensitive_fv_name)
+            fv_by_name[case_insensitive_fv_name] = fv
 
 
 def _validate_data_sources(data_sources: List[DataSource]):
