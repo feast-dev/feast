@@ -19,6 +19,8 @@ import pytest
 from pytest_lazyfixture import lazy_fixture
 
 from feast import FileSource
+from feast.data_format import AvroFormat
+from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.errors import ConflictingFeatureViewNames
 from feast.feature_store import FeatureStore, _validate_feature_views
@@ -83,6 +85,7 @@ def feature_store_with_local_registry():
     )
 
 
+@pytest.mark.integration
 def test_validate_feature_views_cross_type_conflict():
     """
     Test that _validate_feature_views() catches cross-type name conflicts.
@@ -107,12 +110,21 @@ def test_validate_feature_views_cross_type_conflict():
     )
 
     # Create a StreamFeatureView with the SAME name
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=file_source,
+        watermark_delay_threshold=timedelta(days=1),
+    )
     stream_feature_view = StreamFeatureView(
         name="my_feature_view",  # Same name as FeatureView!
         entities=[entity],
         ttl=timedelta(days=30),
         schema=[Field(name="feature1", dtype=Float32)],
-        source=file_source,
+        source=stream_source,
     )
 
     # Validate should raise ConflictingFeatureViewNames
