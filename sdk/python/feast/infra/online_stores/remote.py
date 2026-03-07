@@ -115,6 +115,16 @@ class RemoteOnlineStore(OnlineStore):
         if val_attr in ("map_list_val", "struct_list_val"):
             return [json.dumps(v) for v in feast_value_type_to_python_type(proto_value)]
 
+        # UUID types are stored as strings in proto — return them directly
+        # to avoid feast_value_type_to_python_type converting to uuid.UUID
+        # objects which are not JSON-serializable.
+        if val_attr in ("uuid_val", "time_uuid_val"):
+            return getattr(proto_value, val_attr)
+        if val_attr in ("uuid_list_val", "time_uuid_list_val"):
+            return list(getattr(proto_value, val_attr).val)
+        if val_attr in ("uuid_set_val", "time_uuid_set_val"):
+            return list(getattr(proto_value, val_attr).val)
+
         return feast_value_type_to_python_type(proto_value)
 
     def online_write_batch(
