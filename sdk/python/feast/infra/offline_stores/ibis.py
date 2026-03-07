@@ -174,6 +174,10 @@ def get_historical_features_ibis(
     def read_fv(
         feature_view: FeatureView, feature_refs: List[str], full_feature_names: bool
     ) -> Tuple:
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source and cannot be queried."
+            )
         fv_table: Table = data_source_reader(
             feature_view.batch_source, str(config.repo_path)
         )
@@ -335,6 +339,10 @@ def offline_write_batch_ibis(
     progress: Optional[Callable[[int], Any]],
     data_source_writer: Callable[[pyarrow.Table, DataSource, str], None],
 ):
+    if feature_view.batch_source is None:
+        raise ValueError(
+            f"Feature view '{feature_view.name}' has no batch_source."
+        )
     pa_schema, column_names = get_pyarrow_schema_from_batch_source(
         config, feature_view.batch_source
     )

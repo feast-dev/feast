@@ -136,6 +136,10 @@ def resolve_feature_view_source(
 
     if not is_derived_view:
         # Regular feature view - use its batch_source directly
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source."
+            )
         return FeatureViewSourceInfo(
             data_source=feature_view.batch_source,
             source_type="batch_source",
@@ -178,8 +182,13 @@ def resolve_feature_view_source(
     if hasattr(parent_view, "source_views") and parent_view.source_views:
         # Parent is also a derived view - recursively find original source
         original_source_view = find_original_source_view(parent_view)
+        original_batch_source = original_source_view.batch_source
+        if original_batch_source is None:
+            raise ValueError(
+                f"Original source view '{original_source_view.name}' has no batch_source."
+            )
         return FeatureViewSourceInfo(
-            data_source=original_source_view.batch_source,
+            data_source=original_batch_source,
             source_type="original_source",
             has_transformation=view_has_transformation,
             transformation_func=transformation_func,
@@ -229,8 +238,13 @@ def resolve_feature_view_source_with_fallback(
         elif hasattr(feature_view, "source_views") and feature_view.source_views:
             # Try the original source view as last resort
             original_view = find_original_source_view(feature_view)
+            original_view_batch_source = original_view.batch_source
+            if original_view_batch_source is None:
+                raise ValueError(
+                    f"Original source view '{original_view.name}' has no batch_source."
+                )
             return FeatureViewSourceInfo(
-                data_source=original_view.batch_source,
+                data_source=original_view_batch_source,
                 source_type="fallback_original_source",
                 has_transformation=has_transformation(feature_view),
                 transformation_func=get_transformation_function(feature_view),

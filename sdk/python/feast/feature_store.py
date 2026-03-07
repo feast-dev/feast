@@ -702,11 +702,11 @@ class FeatureStore:
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in views_to_update], self.config
+            [view.batch_source for view in views_to_update if view.batch_source is not None], self.config
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in sfvs_to_update], self.config
+            [view.batch_source for view in sfvs_to_update if view.batch_source is not None], self.config
         )
 
         # New feature views may reference previously applied entities.
@@ -2416,6 +2416,10 @@ class FeatureStore:
 
         provider = self._get_provider()
         # Get columns of the batch source and the input dataframe.
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source."
+            )
         column_names_and_types = (
             provider.get_table_column_names_and_types_from_data_source(
                 self.config, feature_view.batch_source

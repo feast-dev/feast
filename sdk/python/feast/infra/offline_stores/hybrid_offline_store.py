@@ -72,6 +72,10 @@ class HybridOfflineStore(OfflineStore):
         self, feature_view: FeatureView, config: RepoConfig
     ) -> OfflineStore:
         self._initialize_offline_stores(config)
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source."
+            )
         source_type = feature_view.batch_source.source_type()
         store_key = self.get_source_key_from_type(source_type)
         if store_key is None:
