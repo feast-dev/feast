@@ -23,6 +23,18 @@ from feast.types import Float32, Int64, String
 from feast.utils import _utc_now, make_tzaware
 
 
+def test_create_feature_view_without_source():
+    fv = FeatureView(name="test_no_source", ttl=timedelta(days=1))
+    assert fv.batch_source is None
+    assert fv.stream_source is None
+
+    proto = fv.to_proto()
+    assert not proto.spec.HasField("batch_source")
+
+    fv_roundtrip = FeatureView.from_proto(proto)
+    assert fv_roundtrip.batch_source is None
+
+
 def test_create_feature_view_with_conflicting_entities():
     user1 = Entity(name="user1", join_keys=["user_id"])
     user2 = Entity(name="user2", join_keys=["user_id"])
