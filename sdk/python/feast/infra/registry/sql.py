@@ -578,6 +578,7 @@ class SqlRegistry(CachingRegistry):
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
+        self._ensure_feature_view_name_is_unique(feature_view, project)
         fv_table = self._infer_fv_table(feature_view)
 
         return self._apply_object(
