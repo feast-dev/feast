@@ -60,7 +60,7 @@ def test_create_batch_feature_view():
         udf=lambda x: x,
     )
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         BatchFeatureView(
             name="test batch feature view", entities=[], ttl=timedelta(days=30)
         )
