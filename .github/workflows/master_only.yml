@@ -89,7 +89,19 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: [ feature-server-dev, feature-transformation-server, feast-operator ]
+        include:
+          - component: feature-server-dev
+            target: feature-server-dev
+            build_args: DOCKER_PUSH=true DOCKER_PLATFORMS=linux/amd64,linux/arm64
+            push_mode: imagetools
+          - component: feature-transformation-server
+            target: feature-transformation-server
+            build_args: ""
+            push_mode: all_tags
+          - component: feast-operator
+            target: feast-operator
+            build_args: ""
+            push_mode: all_tags
     env:
       REGISTRY: quay.io/feastdev-ci
     steps:
@@ -117,14 +129,11 @@ jobs:
           username: ${{ secrets.QUAYIO_CI_USERNAME }}
           password: ${{ secrets.QUAYIO_CI_TOKEN }}
       - name: Build image
-        run: |
-          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
+        run: make build-${{ matrix.target }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA} ${{ matrix.build_args }}
       - name: Push image
         run: |
-          if [[ "${{ matrix.component }}" == "feature-server-dev" ]]; then
-            docker tag ${REGISTRY}/feature-server:${GITHUB_SHA} ${REGISTRY}/feature-server:develop
-            docker push ${REGISTRY}/feature-server --all-tags
+          if [[ "${{ matrix.push_mode }}" == "imagetools" ]]; then
+            docker buildx imagetools create -t ${REGISTRY}/feature-server:develop ${REGISTRY}/feature-server:${GITHUB_SHA}
           else
-            docker tag ${REGISTRY}/${{ matrix.component }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.component }}:develop
-            docker push ${REGISTRY}/${{ matrix.component }} --all-tags
+            docker tag ${REGISTRY}/${{ matrix.target }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.target }}:develop && docker push ${REGISTRY}/${{ matrix.target }} --all-tags
           fi
