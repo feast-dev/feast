@@ -105,12 +105,9 @@ class FeatureViewProjection:
                 name_alias=None,
                 features=feature_view.features,
                 desired_features=[],
-                timestamp_field=batch_source.created_timestamp_column
-                or None,
-                created_timestamp_column=batch_source.created_timestamp_column
-                or None,
-                date_partition_column=batch_source.date_partition_column
-                or None,
+                timestamp_field=batch_source.created_timestamp_column or None,
+                created_timestamp_column=batch_source.created_timestamp_column or None,
+                date_partition_column=batch_source.date_partition_column or None,
                 batch_source=batch_source or None,
             )
         else:

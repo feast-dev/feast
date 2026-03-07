@@ -164,7 +164,9 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
                 # Handle batch sources defined with feature views.
                 batch_source = obj.batch_source
-                if batch_source is not None and not any((batch_source is ds) for ds in res.data_sources):
+                if batch_source is not None and not any(
+                    (batch_source is ds) for ds in res.data_sources
+                ):
                     res.data_sources.append(batch_source)
 
                 # Handle stream sources defined with feature views.
@@ -179,7 +181,9 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
                 # Handle batch sources defined with feature views.
                 batch_source = obj.batch_source
-                if batch_source is not None and not any((batch_source is ds) for ds in res.data_sources):
+                if batch_source is not None and not any(
+                    (batch_source is ds) for ds in res.data_sources
+                ):
                     res.data_sources.append(batch_source)
                 assert obj.stream_source
                 stream_source = obj.stream_source
@@ -192,7 +196,9 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
                 # Handle batch sources defined with feature views.
                 batch_source = obj.batch_source
-                if batch_source is not None and not any((batch_source is ds) for ds in res.data_sources):
+                if batch_source is not None and not any(
+                    (batch_source is ds) for ds in res.data_sources
+                ):
                     res.data_sources.append(batch_source)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
@@ -231,7 +237,9 @@ def plan(
         # TODO: When we support multiple projects in a single repo, we should filter repo contents by project
         if not skip_source_validation:
             provider = store._get_provider()
-            data_sources = [t.batch_source for t in repo.feature_views if t.batch_source is not None]
+            data_sources = [
+                t.batch_source for t in repo.feature_views if t.batch_source is not None
+            ]
             # Make sure the data source used by this feature view is supported by Feast
             for data_source in data_sources:
                 provider.validate_data_source(store.config, data_source)
@@ -342,7 +350,9 @@ def apply_total_with_repo_instance(
 ):
     if not skip_source_validation:
         provider = store._get_provider()
-        data_sources = [t.batch_source for t in repo.feature_views if t.batch_source is not None]
+        data_sources = [
+            t.batch_source for t in repo.feature_views if t.batch_source is not None
+        ]
         # Make sure the data source used by this feature view is supported by Feast
         for data_source in data_sources:
             provider.validate_data_source(store.config, data_source)

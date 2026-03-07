@@ -137,9 +137,7 @@ def resolve_feature_view_source(
     if not is_derived_view:
         # Regular feature view - use its batch_source directly
         if feature_view.batch_source is None:
-            raise ValueError(
-                f"Feature view '{feature_view.name}' has no batch_source."
-            )
+            raise ValueError(f"Feature view '{feature_view.name}' has no batch_source.")
         return FeatureViewSourceInfo(
             data_source=feature_view.batch_source,
             source_type="batch_source",

@@ -82,7 +82,9 @@ class BatchFeatureView(FeatureView):
         *,
         name: str,
         mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
-        source: Union[DataSource, "BatchFeatureView", List["BatchFeatureView"]],
+        source: Optional[
+            Union[DataSource, "BatchFeatureView", List["BatchFeatureView"]]
+        ] = None,
         sink_source: Optional[DataSource] = None,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,

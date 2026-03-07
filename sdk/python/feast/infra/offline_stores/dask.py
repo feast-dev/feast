@@ -656,7 +656,10 @@ def _field_mapping(
     full_feature_names: bool,
 ) -> Tuple[dd.DataFrame, str]:
     # Rename columns by the field mapping dictionary if it exists
-    if feature_view.batch_source is not None and feature_view.batch_source.field_mapping:
+    if (
+        feature_view.batch_source is not None
+        and feature_view.batch_source.field_mapping
+    ):
         df_to_join = _run_dask_field_mapping(
             df_to_join, feature_view.batch_source.field_mapping
         )
