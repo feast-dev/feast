@@ -110,6 +110,13 @@ driver_stats = FeatureView(
 )
 ```
 
+After running `feast apply`, these features are registered in the Feast registry and visible in the Feast UI:
+
+<div style="text-align: center; margin: 20px 0;">
+  <img src="/images/blog/feast-features-ui.png" alt="Feast UI showing the Feature List for the Driver Ranking project with conv_rate, acc_rate, and avg_daily_trips features" loading="lazy" style="max-width: 100%; border: 1px solid #e0e0e0; border-radius: 8px;">
+  <p><em>The Feast UI showing three registered features in the <code>driver_hourly_stats</code> feature view — <code>conv_rate</code>, <code>acc_rate</code>, and <code>avg_daily_trips</code> — each linked to the Driver Ranking project.</em></p>
+</div>
+
 ### Retrieving historical features for training
 
 Point-in-time-correct historical features are retrieved from the offline store. This prevents future data from leaking into training examples:
@@ -347,7 +354,17 @@ After running, the MLflow UI lets you sort all nested runs by AUC and immediatel
 | `acc_rate` + `avg_daily_trips` | LogisticRegression | 0.613 |
 | All 3 features | LogisticRegression | 0.570 |
 
+<div style="text-align: center; margin: 20px 0;">
+  <img src="/images/blog/mlflow-feature-selection-run.png" alt="MLflow UI showing a LogisticRegression run with all three Feast features, metrics, parameters, and feature tags" loading="lazy" style="max-width: 100%; border: 1px solid #e0e0e0; border-radius: 8px;">
+  <p><em>The MLflow UI showing a LogisticRegression run trained with all three Feast features (<code>conv_rate</code>, <code>acc_rate</code>, <code>avg_daily_trips</code>). The run logs five metrics (accuracy, AUC, precision, recall, F1), the feature list as a parameter, and the demo tags each included feature (e.g., <code>feature_conv_rate: included</code>) for easy filtering.</em></p>
+</div>
+
 This is exactly the kind of insight MLflow's comparison interface is built for. You can sort runs by AUC, filter by which features were included, and visualize performance across experiments. Note that with synthetic data these numbers won't carry real meaning — the point is that the tooling makes it trivial to *observe* these differences systematically and let data drive the feature selection decision.
+
+<div style="text-align: center; margin: 20px 0;">
+  <img src="/images/blog/mlflow-feature-selection-comparison.png" alt="MLflow comparison view showing three experiment runs side by side with different feature combinations" loading="lazy" style="max-width: 100%; border: 1px solid #e0e0e0; border-radius: 8px;">
+  <p><em>MLflow's comparison view showing three runs side by side with different feature subsets. The "Show diff only" toggle highlights how the <code>features</code> parameter varies across runs, making it easy to identify which combination of Feast features produces the best results.</em></p>
+</div>
 
 Once you have identified the winning subset, the Feast registry ensures that only those features need to be materialized into the online store for production serving.
 
