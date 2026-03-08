@@ -117,6 +117,11 @@ class BatchFeatureView(FeatureView):
                 f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
             )
 
+        if source is None and aggregations:
+            raise ValueError(
+                "BatchFeatureView with aggregations requires a source to aggregate from."
+            )
+
         if (
             source is None
             and not udf
