@@ -160,8 +160,10 @@ driver_stats_source = FileSource(
 # three feature column. Here we define a Feature View that will allow us to serve this
 # data to our model online.
 driver_stats_fv = FeatureView(
-    # The unique name of this feature view. Two feature views in a single
-    # project cannot have the same name
+# The unique name of this feature view. Two feature views in a single
+# project cannot have the same name, and names must be unique across
+# all feature view types (regular, stream, on-demand) to avoid conflicts
+# during `feast apply`.
     name="driver_hourly_stats",
     entities=[driver],
     ttl=timedelta(days=1),
