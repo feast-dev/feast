@@ -684,9 +684,7 @@ def test_apply_feature_view_without_source_success(test_registry: BaseRegistry):
     )
     assert updated_feature_view.ttl == timedelta(minutes=10)
     assert updated_feature_view.batch_source is None
-    assert (
-        updated_feature_view.created_timestamp == feature_view.created_timestamp
-    )
+    assert updated_feature_view.created_timestamp == feature_view.created_timestamp
 
     # Delete the feature view.
     test_registry.delete_feature_view("my_feature_view_no_source", project)
