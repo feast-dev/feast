@@ -35,10 +35,7 @@ const (
 	DefaultOnlineStorePath    = "online_store.db"
 	svcDomain                 = ".svc.cluster.local"
 
-	// Namespace registry ConfigMap constants
-	NamespaceRegistryConfigMapName = "feast-configs-registry"
-	NamespaceRegistryDataKey       = "namespaces"
-	DefaultKubernetesNamespace     = "feast-operator-system"
+	DefaultKubernetesNamespace = "feast-operator-system"
 
 	HttpPort              = 80
 	HttpsPort             = 443
