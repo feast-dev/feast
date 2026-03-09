@@ -85,31 +85,35 @@ class MongoDBOnlineStore(OnlineStore):
     _client_async: Optional[AsyncMongoClient] = None
     _collection_async: Optional[AsyncCollection] = None
 
-    def online_write_batch(
-        self,
+    @staticmethod
+    def _build_write_ops(
         config: RepoConfig,
         table: FeatureView,
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
-        progress: Optional[Callable[[int], Any]] = None,
-    ) -> None:
-        """
-        Writes a batch of feature values to the online store.
+    ) -> List[UpdateOne]:
+        """Build the list of UpdateOne upsert operations shared by the sync and async write paths.
 
-        data:
-          [
-            {(}
-              entity_key_bytes,
-              { feature_ref: ValueProto },
-              { feature_view_name: event_timestamp_unix }
-            )
-          ]
+        For each row in *data* this method:
+
+        1. Serializes the entity key to bytes using ``serialize_entity_key``.
+        2. Converts every ``ValueProto`` feature value to its native Python type
+           via ``feast_value_type_to_python_type``.
+        3. Constructs a ``$set`` update document that writes feature values under
+           ``features.<feature_view_name>.<feature_name>``, the per-view event
+           timestamp under ``event_timestamps.<feature_view_name>``, and the
+           row-level ``created_timestamp``.
+        4. Wraps that in a ``UpdateOne`` with ``upsert=True`` so that existing
+           entity documents are updated in-place and new ones are created on first
+           write.
+
+        The caller is responsible for executing the returned operations via
+        ``collection.bulk_write(ops, ordered=False)`` (sync) or
+        ``await collection.bulk_write(ops, ordered=False)`` (async).
         """
-        clxn = self._get_collection(config)
         ops = []
-        for row in data:
-            entity_key, proto_values, event_timestamp, created_timestamp = row
+        for entity_key, proto_values, event_timestamp, created_timestamp in data:
             entity_id = serialize_entity_key(
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
@@ -132,6 +136,32 @@ class MongoDBOnlineStore(OnlineStore):
                     upsert=True,
                 )
             )
+        return ops
+
+    def online_write_batch(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Writes a batch of feature values to the online store.
+
+        data:
+          [
+            (
+              entity_key_bytes,
+              { feature_ref: ValueProto },
+              event_timestamp,
+              created_timestamp,
+            )
+          ]
+        """
+        clxn = self._get_collection(config)
+        ops = self._build_write_ops(config, table, data)
         if ops:
             clxn.bulk_write(ops, ordered=False)
         if progress:
@@ -457,37 +487,9 @@ class MongoDBOnlineStore(OnlineStore):
             progress: Optional progress callback
         """
         clxn = await self._get_collection_async(config)
-        ops = []
-        for row in data:
-            entity_key_proto, features, event_ts, created_ts = row
-            entity_id = serialize_entity_key(
-                entity_key_proto,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            )
-
-            # Convert ValueProto to native Python types
-            feature_dict = {}
-            for feature_name, value_proto in features.items():
-                feature_dict[feature_name] = feast_value_type_to_python_type(
-                    value_proto
-                )
-
-            # Build update operation
-            update_doc = {
-                "$set": {
-                    f"features.{table.name}.{feature_name}": value
-                    for feature_name, value in feature_dict.items()
-                },
-            }
-            update_doc["$set"][f"event_timestamps.{table.name}"] = event_ts
-            update_doc["$set"]["created_timestamp"] = created_ts
-
-            ops.append(UpdateOne({"_id": entity_id}, update_doc, upsert=True))
-
-        # Execute bulk write asynchronously
+        ops = self._build_write_ops(config, table, data)
         if ops:
             await clxn.bulk_write(ops, ordered=False)
-
         if progress:
             progress(len(data))
 
