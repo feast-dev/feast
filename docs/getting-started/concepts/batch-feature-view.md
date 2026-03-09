@@ -70,7 +70,7 @@ driver_fv = BatchFeatureView(
         Field(name="conv_rate", dtype=Float32),
     ],
     aggregations=[
-        Aggregation(column="conv_rate", function="sum", time_window=timedelta(days=1)),
+        Aggregation(column="conv_rate", function="sum", time_window=timedelta(days=1), name="total_conv_rate_1d"),
     ],
     source=source,
 )
@@ -144,6 +144,7 @@ See:
 - `sink_source` is **required** when chaining views (i.e., `source` is another FeatureView or list of them).
 - Schema fields must be consistent with `sink_source`, `batch_source.field_mapping` if field mappings exist.
 - Aggregation logic must reference columns present in the raw source or transformed inputs.
+- The output feature name for an aggregation defaults to `{function}_{column}` (e.g., `sum_conv_rate`). Use the `name` parameter to override it (e.g., `name="total_conv_rate_1d"`).
 
 ---
 
