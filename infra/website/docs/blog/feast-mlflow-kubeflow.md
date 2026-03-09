@@ -1,7 +1,7 @@
 ---
 title: "Feast + MLflow + Kubeflow: A Unified AI/ML Lifecycle"
 description: Learn how to use Feast, MLflow, and Kubeflow to power your AI/ML Lifecycle
-date: 2026-02-23
+date: 2026-03-09
 authors: ["Francisco Javier Arceo", "Nikhil Kathole"]
 ---
 
@@ -364,6 +364,11 @@ This is exactly the kind of insight MLflow's comparison interface is built for. 
 <div style="text-align: center; margin: 20px 0;">
   <img src="/images/blog/mlflow-feature-selection-comparison.png" alt="MLflow comparison view showing three experiment runs side by side with different feature combinations" loading="lazy" style="max-width: 100%; border: 1px solid #e0e0e0; border-radius: 8px;">
   <p><em>MLflow's comparison view showing three runs side by side with different feature subsets. The "Show diff only" toggle highlights how the <code>features</code> parameter varies across runs, making it easy to identify which combination of Feast features produces the best results.</em></p>
+</div>
+
+<div style="text-align: center; margin: 20px 0;">
+  <img src="/images/blog/mlflow-feast-feature-selection-metrics.png" alt="MLflow metric charts showing accuracy, AUC, F1, precision, and recall grouped by num_features across three feature subsets" loading="lazy" style="max-width: 100%; border: 1px solid #e0e0e0; border-radius: 8px;">
+  <p><em>MLflow's metric charts view visualizing accuracy, AUC, F1, precision, and recall across all feature selection runs, grouped by <code>num_features</code>. This chart makes it easy to spot how model performance changes as more Feast features are included.</em></p>
 </div>
 
 Once you have identified the winning subset, the Feast registry ensures that only those features need to be materialized into the online store for production serving.
