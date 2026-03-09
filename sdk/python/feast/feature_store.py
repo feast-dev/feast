@@ -15,6 +15,7 @@ import asyncio
 import copy
 import itertools
 import os
+import time
 import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -99,6 +100,29 @@ from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
+
+_track_materialization = None  # Lazy-loaded on first materialization call
+_track_materialization_loaded = False
+
+
+def _get_track_materialization():
+    """Lazy-import feast.metrics only when materialization tracking is needed.
+
+    Avoids importing the metrics module (and its prometheus_client /
+    psutil dependencies plus temp-dir creation) for every FeatureStore
+    usage such as ``feast apply`` or simple SDK reads.
+    """
+    global _track_materialization, _track_materialization_loaded
+    if not _track_materialization_loaded:
+        _track_materialization_loaded = True
+        try:
+            from feast.metrics import track_materialization
+
+            _track_materialization = track_materialization
+        except Exception:  # pragma: no cover
+            _track_materialization = None
+    return _track_materialization
+
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -1705,15 +1729,29 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date) or _utc_now()
 
-                provider.materialize_single_feature_view(
-                    config=self.config,
-                    feature_view=feature_view,
-                    start_date=start_date,
-                    end_date=end_date,
-                    registry=self.registry,
-                    project=self.project,
-                    tqdm_builder=tqdm_builder,
-                )
+                fv_start = time.monotonic()
+                fv_success = True
+                try:
+                    provider.materialize_single_feature_view(
+                        config=self.config,
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        registry=self.registry,
+                        project=self.project,
+                        tqdm_builder=tqdm_builder,
+                    )
+                except Exception:
+                    fv_success = False
+                    raise
+                finally:
+                    _tracker = _get_track_materialization()
+                    if _tracker is not None:
+                        _tracker(
+                            feature_view.name,
+                            fv_success,
+                            time.monotonic() - fv_start,
+                        )
                 if not isinstance(feature_view, OnDemandFeatureView):
                     self.registry.apply_materialization(
                         feature_view,
@@ -1814,16 +1852,30 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date)
 
-                provider.materialize_single_feature_view(
-                    config=self.config,
-                    feature_view=feature_view,
-                    start_date=start_date,
-                    end_date=end_date,
-                    registry=self.registry,
-                    project=self.project,
-                    tqdm_builder=tqdm_builder,
-                    disable_event_timestamp=disable_event_timestamp,
-                )
+                fv_start = time.monotonic()
+                fv_success = True
+                try:
+                    provider.materialize_single_feature_view(
+                        config=self.config,
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        registry=self.registry,
+                        project=self.project,
+                        tqdm_builder=tqdm_builder,
+                        disable_event_timestamp=disable_event_timestamp,
+                    )
+                except Exception:
+                    fv_success = False
+                    raise
+                finally:
+                    _tracker = _get_track_materialization()
+                    if _tracker is not None:
+                        _tracker(
+                            feature_view.name,
+                            fv_success,
+                            time.monotonic() - fv_start,
+                        )
 
                 self.registry.apply_materialization(
                     feature_view,
