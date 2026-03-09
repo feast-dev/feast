@@ -688,7 +688,7 @@ spine AS (
 "{{ featureview.name }}__grouped" AS (
     SELECT *,
         COUNT(feature_anchor) OVER (
-            PARTITION BY {% for entity in all_entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}
+            PARTITION BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}
             ORDER BY event_timestamp ASC, is_spine ASC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS value_group_id
@@ -709,13 +709,13 @@ spine AS (
                 {% set col_name = featureview.field_mapping.get(feature, feature) %}
             {% endif %}
         , FIRST_VALUE("{{ col_name }}") OVER (
-            PARTITION BY {% for entity in all_entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, value_group_id
+            PARTITION BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, value_group_id
             ORDER BY event_timestamp ASC, is_spine ASC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS "{{ col_name }}"
         {% endfor %}
         , FIRST_VALUE("{{ featureview.name }}__feature_ts") OVER (
-            PARTITION BY {% for entity in all_entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, value_group_id
+            PARTITION BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, value_group_id
             ORDER BY event_timestamp ASC, is_spine ASC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS "{{ featureview.name }}__filled_ts"
