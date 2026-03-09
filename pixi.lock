@@ -5,8 +5,6 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
-    options:
-      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -272,8 +270,6 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
-    options:
-      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -681,8 +677,6 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
-    options:
-      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -1069,8 +1063,6 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
-    options:
-      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -2239,8 +2231,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.60.1.dev28+gc2beabb4a.d20260303
-  sha256: d8f9bea1bbb444aaa8706a838d593661a5031b257a4736070a64a93a1977e335
+  version: 0.1.dev4391+ge91fa8d71
+  sha256: 760027f6ca6a31640cfde9dfa46bcd57b887968aff97dd459fba77780eca5cfa
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2314,6 +2306,7 @@ packages:
   - milvus-lite==2.4.12 ; extra == 'milvus'
   - feast[setuptools] ; extra == 'milvus'
   - ibis-framework[mssql]>=10.0.0 ; extra == 'mssql'
+  - ibis-framework[oracle]>=10.0.0 ; extra == 'oracle'
   - pymysql ; extra == 'mysql'
   - types-pymysql ; extra == 'mysql'
   - prometheus-client ; extra == 'opentelemetry'
@@ -2352,7 +2345,7 @@ packages:
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0,<44 ; extra == 'test'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mssql,mysql,openlineage,opentelemetry,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
   - virtualenv==20.23.0 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
@@ -2404,6 +2397,7 @@ packages:
   - calver<2025.4.1 ; extra == 'minimal-sdist-build'
   - setuptools>=60,<81 ; extra == 'setuptools'
   requires_python: '>=3.10.0'
+  editable: true
 - pypi: https://files.pythonhosted.org/packages/f9/0b/de6f54d4a8bedfe8645c41497f3c18d749f0bd3218170c667bf4b81d0cdd/filelock-3.25.0-py3-none-any.whl
   name: filelock
   version: 3.25.0
