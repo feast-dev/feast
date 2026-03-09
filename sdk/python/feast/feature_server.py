@@ -26,7 +26,6 @@ from types import SimpleNamespace
 from typing import Any, DefaultDict, Dict, List, NamedTuple, Optional, Set, Union
 
 import pandas as pd
-import psutil
 from dateutil import parser
 from fastapi import (
     Depends,
@@ -42,10 +41,10 @@ from fastapi.logger import logger
 from fastapi.responses import JSONResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 from google.protobuf.json_format import MessageToDict
-from prometheus_client import Gauge, start_http_server
 from pydantic import BaseModel
 
 import feast
+from feast import metrics as feast_metrics
 from feast import proto_json, utils
 from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
@@ -62,14 +61,6 @@ from feast.permissions.server.utils import (
     init_auth_manager,
     init_security_manager,
     str_to_auth_manager_type,
-)
-
-# Define prometheus metrics
-cpu_usage_gauge = Gauge(
-    "feast_feature_server_cpu_usage", "CPU usage of the Feast feature server"
-)
-memory_usage_gauge = Gauge(
-    "feast_feature_server_memory_usage", "Memory usage of the Feast feature server"
 )
 
 
@@ -127,6 +118,30 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
+
+
+def _resolve_feature_counts(
+    features: Union[List[str], "feast.FeatureService"],
+) -> tuple:
+    """Return (feature_count, feature_view_count) from the resolved features.
+
+    ``features`` is either a list of ``"feature_view:feature"`` strings or
+    a ``FeatureService`` with ``feature_view_projections``.
+    """
+    from feast.feature_service import FeatureService
+
+    if isinstance(features, FeatureService):
+        projections = features.feature_view_projections
+        fv_count = len(projections)
+        feat_count = sum(len(p.features) for p in projections)
+    elif isinstance(features, list):
+        feat_count = len(features)
+        fv_names = {ref.split(":")[0] for ref in features if ":" in ref}
+        fv_count = len(fv_names)
+    else:
+        feat_count = 0
+        fv_count = 0
+    return str(feat_count), str(fv_count)
 
 
 async def _get_features(
@@ -325,30 +340,37 @@ def get_app(
         dependencies=[Depends(inject_user_details)],
     )
     async def get_online_features(request: GetOnlineFeaturesRequest) -> ORJSONResponse:
-        # Initialize parameters for FeatureStore.get_online_features(...) call
-        features = await _get_features(request, store)
+        with feast_metrics.track_request_latency(
+            "/get-online-features",
+        ) as metrics_ctx:
+            features = await _get_features(request, store)
+            feat_count, fv_count = _resolve_feature_counts(features)
+            metrics_ctx.feature_count = feat_count
+            metrics_ctx.feature_view_count = fv_count
 
-        read_params = dict(
-            features=features,
-            entity_rows=request.entities,
-            full_feature_names=request.full_feature_names,
-        )
+            entity_count = len(next(iter(request.entities.values()), []))
+            feast_metrics.track_online_features_entities(entity_count)
 
-        if store._get_provider().async_supported.online.read:
-            response = await store.get_online_features_async(**read_params)  # type: ignore
-        else:
-            response = await run_in_threadpool(
-                lambda: store.get_online_features(**read_params)  # type: ignore
+            read_params = dict(
+                features=features,
+                entity_rows=request.entities,
+                full_feature_names=request.full_feature_names,
             )
 
-        # Convert Protobuf to dict, then use ORJSONResponse for faster JSON serialization
-        response_dict = await run_in_threadpool(
-            MessageToDict,
-            response.proto,
-            preserving_proto_field_name=True,
-            float_precision=18,
-        )
-        return ORJSONResponse(content=response_dict)
+            if store._get_provider().async_supported.online.read:
+                response = await store.get_online_features_async(**read_params)  # type: ignore
+            else:
+                response = await run_in_threadpool(
+                    lambda: store.get_online_features(**read_params)  # type: ignore
+                )
+
+            response_dict = await run_in_threadpool(
+                MessageToDict,
+                response.proto,
+                preserving_proto_field_name=True,
+                float_precision=18,
+            )
+            return ORJSONResponse(content=response_dict)
 
     @app.post(
         "/retrieve-online-documents",
@@ -357,127 +379,132 @@ def get_app(
     async def retrieve_online_documents(
         request: GetOnlineDocumentsRequest,
     ) -> ORJSONResponse:
-        logger.warning(
-            "This endpoint is in alpha and will be moved to /get-online-features when stable."
-        )
-        # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
-        features = await _get_features(request, store)
-
-        read_params = dict(features=features, query=request.query, top_k=request.top_k)
-        if request.api_version == 2 and request.query_string is not None:
-            read_params["query_string"] = request.query_string
-
-        if request.api_version == 2:
-            response = await run_in_threadpool(
-                lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+        with feast_metrics.track_request_latency("/retrieve-online-documents"):
+            logger.warning(
+                "This endpoint is in alpha and will be moved to /get-online-features when stable."
             )
-        else:
-            response = await run_in_threadpool(
-                lambda: store.retrieve_online_documents(**read_params)  # type: ignore
-            )
+            features = await _get_features(request, store)
 
-        # Convert Protobuf to dict, then use ORJSONResponse for faster JSON serialization
-        response_dict = await run_in_threadpool(
-            MessageToDict,
-            response.proto,
-            preserving_proto_field_name=True,
-            float_precision=18,
-        )
-        return ORJSONResponse(content=response_dict)
+            read_params = dict(
+                features=features, query=request.query, top_k=request.top_k
+            )
+            if request.api_version == 2 and request.query_string is not None:
+                read_params["query_string"] = request.query_string
+
+            if request.api_version == 2:
+                response = await run_in_threadpool(
+                    lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+                )
+            else:
+                response = await run_in_threadpool(
+                    lambda: store.retrieve_online_documents(**read_params)  # type: ignore
+                )
+
+            response_dict = await run_in_threadpool(
+                MessageToDict,
+                response.proto,
+                preserving_proto_field_name=True,
+                float_precision=18,
+            )
+            return ORJSONResponse(content=response_dict)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
-        df = pd.DataFrame(request.df)
-        actions = []
-        if request.to == "offline":
-            to = PushMode.OFFLINE
-            actions = [AuthzedAction.WRITE_OFFLINE]
-        elif request.to == "online":
-            to = PushMode.ONLINE
-            actions = [AuthzedAction.WRITE_ONLINE]
-        elif request.to == "online_and_offline":
-            to = PushMode.ONLINE_AND_OFFLINE
-            actions = WRITE
-        else:
-            raise ValueError(
-                f"{request.to} is not a supported push format. Please specify one of these ['online', 'offline', 'online_and_offline']."
-            )
-
-        from feast.data_source import PushSource
-
-        all_fvs = store.list_feature_views(
-            allow_cache=request.allow_registry_cache
-        ) + store.list_stream_feature_views(allow_cache=request.allow_registry_cache)
-        fvs_with_push_sources = {
-            fv
-            for fv in all_fvs
-            if (
-                fv.stream_source is not None
-                and isinstance(fv.stream_source, PushSource)
-                and fv.stream_source.name == request.push_source_name
-            )
-        }
-
-        for feature_view in fvs_with_push_sources:
-            assert_permissions(resource=feature_view, actions=actions)
-
-        async def _push_with_to(push_to: PushMode) -> None:
-            """
-            Helper for performing a single push operation.
-
-            NOTE:
-            - Feast providers **do not currently support async offline writes**.
-            - Therefore:
-                * ONLINE and ONLINE_AND_OFFLINE → may be async, depending on provider.async_supported.online.write
-                * OFFLINE → always synchronous, but executed via run_in_threadpool when called from HTTP handlers.
-            - The OfflineWriteBatcher handles offline writes directly in its own background thread, but the offline store writes are currently synchronous only.
-            """
-            push_source_name = request.push_source_name
-            allow_registry_cache = request.allow_registry_cache
-            transform_on_write = request.transform_on_write
-
-            # Async currently only applies to online store writes (ONLINE / ONLINE_AND_OFFLINE paths) as theres no async for offline store
-            if push_to in (PushMode.ONLINE, PushMode.ONLINE_AND_OFFLINE) and (
-                store._get_provider().async_supported.online.write
-            ):
-                await store.push_async(
-                    push_source_name=push_source_name,
-                    df=df,
-                    allow_registry_cache=allow_registry_cache,
-                    to=push_to,
-                    transform_on_write=transform_on_write,
-                )
+        with feast_metrics.track_request_latency("/push"):
+            df = pd.DataFrame(request.df)
+            actions = []
+            if request.to == "offline":
+                to = PushMode.OFFLINE
+                actions = [AuthzedAction.WRITE_OFFLINE]
+            elif request.to == "online":
+                to = PushMode.ONLINE
+                actions = [AuthzedAction.WRITE_ONLINE]
+            elif request.to == "online_and_offline":
+                to = PushMode.ONLINE_AND_OFFLINE
+                actions = WRITE
             else:
-                await run_in_threadpool(
-                    lambda: store.push(
+                raise ValueError(
+                    f"{request.to} is not a supported push format. Please specify one of these ['online', 'offline', 'online_and_offline']."
+                )
+
+            from feast.data_source import PushSource
+
+            all_fvs = store.list_feature_views(
+                allow_cache=request.allow_registry_cache
+            ) + store.list_stream_feature_views(
+                allow_cache=request.allow_registry_cache
+            )
+            fvs_with_push_sources = {
+                fv
+                for fv in all_fvs
+                if (
+                    fv.stream_source is not None
+                    and isinstance(fv.stream_source, PushSource)
+                    and fv.stream_source.name == request.push_source_name
+                )
+            }
+
+            for feature_view in fvs_with_push_sources:
+                assert_permissions(resource=feature_view, actions=actions)
+
+            async def _push_with_to(push_to: PushMode) -> None:
+                """
+                Helper for performing a single push operation.
+
+                NOTE:
+                - Feast providers **do not currently support async offline writes**.
+                - Therefore:
+                    * ONLINE and ONLINE_AND_OFFLINE → may be async, depending on provider.async_supported.online.write
+                    * OFFLINE → always synchronous, but executed via run_in_threadpool when called from HTTP handlers.
+                - The OfflineWriteBatcher handles offline writes directly in its own background thread, but the offline store writes are currently synchronous only.
+                """
+                push_source_name = request.push_source_name
+                allow_registry_cache = request.allow_registry_cache
+                transform_on_write = request.transform_on_write
+
+                # Async currently only applies to online store writes (ONLINE / ONLINE_AND_OFFLINE paths) as theres no async for offline store
+                if push_to in (PushMode.ONLINE, PushMode.ONLINE_AND_OFFLINE) and (
+                    store._get_provider().async_supported.online.write
+                ):
+                    await store.push_async(
                         push_source_name=push_source_name,
                         df=df,
                         allow_registry_cache=allow_registry_cache,
                         to=push_to,
                         transform_on_write=transform_on_write,
                     )
+                else:
+                    await run_in_threadpool(
+                        lambda: store.push(
+                            push_source_name=push_source_name,
+                            df=df,
+                            allow_registry_cache=allow_registry_cache,
+                            to=push_to,
+                            transform_on_write=transform_on_write,
+                        )
+                    )
+
+            needs_online = to in (PushMode.ONLINE, PushMode.ONLINE_AND_OFFLINE)
+            needs_offline = to in (PushMode.OFFLINE, PushMode.ONLINE_AND_OFFLINE)
+
+            status_code = status.HTTP_200_OK
+
+            if offline_batcher is None or not needs_offline:
+                await _push_with_to(to)
+            else:
+                if needs_online:
+                    await _push_with_to(PushMode.ONLINE)
+
+                offline_batcher.enqueue(
+                    push_source_name=request.push_source_name,
+                    df=df,
+                    allow_registry_cache=request.allow_registry_cache,
+                    transform_on_write=request.transform_on_write,
                 )
+                status_code = status.HTTP_202_ACCEPTED
 
-        needs_online = to in (PushMode.ONLINE, PushMode.ONLINE_AND_OFFLINE)
-        needs_offline = to in (PushMode.OFFLINE, PushMode.ONLINE_AND_OFFLINE)
-
-        status_code = status.HTTP_200_OK
-
-        if offline_batcher is None or not needs_offline:
-            await _push_with_to(to)
-        else:
-            if needs_online:
-                await _push_with_to(PushMode.ONLINE)
-
-            offline_batcher.enqueue(
-                push_source_name=request.push_source_name,
-                df=df,
-                allow_registry_cache=request.allow_registry_cache,
-                transform_on_write=request.transform_on_write,
-            )
-            status_code = status.HTTP_202_ACCEPTED
-
-        return Response(status_code=status_code)
+            feast_metrics.track_push(request.push_source_name, request.to)
+            return Response(status_code=status_code)
 
     async def _get_feast_object(
         feature_view_name: str, allow_registry_cache: bool
@@ -529,51 +556,50 @@ def get_app(
 
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
     async def materialize(request: MaterializeRequest) -> None:
-        for feature_view in request.feature_views or []:
-            resource = await _get_feast_object(feature_view, True)
-            assert_permissions(
-                resource=resource,
-                actions=[AuthzedAction.WRITE_ONLINE],
-            )
-
-        if request.disable_event_timestamp:
-            # Query all available data and use current datetime as event timestamp
-            now = datetime.now()
-            start_date = datetime(
-                1970, 1, 1
-            )  # Beginning of time to capture all historical data
-            end_date = now
-        else:
-            if not request.start_ts or not request.end_ts:
-                raise ValueError(
-                    "start_ts and end_ts are required when disable_event_timestamp is False"
+        with feast_metrics.track_request_latency("/materialize"):
+            for feature_view in request.feature_views or []:
+                resource = await _get_feast_object(feature_view, True)
+                assert_permissions(
+                    resource=resource,
+                    actions=[AuthzedAction.WRITE_ONLINE],
                 )
-            start_date = utils.make_tzaware(parser.parse(request.start_ts))
-            end_date = utils.make_tzaware(parser.parse(request.end_ts))
 
-        await run_in_threadpool(
-            store.materialize,
-            start_date,
-            end_date,
-            request.feature_views,
-            disable_event_timestamp=request.disable_event_timestamp,
-            full_feature_names=request.full_feature_names,
-        )
+            if request.disable_event_timestamp:
+                now = datetime.now()
+                start_date = datetime(1970, 1, 1)
+                end_date = now
+            else:
+                if not request.start_ts or not request.end_ts:
+                    raise ValueError(
+                        "start_ts and end_ts are required when disable_event_timestamp is False"
+                    )
+                start_date = utils.make_tzaware(parser.parse(request.start_ts))
+                end_date = utils.make_tzaware(parser.parse(request.end_ts))
+
+            await run_in_threadpool(
+                store.materialize,
+                start_date,
+                end_date,
+                request.feature_views,
+                disable_event_timestamp=request.disable_event_timestamp,
+                full_feature_names=request.full_feature_names,
+            )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
     async def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
-        for feature_view in request.feature_views or []:
-            resource = await _get_feast_object(feature_view, True)
-            assert_permissions(
-                resource=resource,
-                actions=[AuthzedAction.WRITE_ONLINE],
+        with feast_metrics.track_request_latency("/materialize-incremental"):
+            for feature_view in request.feature_views or []:
+                resource = await _get_feast_object(feature_view, True)
+                assert_permissions(
+                    resource=resource,
+                    actions=[AuthzedAction.WRITE_ONLINE],
+                )
+            await run_in_threadpool(
+                store.materialize_incremental,
+                utils.make_tzaware(parser.parse(request.end_ts)),
+                request.feature_views,
+                full_feature_names=request.full_feature_names,
             )
-        await run_in_threadpool(
-            store.materialize_incremental,
-            utils.make_tzaware(parser.parse(request.end_ts)),
-            request.feature_views,
-            full_feature_names=request.full_feature_names,
-        )
 
     @app.exception_handler(Exception)
     async def rest_exception_handler(request: Request, exc: Exception):
@@ -695,12 +721,15 @@ if sys.platform != "win32":
     import gunicorn.app.base
 
     class FeastServeApplication(gunicorn.app.base.BaseApplication):
-        def __init__(self, store: "feast.FeatureStore", **options):
+        def __init__(
+            self, store: "feast.FeatureStore", metrics_enabled: bool = False, **options
+        ):
             self._app = get_app(
                 store=store,
                 registry_ttl_sec=options["registry_ttl_sec"],
             )
             self._options = options
+            self._metrics_enabled = metrics_enabled
             super().__init__()
 
         def load_config(self):
@@ -709,25 +738,20 @@ if sys.platform != "win32":
                     self.cfg.set(key.lower(), value)
 
             self.cfg.set("worker_class", "uvicorn_worker.UvicornWorker")
+            if self._metrics_enabled:
+                self.cfg.set("post_worker_init", _gunicorn_post_worker_init)
+                self.cfg.set("child_exit", _gunicorn_child_exit)
 
         def load(self):
             return self._app
 
+    def _gunicorn_post_worker_init(worker):
+        """Start per-worker resource monitoring after Gunicorn forks."""
+        feast_metrics.init_worker_monitoring()
 
-def monitor_resources(self, interval: int = 5):
-    """Function to monitor and update CPU and memory usage metrics."""
-    logger.debug(f"Starting resource monitoring with interval {interval} seconds")
-    p = psutil.Process()
-    logger.debug(f"PID is {p.pid}")
-    while True:
-        with p.oneshot():
-            cpu_usage = p.cpu_percent()
-            memory_usage = p.memory_percent()
-            logger.debug(f"CPU usage: {cpu_usage}%, Memory usage: {memory_usage}%")
-            logger.debug(f"CPU usage: {cpu_usage}%, Memory usage: {memory_usage}%")
-            cpu_usage_gauge.set(cpu_usage)
-            memory_usage_gauge.set(memory_usage)
-        time.sleep(interval)
+    def _gunicorn_child_exit(server, worker):
+        """Clean up Prometheus metric files for a dead worker."""
+        feast_metrics.mark_process_dead(worker.pid)
 
 
 def start_server(
@@ -749,15 +773,19 @@ def start_server(
         raise ValueError(
             "Both key and cert file paths are required to start server in TLS mode."
         )
-    if metrics:
-        logger.info("Starting Prometheus Server")
-        start_http_server(8000)
 
-        logger.debug("Starting background thread to monitor CPU and memory usage")
-        monitoring_thread = threading.Thread(
-            target=monitor_resources, args=(5,), daemon=True
+    fs_cfg = getattr(store.config, "feature_server", None)
+    metrics_cfg = getattr(fs_cfg, "metrics", None)
+    metrics_from_config = getattr(metrics_cfg, "enabled", False)
+    metrics_active = metrics or metrics_from_config
+    uses_gunicorn = sys.platform != "win32"
+    if metrics_active:
+        flags = feast_metrics.build_metrics_flags(metrics_cfg)
+        feast_metrics.start_metrics_server(
+            store,
+            metrics_config=flags,
+            start_resource_monitoring=not uses_gunicorn,
         )
-        monitoring_thread.start()
 
     logger.debug("start_server called")
     auth_type = str_to_auth_manager_type(store.config.auth_config.type)
@@ -771,7 +799,7 @@ def start_server(
     )
     logger.debug("Auth manager initialized successfully")
 
-    if sys.platform != "win32":
+    if uses_gunicorn:
         options = {
             "bind": f"{host}:{port}",
             "accesslog": None if no_access_log else "-",
@@ -787,7 +815,9 @@ def start_server(
         if tls_key_path and tls_cert_path:
             options["keyfile"] = tls_key_path
             options["certfile"] = tls_cert_path
-        FeastServeApplication(store=store, **options).run()
+        FeastServeApplication(
+            store=store, metrics_enabled=metrics_active, **options
+        ).run()
     else:
         import uvicorn
 
