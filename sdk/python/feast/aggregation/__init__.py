@@ -103,6 +103,20 @@ class Aggregation:
 
         return True
 
+    def resolved_name(self, time_window: Optional[timedelta] = None) -> str:
+        """Return the output feature name for this aggregation.
+
+        If ``name`` is set it is returned as-is.  Otherwise the name is
+        derived as ``{function}_{column}``, with ``_{seconds}s`` appended
+        when *time_window* is provided.
+        """
+        if self.name:
+            return self.name
+        base = f"{self.function}_{self.column}"
+        if time_window is not None:
+            return f"{base}_{int(time_window.total_seconds())}s"
+        return base
+
 
 def aggregation_specs_to_agg_ops(
     agg_specs: Iterable[Any],
