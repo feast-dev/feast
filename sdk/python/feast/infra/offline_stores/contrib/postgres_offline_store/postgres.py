@@ -615,15 +615,14 @@ WITH
 {% endfor %}
 
 {# --- Spine: prediction timeline = distinct (entity, timestamp) in [start_date, end_date] --- #}
+{# Each UNION branch selects all_entities so column count/order match; NULL for entities not in this FV. #}
 spine AS (
     {% for featureview in featureviews %}
     SELECT DISTINCT
-        event_timestamp,
-        {% for entity in featureview.entities %}
-        "{{ entity }}"{% if not loop.last %},{% endif %}
-        {% endfor %}
-    FROM "{{ featureview.name }}__data"
-    WHERE event_timestamp BETWEEN '{{ start_date }}' AND '{{ end_date }}'
+        d.event_timestamp{% for entity in all_entities %},
+        {% if entity in featureview.entities %}d."{{ entity }}"{% else %}NULL AS "{{ entity }}"{% endif %}{% endfor %}
+    FROM "{{ featureview.name }}__data" d
+    WHERE d.event_timestamp BETWEEN '{{ start_date }}' AND '{{ end_date }}'
     {% if not loop.last %}
     UNION
     {% endif %}
@@ -636,10 +635,8 @@ spine AS (
 {% for featureview in featureviews %}
 "{{ featureview.name }}__stacked" AS (
     SELECT
-        s.event_timestamp,
-        {% for entity in all_entities %}
-        s."{{ entity }}",
-        {% endfor %}
+        s.event_timestamp{% for entity in all_entities %},
+        s."{{ entity }}"{% endfor %},
         1 AS is_spine,
         NULL::int AS feature_anchor
         {% for feature in featureview.features %}
@@ -656,14 +653,8 @@ spine AS (
     UNION ALL
 
     SELECT
-        d.event_timestamp,
-        {% for entity in all_entities %}
-        {% if entity in featureview.entities %}
-        d."{{ entity }}",
-        {% else %}
-        NULL AS "{{ entity }}",
-        {% endif %}
-        {% endfor %}
+        d.event_timestamp{% for entity in all_entities %},
+        {% if entity in featureview.entities %}d."{{ entity }}"{% else %}NULL AS "{{ entity }}"{% endif %}{% endfor %},
         0 AS is_spine,
         1 AS feature_anchor
         {% for feature in featureview.features %}
@@ -681,7 +672,7 @@ spine AS (
 "{{ featureview.name }}__grouped" AS (
     SELECT *,
         COUNT(feature_anchor) OVER (
-            PARTITION BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}
+            PARTITION BY {% if featureview.entities %}{% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}{% else %}1{% endif %}
             ORDER BY event_timestamp ASC, is_spine ASC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS value_group_id
@@ -690,10 +681,8 @@ spine AS (
 
 "{{ featureview.name }}__filled" AS (
     SELECT
-        event_timestamp,
-        {% for entity in all_entities %}
-        "{{ entity }}",
-        {% endfor %}
+        event_timestamp{% for entity in all_entities %},
+        "{{ entity }}"{% endfor %},
         is_spine
         {% for feature in featureview.features %}
             {% if full_feature_names %}
@@ -702,13 +691,13 @@ spine AS (
                 {% set col_name = featureview.field_mapping.get(feature, feature) %}
             {% endif %}
         , FIRST_VALUE("{{ col_name }}") OVER (
-            PARTITION BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, value_group_id
+            PARTITION BY {% if featureview.entities %}{% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, {% endif %}value_group_id
             ORDER BY event_timestamp ASC, is_spine ASC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS "{{ col_name }}"
         {% endfor %}
         , FIRST_VALUE("{{ featureview.name }}__feature_ts") OVER (
-            PARTITION BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, value_group_id
+            PARTITION BY {% if featureview.entities %}{% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, {% endif %}value_group_id
             ORDER BY event_timestamp ASC, is_spine ASC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS "{{ featureview.name }}__filled_ts"
@@ -718,10 +707,8 @@ spine AS (
 
 {# --- Final: join per-FV filled results back onto spine --- #}
 SELECT
-    spine.event_timestamp,
-    {% for entity in all_entities %}
-    spine."{{ entity }}",
-    {% endfor %}
+    spine.event_timestamp{% for entity in all_entities %},
+    spine."{{ entity }}"{% endfor %},
     {% set total_features = featureviews|map(attribute='features')|map('length')|sum %}
     {% set feat_idx = namespace(count=0) %}
     {% for featureview in featureviews %}
