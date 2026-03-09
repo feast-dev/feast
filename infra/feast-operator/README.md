@@ -24,6 +24,7 @@ kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.c
 ```
 
 > **NOTE**: Server-Side Apply (`--server-side`) is required because the CRD includes both v1alpha1 and v1 API versions, making it too large for the standard `kubectl apply` annotation limit. If you encounter annotation size errors, use `--server-side --force-conflicts` flags.
+
 ##### Feast Operator Demo Videos
 [![](https://img.youtube.com/vi/48cb4AHxPR4/0.jpg)](https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX)
 

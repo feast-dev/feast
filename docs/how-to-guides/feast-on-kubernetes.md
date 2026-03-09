@@ -64,6 +64,46 @@ spec:
 
 > _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
 
+## Upgrading the Operator
+
+### OLM-managed installations
+
+If the operator was installed via OLM, upgrades are handled
+automatically. No manual steps are required — OLM recreates the operator Deployment
+during the upgrade process.
+
+### kubectl-managed installations
+
+For most upgrades, re-running the install command is sufficient:
+
+```sh
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+```
+
+#### One-time step: upgrading from versions before 0.61.0
+
+Version 0.61.0 updated the operator Deployment's `spec.selector` to include the
+`app.kubernetes.io/name: feast-operator` label, fixing a bug where the metrics service
+could accidentally target pods from other operators in shared namespaces.
+
+Because Kubernetes treats `spec.selector` as an immutable field, upgrading directly from
+a pre-0.61.0 version with `kubectl apply` will fail with:
+
+```
+The Deployment "feast-operator-controller-manager" is invalid: spec.selector: Invalid value: ... field is immutable
+```
+
+To resolve this, delete the existing operator Deployment before applying the new manifest:
+
+```sh
+kubectl delete deployment feast-operator-controller-manager -n feast-operator-system --ignore-not-found=true
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+```
+
+This is only required once. Existing FeatureStore CRs and their managed workloads (feature
+servers, registry, etc.) are not affected — the new operator pod will reconcile them
+automatically on startup. Future upgrades from 0.61.0 onward will not require this step.
+
 {% hint style="success" %}
 **Scaling & High Availability:** The Feast Operator supports horizontal scaling via static replicas, HPA autoscaling, or external autoscalers like [KEDA](https://keda.sh). Scaling requires DB-backed persistence for all enabled services.
 
