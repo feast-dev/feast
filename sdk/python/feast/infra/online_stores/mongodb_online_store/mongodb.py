@@ -209,7 +209,7 @@ class MongoDBOnlineStore(OnlineStore):
         We remove any feature views named in tables_to_delete.
         The Entities are serialized in the _id. No schema needs be adjusted.
         """
-        if config.online_store.type != "mongodb":
+        if not isinstance(config.online_store, MongoDBOnlineStoreConfig):
             raise RuntimeError(f"{config.online_store.type = }. It must be mongodb.")
 
         clxn = self._get_collection(repo_config=config)
