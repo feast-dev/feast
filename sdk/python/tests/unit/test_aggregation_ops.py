@@ -49,7 +49,11 @@ def test_aggregation_specs_to_agg_ops_time_window_unsupported(error_message: str
 
 def test_aggregation_specs_to_agg_ops_custom_name():
     agg_specs = [
-        DummyAggregation(function="sum", column="seconds_watched", name="sum_seconds_watched_per_ad_1d"),
+        DummyAggregation(
+            function="sum",
+            column="seconds_watched",
+            name="sum_seconds_watched_per_ad_1d",
+        ),
     ]
 
     agg_ops = aggregation_specs_to_agg_ops(
