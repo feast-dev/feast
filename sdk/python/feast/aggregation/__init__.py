@@ -113,7 +113,7 @@ class Aggregation:
         if self.name:
             return self.name
         base = f"{self.function}_{self.column}"
-        if time_window is not None:
+        if time_window is not None and time_window.total_seconds() > 0:
             return f"{base}_{int(time_window.total_seconds())}s"
         return base
 
