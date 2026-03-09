@@ -637,9 +637,9 @@ pdm-backend==2.4.7 \
     #   annotated-doc
     #   fastapi
     #   typer
-pkgconfig==1.5.5 \
-    --hash=sha256:d20023bbeb42ee6d428a0fac6e0904631f545985a10cdd71a20aa58bc47a4209 \
-    --hash=sha256:deb4163ef11f75b520d822d9505c1f462761b4309b1bb713d08689759ea8b899
+pkgconfig==1.6.0 \
+    --hash=sha256:4a5a6631ce937fafac457104a40d558785a658bbdca5c49b6295bc3fd651907f \
+    --hash=sha256:98e71754855e9563838d952a160eb577edabb57782e49853edb5381927e6bea1
     # via aiohttp
 pluggy==1.6.0 \
     --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
@@ -671,9 +671,9 @@ pyproject-metadata==0.11.0 \
     --hash=sha256:85bbecca8694e2c00f63b492c96921d6c228454057c88e7c352b2077fcaa4096 \
     --hash=sha256:c72fa49418bb7c5a10f25e050c418009898d1c051721d19f98a6fb6da59a66cf
     # via meson-python
-scikit-build-core==0.12.1 \
-    --hash=sha256:21377eacbafa1ecad6110de3d9929b60c6ce95c05d43c954a131b412b941ea56 \
-    --hash=sha256:bb663e71116bcd23d208ef30e5b94aa14f225f3704794d9429017ea9b461b0da
+scikit-build-core==0.12.2 \
+    --hash=sha256:562e0bbc9de1a354c87825ccf732080268d6582a0200f648e8c4a2dcb1e3736d \
+    --hash=sha256:6ea4730da400f9a998ec3287bd3ebc1d751fe45ad0a93451bead8618adbc02b1
     # via
     #   duckdb
     #   patchelf
@@ -719,9 +719,9 @@ setuptools-scm==9.2.2 \
     #   ujson
     #   urllib3
     #   zipp
-smmap==5.0.2 \
-    --hash=sha256:26ea65a03958fa0c8a1c7e8c7a58fdc77221b8910f6be2131affade476898ad5 \
-    --hash=sha256:b30115f0def7d7531d22a0fb6502488d879e75b260a9db4d0819cfb25403af5e
+smmap==5.0.3 \
+    --hash=sha256:4d9debb8b99007ae47165abc08670bd74cb74b5227dda7f643eccc4e9eb5642c \
+    --hash=sha256:c106e05d5a61449cf6ba9a1e650227ecfb141590d2a98412103ff35d89fc7b2f
     # via gitdb
 tomli==2.0.2 \
     --hash=sha256:2ebe24485c53d303f690b0ec092806a085f07af5a5aa1464f3931eec36caaa38 \
@@ -844,7 +844,6 @@ wheel==0.46.3 \
     #   setuptools-git-versioning
     #   shellingham
     #   snowflake-connector-python
-    #   tabulate
     #   tzdata
     #   uvloop
 
@@ -930,9 +929,9 @@ setuptools==80.9.0 \
     --hash=sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922 \
     --hash=sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c
     # via httptools
-setuptools==82.0.0 \
-    --hash=sha256:22e0a2d69474c6ae4feb01951cb69d515ed23728cf96d05513d36e42b62b37cb \
-    --hash=sha256:70b18734b607bd1da571d097d236cfcfacaf01de45717d59e6e04b96877532e0
+setuptools==82.0.1 \
+    --hash=sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9 \
+    --hash=sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb
     # via
     #   python-dateutil
     #   setuptools-scm
