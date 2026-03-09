@@ -21,12 +21,14 @@ class Aggregation:
         function: str  # Provided built in aggregations sum, max, min, count mean
         time_window: timedelta  # The time window for this aggregation.
         slide_interval: timedelta # The sliding window for these aggregations
+        name: str  # Optional override for the output feature name (defaults to {function}_{column})
     """
 
     column: str
     function: str
     time_window: Optional[timedelta]
     slide_interval: Optional[timedelta]
+    name: str
 
     def __init__(
         self,
@@ -34,6 +36,7 @@ class Aggregation:
         function: Optional[str] = "",
         time_window: Optional[timedelta] = None,
         slide_interval: Optional[timedelta] = None,
+        name: Optional[str] = None,
     ):
         self.column = column or ""
         self.function = function or ""
@@ -42,6 +45,7 @@ class Aggregation:
             self.slide_interval = self.time_window
         else:
             self.slide_interval = slide_interval
+        self.name = name or ""
 
     def to_proto(self) -> AggregationProto:
         window_duration = None
@@ -59,6 +63,7 @@ class Aggregation:
             function=self.function,
             time_window=window_duration,
             slide_interval=slide_interval_duration,
+            name=self.name,
         )
 
     @classmethod
@@ -79,6 +84,7 @@ class Aggregation:
             function=agg_proto.function,
             time_window=time_window,
             slide_interval=slide_interval,
+            name=agg_proto.name or None,
         )
         return aggregation
 
@@ -91,6 +97,7 @@ class Aggregation:
             or self.function != other.function
             or self.time_window != other.time_window
             or self.slide_interval != other.slide_interval
+            or self.name != other.name
         ):
             return False
 
@@ -106,7 +113,7 @@ def aggregation_specs_to_agg_ops(
     for agg in agg_specs:
         if getattr(agg, "time_window", None) is not None:
             raise ValueError(time_window_unsupported_error_message)
-        alias = f"{agg.function}_{agg.column}"
+        alias = getattr(agg, "name", None) or f"{agg.function}_{agg.column}"
         agg_ops[alias] = (agg.function, agg.column)
     return agg_ops
 
