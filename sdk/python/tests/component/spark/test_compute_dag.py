@@ -1,7 +1,6 @@
 from datetime import timedelta
 from unittest.mock import MagicMock
 
-import pytest
 from pyspark.sql import DataFrame
 from tqdm import tqdm
 
@@ -94,7 +93,6 @@ def create_chained_feature_view(base_fv: BatchFeatureView):
     )
 
 
-@pytest.mark.integration
 def test_spark_dag_materialize_recursive_view():
     spark_env = create_spark_environment()
     fs = spark_env.feature_store
@@ -149,7 +147,6 @@ def test_spark_dag_materialize_recursive_view():
         spark_env.teardown()
 
 
-@pytest.mark.integration
 def test_spark_dag_materialize_multi_views():
     spark_env = create_spark_environment()
     fs = spark_env.feature_store

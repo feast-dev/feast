@@ -43,8 +43,6 @@ from tests.universal.feature_repos.universal.data_source_creator import (
 from tests.universal.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
     RemoteOfflineOidcAuthStoreDataSourceCreator,
-    RemoteOfflineStoreDataSourceCreator,
-    RemoteOfflineTlsStoreDataSourceCreator,
 )
 from tests.universal.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
@@ -62,87 +60,17 @@ from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 
-DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-MILVUS_CONFIG = {"type": "milvus", "embedding_dim": 2, "path": "online_store.db"}
-REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
-REDIS_CLUSTER_CONFIG = {
-    "type": "redis",
-    "redis_type": "redis_cluster",
-    # Redis Cluster Port Forwarding is setup in "pr_integration_tests.yaml" under "Setup Redis Cluster".
-    "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
-}
-
-SNOWFLAKE_CONFIG = {
-    "type": "snowflake.online",
-    "account": os.getenv("SNOWFLAKE_CI_DEPLOYMENT", ""),
-    "user": os.getenv("SNOWFLAKE_CI_USER", ""),
-    "password": os.getenv("SNOWFLAKE_CI_PASSWORD", ""),
-    "role": os.getenv("SNOWFLAKE_CI_ROLE", ""),
-    "warehouse": os.getenv("SNOWFLAKE_CI_WAREHOUSE", ""),
-    "database": os.getenv("SNOWFLAKE_CI_DATABASE", "FEAST"),
-    "schema": os.getenv("SNOWFLAKE_CI_SCHEMA_ONLINE", "ONLINE"),
-}
-
-BIGTABLE_CONFIG = {
-    "type": "bigtable",
-    "project_id": os.getenv("GCLOUD_PROJECT", "kf-feast"),
-    "instance": os.getenv("BIGTABLE_INSTANCE_ID", "feast-integration-tests"),
-}
-
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]] = {
     "file": ("local", FileDataSourceCreator),
 }
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", FileDataSourceCreator),
-    ("local", RemoteOfflineStoreDataSourceCreator),
-    ("local", RemoteOfflineOidcAuthStoreDataSourceCreator),
-    ("local", RemoteOfflineTlsStoreDataSourceCreator),
 ]
-
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
-    AVAILABLE_OFFLINE_STORES.extend(
-        [
-            # todo: @tokoko to reenable
-            # ("local", DuckDBDeltaS3DataSourceCreator),
-        ]
-    )
 
 AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
 ] = {"sqlite": ({"type": "sqlite"}, None)}
-
-# Only configure Cloud DWH if running full integration tests
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
-    from tests.universal.feature_repos.universal.data_sources.bigquery import (
-        BigQueryDataSourceCreator,
-    )
-    from tests.universal.feature_repos.universal.data_sources.redshift import (
-        RedshiftDataSourceCreator,
-    )
-    from tests.universal.feature_repos.universal.data_sources.snowflake import (
-        SnowflakeDataSourceCreator,
-    )
-
-    AVAILABLE_OFFLINE_STORES.extend(
-        [
-            ("gcp", BigQueryDataSourceCreator),
-            ("aws", RedshiftDataSourceCreator),
-            ("aws", SnowflakeDataSourceCreator),
-        ]
-    )
-
-    OFFLINE_STORE_TO_PROVIDER_CONFIG["bigquery"] = ("gcp", BigQueryDataSourceCreator)
-    OFFLINE_STORE_TO_PROVIDER_CONFIG["redshift"] = ("aws", RedshiftDataSourceCreator)
-    OFFLINE_STORE_TO_PROVIDER_CONFIG["snowflake"] = ("aws", SnowflakeDataSourceCreator)
-
-    AVAILABLE_ONLINE_STORES["redis"] = (REDIS_CONFIG, None)
-    AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
-    AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
-    AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
-    AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
-    AVAILABLE_ONLINE_STORES["milvus"] = (MILVUS_CONFIG, None)
-
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
 if full_repo_configs_module is not None:
@@ -178,38 +106,6 @@ if full_repo_configs_module is not None:
             else c.online_store: (c.online_store, c.online_store_creator)  # type: ignore
             for c in FULL_REPO_CONFIGS
         }
-
-# Replace online stores with emulated online stores if we're running local integration tests
-if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
-    from tests.universal.feature_repos.universal.online_store.bigtable import (
-        BigtableOnlineStoreCreator,
-    )
-    from tests.universal.feature_repos.universal.online_store.datastore import (
-        DatastoreOnlineStoreCreator,
-    )
-    from tests.universal.feature_repos.universal.online_store.dynamodb import (
-        DynamoDBOnlineStoreCreator,
-    )
-    from tests.universal.feature_repos.universal.online_store.milvus import (
-        MilvusOnlineStoreCreator,
-    )
-    from tests.universal.feature_repos.universal.online_store.redis import (
-        RedisOnlineStoreCreator,
-    )
-
-    replacements: Dict[
-        str, Tuple[Union[str, Dict[str, Any]], Optional[Type[OnlineStoreCreator]]]
-    ] = {
-        "redis": (REDIS_CONFIG, RedisOnlineStoreCreator),
-        "milvus": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
-        "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
-        "datastore": ("datastore", DatastoreOnlineStoreCreator),
-        "bigtable": ("bigtable", BigtableOnlineStoreCreator),
-    }
-
-    for key, replacement in replacements.items():
-        if key in AVAILABLE_ONLINE_STORES:
-            AVAILABLE_ONLINE_STORES[key] = replacement
 
 
 @dataclass

@@ -20,7 +20,6 @@ from tests.universal.feature_repos.universal.data_sources.redshift import (
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
 
-@pytest.mark.integration
 @pytest.mark.skip(reason="Very flaky test")
 def test_lambda_materialization_consistency():
     lambda_config = IntegrationTestRepoConfig(

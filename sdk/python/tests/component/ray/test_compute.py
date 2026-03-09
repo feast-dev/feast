@@ -27,7 +27,6 @@ from tests.component.ray.ray_shared_utils import (
 )
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_compute_engine_get_historical_features(
     ray_environment, feature_dataset, entity_df
@@ -90,7 +89,6 @@ def test_ray_compute_engine_get_historical_features(
     assert abs(df_out["avg_acc_rate"].to_list()[1] - 1.0) < 1e-6
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_compute_engine_materialize(ray_environment, feature_dataset):
     """Test Ray compute engine materialization."""
@@ -149,7 +147,6 @@ def test_ray_compute_engine_materialize(ray_environment, feature_dataset):
     assert ray_materialize_jobs[0].status() == MaterializationJobStatus.SUCCEEDED
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_compute_engine_config():
     """Test Ray compute engine configuration."""
@@ -171,7 +168,6 @@ def test_ray_compute_engine_config():
     assert config.window_size_timedelta == timedelta(hours=2)
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_transformation_compute_engine(ray_environment, feature_dataset, entity_df):
     """Test Ray compute engine with Ray transformation mode."""
@@ -259,7 +255,6 @@ def test_ray_transformation_compute_engine(ray_environment, feature_dataset, ent
         assert abs(row["processed_acc_rate"] - row["acc_rate"] * 1.5) < 1e-6
 
 
-@pytest.mark.integration
 @pytest.mark.xdist_group(name="ray")
 def test_ray_transformation_materialization(ray_environment, feature_dataset):
     """Test Ray transformation during materialization."""

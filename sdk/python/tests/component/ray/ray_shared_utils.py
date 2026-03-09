@@ -12,7 +12,6 @@ import pytest
 
 from feast import Entity, FileSource
 from feast.data_source import DataSource
-from feast.infra.ray_initializer import shutdown_ray
 from feast.utils import _utc_now
 from tests.universal.feature_repos.repo_configuration import (
     construct_test_environment,
@@ -117,21 +116,6 @@ def create_unique_sink_source(temp_dir: str, base_name: str) -> FileSource:
     )
 
 
-def cleanup_ray_environment(ray_environment):
-    """Safely cleanup Ray environment and resources."""
-    try:
-        ray_environment.teardown()
-    except Exception as e:
-        print(f"Warning: Ray environment teardown failed: {e}")
-
-    # Ensure Ray is shut down completely
-    try:
-        shutdown_ray()
-        time.sleep(0.2)  # Brief pause to ensure clean shutdown
-    except Exception as e:
-        print(f"Warning: Ray shutdown failed: {e}")
-
-
 def create_ray_environment():
     """Create Ray test environment using the standardized config."""
     ray_config = get_ray_compute_engine_test_config()
@@ -143,17 +127,14 @@ def create_ray_environment():
 
 
 @pytest.fixture(scope="function")
-def ray_environment() -> Generator:
+def ray_environment(ray_session) -> Generator:
     """Pytest fixture to provide a Ray environment for tests with automatic cleanup."""
-    try:
-        shutdown_ray()
-        time.sleep(0.2)
-    except Exception:
-        pass
-
     environment = create_ray_environment()
     yield environment
-    cleanup_ray_environment(environment)
+    try:
+        environment.teardown()
+    except Exception as e:
+        print(f"Warning: Ray environment teardown failed: {e}")
 
 
 @pytest.fixture

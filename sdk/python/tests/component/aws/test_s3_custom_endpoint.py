@@ -13,7 +13,6 @@ from tests.universal.feature_repos.universal.entities import customer, driver
 # TODO: Allow integration tests to run using different credentials.
 
 
-@pytest.mark.integration
 @pytest.mark.skip(
     reason="No way to run this test today. Credentials conflict with real AWS credentials in CI"
 )

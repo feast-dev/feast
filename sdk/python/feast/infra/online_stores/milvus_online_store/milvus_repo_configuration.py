@@ -1,10 +1,11 @@
 from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.universal.feature_repos.repo_configuration import MILVUS_CONFIG
 from tests.universal.feature_repos.universal.online_store.milvus import (
     MilvusOnlineStoreCreator,
 )
+
+MILVUS_CONFIG = {"type": "milvus", "embedding_dim": 2, "path": "online_store.db"}
 
 FULL_REPO_CONFIGS = [
     IntegrationTestRepoConfig(

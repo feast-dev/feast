@@ -1,7 +1,5 @@
 from datetime import timedelta
 
-import pytest
-
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -22,7 +20,6 @@ from tests.universal.feature_repos.universal.online_store.redis import (
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
 
-@pytest.mark.integration
 def test_spark_materialization_consistency():
     spark_config = IntegrationTestRepoConfig(
         provider="local",
