@@ -418,3 +418,175 @@ def test_function_call_syntax():
 
     deserialized = OnDemandFeatureView.from_proto(proto)
     assert deserialized.name == CUSTOM_FUNCTION_NAME
+
+
+def test_track_metrics_defaults_to_false():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="metrics-default-odfv",
+        sources=[feature_view],
+        schema=[Field(name="output1", dtype=Float32)],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+    )
+    assert odfv.track_metrics is False
+
+
+def test_track_metrics_true_persists_via_proto():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="tracked-metrics-odfv",
+        sources=[feature_view],
+        schema=[Field(name="output1", dtype=Float32)],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+        track_metrics=True,
+    )
+    assert odfv.track_metrics is True
+
+    proto = odfv.to_proto()
+    assert proto.spec.tags.get("feast:track_metrics") == "true"
+
+    restored = OnDemandFeatureView.from_proto(proto)
+    assert restored.track_metrics is True
+    assert "feast:track_metrics" not in restored.tags, (
+        "Internal feast:track_metrics tag leaked into user-facing self.tags "
+        "after proto round-trip"
+    )
+
+
+def test_track_metrics_proto_roundtrip_preserves_user_tags():
+    """User tags must survive a proto round-trip without internal tag pollution."""
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    user_tags = {"team": "ml-platform", "priority": "high"}
+    odfv = OnDemandFeatureView(
+        name="tagged-odfv",
+        sources=[feature_view],
+        schema=[Field(name="output1", dtype=Float32)],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+        tags=user_tags,
+        track_metrics=True,
+    )
+    assert odfv.tags == user_tags
+
+    proto = odfv.to_proto()
+    restored = OnDemandFeatureView.from_proto(proto)
+
+    assert restored.tags == user_tags
+    assert restored.track_metrics is True
+
+
+def test_track_metrics_false_not_stored_in_tags():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="no-metrics-odfv",
+        sources=[feature_view],
+        schema=[Field(name="output1", dtype=Float32)],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+        track_metrics=False,
+    )
+    proto = odfv.to_proto()
+    assert "feast:track_metrics" not in proto.spec.tags
+
+    restored = OnDemandFeatureView.from_proto(proto)
+    assert restored.track_metrics is False
+
+
+def test_copy_preserves_track_metrics():
+    """__copy__ must carry track_metrics so FeatureService projections keep timing enabled."""
+    import copy
+
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="tracked-odfv",
+        sources=[feature_view],
+        schema=[Field(name="output1", dtype=Float32)],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+        track_metrics=True,
+    )
+    assert odfv.track_metrics is True
+
+    copied = copy.copy(odfv)
+    assert copied.track_metrics is True, (
+        "__copy__ lost track_metrics; ODFV timing metrics will be silently disabled "
+        "when using FeatureService projections"
+    )
+
+
+def test_eq_considers_track_metrics():
+    """__eq__ must distinguish ODFVs that differ only in track_metrics."""
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    common = dict(
+        name="eq-odfv",
+        sources=[feature_view],
+        schema=[Field(name="output1", dtype=Float32)],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+    )
+    odfv_tracked = OnDemandFeatureView(**common, track_metrics=True)
+    odfv_untracked = OnDemandFeatureView(**common, track_metrics=False)
+
+    assert odfv_tracked != odfv_untracked
