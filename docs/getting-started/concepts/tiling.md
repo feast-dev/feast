@@ -206,9 +206,9 @@ customer_features = StreamFeatureView(
         batch_source=file_source,  # For historical data
     ),
     aggregations=[
-        Aggregation(column="amount", function="sum", time_window=timedelta(hours=1)),
-        Aggregation(column="amount", function="avg", time_window=timedelta(hours=1)),
-        Aggregation(column="amount", function="std", time_window=timedelta(hours=1)),
+        Aggregation(column="amount", function="sum", time_window=timedelta(hours=1), name="sum_amount_1h"),
+        Aggregation(column="amount", function="avg", time_window=timedelta(hours=1), name="avg_amount_1h"),
+        Aggregation(column="amount", function="std", time_window=timedelta(hours=1), name="std_amount_1h"),
     ],
     timestamp_field="event_timestamp",
     online=True,
@@ -229,7 +229,12 @@ customer_features = StreamFeatureView(
 
 ### Key Parameters
 
-- `aggregations`: List of time-windowed aggregations to compute
+- `aggregations`: List of time-windowed aggregations to compute. Each `Aggregation` accepts:
+  - `column`: source column to aggregate
+  - `function`: aggregation function (`sum`, `avg`, `mean`, `min`, `max`, `count`, `std`)
+  - `time_window`: duration of the aggregation window
+  - `slide_interval`: hop/slide size (defaults to `time_window`)
+  - `name` *(optional)*: output feature name. Defaults to `{function}_{column}` (e.g., `sum_amount`). Set this to use a custom name (e.g., `name="sum_amount_1h"`).
 - `timestamp_field`: Column name for timestamps (required when aggregations are specified)
 - `enable_tiling`: Enable tiling optimization (default: `False`)
   - Set to `True` for **streaming scenarios**
