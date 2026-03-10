@@ -387,7 +387,10 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_stream_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
     ) -> List[StreamFeatureView]:
         return self._list_objects(
             stream_feature_views,
@@ -396,6 +399,7 @@ class SqlRegistry(CachingRegistry):
             StreamFeatureView,
             "feature_view_proto",
             tags=tags,
+            updated_since=updated_since,
         )
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -457,20 +461,23 @@ class SqlRegistry(CachingRegistry):
         return fv
 
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         return (
             cast(
                 list[BaseFeatureView],
-                self._list_feature_views(project=project, tags=tags),
+                self._list_feature_views(project=project, tags=tags, updated_since=updated_since),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_stream_feature_views(project=project, tags=tags),
+                self._list_stream_feature_views(project=project, tags=tags, updated_since=updated_since),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_on_demand_feature_views(project=project, tags=tags),
+                self._list_on_demand_feature_views(project=project, tags=tags, updated_since=updated_since),
             )
         )
 
@@ -890,7 +897,10 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
     ) -> List[FeatureView]:
         return self._list_objects(
             feature_views,
@@ -899,6 +909,7 @@ class SqlRegistry(CachingRegistry):
             FeatureView,
             "feature_view_proto",
             tags=tags,
+            updated_since=updated_since,
         )
 
     def _list_saved_datasets(
@@ -914,7 +925,10 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_on_demand_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
     ) -> List[OnDemandFeatureView]:
         return self._list_objects(
             on_demand_feature_views,
@@ -923,6 +937,7 @@ class SqlRegistry(CachingRegistry):
             OnDemandFeatureView,
             "feature_view_proto",
             tags=tags,
+            updated_since=updated_since,
         )
 
     def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
@@ -1486,9 +1501,15 @@ class SqlRegistry(CachingRegistry):
         python_class: Any,
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
+        updated_since: Optional[datetime] = None,
     ):
         with self.read_engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
+            if updated_since is not None:
+                stmt = stmt.where(
+                    table.c.last_updated_timestamp
+                    >= int(updated_since.timestamp())
+                )
             rows = conn.execute(stmt).all()
             if rows:
                 objects = []

@@ -214,6 +214,7 @@ Most endpoints support these common query parameters:
   - `feature` (optional): Filter feature views by feature name
   - `feature_service` (optional): Filter feature views by feature service name
   - `data_source` (optional): Filter feature views by data source name
+  - `updated_since` (optional): Only return feature views updated at or after this ISO-8601 UTC timestamp (e.g. `2024-01-01T00:00:00Z`)
   - `page` (optional): Page number for pagination
   - `limit` (optional): Number of items per page
   - `sort_by` (optional): Field to sort by
@@ -223,27 +224,31 @@ Most endpoints support these common query parameters:
   # Basic list
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project"
-  
+
   # With pagination and relationships
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&include_relationships=true&page=1&limit=5&sort_by=name"
-  
+
   # Filter by entity
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&entity=user"
-  
+
   # Filter by feature
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&feature=age"
-  
+
   # Filter by data source
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&data_source=user_profile_source"
-  
+
   # Filter by feature service
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&feature_service=user_service"
-  
+
+  # Filter by last-updated timestamp
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views?project=my_project&updated_since=2024-06-01T00:00:00Z"
+
   # Multiple filters combined
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&entity=user&feature=age"

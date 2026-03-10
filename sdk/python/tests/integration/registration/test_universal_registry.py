@@ -16,7 +16,7 @@ import os
 import random
 import string
 import time
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from tempfile import mkstemp
 from unittest import mock
 
@@ -788,9 +788,62 @@ def test_apply_on_demand_feature_view_success(test_registry: BaseRegistry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    all_fixtures,
+    [
+        lazy_fixture("local_registry"),
+        lazy_fixture("sqlite_registry"),
+        pytest.param(
+            lazy_fixture("mock_remote_registry"),
+            marks=pytest.mark.rbac_remote_integration_test,
+        ),
+    ],
 )
-def test_apply_data_source(test_registry):
+def test_list_all_feature_views_updated_since(test_registry: BaseRegistry):
+    """Test that list_all_feature_views correctly filters by updated_since."""
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+    entity = Entity(name="fs1_driver_1", join_keys=["test"])
+    fv1 = FeatureView(
+        name="test_fv_updated_since_1",
+        schema=[Field(name="test", dtype=Int64)],
+        entities=[entity],
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+    fv2 = FeatureView(
+        name="test_fv_updated_since_2",
+        schema=[Field(name="test", dtype=Int64)],
+        entities=[entity],
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+    project = "project"
+    test_registry.apply_entity(entity, project)
+    test_registry.apply_feature_view(fv1, project)
+    test_registry.apply_feature_view(fv2, project)
+
+    # A cutoff in the past should return all feature views
+    past = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    result = test_registry.list_all_feature_views(project, updated_since=past)
+    assert len(result) == 2
+
+    # A cutoff in the future should return nothing
+    future = datetime(2999, 1, 1, tzinfo=timezone.utc)
+    result = test_registry.list_all_feature_views(project, updated_since=future)
+    assert len(result) == 0
+
+    # No filter returns all feature views
+    result = test_registry.list_all_feature_views(project)
+    assert len(result) == 2
+
+    test_registry.delete_feature_view("test_fv_updated_since_1", project)
+    test_registry.delete_feature_view("test_fv_updated_since_2", project)
+    test_registry.teardown()
+
+
     # Create Feature Views
     batch_source = FileSource(
         name="test_source",
