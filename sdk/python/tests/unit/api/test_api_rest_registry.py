@@ -337,6 +337,33 @@ def test_feature_views_comprehensive_filtering_via_rest(fastapi_test_app):
     assert len(data["featureViews"]) == 0
 
 
+def test_feature_views_updated_since_via_rest(fastapi_test_app):
+    """Test that feature views can be filtered by updated_since timestamp."""
+    # A timestamp in the past should return all feature views
+    response = fastapi_test_app.get(
+        "/feature_views?project=demo_project&updated_since=2000-01-01T00:00:00Z"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "featureViews" in data
+    all_count = len(data["featureViews"])
+    assert all_count > 0
+
+    # A timestamp far in the future should return no feature views
+    response = fastapi_test_app.get(
+        "/feature_views?project=demo_project&updated_since=2999-01-01T00:00:00Z"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "featureViews" in data
+    assert len(data["featureViews"]) == 0
+
+    # Without updated_since returns the same count as the past-timestamp query
+    response = fastapi_test_app.get("/feature_views?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["featureViews"]) == all_count
+
 def test_feature_services_via_rest(fastapi_test_app):
     response = fastapi_test_app.get("/feature_services?project=demo_project")
     assert response.status_code == 200

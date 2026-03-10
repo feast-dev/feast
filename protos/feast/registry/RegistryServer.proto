@@ -278,6 +278,7 @@ message ListAllFeatureViewsRequest {
     string data_source = 7;
     PaginationParams pagination = 8;
     SortingParams sorting = 9;
+    google.protobuf.Timestamp updated_since = 10;
 }
 
 message ListAllFeatureViewsResponse {

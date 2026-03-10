@@ -695,6 +695,7 @@ class ListAllFeatureViewsRequest(google.protobuf.message.Message):
     DATA_SOURCE_FIELD_NUMBER: builtins.int
     PAGINATION_FIELD_NUMBER: builtins.int
     SORTING_FIELD_NUMBER: builtins.int
+    UPDATED_SINCE_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
@@ -707,6 +708,8 @@ class ListAllFeatureViewsRequest(google.protobuf.message.Message):
     def pagination(self) -> global___PaginationParams: ...
     @property
     def sorting(self) -> global___SortingParams: ...
+    @property
+    def updated_since(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
@@ -719,9 +722,10 @@ class ListAllFeatureViewsRequest(google.protobuf.message.Message):
         data_source: builtins.str = ...,
         pagination: global___PaginationParams | None = ...,
         sorting: global___SortingParams | None = ...,
+        updated_since: google.protobuf.timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "data_source", b"data_source", "entity", b"entity", "feature", b"feature", "feature_service", b"feature_service", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting", "updated_since", b"updated_since"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "data_source", b"data_source", "entity", b"entity", "feature", b"feature", "feature_service", b"feature_service", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags", "updated_since", b"updated_since"]) -> None: ...
 
 global___ListAllFeatureViewsRequest = ListAllFeatureViewsRequest
 

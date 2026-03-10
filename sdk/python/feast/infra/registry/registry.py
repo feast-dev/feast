@@ -640,13 +640,24 @@ class Registry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_all_feature_views(
+        feature_views = proto_registry_utils.list_all_feature_views(
             registry_proto, project, tags
         )
+        if updated_since is not None:
+            # last_updated_timestamp from proto is offset-naive UTC; normalise for comparison
+            cutoff = updated_since.replace(tzinfo=None) if updated_since.tzinfo else updated_since
+            feature_views = [
+                fv
+                for fv in feature_views
+                if fv.last_updated_timestamp is not None
+                and fv.last_updated_timestamp >= cutoff
+            ]
+        return feature_views
 
     def get_any_feature_view(
         self, name: str, project: str, allow_cache: bool = False
