@@ -118,6 +118,10 @@ def get_feature_view_query_context(
 
     query_context = []
     for feature_view, features in feature_views_to_feature_map.items():
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source and cannot be queried."
+            )
         reverse_field_mapping = {
             v: k for k, v in feature_view.batch_source.field_mapping.items()
         }

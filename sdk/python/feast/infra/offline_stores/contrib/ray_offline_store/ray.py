@@ -2168,7 +2168,7 @@ class RayOfflineStore(OfflineStore):
 
             # Build reverse field mapping to get actual source column names
             reverse_field_mapping = {}
-            if fv.batch_source.field_mapping:
+            if fv.batch_source is not None and fv.batch_source.field_mapping:
                 reverse_field_mapping = {
                     v: k for k, v in fv.batch_source.field_mapping.items()
                 }

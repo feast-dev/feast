@@ -162,7 +162,7 @@ class SparkComputeEngine(ComputeEngine):
                 SparkRetrievalJob,
                 self.offline_store.pull_latest_from_table_or_query(
                     config=self.repo_config,
-                    data_source=feature_view.batch_source,
+                    data_source=feature_view.batch_source,  # type: ignore[arg-type]
                     join_key_columns=join_key_columns,
                     feature_name_columns=feature_name_columns,
                     timestamp_field=timestamp_field,

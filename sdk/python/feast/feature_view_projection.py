@@ -98,19 +98,17 @@ class FeatureViewProjection:
     @staticmethod
     def from_feature_view_definition(feature_view: "FeatureView"):
         # TODO need to implement this for StreamFeatureViews
-        if getattr(feature_view, "batch_source", None):
+        batch_source = getattr(feature_view, "batch_source", None)
+        if batch_source:
             return FeatureViewProjection(
                 name=feature_view.name,
                 name_alias=None,
                 features=feature_view.features,
                 desired_features=[],
-                timestamp_field=feature_view.batch_source.created_timestamp_column
-                or None,
-                created_timestamp_column=feature_view.batch_source.created_timestamp_column
-                or None,
-                date_partition_column=feature_view.batch_source.date_partition_column
-                or None,
-                batch_source=feature_view.batch_source or None,
+                timestamp_field=batch_source.created_timestamp_column or None,
+                created_timestamp_column=batch_source.created_timestamp_column or None,
+                date_partition_column=batch_source.date_partition_column or None,
+                batch_source=batch_source or None,
             )
         else:
             return FeatureViewProjection(
