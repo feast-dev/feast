@@ -192,6 +192,7 @@ def _build_entity_df_from_feature_sources(
     entity_dfs = []
     for fv in feature_views:
         source = fv.batch_source
+        assert source is not None, f"Feature view '{fv.name}' has no batch_source"
         table = _read_oracle_table(con, source)
         ts_col = source.timestamp_field
         join_keys = [e.name for e in fv.entity_columns]
