@@ -2148,6 +2148,7 @@ spec:
                                 - couchbase.online
                                 - milvus
                                 - hybrid
+                                - mongodb
                                 type: string
                             required:
                             - secretRef
@@ -7865,6 +7866,7 @@ spec:
                                     - couchbase.online
                                     - milvus
                                     - hybrid
+                                    - mongodb
                                     type: string
                                 required:
                                 - secretRef
@@ -12960,6 +12962,7 @@ spec:
                                 - couchbase.online
                                 - milvus
                                 - hybrid
+                                - mongodb
                                 type: string
                             required:
                             - secretRef
@@ -17179,6 +17182,7 @@ spec:
                                     - couchbase.online
                                     - milvus
                                     - hybrid
+                                    - mongodb
                                     type: string
                                 required:
                                 - secretRef
