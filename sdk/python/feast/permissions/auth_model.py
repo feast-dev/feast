@@ -11,22 +11,22 @@ def _check_mutually_exclusive(**groups: Tuple[object, ...]) -> None:
     """Validate that at most one named group is configured, and completely.
 
     Each *group* is a tuple of field values.
-    A group is **active** if *any* value in its tuple is truthy.
-    An active group is **valid** only if *all* its values are truthy.
-    At most one group may be active.
+    A group is **active** only when *all* its values are truthy.
+    A group is **partial** (error) when *any* but not *all* values are truthy.
+    At most one active group may exist.
     """
-    active = {name: values for name, values in groups.items() if any(values)}
+    partial = [name for name, vals in groups.items() if any(vals) and not all(vals)]
+    if partial:
+        raise ValueError(
+            f"Incomplete configuration for '{partial[0]}': "
+            f"all fields in this group are required when any is set."
+        )
+    active = [name for name, vals in groups.items() if all(vals)]
     if len(active) > 1:
         raise ValueError(
             f"Only one of [{', '.join(groups)}] may be set, "
             f"but got: {', '.join(active)}"
         )
-    for name, values in active.items():
-        if not all(values):
-            raise ValueError(
-                f"Incomplete configuration for '{name}': "
-                f"all fields in this group are required when any is set."
-            )
 
 
 class AuthConfig(FeastConfigBaseModel):
