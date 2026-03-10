@@ -31,10 +31,10 @@ make install-precommit
 make test-python-unit
 
 # Run a specific test file
-python -m pytest sdk/python/tests/unit/test_feature_store.py -v
+python -m pytest sdk/python/tests/unit/test_unit_feature_store.py -v
 
 # Run a specific test by name
-python -m pytest sdk/python/tests/unit/test_feature_store.py::TestFeatureStore::test_apply -v
+python -m pytest sdk/python/tests/unit/test_unit_feature_store.py -k "test_apply" -v
 
 # Run fast unit tests only (no external dependencies)
 make test-python-unit-fast
