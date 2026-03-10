@@ -1597,6 +1597,7 @@ class SqlRegistry(CachingRegistry):
         tags: Optional[dict[str, str]] = None,
         proto_only: bool = False,
         skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ):
         """
         Args:
@@ -1618,6 +1619,10 @@ class SqlRegistry(CachingRegistry):
 
         with self.read_engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
+            if updated_since is not None:
+                stmt = stmt.where(
+                    table.c.last_updated_timestamp >= int(updated_since.timestamp())
+                )
             rows = conn.execute(stmt).all()
             if rows:
                 objects = []
