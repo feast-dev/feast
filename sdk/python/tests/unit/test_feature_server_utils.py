@@ -15,12 +15,13 @@
 """
 Unit tests for feature_server_utils.py
 
-Tests the optimized response_to_dict_fast function to ensure it matches
+Tests the optimized convert_response_to_dict function to ensure it matches
 the output format of MessageToDict with proto_json.patch() applied.
 
 Related issue: https://github.com/feast-dev/feast/issues/6013
 """
 
+import base64
 import time
 
 import pytest
@@ -33,7 +34,7 @@ from feast.feature_server_utils import (
     _metadata_to_dict,
     _timestamp_to_str,
     _value_to_native,
-    response_to_dict_fast,
+    convert_response_to_dict,
 )
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -98,7 +99,7 @@ class TestValueToNative:
         data = b"\x00\x01\x02\x03"
         v = Value(bytes_val=data)
         result = _value_to_native(v)
-        assert result == data
+        assert result == base64.b64encode(data).decode("ascii")
 
     def test_double_list_val(self):
         v = Value(double_list_val=DoubleList(val=[1.1, 2.2, 3.3]))
@@ -149,11 +150,25 @@ class TestTimestampToStr:
         result = _timestamp_to_str(ts)
         assert result == "2021-01-01T00:00:00Z"
 
-    def test_timestamp_with_nanos(self):
+    def test_timestamp_with_millis(self):
         ts = Timestamp(seconds=1609459200, nanos=500000000)
         result = _timestamp_to_str(ts)
-        assert "2021-01-01" in result
-        assert "Z" in result
+        assert result == "2021-01-01T00:00:00.500Z"
+
+    def test_timestamp_with_micros(self):
+        ts = Timestamp(seconds=1609459200, nanos=123456000)
+        result = _timestamp_to_str(ts)
+        assert result == "2021-01-01T00:00:00.123456Z"
+
+    def test_timestamp_with_nanos(self):
+        ts = Timestamp(seconds=1609459200, nanos=123456789)
+        result = _timestamp_to_str(ts)
+        assert result == "2021-01-01T00:00:00.123456789Z"
+
+    def test_timestamp_high_nanos_no_float_rounding(self):
+        ts = Timestamp(seconds=1609459200, nanos=999999999)
+        result = _timestamp_to_str(ts)
+        assert result == "2021-01-01T00:00:00.999999999Z"
 
 
 class TestMetadataToDict:
@@ -171,12 +186,12 @@ class TestMetadataToDict:
         assert result == {"feature_names": ["feature1", "feature2", "feature3"]}
 
 
-class TestResponseToDictFast:
-    """Tests for the main response_to_dict_fast function."""
+class TestConvertResponseToDict:
+    """Tests for the main convert_response_to_dict function."""
 
     def test_empty_response(self):
         response = GetOnlineFeaturesResponse()
-        result = response_to_dict_fast(response)
+        result = convert_response_to_dict(response)
         assert result == {"results": []}
 
     def test_single_feature_vector(self):
@@ -185,7 +200,7 @@ class TestResponseToDictFast:
         fv.values.append(Value(string_val="test"))
         fv.statuses.append(FieldStatus.PRESENT)
 
-        result = response_to_dict_fast(response)
+        result = convert_response_to_dict(response)
 
         assert len(result["results"]) == 1
         assert result["results"][0]["values"] == ["test"]
@@ -202,7 +217,7 @@ class TestResponseToDictFast:
         fv2.values.append(Value(double_val=3.14))
         fv2.statuses.append(FieldStatus.NOT_FOUND)
 
-        result = response_to_dict_fast(response)
+        result = convert_response_to_dict(response)
 
         assert len(result["results"]) == 2
         assert result["results"][0]["values"] == [100]
@@ -218,7 +233,7 @@ class TestResponseToDictFast:
         fv.values.append(Value(int64_val=123))
         fv.statuses.append(FieldStatus.PRESENT)
 
-        result = response_to_dict_fast(response)
+        result = convert_response_to_dict(response)
 
         assert "metadata" in result
         assert result["metadata"]["feature_names"] == ["driver_id", "driver_rating"]
@@ -231,7 +246,7 @@ class TestResponseToDictFast:
         ts = fv.event_timestamps.add()
         ts.seconds = 1609459200
 
-        result = response_to_dict_fast(response)
+        result = convert_response_to_dict(response)
 
         assert len(result["results"][0]["event_timestamps"]) == 1
         assert "2021-01-01" in result["results"][0]["event_timestamps"][0]
@@ -250,7 +265,7 @@ class TestResponseToDictFast:
             fv.values.append(Value(int32_val=1))
             fv.statuses.append(status)
 
-        result = response_to_dict_fast(response)
+        result = convert_response_to_dict(response)
 
         expected_statuses = [
             "INVALID",
@@ -268,7 +283,7 @@ class TestResponseToDictFast:
         fv.values.append(Value(null_val=0))
         fv.statuses.extend([FieldStatus.NULL_VALUE, FieldStatus.NULL_VALUE])
 
-        result = response_to_dict_fast(response)
+        result = convert_response_to_dict(response)
 
         assert result["results"][0]["values"] == [None, None]
 
@@ -279,13 +294,13 @@ class TestResponseToDictFast:
         fv.values.append(Value(string_list_val=StringList(val=["a", "b"])))
         fv.statuses.extend([FieldStatus.PRESENT, FieldStatus.PRESENT])
 
-        result = response_to_dict_fast(response)
+        result = convert_response_to_dict(response)
 
         assert result["results"][0]["values"] == [[1, 2, 3], ["a", "b"]]
 
 
-class TestResponseToDictFastConsistency:
-    """Tests ensuring response_to_dict_fast matches MessageToDict with patch."""
+class TestConvertResponseToDictConsistency:
+    """Tests ensuring convert_response_to_dict matches MessageToDict with patch."""
 
     @pytest.fixture(autouse=True)
     def setup_proto_json_patch(self):
@@ -316,7 +331,7 @@ class TestResponseToDictFastConsistency:
         """Ensure value serialization matches proto_json.patch() format."""
         response = self._build_complex_response(8)
 
-        fast_result = response_to_dict_fast(response)
+        fast_result = convert_response_to_dict(response)
         standard_result = MessageToDict(response, preserving_proto_field_name=True)
 
         assert set(fast_result.keys()) == set(standard_result.keys())
@@ -331,7 +346,7 @@ class TestResponseToDictFastConsistency:
         """Ensure metadata format matches proto_json.patch() format."""
         response = self._build_complex_response(5)
 
-        fast_result = response_to_dict_fast(response)
+        fast_result = convert_response_to_dict(response)
         standard_result = MessageToDict(response, preserving_proto_field_name=True)
 
         if "metadata" in standard_result:
@@ -340,6 +355,21 @@ class TestResponseToDictFastConsistency:
                 fast_result["metadata"]["feature_names"]
                 == standard_result["metadata"]["feature_names"]
             )
+
+    def test_bytes_values_match_patched_message_to_dict(self):
+        """Ensure bytes serialization matches proto_json.patch() format (base64)."""
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+        fv.values.append(Value(bytes_val=b"\x00\x01\x02\xff"))
+        fv.statuses.append(FieldStatus.PRESENT)
+
+        fast_result = convert_response_to_dict(response)
+        standard_result = MessageToDict(response, preserving_proto_field_name=True)
+
+        assert (
+            fast_result["results"][0]["values"]
+            == standard_result["results"][0]["values"]
+        )
 
 
 class TestPerformance:
@@ -369,18 +399,18 @@ class TestPerformance:
 
     @pytest.mark.slow
     def test_faster_than_message_to_dict(self):
-        """Verify response_to_dict_fast is faster than MessageToDict."""
+        """Verify convert_response_to_dict is faster than MessageToDict."""
         proto_json.patch()
         response = self._build_large_response(num_entities=50, num_features=100)
         iterations = 100
 
         for _ in range(10):
-            response_to_dict_fast(response)
+            convert_response_to_dict(response)
             MessageToDict(response, preserving_proto_field_name=True)
 
         start = time.perf_counter()
         for _ in range(iterations):
-            response_to_dict_fast(response)
+            convert_response_to_dict(response)
         fast_time = time.perf_counter() - start
 
         start = time.perf_counter()

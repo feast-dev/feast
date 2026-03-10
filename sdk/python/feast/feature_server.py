@@ -51,7 +51,7 @@ from feast.errors import (
     FeastError,
 )
 from feast.feast_object import FeastObject
-from feast.feature_server_utils import response_to_dict_fast
+from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
@@ -364,7 +364,9 @@ def get_app(
                     lambda: store.get_online_features(**read_params)  # type: ignore
                 )
 
-            response_dict = await run_in_threadpool(response_to_dict_fast, response.proto)
+            response_dict = await run_in_threadpool(
+                convert_response_to_dict, response.proto
+            )
             return ORJSONResponse(content=response_dict)
 
     @app.post(
@@ -395,7 +397,9 @@ def get_app(
                     lambda: store.retrieve_online_documents(**read_params)  # type: ignore
                 )
 
-            response_dict = await run_in_threadpool(response_to_dict_fast, response.proto)
+            response_dict = await run_in_threadpool(
+                convert_response_to_dict, response.proto
+            )
             return ORJSONResponse(content=response_dict)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
