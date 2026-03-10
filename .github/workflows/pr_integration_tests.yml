@@ -32,17 +32,14 @@ jobs:
             pytest_k: "(File and sqlite) or (File and milvus) or (RemoteOfflineStore and sqlite) or (RemoteOfflineOidcAuthStore and sqlite) or (RemoteOfflineTlsStore and sqlite)"
             needs_gcp: false
             needs_aws: false
-            needs_snowflake: false
           - name: "GCP (BigQuery)"
             pytest_k: "BigQuery or (File and datastore) or (File and bigtable)"
             needs_gcp: true
             needs_aws: false
-            needs_snowflake: false
           - name: "AWS (Redshift)"
             pytest_k: "Redshift or (File and dynamodb) or test_lambda_materialization"
             needs_gcp: false
             needs_aws: true
-            needs_snowflake: false
           - name: "Snowflake"
             pytest_k: "(Snowflake or test_snowflake_materialization) and not test_historical_features_main"
             needs_gcp: false
@@ -52,7 +49,6 @@ jobs:
             pytest_k: "(File and redis) or (RemoteOfflineStore and redis) or (RemoteOfflineOidcAuthStore and redis) or (RemoteOfflineTlsStore and redis)"
             needs_gcp: false
             needs_aws: false
-            needs_snowflake: false
     env:
       OS: ubuntu-latest
       PYTHON: "3.11"
@@ -118,11 +114,11 @@ jobs:
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:
           FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
-          SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
-          SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
-          SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
-          SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
-          SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
+          SNOWFLAKE_CI_DEPLOYMENT: ${{ matrix.needs_snowflake && secrets.SNOWFLAKE_CI_DEPLOYMENT || '' }}
+          SNOWFLAKE_CI_USER: ${{ matrix.needs_snowflake && secrets.SNOWFLAKE_CI_USER || '' }}
+          SNOWFLAKE_CI_PASSWORD: ${{ matrix.needs_snowflake && secrets.SNOWFLAKE_CI_PASSWORD || '' }}
+          SNOWFLAKE_CI_ROLE: ${{ matrix.needs_snowflake && secrets.SNOWFLAKE_CI_ROLE || '' }}
+          SNOWFLAKE_CI_WAREHOUSE: ${{ matrix.needs_snowflake && secrets.SNOWFLAKE_CI_WAREHOUSE || '' }}
         run: make test-python-integration PYTEST_K='${{ matrix.pytest_k }}'
       - name: Minimize uv cache
         run: uv cache prune --ci
