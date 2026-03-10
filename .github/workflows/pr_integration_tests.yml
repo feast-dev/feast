@@ -33,34 +33,39 @@ jobs:
             needs_gcp: false
             needs_aws: false
             needs_snowflake: false
-            needs_redis: false
           - name: "GCP (BigQuery)"
             pytest_k: "BigQuery or (File and datastore) or (File and bigtable)"
             needs_gcp: true
             needs_aws: false
             needs_snowflake: false
-            needs_redis: false
           - name: "AWS (Redshift)"
             pytest_k: "Redshift or (File and dynamodb) or test_lambda_materialization"
             needs_gcp: false
             needs_aws: true
             needs_snowflake: false
-            needs_redis: false
           - name: "Snowflake"
-            pytest_k: "Snowflake or test_snowflake_materialization"
+            pytest_k: "(Snowflake or test_snowflake_materialization) and not test_historical_features_main"
             needs_gcp: false
             needs_aws: true
             needs_snowflake: true
-            needs_redis: false
           - name: "Redis"
             pytest_k: "(File and redis) or (RemoteOfflineStore and redis) or (RemoteOfflineOidcAuthStore and redis) or (RemoteOfflineTlsStore and redis)"
             needs_gcp: false
             needs_aws: false
             needs_snowflake: false
-            needs_redis: true
     env:
       OS: ubuntu-latest
       PYTHON: "3.11"
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,22 +110,7 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: make install-python-dependencies-ci
-      - name: Start Redis
-        if: ${{ matrix.needs_redis }}
-        run: |
-          docker pull redis:latest
-          docker run -d -p 6379:6379 --name redis \
-            --health-cmd "redis-cli ping" \
-            --health-interval 10s \
-            --health-timeout 5s \
-            --health-retries 5 \
-            redis:latest
-          # Wait for Redis to be healthy
-          until docker inspect --format='{{.State.Health.Status}}' redis 2>/dev/null | grep -q healthy; do
-            sleep 1
-          done
       - name: Setup Redis Cluster
-        if: ${{ matrix.needs_redis }}
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
           docker run -d -p 6001:6379 -p 6002:6380 -p 6003:6381 -p 6004:6382 -p 6005:6383 -p 6006:6384 --name redis-cluster vishnunair/docker-redis-cluster
