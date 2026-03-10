@@ -1,9 +1,10 @@
+import pickle
 import textwrap
 import time
 from datetime import datetime, timedelta
 
 import pytest
-from cassandra import InvalidRequest
+from cassandra import InvalidRequest, WriteTimeout, WriteType
 from cassandra.cluster import Cluster
 
 from feast import Entity, Field, FileSource, RepoConfig, ValueType, utils
@@ -325,6 +326,61 @@ class TestCassandraOnlineStore:
             str(excinfo.value)
             == 'Error from server: code=2200 [Invalid query] message="Invalid null value in condition for column int"'
         )
+
+    def test_on_failure_wraps_timeout_for_pickle_safety(
+        self,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+        mocker,
+    ):
+        """
+        When a WriteTimeout occurs during online_write_batch, the on_failure
+        callback must wrap it in a plain Exception so it survives pickle
+        round-trip across Spark's multiprocessing boundaries.
+        """
+        write_timeout = WriteTimeout("Operation timed out", write_type=WriteType.SIMPLE)
+        mock_future = mocker.MagicMock()
+        mock_future.add_callbacks = lambda ok, err: err(write_timeout)
+
+        mock_session = mocker.MagicMock()
+        mock_session.execute_async.return_value = mock_future
+        mock_session.is_shutdown = False
+        mock_session.prepare.return_value = mocker.MagicMock()
+
+        store = CassandraOnlineStore()
+        mock_table = mocker.MagicMock()
+        mock_table.name = "test_fv"
+        mock_table.ttl = None
+
+        entity_key = mocker.MagicMock()
+        feature_val = mocker.MagicMock()
+        data = [(entity_key, {"feature1": feature_val}, datetime.utcnow(), None)]
+
+        mocker.patch.object(store, "_get_session", return_value=mock_session)
+        mocker.patch.object(
+            store, "_get_cql_statement", return_value=mocker.MagicMock()
+        )
+        mocker.patch(
+            "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.serialize_entity_key",
+            return_value=b"\x00",
+        )
+
+        with pytest.raises(Exception) as exc_info:
+            store.online_write_batch(
+                config=repo_config,
+                table=mock_table,
+                data=data,
+                progress=None,
+            )
+
+        raised = exc_info.value
+        assert type(raised) is Exception
+        assert "WriteTimeout" in str(raised)
+        assert "Operation timed out" in str(raised)
+
+        # Must survive pickle round-trip
+        restored = pickle.loads(pickle.dumps(raised))
+        assert str(restored) == str(raised)
 
     def test_cassandra_online_write_batch_ttl(
         self,

@@ -29,6 +29,7 @@ from functools import partial
 from queue import Queue
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
+from cassandra import Timeout
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import (
     EXEC_PROFILE_DEFAULT,
@@ -406,7 +407,19 @@ class CassandraOnlineStore(OnlineStore):
 
         def on_failure(exc, concurrent_queue):
             nonlocal ex
-            ex = exc
+            # The cassandra-driver's Timeout subclasses (WriteTimeout,
+            # ReadTimeout) fail to unpickle because __init__ re-translates
+            # write_type via WriteType.value_to_name, but pickle only
+            # preserves the formatted message string — so write_type
+            # defaults to None on reconstruction, causing KeyError.
+            # Wrap them in a plain Exception so they survive pickle
+            # round-trip across Spark's multiprocessing boundaries.
+            if isinstance(exc, Timeout):
+                ex = Exception(
+                    f"Error writing batch to Cassandra: {type(exc).__name__}: {exc}"
+                )
+            else:
+                ex = exc
             concurrent_queue.get_nowait()
             logger.exception(f"Error writing a batch: {exc}")
 
