@@ -143,7 +143,7 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal-sdist-build \
-			--no-emit-package milvus-lite \
+			--no-emit-package milvus-lite --no-emit-package ray \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip install -p $(ver) pybuild-deps==0.5.0 pip==25.0.1 && \

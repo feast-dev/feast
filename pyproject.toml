@@ -119,7 +119,7 @@ rag = [
 ]
 ray = [
 'ray>=2.47.0; python_version == "3.10"',
-'codeflare-sdk>=0.31.1; python_version > "3.10"'
+'ray>=2.47.0; python_version > "3.10"'
 ]
 redis = [
     "redis>=4.2.2,<5",
@@ -188,7 +188,7 @@ nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 # used for the 'feature-server' container image build
-minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus]"]
+minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus, ray]"]
 minimal-sdist-build = [
     "feast[minimal]",
     "feast[ibis]",
