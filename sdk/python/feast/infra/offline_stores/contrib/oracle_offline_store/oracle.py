@@ -153,6 +153,59 @@ class OracleOfflineStoreConfig(FeastConfigBaseModel):
         return self
 
 
+def _resolve_date_range(
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+    feature_views: List[FeatureView],
+) -> tuple:
+    """Resolve start/end dates to a UTC-aware range, using TTL as a fallback window."""
+    if end_date is None:
+        end_date = datetime.now(tz=timezone.utc)
+    elif end_date.tzinfo is None:
+        end_date = end_date.replace(tzinfo=timezone.utc)
+
+    if start_date is None:
+        max_ttl_seconds = max(
+            (
+                int(fv.ttl.total_seconds())
+                for fv in feature_views
+                if fv.ttl and isinstance(fv.ttl, timedelta)
+            ),
+            default=0,
+        )
+        start_date = end_date - timedelta(
+            seconds=max_ttl_seconds if max_ttl_seconds > 0 else 30 * 86400
+        )
+    elif start_date.tzinfo is None:
+        start_date = start_date.replace(tzinfo=timezone.utc)
+
+    return start_date, end_date
+
+
+def _build_entity_df_from_feature_sources(
+    con,
+    feature_views: List[FeatureView],
+    start_date: datetime,
+    end_date: datetime,
+) -> pd.DataFrame:
+    """Build a synthetic entity DataFrame by scanning each feature source within a date range."""
+    entity_dfs = []
+    for fv in feature_views:
+        source = fv.batch_source
+        table = _read_oracle_table(con, source)
+        ts_col = source.timestamp_field
+        join_keys = [e.name for e in fv.entity_columns]
+        cols = join_keys + [ts_col]
+        sub = table.filter(
+            (table[ts_col] >= ibis.literal(start_date))
+            & (table[ts_col] <= ibis.literal(end_date))
+        ).select(cols)
+        sub = sub.rename({"event_timestamp": ts_col})
+        entity_dfs.append(sub.execute())
+
+    return pd.concat(entity_dfs, ignore_index=True).drop_duplicates()
+
+
 class OracleOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table_or_query(
@@ -200,49 +253,14 @@ class OracleOfflineStore(OfflineStore):
 
         # Handle non-entity retrieval mode (start_date/end_date only)
         if entity_df is None:
-            start_date: Optional[datetime] = kwargs.get("start_date")
-            end_date: Optional[datetime] = kwargs.get("end_date")
-
-            if end_date is None:
-                end_date = datetime.now(tz=timezone.utc)
-            elif end_date.tzinfo is None:
-                end_date = end_date.replace(tzinfo=timezone.utc)
-
-            if start_date is None:
-                max_ttl_seconds = max(
-                    (
-                        int(fv.ttl.total_seconds())
-                        for fv in feature_views
-                        if fv.ttl and isinstance(fv.ttl, timedelta)
-                    ),
-                    default=0,
-                )
-                start_date = end_date - timedelta(
-                    seconds=max_ttl_seconds if max_ttl_seconds > 0 else 30 * 86400
-                )
-            elif start_date.tzinfo is None:
-                start_date = start_date.replace(tzinfo=timezone.utc)
-
-            # Build a synthetic entity_df from the feature source data
-            all_entities: set = set()
-            for fv in feature_views:
-                all_entities.update(e.name for e in fv.entity_columns)
-
-            entity_dfs = []
-            for fv in feature_views:
-                source = fv.batch_source
-                table = _read_oracle_table(con, source)
-                ts_col = source.timestamp_field
-                join_keys = [e.name for e in fv.entity_columns]
-                cols = join_keys + [ts_col]
-                sub = table.filter(
-                    (table[ts_col] >= ibis.literal(start_date))
-                    & (table[ts_col] <= ibis.literal(end_date))
-                ).select(cols)
-                sub = sub.rename({"event_timestamp": ts_col})
-                entity_dfs.append(sub.execute())
-
-            entity_df = pd.concat(entity_dfs, ignore_index=True).drop_duplicates()
+            start_date, end_date = _resolve_date_range(
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+                feature_views=feature_views,
+            )
+            entity_df = _build_entity_df_from_feature_sources(
+                con, feature_views, start_date, end_date
+            )
 
         # If entity_df is a SQL string, execute it to get a DataFrame
         if isinstance(entity_df, str):
