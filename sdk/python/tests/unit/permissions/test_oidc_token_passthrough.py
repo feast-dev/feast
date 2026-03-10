@@ -106,6 +106,28 @@ class TestOidcClientAuthConfigValidation:
                 client_id="feast-client",
             )
 
+    def test_token_env_var_with_discovery_url_invalid(self):
+        with pytest.raises(
+            ValueError, match="Incomplete configuration for 'client_credentials'"
+        ):
+            OidcClientAuthConfig(
+                type="oidc",
+                token_env_var="MY_VAR",
+                auth_discovery_url="https://idp/.well-known/openid-configuration",
+                client_id="feast-client",
+            )
+
+    def test_token_with_discovery_url_invalid(self):
+        with pytest.raises(
+            ValueError, match="Incomplete configuration for 'client_credentials'"
+        ):
+            OidcClientAuthConfig(
+                type="oidc",
+                token="eyJ.test",
+                auth_discovery_url="https://idp/.well-known/openid-configuration",
+                client_id="feast-client",
+            )
+
 
 # ---------------------------------------------------------------------------
 #  Token manager
