@@ -2231,8 +2231,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.1.dev4391+ge91fa8d71
-  sha256: 760027f6ca6a31640cfde9dfa46bcd57b887968aff97dd459fba77780eca5cfa
+  version: 0.60.1.dev60+gb37e25a55.d20260304
+  sha256: f06b53f6c086c78729760f6e7b3284717bbafa4793a1449d8a81f0270a7eb49f
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2305,13 +2305,15 @@ packages:
   - pymilvus>2.5 ; extra == 'milvus'
   - milvus-lite==2.4.12 ; extra == 'milvus'
   - feast[setuptools] ; extra == 'milvus'
+  - pymongo>=4.13.0,<5.0.0 ; extra == 'mongodb'
+  - dnspython>=2.0.0 ; extra == 'mongodb'
   - ibis-framework[mssql]>=10.0.0 ; extra == 'mssql'
   - ibis-framework[oracle]>=10.0.0 ; extra == 'oracle'
   - pymysql ; extra == 'mysql'
   - types-pymysql ; extra == 'mysql'
+  - openlineage-python>=1.40.0 ; extra == 'openlineage'
   - prometheus-client ; extra == 'opentelemetry'
   - psutil ; extra == 'opentelemetry'
-  - openlineage-python>=1.40.0 ; extra == 'openlineage'
   - pyspark>=4.0.0 ; extra == 'spark'
   - trino>=0.305.0,<0.400.0 ; extra == 'trino'
   - regex ; extra == 'trino'

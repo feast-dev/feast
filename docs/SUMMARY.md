@@ -133,6 +133,7 @@
   * [ScyllaDB](reference/online-stores/scylladb.md)
   * [SingleStore](reference/online-stores/singlestore.md)
   * [Milvus](reference/online-stores/milvus.md)
+  * [MongoDB](reference/online-stores/mongodb.md)
 * [Registries](reference/registries/README.md)
   * [Local](reference/registries/local.md)
   * [S3](reference/registries/s3.md)
