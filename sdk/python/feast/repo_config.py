@@ -408,8 +408,16 @@ class RepoConfig(FeastBaseModel):
         if not self._auth:
             if isinstance(self.auth, Dict):
                 is_oidc_client = self.auth.get("type") == AuthType.OIDC.value and (
-                    ("username" in self.auth and "password" in self.auth and "client_secret" in self.auth)
-                    or ("client_secret" in self.auth and "username" not in self.auth and "password" not in self.auth)
+                    (
+                        "username" in self.auth
+                        and "password" in self.auth
+                        and "client_secret" in self.auth
+                    )
+                    or (
+                        "client_secret" in self.auth
+                        and "username" not in self.auth
+                        and "password" not in self.auth
+                    )
                     or ("token" in self.auth)
                     or ("token_env_var" in self.auth)
                     or ("auth_discovery_url" not in self.auth)

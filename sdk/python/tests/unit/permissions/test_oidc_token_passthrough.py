@@ -18,14 +18,12 @@ from feast.permissions.client.oidc_authentication_client_manager import (
 )
 from feast.repo_config import RepoConfig
 
-
 # ---------------------------------------------------------------------------
 #  Config validation
 # ---------------------------------------------------------------------------
 
 
 class TestOidcClientAuthConfigValidation:
-
     def test_bare_oidc_valid(self):
         cfg = OidcClientAuthConfig(type="oidc")
         assert cfg.token_env_var is None
@@ -49,7 +47,9 @@ class TestOidcClientAuthConfigValidation:
             )
 
     def test_client_secret_without_discovery_url_invalid(self):
-        with pytest.raises(ValueError, match="Incomplete configuration for 'client_credentials'"):
+        with pytest.raises(
+            ValueError, match="Incomplete configuration for 'client_credentials'"
+        ):
             OidcClientAuthConfig(
                 type="oidc",
                 client_secret="my-secret",
@@ -76,7 +76,9 @@ class TestOidcClientAuthConfigValidation:
         assert cfg.username == "user1"
 
     def test_ropg_without_discovery_url_invalid(self):
-        with pytest.raises(ValueError, match="Incomplete configuration for 'client_credentials'"):
+        with pytest.raises(
+            ValueError, match="Incomplete configuration for 'client_credentials'"
+        ):
             OidcClientAuthConfig(
                 type="oidc",
                 username="user1",
@@ -85,7 +87,9 @@ class TestOidcClientAuthConfigValidation:
             )
 
     def test_username_without_client_secret_invalid(self):
-        with pytest.raises(ValueError, match="Incomplete configuration for 'client_credentials'"):
+        with pytest.raises(
+            ValueError, match="Incomplete configuration for 'client_credentials'"
+        ):
             OidcClientAuthConfig(
                 type="oidc",
                 username="user1",
@@ -109,12 +113,13 @@ class TestOidcClientAuthConfigValidation:
 
 
 class TestOidcAuthClientManagerGetToken:
-
     def _make_manager(self, **kwargs) -> OidcAuthClientManager:
         cfg = OidcClientAuthConfig(type="oidc", **kwargs)
         return OidcAuthClientManager(cfg)
 
-    @patch("feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
     def test_token_returned_directly(self, mock_discovery_cls):
         mgr = self._make_manager(token="my-static-jwt")
         assert mgr.get_token() == "my-static-jwt"
@@ -126,14 +131,18 @@ class TestOidcAuthClientManagerGetToken:
             mgr.get_token()
 
     @patch.dict(os.environ, {"FEAST_OIDC_TOKEN": "env-jwt-value"})
-    @patch("feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
     def test_explicit_feast_env_var(self, mock_discovery_cls):
         mgr = self._make_manager(token_env_var="FEAST_OIDC_TOKEN")
         assert mgr.get_token() == "env-jwt-value"
         mock_discovery_cls.assert_not_called()
 
     @patch.dict(os.environ, {"FEAST_OIDC_TOKEN": "fallback-jwt"})
-    @patch("feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
     def test_bare_config_falls_back_to_well_known_env(self, mock_discovery_cls):
         mgr = self._make_manager()
         assert mgr.get_token() == "fallback-jwt"
@@ -141,7 +150,9 @@ class TestOidcAuthClientManagerGetToken:
 
     @patch.dict(os.environ, {"FEAST_OIDC_TOKEN": "should-not-win"}, clear=False)
     @patch("feast.permissions.client.oidc_authentication_client_manager.requests")
-    @patch("feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
     def test_network_config_not_overridden_by_well_known_env(
         self, mock_discovery_cls, mock_requests
     ):
@@ -162,7 +173,9 @@ class TestOidcAuthClientManagerGetToken:
         assert mgr.get_token() == "idp-token"
 
     @patch.dict(os.environ, {"CUSTOM_TOKEN_VAR": "custom-env-jwt"})
-    @patch("feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
     def test_custom_env_var_read(self, mock_discovery_cls):
         mgr = self._make_manager(token_env_var="CUSTOM_TOKEN_VAR")
         assert mgr.get_token() == "custom-env-jwt"
@@ -170,7 +183,9 @@ class TestOidcAuthClientManagerGetToken:
 
     @patch.dict(os.environ, {}, clear=False)
     @patch("feast.permissions.client.oidc_authentication_client_manager.requests")
-    @patch("feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
     def test_fallthrough_to_client_credentials(self, mock_discovery_cls, mock_requests):
         os.environ.pop("FEAST_OIDC_TOKEN", None)
 
@@ -193,7 +208,9 @@ class TestOidcAuthClientManagerGetToken:
 
     @patch.dict(os.environ, {}, clear=False)
     @patch("feast.permissions.client.oidc_authentication_client_manager.requests")
-    @patch("feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
     def test_ropg_flow(self, mock_discovery_cls, mock_requests):
         os.environ.pop("FEAST_OIDC_TOKEN", None)
 
@@ -219,7 +236,9 @@ class TestOidcAuthClientManagerGetToken:
         assert call_args[1]["data"]["grant_type"] == "password"
         assert call_args[1]["data"]["username"] == "user1"
 
-    @patch("feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
     def test_token_takes_priority_over_env_var(self, mock_discovery_cls):
         with patch.dict(os.environ, {"FEAST_OIDC_TOKEN": "env-token"}):
             mgr = self._make_manager(token="config-token")
@@ -247,7 +266,6 @@ class TestOidcAuthClientManagerGetToken:
 
 
 class TestOidcClientRouting:
-
     def _make_repo_config(self, auth_dict: dict) -> RepoConfig:
         return RepoConfig(
             project="test_project",
