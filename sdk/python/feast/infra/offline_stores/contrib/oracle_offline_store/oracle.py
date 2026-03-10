@@ -226,6 +226,9 @@ class OracleOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         **kwargs,
     ) -> RetrievalJob:
+        if not feature_views:
+            raise ValueError("feature_views must not be empty")
+
         # Single connection reused across the entire call.
         con = get_ibis_connection(config)
 
