@@ -135,12 +135,8 @@ def test_oidc_token_extracts_namespaces(
     assertpy.assert_that(user).is_type_of(User)
     if isinstance(user, User):
         assertpy.assert_that(user.namespaces).is_equal_to(["production", "staging"])
-        assertpy.assert_that(
-            user.has_matching_namespace(["production"])
-        ).is_true()
-        assertpy.assert_that(
-            user.has_matching_namespace(["unknown-ns"])
-        ).is_false()
+        assertpy.assert_that(user.has_matching_namespace(["production"])).is_true()
+        assertpy.assert_that(user.has_matching_namespace(["unknown-ns"])).is_false()
         assertpy.assert_that(user.groups).is_equal_to([])
 
 
@@ -187,9 +183,7 @@ def test_oidc_token_extracts_groups_and_namespaces(
         assertpy.assert_that(user.namespaces).is_equal_to(["production", "staging"])
         assertpy.assert_that(user.has_matching_role(["reader"])).is_true()
         assertpy.assert_that(user.has_matching_group(["banking-admin"])).is_true()
-        assertpy.assert_that(
-            user.has_matching_namespace(["production"])
-        ).is_true()
+        assertpy.assert_that(user.has_matching_namespace(["production"])).is_true()
 
 
 @patch(
