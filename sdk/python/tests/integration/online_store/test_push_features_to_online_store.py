@@ -47,7 +47,7 @@ def test_push_features_and_read(store):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["dynamodb"])
+@pytest.mark.universal_online_stores(only=["dynamodb", "mongodb"])
 async def test_push_features_and_read_async(store):
     await store.push_async("location_stats_push_source", _ingest_df())
 

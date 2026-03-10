@@ -72,11 +72,14 @@ def test_docstrings():
 
         for package in current_packages:
             try:
-                for _, name, is_pkg in pkgutil.walk_packages(package.__path__):
+                for _, name, is_pkg in pkgutil.walk_packages(
+                    package.__path__, onerror=lambda _: None
+                ):
                     if name in FILES_TO_IGNORE:
                         continue
 
                     full_name = package.__name__ + "." + name
+                    temp_module = None
                     try:
                         # https://github.com/feast-dev/feast/issues/5088
                         # Skip ray_transformation doctests - they hang on macOS due to
@@ -89,8 +92,19 @@ def test_docstrings():
                             temp_module = importlib.import_module(full_name)
                             if is_pkg:
                                 next_packages.append(temp_module)
-                    except ModuleNotFoundError:
+                    except Exception:  # noqa: BLE001
+                        # Gracefully skip modules that fail to import due to:
+                        # - ModuleNotFoundError: optional system dependency missing
+                        # - FeastExtrasDependencyImportError: optional Python extra
+                        #   missing (e.g. pymongo, couchbase)
+                        # - TypeError or other errors: third-party libraries with
+                        #   internal incompatibilities at import time (e.g.
+                        #   qdrant_client raises TypeError when a grpc EnumTypeWrapper
+                        #   is used with the | union operator on Python < 3.12)
                         pass
+
+                    if temp_module is None:
+                        continue
 
                     # Retrieve the setup and teardown functions defined in this file.
                     relative_path_from_feast = full_name.split(".", 1)[1]

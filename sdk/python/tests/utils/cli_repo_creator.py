@@ -148,6 +148,19 @@ class CliRunner:
                 entity_key_serialization_version: 3
                 """
                 )
+            elif online_store:  # Added for mongodb, but very general
+                yaml_config = dedent(
+                    f"""
+                project: {project_id}
+                registry: {data_path / "registry.db"}
+                provider: local
+                online_store:
+                    type: {online_store}
+                offline_store:
+                    type: {offline_store}
+                entity_key_serialization_version: 3
+                """
+                )
             else:
                 pass
 

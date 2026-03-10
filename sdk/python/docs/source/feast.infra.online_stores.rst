@@ -13,6 +13,7 @@ Subpackages
    feast.infra.online_stores.hazelcast_online_store
    feast.infra.online_stores.hbase_online_store
    feast.infra.online_stores.milvus_online_store
+   feast.infra.online_stores.mongodb_online_store
    feast.infra.online_stores.mysql_online_store
    feast.infra.online_stores.postgres_online_store
    feast.infra.online_stores.qdrant_online_store
