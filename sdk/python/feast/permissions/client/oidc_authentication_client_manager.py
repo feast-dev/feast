@@ -30,6 +30,10 @@ class OidcAuthClientManager(AuthenticationClientManager):
             env_token = os.getenv(self.auth_config.token_env_var)
             if env_token:
                 return env_token
+            raise PermissionError(
+                f"token_env_var='{self.auth_config.token_env_var}' is configured "
+                f"but the environment variable is not set or is empty."
+            )
 
         if self.auth_config.client_secret:
             return self._fetch_token_from_idp()
