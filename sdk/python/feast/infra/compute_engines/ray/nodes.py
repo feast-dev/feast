@@ -461,9 +461,7 @@ class RayAggregationNode(DAGNode):
         # Convert aggregations to Ray's groupby format
         agg_dict = {}
         for agg in self.aggregations:
-            feature_name = f"{agg.function}_{agg.column}"
-            if agg.time_window:
-                feature_name += f"_{int(agg.time_window.total_seconds())}s"
+            feature_name = agg.resolved_name(agg.time_window)
 
             if agg.function == "count":
                 agg_dict[feature_name] = (agg.column, "count")
