@@ -27,7 +27,7 @@ class BatchFeatureView(FeatureView):
     def __init__(
         *,
         name: str,
-        source: Union[DataSource, FeatureView, List[FeatureView]],
+        source: Optional[Union[DataSource, FeatureView, List[FeatureView]]] = None,
         sink_source: Optional[DataSource] = None,
         schema: Optional[List[Field]] = None,
         entities: Optional[List[Entity]] = None,
@@ -142,6 +142,7 @@ See:
 ## 🛑 Gotchas
 
 - `sink_source` is **required** when chaining views (i.e., `source` is another FeatureView or list of them).
+- `source` is optional; if omitted (`None`), the feature view has no associated batch data source.
 - Schema fields must be consistent with `sink_source`, `batch_source.field_mapping` if field mappings exist.
 - Aggregation logic must reference columns present in the raw source or transformed inputs.
 - The output feature name for an aggregation defaults to `{function}_{column}` (e.g., `sum_conv_rate`). Use the `name` parameter to override it (e.g., `name="total_conv_rate_1d"`).
