@@ -165,6 +165,9 @@ class OracleOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+
+        con = get_ibis_connection(config)
+
         return pull_latest_from_table_or_query_ibis(
             config=config,
             data_source=data_source,
@@ -174,8 +177,8 @@ class OracleOfflineStore(OfflineStore):
             created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
-            data_source_reader=_build_data_source_reader(config),
-            data_source_writer=_build_data_source_writer(config),
+            data_source_reader=_build_data_source_reader(config, con=con),
+            data_source_writer=_build_data_source_writer(config, con=con),
         )
 
     @staticmethod
