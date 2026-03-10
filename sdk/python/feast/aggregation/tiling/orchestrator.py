@@ -61,9 +61,7 @@ def apply_sawtooth_window_tiling(
     ir_metadata_dict = {}
 
     for agg in aggregations:
-        feature_name = (
-            f"{agg.function}_{agg.column}_{int(window_size.total_seconds())}s"
-        )
+        feature_name = agg.resolved_name(window_size)
         _, metadata = get_ir_metadata_for_aggregation(agg, feature_name)
         ir_metadata_dict[feature_name] = metadata
 
@@ -161,9 +159,7 @@ def apply_sawtooth_window_tiling(
 
     # Step 5: Compute final feature values from IRs (for algebraic aggs, just rename)
     for agg in aggregations:
-        feature_name = (
-            f"{agg.function}_{agg.column}_{int(window_size.total_seconds())}s"
-        )
+        feature_name = agg.resolved_name(window_size)
         metadata = ir_metadata_dict[feature_name]
 
         if metadata.type == "algebraic":

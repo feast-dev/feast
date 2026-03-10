@@ -76,9 +76,7 @@ def convert_cumulative_to_windowed(
 
             # Subtract previous tile values from current tile for each aggregation
             for agg in aggregations:
-                feature_name = (
-                    f"{agg.function}_{agg.column}_{int(window_size.total_seconds())}s"
-                )
+                feature_name = agg.resolved_name(window_size)
                 _, metadata = get_ir_metadata_for_aggregation(agg, feature_name)
 
                 if metadata.type == "algebraic":

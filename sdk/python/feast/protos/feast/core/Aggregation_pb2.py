@@ -15,7 +15,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import duration_pb2 as google_dot_protobuf_dot_duration__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1c\x66\x65\x61st/core/Aggregation.proto\x12\nfeast.core\x1a\x1egoogle/protobuf/duration.proto\"\x92\x01\n\x0b\x41ggregation\x12\x0e\n\x06\x63olumn\x18\x01 \x01(\t\x12\x10\n\x08\x66unction\x18\x02 \x01(\t\x12.\n\x0btime_window\x18\x03 \x01(\x0b\x32\x19.google.protobuf.Duration\x12\x31\n\x0eslide_interval\x18\x04 \x01(\x0b\x32\x19.google.protobuf.DurationBU\n\x10\x66\x65\x61st.proto.coreB\x10\x41ggregationProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1cfeast/core/Aggregation.proto\x12\nfeast.core\x1a\x1egoogle/protobuf/duration.proto\"\xd3\x01\n\x0bAggregation\x12\x16\n\x06column\x18\x01 \x01(\tR\x06column\x12\x1a\n\x08function\x18\x02 \x01(\tR\x08function\x12:\n\x0btime_window\x18\x03 \x01(\x0b2\x19.google.protobuf.DurationR\ntimeWindow\x12@\n\x0eslide_interval\x18\x04 \x01(\x0b2\x19.google.protobuf.DurationR\rslideInterval\x12\x12\n\x04name\x18\x05 \x01(\tR\x04nameBU\n\x10feast.proto.coreB\x10AggregationProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -24,5 +24,5 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['DESCRIPTOR']._options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\020feast.proto.coreB\020AggregationProtoZ/github.com/feast-dev/feast/go/protos/feast/core'
   _globals['_AGGREGATION']._serialized_start=77
-  _globals['_AGGREGATION']._serialized_end=223
+  _globals['_AGGREGATION']._serialized_end=288
 # @@protoc_insertion_point(module_scope)

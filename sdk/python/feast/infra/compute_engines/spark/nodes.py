@@ -311,7 +311,7 @@ class SparkAggregationNode(DAGNode):
             expected_columns = entity_keys + [self.timestamp_col]
             for time_window, window_aggs in aggs_by_window.items():
                 for agg in window_aggs:
-                    feature_name = f"{agg.function}_{agg.column}_{int(time_window.total_seconds())}s"
+                    feature_name = agg.resolved_name(time_window)
                     if feature_name not in expected_columns:
                         expected_columns.append(feature_name)
 
@@ -372,11 +372,7 @@ class SparkAggregationNode(DAGNode):
         agg_exprs = []
         for agg in self.aggregations:
             func = getattr(F, agg.function)
-            expr = func(agg.column).alias(
-                f"{agg.function}_{agg.column}_{int(agg.time_window.total_seconds())}s"
-                if agg.time_window
-                else f"{agg.function}_{agg.column}"
-            )
+            expr = func(agg.column).alias(agg.resolved_name(agg.time_window))
             agg_exprs.append(expr)
 
         if any(agg.time_window for agg in self.aggregations):
