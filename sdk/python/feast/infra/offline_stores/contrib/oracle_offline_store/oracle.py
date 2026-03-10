@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, List, Literal, Optional, Union
 
 import ibis
 import pandas as pd
@@ -62,59 +62,12 @@ def _read_oracle_table(con, data_source: DataSource) -> Table:
 
 
 def _build_data_source_reader(config: RepoConfig, con=None):
-    """Build a reader that returns Oracle-backend ibis tables.
-
-    Used by ``pull_latest`` and ``pull_all`` where all operations happen on a
-    single backend (Oracle) and no cross-backend joins are needed.
-    """
+    """Build a reader that returns Oracle-backend ibis tables."""
     if con is None:
         con = get_ibis_connection(config)
 
     def _read_data_source(data_source: DataSource, repo_path: str = "") -> Table:
         return _read_oracle_table(con, data_source)
-
-    return _read_data_source
-
-
-def _build_data_source_reader_for_retrieval(
-    config: RepoConfig,
-    con=None,
-    entity_ts_range: Optional[Tuple[datetime, datetime]] = None,
-    max_ttl: Optional[timedelta] = None,
-):
-    """Build a reader that materializes Oracle data into an in-memory table.
-
-    Used by ``get_historical_features`` which joins feature tables with an
-    in-memory entity table (``ibis.memtable``).  Both sides must be on the
-    same backend for computed columns like ``entity_row_id`` to survive the
-    join — converting to memtable ensures this.
-
-    When ``entity_ts_range`` is provided the reader pre-filters the Oracle
-    table by timestamp before materializing, so only the rows relevant to
-    the point-in-time join are pulled into memory.
-    """
-    if con is None:
-        con = get_ibis_connection(config)
-
-    def _read_data_source(data_source: DataSource, repo_path: str = "") -> Table:
-        table = _read_oracle_table(con, data_source)
-
-        # Pre-filter by entity timestamp range to avoid reading the
-        # entire table into memory.  The bounds mirror what
-        # point_in_time_join applies later:
-        #   feature_ts <= max(entity_ts)
-        #   feature_ts >= min(entity_ts) - max_ttl
-        if entity_ts_range and data_source.timestamp_field:
-            ts_field = data_source.timestamp_field
-            if ts_field in table.columns:
-                lower = entity_ts_range[0] - (max_ttl or timedelta(0))
-                upper = entity_ts_range[1]
-                table = table.filter(
-                    (table[ts_field] >= ibis.literal(lower))
-                    & (table[ts_field] <= ibis.literal(upper))
-                )
-
-        return ibis.memtable(table.execute())
 
     return _read_data_source
 
@@ -282,27 +235,6 @@ class OracleOfflineStore(OfflineStore):
         if isinstance(entity_df, str):
             entity_df = con.sql(entity_df).execute()
 
-        # Compute entity timestamp range so the reader can pre-filter
-        # Oracle tables instead of loading them entirely into memory.
-        entity_ts_range: Optional[tuple] = None
-        if (
-            isinstance(entity_df, pd.DataFrame)
-            and "event_timestamp" in entity_df.columns
-        ):
-            ts_series = pd.to_datetime(entity_df["event_timestamp"], utc=True)
-            entity_ts_range = (
-                ts_series.min().to_pydatetime(),
-                ts_series.max().to_pydatetime(),
-            )
-
-        ttl_values = [
-            fv.ttl for fv in feature_views if fv.ttl and isinstance(fv.ttl, timedelta)
-        ]
-        max_ttl: timedelta = max(ttl_values) if ttl_values else timedelta(0)
-
-        # Use the retrieval reader which materializes Oracle data into
-        # in-memory tables so the point-in-time join with the entity
-        # memtable happens on the same backend.
         return get_historical_features_ibis(
             config=config,
             feature_views=feature_views,
@@ -311,12 +243,7 @@ class OracleOfflineStore(OfflineStore):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
-            data_source_reader=_build_data_source_reader_for_retrieval(
-                config,
-                con=con,
-                entity_ts_range=entity_ts_range,
-                max_ttl=max_ttl,
-            ),
+            data_source_reader=_build_data_source_reader(config, con=con),
             data_source_writer=_build_data_source_writer(config, con=con),
         )
 
