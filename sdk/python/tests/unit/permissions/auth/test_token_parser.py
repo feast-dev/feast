@@ -54,6 +54,142 @@ def test_oidc_token_validation_success(
         assertpy.assert_that(user.has_matching_role(["reader"])).is_true()
         assertpy.assert_that(user.has_matching_role(["writer"])).is_true()
         assertpy.assert_that(user.has_matching_role(["updater"])).is_false()
+        assertpy.assert_that(user.groups).is_equal_to([])
+        assertpy.assert_that(user.namespaces).is_equal_to([])
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_token_extracts_groups(
+    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+):
+    signing_key = MagicMock()
+    signing_key.key = "a-key"
+    mock_signing_key.return_value = signing_key
+
+    mock_discovery_data.return_value = {
+        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
+        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
+        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
+    }
+
+    user_data = {
+        "preferred_username": "my-name",
+        "resource_access": {_CLIENT_ID: {"roles": ["reader"]}},
+        "groups": ["banking-admin", "data-engineers"],
+    }
+    mock_jwt.return_value = user_data
+
+    access_token = "aaa-bbb-ccc"
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token=access_token)
+    )
+
+    assertpy.assert_that(user).is_type_of(User)
+    if isinstance(user, User):
+        assertpy.assert_that(user.groups).is_equal_to(
+            ["banking-admin", "data-engineers"]
+        )
+        assertpy.assert_that(user.has_matching_group(["banking-admin"])).is_true()
+        assertpy.assert_that(user.has_matching_group(["unknown-group"])).is_false()
+        assertpy.assert_that(user.namespaces).is_equal_to([])
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_token_extracts_namespaces(
+    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+):
+    signing_key = MagicMock()
+    signing_key.key = "a-key"
+    mock_signing_key.return_value = signing_key
+
+    mock_discovery_data.return_value = {
+        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
+        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
+        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
+    }
+
+    user_data = {
+        "preferred_username": "my-name",
+        "resource_access": {_CLIENT_ID: {"roles": ["reader"]}},
+        "namespaces": ["production", "staging"],
+    }
+    mock_jwt.return_value = user_data
+
+    access_token = "aaa-bbb-ccc"
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token=access_token)
+    )
+
+    assertpy.assert_that(user).is_type_of(User)
+    if isinstance(user, User):
+        assertpy.assert_that(user.namespaces).is_equal_to(["production", "staging"])
+        assertpy.assert_that(
+            user.has_matching_namespace(["production"])
+        ).is_true()
+        assertpy.assert_that(
+            user.has_matching_namespace(["unknown-ns"])
+        ).is_false()
+        assertpy.assert_that(user.groups).is_equal_to([])
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_token_extracts_groups_and_namespaces(
+    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+):
+    signing_key = MagicMock()
+    signing_key.key = "a-key"
+    mock_signing_key.return_value = signing_key
+
+    mock_discovery_data.return_value = {
+        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
+        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
+        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
+    }
+
+    user_data = {
+        "preferred_username": "my-name",
+        "resource_access": {_CLIENT_ID: {"roles": ["reader", "writer"]}},
+        "groups": ["banking-admin", "data-engineers"],
+        "namespaces": ["production", "staging"],
+    }
+    mock_jwt.return_value = user_data
+
+    access_token = "aaa-bbb-ccc"
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token=access_token)
+    )
+
+    assertpy.assert_that(user).is_type_of(User)
+    if isinstance(user, User):
+        assertpy.assert_that(user.username).is_equal_to("my-name")
+        assertpy.assert_that(user.roles.sort()).is_equal_to(["reader", "writer"].sort())
+        assertpy.assert_that(user.groups).is_equal_to(
+            ["banking-admin", "data-engineers"]
+        )
+        assertpy.assert_that(user.namespaces).is_equal_to(["production", "staging"])
+        assertpy.assert_that(user.has_matching_role(["reader"])).is_true()
+        assertpy.assert_that(user.has_matching_group(["banking-admin"])).is_true()
+        assertpy.assert_that(
+            user.has_matching_namespace(["production"])
+        ).is_true()
 
 
 @patch(

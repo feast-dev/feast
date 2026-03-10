@@ -50,12 +50,65 @@ class OidcTokenParser(TokenParser):
 
         await oauth_2_scheme(request=request)
 
+    @staticmethod
+    def _extract_username_or_raise_error(data: dict) -> str:
+        """Extract the username from the decoded JWT. Raises if missing — identity is mandatory."""
+        if "preferred_username" not in data:
+            raise AuthenticationError(
+                "Missing preferred_username field in access token."
+            )
+        return data["preferred_username"]
+
+    def _extract_roles(self, data: dict) -> list[str]:
+        """Extract client-scoped roles from `resource_access.<client_id>.roles`."""
+        if "resource_access" not in data:
+            logger.warning("Missing resource_access field in access token.")
+            return []
+        client_id = self._auth_config.client_id
+        if client_id not in data["resource_access"]:
+            logger.warning(
+                f"Missing resource_access.{client_id} field in access token. Defaulting to empty roles."
+            )
+            return []
+        return data["resource_access"][client_id]["roles"]
+
+    @staticmethod
+    def _extract_claim(data: dict, claim: str) -> list[str]:
+        """Extract an optional list-of-strings claim. Returns [] with a warning if missing."""
+        if claim not in data:
+            logger.warning(
+                f"Missing {claim} field in access token. Defaulting to empty {claim}."
+            )
+            return []
+        return data[claim]
+
+    def _decode_token(self, access_token: str) -> dict:
+        """Fetch the JWKS signing key and decode + verify the JWT."""
+        optional_custom_headers = {"User-agent": "custom-user-agent"}
+        jwks_client = PyJWKClient(
+            self.oidc_discovery_service.get_jwks_url(), headers=optional_custom_headers
+        )
+        signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+        return jwt.decode(
+            access_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience="account",
+            options={
+                "verify_aud": False,
+                "verify_signature": True,
+                "verify_exp": True,
+            },
+            leeway=10,  # accepts tokens generated up to 10 seconds in the past, in case of clock skew
+        )
+
     async def user_details_from_access_token(self, access_token: str) -> User:
         """
-        Validate the access token then decode it to extract the user credential and roles.
+        Validate the access token then decode it to extract the user credentials,
+        roles, groups, and namespaces.
 
         Returns:
-            User: Current user, with associated roles.
+            User: Current user, with associated roles, groups, and namespaces.
 
         Raises:
             AuthenticationError if any error happens.
@@ -73,45 +126,23 @@ class OidcTokenParser(TokenParser):
             logger.error(f"Token validation failed: {e}")
             raise AuthenticationError(f"Invalid token: {e}")
 
-        optional_custom_headers = {"User-agent": "custom-user-agent"}
-        jwks_client = PyJWKClient(
-            self.oidc_discovery_service.get_jwks_url(), headers=optional_custom_headers
-        )
-
         try:
-            signing_key = jwks_client.get_signing_key_from_jwt(access_token)
-            data = jwt.decode(
-                access_token,
-                signing_key.key,
-                algorithms=["RS256"],
-                audience="account",
-                options={
-                    "verify_aud": False,
-                    "verify_signature": True,
-                    "verify_exp": True,
-                },
-                leeway=10,  # accepts tokens generated up to 10 seconds in the past, in case of clock skew
+            data = self._decode_token(access_token)
+
+            current_user = self._extract_username_or_raise_error(data)
+            roles = self._extract_roles(data)
+            groups = self._extract_claim(data, "groups")
+            namespaces = self._extract_claim(data, "namespaces")
+
+            logger.info(
+                f"Extracted user {current_user} with roles {roles}, groups {groups}, namespaces {namespaces}"
             )
-
-            if "preferred_username" not in data:
-                raise AuthenticationError(
-                    "Missing preferred_username field in access token."
-                )
-            current_user = data["preferred_username"]
-
-            if "resource_access" not in data:
-                logger.warning("Missing resource_access field in access token.")
-            client_id = self._auth_config.client_id
-            if client_id not in data["resource_access"]:
-                logger.warning(
-                    f"Missing resource_access.{client_id} field in access token. Defaulting to empty roles."
-                )
-                roles = []
-            else:
-                roles = data["resource_access"][client_id]["roles"]
-
-            logger.info(f"Extracted user {current_user} and roles {roles}")
-            return User(username=current_user, roles=roles)
+            return User(
+                username=current_user,
+                roles=roles,
+                groups=groups,
+                namespaces=namespaces,
+            )
         except jwt.exceptions.InvalidTokenError:
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
