@@ -1,6 +1,11 @@
 ---
 name: feast-feature-engineering
-description: Use this skill when building feature stores with Feast. Covers feature definitions, materialization, online/offline retrieval, and on-demand transformations.
+description: Guide for building feature stores with Feast. Covers feature definitions, materialization, online/offline retrieval, on-demand transformations, and CLI usage.
+license: Apache-2.0
+compatibility: Works with Claude Code, OpenAI Codex, and any Agent Skills compatible tool. Requires Python 3.10+ and the feast package.
+metadata:
+  author: feast-dev
+  version: "1.0"
 ---
 
 # Feast Feature Engineering

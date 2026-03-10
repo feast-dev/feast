@@ -1,6 +1,11 @@
 ---
 name: feast-dev
-description: Use this skill when contributing to the Feast codebase. Covers project setup, testing, linting, and PR workflow for the feast-dev/feast repository.
+description: Development guide for contributing to the Feast codebase. Covers environment setup, testing, linting, project structure, and PR workflow for feast-dev/feast.
+license: Apache-2.0
+compatibility: Works with Claude Code, OpenAI Codex, and any Agent Skills compatible tool. Requires Python 3.10+, uv, and git.
+metadata:
+  author: feast-dev
+  version: "1.0"
 ---
 
 # Feast Development Guide
