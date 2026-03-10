@@ -186,7 +186,7 @@ test-python-smoke: ## Quick smoke test for development
 
 test-python-integration: ## Run Python integration tests (CI)
 	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
-		-k "(not snowflake or not test_historical_features_main)" \
+		$(if $(PYTEST_K),-k "$(PYTEST_K)",-k "(not snowflake or not test_historical_features_main)") \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
 		--ignore=sdk/python/tests/integration/registration \
 		--ignore=sdk/python/tests/component/ray \
