@@ -303,6 +303,35 @@ This approach allows for a hybrid workflow where you can:
 
 Even when features are materialized with transformations skipped (`transform_on_write=False`), the feature server can still apply transformations during API calls for any missing values or for features that require real-time computation.
 
+## Column Naming in the Input DataFrame
+
+When writing transformation functions, the column names available in the input DataFrame depend on the source types used:
+
+| Source Type | Column name format | Example |
+|---|---|---|
+| `RequestSource` | feature name only | `features_df["val_to_add"]` |
+| Single `FeatureView` source | feature name only | `features_df["conv_rate"]` |
+| Multiple `FeatureView` sources | `{feature_view_name}__{feature_name}` | `features_df["driver_hourly_stats__conv_rate"]` |
+
+When more than one `FeatureView` is passed as a source, Feast prefixes each column with the feature view name and double underscore (`__`) to avoid naming conflicts. This prefix is **not added** for `RequestSource` columns or when only a single `FeatureView` is used.
+
+**Defensive access pattern** when the number of FeatureView sources may vary:
+
+```python
+@on_demand_feature_view(
+    sources=[driver_hourly_stats_view, driver_profile_view],
+    schema=[Field(name="combined_score", dtype=Float64)],
+    mode="pandas",
+)
+def combined_driver_score(features_df: pd.DataFrame) -> pd.DataFrame:
+    # Handles both single-source (no prefix) and multi-source (prefixed) cases
+    col = "driver_hourly_stats__conv_rate"
+    conv_rate = features_df[col] if col in features_df.columns else features_df["conv_rate"]
+    df = pd.DataFrame()
+    df["combined_score"] = conv_rate * 100
+    return df
+```
+
 ## CLI Commands
 There are new CLI commands to manage on demand feature views:
 
