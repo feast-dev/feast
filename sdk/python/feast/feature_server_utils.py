@@ -4,6 +4,7 @@ Matches the output format of MessageToDict with proto_json.patch() applied.
 Values are serialized as native Python types (not wrapped dicts).
 """
 
+import base64
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -20,7 +21,7 @@ _STATUS_NAMES: Dict[int, str] = {
 }
 
 
-def response_to_dict_fast(response: GetOnlineFeaturesResponse) -> Dict[str, Any]:
+def convert_response_to_dict(response: GetOnlineFeaturesResponse) -> Dict[str, Any]:
     """Convert GetOnlineFeaturesResponse to dict (matches proto_json.patch() format)."""
     result: Dict[str, Any] = {
         "results": [
@@ -55,6 +56,8 @@ def _value_to_native(v: Value) -> Optional[Any]:
     which = v.WhichOneof("val")
     if which is None or which == "null_val":
         return None
+    elif which == "bytes_val":
+        return base64.b64encode(v.bytes_val).decode("ascii")
     elif "_list_" in which:
         return list(getattr(v, which).val)
     else:
@@ -62,13 +65,27 @@ def _value_to_native(v: Value) -> Optional[Any]:
 
 
 def _timestamp_to_str(ts) -> str:
-    """Convert protobuf Timestamp to RFC 3339 format with Z suffix."""
+    """Convert protobuf Timestamp to RFC 3339 format with Z suffix.
+
+    Uses adaptive precision to match MessageToDict output:
+    - No fractional seconds when nanos == 0
+    - 3 digits (milliseconds) when nanos % 1_000_000 == 0
+    - 6 digits (microseconds) when nanos % 1_000 == 0
+    - 9 digits (nanoseconds) otherwise
+    """
     if ts.seconds == 0 and ts.nanos == 0:
         return "1970-01-01T00:00:00Z"
-    dt = datetime.fromtimestamp(ts.seconds + ts.nanos / 1e9, tz=timezone.utc)
-    return dt.strftime("%Y-%m-%dT%H:%M:%S") + (
-        ".%06dZ" % (ts.nanos // 1000) if ts.nanos else "Z"
-    )
+    dt = datetime.fromtimestamp(ts.seconds, tz=timezone.utc)
+    base = dt.strftime("%Y-%m-%dT%H:%M:%S")
+    nanos = ts.nanos
+    if nanos == 0:
+        return base + "Z"
+    elif nanos % 1_000_000 == 0:
+        return base + ".%03dZ" % (nanos // 1_000_000)
+    elif nanos % 1_000 == 0:
+        return base + ".%06dZ" % (nanos // 1_000)
+    else:
+        return base + ".%09dZ" % nanos
 
 
 def _metadata_to_dict(metadata) -> Dict[str, Any]:
