@@ -226,6 +226,20 @@ class TestOidcAuthClientManagerGetToken:
             assert mgr.get_token() == "config-token"
             mock_discovery_cls.assert_not_called()
 
+    @patch.dict(os.environ, {}, clear=False)
+    def test_configured_env_var_missing_raises(self):
+        os.environ.pop("MY_CUSTOM_VAR", None)
+        mgr = self._make_manager(token_env_var="MY_CUSTOM_VAR")
+        with pytest.raises(PermissionError, match="token_env_var='MY_CUSTOM_VAR'"):
+            mgr.get_token()
+
+    @patch.dict(os.environ, {"FEAST_OIDC_TOKEN": "stale-token"}, clear=False)
+    def test_configured_env_var_missing_does_not_fall_through(self):
+        os.environ.pop("MY_CUSTOM_VAR", None)
+        mgr = self._make_manager(token_env_var="MY_CUSTOM_VAR")
+        with pytest.raises(PermissionError, match="token_env_var='MY_CUSTOM_VAR'"):
+            mgr.get_token()
+
 
 # ---------------------------------------------------------------------------
 #  Routing (RepoConfig.auth_config property)
