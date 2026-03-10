@@ -130,7 +130,7 @@ def _generate_row_id(
         else:
             all_entities.extend([e.name for e in fv.entity_columns])
 
-    r = ibis.literal("")
+    r = ibis.literal("_")
 
     for e in set(all_entities):
         r = r.concat(entity_table[e].cast("string"))  # type: ignore
@@ -383,7 +383,7 @@ def point_in_time_join(
     ) in feature_tables:
         all_entities.extend(join_key_map.values())
 
-    r = ibis.literal("")
+    r = ibis.literal("_")
 
     for e in set(all_entities):
         r = r.concat(entity_table[e].cast("string"))  # type: ignore
