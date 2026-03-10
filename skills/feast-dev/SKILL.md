@@ -75,7 +75,7 @@ cd sdk/python && python -m mypy feast
 
 ```
 sdk/python/feast/          # Main Python SDK
-  cli.py                   # CLI entry point (feast apply, feast materialize, etc.)
+  cli/cli.py               # CLI entry point (feast apply, feast materialize, etc.)
   feature_store.py         # FeatureStore class - core orchestration
   repo_config.py           # feature_store.yaml configuration parsing
   repo_operations.py       # feast apply / feast teardown logic
