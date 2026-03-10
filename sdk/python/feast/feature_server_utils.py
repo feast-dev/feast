@@ -4,7 +4,6 @@ Matches the output format of MessageToDict with proto_json.patch() applied.
 Values are serialized as native Python types (not wrapped dicts).
 """
 
-import base64
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -52,12 +51,14 @@ def convert_response_to_dict(response: GetOnlineFeaturesResponse) -> Dict[str, A
 
 
 def _value_to_native(v: Value) -> Optional[Any]:
-    """Convert a Value proto to native Python type (matches proto_json.patch() format)."""
+    """Convert a Value proto to native Python type (matches proto_json.patch() format).
+
+    Note: proto_json.patch() modifies MessageToDict to return raw bytes instead of
+    base64 encoding, so we return raw bytes here to match that behavior.
+    """
     which = v.WhichOneof("val")
     if which is None or which == "null_val":
         return None
-    elif which == "bytes_val":
-        return base64.b64encode(v.bytes_val).decode("ascii")
     elif "_list_" in which:
         return list(getattr(v, which).val)
     else:
