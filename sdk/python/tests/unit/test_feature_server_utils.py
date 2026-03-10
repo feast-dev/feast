@@ -21,7 +21,6 @@ the output format of MessageToDict with proto_json.patch() applied.
 Related issue: https://github.com/feast-dev/feast/issues/6013
 """
 
-import base64
 import time
 
 import pytest
@@ -99,7 +98,7 @@ class TestValueToNative:
         data = b"\x00\x01\x02\x03"
         v = Value(bytes_val=data)
         result = _value_to_native(v)
-        assert result == base64.b64encode(data).decode("ascii")
+        assert result == data
 
     def test_double_list_val(self):
         v = Value(double_list_val=DoubleList(val=[1.1, 2.2, 3.3]))
@@ -357,7 +356,7 @@ class TestConvertResponseToDictConsistency:
             )
 
     def test_bytes_values_match_patched_message_to_dict(self):
-        """Ensure bytes serialization matches proto_json.patch() format (base64)."""
+        """Ensure bytes serialization matches proto_json.patch() format (raw bytes)."""
         response = GetOnlineFeaturesResponse()
         fv = response.results.add()
         fv.values.append(Value(bytes_val=b"\x00\x01\x02\xff"))
