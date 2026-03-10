@@ -13,11 +13,11 @@ metadata:
 ## Environment Setup
 
 ```bash
-# Install uv (if not installed)
-pip install uv
+# Install development dependencies (uses uv pip sync with pinned requirements)
+make install-python-dependencies-dev
 
-# Create virtual environment and install Feast in editable mode with dev dependencies
-uv pip install -e ".[dev]"
+# Install minimal dependencies
+make install-python-dependencies-minimal
 
 # Install pre-commit hooks (runs formatters and linters on commit)
 make install-precommit
@@ -33,30 +33,33 @@ make test-python-unit
 # Run a specific test file
 python -m pytest sdk/python/tests/unit/test_feature_store.py -v
 
-# Run a specific test
+# Run a specific test by name
 python -m pytest sdk/python/tests/unit/test_feature_store.py::TestFeatureStore::test_apply -v
+
+# Run fast unit tests only (no external dependencies)
+make test-python-unit-fast
 ```
 
 ### Integration Tests (local)
 ```bash
-# Start local test infrastructure
-make start-local-integration-tests
-
-# Run integration tests
+# Run integration tests in local dev mode
 make test-python-integration-local
 ```
 
 ## Linting and Formatting
 
 ```bash
-# Run all linters
-make lint
+# Format Python code
+make format-python
 
-# Auto-format code
-make format
+# Lint Python code
+make lint-python
+
+# Run all precommit checks (format + lint)
+make precommit-check
 
 # Type checking
-mypy sdk/python/feast
+cd sdk/python && python -m mypy feast
 ```
 
 ## Code Style
