@@ -58,7 +58,17 @@ def _read_oracle_table(con, data_source: DataSource) -> Table:
     (e.g. ``USER_ID`` for unquoted identifiers, ``CamelCase`` for quoted).
     """
     assert isinstance(data_source, OracleSource)
-    return con.table(data_source.table_ref)
+    table = con.table(data_source.table_ref)
+
+    # Cast Oracle DATE columns (ibis date → timestamp) to preserve time.
+    casts = {}
+    for col_name in table.columns:
+        if table[col_name].type().is_date():
+            casts[col_name] = table[col_name].cast("timestamp")
+    if casts:
+        table = table.mutate(**casts)
+
+    return table
 
 
 def _build_data_source_reader(config: RepoConfig, con=None):
@@ -258,6 +268,8 @@ class OracleOfflineStore(OfflineStore):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
+        con = get_ibis_connection(config)
+
         return pull_all_from_table_or_query_ibis(
             config=config,
             data_source=data_source,
@@ -267,8 +279,8 @@ class OracleOfflineStore(OfflineStore):
             created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
-            data_source_reader=_build_data_source_reader(config),
-            data_source_writer=_build_data_source_writer(config),
+            data_source_reader=_build_data_source_reader(config, con=con),
+            data_source_writer=_build_data_source_writer(config, con=con),
         )
 
     @staticmethod
