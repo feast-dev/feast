@@ -253,6 +253,8 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
 
             dt = datetime.fromisoformat(updated_since.replace("Z", "+00:00"))
             ts = timestamp_pb2.Timestamp()
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
             ts.FromDatetime(dt.astimezone(timezone.utc))
             updated_since_proto = ts
 
