@@ -132,9 +132,7 @@ def init_auth_manager(
                     "K8s API available — SA token support enabled for OIDC auth"
                 )
             except Exception as e:
-                logger.info(
-                    f"K8s API unavailable ({e}) — OIDC-only token parsing"
-                )
+                logger.info(f"K8s API unavailable ({e}) — OIDC-only token parsing")
             token_parser = OidcTokenParser(
                 auth_config=auth_config, k8s_parser=k8s_parser
             )

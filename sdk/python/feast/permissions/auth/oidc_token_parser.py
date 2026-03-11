@@ -76,11 +76,15 @@ class OidcTokenParser(TokenParser):
         path = ".".join(keys)
         for key in keys:
             if not isinstance(node, dict) or key not in node:
-                logger.warning(f"Missing {key} in access token claim path '{path}'. Defaulting to {expected_type()}.")
+                logger.warning(
+                    f"Missing {key} in access token claim path '{path}'. Defaulting to {expected_type()}."
+                )
                 return expected_type()
             node = node[key]
         if not isinstance(node, expected_type):
-            logger.warning(f"Expected {expected_type.__name__} at '{path}', got {type(node).__name__}. Defaulting to {expected_type()}.")
+            logger.warning(
+                f"Expected {expected_type.__name__} at '{path}', got {type(node).__name__}. Defaulting to {expected_type()}."
+            )
             return expected_type()
         return node
 
@@ -108,9 +112,7 @@ class OidcTokenParser(TokenParser):
     def _is_kubernetes_token(access_token: str) -> bool:
         """Check if the token contains the ``kubernetes.io`` claim."""
         try:
-            unverified = jwt.decode(
-                access_token, options={"verify_signature": False}
-            )
+            unverified = jwt.decode(access_token, options={"verify_signature": False})
         except jwt.exceptions.DecodeError as e:
             raise AuthenticationError(f"Failed to decode token: {e}")
         return "kubernetes.io" in unverified
@@ -138,7 +140,9 @@ class OidcTokenParser(TokenParser):
             return user
 
         if self._k8s_parser and self._is_kubernetes_token(access_token):
-            logger.debug("Detected kubernetes.io claim — delegating to KubernetesTokenParser")
+            logger.debug(
+                "Detected kubernetes.io claim — delegating to KubernetesTokenParser"
+            )
             return await self._k8s_parser.user_details_from_access_token(access_token)
 
         # Standard OIDC / Keycloak flow
@@ -153,7 +157,9 @@ class OidcTokenParser(TokenParser):
             data = self._decode_token(access_token)
 
             current_user = self._extract_username_or_raise_error(data)
-            roles = self._extract_claim(data, "resource_access", self._auth_config.client_id, "roles")
+            roles = self._extract_claim(
+                data, "resource_access", self._auth_config.client_id, "roles"
+            )
             groups = self._extract_claim(data, "groups")
 
             logger.info(
