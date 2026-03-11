@@ -52,13 +52,13 @@ class TestOidcClientAuthConfigValidation:
         ):
             OidcClientAuthConfig(
                 type="oidc",
-                client_secret="my-secret",
+                client_secret="my-secret",  # pragma: allowlist secret
             )
 
     def test_full_client_credentials_valid(self):
         cfg = OidcClientAuthConfig(
             type="oidc",
-            client_secret="my-secret",
+            client_secret="my-secret",  # pragma: allowlist secret
             auth_discovery_url="https://idp.example.com/.well-known/openid-configuration",
             client_id="feast-client",
         )
@@ -68,8 +68,8 @@ class TestOidcClientAuthConfigValidation:
         cfg = OidcClientAuthConfig(
             type="oidc",
             username="user1",
-            password="pass1",
-            client_secret="my-secret",
+            password="pass1",  # pragma: allowlist secret
+            client_secret="my-secret",  # pragma: allowlist secret
             auth_discovery_url="https://idp.example.com/.well-known/openid-configuration",
             client_id="feast-client",
         )
@@ -82,8 +82,8 @@ class TestOidcClientAuthConfigValidation:
             OidcClientAuthConfig(
                 type="oidc",
                 username="user1",
-                password="pass1",
-                client_secret="my-secret",
+                password="pass1",  # pragma: allowlist secret
+                client_secret="my-secret",  # pragma: allowlist secret
             )
 
     def test_username_without_client_secret_invalid(self):
@@ -93,7 +93,7 @@ class TestOidcClientAuthConfigValidation:
             OidcClientAuthConfig(
                 type="oidc",
                 username="user1",
-                password="pass1",
+                password="pass1",  # pragma: allowlist secret
             )
 
     def test_token_plus_client_secret_invalid(self):
@@ -101,7 +101,7 @@ class TestOidcClientAuthConfigValidation:
             OidcClientAuthConfig(
                 type="oidc",
                 token="jwt",
-                client_secret="secret",
+                client_secret="secret",  # pragma: allowlist secret
                 auth_discovery_url="https://idp/.well-known/openid-configuration",
                 client_id="feast-client",
             )
@@ -188,7 +188,7 @@ class TestOidcAuthClientManagerGetToken:
         mock_requests.post.return_value = mock_response
 
         mgr = self._make_manager(
-            client_secret="secret",
+            client_secret="secret",  # pragma: allowlist secret
             auth_discovery_url="https://idp/.well-known/openid-configuration",
             client_id="feast-client",
         )
@@ -221,7 +221,7 @@ class TestOidcAuthClientManagerGetToken:
         mock_requests.post.return_value = mock_response
 
         mgr = self._make_manager(
-            client_secret="secret",
+            client_secret="secret",  # pragma: allowlist secret
             auth_discovery_url="https://idp/.well-known/openid-configuration",
             client_id="feast-client",
         )
@@ -247,8 +247,8 @@ class TestOidcAuthClientManagerGetToken:
 
         mgr = self._make_manager(
             username="user1",
-            password="pass1",
-            client_secret="secret",
+            password="pass1",  # pragma: allowlist secret
+            client_secret="secret",  # pragma: allowlist secret
             auth_discovery_url="https://idp/.well-known/openid-configuration",
             client_id="feast-client",
         )
