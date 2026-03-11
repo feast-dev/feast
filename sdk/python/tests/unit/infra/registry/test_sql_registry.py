@@ -175,3 +175,36 @@ def test_list_feature_views_updated_since(sqlite_registry):
         "test_project", tags=None, updated_since=future
     )
     assert len(result) == 0
+
+
+def test_list_feature_views_updated_since_naive_treated_as_utc(sqlite_registry):
+    """A naive updated_since is treated as UTC, not local time, in the SQL filter."""
+    entity = Entity(
+        name="courier",
+        value_type=ValueType.STRING,
+        join_keys=["courier_id"],
+    )
+    sqlite_registry.apply_entity(entity, "test_project")
+
+    file_source = FileSource(
+        path="courier_stats.parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+
+    fv = _build_feature_view("courier_activity", entity, file_source)
+    sqlite_registry.apply_feature_view(fv, "test_project")
+
+    # A naive past cutoff (interpreted as UTC) should return the feature view
+    past_naive = datetime(2000, 1, 1)
+    result = sqlite_registry._list_feature_views(
+        "test_project", tags=None, updated_since=past_naive
+    )
+    assert any(fv.name == "courier_activity" for fv in result)
+
+    # The equivalent UTC-aware cutoff must produce the same result
+    past_aware = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    result_aware = sqlite_registry._list_feature_views(
+        "test_project", tags=None, updated_since=past_aware
+    )
+    assert len(result) == len(result_aware)
