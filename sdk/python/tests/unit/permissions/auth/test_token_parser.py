@@ -50,7 +50,9 @@ def test_oidc_token_validation_success(
     assertpy.assert_that(user).is_type_of(User)
     if isinstance(user, User):
         assertpy.assert_that(user.username).is_equal_to("my-name")
-        assertpy.assert_that(sorted(user.roles)).is_equal_to(sorted(["reader", "writer"]))
+        assertpy.assert_that(sorted(user.roles)).is_equal_to(
+            sorted(["reader", "writer"])
+        )
         assertpy.assert_that(user.has_matching_role(["reader"])).is_true()
         assertpy.assert_that(user.has_matching_role(["writer"])).is_true()
         assertpy.assert_that(user.has_matching_role(["updater"])).is_false()
@@ -213,7 +215,9 @@ def test_oidc_token_extracts_groups_and_namespaces(
     assertpy.assert_that(user).is_type_of(User)
     if isinstance(user, User):
         assertpy.assert_that(user.username).is_equal_to("my-name")
-        assertpy.assert_that(sorted(user.roles)).is_equal_to(sorted(["reader", "writer"]))
+        assertpy.assert_that(sorted(user.roles)).is_equal_to(
+            sorted(["reader", "writer"])
+        )
         assertpy.assert_that(user.groups).is_equal_to(
             ["banking-admin", "data-engineers"]
         )
