@@ -51,6 +51,7 @@ class OidcAuthClientManager(AuthenticationClientManager):
 
     def _fetch_token_from_idp(self) -> str:
         """Obtain an access token via client_credentials or ROPG flow."""
+        assert self.auth_config.auth_discovery_url is not None
         token_endpoint = OIDCDiscoveryService(
             self.auth_config.auth_discovery_url
         ).get_token_url()
