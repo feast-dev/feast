@@ -39,8 +39,8 @@ class OidcAuthConfig(AuthConfig):
 
 
 class OidcClientAuthConfig(OidcAuthConfig):
-    auth_discovery_url: Optional[str] = None
-    client_id: Optional[str] = None
+    auth_discovery_url: Optional[str] = None  # type: ignore[assignment]
+    client_id: Optional[str] = None  # type: ignore[assignment]
 
     username: Optional[str] = None
     password: Optional[str] = None
