@@ -71,7 +71,9 @@ def test_list_all_feature_views_updated_since_no_cache(mock_snowflake_registry):
     old_fv = _make_mock_fv("old_view", old_ts)
     new_fv = _make_mock_fv("new_view", new_ts)
 
-    mock_snowflake_registry.list_feature_views = MagicMock(return_value=[old_fv, new_fv])
+    mock_snowflake_registry.list_feature_views = MagicMock(
+        return_value=[old_fv, new_fv]
+    )
     mock_snowflake_registry.list_stream_feature_views = MagicMock(return_value=[])
     mock_snowflake_registry.list_on_demand_feature_views = MagicMock(return_value=[])
 
@@ -92,7 +94,9 @@ def test_list_all_feature_views_updated_since_no_filter(mock_snowflake_registry)
     mock_snowflake_registry.list_stream_feature_views = MagicMock(return_value=[])
     mock_snowflake_registry.list_on_demand_feature_views = MagicMock(return_value=[])
 
-    result = mock_snowflake_registry.list_all_feature_views("project", allow_cache=False)
+    result = mock_snowflake_registry.list_all_feature_views(
+        "project", allow_cache=False
+    )
     assert len(result) == 2
 
 

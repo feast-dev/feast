@@ -325,11 +325,7 @@ class RemoteRegistry(BaseRegistry):
         updated_since_proto = None
         if updated_since is not None:
             ts = Timestamp()
-            ts.FromDatetime(
-                updated_since.replace(tzinfo=None)
-                if updated_since.tzinfo
-                else updated_since
-            )
+            ts.FromDatetime(updated_since)
             updated_since_proto = ts
         request = RegistryServer_pb2.ListAllFeatureViewsRequest(
             project=project,
