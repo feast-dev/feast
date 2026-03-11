@@ -844,6 +844,12 @@ def test_list_all_feature_views_updated_since(test_registry: BaseRegistry):
     test_registry.teardown()
 
 
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
+def test_apply_data_source(test_registry):
     # Create Feature Views
     batch_source = FileSource(
         name="test_source",

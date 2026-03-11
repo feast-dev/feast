@@ -634,7 +634,11 @@ class SnowflakeRegistry(BaseRegistry):
                 self.cached_registry_proto, project, tags
             )
             if updated_since is not None:
-                cutoff = updated_since.replace(tzinfo=None) if updated_since.tzinfo else updated_since
+                cutoff = (
+                    updated_since.replace(tzinfo=None)
+                    if updated_since.tzinfo
+                    else updated_since
+                )
                 feature_views = [
                     fv
                     for fv in feature_views

@@ -134,7 +134,9 @@ def test_list_all_feature_views_updated_since(sqlite_registry):
 
     # Filtering with a future timestamp returns nothing
     future = datetime(2999, 1, 1, tzinfo=timezone.utc)
-    result = sqlite_registry.list_all_feature_views("test_project", updated_since=future)
+    result = sqlite_registry.list_all_feature_views(
+        "test_project", updated_since=future
+    )
     assert len(result) == 0
 
     # No filter returns all feature views
@@ -173,4 +175,3 @@ def test_list_feature_views_updated_since(sqlite_registry):
         "test_project", tags=None, updated_since=future
     )
     assert len(result) == 0
-
