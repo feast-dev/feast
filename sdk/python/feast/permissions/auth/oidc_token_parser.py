@@ -70,7 +70,13 @@ class OidcTokenParser(TokenParser):
                 f"Missing resource_access.{client_id} field in access token. Defaulting to empty roles."
             )
             return []
-        return data["resource_access"][client_id]["roles"]
+        client_entry = data["resource_access"][client_id]
+        if "roles" not in client_entry:
+            logger.warning(
+                f"Missing resource_access.{client_id}.roles field in access token. Defaulting to empty roles."
+            )
+            return []
+        return client_entry["roles"]
 
     @staticmethod
     def _extract_claim(data: dict, claim: str) -> list[str]:
