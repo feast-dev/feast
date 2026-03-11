@@ -120,7 +120,7 @@ AUTH_CONFIGS_CLASS_FOR_TYPE = {
     "oidc_client": "feast.permissions.auth_model.OidcClientAuthConfig",
 }
 
-_OIDC_CLIENT_KEYS = frozenset({"client_secret", "token", "token_env_var"})
+_OIDC_CLIENT_KEYS = frozenset({"client_secret", "token", "token_env_var", "username", "password"})
 
 
 def _is_oidc_client_config(auth_dict: dict) -> bool:
