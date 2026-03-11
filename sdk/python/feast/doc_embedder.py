@@ -317,11 +317,7 @@ class DocEmbedder:
         """
         if custom_logical_layer_fn is not None:
             sig = inspect.signature(custom_logical_layer_fn)
-            params = [
-                p
-                for p in sig.parameters.values()
-                if p.default is inspect.Parameter.empty
-            ]
+            params = list(sig.parameters.values())
             if (
                 len(params) != 1
                 or params[0].annotation != pd.DataFrame
