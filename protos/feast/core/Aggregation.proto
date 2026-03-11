@@ -12,4 +12,5 @@ message Aggregation {
     string function = 2;
     google.protobuf.Duration time_window = 3;
     google.protobuf.Duration slide_interval = 4;
+    string name = 5;
 }
