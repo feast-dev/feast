@@ -3,7 +3,7 @@ import logging
 import threading
 import warnings
 from abc import abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import List, Optional
 
@@ -143,7 +143,7 @@ class CachingRegistry(BaseRegistry):
             if updated_since is not None:
                 # last_updated_timestamp from proto is offset-naive UTC; normalise for comparison
                 cutoff = (
-                    updated_since.replace(tzinfo=None)
+                    updated_since.astimezone(timezone.utc).replace(tzinfo=None)
                     if updated_since.tzinfo
                     else updated_since
                 )
