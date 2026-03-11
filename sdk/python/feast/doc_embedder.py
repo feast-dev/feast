@@ -75,7 +75,7 @@ def generate_repo_file(
     """
     from feast.repo_operations import is_valid_name
 
-    if not is_valid_name(feature_view_name):
+    if not is_valid_name(feature_view_name) or not feature_view_name.isidentifier():
         raise ValueError(
             f"feature_view_name '{feature_view_name}' is invalid. "
             "It should only contain alphanumeric characters, underscores, "
@@ -317,11 +317,7 @@ class DocEmbedder:
         """
         if custom_logical_layer_fn is not None:
             sig = inspect.signature(custom_logical_layer_fn)
-            params = [
-                p
-                for p in sig.parameters.values()
-                if p.default is inspect.Parameter.empty
-            ]
+            params = list(sig.parameters.values())
             if (
                 len(params) != 1
                 or params[0].annotation != pd.DataFrame

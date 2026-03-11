@@ -50,10 +50,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-02-17T13:52:39Z"
+    createdAt: "2026-03-10T20:00:10Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.60.0
+  name: feast-operator.v0.61.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -95,6 +95,18 @@ spec:
           - tokenreviews
           verbs:
           - create
+        - apiGroups:
+          - autoscaling
+          resources:
+          - horizontalpodautoscalers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - batch
           resources:
@@ -164,6 +176,18 @@ spec:
           - patch
           - update
         - apiGroups:
+          - policy
+          resources:
+          - poddisruptionbudgets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - rbac.authorization.k8s.io
           resources:
           - clusterrolebindings
@@ -232,10 +256,10 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: quay.io/feastdev/feature-server:0.60.0
+                  value: quay.io/feastdev/feature-server:0.61.0
                 - name: RELATED_IMAGE_CRON_JOB
                   value: quay.io/openshift/origin-cli:4.17
-                image: quay.io/feastdev/feast-operator:0.60.0
+                image: quay.io/feastdev/feast-operator:0.61.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -325,8 +349,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: quay.io/feastdev/feature-server:0.60.0
+  - image: quay.io/feastdev/feature-server:0.61.0
     name: feature-server
   - image: quay.io/openshift/origin-cli:4.17
     name: cron-job
-  version: 0.60.0
+  version: 0.61.0

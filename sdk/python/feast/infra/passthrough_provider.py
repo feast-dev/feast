@@ -364,7 +364,10 @@ class PassthroughProvider(Provider):
             # Note: A dictionary mapping of column names in this data
             #   source to feature names in a feature table or view. Only used for feature
             #   columns, not entity or timestamp columns.
-            if hasattr(feature_view, "batch_source"):
+            if (
+                hasattr(feature_view, "batch_source")
+                and feature_view.batch_source is not None
+            ):
                 if feature_view.batch_source.field_mapping is not None:
                     table = _run_pyarrow_field_mapping(
                         table, feature_view.batch_source.field_mapping
@@ -410,7 +413,10 @@ class PassthroughProvider(Provider):
         )
 
     def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
-        if feature_view.batch_source.field_mapping is not None:
+        if (
+            feature_view.batch_source is not None
+            and feature_view.batch_source.field_mapping is not None
+        ):
             table = _run_pyarrow_field_mapping(
                 table, feature_view.batch_source.field_mapping
             )
