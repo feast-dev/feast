@@ -62,7 +62,7 @@ class TestOidcClientAuthConfigValidation:
             auth_discovery_url="https://idp.example.com/.well-known/openid-configuration",
             client_id="feast-client",
         )
-        assert cfg.client_secret == "my-secret"
+        assert cfg.client_secret == "my-secret"  # pragma: allowlist secret
 
     def test_full_ropg_valid(self):
         cfg = OidcClientAuthConfig(
@@ -329,9 +329,9 @@ class TestOidcClientRouting:
                 "type": "oidc",
                 "auth_discovery_url": "https://idp/.well-known/openid-configuration",
                 "client_id": "feast-client",
-                "client_secret": "secret",
+                "client_secret": "secret",  # pragma: allowlist secret
                 "username": "user1",
-                "password": "pass1",
+                "password": "pass1",  # pragma: allowlist secret
             }
         )
         assert isinstance(rc.auth_config, OidcClientAuthConfig)
