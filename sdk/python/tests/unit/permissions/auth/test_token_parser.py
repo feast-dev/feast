@@ -50,7 +50,7 @@ def test_oidc_token_validation_success(
     assertpy.assert_that(user).is_type_of(User)
     if isinstance(user, User):
         assertpy.assert_that(user.username).is_equal_to("my-name")
-        assertpy.assert_that(user.roles.sort()).is_equal_to(["reader", "writer"].sort())
+        assertpy.assert_that(sorted(user.roles)).is_equal_to(sorted(["reader", "writer"]))
         assertpy.assert_that(user.has_matching_role(["reader"])).is_true()
         assertpy.assert_that(user.has_matching_role(["writer"])).is_true()
         assertpy.assert_that(user.has_matching_role(["updater"])).is_false()
@@ -176,7 +176,7 @@ def test_oidc_token_extracts_groups_and_namespaces(
     assertpy.assert_that(user).is_type_of(User)
     if isinstance(user, User):
         assertpy.assert_that(user.username).is_equal_to("my-name")
-        assertpy.assert_that(user.roles.sort()).is_equal_to(["reader", "writer"].sort())
+        assertpy.assert_that(sorted(user.roles)).is_equal_to(sorted(["reader", "writer"]))
         assertpy.assert_that(user.groups).is_equal_to(
             ["banking-admin", "data-engineers"]
         )
@@ -261,8 +261,8 @@ def test_oidc_inter_server_comm(
         assertpy.assert_that(user).is_type_of(User)
         if isinstance(user, User):
             assertpy.assert_that(user.username).is_equal_to("my-name")
-            assertpy.assert_that(user.roles.sort()).is_equal_to(
-                ["reader", "writer"].sort()
+            assertpy.assert_that(sorted(user.roles)).is_equal_to(
+                sorted(["reader", "writer"])
             )
             assertpy.assert_that(user.has_matching_role(["reader"])).is_true()
             assertpy.assert_that(user.has_matching_role(["writer"])).is_true()
@@ -305,7 +305,7 @@ def test_k8s_token_validation_success(
     assertpy.assert_that(user).is_type_of(User)
     if isinstance(user, User):
         assertpy.assert_that(user.username).is_equal_to(f"{sa_namespace}:{sa_name}")
-        assertpy.assert_that(user.roles.sort()).is_equal_to(roles.sort())
+        assertpy.assert_that(sorted(user.roles)).is_equal_to(sorted(roles))
         for r in roles:
             assertpy.assert_that(user.has_matching_role([r])).is_true()
         assertpy.assert_that(user.has_matching_role(["foo"])).is_false()
@@ -389,7 +389,7 @@ def test_k8s_inter_server_comm(
         assertpy.assert_that(user).is_type_of(User)
         if isinstance(user, User):
             assertpy.assert_that(user.username).is_equal_to(f"{sa_namespace}:{sa_name}")
-            assertpy.assert_that(user.roles.sort()).is_equal_to(roles.sort())
+            assertpy.assert_that(sorted(user.roles)).is_equal_to(sorted(roles))
             for r in roles:
                 assertpy.assert_that(user.has_matching_role([r])).is_true()
             assertpy.assert_that(user.has_matching_role(["foo"])).is_false()
