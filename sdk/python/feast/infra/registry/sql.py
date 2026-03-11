@@ -469,15 +469,21 @@ class SqlRegistry(CachingRegistry):
         return (
             cast(
                 list[BaseFeatureView],
-                self._list_feature_views(project=project, tags=tags, updated_since=updated_since),
+                self._list_feature_views(
+                    project=project, tags=tags, updated_since=updated_since
+                ),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_stream_feature_views(project=project, tags=tags, updated_since=updated_since),
+                self._list_stream_feature_views(
+                    project=project, tags=tags, updated_since=updated_since
+                ),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_on_demand_feature_views(project=project, tags=tags, updated_since=updated_since),
+                self._list_on_demand_feature_views(
+                    project=project, tags=tags, updated_since=updated_since
+                ),
             )
         )
 
@@ -1507,8 +1513,7 @@ class SqlRegistry(CachingRegistry):
             stmt = select(table).where(table.c.project_id == project)
             if updated_since is not None:
                 stmt = stmt.where(
-                    table.c.last_updated_timestamp
-                    >= int(updated_since.timestamp())
+                    table.c.last_updated_timestamp >= int(updated_since.timestamp())
                 )
             rows = conn.execute(stmt).all()
             if rows:

@@ -364,6 +364,7 @@ def test_feature_views_updated_since_via_rest(fastapi_test_app):
     data = response.json()
     assert len(data["featureViews"]) == all_count
 
+
 def test_feature_services_via_rest(fastapi_test_app):
     response = fastapi_test_app.get("/feature_services?project=demo_project")
     assert response.status_code == 200

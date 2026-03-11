@@ -657,19 +657,27 @@ class SnowflakeRegistry(BaseRegistry):
                 ]
             return feature_views
 
-        feature_views = cast(
-            list[BaseFeatureView],
-            self.list_feature_views(project, allow_cache, tags),
-        ) + cast(
-            list[BaseFeatureView],
-            self.list_stream_feature_views(project, allow_cache, tags),
-        ) + cast(
-            list[BaseFeatureView],
-            self.list_on_demand_feature_views(project, allow_cache, tags),
+        feature_views = (
+            cast(
+                list[BaseFeatureView],
+                self.list_feature_views(project, allow_cache, tags),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self.list_stream_feature_views(project, allow_cache, tags),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self.list_on_demand_feature_views(project, allow_cache, tags),
+            )
         )
 
         if updated_since is not None:
-            cutoff = updated_since.replace(tzinfo=None) if updated_since.tzinfo else updated_since
+            cutoff = (
+                updated_since.replace(tzinfo=None)
+                if updated_since.tzinfo
+                else updated_since
+            )
             feature_views = [
                 fv
                 for fv in feature_views
