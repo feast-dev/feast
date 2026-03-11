@@ -399,7 +399,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     ):
         updated_since = None
         if request.HasField("updated_since"):
-            updated_since = request.updated_since.ToDatetime(tzinfo=timezone.utc)
+            updated_since = request.updated_since.ToDatetime().replace(
+                tzinfo=timezone.utc
+            )
 
         all_feature_views = cast(
             list[FeastObject],

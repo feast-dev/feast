@@ -116,3 +116,30 @@ def test_list_all_feature_views_updated_since_future_returns_empty(
         "project", allow_cache=False, updated_since=future
     )
     assert result == []
+
+
+def test_list_all_feature_views_updated_since_non_utc_tz(mock_snowflake_registry):
+    """A non-UTC tz-aware cutoff is converted to UTC before comparing against naive-UTC timestamps."""
+    est = timezone(timedelta(hours=-5))
+    # 2023-01-01 00:00 EST == 2023-01-01 05:00 UTC
+    cutoff_est = datetime(2023, 1, 1, 0, 0, 0, tzinfo=est)
+
+    # Feature view updated at 2023-01-01 03:00 UTC — after midnight EST but before 05:00 UTC
+    ts_between = datetime(2023, 1, 1, 3, 0, 0, tzinfo=timezone.utc)
+    # Feature view updated at 2023-01-01 06:00 UTC — after both midnight EST and 05:00 UTC
+    ts_after = datetime(2023, 1, 1, 6, 0, 0, tzinfo=timezone.utc)
+
+    fv_between = _make_mock_fv("view_between", ts_between)
+    fv_after = _make_mock_fv("view_after", ts_after)
+
+    mock_snowflake_registry.list_feature_views = MagicMock(
+        return_value=[fv_between, fv_after]
+    )
+    mock_snowflake_registry.list_stream_feature_views = MagicMock(return_value=[])
+    mock_snowflake_registry.list_on_demand_feature_views = MagicMock(return_value=[])
+
+    result = mock_snowflake_registry.list_all_feature_views(
+        "project", allow_cache=False, updated_since=cutoff_est
+    )
+    # Only view_after is at or after 05:00 UTC; view_between (03:00 UTC) should be excluded
+    assert [fv.name for fv in result] == ["view_after"]

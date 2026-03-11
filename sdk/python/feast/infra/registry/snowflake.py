@@ -645,7 +645,7 @@ class SnowflakeRegistry(BaseRegistry):
             )
             if updated_since is not None:
                 cutoff = (
-                    updated_since.replace(tzinfo=None)
+                    updated_since.astimezone(timezone.utc).replace(tzinfo=None)
                     if updated_since.tzinfo
                     else updated_since
                 )
@@ -674,7 +674,7 @@ class SnowflakeRegistry(BaseRegistry):
 
         if updated_since is not None:
             cutoff = (
-                updated_since.replace(tzinfo=None)
+                updated_since.astimezone(timezone.utc).replace(tzinfo=None)
                 if updated_since.tzinfo
                 else updated_since
             )
