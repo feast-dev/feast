@@ -69,34 +69,20 @@ class OidcTokenParser(TokenParser):
             )
         return data["preferred_username"]
 
-    def _extract_roles(self, data: dict) -> list[str]:
-        """Extract client-scoped roles from `resource_access.<client_id>.roles`."""
-        if "resource_access" not in data:
-            logger.warning("Missing resource_access field in access token.")
-            return []
-        client_id = self._auth_config.client_id
-        if client_id not in data["resource_access"]:
-            logger.warning(
-                f"Missing resource_access.{client_id} field in access token. Defaulting to empty roles."
-            )
-            return []
-        client_entry = data["resource_access"][client_id]
-        if "roles" not in client_entry:
-            logger.warning(
-                f"Missing resource_access.{client_id}.roles field in access token. Defaulting to empty roles."
-            )
-            return []
-        return client_entry["roles"]
-
     @staticmethod
-    def _extract_claim(data: dict, claim: str) -> list[str]:
-        """Extract an optional list-of-strings claim. Returns [] if missing."""
-        if claim not in data:
-            logger.debug(
-                f"Missing {claim} field in access token. Defaulting to empty {claim}."
-            )
-            return []
-        return data[claim]
+    def _extract_claim(data: dict, *keys: str, expected_type: type = list):
+        """Walk *keys* into *data* and return the leaf value, or ``expected_type()`` if any key is missing or the wrong type."""
+        node = data
+        path = ".".join(keys)
+        for key in keys:
+            if not isinstance(node, dict) or key not in node:
+                logger.warning(f"Missing {key} in access token claim path '{path}'. Defaulting to {expected_type()}.")
+                return expected_type()
+            node = node[key]
+        if not isinstance(node, expected_type):
+            logger.warning(f"Expected {expected_type.__name__} at '{path}', got {type(node).__name__}. Defaulting to {expected_type()}.")
+            return expected_type()
+        return node
 
     def _decode_token(self, access_token: str) -> dict:
         """Fetch the JWKS signing key and decode + verify the JWT."""
@@ -118,45 +104,29 @@ class OidcTokenParser(TokenParser):
             leeway=10,  # accepts tokens generated up to 10 seconds in the past, in case of clock skew
         )
 
-    async def _try_delegate_to_k8s_parser(
-        self, access_token: str
-    ) -> Optional[User]:
-        """Detect K8s service-account tokens and delegate to the K8s parser.
-
-        Returns a ``User`` if the token was handled, or ``None`` if it should
-        continue through the standard OIDC path.
-        """
-        if self._k8s_parser is None:
-            return None
-
+    @staticmethod
+    def _is_kubernetes_token(access_token: str) -> bool:
+        """Check if the token contains the ``kubernetes.io`` claim."""
         try:
             unverified = jwt.decode(
                 access_token, options={"verify_signature": False}
             )
         except jwt.exceptions.DecodeError as e:
             raise AuthenticationError(f"Failed to decode token: {e}")
-
-        if "kubernetes.io" not in unverified:
-            return None
-
-        logger.debug(
-            "Detected kubernetes.io claim — delegating to KubernetesTokenParser"
-        )
-        return await self._k8s_parser.user_details_from_access_token(
-            access_token
-        )
+        return "kubernetes.io" in unverified
 
     async def user_details_from_access_token(self, access_token: str) -> User:
         """
         Validate the access token then decode it to extract the user credentials,
-        roles, groups, and namespaces.
+        roles, and groups.
 
         Kubernetes service-account tokens (identified by the ``kubernetes.io``
-        claim) are delegated to the K8s parser when available.  All other tokens
-        follow the standard Keycloak JWKS validation path.
+        claim) are delegated to the K8s parser when available (namespaces are
+        extracted there, not here — Keycloak JWTs don't carry namespace claims).
+        All other tokens follow the standard Keycloak JWKS validation path.
 
         Returns:
-            User: Current user, with associated roles, groups, and namespaces.
+            User: Current user, with associated roles, groups, or namespaces.
 
         Raises:
             AuthenticationError if any error happens.
@@ -167,10 +137,9 @@ class OidcTokenParser(TokenParser):
         if user:
             return user
 
-        # Detect K8s service-account tokens and delegate
-        user = await self._try_delegate_to_k8s_parser(access_token)
-        if user:
-            return user
+        if self._k8s_parser and self._is_kubernetes_token(access_token):
+            logger.debug("Detected kubernetes.io claim — delegating to KubernetesTokenParser")
+            return await self._k8s_parser.user_details_from_access_token(access_token)
 
         # Standard OIDC / Keycloak flow
         try:
@@ -184,18 +153,16 @@ class OidcTokenParser(TokenParser):
             data = self._decode_token(access_token)
 
             current_user = self._extract_username_or_raise_error(data)
-            roles = self._extract_roles(data)
+            roles = self._extract_claim(data, "resource_access", self._auth_config.client_id, "roles")
             groups = self._extract_claim(data, "groups")
-            namespaces = self._extract_claim(data, "namespace")
 
             logger.info(
-                f"Extracted user {current_user} with roles {roles}, groups {groups}, namespaces {namespaces}"
+                f"Extracted user {current_user} with roles {roles}, groups {groups}"
             )
             return User(
                 username=current_user,
                 roles=roles,
                 groups=groups,
-                namespaces=namespaces,
             )
         except jwt.exceptions.InvalidTokenError:
             logger.exception("Exception while parsing the token:")
