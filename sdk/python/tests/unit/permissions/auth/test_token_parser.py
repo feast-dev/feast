@@ -1,7 +1,7 @@
 import asyncio
 import os
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import assertpy
 import pytest
@@ -434,3 +434,92 @@ def test_k8s_inter_server_comm(
             for r in roles:
                 assertpy.assert_that(user.has_matching_role([r])).is_true()
             assertpy.assert_that(user.has_matching_role(["foo"])).is_false()
+
+
+# ---------------------------------------------------------------------------
+#  OidcTokenParser — SA token routing
+# ---------------------------------------------------------------------------
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_parser_routes_sa_token_to_k8s_parser(
+    mock_discovery_data, mock_jwt_decode, mock_signing_key, mock_oauth2, oidc_config
+):
+    """When a token contains kubernetes.io claim, it should be routed to the K8s parser."""
+    mock_discovery_data.return_value = {
+        "authorization_endpoint": "https://localhost:8080/auth",
+        "token_endpoint": "https://localhost:8080/token",
+        "jwks_uri": "https://localhost:8080/certs",
+    }
+
+    sa_user = User(
+        username="feast:feast",
+        roles=[],
+        groups=["system:serviceaccounts:feast"],
+        namespaces=["feast"],
+    )
+
+    k8s_parser = MagicMock()
+    k8s_parser.user_details_from_access_token = AsyncMock(return_value=sa_user)
+
+    # jwt.decode is patched globally — the unverified decode inside the parser
+    # returns a payload with kubernetes.io claim
+    mock_jwt_decode.return_value = {
+        "kubernetes.io": {"namespace": "feast"},
+        "sub": "system:serviceaccount:feast:feast",
+    }
+
+    token_parser = OidcTokenParser(auth_config=oidc_config, k8s_parser=k8s_parser)
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token="sa-token")
+    )
+
+    k8s_parser.user_details_from_access_token.assert_called_once_with("sa-token")
+    assertpy.assert_that(user.username).is_equal_to("feast:feast")
+    assertpy.assert_that(user.namespaces).is_equal_to(["feast"])
+    mock_signing_key.assert_not_called()
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_parser_routes_keycloak_token_normally(
+    mock_discovery_data, mock_jwt_decode, mock_signing_key, mock_oauth2, oidc_config
+):
+    """When a token does NOT contain kubernetes.io claim, it should follow the OIDC path."""
+    signing_key = MagicMock()
+    signing_key.key = "a-key"
+    mock_signing_key.return_value = signing_key
+
+    mock_discovery_data.return_value = {
+        "authorization_endpoint": "https://localhost:8080/auth",
+        "token_endpoint": "https://localhost:8080/token",
+        "jwks_uri": "https://localhost:8080/certs",
+    }
+
+    keycloak_payload = {
+        "preferred_username": "testuser",
+        "resource_access": {_CLIENT_ID: {"roles": ["reader"]}},
+        "groups": ["data-team"],
+    }
+    mock_jwt_decode.return_value = keycloak_payload
+
+    k8s_parser = MagicMock()
+
+    token_parser = OidcTokenParser(auth_config=oidc_config, k8s_parser=k8s_parser)
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token="keycloak-jwt")
+    )
+
+    k8s_parser.user_details_from_access_token.assert_not_called()
+    assertpy.assert_that(user.username).is_equal_to("testuser")
+    assertpy.assert_that(user.roles).is_equal_to(["reader"])
+    assertpy.assert_that(user.groups).is_equal_to(["data-team"])

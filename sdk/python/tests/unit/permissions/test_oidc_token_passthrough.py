@@ -147,7 +147,11 @@ class TestOidcAuthClientManagerGetToken:
         assert mgr.get_token() == "my-static-jwt"
         mock_discovery_cls.assert_not_called()
 
-    def test_no_token_source_raises(self):
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OidcAuthClientManager._read_sa_token",
+        return_value=None,
+    )
+    def test_no_token_source_raises(self, _mock_sa):
         mgr = self._make_manager()
         with pytest.raises(PermissionError, match="No OIDC token source configured"):
             mgr.get_token()
@@ -281,6 +285,82 @@ class TestOidcAuthClientManagerGetToken:
         with pytest.raises(PermissionError, match="token_env_var='MY_CUSTOM_VAR'"):
             mgr.get_token()
 
+    # --- SA token file fallback tests ---
+
+    @patch.dict(os.environ, {}, clear=False)
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OidcAuthClientManager._read_sa_token",
+        return_value="sa-jwt-from-file",
+    )
+    def test_sa_token_file_read(self, _mock_sa):
+        os.environ.pop("FEAST_OIDC_TOKEN", None)
+        mgr = self._make_manager()
+        assert mgr.get_token() == "sa-jwt-from-file"
+
+    @patch.dict(os.environ, {}, clear=False)
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OidcAuthClientManager._read_sa_token",
+        return_value=None,
+    )
+    def test_sa_token_file_missing_raises(self, _mock_sa):
+        os.environ.pop("FEAST_OIDC_TOKEN", None)
+        mgr = self._make_manager()
+        with pytest.raises(PermissionError, match="No OIDC token source configured"):
+            mgr.get_token()
+
+    @patch.dict(os.environ, {"FEAST_OIDC_TOKEN": "env-token"}, clear=False)
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OidcAuthClientManager._read_sa_token",
+        return_value="sa-jwt-from-file",
+    )
+    def test_feast_env_takes_priority_over_sa_token(self, _mock_sa):
+        mgr = self._make_manager()
+        assert mgr.get_token() == "env-token"
+        _mock_sa.assert_not_called()
+
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OidcAuthClientManager._read_sa_token",
+        return_value="sa-jwt-from-file",
+    )
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
+    def test_explicit_token_skips_sa_file(self, mock_discovery_cls, _mock_sa):
+        mgr = self._make_manager(token="my-explicit-token")
+        assert mgr.get_token() == "my-explicit-token"
+        _mock_sa.assert_not_called()
+
+    @patch.dict(os.environ, {}, clear=False)
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OidcAuthClientManager._read_sa_token",
+        return_value="sa-jwt-from-file",
+    )
+    @patch("feast.permissions.client.oidc_authentication_client_manager.requests")
+    @patch(
+        "feast.permissions.client.oidc_authentication_client_manager.OIDCDiscoveryService"
+    )
+    def test_client_secret_skips_sa_file(
+        self, mock_discovery_cls, mock_requests, _mock_sa
+    ):
+        os.environ.pop("FEAST_OIDC_TOKEN", None)
+
+        mock_discovery_instance = MagicMock()
+        mock_discovery_instance.get_token_url.return_value = "https://idp/token"
+        mock_discovery_cls.return_value = mock_discovery_instance
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"access_token": "network-token"}
+        mock_requests.post.return_value = mock_response
+
+        mgr = self._make_manager(
+            client_secret="secret",  # pragma: allowlist secret
+            auth_discovery_url="https://idp/.well-known/openid-configuration",
+            client_id="feast-client",
+        )
+        assert mgr.get_token() == "network-token"
+        _mock_sa.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 #  Routing (RepoConfig.auth_config property)
@@ -335,3 +415,17 @@ class TestOidcClientRouting:
             }
         )
         assert isinstance(rc.auth_config, OidcClientAuthConfig)
+
+    def test_incomplete_ropg_routes_to_client_with_actionable_error(self):
+        with pytest.raises(
+            ValueError, match="Incomplete configuration for 'client_credentials'"
+        ):
+            self._make_repo_config(
+                {
+                    "type": "oidc",
+                    "auth_discovery_url": "https://idp/.well-known/openid-configuration",
+                    "client_id": "feast-client",
+                    "username": "user1",
+                    "password": "pass1",  # pragma: allowlist secret
+                }
+            ).auth_config
