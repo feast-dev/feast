@@ -1123,8 +1123,15 @@ class SqlRegistry(CachingRegistry):
         with self.read_engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
             if updated_since is not None:
+                # Ensure naive datetimes are treated as UTC, consistent with
+                # the Python-side filters that compare against offset-naive UTC
+                # last_updated_timestamp values from protobuf.
+                if updated_since.tzinfo is None:
+                    updated_since_utc = updated_since.replace(tzinfo=timezone.utc)
+                else:
+                    updated_since_utc = updated_since.astimezone(timezone.utc)
                 stmt = stmt.where(
-                    table.c.last_updated_timestamp >= int(updated_since.timestamp())
+                    table.c.last_updated_timestamp >= int(updated_since_utc.timestamp())
                 )
             rows = conn.execute(stmt).all()
             if rows:
