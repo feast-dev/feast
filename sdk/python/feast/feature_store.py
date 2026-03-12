@@ -568,6 +568,18 @@ class FeatureStore:
             feature_view.entities = []
         return feature_view
 
+    def list_feature_view_versions(self, name: str) -> List[Dict[str, Any]]:
+        """
+        List version history for a feature view.
+
+        Args:
+            name: Name of feature view.
+
+        Returns:
+            List of version records.
+        """
+        return self.registry.list_feature_view_versions(name, self.project)
+
     def get_stream_feature_view(
         self, name: str, allow_registry_cache: bool = False
     ) -> StreamFeatureView:

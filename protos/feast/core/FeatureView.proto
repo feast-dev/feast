@@ -36,7 +36,7 @@ message FeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 18
+// Next available id: 19
 // TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
 message FeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
@@ -94,6 +94,9 @@ message FeatureViewSpec {
 
     // Whether schema validation is enabled during materialization
     bool enable_validation = 17;
+
+    // User-specified version pin (e.g. "latest", "v2", "version2")
+    string version = 18;
 }
 
 message FeatureViewMeta {
@@ -105,6 +108,12 @@ message FeatureViewMeta {
 
     // List of pairs (start_time, end_time) for which this feature view has been materialized.
     repeated MaterializationInterval materialization_intervals = 3;
+
+    // The current version number of this feature view in the version history.
+    int32 current_version_number = 4;
+
+    // Auto-generated UUID identifying this specific version.
+    string version_id = 5;
 }
 
 message MaterializationInterval {

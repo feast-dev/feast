@@ -35,6 +35,7 @@ from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.utils import _utc_now
 from feast.value_type import ValueType
+from feast.version_utils import normalize_version_string
 
 warnings.simplefilter("once", DeprecationWarning)
 OnDemandSourceType = Union[FeatureView, FeatureViewProjection, RequestSource]
@@ -164,6 +165,7 @@ class OnDemandFeatureView(BaseFeatureView):
         write_to_online_store: bool = False,
         singleton: bool = False,
         aggregations: Optional[List[Aggregation]] = None,
+        version: str = "latest",
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -199,6 +201,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=owner,
         )
 
+        self.version = version
         schema = schema or []
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.sources = sources
@@ -318,6 +321,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton,
+            version=self.version,
         )
         fv.entities = self.entities
         fv.features = self.features
@@ -346,6 +350,8 @@ class OnDemandFeatureView(BaseFeatureView):
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.singleton != other.singleton
             or self.aggregations != other.aggregations
+            or normalize_version_string(self.version)
+            != normalize_version_string(other.version)
         ):
             return False
 
@@ -456,6 +462,8 @@ class OnDemandFeatureView(BaseFeatureView):
             meta.created_timestamp.FromDatetime(self.created_timestamp)
         if self.last_updated_timestamp:
             meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+        if self.current_version_number is not None:
+            meta.current_version_number = self.current_version_number
         sources = {}
         for source_name, fv_projection in self.source_feature_view_projections.items():
             sources[source_name] = OnDemandSource(
@@ -487,6 +495,7 @@ class OnDemandFeatureView(BaseFeatureView):
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton or False,
             aggregations=self.aggregations,
+            version=self.version,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
@@ -542,6 +551,16 @@ class OnDemandFeatureView(BaseFeatureView):
         # Create the default projection.
         on_demand_feature_view_obj.projection = FeatureViewProjection.from_definition(
             on_demand_feature_view_obj
+        )
+
+        # Restore version fields.
+        on_demand_feature_view_obj.version = (
+            on_demand_feature_view_proto.spec.version or "latest"
+        )
+        on_demand_feature_view_obj.current_version_number = (
+            on_demand_feature_view_proto.meta.current_version_number
+            if on_demand_feature_view_proto.meta.current_version_number
+            else None
         )
 
         # Set timestamps if present

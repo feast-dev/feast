@@ -35,6 +35,7 @@ from feast.protos.feast.core.Transformation_pb2 import (
 )
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
+from feast.version_utils import normalize_version_string
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -122,6 +123,7 @@ class StreamFeatureView(FeatureView):
         enable_tiling: bool = False,
         tiling_hop_size: Optional[timedelta] = None,
         enable_validation: bool = False,
+        version: str = "latest",
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -186,6 +188,7 @@ class StreamFeatureView(FeatureView):
             mode=mode,
             sink_source=sink_source,
             enable_validation=enable_validation,
+            version=version,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
@@ -224,6 +227,8 @@ class StreamFeatureView(FeatureView):
             or self.udf.__code__.co_code != other.udf.__code__.co_code
             or self.udf_string != other.udf_string
             or self.aggregations != other.aggregations
+            or normalize_version_string(self.version)
+            != normalize_version_string(other.version)
         ):
             return False
 
@@ -282,6 +287,7 @@ class StreamFeatureView(FeatureView):
             enable_tiling=self.enable_tiling,
             tiling_hop_size=tiling_hop_size_duration,
             enable_validation=self.enable_validation,
+            version=self.version,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -344,6 +350,7 @@ class StreamFeatureView(FeatureView):
                 else None
             ),
             enable_validation=sfv_proto.spec.enable_validation,
+            version=sfv_proto.spec.version or "latest",
         )
 
         if batch_source:
@@ -398,6 +405,7 @@ class StreamFeatureView(FeatureView):
             udf_string=self.udf_string,
             feature_transformation=self.feature_transformation,
             enable_validation=self.enable_validation,
+            version=self.version,
         )
         fv.entities = self.entities
         fv.features = copy.copy(self.features)

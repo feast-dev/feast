@@ -56,6 +56,8 @@ class BaseFeatureView(ABC):
     projection: FeatureViewProjection
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
+    version: str
+    current_version_number: Optional[int]
 
     @abstractmethod
     def __init__(
@@ -92,6 +94,10 @@ class BaseFeatureView(ABC):
         self.projection = FeatureViewProjection.from_definition(self)
         self.created_timestamp = None
         self.last_updated_timestamp = None
+        if not hasattr(self, "version"):
+            self.version = "latest"
+        if not hasattr(self, "current_version_number"):
+            self.current_version_number = None
 
         self.source = source
 
