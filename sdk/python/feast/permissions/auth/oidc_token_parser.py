@@ -110,12 +110,12 @@ class OidcTokenParser(TokenParser):
 
     @staticmethod
     def _is_kubernetes_token(access_token: str) -> bool:
-        """Check if the token contains the ``kubernetes.io`` claim."""
+        """Check if the token contains the ``kubernetes.io`` claim (a dict with namespace, pod, serviceaccount)."""
         try:
             unverified = jwt.decode(access_token, options={"verify_signature": False})
         except jwt.exceptions.DecodeError as e:
             raise AuthenticationError(f"Failed to decode token: {e}")
-        return "kubernetes.io" in unverified
+        return isinstance(unverified.get("kubernetes.io"), dict)
 
     async def user_details_from_access_token(self, access_token: str) -> User:
         """
