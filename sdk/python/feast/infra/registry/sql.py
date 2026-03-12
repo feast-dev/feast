@@ -1062,7 +1062,7 @@ class SqlRegistry(CachingRegistry):
                     "version_number": row._mapping["version_number"],
                     "feature_view_type": row._mapping["feature_view_type"],
                     "created_timestamp": datetime.fromtimestamp(
-                        row._mapping["created_timestamp"]
+                        row._mapping["created_timestamp"], tz=timezone.utc
                     ),
                     "version_id": row._mapping["version_id"],
                 }

@@ -151,6 +151,29 @@ class TestFeatureViewVersionField:
         assert fv2.version == "v3"
         assert fv2.current_version_number == 3
 
+    def test_feature_view_proto_roundtrip_v0(self):
+        from datetime import timedelta
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+
+        entity = Entity(name="entity_id", join_keys=["entity_id"])
+        fv = FeatureView(
+            name="test_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            version="v0",
+        )
+        fv.current_version_number = 0
+
+        proto = fv.to_proto()
+        assert proto.spec.version == "v0"
+        assert proto.meta.current_version_number == 0
+
+        fv2 = FeatureView.from_proto(proto)
+        assert fv2.version == "v0"
+        assert fv2.current_version_number == 0
+
     def test_feature_view_equality_with_version(self):
         from datetime import timedelta
 

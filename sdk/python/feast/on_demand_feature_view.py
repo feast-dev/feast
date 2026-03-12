@@ -557,11 +557,17 @@ class OnDemandFeatureView(BaseFeatureView):
         on_demand_feature_view_obj.version = (
             on_demand_feature_view_proto.spec.version or "latest"
         )
-        on_demand_feature_view_obj.current_version_number = (
-            on_demand_feature_view_proto.meta.current_version_number
-            if on_demand_feature_view_proto.meta.current_version_number
-            else None
-        )
+        if on_demand_feature_view_proto.meta.current_version_number:
+            on_demand_feature_view_obj.current_version_number = (
+                on_demand_feature_view_proto.meta.current_version_number
+            )
+        elif (
+            on_demand_feature_view_proto.meta.current_version_number == 0
+            and on_demand_feature_view_proto.spec.version
+        ):
+            on_demand_feature_view_obj.current_version_number = 0
+        else:
+            on_demand_feature_view_obj.current_version_number = None
 
         # Set timestamps if present
         cls._set_timestamps_from_proto(
