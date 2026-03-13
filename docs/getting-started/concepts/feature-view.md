@@ -166,18 +166,36 @@ Feature views support automatic version tracking. Every time `feast apply` detec
 
 ### How it works
 
-* **Automatic snapshots**: Each `feast apply` that modifies a feature view creates a new version (v0, v1, v2, ...). If nothing changed, no new version is created (idempotent).
+Version tracking is fully automatic. You don't need to set any version parameter — just use `feast apply` as usual:
+
+1. **First apply** — Your feature view definition is saved as **v0**.
+2. **Change something and re-apply** — Feast detects the change, saves the old definition as a snapshot, and saves the new one as **v1**. The version number auto-increments on each real change.
+3. **Re-apply without changes** — Nothing happens. Feast compares the new definition against the active one and skips creating a version if they're identical (idempotent).
+4. **Another change** — Creates **v2**, and so on.
+
+```
+feast apply                  # First apply → v0
+# ... edit schema ...
+feast apply                  # Detects change → v1
+feast apply                  # No change detected → still v1 (no new version)
+# ... edit source ...
+feast apply                  # Detects change → v2
+```
+
+**Key details:**
+
+* **Automatic snapshots**: Versions are created only when Feast detects an actual change to the feature view definition. No new version is created for identical re-applies.
 * **Separate history storage**: Version history is stored separately from the active feature view definition, keeping the main registry lightweight.
-* **Backward compatible**: The `version` parameter is fully optional. Omitting it (or setting `version="latest"`) preserves existing behavior.
+* **Backward compatible**: The `version` parameter is fully optional. Omitting it (or setting `version="latest"`) preserves existing behavior — you get automatic versioning with zero changes to your code.
 
 ### Pinning to a specific version
 
-You can pin a feature view to a specific historical version by setting the `version` parameter. When pinned, `feast apply` replaces the active feature view with the snapshot from that version.
+You can pin a feature view to a specific historical version by setting the `version` parameter. When pinned, `feast apply` replaces the active feature view with the snapshot from that version. This is useful for reverting to a known-good definition.
 
 ```python
 from feast import FeatureView
 
-# Default behavior: always use the latest version
+# Default behavior: always use the latest version (auto-increments on changes)
 driver_stats = FeatureView(
     name="driver_stats",
     entities=[driver],
@@ -185,7 +203,7 @@ driver_stats = FeatureView(
     source=my_source,
 )
 
-# Pin to a specific version
+# Pin to a specific version (reverts the active definition to v2's snapshot)
 driver_stats = FeatureView(
     name="driver_stats",
     entities=[driver],
@@ -195,11 +213,15 @@ driver_stats = FeatureView(
 )
 ```
 
+When pinning, the other constructor parameters (schema, source, etc.) are ignored — the snapshot's content is used instead. Version history is not modified by a pin; the existing v0, v1, v2, etc. snapshots remain intact.
+
+After reverting with a pin, you can go back to normal auto-incrementing behavior by removing the `version` parameter (or setting it to `"latest"`) and running `feast apply` again. If the restored definition differs from the pinned snapshot, a new version will be created.
+
 ### Version string formats
 
 | Format | Meaning |
 |--------|---------|
-| `"latest"` (or omitted) | Always use the latest version |
+| `"latest"` (or omitted) | Always use the latest version (auto-increments on changes) |
 | `"v0"`, `"v1"`, `"v2"`, ... | Pin to a specific version number |
 | `"version0"`, `"version1"`, ... | Equivalent long form (case-insensitive) |
 
@@ -209,6 +231,13 @@ Use the CLI to inspect version history:
 
 ```bash
 feast feature-views versions driver_stats
+```
+
+```text
+VERSION  TYPE          CREATED              VERSION_ID
+v0       feature_view  2024-01-15 10:30:00  a1b2c3d4-...
+v1       feature_view  2024-01-16 14:22:00  e5f6g7h8-...
+v2       feature_view  2024-01-20 09:15:00  i9j0k1l2-...
 ```
 
 Or programmatically via the Python SDK:
