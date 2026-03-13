@@ -637,9 +637,10 @@ class SqlRegistry(CachingRegistry):
             )
 
         # Normal (latest) apply: snapshot old version if changed, then save new
-        # First check if the FV already exists so we can snapshot the old one
+        # First check if the FV already exists so we can snapshot the old one.
+        # Use write_engine for both reads to avoid read replica lag issues.
         old_proto_bytes = None
-        with self.read_engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = select(fv_table).where(
                 fv_table.c.feature_view_name == feature_view.name,
                 fv_table.c.project_id == project,
@@ -656,7 +657,7 @@ class SqlRegistry(CachingRegistry):
         )
 
         # After apply, read the current proto to see if it changed
-        with self.read_engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = select(fv_table).where(
                 fv_table.c.feature_view_name == feature_view.name,
                 fv_table.c.project_id == project,

@@ -35,7 +35,6 @@ from feast.protos.feast.core.Transformation_pb2 import (
 )
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
-from feast.version_utils import normalize_version_string
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -227,8 +226,6 @@ class StreamFeatureView(FeatureView):
             or self.udf.__code__.co_code != other.udf.__code__.co_code
             or self.udf_string != other.udf_string
             or self.aggregations != other.aggregations
-            or normalize_version_string(self.version)
-            != normalize_version_string(other.version)
         ):
             return False
 
@@ -364,8 +361,14 @@ class StreamFeatureView(FeatureView):
             stream_feature_view.current_version_number = (
                 sfv_proto.meta.current_version_number
             )
-        elif sfv_proto.meta.current_version_number == 0 and sfv_proto.spec.version:
+        elif (
+            sfv_proto.meta.current_version_number == 0
+            and sfv_proto.spec.version
+            and sfv_proto.spec.version.lower() != "latest"
+        ):
             stream_feature_view.current_version_number = 0
+        else:
+            stream_feature_view.current_version_number = None
 
         stream_feature_view.entities = list(sfv_proto.spec.entities)
 
