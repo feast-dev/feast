@@ -561,6 +561,13 @@ class SqlRegistry(CachingRegistry):
             )
         if deleted_count == 0:
             raise FeatureViewNotFoundException(name, project)
+        # Clean up version history for the deleted feature view
+        with self.write_engine.begin() as conn:
+            stmt = delete(feature_view_version_history).where(
+                feature_view_version_history.c.feature_view_name == name,
+                feature_view_version_history.c.project_id == project,
+            )
+            conn.execute(stmt)
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
@@ -992,7 +999,7 @@ class SqlRegistry(CachingRegistry):
             raise ValueError(f"Unknown feature view type: {fv_type}")
 
     def _get_next_version_number(self, name: str, project: str) -> int:
-        with self.read_engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = select(
                 func.coalesce(
                     func.max(feature_view_version_history.c.version_number) + 1, 0
