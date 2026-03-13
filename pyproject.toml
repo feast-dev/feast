@@ -73,7 +73,7 @@ gcp = [
     "google-cloud-bigtable>=2.11.0,<3",
     "fsspec<=2024.9.0",
 ]
-ge = ["great_expectations>=0.15.41,<1"]
+ge = ["great_expectations>=0.15.41,<1", "marshmallow<4"]
 go = ["cffi>=1.15.0"]
 grpcio = [
     "grpcio>=1.56.2,<=1.62.3",
