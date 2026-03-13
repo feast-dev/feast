@@ -100,6 +100,7 @@ class BatchFeatureView(FeatureView):
         batch_engine: Optional[Dict[str, Any]] = None,
         aggregations: Optional[List[Aggregation]] = None,
         enable_validation: bool = False,
+        version: str = "latest",
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -155,6 +156,7 @@ class BatchFeatureView(FeatureView):
             sink_source=sink_source,
             mode=mode,
             enable_validation=enable_validation,
+            version=version,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:

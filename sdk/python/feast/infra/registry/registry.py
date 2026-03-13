@@ -885,6 +885,7 @@ class Registry(BaseRegistry):
         self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
+        found = False
         for idx, existing_feature_view_proto in enumerate(
             self.cached_registry_proto.feature_views
         ):
@@ -893,35 +894,48 @@ class Registry(BaseRegistry):
                 and existing_feature_view_proto.spec.project == project
             ):
                 del self.cached_registry_proto.feature_views[idx]
-                if commit:
-                    self.commit()
-                return
+                found = True
+                break
 
-        for idx, existing_on_demand_feature_view_proto in enumerate(
-            self.cached_registry_proto.on_demand_feature_views
-        ):
-            if (
-                existing_on_demand_feature_view_proto.spec.name == name
-                and existing_on_demand_feature_view_proto.spec.project == project
+        if not found:
+            for idx, existing_on_demand_feature_view_proto in enumerate(
+                self.cached_registry_proto.on_demand_feature_views
             ):
-                del self.cached_registry_proto.on_demand_feature_views[idx]
-                if commit:
-                    self.commit()
-                return
+                if (
+                    existing_on_demand_feature_view_proto.spec.name == name
+                    and existing_on_demand_feature_view_proto.spec.project == project
+                ):
+                    del self.cached_registry_proto.on_demand_feature_views[idx]
+                    found = True
+                    break
 
-        for idx, existing_stream_feature_view_proto in enumerate(
-            self.cached_registry_proto.stream_feature_views
-        ):
-            if (
-                existing_stream_feature_view_proto.spec.name == name
-                and existing_stream_feature_view_proto.spec.project == project
+        if not found:
+            for idx, existing_stream_feature_view_proto in enumerate(
+                self.cached_registry_proto.stream_feature_views
             ):
-                del self.cached_registry_proto.stream_feature_views[idx]
-                if commit:
-                    self.commit()
-                return
+                if (
+                    existing_stream_feature_view_proto.spec.name == name
+                    and existing_stream_feature_view_proto.spec.project == project
+                ):
+                    del self.cached_registry_proto.stream_feature_views[idx]
+                    found = True
+                    break
 
-        raise FeatureViewNotFoundException(name, project)
+        if not found:
+            raise FeatureViewNotFoundException(name, project)
+
+        # Clean up version history for the deleted feature view
+        history = self.cached_registry_proto.feature_view_version_history
+        indices_to_remove = [
+            i
+            for i, record in enumerate(history.records)
+            if record.feature_view_name == name and record.project_id == project
+        ]
+        for i in reversed(indices_to_remove):
+            del history.records[i]
+
+        if commit:
+            self.commit()
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         self._prepare_registry_for_changes(project)

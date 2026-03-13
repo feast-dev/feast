@@ -564,7 +564,6 @@ class OnDemandFeatureView(BaseFeatureView):
         elif (
             on_demand_feature_view_proto.meta.current_version_number == 0
             and on_demand_feature_view_proto.spec.version
-            and on_demand_feature_view_proto.spec.version.lower() != "latest"
         ):
             on_demand_feature_view_obj.current_version_number = 0
         else:

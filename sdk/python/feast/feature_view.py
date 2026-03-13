@@ -646,8 +646,9 @@ class FeatureView(BaseFeatureView):
         # Restore version fields.
         feature_view.version = feature_view_proto.spec.version or "latest"
         # proto3 int32 defaults to 0, so use spec.version to distinguish
-        # "actually version 0" from "no version set". A version of "latest"
-        # (or empty) with current_version_number==0 means "not versioned yet".
+        # "actually version 0" from "no version set". An empty spec.version
+        # means the proto predates versioning, so current_version_number
+        # should be None.
         if feature_view_proto.meta.current_version_number:
             feature_view.current_version_number = (
                 feature_view_proto.meta.current_version_number
@@ -655,7 +656,6 @@ class FeatureView(BaseFeatureView):
         elif (
             feature_view_proto.meta.current_version_number == 0
             and feature_view_proto.spec.version
-            and feature_view_proto.spec.version.lower() != "latest"
         ):
             feature_view.current_version_number = 0
         else:
