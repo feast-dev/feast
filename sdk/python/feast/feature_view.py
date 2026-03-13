@@ -156,6 +156,10 @@ class FeatureView(BaseFeatureView):
                 when transformations are applied. Choose from TransformationMode enum values.
             enable_validation (optional): If True, enables schema validation during materialization
                 to check that data conforms to the declared feature types. Default is False.
+            version (optional): Version string for definition management. Controls which historical
+                snapshot is active after ``feast apply``. Only one version can be active per feature
+                view name per project. For concurrent multi-version testing, use separate projects
+                or distinct feature view names. Default is "latest".
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.

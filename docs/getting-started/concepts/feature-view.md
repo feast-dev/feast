@@ -251,6 +251,20 @@ for v in versions:
     print(f"{v['version']} created at {v['created_timestamp']}")
 ```
 
+### Concurrent access and multi-team usage
+
+Versioning provides **definition management and rollback** — it does not support concurrent multi-version serving. Key constraints:
+
+* Only one version can be active per feature view name per project at any time
+* Pinning to a version (e.g., `version="v2"`) is a global operation that changes the active definition for **all** consumers in that project
+* On-demand feature views resolve their source feature views by name against the currently active definition
+* `get_online_features` and `get_historical_features` always use the active definition
+
+**For concurrent A/B testing** of different feature definitions, use one of these approaches:
+
+* **Separate Feast projects**: `project="team_a"` and `project="team_b"` can each maintain independent feature view definitions while sharing the same underlying data sources
+* **Distinct feature view names**: Create `driver_stats_experiment_v2` alongside `driver_stats` to test a new definition without affecting the original
+
 ### Supported feature view types
 
 Versioning is supported on all three feature view types:
