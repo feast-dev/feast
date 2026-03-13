@@ -213,7 +213,9 @@ driver_stats = FeatureView(
 )
 ```
 
-When pinning, the other constructor parameters (schema, source, etc.) are ignored — the snapshot's content is used instead. Version history is not modified by a pin; the existing v0, v1, v2, etc. snapshots remain intact.
+When pinning, the feature view definition (schema, source, transformations, etc.) must match the currently active definition. If you've also modified the definition alongside the pin, `feast apply` will raise a `FeatureViewPinConflict` error. To apply changes, use `version="latest"`. To revert, only change the `version` parameter.
+
+The snapshot's content replaces the active feature view. Version history is not modified by a pin; the existing v0, v1, v2, etc. snapshots remain intact.
 
 After reverting with a pin, you can go back to normal auto-incrementing behavior by removing the `version` parameter (or setting it to `"latest"`) and running `feast apply` again. If the restored definition differs from the pinned snapshot, a new version will be created.
 

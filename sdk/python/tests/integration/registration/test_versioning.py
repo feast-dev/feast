@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from feast.entity import Entity
-from feast.errors import FeatureViewVersionNotFound
+from feast.errors import FeatureViewPinConflict, FeatureViewVersionNotFound
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.registry.registry import Registry
@@ -97,8 +97,8 @@ class TestFileRegistryVersioning:
         fv2 = make_fv(description="updated")
         registry.apply_feature_view(fv2, "test_project", commit=True)
 
-        # Pin to v0
-        fv_pin = make_fv(version="v0")
+        # Pin to v0 (definition must match active FV, only version changes)
+        fv_pin = make_fv(description="updated", version="v0")
         registry.apply_feature_view(fv_pin, "test_project", commit=True)
 
         # Verify active entry has v0's content
@@ -123,8 +123,8 @@ class TestFileRegistryVersioning:
         fv2 = make_fv(description="v1 desc")
         registry.apply_feature_view(fv2, "test_project", commit=True)
 
-        # Pin to v0
-        fv_pin = make_fv(version="v0")
+        # Pin to v0 (definition must match active FV, only version changes)
+        fv_pin = make_fv(description="v1 desc", version="v0")
         registry.apply_feature_view(fv_pin, "test_project", commit=True)
 
         # Apply new content (should create new version)
@@ -134,6 +134,38 @@ class TestFileRegistryVersioning:
         versions = registry.list_feature_view_versions("driver_stats", "test_project")
         # Should have v0, v1, and potentially more versions
         assert len(versions) >= 2
+
+    def test_pin_with_modified_definition_raises(self, registry, make_fv):
+        # Create v0
+        fv1 = make_fv(description="original")
+        registry.apply_feature_view(fv1, "test_project", commit=True)
+
+        # Create v1
+        fv2 = make_fv(description="updated")
+        registry.apply_feature_view(fv2, "test_project", commit=True)
+
+        # Attempt to pin to v0 while also changing description
+        fv_pin = make_fv(description="sneaky change", version="v0")
+        with pytest.raises(FeatureViewPinConflict):
+            registry.apply_feature_view(fv_pin, "test_project", commit=True)
+
+    def test_pin_without_modification_succeeds(self, registry, make_fv):
+        # Create v0
+        fv1 = make_fv(description="original")
+        registry.apply_feature_view(fv1, "test_project", commit=True)
+
+        # Create v1
+        fv2 = make_fv(description="updated")
+        registry.apply_feature_view(fv2, "test_project", commit=True)
+
+        # Pin to v0 with same definition as active (only version changes)
+        fv_pin = make_fv(description="updated", version="v0")
+        registry.apply_feature_view(fv_pin, "test_project", commit=True)
+
+        # Verify active entry has v0's content
+        active_fv = registry.get_feature_view("driver_stats", "test_project")
+        assert active_fv.description == "original"
+        assert active_fv.version == "v0"
 
     def test_version_in_proto_roundtrip(self, registry, make_fv):
         fv = make_fv(version="v3")

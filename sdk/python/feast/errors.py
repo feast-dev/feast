@@ -138,6 +138,15 @@ class FeatureViewVersionNotFound(FeastObjectNotFoundException):
             super().__init__(f"Version {version} of feature view {name} does not exist")
 
 
+class FeatureViewPinConflict(FeastError):
+    def __init__(self, name, version):
+        super().__init__(
+            f"Cannot pin feature view '{name}' to {version} because the definition has also been modified. "
+            f"To pin to an older version, only change the 'version' parameter — do not modify other fields. "
+            f"To apply a new definition, use version='latest' or omit the version parameter."
+        )
+
+
 class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:

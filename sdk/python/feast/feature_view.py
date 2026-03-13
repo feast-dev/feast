@@ -296,6 +296,8 @@ class FeatureView(BaseFeatureView):
             sink_source=self.batch_source if self.source_views else None,
             enable_validation=self.enable_validation,
             version=self.version,
+            description=self.description,
+            owner=self.owner,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.

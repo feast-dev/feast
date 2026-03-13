@@ -31,6 +31,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    FeatureViewPinConflict,
     FeatureViewVersionNotFound,
     PermissionNotFoundException,
     ProjectNotFoundException,
@@ -591,6 +592,34 @@ class Registry(BaseRegistry):
                     version_tag(pin_version),
                     project,
                 )
+
+            # Check that the user hasn't also modified the definition.
+            # Compare user's FV (with version="latest") against active FV.
+            self._prepare_registry_for_changes(project)
+            try:
+                active_fv = proto_registry_utils.get_any_feature_view(
+                    self.cached_registry_proto, feature_view.name, project
+                )
+                user_fv_copy = feature_view.__copy__()
+                user_fv_copy.version = "latest"
+                active_fv.version = "latest"
+                # Clear metadata that differs due to registry state
+                user_fv_copy.created_timestamp = active_fv.created_timestamp
+                user_fv_copy.last_updated_timestamp = active_fv.last_updated_timestamp
+                user_fv_copy.current_version_number = active_fv.current_version_number
+                if hasattr(active_fv, "materialization_intervals"):
+                    user_fv_copy.materialization_intervals = (
+                        active_fv.materialization_intervals
+                    )
+                if user_fv_copy != active_fv:
+                    raise FeatureViewPinConflict(
+                        feature_view.name, version_tag(pin_version)
+                    )
+            except FeatureViewNotFoundException:
+                # FV doesn't exist yet — pinning to a version of a non-existent
+                # FV will fail anyway, let it proceed to the normal error path
+                pass
+
             proto_class, python_class = self._proto_class_for_type(
                 record.feature_view_type
             )
