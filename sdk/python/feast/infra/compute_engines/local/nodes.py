@@ -196,16 +196,19 @@ class LocalDedupNode(LocalNode):
         # Dedup strategy: sort and drop_duplicates
         dedup_keys = self.column_info.join_keys
         if dedup_keys:
-            sort_keys = [self.column_info.timestamp_column]
+            sort_keys = []
+            if self.column_info.timestamp_column in df.columns:
+              sort_keys.append(self.column_info.timestamp_column)
             if (
-                self.column_info.created_timestamp_column
-                and self.column_info.created_timestamp_column in df.columns
+              self.column_info.created_timestamp_column
+              and self.column_info.created_timestamp_column in df.columns
             ):
-                sort_keys.append(self.column_info.created_timestamp_column)
-
-            df = self.backend.drop_duplicates(
-                df, keys=dedup_keys, sort_by=sort_keys, ascending=False
-            )
+              sort_keys.append(self.column_info.created_timestamp_column)
+            
+            if sort_keys:
+              df = self.backend.drop_duplicates(
+                  df, keys=dedup_keys, sort_by=sort_keys, ascending=False
+              )
         result = self.backend.to_arrow(df)
         output = ArrowTableValue(result)
         context.node_outputs[self.name] = output
