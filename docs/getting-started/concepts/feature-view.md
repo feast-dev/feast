@@ -160,6 +160,74 @@ Feature names must be unique within a [feature view](feature-view.md#feature-vie
 
 Each field can have additional metadata associated with it, specified as key-value [tags](https://rtd.feast.dev/en/master/feast.html#feast.field.Field).
 
+## Versioning
+
+Feature views support automatic version tracking. Every time `feast apply` detects a change to a feature view, a version snapshot is saved to the registry's version history. This enables auditing what changed, reverting to a prior definition, or pinning serving to a known-good version.
+
+### How it works
+
+* **Automatic snapshots**: Each `feast apply` that modifies a feature view creates a new version (v0, v1, v2, ...). If nothing changed, no new version is created (idempotent).
+* **Separate history storage**: Version history is stored separately from the active feature view definition, keeping the main registry lightweight.
+* **Backward compatible**: The `version` parameter is fully optional. Omitting it (or setting `version="latest"`) preserves existing behavior.
+
+### Pinning to a specific version
+
+You can pin a feature view to a specific historical version by setting the `version` parameter. When pinned, `feast apply` replaces the active feature view with the snapshot from that version.
+
+```python
+from feast import FeatureView
+
+# Default behavior: always use the latest version
+driver_stats = FeatureView(
+    name="driver_stats",
+    entities=[driver],
+    schema=[...],
+    source=my_source,
+)
+
+# Pin to a specific version
+driver_stats = FeatureView(
+    name="driver_stats",
+    entities=[driver],
+    schema=[...],
+    source=my_source,
+    version="v2",  # also accepts "version2"
+)
+```
+
+### Version string formats
+
+| Format | Meaning |
+|--------|---------|
+| `"latest"` (or omitted) | Always use the latest version |
+| `"v0"`, `"v1"`, `"v2"`, ... | Pin to a specific version number |
+| `"version0"`, `"version1"`, ... | Equivalent long form (case-insensitive) |
+
+### Listing version history
+
+Use the CLI to inspect version history:
+
+```bash
+feast feature-views versions driver_stats
+```
+
+Or programmatically via the Python SDK:
+
+```python
+store = FeatureStore(repo_path=".")
+versions = store.list_feature_view_versions("driver_stats")
+for v in versions:
+    print(f"{v['version']} created at {v['created_timestamp']}")
+```
+
+### Supported feature view types
+
+Versioning is supported on all three feature view types:
+
+* `FeatureView` (and `BatchFeatureView`)
+* `StreamFeatureView`
+* `OnDemandFeatureView`
+
 ## Schema Validation
 
 Feature views support an optional `enable_validation` parameter that enables schema validation during materialization and historical feature retrieval. When enabled, Feast verifies that:

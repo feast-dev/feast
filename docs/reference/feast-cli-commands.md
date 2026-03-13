@@ -176,6 +176,18 @@ NAME                 ENTITIES    TYPE
 driver_hourly_stats  {'driver'}  FeatureView
 ```
 
+List version history for a feature view
+
+```text
+feast feature-views versions FEATURE_VIEW_NAME
+```
+
+```text
+VERSION  TYPE          CREATED              VERSION_ID
+v0       feature_view  2024-01-15 10:30:00  a1b2c3d4-...
+v1       feature_view  2024-01-16 14:22:00  e5f6g7h8-...
+```
+
 ## Init
 
 Creates a new feature repository
