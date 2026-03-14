@@ -495,7 +495,16 @@ def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
         sys.exit(1)
 
 
-def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
+DEFAULT_DEMO_REPOS = [("driver", "local"), ("rag", "rag")]
+
+
+def init_repo(
+    repo_name: str,
+    template: str,
+    repo_path: Optional[str] = None,
+    *,
+    shared_registry: bool = False,
+):
     import os
     from pathlib import Path
     from shutil import copytree
@@ -559,6 +568,19 @@ def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
     replace_str_in_file(
         feature_store_yaml_path, "project: my_project", f"project: {repo_name}"
     )
+
+    # Multi-demo default flow only: shared registry at project root.
+    # Use string replacement to preserve YAML comments and formatting.
+    if (
+        shared_registry
+        and (repo_name, template) in DEFAULT_DEMO_REPOS
+        and feature_store_yaml_path.exists()
+    ):
+        replace_str_in_file(
+            feature_store_yaml_path,
+            "registry: data/registry.db",
+            "registry: ../../registry.db",
+        )
 
     # Remove the __pycache__ folder if it exists
     import shutil

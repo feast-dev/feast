@@ -69,7 +69,7 @@ def test_offline_server_is_alive(environment, empty_offline_server, arrow_client
 
 def default_store(temp_dir):
     runner = CliRunner()
-    result = runner.run(["init", PROJECT_NAME], cwd=temp_dir)
+    result = runner.run(["init", PROJECT_NAME, "--template", "local"], cwd=temp_dir)
     repo_path = os.path.join(temp_dir, PROJECT_NAME, "feature_repo")
     assert result.returncode == 0
 
