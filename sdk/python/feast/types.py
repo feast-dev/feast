@@ -25,6 +25,8 @@ PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
     "BYTES": "BYTES",
     "PDF_BYTES": "PDF_BYTES",
     "IMAGE_BYTES": "IMAGE_BYTES",
+    "UUID": "UUID",
+    "TIME_UUID": "TIME_UUID",
     "STRING": "STRING",
     "INT32": "INT32",
     "INT64": "INT64",
@@ -87,6 +89,8 @@ class PrimitiveFeastType(Enum):
     IMAGE_BYTES = 10
     MAP = 11
     JSON = 12
+    UUID = 13
+    TIME_UUID = 14
 
     def to_value_type(self) -> ValueType:
         """
@@ -121,6 +125,8 @@ Float64 = PrimitiveFeastType.FLOAT64
 UnixTimestamp = PrimitiveFeastType.UNIX_TIMESTAMP
 Map = PrimitiveFeastType.MAP
 Json = PrimitiveFeastType.JSON
+Uuid = PrimitiveFeastType.UUID
+TimeUuid = PrimitiveFeastType.TIME_UUID
 
 SUPPORTED_BASE_TYPES = [
     Invalid,
@@ -136,6 +142,8 @@ SUPPORTED_BASE_TYPES = [
     UnixTimestamp,
     Map,
     Json,
+    Uuid,
+    TimeUuid,
 ]
 
 PRIMITIVE_FEAST_TYPES_TO_STRING = {
@@ -152,6 +160,8 @@ PRIMITIVE_FEAST_TYPES_TO_STRING = {
     "UNIX_TIMESTAMP": "UnixTimestamp",
     "MAP": "Map",
     "JSON": "Json",
+    "UUID": "Uuid",
+    "TIME_UUID": "TimeUuid",
 }
 
 
@@ -198,7 +208,7 @@ class Set(ComplexFeastType):
 
     def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
         # Sets do not support MAP as a base type
-        supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t != Map]
+        supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t not in (Map,)]
         if base_type not in supported_set_types:
             raise ValueError(
                 f"Type {type(base_type)} is currently not supported as a base type for Set."
@@ -297,6 +307,12 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.FLOAT_SET: Set(Float32),
     ValueType.BOOL_SET: Set(Bool),
     ValueType.UNIX_TIMESTAMP_SET: Set(UnixTimestamp),
+    ValueType.UUID: Uuid,
+    ValueType.TIME_UUID: TimeUuid,
+    ValueType.UUID_LIST: Array(Uuid),
+    ValueType.TIME_UUID_LIST: Array(TimeUuid),
+    ValueType.UUID_SET: Set(Uuid),
+    ValueType.TIME_UUID_SET: Set(TimeUuid),
 }
 
 FEAST_TYPES_TO_PYARROW_TYPES = {
@@ -310,6 +326,8 @@ FEAST_TYPES_TO_PYARROW_TYPES = {
     UnixTimestamp: pyarrow.timestamp("us", tz=_utc_now().tzname()),
     Map: pyarrow.map_(pyarrow.string(), pyarrow.string()),
     Json: pyarrow.large_string(),
+    Uuid: pyarrow.string(),
+    TimeUuid: pyarrow.string(),
 }
 
 FEAST_VECTOR_TYPES: List[Union[ValueType, PrimitiveFeastType, ComplexFeastType]] = [

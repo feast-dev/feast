@@ -7,7 +7,7 @@ Feast's type system is built on top of [protobuf](https://github.com/protocolbuf
 
 Feast supports the following categories of data types:
 
-- **Primitive types**: numerical values (`Int32`, `Int64`, `Float32`, `Float64`), `String`, `Bytes`, `Bool`, and `UnixTimestamp`.
+- **Primitive types**: numerical values (`Int32`, `Int64`, `Float32`, `Float64`), `String`, `Bytes`, `Bool`, `UnixTimestamp`, `Uuid`, and `TimeUuid`.
 - **Array types**: ordered lists of any primitive type, e.g. `Array(Int64)`, `Array(String)`.
 - **Set types**: unordered collections of unique values for any primitive type, e.g. `Set(String)`, `Set(Int64)`.
 - **Map types**: dictionary-like structures with string keys and values that can be any supported Feast type (including nested maps), e.g. `Map`, `Array(Map)`.
