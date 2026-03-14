@@ -250,6 +250,7 @@ class Provider(ABC):
         self,
         config: RepoConfig,
         feature_views: List[Union[FeatureView, OnDemandFeatureView]],
+        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
         entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
@@ -263,6 +264,7 @@ class Provider(ABC):
         Args:
             config: The config for the current feature store.
             feature_views: A list containing all feature views that are referenced in the entity rows.
+            on_demand_feature_views: The on demand feature views requested as part of the retrieval.
             feature_refs: The features to be retrieved.
             entity_df: A collection of rows containing all entity columns on which features need to be joined,
                 as well as the timestamp column used for point-in-time joins. Either a pandas dataframe can be
