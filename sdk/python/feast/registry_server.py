@@ -397,12 +397,19 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListAllFeatureViews(
         self, request: RegistryServer_pb2.ListAllFeatureViewsRequest, context
     ):
+        updated_since = None
+        if request.HasField("updated_since"):
+            updated_since = request.updated_since.ToDatetime().replace(
+                tzinfo=timezone.utc
+            )
+
         all_feature_views = cast(
             list[FeastObject],
             self.proxied_registry.list_all_feature_views(
                 project=request.project,
                 allow_cache=request.allow_cache,
                 tags=dict(request.tags),
+                updated_since=updated_since,
             ),
         )
 

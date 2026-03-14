@@ -316,9 +316,18 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
+        updated_since_proto = None
+        if updated_since is not None:
+            ts = Timestamp()
+            ts.FromDatetime(updated_since)
+            updated_since_proto = ts
         request = RegistryServer_pb2.ListAllFeatureViewsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
+            project=project,
+            allow_cache=allow_cache,
+            tags=tags,
+            updated_since=updated_since_proto,
         )
 
         response: RegistryServer_pb2.ListAllFeatureViewsResponse = (
