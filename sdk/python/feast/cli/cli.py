@@ -447,6 +447,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "ray",
             "ray_rag",
             "pytorch_nlp",
+            "recommendation",
         ],
         case_sensitive=False,
     ),
