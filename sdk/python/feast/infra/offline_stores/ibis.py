@@ -130,7 +130,7 @@ def _generate_row_id(
         else:
             all_entities.extend([e.name for e in fv.entity_columns])
 
-    r = ibis.literal("")
+    r = ibis.literal("_")
 
     for e in set(all_entities):
         r = r.concat(entity_table[e].cast("string"))  # type: ignore
@@ -389,7 +389,7 @@ def point_in_time_join(
     ) in feature_tables:
         all_entities.extend(join_key_map.values())
 
-    r = ibis.literal("")
+    r = ibis.literal("_")
 
     for e in set(all_entities):
         r = r.concat(entity_table[e].cast("string"))  # type: ignore
@@ -419,7 +419,7 @@ def point_in_time_join(
             else:
                 alias = "".join(random.choices(string.ascii_uppercase, k=10))
 
-                feature_table = feature_table.alias(alias=alias).sql(
+                feature_table = feature_table.alias(alias).sql(
                     f"SELECT *, {event_expire_timestamp_fn(timestamp_field, ttl)} AS event_expire_timestamp FROM {alias}"
                 )
 

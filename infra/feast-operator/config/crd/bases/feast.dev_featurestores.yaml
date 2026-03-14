@@ -1631,6 +1631,7 @@ spec:
                                 - couchbase.offline
                                 - clickhouse
                                 - ray
+                                - oracle
                                 type: string
                             required:
                             - secretRef
@@ -7341,6 +7342,7 @@ spec:
                                     - couchbase.offline
                                     - clickhouse
                                     - ray
+                                    - oracle
                                     type: string
                                 required:
                                 - secretRef
