@@ -188,7 +188,7 @@ test-python-integration: ## Run Python integration tests (CI)
 	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
-		--ignore=sdk/python/tests/integration/registration \
+		--ignore=sdk/python/tests/universal/registration \
 		--ignore=sdk/python/tests/component/ray \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
@@ -207,7 +207,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
 		--ignore=sdk/python/tests/component/ray \
-		--ignore=sdk/python/tests/integration/registration \
+		--ignore=sdk/python/tests/universal/registration \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
 
@@ -474,7 +474,7 @@ test-python-universal-cassandra: ## Run Python Cassandra integration tests
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
-	sdk/python/tests/integration/offline_store/test_feature_logging.py \
+	sdk/python/tests/universal/offline_store/test_feature_logging.py \
 		--ignore=sdk/python/tests/integration/offline_store/test_validation.py \
 		-k "not test_snowflake and \
 			not test_spark_materialization_consistency and \
@@ -560,7 +560,7 @@ test-python-universal-milvus-online: ## Run Python Milvus online store integrati
 		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.milvus \
 		python -m pytest -n 8 --integration \
 		-k "test_retrieve_online_milvus_documents" \
- 			sdk/python/tests --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py
+ 			sdk/python/tests --ignore=sdk/python/tests/universal/offline_store/test_dqm_validation.py
 
 test-python-universal-singlestore-online: ## Run Python Singlestore online store integration tests
 	PYTHONPATH='.' \
@@ -579,7 +579,7 @@ test-python-universal-qdrant-online: ## Run Python Qdrant online store integrati
 		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.qdrant \
 		python -m pytest -n 8 --integration \
  			-k "test_retrieve_online_documents" \
- 			sdk/python/tests/integration/online_store/test_universal_online.py
+ 			sdk/python/tests/universal/online_store/test_universal_online.py
 
 # To use Couchbase as an offline store, you need to create an Couchbase Capella Columnar cluster on cloud.couchbase.com.
 # Modify environment variables COUCHBASE_COLUMNAR_CONNECTION_STRING, COUCHBASE_COLUMNAR_USER, and COUCHBASE_COLUMNAR_PASSWORD

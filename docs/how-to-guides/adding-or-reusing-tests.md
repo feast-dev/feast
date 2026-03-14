@@ -158,7 +158,7 @@ Docstring tests are primarily smoke tests to make sure imports and setup functio
 Let's look at a sample test using the universal repo:
 
 {% tabs %}
-{% tab code="sdk/python/tests/integration/offline_store/test_universal_historical_retrieval.py" %}
+{% tab code="sdk/python/tests/universal/offline_store/test_universal_historical_retrieval.py" %}
 ```python
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
