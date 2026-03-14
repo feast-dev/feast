@@ -700,7 +700,11 @@ def _initialize_conn(
 
 
 def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+    name = table.name
+    version = getattr(table, "current_version_number", None)
+    if version is not None and version > 0:
+        name = f"{table.name}_v{version}"
+    return f"{project}_{name}"
 
 
 class SqliteTable(InfraObject):

@@ -138,6 +138,15 @@ class FeatureViewVersionNotFound(FeastObjectNotFoundException):
             super().__init__(f"Version {version} of feature view {name} does not exist")
 
 
+class VersionedOnlineReadNotSupported(FeastError):
+    def __init__(self, store_name: str, version: int):
+        super().__init__(
+            f"Versioned feature reads (@v{version}) are not yet supported by {store_name}. "
+            f"Currently only SQLite supports version-qualified feature references. "
+            f"See https://github.com/feast-dev/feast/issues/6200"
+        )
+
+
 class FeatureViewPinConflict(FeastError):
     def __init__(self, name, version):
         super().__init__(

@@ -21,7 +21,8 @@ Create a list of features that you would like to retrieve. This list typically c
 ```python
 features = [
     "driver_hourly_stats:conv_rate",
-    "driver_hourly_stats:acc_rate"
+    "driver_hourly_stats:acc_rate",
+    # Optionally, reference a specific version: "driver_hourly_stats@v2:conv_rate"
 ]
 ```
 

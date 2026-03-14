@@ -60,6 +60,57 @@ APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
 
 
+def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
+    """Parse 'fv_name@version:feature' into (fv_name, version_number, feature_name).
+
+    If no @version is present, version_number is None (meaning 'latest').
+    Examples:
+        'driver_stats:trips' -> ('driver_stats', None, 'trips')
+        'driver_stats@v2:trips' -> ('driver_stats', 2, 'trips')
+        'driver_stats@latest:trips' -> ('driver_stats', None, 'trips')
+    """
+    import re
+
+    colon_idx = ref.find(":")
+    if colon_idx < 0:
+        raise ValueError(
+            f"Invalid feature reference '{ref}'. Expected format: '<feature_view>:<feature>' "
+            f"or '<feature_view>@<version>:<feature>'"
+        )
+
+    fv_part = ref[:colon_idx]
+    feature_name = ref[colon_idx + 1 :]
+
+    at_idx = fv_part.find("@")
+    if at_idx < 0:
+        return (fv_part, None, feature_name)
+
+    fv_name = fv_part[:at_idx]
+    version_str = fv_part[at_idx + 1 :]
+
+    if not version_str or version_str.lower() == "latest":
+        return (fv_name, None, feature_name)
+
+    # Parse version number from formats like "v2", "V2"
+    match = re.match(r"^[vV](\d+)$", version_str)
+    if not match:
+        raise ValueError(
+            f"Invalid version '{version_str}' in feature reference '{ref}'. "
+            f"Expected format: 'v<number>' or 'latest'"
+        )
+
+    return (fv_name, int(match.group(1)), feature_name)
+
+
+def _strip_version_from_ref(ref: str) -> str:
+    """Strip @version from a feature reference, returning 'fv_name:feature'.
+
+    Used to produce clean refs for output column naming.
+    """
+    fv_name, _, feature_name = _parse_feature_ref(ref)
+    return f"{fv_name}:{feature_name}"
+
+
 def get_user_agent():
     return USER_AGENT
 
@@ -118,9 +169,12 @@ def _get_requested_feature_views_to_features_dict(
     )
 
     for ref in feature_refs:
-        ref_parts = ref.split(":")
-        feature_view_from_ref = ref_parts[0]
-        feature_from_ref = ref_parts[1]
+        fv_name, version_num, feature_from_ref = _parse_feature_ref(ref)
+        # Build the key that matches projection.name_to_use()
+        if version_num is not None:
+            feature_view_from_ref = f"{fv_name}@v{version_num}"
+        else:
+            feature_view_from_ref = fv_name
 
         found = False
         for fv in feature_views:
@@ -493,7 +547,7 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
             ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1
         ]
     else:
-        feature_names = [ref.split(":")[1] for ref in feature_refs]
+        feature_names = [_parse_feature_ref(ref)[2] for ref in feature_refs]
         collided_feature_names = [
             ref
             for ref, occurrences in Counter(feature_names).items()
@@ -540,7 +594,12 @@ def _group_feature_refs(
     on_demand_view_features = defaultdict(set)
 
     for ref in features:
-        view_name, feat_name = ref.split(":")
+        fv_name, version_num, feat_name = _parse_feature_ref(ref)
+        # Build the key that matches projection.name_to_use()
+        if version_num is not None:
+            view_name = f"{fv_name}@v{version_num}"
+        else:
+            view_name = fv_name
         if view_name in view_index:
             if hasattr(view_index[view_name], "write_to_online_store"):
                 tmp_feat_name = [
@@ -1205,16 +1264,41 @@ def _get_feature_views_to_use(
 
     if isinstance(features, FeatureService):
         feature_views = [
-            (projection.name, projection)
+            (projection.name, None, projection)
             for projection in features.feature_view_projections
         ]
     else:
         assert features is not None
-        feature_views = [(feature.split(":")[0], None) for feature in features]  # type: ignore[misc]
+        # Parse version-qualified refs: 'fv@v2:feat' -> ('fv', 2, None)
+        parsed = []
+        seen = set()
+        for feature in features:
+            fv_name, version_num, _ = _parse_feature_ref(feature)
+            key = (fv_name, version_num)
+            if key not in seen:
+                seen.add(key)
+                parsed.append((fv_name, version_num, None))
+        feature_views = parsed  # type: ignore[assignment]
 
     fvs_to_use, od_fvs_to_use = [], []
-    for name, projection in feature_views:
-        fv = registry.get_any_feature_view(name, project, allow_cache)
+    for name, version_num, projection in feature_views:
+        if version_num is not None:
+            # Version-qualified reference: look up the specific version snapshot
+            try:
+                fv = registry.get_feature_view_by_version(
+                    name, project, version_num, allow_cache
+                )
+            except NotImplementedError:
+                # Fall back for v0 on registries that don't implement versioned lookup
+                if version_num == 0:
+                    fv = registry.get_any_feature_view(name, project, allow_cache)
+                else:
+                    raise
+            # Set version_tag on the projection so name_to_use() returns versioned key
+            if hasattr(fv, "projection") and fv.projection is not None:
+                fv.projection.version_tag = version_num
+        else:
+            fv = registry.get_any_feature_view(name, project, allow_cache)
 
         if isinstance(fv, OnDemandFeatureView):
             od_fvs_to_use.append(
@@ -1246,9 +1330,11 @@ def _get_feature_views_to_use(
             ):
                 fv.entities = []  # type: ignore[attr-defined]
                 fv.entity_columns = []  # type: ignore[attr-defined]
-            fvs_to_use.append(
-                fv.with_projection(copy.copy(projection)) if projection else fv
-            )
+            if projection:
+                fv = fv.with_projection(copy.copy(projection))
+                if version_num is not None:
+                    fv.projection.version_tag = version_num
+            fvs_to_use.append(fv)
 
     return (fvs_to_use, od_fvs_to_use)
 

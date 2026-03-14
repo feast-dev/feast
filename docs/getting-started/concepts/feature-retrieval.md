@@ -78,15 +78,19 @@ feature_store.get_historical_features(features=feature_service, entity_df=entity
 
 This mechanism of retrieving features is only recommended as you're experimenting. Once you want to launch experiments or serve models, feature services are recommended.
 
-Feature references uniquely identify feature values in Feast. The structure of a feature reference in string form is as follows: `<feature_view>:<feature>`
+Feature references uniquely identify feature values in Feast. The structure of a feature reference in string form is as follows: `<feature_view>[@version]:<feature>`
+
+The `@version` part is optional. When omitted, the latest (active) version is used. You can specify a version like `@v2` to read from a specific historical version snapshot.
 
 Feature references are used for the retrieval of features from Feast:
 
 ```python
 online_features = fs.get_online_features(
     features=[
-        'driver_locations:lon',
-        'drivers_activity:trips_today'
+        'driver_locations:lon',                # latest version (default)
+        'drivers_activity:trips_today',        # latest version (default)
+        'drivers_activity@v2:trips_today',     # specific version
+        'drivers_activity@latest:trips_today', # explicit latest
     ],
     entity_rows=[
         # {join_key: entity_value}
@@ -94,6 +98,10 @@ online_features = fs.get_online_features(
     ]
 )
 ```
+
+{% hint style="info" %}
+Version-qualified reads (`@v<N>`) are currently supported only on the SQLite online store. See the [feature view versioning docs](feature-view.md#version-qualified-feature-references) for details.
+{% endhint %}
 
 It is possible to retrieve features from multiple feature views with a single request, and Feast is able to join features from multiple tables in order to build a training dataset. However, it is not possible to reference (or retrieve) features from multiple projects at the same time.
 

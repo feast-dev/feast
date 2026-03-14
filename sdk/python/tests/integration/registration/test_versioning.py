@@ -167,6 +167,32 @@ class TestFileRegistryVersioning:
         assert active_fv.description == "original"
         assert active_fv.version == "v0"
 
+    def test_get_feature_view_by_version(self, registry, make_fv):
+        # Create v0
+        fv1 = make_fv(description="version zero")
+        registry.apply_feature_view(fv1, "test_project", commit=True)
+
+        # Create v1 with different description
+        fv2 = make_fv(description="version one")
+        registry.apply_feature_view(fv2, "test_project", commit=True)
+
+        # Retrieve v0 snapshot
+        fv_v0 = registry.get_feature_view_by_version("driver_stats", "test_project", 0)
+        assert fv_v0.description == "version zero"
+        assert fv_v0.current_version_number == 0
+
+        # Retrieve v1 snapshot
+        fv_v1 = registry.get_feature_view_by_version("driver_stats", "test_project", 1)
+        assert fv_v1.description == "version one"
+        assert fv_v1.current_version_number == 1
+
+    def test_get_feature_view_by_version_not_found(self, registry, make_fv):
+        fv = make_fv()
+        registry.apply_feature_view(fv, "test_project", commit=True)
+
+        with pytest.raises(FeatureViewVersionNotFound):
+            registry.get_feature_view_by_version("driver_stats", "test_project", 99)
+
     def test_version_in_proto_roundtrip(self, registry, make_fv):
         fv = make_fv(version="v3")
         # Manually set version number for testing

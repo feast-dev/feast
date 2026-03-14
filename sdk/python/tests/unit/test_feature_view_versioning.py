@@ -1,5 +1,6 @@
 import pytest
 
+from feast.utils import _parse_feature_ref, _strip_version_from_ref
 from feast.version_utils import (
     generate_version_id,
     normalize_version_string,
@@ -332,6 +333,148 @@ class TestOnDemandFeatureViewVersionField:
         odfv2 = OnDemandFeatureView.from_proto(proto)
         assert odfv2.version == "v1"
         assert odfv2.current_version_number == 1
+
+
+class TestParseFeatureRef:
+    def test_bare_ref(self):
+        fv, version, feat = _parse_feature_ref("driver_stats:trips")
+        assert fv == "driver_stats"
+        assert version is None
+        assert feat == "trips"
+
+    def test_versioned_ref(self):
+        fv, version, feat = _parse_feature_ref("driver_stats@v2:trips")
+        assert fv == "driver_stats"
+        assert version == 2
+        assert feat == "trips"
+
+    def test_latest_ref(self):
+        fv, version, feat = _parse_feature_ref("driver_stats@latest:trips")
+        assert fv == "driver_stats"
+        assert version is None
+        assert feat == "trips"
+
+    def test_v0_ref(self):
+        fv, version, feat = _parse_feature_ref("driver_stats@v0:trips")
+        assert fv == "driver_stats"
+        assert version == 0
+        assert feat == "trips"
+
+    def test_uppercase_v(self):
+        fv, version, feat = _parse_feature_ref("driver_stats@V3:trips")
+        assert fv == "driver_stats"
+        assert version == 3
+        assert feat == "trips"
+
+    def test_invalid_no_colon(self):
+        with pytest.raises(ValueError, match="Invalid feature reference"):
+            _parse_feature_ref("driver_stats_trips")
+
+    def test_invalid_version_format(self):
+        with pytest.raises(ValueError, match="Invalid version"):
+            _parse_feature_ref("driver_stats@abc:trips")
+
+    def test_empty_version(self):
+        fv, version, feat = _parse_feature_ref("driver_stats@:trips")
+        assert fv == "driver_stats"
+        assert version is None
+        assert feat == "trips"
+
+
+class TestStripVersionFromRef:
+    def test_bare_ref(self):
+        assert _strip_version_from_ref("driver_stats:trips") == "driver_stats:trips"
+
+    def test_versioned_ref(self):
+        assert _strip_version_from_ref("driver_stats@v2:trips") == "driver_stats:trips"
+
+    def test_latest_ref(self):
+        assert (
+            _strip_version_from_ref("driver_stats@latest:trips") == "driver_stats:trips"
+        )
+
+
+class TestTableId:
+    def test_no_version(self):
+        from datetime import timedelta
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+        from feast.infra.online_stores.sqlite import _table_id
+
+        entity = Entity(name="entity_id", join_keys=["entity_id"])
+        fv = FeatureView(
+            name="test_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+        )
+        assert _table_id("my_project", fv) == "my_project_test_fv"
+
+    def test_v0_no_suffix(self):
+        from datetime import timedelta
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+        from feast.infra.online_stores.sqlite import _table_id
+
+        entity = Entity(name="entity_id", join_keys=["entity_id"])
+        fv = FeatureView(
+            name="test_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+        )
+        fv.current_version_number = 0
+        assert _table_id("my_project", fv) == "my_project_test_fv"
+
+    def test_v1_with_suffix(self):
+        from datetime import timedelta
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+        from feast.infra.online_stores.sqlite import _table_id
+
+        entity = Entity(name="entity_id", join_keys=["entity_id"])
+        fv = FeatureView(
+            name="test_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+        )
+        fv.current_version_number = 1
+        assert _table_id("my_project", fv) == "my_project_test_fv_v1"
+
+    def test_v5_with_suffix(self):
+        from datetime import timedelta
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+        from feast.infra.online_stores.sqlite import _table_id
+
+        entity = Entity(name="entity_id", join_keys=["entity_id"])
+        fv = FeatureView(
+            name="test_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+        )
+        fv.current_version_number = 5
+        assert _table_id("my_project", fv) == "my_project_test_fv_v5"
+
+
+class TestValidateFeatureRefsVersioned:
+    def test_versioned_refs_no_collision_with_full_names(self):
+        from feast.utils import _validate_feature_refs
+
+        # Different versions of the same feature should not collide with full names
+        refs = ["driver_stats@v1:trips", "driver_stats@v2:trips"]
+        _validate_feature_refs(refs, full_feature_names=True)  # Should not raise
+
+    def test_versioned_refs_collision_without_full_names(self):
+        from feast.errors import FeatureNameCollisionError
+        from feast.utils import _validate_feature_refs
+
+        # Same feature name from different versions collides without full names
+        refs = ["driver_stats@v1:trips", "driver_stats@v2:trips"]
+        with pytest.raises(FeatureNameCollisionError):
+            _validate_feature_refs(refs, full_feature_names=False)
 
 
 def _dummy_transformation():

@@ -1144,6 +1144,7 @@ def on_demand_feature_view(
     write_to_online_store: bool = False,
     singleton: bool = False,
     explode: bool = False,
+    version: str = "latest",
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -1191,6 +1192,7 @@ def on_demand_feature_view(
             singleton=singleton,
             udf=user_function,
             udf_string=udf_string,
+            version=version,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function

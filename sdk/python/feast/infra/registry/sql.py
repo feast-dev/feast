@@ -1075,6 +1075,19 @@ class SqlRegistry(CachingRegistry):
                 )
             return None
 
+    def get_feature_view_by_version(
+        self, name: str, project: str, version_number: int, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        snapshot = self._get_version_snapshot(name, project, version_number)
+        if snapshot is None:
+            raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
+        snap_type, snap_proto_bytes = snapshot
+        proto_class, python_class = self._proto_class_for_type(snap_type)
+        snap_proto = proto_class.FromString(snap_proto_bytes)
+        fv = python_class.from_proto(snap_proto)
+        fv.current_version_number = version_number
+        return fv
+
     def list_feature_view_versions(
         self, name: str, project: str
     ) -> List[Dict[str, Any]]:

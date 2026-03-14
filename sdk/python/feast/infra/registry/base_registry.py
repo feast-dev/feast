@@ -509,6 +509,28 @@ class BaseRegistry(ABC):
             "list_feature_view_versions is not implemented for this registry"
         )
 
+    def get_feature_view_by_version(
+        self, name: str, project: str, version_number: int, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        """
+        Retrieve a feature view snapshot for a specific version number.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            version_number: The version number to retrieve
+            allow_cache: Whether to allow returning from a cached registry
+
+        Returns:
+            The feature view snapshot at the specified version.
+
+        Raises:
+            FeatureViewVersionNotFound: if the version doesn't exist.
+        """
+        raise NotImplementedError(
+            "get_feature_view_by_version is not implemented for this registry"
+        )
+
     @abstractmethod
     def apply_materialization(
         self,

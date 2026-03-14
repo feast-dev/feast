@@ -439,6 +439,7 @@ def stream_feature_view(
     mode: Optional[str] = "spark",
     timestamp_field: Optional[str] = "",
     enable_validation: bool = False,
+    version: str = "latest",
 ):
     """
     Creates an StreamFeatureView object with the given user function as udf.
@@ -471,6 +472,7 @@ def stream_feature_view(
             mode=mode,
             timestamp_field=timestamp_field,
             enable_validation=enable_validation,
+            version=version,
         )
         functools.update_wrapper(wrapper=stream_feature_view_obj, wrapped=user_function)
         return stream_feature_view_obj

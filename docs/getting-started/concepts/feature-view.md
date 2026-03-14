@@ -251,19 +251,34 @@ for v in versions:
     print(f"{v['version']} created at {v['created_timestamp']}")
 ```
 
-### Concurrent access and multi-team usage
+### Version-qualified feature references
 
-Versioning provides **definition management and rollback** — it does not support concurrent multi-version serving. Key constraints:
+You can read features from a **specific version** of a feature view by using version-qualified feature references with the `@v<N>` syntax:
 
-* Only one version can be active per feature view name per project at any time
-* Pinning to a version (e.g., `version="v2"`) is a global operation that changes the active definition for **all** consumers in that project
-* On-demand feature views resolve their source feature views by name against the currently active definition
-* `get_online_features` and `get_historical_features` always use the active definition
+```python
+online_features = store.get_online_features(
+    features=[
+        "driver_stats:trips_today",           # latest version (default)
+        "driver_stats@v2:trips_today",        # specific version
+        "driver_stats@latest:trips_today",    # explicit latest
+    ],
+    entity_rows=[{"driver_id": 1001}],
+)
+```
 
-**For concurrent A/B testing** of different feature definitions, use one of these approaches:
+**How it works:**
 
-* **Separate Feast projects**: `project="team_a"` and `project="team_b"` can each maintain independent feature view definitions while sharing the same underlying data sources
-* **Distinct feature view names**: Create `driver_stats_experiment_v2` alongside `driver_stats` to test a new definition without affecting the original
+* `driver_stats:trips_today` is equivalent to `driver_stats@latest:trips_today` — it reads from the currently active version
+* `driver_stats@v2:trips_today` reads from the v2 snapshot stored in version history, using a version-specific online store table
+* Multiple versions of the same feature view can be queried in a single request (e.g., `driver_stats@v1:trips` and `driver_stats@v2:trips_daily`)
+
+**Backward compatibility:**
+
+* The unversioned online store table (e.g., `project_driver_stats`) is treated as v0
+* Only versions >= 1 get `_v{N}` suffixed tables (e.g., `project_driver_stats_v1`)
+* Pre-versioning users' existing data continues to work without changes — `@latest` resolves to the active version, which for existing unversioned FVs is v0
+
+**Materialization:** Each version requires its own materialization. After applying a new version, run `feast materialize` to populate the versioned table before querying it with `@v<N>`.
 
 ### Supported feature view types
 
@@ -272,6 +287,8 @@ Versioning is supported on all three feature view types:
 * `FeatureView` (and `BatchFeatureView`)
 * `StreamFeatureView`
 * `OnDemandFeatureView`
+
+**Note:** Version-qualified reads (`@v<N>`) are currently supported only on the **SQLite** online store. Other online stores will raise a clear error if versioned queries are attempted. Support for additional stores is tracked in [#6200](https://github.com/feast-dev/feast/issues/6200).
 
 ## Schema Validation
 

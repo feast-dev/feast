@@ -570,6 +570,18 @@ class Registry(BaseRegistry):
         results.sort(key=lambda r: r["version_number"])
         return results
 
+    def get_feature_view_by_version(
+        self, name: str, project: str, version_number: int, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        record = self._get_version_record(name, project, version_number)
+        if record is None:
+            raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
+        proto_class, python_class = self._proto_class_for_type(record.feature_view_type)
+        snap_proto = proto_class.FromString(record.feature_view_proto)
+        fv = python_class.from_proto(snap_proto)
+        fv.current_version_number = version_number
+        return fv
+
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
