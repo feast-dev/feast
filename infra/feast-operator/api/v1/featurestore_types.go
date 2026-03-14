@@ -86,7 +86,7 @@ type FeatureStoreSpec struct {
 	// Mutually exclusive with services.scaling.autoscaling.
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
-	Replicas *int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.

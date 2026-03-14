@@ -5707,7 +5707,6 @@ spec:
                 type: object
             required:
             - feastProject
-            - replicas
             type: object
             x-kubernetes-validations:
             - message: replicas > 1 and services.scaling.autoscaling are mutually
@@ -11475,7 +11474,6 @@ spec:
                     type: object
                 required:
                 - feastProject
-                - replicas
                 type: object
                 x-kubernetes-validations:
                 - message: replicas > 1 and services.scaling.autoscaling are mutually
