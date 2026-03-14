@@ -210,8 +210,10 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("feast init"))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Name).To(Equal("feast-apply"))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Command).To(Equal([]string{"feast", "apply"}))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			deploy.Spec.Replicas = int32Ptr(3)
@@ -264,7 +266,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("git -c http.sslVerify=false clone"))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("git checkout " + ref))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring(featureRepoPath))
@@ -294,7 +296,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("feast init -t spark"))
 		})
 
@@ -1145,7 +1147,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 
 			// check client config
 			cm := &corev1.ConfigMap{}

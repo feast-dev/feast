@@ -725,6 +725,16 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 				"echo $" + TmpFeatureStoreYamlEnvVar + " | base64 -d \u003e " + featureRepoDir + "/feature_store.yaml;\necho \"Feast repo creation complete\";\n",
 		}
 		podSpec.InitContainers = append(podSpec.InitContainers, container)
+
+		if applied.Services.RunFeastApplyOnInit != nil && *applied.Services.RunFeastApplyOnInit {
+			applyContainer := corev1.Container{
+				Name:       "feast-apply",
+				Image:      getFeatureServerImage(),
+				Command:    []string{"feast", "apply"},
+				WorkingDir: featureRepoDir,
+			}
+			podSpec.InitContainers = append(podSpec.InitContainers, applyContainer)
+		}
 	}
 }
 
