@@ -120,6 +120,24 @@ AUTH_CONFIGS_CLASS_FOR_TYPE = {
     "oidc_client": "feast.permissions.auth_model.OidcClientAuthConfig",
 }
 
+_OIDC_CLIENT_KEYS = frozenset(
+    {"client_secret", "token", "token_env_var", "username", "password"}
+)
+
+
+def _is_oidc_client_config(auth_dict: dict) -> bool:
+    """Decide whether an OIDC auth dict should be routed to OidcClientAuthConfig.
+
+    True when the dict carries any client-credential key, or when it is a bare
+    ``{"type": "oidc"}`` dict with no server-side keys (auth_discovery_url /
+    client_id), which signals token-passthrough via FEAST_OIDC_TOKEN.
+    """
+    if auth_dict.get("type") != AuthType.OIDC.value:
+        return False
+    has_client_keys = bool(_OIDC_CLIENT_KEYS & auth_dict.keys())
+    has_server_keys = "auth_discovery_url" in auth_dict or "client_id" in auth_dict
+    return has_client_keys or not has_server_keys
+
 
 class FeastBaseModel(BaseModel):
     """Feast Pydantic Configuration Class"""
@@ -401,26 +419,12 @@ class RepoConfig(FeastBaseModel):
     def auth_config(self):
         if not self._auth:
             if isinstance(self.auth, Dict):
-                # treat this auth block as *client-side* OIDC when it matches
-                #   1)  ROPG            – username + password + client_secret
-                #   2)  client-credentials – client_secret only
-                #   3)  static token    – token
-                is_oidc_client = self.auth.get("type") == AuthType.OIDC.value and (
-                    (
-                        "username" in self.auth
-                        and "password" in self.auth
-                        and "client_secret" in self.auth
-                    )  # 1
-                    or (
-                        "client_secret" in self.auth
-                        and "username" not in self.auth
-                        and "password" not in self.auth
-                    )  # 2
-                    or ("token" in self.auth)  # 3
+                config_type = (
+                    "oidc_client"
+                    if _is_oidc_client_config(self.auth)
+                    else self.auth.get("type")
                 )
-                self._auth = get_auth_config_from_type(
-                    "oidc_client" if is_oidc_client else self.auth.get("type")
-                )(**self.auth)
+                self._auth = get_auth_config_from_type(config_type)(**self.auth)
             elif isinstance(self.auth, str):
                 self._auth = get_auth_config_from_type(self.auth)()
             elif self.auth:

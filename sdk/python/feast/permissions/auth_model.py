@@ -1,19 +1,32 @@
-# --------------------------------------------------------------------
-# Extends OIDC client auth model with an optional `token` field.
-# Works on Pydantic v2-only.
-#
-# Accepted credential sets (exactly **one** of):
-#   1 pre-issued `token`
-#   2 `client_secret`            (client-credentials flow)
-#   3 `username` + `password` + `client_secret`  (ROPG)
-# --------------------------------------------------------------------
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple
 
 from pydantic import ConfigDict, model_validator
 
 from feast.repo_config import FeastConfigBaseModel
+
+
+def _check_mutually_exclusive(**groups: Tuple[object, ...]) -> None:
+    """Validate that at most one named group is configured, and completely.
+
+    Each *group* is a tuple of field values.
+    A group is **active** only when *all* its values are truthy.
+    A group is **partial** (error) when *any* but not *all* values are truthy.
+    At most one active group may exist.
+    """
+    partial = [name for name, vals in groups.items() if any(vals) and not all(vals)]
+    if partial:
+        raise ValueError(
+            f"Incomplete configuration for '{partial[0]}': "
+            f"all fields in this group are required when any is set."
+        )
+    active = [name for name, vals in groups.items() if all(vals)]
+    if len(active) > 1:
+        raise ValueError(
+            f"Only one of [{', '.join(groups)}] may be set, "
+            f"but got: {', '.join(active)}"
+        )
 
 
 class AuthConfig(FeastConfigBaseModel):
@@ -26,38 +39,27 @@ class OidcAuthConfig(AuthConfig):
 
 
 class OidcClientAuthConfig(OidcAuthConfig):
-    # any **one** of the four fields below is sufficient
+    auth_discovery_url: Optional[str] = None  # type: ignore[assignment]
+    client_id: Optional[str] = None  # type: ignore[assignment]
+
     username: Optional[str] = None
     password: Optional[str] = None
     client_secret: Optional[str] = None
-    token: Optional[str] = None  # pre-issued `token`
+    token: Optional[str] = None
+    token_env_var: Optional[str] = None
 
     @model_validator(mode="after")
     def _validate_credentials(self):
-        """Enforce exactly one valid credential set."""
-        has_user_pass = bool(self.username) and bool(self.password)
-        has_secret = bool(self.client_secret)
-        has_token = bool(self.token)
+        network = (self.client_secret, self.auth_discovery_url, self.client_id)
+        if self.username or self.password:
+            network += (self.username, self.password)
 
-        # 1 static token
-        if has_token and not (has_user_pass or has_secret):
-            return self
-
-        # 2 client_credentials
-        if has_secret and not has_user_pass and not has_token:
-            return self
-
-        # 3 ROPG
-        if has_user_pass and has_secret and not has_token:
-            return self
-
-        raise ValueError(
-            "Invalid OIDC client auth combination: "
-            "provide either\n"
-            "  • token\n"
-            "  • client_secret (without username/password)\n"
-            "  • username + password + client_secret"
+        _check_mutually_exclusive(
+            token=(self.token,),
+            token_env_var=(self.token_env_var,),
+            client_credentials=network,
         )
+        return self
 
 
 class NoAuthConfig(AuthConfig):
@@ -65,7 +67,6 @@ class NoAuthConfig(AuthConfig):
 
 
 class KubernetesAuthConfig(AuthConfig):
-    # Optional user token for users (not service accounts)
     user_token: Optional[str] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
