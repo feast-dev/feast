@@ -108,9 +108,19 @@ jobs:
           curl -fsS http://127.0.0.1:6566/health >/dev/null
       - name: Validate MCP endpoint
         run: |
-          curl -sS -D /tmp/mcp_headers -o /dev/null --max-time 2 -H "Accept: text/event-stream" http://127.0.0.1:6566/mcp || true
-          grep -E "^HTTP/.* 200" /tmp/mcp_headers
-          grep -i "^content-type: text/event-stream" /tmp/mcp_headers
+          rm -f /tmp/mcp_headers
+          for i in $(seq 1 10); do
+            curl -sS -D /tmp/mcp_headers -o /dev/null --max-time 10 \
+              -H "Accept: text/event-stream, application/json" \
+              -H "mcp-protocol-version: 2025-03-26" \
+              http://127.0.0.1:6566/mcp || true
+            if grep -Eq "^HTTP/.* 200" /tmp/mcp_headers && grep -Eiq "^content-type: text/event-stream" /tmp/mcp_headers; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/mcp_headers || true
+          exit 1
       - name: Stop feature server
         if: always()
         run: |
