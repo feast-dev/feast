@@ -725,6 +725,35 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 				"echo $" + TmpFeatureStoreYamlEnvVar + " | base64 -d \u003e " + featureRepoDir + "/feature_store.yaml;\necho \"Feast repo creation complete\";\n",
 		}
 		podSpec.InitContainers = append(podSpec.InitContainers, container)
+
+		if applied.Services.RunFeastApplyOnInit != nil && *applied.Services.RunFeastApplyOnInit {
+			applyContainer := corev1.Container{
+				Name:       "feast-apply",
+				Image:      getFeatureServerImage(),
+				Command:    []string{"feast", "apply"},
+				WorkingDir: featureRepoDir,
+			}
+			// feast apply needs DB/store connectivity, so inherit env, envFrom
+			// and volume mounts from all server container configs.
+			seen := map[string]bool{}
+			for _, feastType := range []FeastServiceType{RegistryFeastType, OnlineFeastType, OfflineFeastType} {
+				if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
+					if serverConfigs.OptionalCtrConfigs.Env != nil {
+						applyContainer.Env = envOverride(applyContainer.Env, *serverConfigs.OptionalCtrConfigs.Env)
+					}
+					if serverConfigs.OptionalCtrConfigs.EnvFrom != nil {
+						applyContainer.EnvFrom = append(applyContainer.EnvFrom, *serverConfigs.OptionalCtrConfigs.EnvFrom...)
+					}
+					for _, vm := range feast.getVolumeMounts(feastType) {
+						if !seen[vm.MountPath] {
+							applyContainer.VolumeMounts = append(applyContainer.VolumeMounts, vm)
+							seen[vm.MountPath] = true
+						}
+					}
+				}
+			}
+			podSpec.InitContainers = append(podSpec.InitContainers, applyContainer)
+		}
 	}
 }
 
@@ -1403,6 +1432,67 @@ func IsDeploymentAvailable(conditions []appsv1.DeploymentCondition) bool {
 	}
 
 	return false
+}
+
+// GetPodContainerFailureMessage inspects pods belonging to the given deployment
+// and returns a human-readable message describing the first init or regular
+// container that is in a failing state. Returns empty string if no failure found.
+func (feast *FeastServices) GetPodContainerFailureMessage(deploy appsv1.Deployment) string {
+	podList := corev1.PodList{}
+	labels := feast.getLabels()
+	if err := feast.Handler.Client.List(feast.Handler.Context, &podList,
+		client.InNamespace(deploy.Namespace),
+		client.MatchingLabels(labels),
+	); err != nil {
+		return ""
+	}
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if msg := initContainerFailureMessage(pod); msg != "" {
+			return msg
+		}
+		if msg := containerFailureMessage(pod); msg != "" {
+			return msg
+		}
+	}
+	return ""
+}
+
+func initContainerFailureMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.InitContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" && cs.State.Waiting.Reason != "PodInitializing" {
+			return "Init container '" + cs.Name + "' waiting: " + cs.State.Waiting.Reason +
+				messageIfPresent(cs.State.Waiting.Message)
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Init container '" + cs.Name + "' failed with exit code " +
+				strconv.Itoa(int(cs.State.Terminated.ExitCode)) +
+				messageIfPresent(cs.State.Terminated.Message)
+		}
+	}
+	return ""
+}
+
+func containerFailureMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" && cs.State.Waiting.Reason != "ContainerCreating" {
+			return "Container '" + cs.Name + "' waiting: " + cs.State.Waiting.Reason +
+				messageIfPresent(cs.State.Waiting.Message)
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Container '" + cs.Name + "' failed with exit code " +
+				strconv.Itoa(int(cs.State.Terminated.ExitCode)) +
+				messageIfPresent(cs.State.Terminated.Message)
+		}
+	}
+	return ""
+}
+
+func messageIfPresent(msg string) string {
+	if msg != "" {
+		return " - " + msg
+	}
+	return ""
 }
 
 // GetFeastRestServiceName returns the feast REST service object name based on service type

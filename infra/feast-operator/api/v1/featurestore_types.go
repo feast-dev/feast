@@ -86,7 +86,7 @@ type FeatureStoreSpec struct {
 	// Mutually exclusive with services.scaling.autoscaling.
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
-	Replicas *int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
@@ -310,6 +310,8 @@ type FeatureStoreServices struct {
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
+	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 	// Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).

@@ -99,6 +99,9 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		applied.Services = &feastdevv1.FeatureStoreServices{}
 	}
 	services := applied.Services
+	if services.RunFeastApplyOnInit == nil {
+		services.RunFeastApplyOnInit = boolPtr(true)
+	}
 
 	if services.Registry != nil {
 		// if remote registry not set, proceed w/ local registry defaults
