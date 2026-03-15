@@ -124,11 +124,7 @@ def _build_entity_df_from_sources(
     end_date: datetime,
     data_source_reader: Callable[[DataSource, str], Table],
 ) -> pd.DataFrame:
-    """Derive an entity DataFrame from feature view sources for non-entity retrieval.
 
-    Reads distinct join keys from each feature view source within the time window,
-    unions them, and adds event_timestamp = end_date for point-in-time joins.
-    """
     entity_dfs: List[pd.DataFrame] = []
 
     for fv in feature_views:
@@ -157,7 +153,9 @@ def _build_entity_df_from_sources(
             entity_dfs.append(distinct_entities)
 
     if not entity_dfs:
-        return pd.DataFrame({DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL: [end_date]})
+        return pd.DataFrame(
+            {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL: [end_date]}
+        )
 
     combined = pd.concat(entity_dfs, ignore_index=True)
 
