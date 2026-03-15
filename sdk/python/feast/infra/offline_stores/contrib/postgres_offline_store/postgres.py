@@ -159,13 +159,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             else:
                 start_date = make_tzaware(start_date)
 
-            entity_df = pd.DataFrame(
-                {
-                    "event_timestamp": pd.date_range(
-                        start=start_date, end=end_date, freq="1s", tz=timezone.utc
-                    )[:1]  # Just one row
-                }
-            )
+            entity_df = pd.DataFrame({"event_timestamp": [end_date]})
 
         entity_schema = _get_entity_schema(entity_df, config)
 
