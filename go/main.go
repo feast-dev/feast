@@ -47,6 +47,10 @@ func (s *RealServerStarter) StartHttpServer(fs *feast.FeatureStore, host string,
 	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
 }
 
+func (s *RealServerStarter) StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, certFile string, keyFile string, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	return StartHttpsServer(fs, host, port, metricsPort, certFile, keyFile, writeLoggedFeaturesCallback, loggingOpts)
+}
+
 func (s *RealServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
 	return StartGrpcServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
 }
@@ -58,6 +62,8 @@ func main() {
 	port := 8080
 	metricsPort := 9090
 	server := RealServerStarter{}
+	certFile := ""
+	keyFile := ""
 	// Current Directory
 	repoPath, err := os.Getwd()
 	if err != nil {
@@ -70,6 +76,8 @@ func main() {
 	flag.StringVar(&host, "host", host, "Specify a host for the server")
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
 	flag.IntVar(&metricsPort, "metrics-port", metricsPort, "Specify a port for the metrics server")
+	flag.StringVar(&certFile, "tls-cert-file", "", "Path to the TLS certificate file")
+	flag.StringVar(&keyFile, "tls-key-file", "", "Path to the TLS key file"	)
 	flag.Parse()
 
 	// Initialize tracer
@@ -119,8 +127,10 @@ func main() {
 		err = server.StartHttpServer(fs, host, port, metricsPort, nil, loggingOptions)
 	} else if serverType == "grpc" {
 		err = server.StartGrpcServer(fs, host, port, metricsPort, nil, loggingOptions)
+	} else if serverType == "https" {
+		err = server.StartHttpsServer(fs, host, port, metricsPort, certFile, keyFile, nil, loggingOptions)
 	} else {
-		fmt.Println("Unknown server type. Please specify 'http' or 'grpc'.")
+		fmt.Println("Unknown server type. Please specify 'http' or 'grpc' or 'https'.")
 	}
 
 	if err != nil {
@@ -283,6 +293,95 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 	close(serverExited)
 	wg.Wait()
 	return err
+}
+
+// StartHttpsServer starts HTTP server with TLS. Requires TLS_CERT_FILE and TLS_KEY_FILE env vars.
+func StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, certFile string, keyFile string, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	if certFile == "" || keyFile == "" {
+		return fmt.Errorf("TLS_CERT_FILE and TLS_KEY_FILE must be set")
+	}
+
+	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
+	if err != nil {
+		return err
+	}
+
+	// Try to obtain an http.Handler from the concrete server if possible.
+	ser := server.NewHttpServer(fs, loggingService)
+
+	// Start metrics server (same as HTTP)
+	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", metricsPort)}
+	go func() {
+		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		metricsServer.Handler = mux
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Failed to start metrics server")
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	serverExited := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		select {
+		case <-stop:
+			log.Info().Msg("Stopping the HTTPS server...")
+			// Try to stop underlying server if it exposes Stop()
+			if stopper, ok := interface{}(ser).(interface{ Stop() error }); ok {
+				if err := stopper.Stop(); err != nil {
+					log.Error().Err(err).Msg("Error when stopping the HTTPS server")
+				}
+			}
+			if err := metricsServer.Shutdown(context.Background()); err != nil {
+				log.Error().Err(err).Msg("Error stopping metrics server")
+			}
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+			log.Info().Msg("HTTPS server terminated")
+		case <-serverExited:
+			metricsServer.Shutdown(context.Background())
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+		}
+	}()
+
+	// If the concrete server exposes a Handler, use it with a tls-enabled http.Server.
+	if hProvider, ok := interface{}(ser).(interface{ Handler() http.Handler }); ok {
+		handler := hProvider.Handler()
+		srv := &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: handler}
+		go func() {
+			log.Info().Msgf("Starting HTTPS server on host %s, port %d", host, port)
+			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+				log.Error().Err(err).Msg("HTTPS server failed")
+			}
+		}()
+		close(serverExited)
+		wg.Wait()
+		return nil
+	}
+
+	// If concrete server supports ServeTLS(host,port,cert,key), call it.
+	if tlsServ, ok := interface{}(ser).(interface {
+		ServeTLS(string, int, string, string) error
+	}); ok {
+		err := tlsServ.ServeTLS(host, port, certFile, keyFile)
+		close(serverExited)
+		wg.Wait()
+		return err
+	}
+
+	// Fallback: cannot enable TLS for this server implementation.
+	close(serverExited)
+	wg.Wait()
+	return fmt.Errorf("HTTPS not supported by underlying HTTP server implementation")
 }
 
 func OTELTracingEnabled() bool {
