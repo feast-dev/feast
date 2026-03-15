@@ -196,11 +196,15 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 		} else {
 			isDeployAvailable := services.IsDeploymentAvailable(deployment.Status.Conditions)
 			if !isDeployAvailable {
+				msg := feastdevv1.DeploymentNotAvailableMessage
+				if podMsg := feast.GetPodContainerFailureMessage(deployment); podMsg != "" {
+					msg = msg + ": " + podMsg
+				}
 				condition = metav1.Condition{
 					Type:    feastdevv1.ReadyType,
 					Status:  metav1.ConditionUnknown,
 					Reason:  feastdevv1.DeploymentNotAvailableReason,
-					Message: feastdevv1.DeploymentNotAvailableMessage,
+					Message: msg,
 				}
 
 				result = errResult

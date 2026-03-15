@@ -3129,6 +3129,10 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  runFeastApplyOnInit:
+                    description: Runs feast apply on pod start to populate the registry.
+                      Defaults to true. Ignored when DisableInitContainers is true.
+                    type: boolean
                   scaling:
                     description: Scaling configures horizontal scaling for the FeatureStore
                       deployment (e.g. HPA autoscaling).
@@ -5695,7 +5699,6 @@ spec:
                 type: object
             required:
             - feastProject
-            - replicas
             type: object
             x-kubernetes-validations:
             - message: replicas > 1 and services.scaling.autoscaling are mutually
@@ -8871,6 +8874,11 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      runFeastApplyOnInit:
+                        description: Runs feast apply on pod start to populate the
+                          registry. Defaults to true. Ignored when DisableInitContainers
+                          is true.
+                        type: boolean
                       scaling:
                         description: Scaling configures horizontal scaling for the
                           FeatureStore deployment (e.g. HPA autoscaling).
@@ -11458,7 +11466,6 @@ spec:
                     type: object
                 required:
                 - feastProject
-                - replicas
                 type: object
                 x-kubernetes-validations:
                 - message: replicas > 1 and services.scaling.autoscaling are mutually
@@ -13920,6 +13927,10 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  runFeastApplyOnInit:
+                    description: Runs feast apply on pod start to populate the registry.
+                      Defaults to true. Ignored when DisableInitContainers is true.
+                    type: boolean
                   securityContext:
                     description: PodSecurityContext holds pod-level security attributes
                       and common container settings.
@@ -18163,6 +18174,11 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      runFeastApplyOnInit:
+                        description: Runs feast apply on pod start to populate the
+                          registry. Defaults to true. Ignored when DisableInitContainers
+                          is true.
+                        type: boolean
                       securityContext:
                         description: PodSecurityContext holds pod-level security attributes
                           and common container settings.
