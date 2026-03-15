@@ -1,5 +1,8 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
+
+from pydantic import ValidationError
 
 from feast.feature_store import FeatureStore
 from feast.infra.mcp_servers.mcp_config import McpFeatureServerConfig
@@ -17,7 +20,7 @@ class TestMcpFeatureServerConfig(unittest.TestCase):
         self.assertFalse(config.mcp_enabled)
         self.assertEqual(config.mcp_server_name, "feast-mcp-server")
         self.assertEqual(config.mcp_server_version, "1.0.0")
-        self.assertIsNone(config.mcp_transport)
+        self.assertEqual(config.mcp_transport, "sse")
         self.assertEqual(config.transformation_service_endpoint, "localhost:6566")
 
     def test_custom_config(self):
@@ -41,11 +44,11 @@ class TestMcpFeatureServerConfig(unittest.TestCase):
 
     def test_config_validation(self):
         """Test configuration validation."""
-        # Test valid transport options
-        valid_transports = ["sse", "websocket", None]
-        for transport in valid_transports:
+        for transport in ["sse", "http"]:
             config = McpFeatureServerConfig(mcp_transport=transport)
             self.assertEqual(config.mcp_transport, transport)
+        with self.assertRaises(ValidationError):
+            McpFeatureServerConfig(mcp_transport="websocket")
 
     def test_config_inheritance(self):
         """Test that McpFeatureServerConfig properly inherits from BaseFeatureServerConfig."""
@@ -66,12 +69,13 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = Mock()
-        mock_config.mcp_server_name = "test-server"
-        mock_config.mcp_server_version = "1.0.0"
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server",
+            mcp_server_version="1.0.0",
+            mcp_transport="sse",
+        )
 
-        # Mock the FastApiMCP instance
-        mock_mcp_instance = Mock()
+        mock_mcp_instance = Mock(spec_set=["mount_sse", "mount", "mount_http"])
         mock_fast_api_mcp.return_value = mock_mcp_instance
 
         result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
@@ -83,8 +87,7 @@ class TestMCPServerUnit(unittest.TestCase):
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
         )
 
-        # Verify mount was called
-        mock_mcp_instance.mount.assert_called_once()
+        mock_mcp_instance.mount_sse.assert_called_once()
 
         # Verify the result
         self.assertEqual(result, mock_mcp_instance)
@@ -96,11 +99,9 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = Mock()
-        # Don't set mcp_server_name to test default
-        del mock_config.mcp_server_name
+        mock_config = SimpleNamespace(mcp_transport="sse")
 
-        mock_mcp_instance = Mock()
+        mock_mcp_instance = Mock(spec_set=["mount_sse", "mount", "mount_http"])
         mock_fast_api_mcp.return_value = mock_mcp_instance
 
         result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
@@ -115,6 +116,40 @@ class TestMCPServerUnit(unittest.TestCase):
         self.assertEqual(result, mock_mcp_instance)
 
     @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
+    def test_add_mcp_support_http_transport(self, mock_fast_api_mcp):
+        from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
+
+        mock_app = Mock()
+        mock_store = Mock(spec=FeatureStore)
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="http"
+        )
+
+        mock_mcp_instance = Mock(spec_set=["mount_http"])
+        mock_fast_api_mcp.return_value = mock_mcp_instance
+
+        result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
+        mock_mcp_instance.mount_http.assert_called_once()
+        self.assertEqual(result, mock_mcp_instance)
+
+    @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
+    def test_add_mcp_support_http_missing_mount_http_fails(self, mock_fast_api_mcp):
+        from feast.infra.mcp_servers.mcp_server import (
+            McpTransportNotSupportedError,
+            add_mcp_support_to_app,
+        )
+
+        mock_app = Mock()
+        mock_store = Mock(spec=FeatureStore)
+        mock_config = SimpleNamespace(mcp_transport="http")
+
+        mock_mcp_instance = Mock(spec_set=["mount"])
+        mock_fast_api_mcp.return_value = mock_mcp_instance
+
+        with self.assertRaises(McpTransportNotSupportedError):
+            add_mcp_support_to_app(mock_app, mock_store, mock_config)
+
+    @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
     @patch("feast.infra.mcp_servers.mcp_server.logger")
     def test_add_mcp_support_with_exception(self, mock_logger, mock_fast_api_mcp):
         """Test MCP support addition when FastApiMCP raises an exception."""
@@ -122,8 +157,9 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = Mock()
-        mock_config.mcp_server_name = "test-server"
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="sse"
+        )
 
         # Mock FastApiMCP to raise an exception
         mock_fast_api_mcp.side_effect = Exception("MCP initialization failed")
@@ -145,10 +181,11 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = Mock()
-        mock_config.mcp_server_name = "test-server"
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="sse"
+        )
 
-        mock_mcp_instance = Mock()
+        mock_mcp_instance = Mock(spec_set=["mount"])
         mock_mcp_instance.mount.side_effect = Exception("Mount failed")
         mock_fast_api_mcp.return_value = mock_mcp_instance
 
@@ -203,3 +240,20 @@ class TestFeatureServerMCPHooks(unittest.TestCase):
             mock_logger.error.assert_called_with(
                 "Error checking/adding MCP support: Test error"
             )
+
+    @patch("feast.infra.mcp_servers.mcp_server.add_mcp_support_to_app")
+    def test_add_mcp_support_if_enabled_transport_not_supported_fails(self, mock_add):
+        from feast.feature_server import _add_mcp_support_if_enabled
+        from feast.infra.mcp_servers.mcp_server import McpTransportNotSupportedError
+
+        mock_app = Mock()
+        mock_store = Mock()
+        mock_store.config.feature_server = Mock()
+        mock_store.config.feature_server.type = "mcp"
+        mock_store.config.feature_server.mcp_enabled = True
+        mock_store.config.feature_server.mcp_transport = "http"
+
+        mock_add.side_effect = McpTransportNotSupportedError("bad")
+
+        with self.assertRaises(McpTransportNotSupportedError):
+            _add_mcp_support_if_enabled(mock_app, mock_store)
