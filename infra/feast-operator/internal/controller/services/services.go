@@ -733,6 +733,18 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 				Command:    []string{"feast", "apply"},
 				WorkingDir: featureRepoDir,
 			}
+			// feast apply needs DB/store connectivity, so inherit env/envFrom
+			// from all server container configs (registry, online, offline).
+			for _, feastType := range []FeastServiceType{RegistryFeastType, OnlineFeastType, OfflineFeastType} {
+				if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
+					if serverConfigs.OptionalCtrConfigs.Env != nil {
+						applyContainer.Env = envOverride(applyContainer.Env, *serverConfigs.OptionalCtrConfigs.Env)
+					}
+					if serverConfigs.OptionalCtrConfigs.EnvFrom != nil {
+						applyContainer.EnvFrom = append(applyContainer.EnvFrom, *serverConfigs.OptionalCtrConfigs.EnvFrom...)
+					}
+				}
+			}
 			podSpec.InitContainers = append(podSpec.InitContainers, applyContainer)
 		}
 	}

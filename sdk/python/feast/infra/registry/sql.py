@@ -997,10 +997,16 @@ class SqlRegistry(CachingRegistry):
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
-                insert_stmt = insert(table).values(
-                    values,
-                )
-                conn.execute(insert_stmt)
+                try:
+                    with conn.begin_nested():
+                        conn.execute(insert(table).values(values))
+                except IntegrityError:
+                    logger.info(
+                        "Object %s in project %s already created by another "
+                        "process, skipping.",
+                        name,
+                        project,
+                    )
 
             if not isinstance(obj, Project):
                 self.apply_project(

@@ -739,6 +739,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Name).To(Equal("feast-apply"))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Env).To(ContainElements(
+				corev1.EnvVar{Name: testEnvVarName, Value: testEnvVarValue},
+			))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].EnvFrom).NotTo(BeEmpty())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			registryContainer := services.GetRegistryContainer(*deploy)
 			Expect(registryContainer.Env).To(HaveLen(1))
