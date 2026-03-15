@@ -121,7 +121,9 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = SimpleNamespace(mcp_server_name="test-server", mcp_transport="http")
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="http"
+        )
 
         mock_mcp_instance = Mock(spec_set=["mount_http"])
         mock_fast_api_mcp.return_value = mock_mcp_instance
@@ -155,7 +157,9 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = SimpleNamespace(mcp_server_name="test-server", mcp_transport="sse")
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="sse"
+        )
 
         # Mock FastApiMCP to raise an exception
         mock_fast_api_mcp.side_effect = Exception("MCP initialization failed")
@@ -177,7 +181,9 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = SimpleNamespace(mcp_server_name="test-server", mcp_transport="sse")
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="sse"
+        )
 
         mock_mcp_instance = Mock(spec_set=["mount"])
         mock_mcp_instance.mount.side_effect = Exception("Mount failed")
