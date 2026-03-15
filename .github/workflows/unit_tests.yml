@@ -108,11 +108,14 @@ jobs:
           curl -fsS http://127.0.0.1:6566/health >/dev/null
       - name: Validate MCP endpoint
         run: |
-          rm -f /tmp/mcp_headers /tmp/mcp_headers2
+          rm -f /tmp/mcp_headers /tmp/mcp_headers2 /tmp/mcp_body2
 
           curl -sS -D /tmp/mcp_headers -o /dev/null --max-time 10 \
-            -H "Accept: text/event-stream, application/json" \
+            -X POST \
+            -H "Accept: application/json, text/event-stream" \
+            -H "Content-Type: application/json" \
             -H "mcp-protocol-version: 2025-03-26" \
+            --data '{}' \
             http://127.0.0.1:6566/mcp || true
 
           SESSION_ID=$(grep -i "^mcp-session-id:" /tmp/mcp_headers | head -1 | awk '{print $2}' | tr -d '\r')
@@ -121,22 +124,18 @@ jobs:
             exit 1
           fi
 
-          for i in $(seq 1 10); do
-            rm -f /tmp/mcp_headers2
-            curl -sS -D /tmp/mcp_headers2 -o /dev/null --max-time 10 \
-              -H "Accept: text/event-stream, application/json" \
-              -H "mcp-protocol-version: 2025-03-26" \
-              -H "mcp-session-id: ${SESSION_ID}" \
-              http://127.0.0.1:6566/mcp || true
-            if grep -Eq "^HTTP/.* 200" /tmp/mcp_headers2 && grep -Eiq "^content-type: text/event-stream" /tmp/mcp_headers2; then
-              exit 0
-            fi
-            sleep 1
-          done
+          curl -sS -D /tmp/mcp_headers2 -o /tmp/mcp_body2 --max-time 10 \
+            -X POST \
+            -H "Accept: application/json, text/event-stream" \
+            -H "Content-Type: application/json" \
+            -H "mcp-protocol-version: 2025-03-26" \
+            -H "mcp-session-id: ${SESSION_ID}" \
+            --data '{}' \
+            http://127.0.0.1:6566/mcp || true
 
-          cat /tmp/mcp_headers || true
-          cat /tmp/mcp_headers2 || true
-          exit 1
+          grep -Eq "^HTTP/.* 400" /tmp/mcp_headers2
+          grep -Eiq "^content-type: application/json" /tmp/mcp_headers2
+          grep -Eiq "^mcp-session-id: ${SESSION_ID}" /tmp/mcp_headers2
       - name: Stop feature server
         if: always()
         run: |
