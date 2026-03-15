@@ -1639,6 +1639,7 @@ spec:
                                 - couchbase.offline
                                 - clickhouse
                                 - ray
+                                - oracle
                                 type: string
                             required:
                             - secretRef
@@ -2148,6 +2149,7 @@ spec:
                                 - couchbase.online
                                 - milvus
                                 - hybrid
+                                - mongodb
                                 type: string
                             required:
                             - secretRef
@@ -7348,6 +7350,7 @@ spec:
                                     - couchbase.offline
                                     - clickhouse
                                     - ray
+                                    - oracle
                                     type: string
                                 required:
                                 - secretRef
@@ -7865,6 +7868,7 @@ spec:
                                     - couchbase.online
                                     - milvus
                                     - hybrid
+                                    - mongodb
                                     type: string
                                 required:
                                 - secretRef
@@ -12960,6 +12964,7 @@ spec:
                                 - couchbase.online
                                 - milvus
                                 - hybrid
+                                - mongodb
                                 type: string
                             required:
                             - secretRef
@@ -17179,6 +17184,7 @@ spec:
                                     - couchbase.online
                                     - milvus
                                     - hybrid
+                                    - mongodb
                                     type: string
                                 required:
                                 - secretRef
@@ -20512,6 +20518,7 @@ spec:
     protocol: TCP
     targetPort: 8443
   selector:
+    app.kubernetes.io/name: feast-operator
     control-plane: controller-manager
 ---
 apiVersion: apps/v1
@@ -20527,12 +20534,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      app.kubernetes.io/name: feast-operator
       control-plane: controller-manager
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
+        app.kubernetes.io/name: feast-operator
         control-plane: controller-manager
     spec:
       containers:
@@ -20544,10 +20553,10 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: quay.io/feastdev/feature-server:0.60.0
+          value: quay.io/feastdev/feature-server:0.61.0
         - name: RELATED_IMAGE_CRON_JOB
           value: quay.io/openshift/origin-cli:4.17
-        image: quay.io/feastdev/feast-operator:0.60.0
+        image: quay.io/feastdev/feast-operator:0.61.0
         livenessProbe:
           httpGet:
             path: /healthz

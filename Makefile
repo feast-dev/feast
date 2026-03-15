@@ -535,6 +535,25 @@ test-python-universal-elasticsearch-online: ## Run Python Elasticsearch online s
 				not test_snowflake" \
  			sdk/python/tests
 
+test-python-universal-mongodb-online: ## Run Python MongoDB online store integration tests
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.mongodb_online_store.mongodb_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.mongodb \
+		python -m pytest -n 8 --integration \
+ 			-k "not test_universal_cli and \
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+ 				not test_universal_types and \
+				not test_snowflake" \
+ 			sdk/python/tests
+
 test-python-universal-milvus-online: ## Run Python Milvus online store integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.milvus_online_store.milvus_repo_configuration \
@@ -659,10 +678,10 @@ push-feature-server-docker: ## Push Feature Server Docker image
 	docker push $(REGISTRY)/feature-server:$(VERSION)
 
 build-feature-server-docker: ## Build Feature Server Docker image
-	docker buildx build \
+	docker buildx build $(if $(DOCKER_PLATFORMS),--platform $(DOCKER_PLATFORMS),) \
 		-t $(REGISTRY)/feature-server:$(VERSION) \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile \
-		--load sdk/python/feast/infra/feature_servers/multicloud
+		$(if $(filter true,$(DOCKER_PUSH)),--push,--load) sdk/python/feast/infra/feature_servers/multicloud
 
 push-feature-transformation-server-docker: ## Push Feature Transformation Server Docker image
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
@@ -715,9 +734,9 @@ build-feature-server-dev: ## Build Feature Server Dev Docker image
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
 
 build-feature-server-dev-docker: ## Build Feature Server Dev Docker image
-	docker buildx build \
+	docker buildx build $(if $(DOCKER_PLATFORMS),--platform $(DOCKER_PLATFORMS),) \
 		-t $(REGISTRY)/feature-server:$(VERSION) \
-		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev $(if $(filter true,$(DOCKER_PUSH)),--push,--load) .
 
 build-feature-server-dev-docker_on_mac: ## Build Feature Server Dev Docker image on Mac
 	docker buildx build --platform linux/amd64 \

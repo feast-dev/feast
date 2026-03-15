@@ -35,7 +35,7 @@ from feast import FeatureService, FileSource, RequestSource
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
-from feast.errors import FeatureViewNotFoundException
+from feast.errors import ConflictingFeatureViewNames, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.infra_object import Infra
@@ -613,6 +613,81 @@ def test_apply_feature_view_success(test_registry: BaseRegistry):
 
     # Delete feature view
     test_registry.delete_feature_view("my_feature_view_1", project)
+    feature_views = test_registry.list_feature_views(project)
+    assert len(feature_views) == 0
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
+def test_apply_feature_view_without_source_success(test_registry: BaseRegistry):
+    """Test that a FeatureView with no source can be applied, retrieved, updated, and deleted."""
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_no_source",
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=None,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register Feature View
+    test_registry.apply_feature_view(fv1, project)
+
+    feature_views = test_registry.list_feature_views(project, tags=fv1.tags)
+
+    assert len(feature_views) == 1
+    assert feature_views[0].name == "my_feature_view_no_source"
+    assert feature_views[0].batch_source is None
+    assert feature_views[0].stream_source is None
+    assert feature_views[0].features[0].name == "fs1_my_feature_1"
+    assert feature_views[0].features[0].dtype == Int64
+    assert feature_views[0].features[1].name == "fs1_my_feature_2"
+    assert feature_views[0].features[1].dtype == String
+    assert feature_views[0].features[2].name == "fs1_my_feature_3"
+    assert feature_views[0].features[2].dtype == Array(String)
+
+    feature_view = test_registry.get_feature_view("my_feature_view_no_source", project)
+    any_feature_view = test_registry.get_any_feature_view(
+        "my_feature_view_no_source", project
+    )
+
+    assert feature_view.name == "my_feature_view_no_source"
+    assert feature_view.batch_source is None
+    assert feature_view.stream_source is None
+    assert feature_view.ttl == timedelta(minutes=5)
+    assert feature_view == any_feature_view
+
+    # After the first apply, created_timestamp should equal last_updated_timestamp.
+    assert feature_view.created_timestamp == feature_view.last_updated_timestamp
+
+    # Update the feature view and verify created_timestamp is preserved.
+    fv1.ttl = timedelta(minutes=10)
+    test_registry.apply_feature_view(fv1, project)
+    feature_views = test_registry.list_feature_views(project)
+    assert len(feature_views) == 1
+    updated_feature_view = test_registry.get_feature_view(
+        "my_feature_view_no_source", project
+    )
+    assert updated_feature_view.ttl == timedelta(minutes=10)
+    assert updated_feature_view.batch_source is None
+    assert updated_feature_view.created_timestamp == feature_view.created_timestamp
+
+    # Delete the feature view.
+    test_registry.delete_feature_view("my_feature_view_no_source", project)
     feature_views = test_registry.list_feature_views(project)
     assert len(feature_views) == 0
 
@@ -2001,3 +2076,119 @@ def test_commit_for_read_only_user():
         assert len(entities) == 1
 
     write_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    # mock_remote_registry excluded: the mock gRPC channel does not propagate
+    # server-side errors, so ConflictingFeatureViewNames is not raised client-side.
+    [f for f in all_fixtures if "mock_remote" not in str(f)],
+)
+def test_cross_type_feature_view_name_conflict(test_registry: BaseRegistry):
+    """
+    Test that feature view names must be unique across all feature view types.
+
+    This validates the fix for feast-dev/feast#5995: If a FeatureView and
+    StreamFeatureView share the same name, get_online_features would silently
+    return the wrong one (fixed order lookup). This test ensures such conflicts
+    are caught during registration.
+    """
+    project = "project"
+
+    # Create a simple entity
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
+
+    # Create a regular FeatureView
+    file_source = FileSource(name="my_file_source", path="test.parquet")
+    feature_view = FeatureView(
+        name="shared_feature_view_name",
+        entities=[entity],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+    )
+
+    # Create a StreamFeatureView with the SAME name
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+        watermark_delay_threshold=timedelta(days=1),
+    )
+
+    def simple_udf(x: int):
+        return x + 3
+
+    stream_feature_view = StreamFeatureView(
+        name="shared_feature_view_name",  # Same name as FeatureView!
+        entities=[entity],
+        ttl=timedelta(days=30),
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=stream_source,
+        udf=simple_udf,
+    )
+
+    # Register the regular FeatureView first - should succeed
+    test_registry.apply_feature_view(feature_view, project)
+
+    # Attempt to register StreamFeatureView with same name - should fail
+    with pytest.raises(ConflictingFeatureViewNames) as exc_info:
+        test_registry.apply_feature_view(stream_feature_view, project)
+
+    # Verify error message contains the conflicting types
+    error_message = str(exc_info.value)
+    assert "shared_feature_view_name" in error_message
+
+    # Cleanup
+    test_registry.delete_feature_view("shared_feature_view_name", project)
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [f for f in all_fixtures if "mock_remote" not in str(f)],
+)
+def test_cross_type_feature_view_odfv_conflict(test_registry: BaseRegistry):
+    """
+    Test that OnDemandFeatureView names must be unique across all feature view types.
+    """
+    project = "project"
+
+    # Create a simple entity
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
+
+    # Create a regular FeatureView
+    file_source = FileSource(name="my_file_source", path="test.parquet")
+    feature_view = FeatureView(
+        name="shared_odfv_name",
+        entities=[entity],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+    )
+
+    # Create an OnDemandFeatureView with the SAME name
+    @on_demand_feature_view(
+        sources=[feature_view],
+        schema=[Field(name="output", dtype=Float32)],
+    )
+    def shared_odfv_name(inputs: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame({"output": inputs["feature1"] * 2})
+
+    # Register the regular FeatureView first - should succeed
+    test_registry.apply_feature_view(feature_view, project)
+
+    # Attempt to register OnDemandFeatureView with same name - should fail
+    with pytest.raises(ConflictingFeatureViewNames) as exc_info:
+        test_registry.apply_feature_view(shared_odfv_name, project)
+
+    # Verify error message contains the conflicting types
+    error_message = str(exc_info.value)
+    assert "shared_odfv_name" in error_message
+
+    # Cleanup
+    test_registry.delete_feature_view("shared_odfv_name", project)
+    test_registry.teardown()
