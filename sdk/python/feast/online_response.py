@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Dict, List, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 import pandas as pd
 import pyarrow as pa
@@ -23,10 +23,14 @@ from feast.torch_wrapper import get_torch
 from feast.type_map import feast_value_type_to_python_type
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     import torch
 
     TorchTensor: TypeAlias = torch.Tensor
 else:
+    from typing import TypeAlias
+
     TorchTensor: TypeAlias = Any
 
 TIMESTAMP_POSTFIX: str = "__ts"
