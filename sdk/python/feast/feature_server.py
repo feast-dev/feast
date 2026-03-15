@@ -749,6 +749,10 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
         else:
             logger.debug("MCP support is not enabled in feature server configuration")
     except Exception as e:
+        from feast.infra.mcp_servers.mcp_server import McpTransportNotSupportedError
+
+        if isinstance(e, McpTransportNotSupportedError):
+            raise
         logger.error(f"Error checking/adding MCP support: {e}")
         # Don't fail the entire server if MCP fails to initialize
 

@@ -146,9 +146,12 @@ Feast supports the Model Context Protocol (MCP), which enables AI agents and app
      type: mcp
      enabled: true
      mcp_enabled: true
+     mcp_transport: http
      mcp_server_name: "feast-feature-store"
      mcp_server_version: "1.0.0"
    ```
+
+By default, Feast uses the SSE-based MCP transport (`mcp_transport: sse`). Streamable HTTP (`mcp_transport: http`) is recommended for improved compatibility with some MCP clients.
 
 ### How It Works
 
