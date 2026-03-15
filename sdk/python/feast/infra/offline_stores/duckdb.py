@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Union
 
@@ -25,6 +25,7 @@ from feast.infra.offline_stores.ibis import (
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.utils import make_tzaware
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
@@ -113,6 +114,59 @@ def _write_data_source(
         )
 
 
+DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
+
+
+def _build_entity_df_from_sources(
+    config: RepoConfig,
+    feature_views: List[FeatureView],
+    start_date: datetime,
+    end_date: datetime,
+    data_source_reader: Callable[[DataSource, str], Table],
+) -> pd.DataFrame:
+
+    entity_dfs: List[pd.DataFrame] = []
+
+    for fv in feature_views:
+        fv_table = data_source_reader(fv.batch_source, str(config.repo_path))
+
+        for old_name, new_name in fv.batch_source.field_mapping.items():
+            if old_name in fv_table.columns:
+                fv_table = fv_table.rename({new_name: old_name})
+
+        timestamp_field = fv.batch_source.timestamp_field
+
+        fv_table = fv_table.filter(
+            ibis.and_(
+                fv_table[timestamp_field] >= ibis.literal(start_date),
+                fv_table[timestamp_field] <= ibis.literal(end_date),
+            )
+        )
+
+        join_key_map = fv.projection.join_key_map or {
+            e.name: e.name for e in fv.entity_columns
+        }
+        join_key_cols = list(join_key_map.values())
+
+        if join_key_cols:
+            distinct_entities = fv_table.select(*join_key_cols).distinct().execute()
+            entity_dfs.append(distinct_entities)
+
+    if not entity_dfs:
+        return pd.DataFrame(
+            {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL: [end_date]}
+        )
+
+    combined = pd.concat(entity_dfs, ignore_index=True)
+
+    all_cols = list(combined.columns)
+    combined = combined.drop_duplicates(subset=all_cols).reset_index(drop=True)
+
+    combined[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL] = end_date
+
+    return combined
+
+
 class DuckDBOfflineStoreConfig(FeastConfigBaseModel):
     type: StrictStr = "duckdb"
     # """ Offline store type selector"""
@@ -154,11 +208,42 @@ class DuckDBOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs,
     ) -> RetrievalJob:
+        start_date: Optional[datetime] = kwargs.get("start_date", None)
+        end_date: Optional[datetime] = kwargs.get("end_date", None)
+        non_entity_mode = entity_df is None
+
+        if non_entity_mode:
+            end_date = (
+                make_tzaware(end_date) if end_date else datetime.now(timezone.utc)
+            )
+
+            if start_date is None:
+                max_ttl_seconds = 0
+                for fv in feature_views:
+                    if fv.ttl and isinstance(fv.ttl, timedelta):
+                        max_ttl_seconds = max(
+                            max_ttl_seconds, int(fv.ttl.total_seconds())
+                        )
+                if max_ttl_seconds > 0:
+                    start_date = end_date - timedelta(seconds=max_ttl_seconds)
+                else:
+                    start_date = end_date - timedelta(days=30)
+            start_date = make_tzaware(start_date)
+
+            entity_df = _build_entity_df_from_sources(
+                config=config,
+                feature_views=feature_views,
+                start_date=start_date,
+                end_date=end_date,
+                data_source_reader=_read_data_source,
+            )
+
         return get_historical_features_ibis(
             config=config,
             feature_views=feature_views,
