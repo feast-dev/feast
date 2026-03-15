@@ -3,7 +3,6 @@ import threading
 from importlib import resources as importlib_resources
 from typing import Callable, Optional
 
-import uvicorn
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -145,6 +144,8 @@ def start_server(
     tls_key_path: str = "",
     tls_cert_path: str = "",
 ):
+    import uvicorn
+
     app = get_app(
         store,
         project_id,
