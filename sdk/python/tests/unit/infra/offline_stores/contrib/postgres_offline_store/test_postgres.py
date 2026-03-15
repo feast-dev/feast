@@ -638,22 +638,27 @@ class TestNonEntityRetrieval:
             return_value={"event_timestamp": "timestamp"}
         )
 
-        with patch.multiple(
-            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
-            _get_conn=MagicMock(),
-            _upload_entity_df=MagicMock(),
-            _get_entity_schema=mock_get_entity_schema,
-            _get_entity_df_event_timestamp_range=MagicMock(
-                return_value=(start_date, end_date)
+        with (
+            patch.multiple(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
+                _get_conn=MagicMock(),
+                _upload_entity_df=MagicMock(),
+                _get_entity_schema=mock_get_entity_schema,
+                _get_entity_df_event_timestamp_range=MagicMock(
+                    return_value=(start_date, end_date)
+                ),
             ),
-        ), patch(
-            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
-            return_value=[],
-        ), patch(
-            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df",
-        ), patch(
-            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
-            return_value=[],
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
+                return_value=[],
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df",
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                return_value=[],
+            ),
         ):
             PostgreSQLOfflineStore.get_historical_features(
                 config=test_repo_config,
