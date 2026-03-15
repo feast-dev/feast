@@ -70,3 +70,47 @@ def feature_view_list(ctx: click.Context, tags: list[str]):
     from tabulate import tabulate
 
     print(tabulate(table, headers=["NAME", "ENTITIES", "TYPE"], tablefmt="plain"))
+
+
+@feature_views_cmd.command("versions")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def feature_view_versions(ctx: click.Context, name: str):
+    """
+    List version history for a feature view
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        versions = store.list_feature_view_versions(name)
+    except NotImplementedError:
+        print("Version history is not supported by this registry backend.")
+        exit(1)
+    except Exception as e:
+        print(e)
+        exit(1)
+
+    if not versions:
+        print(f"No version history found for feature view '{name}'.")
+        return
+
+    table = []
+    for v in versions:
+        table.append(
+            [
+                v["version"],
+                v["feature_view_type"],
+                str(v["created_timestamp"]),
+                v["version_id"],
+            ]
+        )
+
+    from tabulate import tabulate
+
+    print(
+        tabulate(
+            table,
+            headers=["VERSION", "TYPE", "CREATED", "VERSION_ID"],
+            tablefmt="plain",
+        )
+    )

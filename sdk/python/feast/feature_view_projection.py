@@ -47,9 +47,13 @@ class FeatureViewProjection:
     date_partition_column: Optional[str] = None
     created_timestamp_column: Optional[str] = None
     batch_source: Optional[DataSource] = None
+    version_tag: Optional[int] = None
 
     def name_to_use(self):
-        return self.name_alias or self.name
+        base = self.name_alias or self.name
+        if self.version_tag is not None:
+            return f"{base}@v{self.version_tag}"
+        return base
 
     def to_proto(self) -> FeatureViewProjectionProto:
         batch_source = None

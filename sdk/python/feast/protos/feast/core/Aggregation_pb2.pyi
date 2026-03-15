@@ -25,11 +25,11 @@ class Aggregation(google.protobuf.message.Message):
     NAME_FIELD_NUMBER: builtins.int
     column: builtins.str
     function: builtins.str
-    name: builtins.str
     @property
     def time_window(self) -> google.protobuf.duration_pb2.Duration: ...
     @property
     def slide_interval(self) -> google.protobuf.duration_pb2.Duration: ...
+    name: builtins.str
     def __init__(
         self,
         *,

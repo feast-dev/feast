@@ -44,6 +44,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.transformation.mode import TransformationMode
 from feast.types import from_value_type
 from feast.value_type import ValueType
+from feast.version_utils import normalize_version_string
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -126,6 +127,7 @@ class FeatureView(BaseFeatureView):
         owner: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
         enable_validation: bool = False,
+        version: str = "latest",
     ):
         """
         Creates a FeatureView object.
@@ -154,11 +156,16 @@ class FeatureView(BaseFeatureView):
                 when transformations are applied. Choose from TransformationMode enum values.
             enable_validation (optional): If True, enables schema validation during materialization
                 to check that data conforms to the declared feature types. Default is False.
+            version (optional): Version string for definition management. Controls which historical
+                snapshot is active after ``feast apply``. Only one version can be active per feature
+                view name per project. For concurrent multi-version testing, use separate projects
+                or distinct feature view names. Default is "latest".
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
         self.name = name
+        self.version = version
         self.enable_validation = enable_validation
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
@@ -292,6 +299,9 @@ class FeatureView(BaseFeatureView):
             offline=self.offline,
             sink_source=self.batch_source if self.source_views else None,
             enable_validation=self.enable_validation,
+            version=self.version,
+            description=self.description,
+            owner=self.owner,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -321,6 +331,8 @@ class FeatureView(BaseFeatureView):
             or self.source_views != other.source_views
             or self.materialization_intervals != other.materialization_intervals
             or self.enable_validation != other.enable_validation
+            or normalize_version_string(self.version)
+            != normalize_version_string(other.version)
         ):
             return False
 
@@ -460,6 +472,7 @@ class FeatureView(BaseFeatureView):
             feature_transformation=feature_transformation_proto,
             mode=mode_to_string(self.mode),
             enable_validation=self.enable_validation,
+            version=self.version,
         )
 
     def to_proto_meta(self):
@@ -473,6 +486,8 @@ class FeatureView(BaseFeatureView):
             interval_proto.start_time.FromDatetime(interval[0])
             interval_proto.end_time.FromDatetime(interval[1])
             meta.materialization_intervals.append(interval_proto)
+        if self.current_version_number is not None:
+            meta.current_version_number = self.current_version_number
         return meta
 
     def get_ttl_duration(self):
@@ -631,6 +646,24 @@ class FeatureView(BaseFeatureView):
 
         # Restore enable_validation from proto field.
         feature_view.enable_validation = feature_view_proto.spec.enable_validation
+
+        # Restore version fields.
+        feature_view.version = feature_view_proto.spec.version or "latest"
+        # proto3 int32 defaults to 0, so use spec.version to distinguish
+        # "actually version 0" from "no version set". An empty spec.version
+        # means the proto predates versioning, so current_version_number
+        # should be None.
+        if feature_view_proto.meta.current_version_number:
+            feature_view.current_version_number = (
+                feature_view_proto.meta.current_version_number
+            )
+        elif (
+            feature_view_proto.meta.current_version_number == 0
+            and feature_view_proto.spec.version
+        ):
+            feature_view.current_version_number = 0
+        else:
+            feature_view.current_version_number = None
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.

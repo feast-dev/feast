@@ -122,6 +122,7 @@ class StreamFeatureView(FeatureView):
         enable_tiling: bool = False,
         tiling_hop_size: Optional[timedelta] = None,
         enable_validation: bool = False,
+        version: str = "latest",
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -186,6 +187,7 @@ class StreamFeatureView(FeatureView):
             mode=mode,
             sink_source=sink_source,
             enable_validation=enable_validation,
+            version=version,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
@@ -282,6 +284,7 @@ class StreamFeatureView(FeatureView):
             enable_tiling=self.enable_tiling,
             tiling_hop_size=tiling_hop_size_duration,
             enable_validation=self.enable_validation,
+            version=self.version,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -344,6 +347,7 @@ class StreamFeatureView(FeatureView):
                 else None
             ),
             enable_validation=sfv_proto.spec.enable_validation,
+            version=sfv_proto.spec.version or "latest",
         )
 
         if batch_source:
@@ -351,6 +355,16 @@ class StreamFeatureView(FeatureView):
 
         if stream_source:
             stream_feature_view.stream_source = stream_source
+
+        # Restore current_version_number from meta.
+        if sfv_proto.meta.current_version_number:
+            stream_feature_view.current_version_number = (
+                sfv_proto.meta.current_version_number
+            )
+        elif sfv_proto.meta.current_version_number == 0 and sfv_proto.spec.version:
+            stream_feature_view.current_version_number = 0
+        else:
+            stream_feature_view.current_version_number = None
 
         stream_feature_view.entities = list(sfv_proto.spec.entities)
 
@@ -398,6 +412,7 @@ class StreamFeatureView(FeatureView):
             udf_string=self.udf_string,
             feature_transformation=self.feature_transformation,
             enable_validation=self.enable_validation,
+            version=self.version,
         )
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
@@ -424,6 +439,7 @@ def stream_feature_view(
     mode: Optional[str] = "spark",
     timestamp_field: Optional[str] = "",
     enable_validation: bool = False,
+    version: str = "latest",
 ):
     """
     Creates an StreamFeatureView object with the given user function as udf.
@@ -456,6 +472,7 @@ def stream_feature_view(
             mode=mode,
             timestamp_field=timestamp_field,
             enable_validation=enable_validation,
+            version=version,
         )
         functools.update_wrapper(wrapper=stream_feature_view_obj, wrapped=user_function)
         return stream_feature_view_obj

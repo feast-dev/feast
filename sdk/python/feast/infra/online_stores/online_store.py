@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from feast import Entity, utils
 from feast.batch_feature_view import BatchFeatureView
+from feast.errors import VersionedOnlineReadNotSupported
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
@@ -185,6 +186,9 @@ class OnlineStore(ABC):
             native_entity_values=True,
         )
 
+        # Check for versioned reads on unsupported stores
+        self._check_versioned_read_support(grouped_refs)
+
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
             table_entity_values, idxs, output_len = utils._get_unique_entities(
@@ -231,6 +235,17 @@ class OnlineStore(ABC):
         )
         return OnlineResponse(online_features_response)
 
+    def _check_versioned_read_support(self, grouped_refs):
+        """Raise an error if versioned reads are attempted on unsupported stores."""
+        from feast.infra.online_stores.sqlite import SqliteOnlineStore
+
+        if isinstance(self, SqliteOnlineStore):
+            return
+        for table, _ in grouped_refs:
+            version = getattr(table, "current_version_number", None)
+            if version is not None and version > 0:
+                raise VersionedOnlineReadNotSupported(self.__class__.__name__, version)
+
     async def get_online_features_async(
         self,
         config: RepoConfig,
@@ -272,6 +287,9 @@ class OnlineStore(ABC):
             full_feature_names=full_feature_names,
             native_entity_values=True,
         )
+
+        # Check for versioned reads on unsupported stores
+        self._check_versioned_read_support(grouped_refs)
 
         async def query_table(table, requested_features):
             # Get the correct set of entity values with the correct join keys.
