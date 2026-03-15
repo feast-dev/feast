@@ -163,21 +163,28 @@ def get_feature_view_by_version(
     )
     from feast.version_utils import version_tag
 
-    type_map = {
-        "feature_view": (FeatureViewProto, FeatureView),
-        "stream_feature_view": (StreamFeatureViewProto, StreamFeatureView),
-        "on_demand_feature_view": (OnDemandFeatureViewProto, OnDemandFeatureView),
-    }
-
     for record in registry_proto.feature_view_version_history.records:
         if (
             record.feature_view_name == name
             and record.project_id == project
             and record.version_number == version_number
         ):
-            proto_class, python_class = type_map[record.feature_view_type]
-            snap_proto = proto_class.FromString(record.feature_view_proto)
-            fv = python_class.from_proto(snap_proto)
+            if record.feature_view_type == "feature_view":
+                fv_proto = FeatureViewProto.FromString(record.feature_view_proto)
+                fv = FeatureView.from_proto(fv_proto)
+            elif record.feature_view_type == "stream_feature_view":
+                sfv_proto = StreamFeatureViewProto.FromString(record.feature_view_proto)
+                fv = StreamFeatureView.from_proto(sfv_proto)
+            elif record.feature_view_type == "on_demand_feature_view":
+                odfv_proto = OnDemandFeatureViewProto.FromString(
+                    record.feature_view_proto
+                )
+                fv = OnDemandFeatureView.from_proto(odfv_proto)
+            else:
+                raise ValueError(
+                    f"Unknown feature view type: {record.feature_view_type}"
+                )
+
             fv.current_version_number = version_number
             return fv
 
