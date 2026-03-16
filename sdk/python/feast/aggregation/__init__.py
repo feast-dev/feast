@@ -18,7 +18,7 @@ class Aggregation:
 
     Attributes:
         column: str  # Column name of the feature we are aggregating.
-        function: str  # Provided built in aggregations sum, max, min, count mean
+        function: str  # Provided built in aggregations sum, max, min, count, mean, count_distinct
         time_window: timedelta  # The time window for this aggregation.
         slide_interval: timedelta # The sliding window for these aggregations
         name: str  # Optional override for the output feature name (defaults to {function}_{column})
@@ -118,6 +118,11 @@ class Aggregation:
         return base
 
 
+_FUNCTION_ALIASES: Dict[str, str] = {
+    "count_distinct": "nunique",
+}
+
+
 def aggregation_specs_to_agg_ops(
     agg_specs: Iterable[Any],
     *,
@@ -128,7 +133,8 @@ def aggregation_specs_to_agg_ops(
         if getattr(agg, "time_window", None) is not None:
             raise ValueError(time_window_unsupported_error_message)
         alias = getattr(agg, "name", None) or f"{agg.function}_{agg.column}"
-        agg_ops[alias] = (agg.function, agg.column)
+        func_name = _FUNCTION_ALIASES.get(agg.function, agg.function)
+        agg_ops[alias] = (func_name, agg.column)
     return agg_ops
 
 
