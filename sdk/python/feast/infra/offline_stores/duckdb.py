@@ -149,9 +149,11 @@ def _build_entity_df_from_sources(
         source_join_key_cols = list(join_key_map.keys())
 
         if source_join_key_cols:
+            # join_key_map is {feature_key: entity_key}; ibis rename({new: old}) renames
+            # old->new, so pass inverted map to rename feature columns to entity names.
             distinct_entities = (
                 fv_table.select(*source_join_key_cols)
-                .rename(join_key_map)
+                .rename({v: k for k, v in join_key_map.items()})
                 .distinct()
                 .execute()
             )
