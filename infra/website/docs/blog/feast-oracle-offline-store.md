@@ -1,6 +1,6 @@
 ---
-title: "Feast Meets Oracle: Bringing the World's #1 Enterprise Database to the Feature Store"
-description: Oracle Database now has first-class support as a Feast offline store — complete with Kubernetes-native operator integration. Learn how to use your existing Oracle infrastructure for production ML feature engineering.
+title: "Feast Meets Oracle: Unlocking Feature Store for Oracle Database Users"
+description: Oracle Database is now a fully featured Feast offline store, integrated with Kubernetes-native operators. This enables teams to leverage their existing Oracle infrastructure for scalable, production ML feature engineering.
 date: 2026-03-16
 authors: ["Aniket Paluskar", "Srihari Venkataramaiah"]
 ---
@@ -9,11 +9,11 @@ authors: ["Aniket Paluskar", "Srihari Venkataramaiah"]
   <img src="/images/blog/feast-oracle-offline-store.png" alt="Feast and Oracle Database" loading="lazy">
 </div>
 
-# Feast Meets Oracle: Bringing the World's #1 Enterprise Database to the Feature Store
+# Feast Meets Oracle: Unlocking Feature Store for Oracle Database Users
 
 ## The Problem: Your Data Is Already in Oracle — Why Move It?
 
-If you work in a Fortune 500 company, chances are your most valuable data lives in Oracle Database. It is the world's number one enterprise database for a reason — decades of battle-tested reliability, performance, and governance have made it the backbone of mission-critical systems across finance, healthcare, telecommunications, government, and retail.
+If you work in a Fortune 500 company, chances are your most valuable data lives in Oracle Database. It is the one of the most widely used enterprise database for a reason — decades of battle-tested reliability, performance, and governance have made it the backbone of mission-critical systems across finance, healthcare, telecommunications, government, and retail.
 
 But here's the friction: when ML teams want to build features for their models, they typically export data *out* of Oracle into some other system — a data lake, a warehouse, a CSV on someone's laptop. That data movement introduces latency, staleness bugs, security blind spots, and an entire class of silent failures that only surface when a model starts degrading in production.
 
@@ -115,7 +115,7 @@ customer = Entity(name="customer_id", join_keys=["customer_id"])
 customer_transactions = OracleSource(
     name="customer_txn_source",
     table_ref="ANALYTICS.CUSTOMER_TRANSACTIONS",
-    timestamp_field="TXN_TIMESTAMP",
+    event_timestamp_column="TXN_TIMESTAMP",
 )
 
 customer_features = FeatureView(
