@@ -929,10 +929,9 @@ class TestNonEntityRetrieval:
         assert '"fv1__f"' in query or "fv1__filled" in query
         assert '"fv2__f"' in query or "fv2__filled" in query
 
-        # TTL CASE for fv1 (ttl=86400)
-        assert "86400 * interval" in query
-        # TTL CASE for fv2 (ttl=3600)
-        assert "3600 * interval" in query
+        # TTL CASE for fv1 (ttl=86400) and fv2 (ttl=3600) use make_interval
+        assert "make_interval(secs => 86400)" in query
+        assert "make_interval(secs => 3600)" in query
 
         # lookback_start_date used in feature __data range
         assert str(lookback.date()) in query
@@ -997,6 +996,223 @@ class TestNonEntityRetrieval:
         assert "LATERAL" not in query
         assert "CASE WHEN" not in query
         assert "FIRST_VALUE" in query
+
+    def test_locf_template_different_entity_sets(self):
+        """Different entity sets across FVs: NULL AS entity and IS NOT DISTINCT FROM."""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        # fv1: driver_id, fv2: customer_id -> spine has both, each FV fills its own
+        fv_contexts = [
+            {
+                "name": "driver_fv",
+                "ttl": 0,
+                "entities": ["driver_id"],
+                "features": ["score"],
+                "field_mapping": {"score": "score"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"driver_table"',
+                "entity_selections": ['"driver_id" AS "driver_id"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+            {
+                "name": "customer_fv",
+                "ttl": 0,
+                "entities": ["customer_id"],
+                "features": ["amount"],
+                "field_mapping": {"amount": "amount"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"customer_table"',
+                "entity_selections": ['"customer_id" AS "customer_id"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        # all_entities = driver_id, customer_id; each branch uses NULL for the other
+        assert 'NULL AS "driver_id"' in query or '"driver_id"' in query
+        assert 'NULL AS "customer_id"' in query or '"customer_id"' in query
+        assert "IS NOT DISTINCT FROM" in query
+        sqlglot.parse(query, dialect="postgres")
+
+    def test_locf_template_entityless_feature_view(self):
+        """Entityless FV: PARTITION BY 1 fallback produces valid SQL (multi-FV LOCF path)."""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        # Two FVs so template uses LOCF path (single FV uses simple SELECT branch)
+        fv_contexts = [
+            {
+                "name": "global_fv",
+                "ttl": 0,
+                "entities": [],
+                "features": ["global_feat"],
+                "field_mapping": {"global_feat": "global_feat"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"global_table"',
+                "entity_selections": [],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+            {
+                "name": "driver_fv",
+                "ttl": 0,
+                "entities": ["driver_id"],
+                "features": ["score"],
+                "field_mapping": {"score": "score"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"driver_table"',
+                "entity_selections": ['"driver_id" AS "driver_id"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        # Entityless FV uses PARTITION BY (SELECT NULL) for single partition (more standard than PARTITION BY 1)
+        assert "PARTITION BY (SELECT NULL)" in query
+        sqlglot.parse(query, dialect="postgres")
+
+    def test_locf_template_with_created_timestamp_column(self):
+        """created_timestamp_column set: dedup CTE __data from __data_raw via ROW_NUMBER (multi-FV LOCF path)."""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        # Two FVs so template uses LOCF path (single FV uses simple SELECT branch)
+        fv_contexts = [
+            {
+                "name": "fv_dedup",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f1"],
+                "field_mapping": {"f1": "f1"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": "created_ts",
+                "table_subquery": '"fv_table"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+            {
+                "name": "fv2",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f2"],
+                "field_mapping": {"f2": "f2"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"fv2_table"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        assert "fv_dedup__data_raw" in query
+        assert "fv_dedup__data" in query
+        assert "ROW_NUMBER()" in query
+        assert "__dedup" in query
+        assert "created_ts" in query
+        sqlglot.parse(query, dialect="postgres")
+
+    def test_locf_template_full_feature_names(self):
+        """full_feature_names=True: featureview.name__feature column naming."""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        fv_contexts = [
+            {
+                "name": "my_fv",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f1"],
+                "field_mapping": {"f1": "f1"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"t"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=True,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        assert "my_fv__f1" in query or '"my_fv__f1"' in query
+        sqlglot.parse(query, dialect="postgres")
 
     def test_api_non_entity_functionality(self):
         """Test that FeatureStore API accepts non-entity parameters correctly"""
