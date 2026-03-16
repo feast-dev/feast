@@ -76,7 +76,7 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
                     f"'online_and_offline']."
                 )
             self.fs.push(
-                push_source_name=request.push_source_name,
+                push_source_name=request.stream_feature_view,
                 df=df,
                 allow_registry_cache=request.allow_registry_cache,
                 to=to,
