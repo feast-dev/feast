@@ -37,7 +37,11 @@ def parse_typed(typed_features):
     df = {}
     for key, value in typed_features.items():
         val_case = value.WhichOneof("val")
-        df[key] = [None if val_case is None or val_case == "null_val" else getattr(value, val_case)]
+        df[key] = [
+            None
+            if val_case is None or val_case == "null_val"
+            else getattr(value, val_case)
+        ]
     return pd.DataFrame.from_dict(df)
 
 
@@ -62,7 +66,11 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
                     "Only one of features or typed_features may be set, not both"
                 )
                 return PushResponse(status=False)
-            df = parse_typed(request.typed_features) if request.typed_features else parse(request.features)
+            df = (
+                parse_typed(request.typed_features)
+                if request.typed_features
+                else parse(request.features)
+            )
             if request.to == "offline":
                 to = PushMode.OFFLINE
             elif request.to == "online":
@@ -103,7 +111,11 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
                     "Only one of features or typed_features may be set, not both"
                 )
                 return WriteToOnlineStoreResponse(status=False)
-            df = parse_typed(request.typed_features) if request.typed_features else parse(request.features)
+            df = (
+                parse_typed(request.typed_features)
+                if request.typed_features
+                else parse(request.features)
+            )
             self.fs.write_to_online_store(
                 feature_view_name=request.feature_view_name,
                 df=df,
