@@ -182,10 +182,6 @@ class PostgreSQLOfflineStore(OfflineStore):
             offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
         )
 
-        # In non-entity mode, use the actual requested range so that
-        # min_event_timestamp (= range[0] - TTL) doesn't clip the window.
-        # The synthetic entity_df only has end_date, which would wrongly
-        # set min_event_timestamp to end_date - TTL instead of start_date - TTL.
         if skip_entity_upload and start_date is not None and end_date is not None:
             entity_df_event_timestamp_range = (start_date, end_date)
         else:
