@@ -85,6 +85,7 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
             db_schema="public",
             user=self.container.env["POSTGRES_USER"],
             password=self.container.env["POSTGRES_PASSWORD"],
+            sslmode="disable",
         )
 
     def create_data_source(
@@ -124,6 +125,7 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
             db_schema="feature_store",
             user=POSTGRES_USER,
             password=POSTGRES_PASSWORD,
+            sslmode="disable",
         )
 
     def create_saved_dataset_destination(self):
