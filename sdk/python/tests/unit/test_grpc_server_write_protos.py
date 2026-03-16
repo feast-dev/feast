@@ -1,10 +1,11 @@
 import pytest
 
+from feast.infra.contrib.grpc_server import parse_typed
 from feast.protos.feast.serving.GrpcServer_pb2 import (
     PushRequest,
     WriteToOnlineStoreRequest,
 )
-from feast.protos.feast.types.Value_pb2 import Value
+from feast.protos.feast.types.Value_pb2 import Null, Value
 
 
 def test_push_request_string_features():
@@ -88,3 +89,19 @@ def test_write_to_online_store_string_and_typed_features_are_independent():
     r2 = WriteToOnlineStoreRequest(typed_features={"driver_id": Value(int64_val=1001)}, feature_view_name="fv")
     assert len(r1.typed_features) == 0
     assert len(r2.features) == 0
+
+
+def test_parse_typed_null_val_becomes_none():
+    """Value(null_val=NULL) must produce None in the DataFrame, not the integer 0."""
+    df = parse_typed({
+        "present": Value(int64_val=42),
+        "missing": Value(null_val=Null.NULL),
+    })
+    assert df["present"].iloc[0] == 42
+    assert df["missing"].iloc[0] is None
+
+
+def test_parse_typed_unset_val_becomes_none():
+    """A Value with no oneof field set (WhichOneof returns None) must also produce None."""
+    df = parse_typed({"empty": Value()})
+    assert df["empty"].iloc[0] is None

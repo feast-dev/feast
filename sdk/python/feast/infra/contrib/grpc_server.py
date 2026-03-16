@@ -38,7 +38,7 @@ def parse_typed(typed_features):
     df = {}
     for key, value in typed_features.items():
         val_case = value.WhichOneof("val")
-        df[key] = [getattr(value, val_case) if val_case is not None else None]
+        df[key] = [None if val_case is None or val_case == "null_val" else getattr(value, val_case)]
     return pd.DataFrame.from_dict(df)
 
 
