@@ -857,10 +857,36 @@ class HttpRegistry(BaseRegistry):
     ):
         pass
 
-    def get_any_feature_view(  # type: ignore
+    def get_any_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> BaseFeatureView:
-        raise NotImplementedError("Method not implemented")
+        if allow_cache:
+            self._check_if_registry_refreshed()
+            return proto_registry_utils.get_any_feature_view(
+                self.cached_registry_proto, name, project
+            )
+        try:
+            return self.get_feature_view(name, project)
+        except (FeatureViewNotFoundException, HTTPStatusError, httpx.HTTPError):
+            pass
+        try:
+            return self.get_sorted_feature_view(name, project)
+        except (SortedFeatureViewNotFoundException, HTTPStatusError, httpx.HTTPError):
+            pass
+        try:
+            return self.get_on_demand_feature_view(name, project)
+        except (FeatureViewNotFoundException, HTTPStatusError, httpx.HTTPError):
+            pass
+        try:
+            return self.get_stream_feature_view(name, project)
+        except (
+            NotImplementedError,
+            FeatureViewNotFoundException,
+            HTTPStatusError,
+            httpx.HTTPError,
+        ):
+            pass
+        raise FeatureViewNotFoundException(name, project)
 
     def get_project(  # type: ignore
         self,
