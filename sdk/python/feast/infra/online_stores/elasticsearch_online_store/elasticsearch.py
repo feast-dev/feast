@@ -279,8 +279,8 @@ class ElasticSearchOnlineStore(OnlineStore):
         requested_features: List[str],
         embedding: List[float],
         top_k: int,
-        *args,
-        **kwargs,
+        distance_metric: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -349,6 +349,7 @@ class ElasticSearchOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],

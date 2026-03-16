@@ -381,6 +381,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = "L2",
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -488,6 +489,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
