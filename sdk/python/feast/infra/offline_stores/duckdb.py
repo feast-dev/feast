@@ -146,10 +146,15 @@ def _build_entity_df_from_sources(
         join_key_map = fv.projection.join_key_map or {
             e.name: e.name for e in fv.entity_columns
         }
-        join_key_cols = list(join_key_map.values())
+        source_join_key_cols = list(join_key_map.keys())
 
-        if join_key_cols:
-            distinct_entities = fv_table.select(*join_key_cols).distinct().execute()
+        if source_join_key_cols:
+            distinct_entities = (
+                fv_table.select(*source_join_key_cols)
+                .rename(join_key_map)
+                .distinct()
+                .execute()
+            )
             entity_dfs.append(distinct_entities)
 
     if not entity_dfs:
