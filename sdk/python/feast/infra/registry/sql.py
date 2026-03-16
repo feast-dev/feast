@@ -699,9 +699,18 @@ class SqlRegistry(CachingRegistry):
             else:
                 return  # shouldn't happen
 
-        if old_proto_bytes is not None and old_proto_bytes == new_proto_bytes:
-            # No change (idempotent), don't create a new version
-            return
+        if old_proto_bytes is not None:
+            # Deserialize both versions to compare schema/UDF changes
+            proto_class, fv_class = self._proto_class_for_type(fv_type_str)
+            old_proto = proto_class.FromString(old_proto_bytes)
+            new_proto = proto_class.FromString(new_proto_bytes)
+
+            old_fv = fv_class.from_proto(old_proto)
+            new_fv = fv_class.from_proto(new_proto)
+
+            if not new_fv._schema_or_udf_changed(old_fv):
+                # No version-significant change, skip version creation
+                return
 
         # Something changed (or new FV). Save version snapshot(s).
         if old_proto_bytes is not None:

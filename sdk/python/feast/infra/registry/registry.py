@@ -530,6 +530,62 @@ class Registry(BaseRegistry):
                 return record
         return None
 
+    def _update_metadata_fields(
+        self, existing_proto: Message, updated_fv: BaseFeatureView
+    ) -> None:
+        """Update non-version-significant fields without creating new version."""
+        from feast.feature_view import FeatureView
+
+        # Metadata fields
+        existing_proto.spec.description = updated_fv.description
+        existing_proto.spec.tags.clear()
+        existing_proto.spec.tags.update(updated_fv.tags)
+        existing_proto.spec.owner = updated_fv.owner
+
+        # Configuration fields (FeatureView)
+        if (
+            hasattr(existing_proto.spec, "ttl")
+            and hasattr(updated_fv, "ttl")
+            and updated_fv.ttl
+        ):
+            if isinstance(updated_fv, FeatureView):
+                ttl_duration = updated_fv.get_ttl_duration()
+                if ttl_duration:
+                    existing_proto.spec.ttl.CopyFrom(ttl_duration)
+        if hasattr(existing_proto.spec, "online"):
+            existing_proto.spec.online = updated_fv.online
+        if hasattr(existing_proto.spec, "offline"):
+            existing_proto.spec.offline = updated_fv.offline
+        if hasattr(existing_proto.spec, "enable_validation"):
+            existing_proto.spec.enable_validation = updated_fv.enable_validation
+
+        # OnDemandFeatureView configuration
+        if hasattr(existing_proto.spec, "write_to_online_store"):
+            existing_proto.spec.write_to_online_store = updated_fv.write_to_online_store
+        if hasattr(existing_proto.spec, "singleton"):
+            existing_proto.spec.singleton = updated_fv.singleton
+
+        # Data sources (treat as configuration)
+        if (
+            hasattr(existing_proto.spec, "batch_source")
+            and hasattr(updated_fv, "batch_source")
+            and updated_fv.batch_source
+        ):
+            existing_proto.spec.batch_source.CopyFrom(
+                updated_fv.batch_source.to_proto()
+            )
+        if (
+            hasattr(existing_proto.spec, "stream_source")
+            and hasattr(updated_fv, "stream_source")
+            and updated_fv.stream_source
+        ):
+            existing_proto.spec.stream_source.CopyFrom(
+                updated_fv.stream_source.to_proto()
+            )
+
+        # Update timestamp
+        existing_proto.meta.last_updated_timestamp.FromDatetime(datetime.utcnow())
+
     def _save_version_record(
         self,
         name: str,
@@ -673,10 +729,14 @@ class Registry(BaseRegistry):
                 existing_feature_view_proto.spec.name == feature_view_proto.spec.name
                 and existing_feature_view_proto.spec.project == project
             ):
-                if (
-                    feature_view.__class__.from_proto(existing_feature_view_proto)
-                    == feature_view
-                ):
+                existing_feature_view = feature_view.__class__.from_proto(
+                    existing_feature_view_proto
+                )
+                if not feature_view._schema_or_udf_changed(existing_feature_view):
+                    # Update non-version-significant fields in place
+                    self._update_metadata_fields(
+                        existing_feature_view_proto, feature_view
+                    )
                     return
                 else:
                     old_proto_bytes = existing_feature_view_proto.SerializeToString()

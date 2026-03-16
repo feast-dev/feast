@@ -208,6 +208,29 @@ class StreamFeatureView(FeatureView):
                 f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
             )
 
+    def _schema_or_udf_changed(self, other: "StreamFeatureView") -> bool:
+        """Check for StreamFeatureView schema/UDF changes."""
+        if super()._schema_or_udf_changed(other):
+            return True
+
+        # UDF changes
+        if self.udf and other.udf:
+            if self.udf.__code__.co_code != other.udf.__code__.co_code:
+                return True
+        elif self.udf != other.udf:  # One is None
+            return True
+
+        if self.udf_string != other.udf_string:
+            return True
+        if self.aggregations != other.aggregations:
+            return True
+        if self.timestamp_field != other.timestamp_field:
+            return True
+        if self.mode != other.mode:
+            return True
+
+        return False
+
     def __eq__(self, other):
         if not isinstance(other, StreamFeatureView):
             raise TypeError("Comparisons should only involve StreamFeatureViews")

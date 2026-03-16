@@ -2475,6 +2475,7 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -2526,6 +2527,7 @@ class FeatureStore:
             registry=self.registry,
             project=self.project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
         return response
@@ -2538,6 +2540,7 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         [Alpha] Retrieves the latest online feature data asynchronously.
@@ -2574,6 +2577,7 @@ class FeatureStore:
             registry=self.registry,
             project=self.project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
     def retrieve_online_documents(
@@ -2582,6 +2586,7 @@ class FeatureStore:
         top_k: int,
         features: List[str],
         distance_metric: Optional[str] = "L2",
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -2635,6 +2640,7 @@ class FeatureStore:
             query,
             top_k,
             distance_metric,
+            include_feature_view_version_metadata,
         )
 
         # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
@@ -2689,6 +2695,7 @@ class FeatureStore:
         text_weight: float = 0.5,
         image_weight: float = 0.5,
         combine_strategy: str = "weighted_sum",
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -2841,6 +2848,7 @@ class FeatureStore:
             top_k,
             distance_metric,
             query_string,
+            include_feature_view_version_metadata,
         )
 
     def _retrieve_from_online_store(
@@ -2851,6 +2859,7 @@ class FeatureStore:
         query: List[float],
         top_k: int,
         distance_metric: Optional[str],
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Timestamp, Optional[EntityKey], "FieldStatus.ValueType", Value, Value, Value
@@ -2866,6 +2875,7 @@ class FeatureStore:
             query=query,
             top_k=top_k,
             distance_metric=distance_metric,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
         read_row_protos = []
@@ -2905,6 +2915,7 @@ class FeatureStore:
         top_k: int,
         distance_metric: Optional[str],
         query_string: Optional[str],
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Search and return document features from the online document store.
@@ -2921,6 +2932,7 @@ class FeatureStore:
             top_k=top_k,
             distance_metric=distance_metric,
             query_string=query_string,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
         entity_key_dict: Dict[str, List[ValueProto]] = {}
@@ -2978,6 +2990,7 @@ class FeatureStore:
             requested_features=features_to_request,
             table=table,
             output_len=output_len,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
         utils._populate_result_rows_from_columnar(

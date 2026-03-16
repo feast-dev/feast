@@ -311,6 +311,25 @@ class FeatureView(BaseFeatureView):
         fv.projection = copy.copy(self.projection)
         return fv
 
+    def _schema_or_udf_changed(self, other: "FeatureView") -> bool:
+        """Check for FeatureView schema/UDF changes."""
+        if super()._schema_or_udf_changed(other):
+            return True
+
+        # Schema-related fields
+        if sorted(self.entities) != sorted(other.entities):
+            return True
+        if sorted(self.entity_columns) != sorted(other.entity_columns):
+            return True
+        if self.source_views != other.source_views:
+            return True
+
+        # Skip UDF-related data source fields: batch_source, stream_source
+        # (treat as deployment configuration, not schema changes)
+        # Skip configuration: ttl, online, offline, enable_validation
+        # Skip metadata: materialization_intervals (excluded in current equality)
+        return False
+
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
             raise TypeError(

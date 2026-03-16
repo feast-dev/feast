@@ -316,6 +316,7 @@ class Provider(ABC):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         pass
 
@@ -331,6 +332,7 @@ class Provider(ABC):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         pass
 
@@ -433,6 +435,7 @@ class Provider(ABC):
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -468,6 +471,7 @@ class Provider(ABC):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],

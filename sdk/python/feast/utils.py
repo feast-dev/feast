@@ -1088,6 +1088,7 @@ def _populate_response_from_feature_data(
     requested_features: Iterable[str],
     table: "FeatureView",
     output_len: int,
+    include_feature_view_version_metadata: bool = False,
 ):
     """Populate the GetOnlineFeaturesResponse with feature data.
 
@@ -1109,12 +1110,25 @@ def _populate_response_from_feature_data(
         output_len: The number of result rows in `online_features_response`.
     """
     # Add the feature names to the response.
-    table_name = table.projection.name_to_use()
+    # Use clean name without version tag for response feature names
+    clean_table_name = table.projection.name_alias or table.projection.name
     requested_feature_refs = [
-        f"{table_name}__{feature_name}" if full_feature_names else feature_name
+        f"{clean_table_name}__{feature_name}" if full_feature_names else feature_name
         for feature_name in requested_features
     ]
     online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
+
+    # Add version metadata if requested
+    if include_feature_view_version_metadata:
+        # Check if this feature view already exists in metadata to avoid duplicates
+        existing_names = [
+            fvm.name for fvm in online_features_response.metadata.feature_view_metadata
+        ]
+        if clean_table_name not in existing_names:
+            fv_metadata = online_features_response.metadata.feature_view_metadata.add()
+            fv_metadata.name = clean_table_name
+            # Extract version from the table's current_version_number attribute
+            fv_metadata.version = getattr(table, "current_version_number", 0) or 0
 
     # Process each feature vector in a single pass
     for timestamp_vector, statuses_vector, values_vector in feature_data:

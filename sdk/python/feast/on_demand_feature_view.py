@@ -330,6 +330,46 @@ class OnDemandFeatureView(BaseFeatureView):
 
         return fv
 
+    def _schema_or_udf_changed(self, other: "OnDemandFeatureView") -> bool:
+        """Check for OnDemandFeatureView schema/UDF changes."""
+        if super()._schema_or_udf_changed(other):
+            return True
+
+        # UDF/transformation changes
+        # Handle None cases for feature_transformation
+        if (
+            self.feature_transformation is None
+            and other.feature_transformation is not None
+        ):
+            return True
+        if (
+            self.feature_transformation is not None
+            and other.feature_transformation is None
+        ):
+            return True
+        if (
+            self.feature_transformation is not None
+            and other.feature_transformation is not None
+            and self.feature_transformation != other.feature_transformation
+        ):
+            return True
+        if self.mode != other.mode:
+            return True
+        if (
+            self.source_feature_view_projections
+            != other.source_feature_view_projections
+        ):
+            return True
+        if self.source_request_sources != other.source_request_sources:
+            return True
+        if sorted(self.entity_columns) != sorted(other.entity_columns):
+            return True
+        if self.aggregations != other.aggregations:
+            return True
+
+        # Skip configuration: write_to_online_store, singleton
+        return False
+
     def __eq__(self, other):
         if not isinstance(other, OnDemandFeatureView):
             raise TypeError(

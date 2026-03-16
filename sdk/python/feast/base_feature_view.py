@@ -153,6 +153,17 @@ class BaseFeatureView(ABC):
 
         return cp
 
+    def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
+        """Check if schema or UDF-related fields have changed (version-worthy changes)."""
+        # Schema changes
+        if self.name != other.name:
+            return True
+        if sorted(self.features) != sorted(other.features):
+            return True
+        # Skip metadata: description, tags, owner, projection
+        # Skip source changes: treat as deployment/location details, not schema changes
+        return False
+
     def __eq__(self, other):
         if not isinstance(other, BaseFeatureView):
             raise TypeError(

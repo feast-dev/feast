@@ -99,12 +99,14 @@ class GetOnlineFeaturesRequest(BaseModel):
     feature_service: Optional[str] = None
     features: List[str] = []
     full_feature_names: bool = False
+    include_feature_view_version_metadata: bool = False
 
 
 class GetOnlineDocumentsRequest(BaseModel):
     feature_service: Optional[str] = None
     features: List[str] = []
     full_feature_names: bool = False
+    include_feature_view_version_metadata: bool = False
     top_k: Optional[int] = None
     query: Optional[List[float]] = None
     query_string: Optional[str] = None
@@ -355,6 +357,7 @@ def get_app(
                 features=features,
                 entity_rows=request.entities,
                 full_feature_names=request.full_feature_names,
+                include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
 
             if store._get_provider().async_supported.online.read:
@@ -386,7 +389,10 @@ def get_app(
             features = await _get_features(request, store)
 
             read_params = dict(
-                features=features, query=request.query, top_k=request.top_k
+                features=features,
+                query=request.query,
+                top_k=request.top_k,
+                include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
             if request.api_version == 2 and request.query_string is not None:
                 read_params["query_string"] = request.query_string
