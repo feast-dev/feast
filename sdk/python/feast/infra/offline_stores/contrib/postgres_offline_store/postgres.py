@@ -139,17 +139,18 @@ class PostgreSQLOfflineStore(OfflineStore):
                 end_date = _utc_now()
             else:
                 end_date = make_tzaware(end_date)
+            # Find the maximum TTL across all feature views to ensure we capture enough data
+            max_ttl_seconds = max(
+                (
+                    int(fv.ttl.total_seconds())
+                    for fv in feature_views
+                    if fv.ttl and isinstance(fv.ttl, timedelta)
+                ),
+                default=0,
+            )
 
             # Calculate start_date from TTL if not provided
-
             if start_date is None:
-                # Find the maximum TTL across all feature views to ensure we capture enough data
-                max_ttl_seconds = 0
-                for fv in feature_views:
-                    if fv.ttl and isinstance(fv.ttl, timedelta):
-                        ttl_seconds = int(fv.ttl.total_seconds())
-                        max_ttl_seconds = max(max_ttl_seconds, ttl_seconds)
-
                 if max_ttl_seconds > 0:
                     # Start from (end_date - max_ttl) to ensure we capture all relevant features
                     start_date = end_date - timedelta(seconds=max_ttl_seconds)
@@ -162,25 +163,18 @@ class PostgreSQLOfflineStore(OfflineStore):
             # Compute lookback_start_date for LOCF: pull feature data
             # from (start_date - max_ttl) so window functions can
             # forward-fill the last observation before start_date.
-            max_ttl_seconds = 0
-            for fv in feature_views:
-                if fv.ttl and isinstance(fv.ttl, timedelta):
-                    max_ttl_seconds = max(max_ttl_seconds, int(fv.ttl.total_seconds()))
             lookback_start_date: Optional[datetime] = (
                 start_date - timedelta(seconds=max_ttl_seconds)
                 if max_ttl_seconds > 0
                 else start_date
             )
 
-            entity_df = pd.DataFrame(
-                {
-                    "event_timestamp": pd.date_range(
-                        start=start_date, end=end_date, freq="1s", tz=timezone.utc
-                    )[:1]  # Just one row
-                }
-            )
+            # Single row with end_date
+            entity_df = pd.DataFrame({"event_timestamp": [end_date]})
+            skip_entity_upload = True
         else:
             lookback_start_date = None
+            skip_entity_upload = False
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -211,7 +205,12 @@ class PostgreSQLOfflineStore(OfflineStore):
                 and config.offline_store.entity_select_mode
                 == EntitySelectMode.embed_query
             )
-            if use_cte:
+            if skip_entity_upload:
+                # LOCF path never uses left_table
+                left_table_query_string = (
+                    "(SELECT NULL::timestamptz AS event_timestamp LIMIT 0)"
+                )
+            elif use_cte:
                 left_table_query_string = entity_df
             else:
                 left_table_query_string = table_name
@@ -255,9 +254,10 @@ class PostgreSQLOfflineStore(OfflineStore):
                     lookback_start_date=lookback_start_date,
                 )
             finally:
-                # Only cleanup if we created a table
+                # Only cleanup if we created a table (not when skip_entity_upload)
                 if (
-                    config.offline_store.entity_select_mode
+                    not skip_entity_upload
+                    and config.offline_store.entity_select_mode
                     == EntitySelectMode.temp_table
                 ):
                     with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
@@ -573,18 +573,6 @@ AND "{{ featureviews[0].timestamp_field }}" >= '{{ featureviews[0].min_event_tim
     {% endfor %}
 {% endfor %}
 
-{# Build list of output feature names per FV for consistent column ordering #}
-{% set all_feature_cols = [] %}
-{% for featureview in featureviews %}
-    {% for feature in featureview.features %}
-        {% if full_feature_names %}
-            {% set _ = all_feature_cols.append(featureview.name ~ '__' ~ featureview.field_mapping.get(feature, feature)) %}
-        {% else %}
-            {% set _ = all_feature_cols.append(featureview.field_mapping.get(feature, feature)) %}
-        {% endif %}
-    {% endfor %}
-{% endfor %}
-
 WITH
 {# --- Per-FV __data: pull feature rows from lookback_start_date..end_date --- #}
 {% for featureview in featureviews %}
@@ -614,10 +602,6 @@ WITH
         FROM "{{ featureview.name }}__data_raw"
     ) __dedup WHERE __rn = 1
 ),
-{% else %}
-"{{ featureview.name }}__data" AS (
-    SELECT * FROM "{{ featureview.name }}__data_raw"
-),
 {% endif %}
 {% endfor %}
 
@@ -628,7 +612,7 @@ spine AS (
     SELECT DISTINCT
         d.event_timestamp{% for entity in all_entities %},
         {% if entity in featureview.entities %}d."{{ entity }}"{% else %}NULL AS "{{ entity }}"{% endif %}{% endfor %}
-    FROM "{{ featureview.name }}__data" d
+    FROM "{{ featureview.name }}__data{% if not featureview.created_timestamp_column %}_raw{% endif %}" d
     WHERE d.event_timestamp BETWEEN '{{ start_date }}' AND '{{ end_date }}'
     {% if not loop.last %}
     UNION
@@ -673,13 +657,13 @@ spine AS (
         , d."{{ col_name }}"
         {% endfor %}
         , d.event_timestamp AS "{{ featureview.name }}__feature_ts"
-    FROM "{{ featureview.name }}__data" d
+    FROM "{{ featureview.name }}__data{% if not featureview.created_timestamp_column %}_raw{% endif %}" d
 ),
 
 "{{ featureview.name }}__grouped" AS (
     SELECT *,
         COUNT(feature_anchor) OVER (
-            PARTITION BY {% if featureview.entities %}{% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}{% else %}1{% endif %}
+            PARTITION BY {% if featureview.entities %}{% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}{% else %}(SELECT NULL){% endif %}
             ORDER BY event_timestamp ASC, is_spine ASC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS value_group_id
@@ -727,7 +711,7 @@ SELECT
                 {% set col_name = featureview.field_mapping.get(feature, feature) %}
             {% endif %}
             {% if featureview.ttl != 0 %}
-    CASE WHEN (spine.event_timestamp - "{{ featureview.name }}__f"."{{ featureview.name }}__filled_ts") <= {{ featureview.ttl }} * interval '1' second
+    CASE WHEN (spine.event_timestamp - "{{ featureview.name }}__f"."{{ featureview.name }}__filled_ts") <= make_interval(secs => {{ featureview.ttl }})
          THEN "{{ featureview.name }}__f"."{{ col_name }}" ELSE NULL END AS "{{ col_name }}"{% if feat_idx.count < total_features %},{% endif %}
             {% else %}
     "{{ featureview.name }}__f"."{{ col_name }}"{% if feat_idx.count < total_features %},{% endif %}
@@ -823,7 +807,7 @@ entity_dataframe AS (
     FROM {{ featureview.table_subquery }} AS sub
     WHERE "{{ featureview.timestamp_field }}" <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
     {% if featureview.ttl == 0 %}{% else %}
-    AND "{{ featureview.timestamp_field }}" >= (SELECT MIN(entity_timestamp) FROM entity_dataframe) - {{ featureview.ttl }} * interval '1' second
+    AND "{{ featureview.timestamp_field }}" >= (SELECT MIN(entity_timestamp) FROM entity_dataframe) - make_interval(secs => {{ featureview.ttl }})
     {% endif %}
 ),
 
@@ -838,7 +822,7 @@ entity_dataframe AS (
         AND subquery.event_timestamp <= entity_dataframe.entity_timestamp
 
         {% if featureview.ttl == 0 %}{% else %}
-        AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+        AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - make_interval(secs => {{ featureview.ttl }})
         {% endif %}
 
         {% for entity in featureview.entities %}
