@@ -5,7 +5,13 @@ from feast.protos.feast.serving.GrpcServer_pb2 import (
     PushRequest,
     WriteToOnlineStoreRequest,
 )
-from feast.protos.feast.types.Value_pb2 import Null, Value
+from feast.protos.feast.types.Value_pb2 import (
+    Int64List,
+    Map,
+    Null,
+    StringSet,
+    Value,
+)
 
 
 def test_push_request_string_features():
@@ -117,3 +123,37 @@ def test_parse_typed_unset_val_becomes_none():
     """A Value with no oneof field set (WhichOneof returns None) must also produce None."""
     df = parse_typed({"empty": Value()})
     assert df["empty"].iloc[0] is None
+
+
+def test_parse_typed_list_val_unwrapped_to_python_list():
+    """Compound list values are unwrapped from their protobuf wrapper to a plain list."""
+    df = parse_typed(
+        {
+            "ids": Value(int64_list_val=Int64List(val=[1, 2, 3])),
+        }
+    )
+    assert df["ids"].iloc[0] == [1, 2, 3]
+
+
+def test_parse_typed_set_val_unwrapped_to_python_list():
+    """Compound set values are unwrapped from their protobuf wrapper to a plain list."""
+    df = parse_typed(
+        {
+            "tags": Value(string_set_val=StringSet(val=["a", "b"])),
+        }
+    )
+    assert sorted(df["tags"].iloc[0]) == ["a", "b"]
+
+
+def test_parse_typed_map_val_unwrapped_to_python_dict():
+    """Map values are unwrapped from their protobuf Map wrapper to a plain dict."""
+    df = parse_typed(
+        {
+            "scores": Value(
+                map_val=Map(val={"x": Value(float_val=1.0), "y": Value(float_val=2.0)})
+            ),
+        }
+    )
+    result = df["scores"].iloc[0]
+    assert isinstance(result, dict)
+    assert set(result.keys()) == {"x", "y"}

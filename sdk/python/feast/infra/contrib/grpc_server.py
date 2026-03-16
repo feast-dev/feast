@@ -1,5 +1,6 @@
 import logging
 import threading
+from collections.abc import Mapping
 from concurrent import futures
 from typing import Optional, Union
 
@@ -37,11 +38,13 @@ def parse_typed(typed_features):
     df = {}
     for key, value in typed_features.items():
         val_case = value.WhichOneof("val")
-        df[key] = [
-            None
-            if val_case is None or val_case == "null_val"
-            else getattr(value, val_case)
-        ]
+        if val_case is None or val_case == "null_val":
+            df[key] = [None]
+        else:
+            raw = getattr(value, val_case)
+            if hasattr(raw, "val"):
+                raw = dict(raw.val) if isinstance(raw.val, Mapping) else list(raw.val)
+            df[key] = [raw]
     return pd.DataFrame.from_dict(df)
 
 
