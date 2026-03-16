@@ -302,15 +302,21 @@ class SqlRegistry(CachingRegistry):
             # Find object in feast_metadata_projects but not in projects
             projects_to_sync = set(feast_metadata_projects.keys()) - set(projects_set)
             for project_name in projects_to_sync:
-                self.apply_project(
-                    Project(
-                        name=project_name,
-                        created_timestamp=datetime.fromtimestamp(
-                            feast_metadata_projects[project_name], tz=timezone.utc
+                try:
+                    self.apply_project(
+                        Project(
+                            name=project_name,
+                            created_timestamp=datetime.fromtimestamp(
+                                feast_metadata_projects[project_name], tz=timezone.utc
+                            ),
                         ),
-                    ),
-                    commit=True,
-                )
+                        commit=True,
+                    )
+                except IntegrityError:
+                    logger.info(
+                        "Project %s already created in projects table by another process.",
+                        project_name,
+                    )
 
             if self.purge_feast_metadata:
                 with self.write_engine.begin() as conn:
@@ -997,10 +1003,16 @@ class SqlRegistry(CachingRegistry):
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
-                insert_stmt = insert(table).values(
-                    values,
-                )
-                conn.execute(insert_stmt)
+                try:
+                    with conn.begin_nested():
+                        conn.execute(insert(table).values(values))
+                except IntegrityError:
+                    logger.info(
+                        "Object %s in project %s already created by another "
+                        "process, skipping.",
+                        name,
+                        project,
+                    )
 
             if not isinstance(obj, Project):
                 self.apply_project(

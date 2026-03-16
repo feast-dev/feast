@@ -5,6 +5,9 @@ from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
     AthenaSource,
 )
+from feast.infra.offline_stores.contrib.oracle_offline_store.oracle_source import (
+    OracleSource,
+)
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
@@ -59,6 +62,7 @@ __all__ = [
     "PushSource",
     "RequestSource",
     "AthenaSource",
+    "OracleSource",
     "Project",
     "FeastVectorStore",
     "DocEmbedder",

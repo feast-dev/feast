@@ -86,7 +86,7 @@ type FeatureStoreSpec struct {
 	// Mutually exclusive with services.scaling.autoscaling.
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
-	Replicas *int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
@@ -310,6 +310,8 @@ type FeatureStoreServices struct {
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
+	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 	// Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
@@ -402,7 +404,7 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse;ray
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse;ray;oracle
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -422,6 +424,7 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"couchbase.offline",
 	"clickhouse",
 	"ray",
+	"oracle",
 }
 
 // OnlineStore configures the online store service
