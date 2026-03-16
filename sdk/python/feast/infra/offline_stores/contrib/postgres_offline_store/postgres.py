@@ -186,7 +186,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         # min_event_timestamp (= range[0] - TTL) doesn't clip the window.
         # The synthetic entity_df only has end_date, which would wrongly
         # set min_event_timestamp to end_date - TTL instead of start_date - TTL.
-        if start_date is not None and end_date is not None:
+        if skip_entity_upload and start_date is not None and end_date is not None:
             entity_df_event_timestamp_range = (start_date, end_date)
         else:
             entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
