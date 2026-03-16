@@ -78,25 +78,37 @@ def test_write_to_online_store_request_typed_features():
 
 def test_push_request_string_and_typed_features_are_independent():
     """Setting features does not affect typed_features and vice versa."""
-    r1 = PushRequest(features={"driver_id": "1001"}, stream_feature_view="s", to="online")
-    r2 = PushRequest(typed_features={"driver_id": Value(int64_val=1001)}, stream_feature_view="s", to="online")
+    r1 = PushRequest(
+        features={"driver_id": "1001"}, stream_feature_view="s", to="online"
+    )
+    r2 = PushRequest(
+        typed_features={"driver_id": Value(int64_val=1001)},
+        stream_feature_view="s",
+        to="online",
+    )
     assert len(r1.typed_features) == 0
     assert len(r2.features) == 0
 
 
 def test_write_to_online_store_string_and_typed_features_are_independent():
-    r1 = WriteToOnlineStoreRequest(features={"driver_id": "1001"}, feature_view_name="fv")
-    r2 = WriteToOnlineStoreRequest(typed_features={"driver_id": Value(int64_val=1001)}, feature_view_name="fv")
+    r1 = WriteToOnlineStoreRequest(
+        features={"driver_id": "1001"}, feature_view_name="fv"
+    )
+    r2 = WriteToOnlineStoreRequest(
+        typed_features={"driver_id": Value(int64_val=1001)}, feature_view_name="fv"
+    )
     assert len(r1.typed_features) == 0
     assert len(r2.features) == 0
 
 
 def test_parse_typed_null_val_becomes_none():
     """Value(null_val=NULL) must produce None in the DataFrame, not the integer 0."""
-    df = parse_typed({
-        "present": Value(int64_val=42),
-        "missing": Value(null_val=Null.NULL),
-    })
+    df = parse_typed(
+        {
+            "present": Value(int64_val=42),
+            "missing": Value(null_val=Null.NULL),
+        }
+    )
     assert df["present"].iloc[0] == 42
     assert df["missing"].iloc[0] is None
 

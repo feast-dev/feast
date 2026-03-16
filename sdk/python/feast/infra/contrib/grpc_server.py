@@ -5,7 +5,6 @@ from typing import Optional, Union
 
 import grpc
 import pandas as pd
-from grpc_health.v1 import health, health_pb2_grpc
 
 from feast.data_source import PushMode
 from feast.errors import FeatureServiceNotFoundException, PushSourceNotFoundException
@@ -156,6 +155,8 @@ def get_grpc_server(
     max_workers: int,
     registry_ttl_sec: int,
 ):
+    from grpc_health.v1 import health, health_pb2_grpc
+
     logger.info(f"Initializing gRPC server on {address}")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
     add_GrpcFeatureServerServicer_to_server(
