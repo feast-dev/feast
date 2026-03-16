@@ -5,6 +5,8 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -270,6 +272,8 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -677,6 +681,8 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -1063,6 +1069,8 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -2231,8 +2239,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.1.dev4414+gb54c2a2a3
-  sha256: b245861d71391e9e14579d8128b91ccccce38bfa6510b11c09ea61a9806cb45b
+  version: 0.60.1.dev59+g523bdfbd7
+  sha256: ed344134c9bbac72f52a54fa06c9efda24b628c063a9e8b8e0a315a92930d46b
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2324,6 +2332,7 @@ packages:
   - qdrant-client>=1.12.0 ; extra == 'qdrant'
   - transformers>=4.36.0 ; extra == 'rag'
   - datasets>=3.6.0 ; extra == 'rag'
+  - sentence-transformers>=3.0.0 ; extra == 'rag'
   - ray>=2.47.0 ; python_full_version == '3.10.*' and extra == 'ray'
   - codeflare-sdk>=0.31.1 ; python_full_version >= '3.11' and extra == 'ray'
   - redis>=4.2.2,<5 ; extra == 'redis'
@@ -2399,7 +2408,6 @@ packages:
   - calver<2025.4.1 ; extra == 'minimal-sdist-build'
   - setuptools>=60,<81 ; extra == 'setuptools'
   requires_python: '>=3.10.0'
-  editable: true
 - pypi: https://files.pythonhosted.org/packages/f9/0b/de6f54d4a8bedfe8645c41497f3c18d749f0bd3218170c667bf4b81d0cdd/filelock-3.25.0-py3-none-any.whl
   name: filelock
   version: 3.25.0

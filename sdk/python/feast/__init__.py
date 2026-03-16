@@ -14,8 +14,11 @@ from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
 from .aggregation import Aggregation
 from .batch_feature_view import BatchFeatureView
+from .chunker import BaseChunker, ChunkingConfig, TextChunker
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
 from .dataframe import DataFrameEngine, FeastDataFrame
+from .doc_embedder import DocEmbedder, LogicalLayerFn
+from .embedder import BaseEmbedder, EmbeddingConfig, MultiModalEmbedder
 from .entity import Entity
 from .feature import Feature
 from .feature_service import FeatureService
@@ -62,4 +65,12 @@ __all__ = [
     "OracleSource",
     "Project",
     "FeastVectorStore",
+    "DocEmbedder",
+    "LogicalLayerFn",
+    "BaseChunker",
+    "TextChunker",
+    "ChunkingConfig",
+    "BaseEmbedder",
+    "MultiModalEmbedder",
+    "EmbeddingConfig",
 ]
