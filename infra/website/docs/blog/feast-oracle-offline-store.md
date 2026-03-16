@@ -271,14 +271,4 @@ The full configuration reference, functionality matrix, and data source document
 
 ---
 
-## What's Next
-
-This is just the beginning for Oracle and Feast. The offline store integration opens the door to deeper possibilities — Oracle as an online store backend, tighter integration with Oracle Cloud Infrastructure (OCI), and optimized query paths for Oracle-specific features like partitioned tables and materialized views.
-
-If your organization runs on Oracle and you've been waiting for a production-grade, Kubernetes-native feature store that meets your data where it already lives — the wait is over.
-
-Your data stays in Oracle. Your features get computed in Oracle. And the Feast operator keeps it all running on Kubernetes.
-
----
-
-*Get started with the [Feast documentation](https://docs.feast.dev/) and join the community on [GitHub](https://github.com/feast-dev/feast) and [Slack](http://slack.feastsite.wpenginepowered.com/). We'd love to hear how you're using Feast with Oracle.*
+*Get started with the [Feast documentation](https://docs.feast.dev/) and join the community on [GitHub](https://github.com/feast-dev/feast) and [Slack](https://feastopensource.slack.com/). We'd love to hear how you're using Feast with Oracle.*
