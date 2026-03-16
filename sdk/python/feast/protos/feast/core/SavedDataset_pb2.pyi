@@ -16,177 +16,202 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-import feast.core.DataSource_pb2
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
-import google.protobuf.timestamp_pb2
+
+from collections import abc as _abc
+from feast.core import DataSource_pb2 as _DataSource_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-class SavedDatasetSpec(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class SavedDatasetSpec(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class TagsEntry(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    @_typing.final
+    class TagsEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: builtins.int
-        VALUE_FIELD_NUMBER: builtins.int
-        key: builtins.str
-        value: builtins.str
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        value: _builtins.str
         def __init__(
             self,
             *,
-            key: builtins.str = ...,
-            value: builtins.str = ...,
+            key: _builtins.str = ...,
+            value: _builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    NAME_FIELD_NUMBER: builtins.int
-    PROJECT_FIELD_NUMBER: builtins.int
-    FEATURES_FIELD_NUMBER: builtins.int
-    JOIN_KEYS_FIELD_NUMBER: builtins.int
-    FULL_FEATURE_NAMES_FIELD_NUMBER: builtins.int
-    STORAGE_FIELD_NUMBER: builtins.int
-    FEATURE_SERVICE_NAME_FIELD_NUMBER: builtins.int
-    TAGS_FIELD_NUMBER: builtins.int
-    name: builtins.str
+    NAME_FIELD_NUMBER: _builtins.int
+    PROJECT_FIELD_NUMBER: _builtins.int
+    FEATURES_FIELD_NUMBER: _builtins.int
+    JOIN_KEYS_FIELD_NUMBER: _builtins.int
+    FULL_FEATURE_NAMES_FIELD_NUMBER: _builtins.int
+    STORAGE_FIELD_NUMBER: _builtins.int
+    FEATURE_SERVICE_NAME_FIELD_NUMBER: _builtins.int
+    TAGS_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
     """Name of the dataset. Must be unique since it's possible to overwrite dataset by name"""
-    project: builtins.str
+    project: _builtins.str
     """Name of Feast project that this Dataset belongs to."""
-    @property
-    def features(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
-        """list of feature references with format "<view name>:<feature name>" """
-    @property
-    def join_keys(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
-        """entity columns + request columns from all feature views used during retrieval"""
-    full_feature_names: builtins.bool
+    full_feature_names: _builtins.bool
     """Whether full feature names are used in stored data"""
-    @property
-    def storage(self) -> global___SavedDatasetStorage: ...
-    feature_service_name: builtins.str
+    feature_service_name: _builtins.str
     """Optional and only populated if generated from a feature service fetch"""
-    @property
-    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+    @_builtins.property
+    def features(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """list of feature references with format "<view name>:<feature name>" """
+
+    @_builtins.property
+    def join_keys(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """entity columns + request columns from all feature views used during retrieval"""
+
+    @_builtins.property
+    def storage(self) -> Global___SavedDatasetStorage: ...
+    @_builtins.property
+    def tags(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
         """User defined metadata"""
+
     def __init__(
         self,
         *,
-        name: builtins.str = ...,
-        project: builtins.str = ...,
-        features: collections.abc.Iterable[builtins.str] | None = ...,
-        join_keys: collections.abc.Iterable[builtins.str] | None = ...,
-        full_feature_names: builtins.bool = ...,
-        storage: global___SavedDatasetStorage | None = ...,
-        feature_service_name: builtins.str = ...,
-        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        name: _builtins.str = ...,
+        project: _builtins.str = ...,
+        features: _abc.Iterable[_builtins.str] | None = ...,
+        join_keys: _abc.Iterable[_builtins.str] | None = ...,
+        full_feature_names: _builtins.bool = ...,
+        storage: Global___SavedDatasetStorage | None = ...,
+        feature_service_name: _builtins.str = ...,
+        tags: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["storage", b"storage"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_service_name", b"feature_service_name", "features", b"features", "full_feature_names", b"full_feature_names", "join_keys", b"join_keys", "name", b"name", "project", b"project", "storage", b"storage", "tags", b"tags"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["storage", b"storage"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["feature_service_name", b"feature_service_name", "features", b"features", "full_feature_names", b"full_feature_names", "join_keys", b"join_keys", "name", b"name", "project", b"project", "storage", b"storage", "tags", b"tags"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___SavedDatasetSpec = SavedDatasetSpec
+Global___SavedDatasetSpec: _TypeAlias = SavedDatasetSpec  # noqa: Y015
 
-class SavedDatasetStorage(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class SavedDatasetStorage(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    FILE_STORAGE_FIELD_NUMBER: builtins.int
-    BIGQUERY_STORAGE_FIELD_NUMBER: builtins.int
-    REDSHIFT_STORAGE_FIELD_NUMBER: builtins.int
-    SNOWFLAKE_STORAGE_FIELD_NUMBER: builtins.int
-    TRINO_STORAGE_FIELD_NUMBER: builtins.int
-    SPARK_STORAGE_FIELD_NUMBER: builtins.int
-    CUSTOM_STORAGE_FIELD_NUMBER: builtins.int
-    ATHENA_STORAGE_FIELD_NUMBER: builtins.int
-    @property
-    def file_storage(self) -> feast.core.DataSource_pb2.DataSource.FileOptions: ...
-    @property
-    def bigquery_storage(self) -> feast.core.DataSource_pb2.DataSource.BigQueryOptions: ...
-    @property
-    def redshift_storage(self) -> feast.core.DataSource_pb2.DataSource.RedshiftOptions: ...
-    @property
-    def snowflake_storage(self) -> feast.core.DataSource_pb2.DataSource.SnowflakeOptions: ...
-    @property
-    def trino_storage(self) -> feast.core.DataSource_pb2.DataSource.TrinoOptions: ...
-    @property
-    def spark_storage(self) -> feast.core.DataSource_pb2.DataSource.SparkOptions: ...
-    @property
-    def custom_storage(self) -> feast.core.DataSource_pb2.DataSource.CustomSourceOptions: ...
-    @property
-    def athena_storage(self) -> feast.core.DataSource_pb2.DataSource.AthenaOptions: ...
+    FILE_STORAGE_FIELD_NUMBER: _builtins.int
+    BIGQUERY_STORAGE_FIELD_NUMBER: _builtins.int
+    REDSHIFT_STORAGE_FIELD_NUMBER: _builtins.int
+    SNOWFLAKE_STORAGE_FIELD_NUMBER: _builtins.int
+    TRINO_STORAGE_FIELD_NUMBER: _builtins.int
+    SPARK_STORAGE_FIELD_NUMBER: _builtins.int
+    CUSTOM_STORAGE_FIELD_NUMBER: _builtins.int
+    ATHENA_STORAGE_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def file_storage(self) -> _DataSource_pb2.DataSource.FileOptions: ...
+    @_builtins.property
+    def bigquery_storage(self) -> _DataSource_pb2.DataSource.BigQueryOptions: ...
+    @_builtins.property
+    def redshift_storage(self) -> _DataSource_pb2.DataSource.RedshiftOptions: ...
+    @_builtins.property
+    def snowflake_storage(self) -> _DataSource_pb2.DataSource.SnowflakeOptions: ...
+    @_builtins.property
+    def trino_storage(self) -> _DataSource_pb2.DataSource.TrinoOptions: ...
+    @_builtins.property
+    def spark_storage(self) -> _DataSource_pb2.DataSource.SparkOptions: ...
+    @_builtins.property
+    def custom_storage(self) -> _DataSource_pb2.DataSource.CustomSourceOptions: ...
+    @_builtins.property
+    def athena_storage(self) -> _DataSource_pb2.DataSource.AthenaOptions: ...
     def __init__(
         self,
         *,
-        file_storage: feast.core.DataSource_pb2.DataSource.FileOptions | None = ...,
-        bigquery_storage: feast.core.DataSource_pb2.DataSource.BigQueryOptions | None = ...,
-        redshift_storage: feast.core.DataSource_pb2.DataSource.RedshiftOptions | None = ...,
-        snowflake_storage: feast.core.DataSource_pb2.DataSource.SnowflakeOptions | None = ...,
-        trino_storage: feast.core.DataSource_pb2.DataSource.TrinoOptions | None = ...,
-        spark_storage: feast.core.DataSource_pb2.DataSource.SparkOptions | None = ...,
-        custom_storage: feast.core.DataSource_pb2.DataSource.CustomSourceOptions | None = ...,
-        athena_storage: feast.core.DataSource_pb2.DataSource.AthenaOptions | None = ...,
+        file_storage: _DataSource_pb2.DataSource.FileOptions | None = ...,
+        bigquery_storage: _DataSource_pb2.DataSource.BigQueryOptions | None = ...,
+        redshift_storage: _DataSource_pb2.DataSource.RedshiftOptions | None = ...,
+        snowflake_storage: _DataSource_pb2.DataSource.SnowflakeOptions | None = ...,
+        trino_storage: _DataSource_pb2.DataSource.TrinoOptions | None = ...,
+        spark_storage: _DataSource_pb2.DataSource.SparkOptions | None = ...,
+        custom_storage: _DataSource_pb2.DataSource.CustomSourceOptions | None = ...,
+        athena_storage: _DataSource_pb2.DataSource.AthenaOptions | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["athena_storage", b"athena_storage", "bigquery_storage", b"bigquery_storage", "custom_storage", b"custom_storage", "file_storage", b"file_storage", "kind", b"kind", "redshift_storage", b"redshift_storage", "snowflake_storage", b"snowflake_storage", "spark_storage", b"spark_storage", "trino_storage", b"trino_storage"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["athena_storage", b"athena_storage", "bigquery_storage", b"bigquery_storage", "custom_storage", b"custom_storage", "file_storage", b"file_storage", "kind", b"kind", "redshift_storage", b"redshift_storage", "snowflake_storage", b"snowflake_storage", "spark_storage", b"spark_storage", "trino_storage", b"trino_storage"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["file_storage", "bigquery_storage", "redshift_storage", "snowflake_storage", "trino_storage", "spark_storage", "custom_storage", "athena_storage"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["athena_storage", b"athena_storage", "bigquery_storage", b"bigquery_storage", "custom_storage", b"custom_storage", "file_storage", b"file_storage", "kind", b"kind", "redshift_storage", b"redshift_storage", "snowflake_storage", b"snowflake_storage", "spark_storage", b"spark_storage", "trino_storage", b"trino_storage"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["athena_storage", b"athena_storage", "bigquery_storage", b"bigquery_storage", "custom_storage", b"custom_storage", "file_storage", b"file_storage", "kind", b"kind", "redshift_storage", b"redshift_storage", "snowflake_storage", b"snowflake_storage", "spark_storage", b"spark_storage", "trino_storage", b"trino_storage"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_kind: _TypeAlias = _typing.Literal["file_storage", "bigquery_storage", "redshift_storage", "snowflake_storage", "trino_storage", "spark_storage", "custom_storage", "athena_storage"]  # noqa: Y015
+    _WhichOneofArgType_kind: _TypeAlias = _typing.Literal["kind", b"kind"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_kind) -> _WhichOneofReturnType_kind | None: ...
 
-global___SavedDatasetStorage = SavedDatasetStorage
+Global___SavedDatasetStorage: _TypeAlias = SavedDatasetStorage  # noqa: Y015
 
-class SavedDatasetMeta(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class SavedDatasetMeta(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    MIN_EVENT_TIMESTAMP_FIELD_NUMBER: builtins.int
-    MAX_EVENT_TIMESTAMP_FIELD_NUMBER: builtins.int
-    @property
-    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+    CREATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    MIN_EVENT_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    MAX_EVENT_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def created_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Time when this saved dataset is created"""
-    @property
-    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+
+    @_builtins.property
+    def last_updated_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Time when this saved dataset is last updated"""
-    @property
-    def min_event_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+
+    @_builtins.property
+    def min_event_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Min timestamp in the dataset (needed for retrieval)"""
-    @property
-    def max_event_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+
+    @_builtins.property
+    def max_event_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Max timestamp in the dataset (needed for retrieval)"""
+
     def __init__(
         self,
         *,
-        created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        min_event_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        max_event_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        created_timestamp: _timestamp_pb2.Timestamp | None = ...,
+        last_updated_timestamp: _timestamp_pb2.Timestamp | None = ...,
+        min_event_timestamp: _timestamp_pb2.Timestamp | None = ...,
+        max_event_timestamp: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "max_event_timestamp", b"max_event_timestamp", "min_event_timestamp", b"min_event_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "max_event_timestamp", b"max_event_timestamp", "min_event_timestamp", b"min_event_timestamp"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "max_event_timestamp", b"max_event_timestamp", "min_event_timestamp", b"min_event_timestamp"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "max_event_timestamp", b"max_event_timestamp", "min_event_timestamp", b"min_event_timestamp"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___SavedDatasetMeta = SavedDatasetMeta
+Global___SavedDatasetMeta: _TypeAlias = SavedDatasetMeta  # noqa: Y015
 
-class SavedDataset(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class SavedDataset(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SPEC_FIELD_NUMBER: builtins.int
-    META_FIELD_NUMBER: builtins.int
-    @property
-    def spec(self) -> global___SavedDatasetSpec: ...
-    @property
-    def meta(self) -> global___SavedDatasetMeta: ...
+    SPEC_FIELD_NUMBER: _builtins.int
+    META_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def spec(self) -> Global___SavedDatasetSpec: ...
+    @_builtins.property
+    def meta(self) -> Global___SavedDatasetMeta: ...
     def __init__(
         self,
         *,
-        spec: global___SavedDatasetSpec | None = ...,
-        meta: global___SavedDatasetMeta | None = ...,
+        spec: Global___SavedDatasetSpec | None = ...,
+        meta: Global___SavedDatasetMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___SavedDataset = SavedDataset
+Global___SavedDataset: _TypeAlias = SavedDataset  # noqa: Y015

@@ -34,6 +34,14 @@ def parse(features):
     return pd.DataFrame.from_dict(df)
 
 
+def parse_typed(typed_features):
+    df = {}
+    for key, value in typed_features.items():
+        val_case = value.WhichOneof("val")
+        df[key] = [getattr(value, val_case) if val_case is not None else None]
+    return pd.DataFrame.from_dict(df)
+
+
 class GrpcFeatureServer(GrpcFeatureServerServicer):
     fs: FeatureStore
 
@@ -49,7 +57,13 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
 
     def Push(self, request, context):
         try:
-            df = parse(request.features)
+            if request.features and request.typed_features:
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details(
+                    "Only one of features or typed_features may be set, not both"
+                )
+                return PushResponse(status=False)
+            df = parse_typed(request.typed_features) if request.typed_features else parse(request.features)
             if request.to == "offline":
                 to = PushMode.OFFLINE
             elif request.to == "online":
@@ -84,7 +98,13 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
             "write_to_online_store is deprecated. Please consider using Push instead"
         )
         try:
-            df = parse(request.features)
+            if request.features and request.typed_features:
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details(
+                    "Only one of features or typed_features may be set, not both"
+                )
+                return WriteToOnlineStoreResponse(status=False)
+            df = parse_typed(request.typed_features) if request.typed_features else parse(request.features)
             self.fs.write_to_online_store(
                 feature_view_name=request.feature_view_name,
                 df=df,
@@ -94,7 +114,7 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
             logger.exception(str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
-            return PushResponse(status=False)
+            return WriteToOnlineStoreResponse(status=False)
         return WriteToOnlineStoreResponse(status=True)
 
     def GetOnlineFeatures(self, request: GetOnlineFeaturesRequest, context):
