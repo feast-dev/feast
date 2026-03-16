@@ -543,50 +543,114 @@ class PostgreSQLOnlineStore(OnlineStore):
                 tsquery_str = " & ".join(query_string.split())
                 query = sql.SQL(
                     """
+                    WITH vector_candidates AS (
+                        SELECT entity_key,
+                            MIN(vector_value {distance_metric_sql} %s::vector) as distance
+                        FROM {table_name}
+                        WHERE vector_value IS NOT NULL
+                        GROUP BY entity_key
+                        ORDER BY distance
+                        LIMIT {top_k}
+                    ),
+                    text_candidates AS (
+                        SELECT entity_key,
+                            MAX(ts_rank(to_tsvector('english', value_text), to_tsquery('english', %s))) as text_rank
+                        FROM {table_name}
+                        WHERE feature_name = ANY(%s)
+                            AND to_tsvector('english', value_text) @@ to_tsquery('english', %s)
+                        GROUP BY entity_key
+                        ORDER BY text_rank DESC
+                        LIMIT {top_k}
+                    ),
+                    all_candidates AS (
+                        SELECT entity_key FROM vector_candidates
+                        UNION
+                        SELECT entity_key FROM text_candidates
+                    ),
+                    scored AS (
+                        SELECT
+                            ac.entity_key,
+                            COALESCE(vc.distance,
+                                (SELECT MIN(t.vector_value {distance_metric_sql} %s::vector)
+                                 FROM {table_name} t
+                                 WHERE t.entity_key = ac.entity_key AND t.vector_value IS NOT NULL)
+                            ) as distance,
+                            COALESCE(tc.text_rank,
+                                COALESCE(
+                                    (SELECT MAX(ts_rank(to_tsvector('english', ft.value_text), to_tsquery('english', %s)))
+                                     FROM {table_name} ft
+                                     WHERE ft.entity_key = ac.entity_key AND ft.feature_name = ANY(%s) AND ft.value_text IS NOT NULL),
+                                    0
+                                )
+                            ) as text_rank
+                        FROM all_candidates ac
+                        LEFT JOIN vector_candidates vc ON ac.entity_key = vc.entity_key
+                        LEFT JOIN text_candidates tc ON ac.entity_key = tc.entity_key
+                        ORDER BY text_rank DESC, distance
+                        LIMIT {top_k}
+                    )
                     SELECT
-                        entity_key,
-                        feature_name,
-                        value,
-                        vector_value,
-                        vector_value {distance_metric_sql} %s::vector as distance,
-                        ts_rank(to_tsvector('english', value_text), to_tsquery('english', %s)) as text_rank,
-                        event_ts,
-                        created_ts
-                    FROM {table_name}
-                    WHERE feature_name = ANY(%s) AND to_tsvector('english', value_text) @@ to_tsquery('english', %s)
-                    ORDER BY distance
-                    LIMIT {top_k}
+                        t1.entity_key,
+                        t1.feature_name,
+                        t1.value,
+                        t1.vector_value,
+                        s.distance,
+                        s.text_rank,
+                        t1.event_ts,
+                        t1.created_ts
+                    FROM {table_name} t1
+                    INNER JOIN scored s ON t1.entity_key = s.entity_key
+                    WHERE t1.feature_name = ANY(%s)
+                    ORDER BY s.text_rank DESC, s.distance
                     """
                 ).format(
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
                     top_k=sql.Literal(top_k),
                 )
-                params = (embedding, tsquery_str, string_fields, tsquery_str)
-
+                params = (
+                    embedding,
+                    tsquery_str,
+                    string_fields,
+                    tsquery_str,
+                    embedding,
+                    tsquery_str,
+                    string_fields,
+                    requested_features,
+                )
             elif embedding is not None:
                 # Case 2: Vector Search Only
                 query = sql.SQL(
                     """
+                    WITH vector_matches AS (
+                        SELECT entity_key,
+                            MIN(vector_value {distance_metric_sql} %s::vector) as distance
+                        FROM {table_name}
+                        WHERE vector_value IS NOT NULL
+                        GROUP BY entity_key
+                        ORDER BY distance
+                        LIMIT {top_k}
+                    )
                     SELECT
-                        entity_key,
-                        feature_name,
-                        value,
-                        vector_value,
-                        vector_value {distance_metric_sql} %s::vector as distance,
-                        NULL as text_rank, -- Keep consistent columns
-                        event_ts,
-                        created_ts
-                    FROM {table_name}
-                    ORDER BY distance
-                    LIMIT {top_k}
+                        t1.entity_key,
+                        t1.feature_name,
+                        t1.value,
+                        t1.vector_value,
+                        t2.distance,
+                        NULL as text_rank,
+                        t1.event_ts,
+                        t1.created_ts
+                    FROM {table_name} t1
+                    INNER JOIN vector_matches t2 ON t1.entity_key = t2.entity_key
+                    WHERE t1.feature_name = ANY(%s)
+                    ORDER BY t2.distance
                     """
                 ).format(
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
                     top_k=sql.Literal(top_k),
                 )
-                params = (embedding,)
+                params = (embedding, requested_features)
 
             elif query_string is not None and string_fields:
                 # Case 3: Text Search Only
@@ -686,9 +750,10 @@ class PostgreSQLOnlineStore(OnlineStore):
             sorted_entities = sorted(
                 entities_dict.values(),
                 key=lambda x: (
-                    x["vector_distance"] if embedding is not None else x["text_rank"]
+                    (-x["text_rank"], x["vector_distance"])
+                    if query_string is not None
+                    else (x["vector_distance"],)
                 ),
-                reverse=(embedding is None),
             )[:top_k]
 
             result: List[
