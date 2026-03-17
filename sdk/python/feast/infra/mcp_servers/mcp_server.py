@@ -45,7 +45,7 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
         )
 
         transport: Literal["sse", "http"] = (
-            getattr(config, "mcp_transport", "sse") or "sse"
+            getattr(config, "mcp_transport", "sse")
         )
         if transport == "http":
             mount_http = getattr(mcp, "mount_http", None)
@@ -60,8 +60,10 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
             if mount_sse is not None:
                 mount_sse()
             else:
+                logging.warning("transport sse not supported, fallback to the deprecated mount().")
                 mcp.mount()
         else:
+            # Code should not reach here
             raise McpTransportNotSupportedError(
                 f"Unsupported mcp_transport={transport!r}. Expected 'sse' or 'http'."
             )
@@ -79,5 +81,5 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
     except McpTransportNotSupportedError:
         raise
     except Exception as e:
-        logger.error(f"Failed to initialize MCP integration: {e}")
+        logger.error(f"Failed to initialize MCP integration: {e}", exc_info=True)
         return None

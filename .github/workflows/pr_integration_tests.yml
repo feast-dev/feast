@@ -127,6 +127,7 @@ jobs:
           SERVER_PID=$!
           echo $SERVER_PID > /tmp/feast_server_pid
           for i in $(seq 1 60); do
+            kill -0 "$SERVER_PID" || { echo "server died"; exit 1; }
             if curl -fsS http://127.0.0.1:6566/health >/dev/null; then
               break
             fi
@@ -143,7 +144,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "mcp-protocol-version: 2025-03-26" \
             --data '{}' \
-            http://127.0.0.1:6566/mcp || true
+            http://127.0.0.1:6566/mcp
 
           SESSION_ID=$(grep -i "^mcp-session-id:" /tmp/mcp_headers | head -1 | awk '{print $2}' | tr -d '\r')
           if [ -z "${SESSION_ID}" ]; then

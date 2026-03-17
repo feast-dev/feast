@@ -746,7 +746,7 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
                 )
 
                 mcp_transport_not_supported_error = McpTransportNotSupportedError
-            except Exception as e:
+            except ImportError as e:
                 logger.error(f"Error checking/adding MCP support: {e}")
                 return
 
