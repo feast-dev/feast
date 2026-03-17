@@ -743,7 +743,7 @@ def _augment_response_with_on_demand_transforms(
 
     odfv_feature_refs = defaultdict(list)
     for feature_ref in feature_refs:
-        view_name, feature_name = feature_ref.split(":")
+        view_name, _, feature_name = _parse_feature_ref(feature_ref)
         if view_name in requested_odfv_feature_names:
             odfv_feature_refs[view_name].append(
                 f"{requested_odfv_map[view_name].projection.name_to_use()}__{feature_name}"
@@ -1390,13 +1390,14 @@ def _get_online_request_context(
         requested_on_demand_feature_views,
     )
 
-    requested_result_row_names = {
-        feat_ref.replace(":", "__") for feat_ref in _feature_refs
-    }
-    if not full_feature_names:
-        requested_result_row_names = {
-            name.rpartition("__")[-1] for name in requested_result_row_names
-        }
+    # Build expected result names using clean FV names (without @vN syntax)
+    requested_result_row_names = set()
+    for feat_ref in _feature_refs:
+        fv_name, _, feature_name = _parse_feature_ref(feat_ref)
+        if full_feature_names:
+            requested_result_row_names.add(f"{fv_name}__{feature_name}")
+        else:
+            requested_result_row_names.add(feature_name)
 
     feature_views = list(view for view, _ in grouped_refs)
 

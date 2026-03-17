@@ -541,6 +541,8 @@ class Registry(BaseRegistry):
         existing_proto.spec.tags.clear()
         existing_proto.spec.tags.update(updated_fv.tags)
         existing_proto.spec.owner = updated_fv.owner
+        if hasattr(existing_proto.spec, "version") and hasattr(updated_fv, "version"):
+            existing_proto.spec.version = getattr(updated_fv, "version")
 
         # Configuration fields (FeatureView)
         if (
@@ -747,6 +749,8 @@ class Registry(BaseRegistry):
                     self._update_metadata_fields(
                         existing_feature_view_proto, feature_view
                     )
+                    if commit:
+                        self.commit()
                     return
                 else:
                     old_proto_bytes = existing_feature_view_proto.SerializeToString()
@@ -767,7 +771,6 @@ class Registry(BaseRegistry):
 
         # Version history tracking
         if is_latest:
-            new_proto_bytes = feature_view_proto.SerializeToString()
             if old_proto_bytes is not None:
                 # FV changed: save old as a version if first time, then save new
                 next_ver = self._next_version_number(feature_view.name, project)
@@ -776,20 +779,22 @@ class Registry(BaseRegistry):
                         feature_view.name, project, 0, fv_type_str, old_proto_bytes
                     )
                     next_ver = 1
-                self._save_version_record(
-                    feature_view.name, project, next_ver, fv_type_str, new_proto_bytes
-                )
                 feature_view.current_version_number = next_ver
                 feature_view_proto = feature_view.to_proto()
                 feature_view_proto.spec.project = project
+                new_proto_bytes = feature_view_proto.SerializeToString()
+                self._save_version_record(
+                    feature_view.name, project, next_ver, fv_type_str, new_proto_bytes
+                )
             else:
                 # New FV: save as v0
-                self._save_version_record(
-                    feature_view.name, project, 0, fv_type_str, new_proto_bytes
-                )
                 feature_view.current_version_number = 0
                 feature_view_proto = feature_view.to_proto()
                 feature_view_proto.spec.project = project
+                new_proto_bytes = feature_view_proto.SerializeToString()
+                self._save_version_record(
+                    feature_view.name, project, 0, fv_type_str, new_proto_bytes
+                )
 
         existing_feature_views_of_same_type.append(feature_view_proto)
         if commit:

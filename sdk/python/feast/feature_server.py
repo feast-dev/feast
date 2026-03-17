@@ -138,7 +138,7 @@ def _resolve_feature_counts(
         feat_count = sum(len(p.features) for p in projections)
     elif isinstance(features, list):
         feat_count = len(features)
-        fv_names = {ref.split(":")[0] for ref in features if ":" in ref}
+        fv_names = {ref.split(":")[0].split("@")[0] for ref in features if ":" in ref}
         fv_count = len(fv_names)
     else:
         feat_count = 0

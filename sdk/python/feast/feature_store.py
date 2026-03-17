@@ -2614,13 +2614,15 @@ class FeatureStore:
         )
         feature_view_set = set()
         for _feature in features:
-            feature_view_name = _feature.split(":")[0]
-            feature_view = self.get_feature_view(feature_view_name)
+            fv_name, _, _ = utils._parse_feature_ref(_feature)
+            feature_view = self.get_feature_view(fv_name)
             feature_view_set.add(feature_view.name)
         if len(feature_view_set) > 1:
             raise ValueError("Document retrieval only supports a single feature view.")
         requested_features = [
-            f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
+            utils._parse_feature_ref(f)[2]
+            for f in features
+            if isinstance(f, str) and ":" in f
         ]
         requested_feature_view_name = list(feature_view_set)[0]
         for feature_view in available_feature_views:
@@ -2817,18 +2819,20 @@ class FeatureStore:
         )
         feature_view_set = set()
         for feature in features:
-            feature_view_name = feature.split(":")[0]
-            if feature_view_name in [fv.name for fv in available_odfv_views]:
+            fv_name, _, _ = utils._parse_feature_ref(feature)
+            if fv_name in [fv.name for fv in available_odfv_views]:
                 feature_view: Union[OnDemandFeatureView, FeatureView] = (
-                    self.get_on_demand_feature_view(feature_view_name)
+                    self.get_on_demand_feature_view(fv_name)
                 )
             else:
-                feature_view = self.get_feature_view(feature_view_name)
+                feature_view = self.get_feature_view(fv_name)
             feature_view_set.add(feature_view.name)
         if len(feature_view_set) > 1:
             raise ValueError("Document retrieval only supports a single feature view.")
         requested_features = [
-            f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
+            utils._parse_feature_ref(f)[2]
+            for f in features
+            if isinstance(f, str) and ":" in f
         ]
         if len(available_feature_views) == 0:
             available_feature_views.extend(available_odfv_views)  # type: ignore[arg-type]
