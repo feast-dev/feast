@@ -730,6 +730,7 @@ def get_app(
 
 def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
     """Add MCP support to the FastAPI app if enabled in configuration."""
+    mcp_transport_not_supported_error = None
     try:
         # Check if MCP is enabled in feature server config
         if (
@@ -738,7 +739,16 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
             and store.config.feature_server.type == "mcp"
             and getattr(store.config.feature_server, "mcp_enabled", False)
         ):
-            from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
+            try:
+                from feast.infra.mcp_servers.mcp_server import (
+                    McpTransportNotSupportedError,
+                    add_mcp_support_to_app,
+                )
+
+                mcp_transport_not_supported_error = McpTransportNotSupportedError
+            except Exception as e:
+                logger.error(f"Error checking/adding MCP support: {e}")
+                return
 
             mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
 
@@ -749,9 +759,9 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
         else:
             logger.debug("MCP support is not enabled in feature server configuration")
     except Exception as e:
-        from feast.infra.mcp_servers.mcp_server import McpTransportNotSupportedError
-
-        if isinstance(e, McpTransportNotSupportedError):
+        if mcp_transport_not_supported_error and isinstance(
+            e, mcp_transport_not_supported_error
+        ):
             raise
         logger.error(f"Error checking/adding MCP support: {e}")
         # Don't fail the entire server if MCP fails to initialize
