@@ -24,6 +24,7 @@ from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
@@ -326,6 +327,7 @@ class PassthroughProvider(Provider):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List:
         result = []
@@ -338,6 +340,7 @@ class PassthroughProvider(Provider):
                 top_k,
                 distance_metric,
                 query_string,
+                filters,
                 include_feature_view_version_metadata,
             )
         return result

@@ -5,11 +5,12 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from elasticsearch import Elasticsearch, helpers
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     get_list_val_str,
@@ -339,6 +340,79 @@ class ElasticSearchOnlineStore(OnlineStore):
                 )
         return result
 
+    def _translate_filters(
+        self,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]],
+    ) -> List[Dict[str, Any]]:
+        """Translate filter objects into Elasticsearch Query DSL filter clauses.
+
+        Returns a list of ES filter clause dicts suitable for insertion into
+        a ``bool.filter`` array.  Returns an empty list when no filters are
+        provided.
+        """
+        if filters is None:
+            return []
+        return [self._translate_single_filter(filters)]
+
+    def _translate_single_filter(
+        self,
+        filter_obj: Union[ComparisonFilter, CompoundFilter],
+    ) -> Dict[str, Any]:
+        if isinstance(filter_obj, ComparisonFilter):
+            return self._translate_comparison_filter(filter_obj)
+        elif isinstance(filter_obj, CompoundFilter):
+            return self._translate_compound_filter(filter_obj)
+        raise ValueError(f"Unknown filter type: {type(filter_obj)}")
+
+    def _translate_comparison_filter(
+        self,
+        f: ComparisonFilter,
+    ) -> Dict[str, Any]:
+        """Translate a ComparisonFilter to an ES Query DSL clause.
+
+        Feature values in Elasticsearch are stored under
+        ``<feature_name>.value_text``, so filters target that nested path.
+        """
+        field = f"{f.key}.value_text"
+
+        if f.type == "eq":
+            return {"term": {field: str(f.value)}}
+        elif f.type == "ne":
+            return {"bool": {"must_not": [{"term": {field: str(f.value)}}]}}
+        elif f.type == "gt":
+            return {"range": {field: {"gt": f.value}}}
+        elif f.type == "gte":
+            return {"range": {field: {"gte": f.value}}}
+        elif f.type == "lt":
+            return {"range": {field: {"lt": f.value}}}
+        elif f.type == "lte":
+            return {"range": {field: {"lte": f.value}}}
+        elif f.type == "in":
+            if not isinstance(f.value, list):
+                raise ValueError(
+                    f"'in' filter requires a list value, got {type(f.value)}"
+                )
+            return {"terms": {field: [str(v) for v in f.value]}}
+        elif f.type == "nin":
+            if not isinstance(f.value, list):
+                raise ValueError(
+                    f"'nin' filter requires a list value, got {type(f.value)}"
+                )
+            return {
+                "bool": {"must_not": [{"terms": {field: [str(v) for v in f.value]}}]}
+            }
+        raise ValueError(f"Unsupported comparison operator: {f.type}")
+
+    def _translate_compound_filter(
+        self,
+        f: CompoundFilter,
+    ) -> Dict[str, Any]:
+        clauses = [self._translate_single_filter(sub) for sub in f.filters]
+        if f.type == "and":
+            return {"bool": {"must": clauses}}
+        else:
+            return {"bool": {"should": clauses, "minimum_should_match": 1}}
+
     def retrieve_online_documents_v2(
         self,
         config: RepoConfig,
@@ -349,6 +423,7 @@ class ElasticSearchOnlineStore(OnlineStore):
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
         include_feature_view_version_metadata: bool = False,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -383,6 +458,8 @@ class ElasticSearchOnlineStore(OnlineStore):
         source_fields += composite_key_name
         body["_source"] = source_fields
 
+        metadata_filters = self._translate_filters(filters)
+
         if embedding:
             similarity = (distance_metric or config.online_store.similarity).lower()
             vector_field_path = (
@@ -399,37 +476,47 @@ class ElasticSearchOnlineStore(OnlineStore):
                     f"Unsupported similarity/distance_metric: {similarity}"
                 )
 
-        # Hybrid search
         if embedding and query_string:
+            bool_clause: Dict[str, Any] = {
+                "must": [
+                    {"query_string": {"query": f'"{query_string}"'}},
+                    {"exists": {"field": vector_field_path}},
+                ]
+            }
+            if metadata_filters:
+                bool_clause["filter"] = metadata_filters
             body["query"] = {
                 "script_score": {
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"query_string": {"query": f'"{query_string}"'}},
-                                {"exists": {"field": vector_field_path}},
-                            ]
-                        }
-                    },
+                    "query": {"bool": bool_clause},
                     "script": {
                         "source": script,
                         "params": {"query_vector": embedding},
                     },
                 }
             }
-        # Vector search only
         elif embedding:
+            filter_clauses: List[Dict[str, Any]] = [
+                {"exists": {"field": vector_field_path}}
+            ]
+            filter_clauses.extend(metadata_filters)
             body["query"] = {
                 "script_score": {
-                    "query": {
-                        "bool": {"filter": [{"exists": {"field": vector_field_path}}]}
-                    },
+                    "query": {"bool": {"filter": filter_clauses}},
                     "script": {"source": script, "params": {"query_vector": embedding}},
                 }
             }
-        # Keyword search only
         elif query_string:
-            body["query"] = {"query_string": {"query": f'"{query_string}"'}}
+            if metadata_filters:
+                body["query"] = {
+                    "bool": {
+                        "must": [
+                            {"query_string": {"query": f'"{query_string}"'}},
+                        ],
+                        "filter": metadata_filters,
+                    }
+                }
+            else:
+                body["query"] = {"query_string": {"query": f'"{query_string}"'}}
 
         response = self._get_client(config).search(index=es_index, body=body)
 
@@ -443,7 +530,6 @@ class ElasticSearchOnlineStore(OnlineStore):
             timestamp = row["_source"]["timestamp"]
             timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f")
 
-            # Create feature dict with all requested features
             feature_dict = {"distance": _to_value_proto(float(row["_score"]))}
             if query_string is not None:
                 feature_dict["text_rank"] = _to_value_proto(float(row["_score"]))
