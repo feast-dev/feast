@@ -12,6 +12,7 @@ from typeguard import typechecked
 
 from feast import flags_helper, utils
 from feast.aggregation import Aggregation
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -208,15 +209,21 @@ class StreamFeatureView(FeatureView):
                 f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
             )
 
-    def _schema_or_udf_changed(self, other: "StreamFeatureView") -> bool:
+    def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
         """Check for StreamFeatureView schema/UDF changes."""
         if super()._schema_or_udf_changed(other):
             return True
 
+        if not isinstance(other, StreamFeatureView):
+            return True
+
         # UDF changes
         if self.udf and other.udf:
-            if self.udf.__code__.co_code != other.udf.__code__.co_code:
-                return True
+            self_code = getattr(self.udf, "__code__", None)
+            other_code = getattr(other.udf, "__code__", None)
+            if self_code and other_code:
+                if self_code.co_code != other_code.co_code:
+                    return True
         elif self.udf != other.udf:  # One is None
             return True
 

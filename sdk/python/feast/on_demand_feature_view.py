@@ -330,9 +330,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
         return fv
 
-    def _schema_or_udf_changed(self, other: "OnDemandFeatureView") -> bool:
+    def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
         """Check for OnDemandFeatureView schema/UDF changes."""
         if super()._schema_or_udf_changed(other):
+            return True
+
+        if not isinstance(other, OnDemandFeatureView):
             return True
 
         # UDF/transformation changes

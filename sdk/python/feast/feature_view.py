@@ -311,9 +311,12 @@ class FeatureView(BaseFeatureView):
         fv.projection = copy.copy(self.projection)
         return fv
 
-    def _schema_or_udf_changed(self, other: "FeatureView") -> bool:
+    def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
         """Check for FeatureView schema/UDF changes."""
         if super()._schema_or_udf_changed(other):
+            return True
+
+        if not isinstance(other, FeatureView):
             return True
 
         # Schema-related fields

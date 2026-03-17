@@ -531,7 +531,7 @@ class Registry(BaseRegistry):
         return None
 
     def _update_metadata_fields(
-        self, existing_proto: Message, updated_fv: BaseFeatureView
+        self, existing_proto: Any, updated_fv: BaseFeatureView
     ) -> None:
         """Update non-version-significant fields without creating new version."""
         from feast.feature_view import FeatureView
@@ -552,18 +552,28 @@ class Registry(BaseRegistry):
                 ttl_duration = updated_fv.get_ttl_duration()
                 if ttl_duration:
                     existing_proto.spec.ttl.CopyFrom(ttl_duration)
-        if hasattr(existing_proto.spec, "online"):
-            existing_proto.spec.online = updated_fv.online
-        if hasattr(existing_proto.spec, "offline"):
-            existing_proto.spec.offline = updated_fv.offline
-        if hasattr(existing_proto.spec, "enable_validation"):
-            existing_proto.spec.enable_validation = updated_fv.enable_validation
+        if hasattr(existing_proto.spec, "online") and hasattr(updated_fv, "online"):
+            existing_proto.spec.online = getattr(updated_fv, "online")
+        if hasattr(existing_proto.spec, "offline") and hasattr(updated_fv, "offline"):
+            existing_proto.spec.offline = getattr(updated_fv, "offline")
+        if hasattr(existing_proto.spec, "enable_validation") and hasattr(
+            updated_fv, "enable_validation"
+        ):
+            existing_proto.spec.enable_validation = getattr(
+                updated_fv, "enable_validation"
+            )
 
         # OnDemandFeatureView configuration
-        if hasattr(existing_proto.spec, "write_to_online_store"):
-            existing_proto.spec.write_to_online_store = updated_fv.write_to_online_store
-        if hasattr(existing_proto.spec, "singleton"):
-            existing_proto.spec.singleton = updated_fv.singleton
+        if hasattr(existing_proto.spec, "write_to_online_store") and hasattr(
+            updated_fv, "write_to_online_store"
+        ):
+            existing_proto.spec.write_to_online_store = getattr(
+                updated_fv, "write_to_online_store"
+            )
+        if hasattr(existing_proto.spec, "singleton") and hasattr(
+            updated_fv, "singleton"
+        ):
+            existing_proto.spec.singleton = getattr(updated_fv, "singleton")
 
         # Data sources (treat as configuration)
         if (
