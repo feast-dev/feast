@@ -36,6 +36,7 @@ from pydantic import StrictStr
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
@@ -99,6 +100,16 @@ def convert_timestamp(val: bytes):
 sqlite3.register_converter("date", convert_date)
 sqlite3.register_converter("datetime", convert_datetime)
 sqlite3.register_converter("timestamp", convert_timestamp)
+
+
+_SQLITE_COMPARISON_OPS: Dict[str, str] = {
+    "eq": "=",
+    "ne": "!=",
+    "gt": ">",
+    "gte": ">=",
+    "lt": "<",
+    "lte": "<=",
+}
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -181,6 +192,21 @@ class SqliteOnlineStore(OnlineStore):
                     config.registry.enable_online_feature_view_versioning,
                 )
                 for feature_name, val in values.items():
+                    value_text = None
+                    value_num = None
+                    val_type = val.WhichOneof("val")
+                    if val_type == "string_val":
+                        value_text = val.string_val
+                    elif val_type in (
+                        "int64_val",
+                        "int32_val",
+                        "double_val",
+                        "float_val",
+                    ):
+                        value_num = float(getattr(val, val_type))
+                    elif val_type == "bool_val":
+                        value_num = 1.0 if val.bool_val else 0.0
+
                     if config.online_store.vector_enabled:
                         if (
                             feature_type_dict.get(feature_name, None)
@@ -198,39 +224,47 @@ class SqliteOnlineStore(OnlineStore):
                             val_bin = feast_value_type_to_python_type(val)
                         conn.execute(
                             f"""
-                            INSERT INTO {table_name} (entity_key, feature_name, value, vector_value, event_ts, created_ts)
-                            VALUES (?, ?, ?, ?, ?, ?)
+                            INSERT INTO {table_name} (entity_key, feature_name, value, value_text, value_num, vector_value, event_ts, created_ts)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT(entity_key, feature_name) DO UPDATE SET
                                 value = excluded.value,
+                                value_text = excluded.value_text,
+                                value_num = excluded.value_num,
                                 vector_value = excluded.vector_value,
                                 event_ts = excluded.event_ts,
                                 created_ts = excluded.created_ts;
                             """,
                             (
-                                entity_key_bin,  # entity_key
-                                feature_name,  # feature_name
-                                val.SerializeToString(),  # value
-                                val_bin,  # vector_value
-                                timestamp,  # event_ts
-                                created_ts,  # created_ts
+                                entity_key_bin,
+                                feature_name,
+                                val.SerializeToString(),
+                                value_text,
+                                value_num,
+                                val_bin,
+                                timestamp,
+                                created_ts,
                             ),
                         )
                     else:
                         conn.execute(
                             f"""
-                            INSERT INTO {table_name} (entity_key, feature_name, value, event_ts, created_ts)
-                            VALUES (?, ?, ?, ?, ?)
+                            INSERT INTO {table_name} (entity_key, feature_name, value, value_text, value_num, event_ts, created_ts)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT(entity_key, feature_name) DO UPDATE SET
                                 value = excluded.value,
+                                value_text = excluded.value_text,
+                                value_num = excluded.value_num,
                                 event_ts = excluded.event_ts,
                                 created_ts = excluded.created_ts;
                             """,
                             (
-                                entity_key_bin,  # entity_key
-                                feature_name,  # feature_name
-                                val.SerializeToString(),  # value
-                                timestamp,  # event_ts
-                                created_ts,  # created_ts
+                                entity_key_bin,
+                                feature_name,
+                                val.SerializeToString(),
+                                value_text,
+                                value_num,
+                                timestamp,
+                                created_ts,
                             ),
                         )
 
@@ -302,7 +336,11 @@ class SqliteOnlineStore(OnlineStore):
         versioning = config.registry.enable_online_feature_view_versioning
         for table in tables_to_keep:
             conn.execute(
+<<<<<<< HEAD
                 f"CREATE TABLE IF NOT EXISTS {_table_id(project, table, versioning)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+=======
+                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, value_text TEXT, value_num REAL, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+>>>>>>> e96a11626 (Phase 1: Added basic open ai competible search api in the vector store)
             )
             conn.execute(
                 f"CREATE INDEX IF NOT EXISTS {_table_id(project, table, versioning)}_ek ON {_table_id(project, table, versioning)} (entity_key);"
@@ -469,6 +507,111 @@ class SqliteOnlineStore(OnlineStore):
 
         return result
 
+    def _translate_filters(
+        self,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]],
+        table_name: str,
+        alias: Optional[str] = None,
+    ) -> Tuple[str, List[Any]]:
+        """Translate filter objects into a SQL WHERE clause fragment and params.
+
+        Returns a ``(clause, params)`` pair.  When *filters* is ``None`` the
+        clause is empty and params is ``[]``.
+        """
+        if filters is None:
+            return "", []
+        return self._translate_single_filter(filters, table_name, alias)
+
+    def _translate_single_filter(
+        self,
+        filter_obj: Union[ComparisonFilter, CompoundFilter],
+        table_name: str,
+        alias: Optional[str] = None,
+    ) -> Tuple[str, List[Any]]:
+        if isinstance(filter_obj, ComparisonFilter):
+            return self._translate_comparison_filter(filter_obj, table_name, alias)
+        elif isinstance(filter_obj, CompoundFilter):
+            return self._translate_compound_filter(filter_obj, table_name, alias)
+        raise ValueError(f"Unknown filter type: {type(filter_obj)}")
+
+    @staticmethod
+    def _filter_col_and_val(value: Any) -> Tuple[str, Any]:
+        """Return the appropriate column name and DB-ready value for a filter value."""
+        if isinstance(value, bool):
+            return "value_num", 1.0 if value else 0.0
+        if isinstance(value, (int, float)):
+            return "value_num", float(value)
+        return "value_text", str(value)
+
+    def _translate_comparison_filter(
+        self,
+        filter_obj: ComparisonFilter,
+        table_name: str,
+        alias: Optional[str] = None,
+    ) -> Tuple[str, List[Any]]:
+        key, value, op_type = filter_obj.key, filter_obj.value, filter_obj.type
+        ek_col = f"{alias}.entity_key" if alias else "entity_key"
+
+        if op_type in _SQLITE_COMPARISON_OPS:
+            col, db_value = self._filter_col_and_val(value)
+            clause = (
+                f"{ek_col} IN (SELECT entity_key FROM {table_name} "
+                f"WHERE feature_name = ? AND {col} {_SQLITE_COMPARISON_OPS[op_type]} ?)"
+            )
+            return clause, [key, db_value]
+
+        if op_type == "in":
+            if not isinstance(value, list):
+                raise ValueError(
+                    f"'in' filter requires a list value, got {type(value)}"
+                )
+            col, _ = (
+                self._filter_col_and_val(value[0]) if value else ("value_text", None)
+            )
+            db_values = [self._filter_col_and_val(v)[1] for v in value]
+            placeholders = ", ".join(["?"] * len(value))
+            clause = (
+                f"{ek_col} IN (SELECT entity_key FROM {table_name} "
+                f"WHERE feature_name = ? AND {col} IN ({placeholders}))"
+            )
+            return clause, [key] + db_values
+
+        if op_type == "nin":
+            if not isinstance(value, list):
+                raise ValueError(
+                    f"'nin' filter requires a list value, got {type(value)}"
+                )
+            col, _ = (
+                self._filter_col_and_val(value[0]) if value else ("value_text", None)
+            )
+            db_values = [self._filter_col_and_val(v)[1] for v in value]
+            placeholders = ", ".join(["?"] * len(value))
+            clause = (
+                f"{ek_col} IN (SELECT entity_key FROM {table_name} "
+                f"WHERE feature_name = ? AND {col} NOT IN ({placeholders}))"
+            )
+            return clause, [key] + db_values
+
+        raise ValueError(f"Unknown comparison operator: {op_type}")
+
+    def _translate_compound_filter(
+        self,
+        filter_obj: CompoundFilter,
+        table_name: str,
+        alias: Optional[str] = None,
+    ) -> Tuple[str, List[Any]]:
+        parts: List[str] = []
+        all_params: List[Any] = []
+        for sub in filter_obj.filters:
+            sub_clause, sub_params = self._translate_single_filter(
+                sub, table_name, alias
+            )
+            parts.append(sub_clause)
+            all_params.extend(sub_params)
+        joiner = " AND " if filter_obj.type == "and" else " OR "
+        combined = "(" + joiner.join(parts) + ")"
+        return combined, all_params
+
     def retrieve_online_documents_v2(
         self,
         config: RepoConfig,
@@ -478,7 +621,11 @@ class SqliteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+<<<<<<< HEAD
         include_feature_view_version_metadata: bool = False,
+=======
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+>>>>>>> e96a11626 (Phase 1: Added basic open ai competible search api in the vector store)
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -519,6 +666,10 @@ class SqliteOnlineStore(OnlineStore):
         )
         vector_field = _get_vector_field(table)
 
+        filter_clause, filter_params = self._translate_filters(
+            filters, table_name, alias="fv2"
+        )
+
         if online_store.vector_enabled:
             query_embedding_bin = serialize_f32(query, vector_field_length)  # type: ignore
             cur.execute(
@@ -540,7 +691,6 @@ class SqliteOnlineStore(OnlineStore):
                 f.name for f in table.features if f.dtype == PrimitiveFeastType.STRING
             ]
             string_fields = ", ".join(string_field_list)
-            # TODO: swap this for a value configurable in each Field()
             BM25_DEFAULT_WEIGHTS = ", ".join(
                 [
                     str(1.0)
@@ -559,6 +709,9 @@ class SqliteOnlineStore(OnlineStore):
                 table_name, string_field_list
             )
             cur.execute(insert_query)
+            filter_clause, filter_params = self._translate_filters(
+                filters, table_name, alias="fv"
+            )
 
         else:
             raise ValueError(
@@ -566,6 +719,11 @@ class SqliteOnlineStore(OnlineStore):
             )
 
         if online_store.vector_enabled:
+            where_parts = [f'fv2.feature_name != "{vector_field}"']
+            if filter_clause:
+                where_parts.append(filter_clause)
+            where_sql = " AND ".join(where_parts)
+
             cur.execute(
                 f"""
                 select
@@ -590,24 +748,28 @@ class SqliteOnlineStore(OnlineStore):
                     on f.rowid = fv.rowid
                 left join {table_name} fv2
                     on fv.entity_key = fv2.entity_key
-                where fv2.feature_name != "{vector_field}"
+                where {where_sql}
                 """,
-                (
-                    query_embedding_bin,
-                    top_k,
-                ),
+                [query_embedding_bin, top_k] + filter_params,
             )
         elif online_store.text_search_enabled:
+            where_parts_text = []
+            if filter_clause:
+                where_parts_text.append(filter_clause)
+            where_sql_text = (
+                "where " + " AND ".join(where_parts_text) if where_parts_text else ""
+            )
+
             cur.execute(
                 f"""
-            select
-                fv.entity_key,
-                fv.feature_name,
-                fv.value,
-                fv.vector_value,
-                f.distance,
-                fv.event_ts,
-                fv.created_ts
+                select
+                    fv.entity_key,
+                    fv.feature_name,
+                    fv.value,
+                    fv.vector_value,
+                    f.distance,
+                    fv.event_ts,
+                    fv.created_ts
                 from {table_name} fv
                 inner join (
                     select
@@ -619,8 +781,9 @@ class SqliteOnlineStore(OnlineStore):
                     where search_table match ? order by distance limit ?
                 ) f
                     on f.entity_key = fv.entity_key
+                {where_sql_text}
                 """,
-                (query_string, top_k),
+                [query_string, top_k] + filter_params,
             )
 
         else:
@@ -780,6 +943,8 @@ class SqliteTable(InfraObject):
                 entity_key BLOB,
                 feature_name TEXT,
                 value BLOB,
+                value_text TEXT,
+                value_num REAL,
                 vector_value BLOB,
                 event_ts timestamp,
                 created_ts timestamp,
@@ -830,7 +995,7 @@ def _generate_bm25_search_insert_query(
     from_query = f"\nFROM (select rowid, * from {table_name} where feature_name = '{string_field_list[0]}') fv0"
 
     for i, string_field in enumerate(string_field_list):
-        query += f"\n\t,fv{i}.value as {string_field}"
+        query += f"\n\t,fv{i}.value_text as {string_field}"
         if i > 0:
             from_query += (
                 f"\nLEFT JOIN (select rowid, * from {table_name} where feature_name = '{string_field}') fv{i}"

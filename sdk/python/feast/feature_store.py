@@ -69,6 +69,7 @@ from feast.errors import (
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.filter_models import ComparisonFilter, CompoundFilter, convert_dict_to_filter
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -2800,6 +2801,7 @@ class FeatureStore:
         image_weight: float = 0.5,
         combine_strategy: str = "weighted_sum",
         include_feature_view_version_metadata: bool = False,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -2955,7 +2957,163 @@ class FeatureStore:
             distance_metric,
             query_string,
             include_feature_view_version_metadata,
+            filters,
         )
+
+    def retrieve_online_documents_openai(
+        self,
+        vector_store_id: str,
+        query: Union[str, List[str]],
+        max_num_results: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+        ranking_options: Optional[Dict[str, Any]] = None,
+        rewrite_query: Optional[bool] = None,
+        features_to_retrieve: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        OpenAI-compatible vector store search.
+
+        Accepts a raw query string, optionally embeds it via LiteLLM
+        (when ``query_embedding_model`` is configured in feature_store.yaml),
+        and returns results in OpenAI's ``vector_store.search_results.page``
+        format.
+
+        Args:
+            vector_store_id: Feature view name (maps to the OpenAI
+                ``vector_store_id`` path parameter).
+            query: Natural language query string, or list of strings.
+            max_num_results: Maximum number of results to return.
+            filters: OpenAI-compatible filters (accepted but not yet
+                applied).
+            ranking_options: OpenAI-compatible ranking options (accepted
+                but not yet applied).
+            rewrite_query: Whether to rewrite the query (accepted but
+                not yet applied).
+            features_to_retrieve: Specific feature names to return.
+                If None, all features from the feature view are used.
+
+        Returns:
+            Dict matching the OpenAI ``vector_store.search_results.page``
+            schema.
+
+        Examples:
+            Keyword search (no embedding model configured)::
+
+                result = store.retrieve_online_documents_openai(
+                    vector_store_id="city_embeddings",
+                    query="cities in California",
+                    max_num_results=5,
+                )
+
+            Vector search (embedding model configured in YAML)::
+
+                # feature_store.yaml has:
+                #   feature_server:
+                #     query_embedding_model: text-embedding-3-small
+                result = store.retrieve_online_documents_openai(
+                    vector_store_id="product_embeddings",
+                    query="wireless audio device",
+                    max_num_results=3,
+                    features_to_retrieve=["name", "description"],
+                )
+        """
+        feature_view = self.get_feature_view(vector_store_id)
+
+        if features_to_retrieve:
+            feature_names = features_to_retrieve
+        else:
+            feature_names = [f.name for f in feature_view.features]
+
+        features = [f"{feature_view.name}:{name}" for name in feature_names]
+        query_text = query if isinstance(query, str) else " ".join(query)
+
+        embed_cfg = self.config.embedding_model
+        if embed_cfg is None:
+            raise ValueError(
+                "embedding_model is not configured in feature_store.yaml. "
+                "Add an 'embedding_model' section with at least a 'model' "
+                "field to use retrieve_online_documents_openai.\n"
+                "Example:\n"
+                "  embedding_model:\n"
+                "    model: text-embedding-3-small\n"
+                "    api_key: sk-..."
+            )
+
+        try:
+            from litellm import embedding as litellm_embedding
+        except ImportError:
+            raise ImportError(
+                "litellm is required for query embedding. "
+                "Install with: pip install litellm"
+            )
+
+        litellm_kwargs: Dict[str, Any] = {
+            "model": embed_cfg.model,
+            "input": [query_text],
+        }
+        if embed_cfg.api_key:
+            litellm_kwargs["api_key"] = embed_cfg.api_key
+        if embed_cfg.api_base:
+            litellm_kwargs["api_base"] = embed_cfg.api_base
+        if embed_cfg.api_version:
+            litellm_kwargs["api_version"] = embed_cfg.api_version
+        if embed_cfg.dimensions:
+            litellm_kwargs["dimensions"] = embed_cfg.dimensions
+
+        embed_response = litellm_embedding(**litellm_kwargs)
+        query_embedding = embed_response.data[0]["embedding"]
+
+        typed_filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
+        if filters is not None:
+            typed_filters = convert_dict_to_filter(filters)
+
+        response = self.retrieve_online_documents_v2(
+            features=features,
+            query=query_embedding,
+            top_k=max_num_results,
+            filters=typed_filters,
+        )
+
+        response_dict = response.to_dict()
+
+        result_data = []
+        if response_dict:
+            first_key = next(iter(response_dict))
+            num_rows = len(response_dict.get(first_key, []))
+            for i in range(num_rows):
+                score = 0.0
+                attributes: Dict[str, Any] = {}
+                content_parts: List[Dict[str, str]] = []
+
+                for key, values in response_dict.items():
+                    val = values[i] if i < len(values) else None
+                    if key == "distance":
+                        score = float(val) if val is not None else 0.0
+                    else:
+                        attributes[key] = val
+                        if isinstance(val, str):
+                            content_parts.append({"type": "text", "text": val})
+
+                result_data.append(
+                    {
+                        "file_id": f"{vector_store_id}_{i}",
+                        "filename": vector_store_id,
+                        "score": score,
+                        "attributes": attributes,
+                        "content": content_parts
+                        if content_parts
+                        else [{"type": "text", "text": str(attributes)}],
+                    }
+                )
+
+        search_query = query if isinstance(query, list) else [query]
+        return {
+            "object": "vector_store.search_results.page",
+            "search_query": search_query,
+            "data": result_data,
+            "has_more": False,
+            "next_page": None,
+        }
 
     def _retrieve_from_online_store(
         self,
@@ -3019,6 +3177,7 @@ class FeatureStore:
         top_k: int,
         distance_metric: Optional[str],
         query_string: Optional[str],
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
@@ -3036,6 +3195,7 @@ class FeatureStore:
             top_k=top_k,
             distance_metric=distance_metric,
             query_string=query_string,
+            filters=filters,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 

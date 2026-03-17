@@ -21,6 +21,7 @@ from feast.batch_feature_view import BatchFeatureView
 from feast.errors import VersionedOnlineReadNotSupported
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.infra_object import InfraObject
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.supported_async_methods import SupportedAsyncMethods
@@ -556,6 +557,7 @@ class OnlineStore(ABC):
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
         include_feature_view_version_metadata: bool = False,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -574,6 +576,8 @@ class OnlineStore(ABC):
             embedding: The embeddings to use for retrieval (optional)
             top_k: The number of documents to retrieve.
             query_string: The query string to search for using keyword search (bm25) (optional)
+            filters: Optional metadata filters (ComparisonFilter or CompoundFilter)
+                to narrow results before ranking.
 
         Returns:
             object: A list of top k closest documents to the specified embedding. Each item in the list is a tuple

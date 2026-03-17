@@ -280,6 +280,40 @@ class OpenLineageConfig(FeastBaseModel):
         )
 
 
+class EmbeddingModelConfig(FeastConfigBaseModel):
+    """Configuration for the LiteLLM-based query embedding model.
+
+    Required when using ``retrieve_online_documents_openai`` or the
+    ``/v1/vector_stores/{vector_store_id}/search`` endpoint.
+
+    Example in ``feature_store.yaml``::
+
+        embedding_model:
+            model: text-embedding-3-small
+            api_key: sk-...
+            api_base: https://api.openai.com/v1
+    """
+
+    model: str
+    """LiteLLM model identifier (e.g. 'text-embedding-3-small',
+    'cohere/embed-english-v3.0', 'azure/my-deployment')."""
+
+    api_key: Optional[str] = None
+    """API key for the embedding provider. If not set, LiteLLM falls back
+    to the relevant environment variable (e.g. OPENAI_API_KEY)."""
+
+    api_base: Optional[str] = None
+    """Custom API base URL for the embedding provider
+    (e.g. 'https://my-azure-deployment.openai.azure.com/')."""
+
+    api_version: Optional[str] = None
+    """API version for the embedding provider (used by Azure OpenAI)."""
+
+    dimensions: Optional[StrictInt] = None
+    """Output embedding dimensionality. Supported by text-embedding-3 and
+    newer models. If not set, the model's default dimension is used."""
+
+
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 
@@ -318,6 +352,13 @@ class RepoConfig(FeastBaseModel):
 
     feature_server: Optional[Any] = None
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
+
+    embedding_model: Optional[EmbeddingModelConfig] = Field(
+        None, alias="embedding_model"
+    )
+    """ EmbeddingModelConfig: LiteLLM embedding model configuration.
+    Required when using retrieve_online_documents_openai or the
+    OpenAI-compatible vector store search endpoint. """
 
     flags: Any = None
     """ Flags (deprecated field): Feature flags for experimental features """
