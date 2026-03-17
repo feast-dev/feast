@@ -4,8 +4,11 @@ import pyarrow.flight as fl
 import pytest
 from pydantic import ValidationError
 
-from feast.arrow_error_handler import arrow_client_error_handling_decorator
-from feast.errors import PermissionNotFoundException
+from feast.arrow_error_handler import (
+    _get_exception_data,
+    arrow_client_error_handling_decorator,
+)
+from feast.errors import FeatureViewNotFoundException, PermissionNotFoundException
 from feast.infra.offline_stores.remote import RemoteOfflineStoreConfig
 
 permissionError = PermissionNotFoundException("dummy_name", "dummy_project")
@@ -179,3 +182,50 @@ class TestArrowClientRetry:
     def test_config_rejects_negative_connection_retries(self):
         with pytest.raises(ValidationError):
             RemoteOfflineStoreConfig(host="localhost", connection_retries=-1)
+
+
+class TestGetExceptionData:
+    def test_non_string_input_returns_empty(self):
+        assert _get_exception_data(12345) == ""
+        assert _get_exception_data(None) == ""
+        assert _get_exception_data(b"bytes") == ""
+
+    def test_no_flight_error_prefix_returns_empty(self):
+        assert _get_exception_data("some random error") == ""
+
+    def test_flight_error_prefix_without_json_returns_empty(self):
+        assert _get_exception_data("Flight error: no json here") == ""
+
+    def test_extracts_json_from_flight_error(self):
+        fv_error = FeatureViewNotFoundException("my_view", "my_project")
+        error_str = f"Flight error: {fv_error.to_error_detail()}"
+        result = _get_exception_data(error_str)
+        assert '"class": "FeatureViewNotFoundException"' in result
+        assert '"module": "feast.errors"' in result
+
+    def test_extracts_json_with_trailing_text(self):
+        fv_error = FeatureViewNotFoundException("my_view", "my_project")
+        error_str = (
+            f"Flight error: {fv_error.to_error_detail()}. "
+            "gRPC client debug context: some extra info"
+        )
+        result = _get_exception_data(error_str)
+        assert '"class": "FeatureViewNotFoundException"' in result
+        assert '"module": "feast.errors"' in result
+
+    def test_extracts_json_with_grpc_debug_context_containing_braces(self):
+        fv_error = FeatureViewNotFoundException("my_view", "my_project")
+        error_str = (
+            f"Flight error: {fv_error.to_error_detail()}. "
+            "gRPC client debug context: UNKNOWN:Error received from peer "
+            'ipv4:127.0.0.1:59930 {grpc_message:"Flight error: ...", '
+            'grpc_status:2, created_time:"2026-03-17T17:32:07"}'
+        )
+        result = _get_exception_data(error_str)
+        assert '"class": "FeatureViewNotFoundException"' in result
+        assert '"module": "feast.errors"' in result
+        from feast.errors import FeastError
+
+        reconstructed = FeastError.from_error_detail(result)
+        assert reconstructed is not None
+        assert "my_view" in str(reconstructed)
