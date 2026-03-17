@@ -167,6 +167,11 @@ class RegistryConfig(FeastBaseModel):
         Once this is set to True, it cannot be reverted back to False. Reverting back to False will
         only reset the project but not all the projects"""
 
+    enable_feature_view_versioning: StrictBool = False
+    """ bool: Enable feature view version history tracking. When True, schema changes
+        create version snapshots and version-qualified refs (e.g., 'fv@v2:feature') are
+        supported. Defaults to False. """
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":

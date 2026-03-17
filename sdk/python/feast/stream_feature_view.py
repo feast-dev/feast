@@ -387,11 +387,12 @@ class StreamFeatureView(FeatureView):
             stream_feature_view.stream_source = stream_source
 
         # Restore current_version_number from meta.
-        if sfv_proto.meta.current_version_number:
-            stream_feature_view.current_version_number = (
-                sfv_proto.meta.current_version_number
-            )
-        elif sfv_proto.meta.current_version_number == 0 and sfv_proto.spec.version:
+        cvn = sfv_proto.meta.current_version_number
+        if cvn == -1:
+            stream_feature_view.current_version_number = None
+        elif cvn > 0:
+            stream_feature_view.current_version_number = cvn
+        elif cvn == 0 and sfv_proto.spec.version:
             stream_feature_view.current_version_number = 0
         else:
             stream_feature_view.current_version_number = None

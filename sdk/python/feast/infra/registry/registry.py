@@ -229,6 +229,12 @@ class Registry(BaseRegistry):
             else False
         )
 
+        self.enable_versioning = (
+            registry_config.enable_feature_view_versioning
+            if registry_config is not None
+            else False
+        )
+
         self.cache_mode = (
             registry_config.cache_mode if registry_config is not None else "sync"
         )
@@ -622,6 +628,11 @@ class Registry(BaseRegistry):
     def list_feature_view_versions(
         self, name: str, project: str
     ) -> List[Dict[str, Any]]:
+        if not self.enable_versioning:
+            raise ValueError(
+                "Feature view versioning is not enabled. "
+                "Set 'enable_feature_view_versioning: true' under 'registry' in feature_store.yaml."
+            )
         history = self.cached_registry_proto.feature_view_version_history
         results = []
         for record in history.records:
@@ -641,6 +652,11 @@ class Registry(BaseRegistry):
     def get_feature_view_by_version(
         self, name: str, project: str, version_number: int, allow_cache: bool = False
     ) -> BaseFeatureView:
+        if not self.enable_versioning:
+            raise ValueError(
+                "Feature view versioning is not enabled. "
+                "Set 'enable_feature_view_versioning: true' under 'registry' in feature_store.yaml."
+            )
         record = self._get_version_record(name, project, version_number)
         if record is None:
             raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
@@ -662,6 +678,13 @@ class Registry(BaseRegistry):
 
         fv_type_str = self._infer_fv_type_string(feature_view)
         is_latest, pin_version = parse_version(feature_view.version)
+
+        if not self.enable_versioning and not is_latest:
+            raise ValueError(
+                f"Cannot pin '{feature_view.name}' to '{feature_view.version}': "
+                f"versioning is disabled. Set 'enable_feature_view_versioning: true' "
+                f"under 'registry' in feature_store.yaml."
+            )
 
         if not is_latest:
             # Pin to a specific version
@@ -770,7 +793,7 @@ class Registry(BaseRegistry):
                     break
 
         # Version history tracking
-        if is_latest:
+        if self.enable_versioning and is_latest:
             if old_proto_bytes is not None:
                 # FV changed: save old as a version if first time, then save new
                 next_ver = self._next_version_number(feature_view.name, project)

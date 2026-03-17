@@ -1297,6 +1297,12 @@ def _get_feature_views_to_use(
     fvs_to_use, od_fvs_to_use = [], []
     for name, version_num, projection in feature_views:
         if version_num is not None:
+            if not getattr(registry, "enable_versioning", False):
+                raise ValueError(
+                    f"Version-qualified ref '{name}@v{version_num}' not supported: "
+                    f"versioning is disabled. Set 'enable_feature_view_versioning: true' "
+                    f"under 'registry' in feature_store.yaml."
+                )
             # Version-qualified reference: look up the specific version snapshot
             try:
                 fv = registry.get_feature_view_by_version(

@@ -294,6 +294,7 @@ class SqlRegistry(CachingRegistry):
             registry_config.thread_pool_executor_worker_count
         )
         self.purge_feast_metadata = registry_config.purge_feast_metadata
+        self.enable_versioning = registry_config.enable_feature_view_versioning
         super().__init__(
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
@@ -625,6 +626,13 @@ class SqlRegistry(CachingRegistry):
 
         is_latest, pin_version = parse_version(feature_view.version)
 
+        if not self.enable_versioning and not is_latest:
+            raise ValueError(
+                f"Cannot pin '{feature_view.name}' to '{feature_view.version}': "
+                f"versioning is disabled. Set 'enable_feature_view_versioning: true' "
+                f"under 'registry' in feature_store.yaml."
+            )
+
         if not is_latest:
             # Pin to a specific version: load snapshot and apply it
             snapshot = self._get_version_snapshot(
@@ -704,6 +712,9 @@ class SqlRegistry(CachingRegistry):
                 new_proto_bytes = row._mapping["feature_view_proto"]
             else:
                 return  # shouldn't happen
+
+        if not self.enable_versioning:
+            return
 
         if old_proto_bytes is not None:
             # Deserialize both versions to compare schema/UDF changes
@@ -1100,6 +1111,11 @@ class SqlRegistry(CachingRegistry):
     def get_feature_view_by_version(
         self, name: str, project: str, version_number: int, allow_cache: bool = False
     ) -> BaseFeatureView:
+        if not self.enable_versioning:
+            raise ValueError(
+                "Feature view versioning is not enabled. "
+                "Set 'enable_feature_view_versioning: true' under 'registry' in feature_store.yaml."
+            )
         snapshot = self._get_version_snapshot(name, project, version_number)
         if snapshot is None:
             raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
@@ -1113,6 +1129,11 @@ class SqlRegistry(CachingRegistry):
     def list_feature_view_versions(
         self, name: str, project: str
     ) -> List[Dict[str, Any]]:
+        if not self.enable_versioning:
+            raise ValueError(
+                "Feature view versioning is not enabled. "
+                "Set 'enable_feature_view_versioning: true' under 'registry' in feature_store.yaml."
+            )
         with self.read_engine.begin() as conn:
             stmt = (
                 select(feature_view_version_history)

@@ -100,7 +100,7 @@ online_features = fs.get_online_features(
 ```
 
 {% hint style="info" %}
-Version-qualified reads (`@v<N>`) are currently supported only on the SQLite online store. See the [feature view versioning docs](feature-view.md#version-qualified-feature-references) for details.
+Version-qualified reads (`@v<N>`) require `enable_feature_view_versioning: true` in your registry config and are currently supported only on the SQLite online store. See the [feature view versioning docs](feature-view.md#version-qualified-feature-references) for details.
 {% endhint %}
 
 It is possible to retrieve features from multiple feature views with a single request, and Feast is able to join features from multiple tables in order to build a training dataset. However, it is not possible to reference (or retrieve) features from multiple projects at the same time.
