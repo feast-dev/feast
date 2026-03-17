@@ -477,6 +477,8 @@ class RayAggregationNode(DAGNode):
                 agg_dict[feature_name] = (agg.column, "std")
             elif agg.function == "var":
                 agg_dict[feature_name] = (agg.column, "var")
+            elif agg.function == "count_distinct":
+                agg_dict[feature_name] = (agg.column, "nunique")
             else:
                 raise ValueError(f"Unknown aggregation function: {agg.function}.")
 
@@ -531,6 +533,8 @@ class RayAggregationNode(DAGNode):
                     result = grouped[column].std()
                 elif function == "var":
                     result = grouped[column].var()
+                elif function == "nunique":
+                    result = grouped[column].nunique()
                 else:
                     raise ValueError(f"Unknown aggregation function: {function}.")
 
