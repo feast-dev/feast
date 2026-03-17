@@ -23,6 +23,7 @@ from feast.types import FeastType, Struct, from_value_type
 from feast.value_type import ValueType
 
 STRUCT_SCHEMA_TAG = "feast:struct_schema"
+NESTED_COLLECTION_INNER_TYPE_TAG = "feast:nested_inner_type"
 
 
 @typechecked
@@ -118,7 +119,7 @@ class Field:
 
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
-        from feast.types import Array
+        from feast.types import Array, Set
 
         value_type = self.dtype.to_value_type()
         vector_search_metric = self.vector_search_metric or ""
@@ -128,6 +129,11 @@ class Field:
             tags[STRUCT_SCHEMA_TAG] = _serialize_struct_schema(self.dtype)
         elif isinstance(self.dtype, Array) and isinstance(self.dtype.base_type, Struct):
             tags[STRUCT_SCHEMA_TAG] = _serialize_struct_schema(self.dtype.base_type)
+        # Persist nested collection type info in tags
+        if isinstance(self.dtype, (Array, Set)) and isinstance(
+            self.dtype.base_type, (Array, Set)
+        ):
+            tags[NESTED_COLLECTION_INNER_TYPE_TAG] = _feast_type_to_str(self.dtype)
         return FieldProto(
             name=self.name,
             value_type=value_type.value,
@@ -155,17 +161,30 @@ class Field:
         # Reconstruct Struct type from persisted schema in tags
         from feast.types import Array
 
+        internal_tags = {STRUCT_SCHEMA_TAG, NESTED_COLLECTION_INNER_TYPE_TAG}
         dtype: FeastType
         if value_type == ValueType.STRUCT and STRUCT_SCHEMA_TAG in tags:
             dtype = _deserialize_struct_schema(tags[STRUCT_SCHEMA_TAG])
-            user_tags = {k: v for k, v in tags.items() if k != STRUCT_SCHEMA_TAG}
+            user_tags = {k: v for k, v in tags.items() if k not in internal_tags}
         elif value_type == ValueType.STRUCT_LIST and STRUCT_SCHEMA_TAG in tags:
             inner_struct = _deserialize_struct_schema(tags[STRUCT_SCHEMA_TAG])
             dtype = Array(inner_struct)
-            user_tags = {k: v for k, v in tags.items() if k != STRUCT_SCHEMA_TAG}
+            user_tags = {k: v for k, v in tags.items() if k not in internal_tags}
+        elif (
+            value_type
+            in (
+                ValueType.LIST_LIST,
+                ValueType.LIST_SET,
+                ValueType.SET_LIST,
+                ValueType.SET_SET,
+            )
+            and NESTED_COLLECTION_INNER_TYPE_TAG in tags
+        ):
+            dtype = _str_to_feast_type(tags[NESTED_COLLECTION_INNER_TYPE_TAG])
+            user_tags = {k: v for k, v in tags.items() if k not in internal_tags}
         else:
             dtype = from_value_type(value_type=value_type)
-            user_tags = tags
+            user_tags = {k: v for k, v in tags.items() if k not in internal_tags}
 
         return cls(
             name=field_proto.name,
@@ -198,6 +217,7 @@ def _feast_type_to_str(feast_type: FeastType) -> str:
     from feast.types import (
         Array,
         PrimitiveFeastType,
+        Set,
     )
 
     if isinstance(feast_type, PrimitiveFeastType):
@@ -209,6 +229,8 @@ def _feast_type_to_str(feast_type: FeastType) -> str:
         return json.dumps({"__struct__": nested})
     elif isinstance(feast_type, Array):
         return f"Array({_feast_type_to_str(feast_type.base_type)})"
+    elif isinstance(feast_type, Set):
+        return f"Set({_feast_type_to_str(feast_type.base_type)})"
     else:
         return str(feast_type)
 
@@ -218,6 +240,7 @@ def _str_to_feast_type(type_str: str) -> FeastType:
     from feast.types import (
         Array,
         PrimitiveFeastType,
+        Set,
     )
 
     # Check if it's an Array type
@@ -225,6 +248,12 @@ def _str_to_feast_type(type_str: str) -> FeastType:
         inner = type_str[6:-1]
         base_type = _str_to_feast_type(inner)
         return Array(base_type)
+
+    # Check if it's a Set type
+    if type_str.startswith("Set(") and type_str.endswith(")"):
+        inner = type_str[4:-1]
+        base_type = _str_to_feast_type(inner)
+        return Set(base_type)
 
     # Check if it's a nested Struct (JSON encoded)
     if type_str.startswith("{"):

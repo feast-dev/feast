@@ -63,6 +63,10 @@ message ValueType {
     TIME_UUID_LIST = 39;
     UUID_SET = 40;
     TIME_UUID_SET = 41;
+    LIST_LIST = 42;
+    LIST_SET = 43;
+    SET_LIST = 44;
+    SET_SET = 45;
   }
 }
 
@@ -108,6 +112,10 @@ message Value {
     StringList time_uuid_list_val = 39;
     StringSet uuid_set_val = 40;
     StringSet time_uuid_set_val = 41;
+    RepeatedValue list_list_val = 42;
+    RepeatedValue list_set_val = 43;
+    RepeatedValue set_list_val = 44;
+    RepeatedValue set_set_val = 45;
   }
 }
 

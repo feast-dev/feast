@@ -53,6 +53,7 @@ from feast.protos.feast.types.Value_pb2 import (
     Int64Set,
     Map,
     MapList,
+    RepeatedValue,
     StringList,
     StringSet,
 )
@@ -104,6 +105,10 @@ def feast_value_type_to_python_type(
             else:
                 result.append(v)
         return result
+
+    # Handle nested collection types (list_list, list_set, set_list, set_set)
+    if val_attr in ("list_list_val", "list_set_val", "set_list_val", "set_set_val"):
+        return _handle_nested_collection_value(val)
 
     # Handle Struct types — stored using Map proto, returned as dicts
     if val_attr == "struct_val":
@@ -195,6 +200,18 @@ def _handle_map_list_value(map_list_message) -> List[Dict[str, Any]]:
         processed_map = _handle_map_value(map_item)
         result.append(processed_map)
 
+    return result
+
+
+def _handle_nested_collection_value(repeated_value) -> List[Any]:
+    """Handle nested collection proto (RepeatedValue containing Values).
+
+    Each inner Value is itself a list/set proto. We recursively convert
+    each inner Value to a Python list/set via feast_value_type_to_python_type.
+    """
+    result = []
+    for inner_value in repeated_value.val:
+        result.append(feast_value_type_to_python_type(inner_value))
     return result
 
 
@@ -446,6 +463,10 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "TIME_UUID_LIST": ValueType.TIME_UUID_LIST,
         "UUID_SET": ValueType.UUID_SET,
         "TIME_UUID_SET": ValueType.TIME_UUID_SET,
+        "LIST_LIST": ValueType.LIST_LIST,
+        "LIST_SET": ValueType.LIST_SET,
+        "SET_LIST": ValueType.SET_LIST,
+        "SET_SET": ValueType.SET_SET,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -916,6 +937,15 @@ def _python_value_to_proto_value(
     Returns:
         List of Feast Value Proto
     """
+    # Handle nested collection types (LIST_LIST, LIST_SET, SET_LIST, SET_SET)
+    if feast_value_type in (
+        ValueType.LIST_LIST,
+        ValueType.LIST_SET,
+        ValueType.SET_LIST,
+        ValueType.SET_SET,
+    ):
+        return _convert_nested_collection_to_proto(feast_value_type, values)
+
     # Handle Map types
     if feast_value_type == ValueType.MAP:
         result = []
@@ -1043,6 +1073,54 @@ def _python_value_to_proto_value(
     raise Exception(f"Unsupported data type: {feast_value_type}")
 
 
+def _convert_nested_collection_to_proto(
+    feast_value_type: ValueType, values: List[Any]
+) -> List[ProtoValue]:
+    """Convert nested collection values (list-of-lists, list-of-sets, etc.) to proto."""
+    val_attr_map = {
+        ValueType.LIST_LIST: "list_list_val",
+        ValueType.LIST_SET: "list_set_val",
+        ValueType.SET_LIST: "set_list_val",
+        ValueType.SET_SET: "set_set_val",
+    }
+    val_attr = val_attr_map[feast_value_type]
+
+    # Inner type has Set semantics for LIST_SET and SET_SET
+    inner_is_set = feast_value_type in (ValueType.LIST_SET, ValueType.SET_SET)
+
+    result = []
+    for value in values:
+        if value is None:
+            result.append(ProtoValue())
+        else:
+            inner_values = []
+            for inner_collection in value:
+                if inner_collection is None:
+                    inner_values.append(ProtoValue())
+                else:
+                    inner_list = list(inner_collection)
+                    # Apply Set semantics: deduplicate inner elements
+                    if inner_is_set:
+                        seen: list = []
+                        for item in inner_list:
+                            if item not in seen:
+                                seen.append(item)
+                        inner_list = seen
+                    if len(inner_list) == 0:
+                        # Empty inner collection: store as empty ProtoValue
+                        inner_values.append(ProtoValue())
+                    else:
+                        # Wrap the inner list as a single list-typed Value
+                        proto_vals = python_values_to_proto_values(
+                            [inner_list], ValueType.UNKNOWN
+                        )
+                        inner_values.append(proto_vals[0])
+            repeated = RepeatedValue(val=inner_values)
+            proto = ProtoValue(**{val_attr: repeated})
+            result.append(proto)
+    return result
+
+
 def _python_dict_to_map_proto(python_dict: Dict[str, Any]) -> Map:
     """Convert a Python dictionary to a Map proto message."""
     map_proto = Map()
@@ -1135,6 +1213,10 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "json_list_val": ValueType.JSON_LIST,
     "struct_val": ValueType.STRUCT,
     "struct_list_val": ValueType.STRUCT_LIST,
+    "list_list_val": ValueType.LIST_LIST,
+    "list_set_val": ValueType.LIST_SET,
+    "set_list_val": ValueType.SET_LIST,
+    "set_set_val": ValueType.SET_SET,
     "int32_set_val": ValueType.INT32_SET,
     "int64_set_val": ValueType.INT64_SET,
     "double_set_val": ValueType.DOUBLE_SET,
@@ -1694,6 +1776,10 @@ def feast_value_type_to_pa(
         ValueType.JSON_LIST: pyarrow.list_(pyarrow.large_string()),
         ValueType.STRUCT: pyarrow.struct([]),
         ValueType.STRUCT_LIST: pyarrow.list_(pyarrow.struct([])),
+        ValueType.LIST_LIST: pyarrow.list_(pyarrow.list_(pyarrow.string())),
+        ValueType.LIST_SET: pyarrow.list_(pyarrow.list_(pyarrow.string())),
+        ValueType.SET_LIST: pyarrow.list_(pyarrow.list_(pyarrow.string())),
+        ValueType.SET_SET: pyarrow.list_(pyarrow.list_(pyarrow.string())),
         ValueType.NULL: pyarrow.null(),
         ValueType.UUID: pyarrow.string(),
         ValueType.TIME_UUID: pyarrow.string(),

@@ -63,6 +63,12 @@ def _patch_feast_value_json_encoding():
         # to JSON. The parse back result will be different from original message.
         if which is None or which == "null_val":
             return None
+        elif which in ("list_list_val", "list_set_val", "set_list_val", "set_set_val"):
+            # Nested collection: RepeatedValue containing Values
+            repeated = getattr(message, which)
+            value = [
+                printer._MessageToJsonObject(inner_val) for inner_val in repeated.val
+            ]
         elif "_list_" in which:
             value = list(getattr(message, which).val)
         else:

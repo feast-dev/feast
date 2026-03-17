@@ -1553,3 +1553,121 @@ class TestUuidTypes:
         """PostgreSQL uuid type maps to ValueType.UUID."""
         assert pg_type_to_feast_value_type("uuid") == ValueType.UUID
         assert pg_type_to_feast_value_type("uuid[]") == ValueType.UUID_LIST
+
+
+class TestNestedCollectionTypes:
+    """Tests for nested collection type proto conversion (LIST_LIST, LIST_SET, SET_LIST, SET_SET)."""
+
+    def test_list_list_proto_roundtrip(self):
+        """Test python_values_to_proto_values and feast_value_type_to_python_type for LIST_LIST."""
+        values = [[[1, 2, 3], [4, 5]]]
+        protos = python_values_to_proto_values(values, ValueType.LIST_LIST)
+        assert len(protos) == 1
+        assert protos[0].WhichOneof("val") == "list_list_val"
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_list_set_proto_roundtrip(self):
+        """Test LIST_SET proto conversion."""
+        values = [[[1, 2], [3, 4, 5]]]
+        protos = python_values_to_proto_values(values, ValueType.LIST_SET)
+        assert len(protos) == 1
+        assert protos[0].WhichOneof("val") == "list_set_val"
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_set_list_proto_roundtrip(self):
+        """Test SET_LIST proto conversion."""
+        values = [[["a", "b"], ["c"]]]
+        protos = python_values_to_proto_values(values, ValueType.SET_LIST)
+        assert len(protos) == 1
+        assert protos[0].WhichOneof("val") == "set_list_val"
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_set_set_proto_roundtrip(self):
+        """Test SET_SET proto conversion."""
+        values = [[["x", "y"], ["z"]]]
+        protos = python_values_to_proto_values(values, ValueType.SET_SET)
+        assert len(protos) == 1
+        assert protos[0].WhichOneof("val") == "set_set_val"
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, list)
+
+    def test_nested_collection_null_handling(self):
+        """Test that None values are handled correctly."""
+        values = [None]
+        protos = python_values_to_proto_values(values, ValueType.LIST_LIST)
+        assert len(protos) == 1
+        assert protos[0].WhichOneof("val") is None
+
+    def test_convert_value_type_str_nested(self):
+        """Test _convert_value_type_str_to_value_type for nested types."""
+        assert _convert_value_type_str_to_value_type("LIST_LIST") == ValueType.LIST_LIST
+        assert _convert_value_type_str_to_value_type("LIST_SET") == ValueType.LIST_SET
+        assert _convert_value_type_str_to_value_type("SET_LIST") == ValueType.SET_LIST
+        assert _convert_value_type_str_to_value_type("SET_SET") == ValueType.SET_SET
+
+    def test_nested_collection_empty_inner_list(self):
+        """Test that empty inner collections are handled gracefully."""
+        values = [[[], [1, 2]]]
+        protos = python_values_to_proto_values(values, ValueType.LIST_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, list)
+        assert len(result) == 2
+        # Empty inner list should round-trip as None (empty ProtoValue)
+        assert result[0] is None
+        assert result[1] == [1, 2]
+
+    def test_nested_collection_inner_none(self):
+        """Test that None inner elements are handled."""
+        values = [[[1, 2], None, [3]]]
+        protos = python_values_to_proto_values(values, ValueType.LIST_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert len(result) == 3
+        assert result[0] == [1, 2]
+        assert result[1] is None
+        assert result[2] == [3]
+
+    def test_list_set_deduplicates_inner(self):
+        """Test that LIST_SET deduplicates inner collection elements."""
+        values = [[[1, 1, 2, 2, 3], [4, 4]]]
+        protos = python_values_to_proto_values(values, ValueType.LIST_SET)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == [1, 2, 3]
+        assert result[1] == [4]
+
+    def test_set_set_deduplicates_inner(self):
+        """Test that SET_SET deduplicates inner collection elements."""
+        values = [[["a", "a", "b"], ["c", "c"]]]
+        protos = python_values_to_proto_values(values, ValueType.SET_SET)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == ["a", "b"]
+        assert result[1] == ["c"]
+
+    def test_list_list_no_dedup(self):
+        """Test that LIST_LIST does NOT deduplicate (Array semantics)."""
+        values = [[[1, 1, 2], [3, 3]]]
+        protos = python_values_to_proto_values(values, ValueType.LIST_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == [1, 1, 2]
+        assert result[1] == [3, 3]
+
+    def test_set_list_no_dedup_inner(self):
+        """Test that SET_LIST does NOT deduplicate inner elements (inner is Array)."""
+        values = [[[1, 1, 2], [3, 3]]]
+        protos = python_values_to_proto_values(values, ValueType.SET_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == [1, 1, 2]
+        assert result[1] == [3, 3]
+
+    def test_feast_value_type_to_pa_nested(self):
+        """Test feast_value_type_to_pa for nested collection types."""
+        pa_type = feast_value_type_to_pa(ValueType.LIST_LIST)
+        assert pa_type == pyarrow.list_(pyarrow.list_(pyarrow.string()))
+
+        pa_type = feast_value_type_to_pa(ValueType.SET_SET)
+        assert pa_type == pyarrow.list_(pyarrow.list_(pyarrow.string()))

@@ -106,6 +106,11 @@ class RemoteOnlineStore(OnlineStore):
         if val_attr == "json_list_val":
             return list(getattr(proto_value, val_attr).val)
 
+        # Nested collection types use feast_value_type_to_python_type
+        # which handles recursive conversion of RepeatedValue protos.
+        if val_attr in ("list_list_val", "list_set_val", "set_list_val", "set_set_val"):
+            return feast_value_type_to_python_type(proto_value)
+
         # Map/Struct types are converted to Python dicts by
         # feast_value_type_to_python_type.  Serialise them to JSON strings
         # so the server-side DataFrame gets VARCHAR columns instead of
