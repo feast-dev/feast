@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from functools import wraps
@@ -67,15 +68,27 @@ def arrow_server_error_handling_decorator(func):
 
 
 def _get_exception_data(except_str) -> str:
+    if not isinstance(except_str, str):
+        return ""
+
     substring = "Flight error: "
-
-    # Find the starting index of the substring
     position = except_str.find(substring)
-    end_json_index = except_str.find("}")
+    if position == -1:
+        return ""
 
-    if position != -1 and end_json_index != -1:
-        # Extract the part of the string after the substring
-        result = except_str[position + len(substring) : end_json_index + 1]
-        return result
+    search_start = position + len(substring)
+    json_start = except_str.find("{", search_start)
+    if json_start == -1:
+        return ""
 
-    return ""
+    search_pos = json_start
+    while True:
+        json_end = except_str.find("}", search_pos + 1)
+        if json_end == -1:
+            return ""
+        candidate = except_str[json_start : json_end + 1]
+        try:
+            json.loads(candidate)
+            return candidate
+        except (json.JSONDecodeError, ValueError):
+            search_pos = json_end
