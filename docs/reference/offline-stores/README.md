@@ -49,3 +49,7 @@ Please see [Offline Store](../../getting-started/components/offline-store.md) fo
 {% content-ref url="ray.md" %}
 [ray.md](ray.md)
 {% endcontent-ref %}
+
+{% content-ref url="oracle.md" %}
+[oracle.md](oracle.md)
+{% endcontent-ref %}

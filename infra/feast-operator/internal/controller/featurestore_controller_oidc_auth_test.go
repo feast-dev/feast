@@ -221,7 +221,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
 			Expect(services.GetOfflineContainer(*deploy).VolumeMounts).To(HaveLen(1))
