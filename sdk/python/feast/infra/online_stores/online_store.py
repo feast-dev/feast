@@ -244,9 +244,11 @@ class OnlineStore(ABC):
         if isinstance(self, SqliteOnlineStore):
             return
         for table, _ in grouped_refs:
-            version = getattr(table, "current_version_number", None)
-            if version is not None and version > 0:
-                raise VersionedOnlineReadNotSupported(self.__class__.__name__, version)
+            version_tag = getattr(table.projection, "version_tag", None)
+            if version_tag is not None:
+                raise VersionedOnlineReadNotSupported(
+                    self.__class__.__name__, version_tag
+                )
 
     async def get_online_features_async(
         self,

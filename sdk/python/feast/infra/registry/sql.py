@@ -729,7 +729,9 @@ class SqlRegistry(CachingRegistry):
 
             # Update current_version_number before saving snapshot
             feature_view.current_version_number = next_ver
-            snapshot_proto_bytes = feature_view.to_proto().SerializeToString()
+            snapshot_proto = feature_view.to_proto()
+            snapshot_proto.spec.project = project
+            snapshot_proto_bytes = snapshot_proto.SerializeToString()
 
             # Save new as next version (with correct current_version_number)
             self._save_version_snapshot(
@@ -755,7 +757,9 @@ class SqlRegistry(CachingRegistry):
         else:
             # New FV: save as v0
             feature_view.current_version_number = 0
-            snapshot_proto_bytes = feature_view.to_proto().SerializeToString()
+            snapshot_proto = feature_view.to_proto()
+            snapshot_proto.spec.project = project
+            snapshot_proto_bytes = snapshot_proto.SerializeToString()
             self._save_version_snapshot(
                 feature_view.name,
                 project,
