@@ -543,21 +543,9 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
     collided_feature_refs = []
 
     if full_feature_names:
-        # Use clean names (without @vN) to detect collisions, since the response
-        # strips version tags. E.g. 'fv@v1:feat' and 'fv@v2:feat' both produce 'fv__feat'.
-        clean_refs = [
-            f"{_parse_feature_ref(ref)[0]}__{_parse_feature_ref(ref)[2]}"
-            for ref in feature_refs
+        collided_feature_refs = [
+            ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1
         ]
-        collided_clean = [
-            name for name, count in Counter(clean_refs).items() if count > 1
-        ]
-        if collided_clean:
-            collided_feature_refs = [
-                ref
-                for ref, clean in zip(feature_refs, clean_refs)
-                if clean in collided_clean
-            ]
     else:
         feature_names = [_parse_feature_ref(ref)[2] for ref in feature_refs]
         collided_feature_names = [
@@ -1122,10 +1110,13 @@ def _populate_response_from_feature_data(
         output_len: The number of result rows in `online_features_response`.
     """
     # Add the feature names to the response.
-    # Use clean name without version tag for response feature names
+    # Use name_to_use() which includes version tag (e.g. "fv@v2") when a
+    # version-qualified ref was used, so multi-version queries produce
+    # distinct column names like "fv@v1__feat" and "fv@v2__feat".
+    table_name = table.projection.name_to_use()
     clean_table_name = table.projection.name_alias or table.projection.name
     requested_feature_refs = [
-        f"{clean_table_name}__{feature_name}" if full_feature_names else feature_name
+        f"{table_name}__{feature_name}" if full_feature_names else feature_name
         for feature_name in requested_features
     ]
     online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
@@ -1408,12 +1399,18 @@ def _get_online_request_context(
         requested_on_demand_feature_views,
     )
 
-    # Build expected result names using clean FV names (without @vN syntax)
+    # Build expected result names, including version tag when present so
+    # multi-version queries (e.g. fv@v1:feat, fv@v2:feat) match the response.
     requested_result_row_names = set()
     for feat_ref in _feature_refs:
-        fv_name, _, feature_name = _parse_feature_ref(feat_ref)
+        fv_name, version_num, feature_name = _parse_feature_ref(feat_ref)
         if full_feature_names:
-            requested_result_row_names.add(f"{fv_name}__{feature_name}")
+            if version_num is not None:
+                requested_result_row_names.add(
+                    f"{fv_name}@v{version_num}__{feature_name}"
+                )
+            else:
+                requested_result_row_names.add(f"{fv_name}__{feature_name}")
         else:
             requested_result_row_names.add(feature_name)
 

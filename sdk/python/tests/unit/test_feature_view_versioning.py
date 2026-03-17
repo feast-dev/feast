@@ -176,9 +176,8 @@ class TestFeatureViewVersionField:
         assert fv2.current_version_number == 0
 
     def test_feature_view_proto_roundtrip_latest_zero(self):
-        """version='latest' with current_version_number=None becomes 0 after
-        proto roundtrip because proto3 cannot distinguish unset int32 from 0.
-        This is acceptable — 0 is the correct initial version number."""
+        """version='latest' with current_version_number=None is preserved as
+        None through proto roundtrip using a -1 sentinel in the proto."""
         from datetime import timedelta
 
         from feast.entity import Entity
@@ -196,8 +195,8 @@ class TestFeatureViewVersionField:
         proto = fv.to_proto()
         fv2 = FeatureView.from_proto(proto)
         assert fv2.version == "latest"
-        # proto3 int32 default is 0; with version="latest" set, we preserve 0
-        assert fv2.current_version_number == 0
+        # -1 sentinel in proto correctly preserves None through roundtrip
+        assert fv2.current_version_number is None
 
     def test_feature_view_equality_with_version(self):
         from datetime import timedelta
