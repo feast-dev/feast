@@ -87,7 +87,7 @@ class MongoDBOfflineStoreIbis(OfflineStore):
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
-            "MongoDB offline store is in alpha. API may change without notice.",
+            "MongoDB offline store is in preview. API may change without notice.",
             RuntimeWarning,
         )
         return pull_latest_from_table_or_query_ibis(
@@ -114,7 +114,7 @@ class MongoDBOfflineStoreIbis(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         warnings.warn(
-            "MongoDB offline store is in alpha. API may change without notice.",
+            "MongoDB offline store is in preview. API may change without notice.",
             RuntimeWarning,
         )
         return get_historical_features_ibis(
@@ -146,7 +146,7 @@ class MongoDBOfflineStoreIbis(OfflineStore):
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
-            "MongoDB offline store is in alpha. API may change without notice.",
+            "MongoDB offline store is in preview. API may change without notice.",
             RuntimeWarning,
         )
         return pull_all_from_table_or_query_ibis(
@@ -178,7 +178,7 @@ def _build_data_source_reader(config: RepoConfig) -> Callable[[DataSource, str],
             )
         connection_string = config.offline_store.connection_string
         db_name = data_source.database or config.offline_store.database
-        client: Any = MongoClient(connection_string, tz_aware=True)
+        client: Any = MongoClient(connection_string)
         try:
             docs = list(client[db_name][data_source.collection].find({}, {"_id": 0}))
         finally:
@@ -188,17 +188,17 @@ def _build_data_source_reader(config: RepoConfig) -> Callable[[DataSource, str],
         if df.empty:
             return ibis.memtable(df)
 
-        # Ensure datetime-like columns are timezone-aware UTC pandas timestamps.
+        # Localize naive datetime columns to UTC. MongoDB stores all dates as UTC,
+        # and with tz_aware=False (default), pymongo returns naive datetime objects.
+        # We convert them to timezone-aware UTC timestamps for pyarrow compatibility.
         for col in df.columns:
-            if pd.api.types.is_datetime64_any_dtype(df[col]):
-                if df[col].dt.tz is None:
-                    df[col] = pd.to_datetime(df[col], utc=True)
-            elif df[col].dtype == object and len(df[col].dropna()) > 0:
+            if df[col].dtype == object and len(df[col].dropna()) > 0:
                 sample = df[col].dropna().iloc[0]
                 if isinstance(sample, datetime):
                     try:
                         df[col] = pd.to_datetime(df[col], utc=True)
-                    except Exception:
+                    except (ValueError, TypeError):
+                        # Skip columns that can't be converted (e.g., mixed types)
                         pass
 
         return ibis.memtable(df)
@@ -427,7 +427,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
-            "MongoDB offline store (native) is in alpha. API may change without notice.",
+            "MongoDB offline store (native) is in preview. API may change without notice.",
             RuntimeWarning,
         )
         start_utc = start_date.astimezone(tz=timezone.utc)
@@ -436,13 +436,17 @@ class MongoDBOfflineStoreNative(OfflineStore):
         db_name = data_source.database or config.offline_store.database
         collection = data_source.collection
 
+        # Sort by timestamp descending so $first in $group gets the latest document
         sort_spec: Dict = {timestamp_field: -1}
         if created_timestamp_column:
             sort_spec[created_timestamp_column] = -1
 
+        # Group by entity/join keys. _id becomes a subdocument like {driver_id: 1}.
+        # $first grabs values from the first document in each group (the latest,
+        # due to prior $sort).
         group_id = {k: f"${k}" for k in join_key_columns}
         group_stage: Dict = {
-            "_id": group_id,  # todo this isn't correct. or i don't follow
+            "_id": group_id,
             **{f: {"$first": f"${f}"} for f in feature_name_columns},
             timestamp_field: {"$first": f"${timestamp_field}"},
         }
@@ -451,9 +455,11 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 "$first": f"${created_timestamp_column}"
             }
 
+        # Project to flatten the output: extract join keys from _id subdocument,
+        # include feature columns directly. Excludes the _id field from output.
         project_stage: Dict = {
             "_id": 0,
-            **{k: f"$_id.{k}" for k in join_key_columns},  # todo here too
+            **{k: f"$_id.{k}" for k in join_key_columns},
             **{f: 1 for f in feature_name_columns},
             timestamp_field: 1,
         }
@@ -497,7 +503,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
-            "MongoDB offline store (native) is in alpha. API may change without notice.",
+            "MongoDB offline store (native) is in preview. API may change without notice.",
             RuntimeWarning,
         )
         connection_string = config.offline_store.connection_string
@@ -551,7 +557,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 "Pass a pandas DataFrame instead."
             )
         warnings.warn(
-            "MongoDB offline store (native) is in alpha. API may change without notice.",  # todo change wording: alpha -> preview
+            "MongoDB offline store (native) is in preview. API may change without notice.",
             RuntimeWarning,
         )
         connection_string = config.offline_store.connection_string
