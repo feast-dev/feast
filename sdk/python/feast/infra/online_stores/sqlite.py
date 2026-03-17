@@ -341,7 +341,6 @@ class SqliteOnlineStore(OnlineStore):
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
-        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -703,7 +702,11 @@ def _initialize_conn(
 
 def _table_id(project: str, table: FeatureView) -> str:
     name = table.name
-    version = getattr(table, "current_version_number", None)
+    # Prefer version_tag from the projection (set by version-qualified refs like @v2)
+    # over current_version_number (the FV's active version in metadata).
+    version = getattr(table.projection, "version_tag", None)
+    if version is None:
+        version = getattr(table, "current_version_number", None)
     if version is not None and version > 0:
         name = f"{table.name}_v{version}"
     return f"{project}_{name}"

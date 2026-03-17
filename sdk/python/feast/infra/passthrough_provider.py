@@ -304,7 +304,6 @@ class PassthroughProvider(Provider):
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
-        include_feature_view_version_metadata: bool = False,
     ) -> List:
         result = []
         if self.online_store:
@@ -315,7 +314,6 @@ class PassthroughProvider(Provider):
                 query,
                 top_k,
                 distance_metric,
-                include_feature_view_version_metadata,
             )
         return result
 

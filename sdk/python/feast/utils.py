@@ -543,9 +543,21 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
     collided_feature_refs = []
 
     if full_feature_names:
-        collided_feature_refs = [
-            ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1
+        # Use clean names (without @vN) to detect collisions, since the response
+        # strips version tags. E.g. 'fv@v1:feat' and 'fv@v2:feat' both produce 'fv__feat'.
+        clean_refs = [
+            f"{_parse_feature_ref(ref)[0]}__{_parse_feature_ref(ref)[2]}"
+            for ref in feature_refs
         ]
+        collided_clean = [
+            name for name, count in Counter(clean_refs).items() if count > 1
+        ]
+        if collided_clean:
+            collided_feature_refs = [
+                ref
+                for ref, clean in zip(feature_refs, clean_refs)
+                if clean in collided_clean
+            ]
     else:
         feature_names = [_parse_feature_ref(ref)[2] for ref in feature_refs]
         collided_feature_names = [

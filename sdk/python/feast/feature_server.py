@@ -392,12 +392,14 @@ def get_app(
                 features=features,
                 query=request.query,
                 top_k=request.top_k,
-                include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
             if request.api_version == 2 and request.query_string is not None:
                 read_params["query_string"] = request.query_string
 
             if request.api_version == 2:
+                read_params["include_feature_view_version_metadata"] = (
+                    request.include_feature_view_version_metadata
+                )
                 response = await run_in_threadpool(
                     lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
                 )

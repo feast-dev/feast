@@ -2586,7 +2586,6 @@ class FeatureStore:
         top_k: int,
         features: List[str],
         distance_metric: Optional[str] = "L2",
-        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -2642,7 +2641,6 @@ class FeatureStore:
             query,
             top_k,
             distance_metric,
-            include_feature_view_version_metadata,
         )
 
         # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
@@ -2863,7 +2861,6 @@ class FeatureStore:
         query: List[float],
         top_k: int,
         distance_metric: Optional[str],
-        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Timestamp, Optional[EntityKey], "FieldStatus.ValueType", Value, Value, Value
@@ -2879,7 +2876,6 @@ class FeatureStore:
             query=query,
             top_k=top_k,
             distance_metric=distance_metric,
-            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
         read_row_protos = []

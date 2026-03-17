@@ -180,7 +180,6 @@ class FaissOnlineStore(OnlineStore):
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
-        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],

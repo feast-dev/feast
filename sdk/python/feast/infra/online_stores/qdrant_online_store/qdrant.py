@@ -264,7 +264,6 @@ class QdrantOnlineStore(OnlineStore):
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = "cosine",
-        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
