@@ -15,6 +15,7 @@ from google.protobuf.json_format import Parse
 from feast import FeatureStore, FeatureView, utils
 from feast.arrow_error_handler import arrow_server_error_handling_decorator
 from feast.data_source import DataSource
+from feast.errors import FeatureViewNotFoundException
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
@@ -199,7 +200,7 @@ class OfflineServer(fl.FlightServerBase):
                             )
                             fv = fv.with_projection(p)
             return fv
-        except Exception:
+        except FeatureViewNotFoundException:
             try:
                 return self.store.registry.get_stream_feature_view(
                     name=fv_name, project=project
