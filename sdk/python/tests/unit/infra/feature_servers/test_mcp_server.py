@@ -171,7 +171,8 @@ class TestMCPServerUnit(unittest.TestCase):
 
         # Verify error was logged
         mock_logger.error.assert_called_once_with(
-            "Failed to initialize MCP integration: MCP initialization failed"
+            "Failed to initialize MCP integration: MCP initialization failed",
+            exc_info=True,
         )
 
     @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
