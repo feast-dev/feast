@@ -159,13 +159,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             else:
                 start_date = make_tzaware(start_date)
 
-            entity_df = pd.DataFrame(
-                {
-                    "event_timestamp": pd.date_range(
-                        start=start_date, end=end_date, freq="1s", tz=timezone.utc
-                    )[:1]  # Just one row
-                }
-            )
+            entity_df = pd.DataFrame({"event_timestamp": [end_date]})
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -173,11 +167,18 @@ class PostgreSQLOfflineStore(OfflineStore):
             offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
         )
 
-        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            entity_df_event_timestamp_col,
-            config,
-        )
+        # In non-entity mode, use the actual requested range so that
+        # min_event_timestamp (= range[0] - TTL) doesn't clip the window.
+        # The synthetic entity_df only has end_date, which would wrongly
+        # set min_event_timestamp to end_date - TTL instead of start_date - TTL.
+        if start_date is not None and end_date is not None:
+            entity_df_event_timestamp_range = (start_date, end_date)
+        else:
+            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+                entity_df,
+                entity_df_event_timestamp_col,
+                config,
+            )
 
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
