@@ -1,5 +1,6 @@
 import json
 import threading
+import uvicorn
 from importlib import resources as importlib_resources
 from typing import Callable, Optional
 
@@ -144,8 +145,6 @@ def start_server(
     tls_key_path: str = "",
     tls_cert_path: str = "",
 ):
-    import uvicorn
-
     app = get_app(
         store,
         project_id,
