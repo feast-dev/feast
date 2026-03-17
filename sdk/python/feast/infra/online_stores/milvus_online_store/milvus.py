@@ -14,6 +14,7 @@ from pymilvus import (
 
 from feast import Entity
 from feast.feature_view import FeatureView
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.infra_object import InfraObject
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
@@ -94,6 +95,17 @@ for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
         milvus_type = PROTO_TO_MILVUS_TYPE_MAPPING.get(value_type)
         if milvus_type:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = milvus_type
+
+
+def _milvus_fmt(value: Any) -> str:
+    """Format a Python value for use in a Milvus boolean expression.
+
+    Feast's Milvus store maps all non-vector features to VARCHAR, so
+    every value is formatted as a quoted string.
+    """
+    s = str(value)
+    escaped = s.replace("'", "\\'")
+    return f"'{escaped}'"
 
 
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -517,6 +529,74 @@ class MilvusOnlineStore(OnlineStore):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
 
+    def _translate_filters(
+        self,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]],
+    ) -> Optional[str]:
+        """Translate filter objects into a Milvus expression string.
+
+        Returns a Milvus boolean expression or ``None`` when no filters are
+        provided, so callers can pass the result directly to ``filter=``.
+        """
+        if filters is None:
+            return None
+        return self._translate_single_filter(filters)
+
+    def _translate_single_filter(
+        self,
+        filter_obj: Union[ComparisonFilter, CompoundFilter],
+    ) -> str:
+        if isinstance(filter_obj, ComparisonFilter):
+            return self._translate_comparison_filter(filter_obj)
+        elif isinstance(filter_obj, CompoundFilter):
+            return self._translate_compound_filter(filter_obj)
+        raise ValueError(f"Unknown filter type: {type(filter_obj)}")
+
+    def _translate_comparison_filter(
+        self,
+        filter_obj: ComparisonFilter,
+    ) -> str:
+        """Translate a comparison filter to a Milvus boolean expression.
+
+        Feast's Milvus store maps all non-vector features to VARCHAR
+        columns, so values are always formatted as quoted strings.
+        """
+        key, value, op_type = filter_obj.key, filter_obj.value, filter_obj.type
+
+        milvus_ops = {"gt": ">", "gte": ">=", "lt": "<", "lte": "<="}
+
+        if op_type == "eq":
+            return f"{key} == {_milvus_fmt(value)}"
+        elif op_type == "ne":
+            return f"{key} != {_milvus_fmt(value)}"
+        elif op_type in milvus_ops:
+            return f"{key} {milvus_ops[op_type]} {_milvus_fmt(value)}"
+        elif op_type in ("in", "nin"):
+            if not isinstance(value, list):
+                raise ValueError(
+                    f"'{op_type}' filter requires a list value, got {type(value)}"
+                )
+            formatted = [_milvus_fmt(v) for v in value]
+            kw = "not in" if op_type == "nin" else "in"
+            return f"{key} {kw} [{', '.join(formatted)}]"
+        raise ValueError(f"Unsupported comparison operator: {op_type}")
+
+    def _translate_compound_filter(
+        self,
+        filter_obj: CompoundFilter,
+    ) -> str:
+        if not filter_obj.filters:
+            return ""
+        clauses = []
+        for sub_filter in filter_obj.filters:
+            clause = self._translate_single_filter(sub_filter)
+            if clause:
+                clauses.append(f"({clause})")
+        if not clauses:
+            return ""
+        operator = " and " if filter_obj.type == "and" else " or "
+        return operator.join(clauses)
+
     def retrieve_online_documents_v2(
         self,
         config: RepoConfig,
@@ -527,6 +607,7 @@ class MilvusOnlineStore(OnlineStore):
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
         include_feature_view_version_metadata: bool = False,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -586,6 +667,17 @@ class MilvusOnlineStore(OnlineStore):
 
         self.client.load_collection(collection_name)
 
+        metadata_filter_expr = self._translate_filters(filters)
+
+        def _combine_exprs(*parts: Optional[str]) -> Optional[str]:
+            """Combine non-empty Milvus boolean expressions with AND."""
+            active = [p for p in parts if p]
+            if not active:
+                return None
+            if len(active) == 1:
+                return active[0]
+            return " and ".join(f"({p})" for p in active)
+
         if (
             embedding is not None
             and query_string is not None
@@ -603,22 +695,19 @@ class MilvusOnlineStore(OnlineStore):
                     "No string fields found in the feature view for text search in hybrid mode"
                 )
 
-            # Create a filter expression for text search
             filter_expressions = []
             for field in string_field_list:
                 if field in output_fields:
                     filter_expressions.append(f"{field} LIKE '%{query_string}%'")
 
-            # Combine filter expressions with OR
-            filter_expr = " OR ".join(filter_expressions) if filter_expressions else ""
+            text_filter = " OR ".join(filter_expressions) if filter_expressions else ""
+            combined_filter = _combine_exprs(text_filter, metadata_filter_expr)
 
-            # Vector search with text filter
             search_params = {
                 "metric_type": distance_metric or config.online_store.metric_type,
                 "params": {"nprobe": 10},
             }
 
-            # For hybrid search, use filter parameter instead of expr
             results = self.client.search(
                 collection_name=collection_name,
                 data=[embedding],
@@ -626,7 +715,7 @@ class MilvusOnlineStore(OnlineStore):
                 search_params=search_params,
                 limit=top_k,
                 output_fields=output_fields,
-                filter=filter_expr if filter_expr else None,
+                filter=combined_filter,
             )
 
         elif embedding is not None and config.online_store.vector_enabled:
@@ -643,6 +732,7 @@ class MilvusOnlineStore(OnlineStore):
                 search_params=search_params,
                 limit=top_k,
                 output_fields=output_fields,
+                filter=metadata_filter_expr,
             )
 
         elif query_string is not None:
@@ -663,16 +753,18 @@ class MilvusOnlineStore(OnlineStore):
                 if field in output_fields:
                     filter_expressions.append(f"{field} LIKE '%{query_string}%'")
 
-            filter_expr = " OR ".join(filter_expressions)
+            text_filter = " OR ".join(filter_expressions)
 
-            if not filter_expr:
+            if not text_filter:
                 raise ValueError(
                     "No text fields found in requested features for search"
                 )
 
+            combined_filter = _combine_exprs(text_filter, metadata_filter_expr)
+
             query_results = self.client.query(
                 collection_name=collection_name,
-                filter=filter_expr,
+                filter=combined_filter or text_filter,
                 output_fields=output_fields,
                 limit=top_k,
             )

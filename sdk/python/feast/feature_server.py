@@ -38,7 +38,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 from google.protobuf.json_format import MessageToDict
 from pydantic import BaseModel, field_validator
@@ -50,9 +50,11 @@ from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import (
     FeastError,
+    FeatureViewNotFoundException,
 )
 from feast.feast_object import FeastObject
 from feast.feature_view_utils import get_feature_view_from_feature_store
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.rest import inject_user_details
@@ -110,7 +112,42 @@ class GetOnlineDocumentsRequest(BaseModel):
     top_k: Optional[int] = None
     query: Optional[List[float]] = None
     query_string: Optional[str] = None
+    distance_metric: Optional[str] = None
     api_version: Optional[int] = 1
+    filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
+
+
+class OpenAISearchMetadata(BaseModel):
+    features_to_retrieve: Optional[List[str]] = None
+    content_field: Optional[str] = None
+
+
+class OpenAIComparisonFilter(BaseModel):
+    key: str
+    type: str
+    value: Union[str, int, float, bool, List[Union[str, int]]]
+
+
+class OpenAICompoundFilter(BaseModel):
+    type: str
+    filters: List[Union[OpenAIComparisonFilter, "OpenAICompoundFilter"]]
+
+
+OpenAICompoundFilter.model_rebuild()
+
+
+class OpenAIRankingOptions(BaseModel):
+    ranker: Optional[str] = None
+    score_threshold: Optional[float] = None
+
+
+class OpenAISearchRequest(BaseModel):
+    query: Union[str, List[str]]
+    filters: Optional[Union[OpenAIComparisonFilter, OpenAICompoundFilter]] = None
+    max_num_results: Optional[int] = 10
+    ranking_options: Optional[OpenAIRankingOptions] = None
+    rewrite_query: Optional[bool] = None
+    metadata: Optional[OpenAISearchMetadata] = None
 
 
 class FeatureVectorResponse(BaseModel):
@@ -423,6 +460,10 @@ def get_app(
             )
             if request.api_version == 2 and request.query_string is not None:
                 read_params["query_string"] = request.query_string
+            if request.api_version == 2 and request.distance_metric is not None:
+                read_params["distance_metric"] = request.distance_metric
+            if request.api_version == 2 and request.filters is not None:
+                read_params["filters"] = request.filters
 
             if request.api_version == 2:
                 read_params["include_feature_view_version_metadata"] = (
@@ -443,6 +484,51 @@ def get_app(
                 float_precision=18,
             )
             return response_dict
+
+    @app.post(
+        "/v1/vector_stores/{vector_store_id}/search",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def openai_vector_store_search(
+        vector_store_id: str,
+        request: OpenAISearchRequest,
+    ) -> ORJSONResponse:
+        with feast_metrics.track_request_latency(
+            "/v1/vector_stores/{vector_store_id}/search"
+        ):
+            try:
+                result = await run_in_threadpool(
+                    lambda: store.retrieve_online_documents_openai(
+                        vector_store_id=vector_store_id,
+                        query=request.query,
+                        max_num_results=request.max_num_results or 10,
+                        filters=(
+                            request.filters.model_dump() if request.filters else None
+                        ),
+                        ranking_options=(
+                            request.ranking_options.model_dump()
+                            if request.ranking_options
+                            else None
+                        ),
+                        rewrite_query=request.rewrite_query,
+                        features_to_retrieve=(
+                            request.metadata.features_to_retrieve
+                            if request.metadata
+                            else None
+                        ),
+                    )
+                )
+            except FeatureViewNotFoundException:
+                return ORJSONResponse(
+                    status_code=404,
+                    content={
+                        "error": {
+                            "message": f"No vector store found with id '{vector_store_id}'",
+                            "type": "not_found_error",
+                        }
+                    },
+                )
+            return ORJSONResponse(content=result)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
