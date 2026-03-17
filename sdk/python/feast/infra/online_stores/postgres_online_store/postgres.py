@@ -21,6 +21,7 @@ from psycopg.connection import Connection
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from feast import Entity, FeatureView, ValueType
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
 from feast.infra.online_stores.helpers import _to_naive_utc, compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
@@ -42,6 +43,15 @@ SUPPORTED_DISTANCE_METRICS_DICT = {
     "L1": "<+>",
     "L2": "<->",
     "inner_product": "<#>",
+}
+
+_PG_COMPARISON_OPS: Dict[str, str] = {
+    "eq": "=",
+    "ne": "!=",
+    "gt": ">",
+    "gte": ">=",
+    "lt": "<",
+    "lte": "<=",
 }
 
 
@@ -119,10 +129,21 @@ class PostgreSQLOnlineStore(OnlineStore):
             for feature_name, val in values.items():
                 vector_val = None
                 value_text = None
+                value_num = None
 
-                # Check if the feature type is STRING
-                if val.WhichOneof("val") == "string_val":
+                val_type = val.WhichOneof("val")
+                if val_type == "string_val":
                     value_text = val.string_val
+                elif val_type == "int64_val":
+                    value_num = float(val.int64_val)
+                elif val_type == "int32_val":
+                    value_num = float(val.int32_val)
+                elif val_type == "double_val":
+                    value_num = val.double_val
+                elif val_type == "float_val":
+                    value_num = float(val.float_val)
+                elif val_type == "bool_val":
+                    value_num = 1.0 if val.bool_val else 0.0
 
                 if config.online_store.vector_enabled:
                     vector_val = get_list_val_str(val)
@@ -132,6 +153,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                         feature_name,
                         val.SerializeToString(),
                         value_text,
+                        value_num,
                         vector_val,
                         timestamp,
                         created_ts,
@@ -142,12 +164,13 @@ class PostgreSQLOnlineStore(OnlineStore):
         sql_query = sql.SQL(
             """
             INSERT INTO {}
-            (entity_key, feature_name, value, value_text, vector_value, event_ts, created_ts)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (entity_key, feature_name, value, value_text, value_num, vector_value, event_ts, created_ts)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (entity_key, feature_name) DO
             UPDATE SET
                 value = EXCLUDED.value,
                 value_text = EXCLUDED.value_text,
+                value_num = EXCLUDED.value_num,
                 vector_value = EXCLUDED.vector_value,
                 event_ts = EXCLUDED.event_ts,
                 created_ts = EXCLUDED.created_ts;
@@ -352,7 +375,8 @@ class PostgreSQLOnlineStore(OnlineStore):
                             entity_key BYTEA,
                             feature_name TEXT,
                             value BYTEA,
-                            value_text TEXT NULL, -- Added for FTS
+                            value_text TEXT NULL,
+                            value_num DOUBLE PRECISION NULL,
                             vector_value {} NULL,
                             event_ts TIMESTAMPTZ,
                             created_ts TIMESTAMPTZ,
@@ -366,6 +390,12 @@ class PostgreSQLOnlineStore(OnlineStore):
                         sql.Identifier(f"{table_name}_ek"),
                         sql.Identifier(table_name),
                     )
+                )
+
+                cur.execute(
+                    sql.SQL(
+                        """ALTER TABLE {} ADD COLUMN IF NOT EXISTS value_num DOUBLE PRECISION NULL;"""
+                    ).format(sql.Identifier(table_name))
                 )
 
                 if has_string_features:
@@ -510,6 +540,130 @@ class PostgreSQLOnlineStore(OnlineStore):
 
         return result
 
+    def _translate_filters(
+        self,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]],
+        table_name: str,
+        alias: Optional[str] = None,
+    ) -> Tuple[sql.Composable, List[Any]]:
+        """Translate filter objects into a SQL WHERE clause fragment and params.
+
+        Returns a ``(clause, params)`` pair. When *filters* is ``None`` the
+        clause is empty and params is ``[]``, so callers can always append it
+        unconditionally.
+
+        When *alias* is given (e.g. ``"t1"``), the generated clause references
+        ``t1.entity_key`` instead of the bare ``entity_key`` column, which is
+        necessary when the outer query joins multiple relations.
+        """
+        if filters is None:
+            return sql.SQL(""), []
+        return self._translate_single_filter(filters, table_name, alias)
+
+    def _translate_single_filter(
+        self,
+        filter_obj: Union[ComparisonFilter, CompoundFilter],
+        table_name: str,
+        alias: Optional[str] = None,
+    ) -> Tuple[sql.Composable, List[Any]]:
+        if isinstance(filter_obj, ComparisonFilter):
+            return self._translate_comparison_filter(filter_obj, table_name, alias)
+        elif isinstance(filter_obj, CompoundFilter):
+            return self._translate_compound_filter(filter_obj, table_name, alias)
+        raise ValueError(f"Unknown filter type: {type(filter_obj)}")
+
+    @staticmethod
+    def _filter_col_and_val(
+        value: Any,
+    ) -> Tuple[str, Any]:
+        """Return the appropriate column name and DB-ready value for a filter value."""
+        if isinstance(value, bool):
+            return "value_num", 1.0 if value else 0.0
+        if isinstance(value, (int, float)):
+            return "value_num", float(value)
+        return "value_text", str(value)
+
+    def _translate_comparison_filter(
+        self,
+        filter_obj: ComparisonFilter,
+        table_name: str,
+        alias: Optional[str] = None,
+    ) -> Tuple[sql.Composable, List[Any]]:
+        key, value, op_type = filter_obj.key, filter_obj.value, filter_obj.type
+        ek_col = f"{alias}.entity_key" if alias else "entity_key"
+
+        if op_type in _PG_COMPARISON_OPS:
+            col, db_value = self._filter_col_and_val(value)
+            clause = sql.SQL(
+                "{ek_col} IN (SELECT entity_key FROM {tbl} WHERE feature_name = %s AND {col} {op} %s)"
+            ).format(
+                ek_col=sql.SQL(ek_col),
+                tbl=sql.Identifier(table_name),
+                col=sql.Identifier(col),
+                op=sql.SQL(_PG_COMPARISON_OPS[op_type]),
+            )
+            return clause, [key, db_value]
+
+        if op_type == "in":
+            if not isinstance(value, list):
+                raise ValueError(
+                    f"'in' filter requires a list value, got {type(value)}"
+                )
+            placeholders = sql.SQL(", ").join([sql.Placeholder()] * len(value))
+            col, _ = (
+                self._filter_col_and_val(value[0]) if value else ("value_text", None)
+            )
+            db_values = [self._filter_col_and_val(v)[1] for v in value]
+            clause = sql.SQL(
+                "{ek_col} IN (SELECT entity_key FROM {tbl} WHERE feature_name = %s AND {col} IN ({phs}))"
+            ).format(
+                ek_col=sql.SQL(ek_col),
+                tbl=sql.Identifier(table_name),
+                col=sql.Identifier(col),
+                phs=placeholders,
+            )
+            return clause, [key] + db_values
+
+        if op_type == "nin":
+            if not isinstance(value, list):
+                raise ValueError(
+                    f"'nin' filter requires a list value, got {type(value)}"
+                )
+            placeholders = sql.SQL(", ").join([sql.Placeholder()] * len(value))
+            col, _ = (
+                self._filter_col_and_val(value[0]) if value else ("value_text", None)
+            )
+            db_values = [self._filter_col_and_val(v)[1] for v in value]
+            clause = sql.SQL(
+                "{ek_col} IN (SELECT entity_key FROM {tbl} WHERE feature_name = %s AND {col} NOT IN ({phs}))"
+            ).format(
+                ek_col=sql.SQL(ek_col),
+                tbl=sql.Identifier(table_name),
+                col=sql.Identifier(col),
+                phs=placeholders,
+            )
+            return clause, [key] + db_values
+
+        raise ValueError(f"Unknown comparison operator: {op_type}")
+
+    def _translate_compound_filter(
+        self,
+        filter_obj: CompoundFilter,
+        table_name: str,
+        alias: Optional[str] = None,
+    ) -> Tuple[sql.Composable, List[Any]]:
+        parts: List[sql.Composable] = []
+        all_params: List[Any] = []
+        for sub in filter_obj.filters:
+            sub_clause, sub_params = self._translate_single_filter(
+                sub, table_name, alias
+            )
+            parts.append(sub_clause)
+            all_params.extend(sub_params)
+        joiner = sql.SQL(" AND " if filter_obj.type == "and" else " OR ")
+        combined = sql.SQL("(") + joiner.join(parts) + sql.SQL(")")
+        return combined, all_params
+
     def retrieve_online_documents_v2(
         self,
         config: RepoConfig,
@@ -520,6 +674,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
         include_feature_view_version_metadata: bool = False,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -574,9 +729,24 @@ class PostgreSQLOnlineStore(OnlineStore):
             query = None
             params: Any = None
 
+            filter_clause, filter_params = self._translate_filters(
+                filters, table_name, alias="t1"
+            )
+            has_filters = bool(filter_params) or (
+                filters is not None and not filter_params
+            )
+
             if embedding is not None and query_string is not None and string_fields:
                 # Case 1: Hybrid Search (vector + text)
                 tsquery_str = " & ".join(query_string.split())
+
+                outer_where_parts: list[sql.Composable] = [
+                    sql.SQL("t1.feature_name = ANY(%s)")
+                ]
+                if has_filters:
+                    outer_where_parts.append(filter_clause)
+                outer_where = sql.SQL(" AND ").join(outer_where_parts)
+
                 query = sql.SQL(
                     """
                     WITH vector_candidates AS (
@@ -636,15 +806,16 @@ class PostgreSQLOnlineStore(OnlineStore):
                         t1.created_ts
                     FROM {table_name} t1
                     INNER JOIN scored s ON t1.entity_key = s.entity_key
-                    WHERE t1.feature_name = ANY(%s)
+                    WHERE {outer_where}
                     ORDER BY s.text_rank DESC, s.distance
                     """
                 ).format(
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
+                    outer_where=outer_where,
                     top_k=sql.Literal(top_k),
                 )
-                params = (
+                base_params: list[Any] = [
                     embedding,
                     tsquery_str,
                     string_fields,
@@ -653,9 +824,18 @@ class PostgreSQLOnlineStore(OnlineStore):
                     tsquery_str,
                     string_fields,
                     requested_features,
-                )
+                ]
+                if has_filters:
+                    base_params.extend(filter_params)
+                params = tuple(base_params)
+
             elif embedding is not None:
                 # Case 2: Vector Search Only
+                outer_where_parts = [sql.SQL("t1.feature_name = ANY(%s)")]
+                if has_filters:
+                    outer_where_parts.append(filter_clause)
+                outer_where = sql.SQL(" AND ").join(outer_where_parts)
+
                 query = sql.SQL(
                     """
                     WITH vector_matches AS (
@@ -678,25 +858,36 @@ class PostgreSQLOnlineStore(OnlineStore):
                         t1.created_ts
                     FROM {table_name} t1
                     INNER JOIN vector_matches t2 ON t1.entity_key = t2.entity_key
-                    WHERE t1.feature_name = ANY(%s)
+                    WHERE {outer_where}
                     ORDER BY t2.distance
                     """
                 ).format(
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
+                    outer_where=outer_where,
                     top_k=sql.Literal(top_k),
                 )
-                params = (embedding, requested_features)
+                base_params = [embedding, requested_features]
+                if has_filters:
+                    base_params.extend(filter_params)
+                params = tuple(base_params)
 
             elif query_string is not None and string_fields:
                 # Case 3: Text Search Only
                 tsquery_str = " & ".join(query_string.split())
+
+                outer_where_parts = [sql.SQL("t1.feature_name = ANY(%s)")]
+                if has_filters:
+                    outer_where_parts.append(filter_clause)
+                outer_where = sql.SQL(" AND ").join(outer_where_parts)
+
                 query = sql.SQL(
                     """
                     WITH text_matches AS (
                         SELECT DISTINCT entity_key, ts_rank(to_tsvector('english', value_text), to_tsquery('english', %s)) as text_rank
                         FROM {table_name}
-                        WHERE feature_name = ANY(%s) AND to_tsvector('english', value_text) @@ to_tsquery('english', %s)
+                        WHERE feature_name = ANY(%s)
+                            AND to_tsvector('english', value_text) @@ to_tsquery('english', %s)
                         ORDER BY text_rank DESC
                         LIMIT {top_k}
                     )
@@ -711,14 +902,23 @@ class PostgreSQLOnlineStore(OnlineStore):
                         t1.created_ts
                     FROM {table_name} t1
                     INNER JOIN text_matches t2 ON t1.entity_key = t2.entity_key
-                    WHERE t1.feature_name = ANY(%s)
+                    WHERE {outer_where}
                     ORDER BY t2.text_rank DESC
                     """
                 ).format(
                     table_name=sql.Identifier(table_name),
+                    outer_where=outer_where,
                     top_k=sql.Literal(top_k),
                 )
-                params = (tsquery_str, string_fields, tsquery_str, requested_features)
+                base_params = [
+                    tsquery_str,
+                    string_fields,
+                    tsquery_str,
+                    requested_features,
+                ]
+                if has_filters:
+                    base_params.extend(filter_params)
+                params = tuple(base_params)
 
             else:
                 raise ValueError(
