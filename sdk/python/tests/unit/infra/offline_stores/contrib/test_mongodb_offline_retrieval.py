@@ -27,7 +27,7 @@ from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_source imp
     MongoDBSource,
 )
 from feast.repo_config import RepoConfig
-from feast.types import Float64, Int64
+from feast.types import Float64, Int64, String
 from feast.value_type import ValueType
 
 # Check if Docker is available
@@ -386,3 +386,263 @@ def test_ttl_excludes_stale_features(
 
     # Driver 2: stale data outside TTL → should be NULL
     assert pd.isna(result_df.loc[1, "conv_rate"])
+
+
+@_requires_docker
+def test_multiple_feature_views(
+    repo_config: RepoConfig, mongodb_connection_string: str
+) -> None:
+    """Test joining features from multiple MongoDB collections/FeatureViews.
+
+    This simulates a real-world scenario where features come from different
+    data sources (e.g., driver stats from one collection, vehicle stats from another).
+    """
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    db = client["feast_test"]
+
+    # Collection 1: Driver stats
+    driver_collection = db["driver_stats_multi"]
+    driver_collection.drop()
+    now = datetime.now(tz=pytz.UTC)
+    driver_docs = [
+        {"driver_id": 1, "rating": 4.8, "event_timestamp": now - timedelta(hours=1)},
+        {"driver_id": 2, "rating": 4.5, "event_timestamp": now - timedelta(hours=1)},
+    ]
+    driver_collection.insert_many(driver_docs)
+
+    # Collection 2: Vehicle stats (same driver_id, different features)
+    vehicle_collection = db["vehicle_stats_multi"]
+    vehicle_collection.drop()
+    vehicle_docs = [
+        {
+            "driver_id": 1,
+            "vehicle_age": 2,
+            "mileage": 50000,
+            "event_timestamp": now - timedelta(hours=1),
+        },
+        {
+            "driver_id": 2,
+            "vehicle_age": 5,
+            "mileage": 120000,
+            "event_timestamp": now - timedelta(hours=1),
+        },
+    ]
+    vehicle_collection.insert_many(vehicle_docs)
+    client.close()
+
+    # Create sources for each collection
+    driver_source = MongoDBSource(
+        name="driver_stats_multi",
+        database="feast_test",
+        collection="driver_stats_multi",
+        timestamp_field="event_timestamp",
+    )
+    vehicle_source = MongoDBSource(
+        name="vehicle_stats_multi",
+        database="feast_test",
+        collection="vehicle_stats_multi",
+        timestamp_field="event_timestamp",
+    )
+
+    # Create entities and feature views
+    driver_entity = Entity(
+        name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+    )
+
+    driver_fv = FeatureView(
+        name="driver_stats_multi",
+        entities=[driver_entity],
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="rating", dtype=Float64),
+        ],
+        source=driver_source,
+        ttl=timedelta(days=1),
+    )
+
+    vehicle_fv = FeatureView(
+        name="vehicle_stats_multi",
+        entities=[
+            driver_entity
+        ],  # todo these two FeatureViews have the same entities list [driver_entity]
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="vehicle_age", dtype=Int64),
+            Field(name="mileage", dtype=Int64),
+        ],
+        source=vehicle_source,
+        ttl=timedelta(days=1),
+    )
+
+    # Entity dataframe requesting features for both drivers
+    entity_df = pd.DataFrame(
+        {
+            "driver_id": [1, 2],
+            "event_timestamp": [now, now],
+        }
+    )
+
+    # Request features from BOTH feature views
+    job = MongoDBOfflineStoreIbis.get_historical_features(
+        config=repo_config,
+        feature_views=[driver_fv, vehicle_fv],
+        feature_refs=[
+            "driver_stats_multi:rating",
+            "vehicle_stats_multi:vehicle_age",
+            "vehicle_stats_multi:mileage",
+        ],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    result_df = job.to_df().sort_values("driver_id").reset_index(drop=True)
+
+    # Verify we got features from both collections joined correctly
+    assert len(result_df) == 2
+    assert set(result_df.columns) >= {"driver_id", "rating", "vehicle_age", "mileage"}
+
+    # Driver 1
+    assert result_df.loc[0, "rating"] == pytest.approx(4.8)
+    assert result_df.loc[0, "vehicle_age"] == 2
+    assert result_df.loc[0, "mileage"] == 50000
+
+    # Driver 2
+    assert result_df.loc[1, "rating"] == pytest.approx(4.5)
+    assert result_df.loc[1, "vehicle_age"] == 5
+    assert result_df.loc[1, "mileage"] == 120000
+
+
+@_requires_docker
+def test_compound_join_keys(
+    repo_config: RepoConfig, mongodb_connection_string: str
+) -> None:
+    """Test with compound/composite join keys (multiple entity columns).
+
+    This tests scenarios where entities are identified by multiple keys,
+    e.g., (user_id, device_id) or (store_id, product_id).
+    """
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    db = client["feast_test"]
+
+    # Create collection with compound key (user_id + device_id)
+    collection = db["user_device_features"]
+    collection.drop()
+    now = datetime.now(tz=pytz.UTC)
+
+    # Same user_id can have different device_ids with different features
+    docs = [
+        {
+            "user_id": 1,
+            "device_id": "mobile",
+            "app_opens": 50,
+            "event_timestamp": now - timedelta(hours=2),
+        },
+        {
+            "user_id": 1,
+            "device_id": "mobile",
+            "app_opens": 55,
+            "event_timestamp": now - timedelta(hours=1),
+        },
+        {
+            "user_id": 1,
+            "device_id": "desktop",
+            "app_opens": 10,
+            "event_timestamp": now - timedelta(hours=1),
+        },
+        {
+            "user_id": 2,
+            "device_id": "mobile",
+            "app_opens": 100,
+            "event_timestamp": now - timedelta(hours=1),
+        },
+        {
+            "user_id": 2,
+            "device_id": "tablet",
+            "app_opens": 25,
+            "event_timestamp": now - timedelta(hours=1),
+        },
+    ]
+    collection.insert_many(docs)
+    client.close()
+
+    # Create source
+    source = MongoDBSource(
+        name="user_device_features",
+        database="feast_test",
+        collection="user_device_features",
+        timestamp_field="event_timestamp",
+    )
+
+    # Create entities with compound keys
+    user_entity = Entity(
+        name="user_id", join_keys=["user_id"], value_type=ValueType.INT64
+    )
+    device_entity = Entity(
+        name="device_id", join_keys=["device_id"], value_type=ValueType.STRING
+    )
+
+    fv = FeatureView(
+        name="user_device_features",
+        entities=[user_entity, device_entity],
+        schema=[
+            Field(name="user_id", dtype=Int64),
+            Field(name="device_id", dtype=String),
+            Field(name="app_opens", dtype=Int64),
+        ],
+        source=source,
+        ttl=timedelta(days=1),
+    )
+
+    # Test pull_latest: should get one row per unique (user_id, device_id) combination
+    job = MongoDBOfflineStoreIbis.pull_latest_from_table_or_query(
+        config=repo_config,
+        data_source=source,
+        join_key_columns=["user_id", "device_id"],
+        feature_name_columns=["app_opens"],
+        timestamp_field="event_timestamp",
+        created_timestamp_column=None,
+        start_date=now - timedelta(days=1),
+        end_date=now + timedelta(hours=1),
+    )
+
+    df = job.to_df()
+    assert len(df) == 4  # 4 unique (user_id, device_id) combinations
+
+    # Verify user 1, mobile got the LATEST value (55, not 50)
+    user1_mobile = df[(df["user_id"] == 1) & (df["device_id"] == "mobile")]
+    assert len(user1_mobile) == 1
+    assert user1_mobile.iloc[0]["app_opens"] == 55
+
+    # Test get_historical_features with compound keys
+    entity_df = pd.DataFrame(
+        {
+            "user_id": [1, 1, 2],
+            "device_id": ["mobile", "desktop", "tablet"],
+            "event_timestamp": [now, now, now],
+        }
+    )
+
+    job = MongoDBOfflineStoreIbis.get_historical_features(
+        config=repo_config,
+        feature_views=[fv],
+        feature_refs=["user_device_features:app_opens"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    result_df = job.to_df()
+    assert len(result_df) == 3
+
+    # Sort for predictable assertions
+    result_df = result_df.sort_values(["user_id", "device_id"]).reset_index(drop=True)
+
+    # user 1, desktop
+    assert result_df.loc[0, "app_opens"] == 10
+    # user 1, mobile (latest value)
+    assert result_df.loc[1, "app_opens"] == 55
+    # user 2, tablet
+    assert result_df.loc[2, "app_opens"] == 25
