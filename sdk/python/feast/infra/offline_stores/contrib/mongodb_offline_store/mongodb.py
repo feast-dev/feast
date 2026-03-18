@@ -33,6 +33,7 @@ from feast.errors import (
     SavedDatasetLocationAlreadyExists,
 )
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.contrib.mongodb_offline_store import DRIVER_METADATA
 from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_source import (
     MongoDBSource,
 )
@@ -178,7 +179,7 @@ def _build_data_source_reader(config: RepoConfig) -> Callable[[DataSource, str],
             )
         connection_string = config.offline_store.connection_string
         db_name = data_source.database or config.offline_store.database
-        client: Any = MongoClient(connection_string)
+        client: Any = MongoClient(connection_string, driver=DRIVER_METADATA)
         try:
             docs = list(client[db_name][data_source.collection].find({}, {"_id": 0}))
         finally:
@@ -230,7 +231,9 @@ def _build_data_source_writer(
         connection_string = config.offline_store.connection_string
         db_name = data_source.database or config.offline_store.database
         location = f"{db_name}.{data_source.collection}"
-        client: Any = MongoClient(connection_string, tz_aware=True)
+        client: Any = MongoClient(
+            connection_string, driver=DRIVER_METADATA, tz_aware=True
+        )
         try:
             coll = client[db_name][data_source.collection]
             if mode == "overwrite":
@@ -277,7 +280,7 @@ def _fetch_collection_as_arrow(
     """
     if MongoClient is None:
         raise FeastExtrasDependencyImportError("mongodb", "pymongo is not installed.")
-    client: Any = MongoClient(connection_string, tz_aware=True)
+    client: Any = MongoClient(connection_string, driver=DRIVER_METADATA, tz_aware=True)
     try:
         if pipeline is not None:
             docs = list(client[db_name][collection].aggregate(pipeline))
@@ -355,7 +358,9 @@ class MongoDBNativeRetrievalJob(RetrievalJob):
         connection_string = self._config.offline_store.connection_string
         db_name = data_source.database or self._config.offline_store.database
         location = f"{db_name}.{data_source.collection}"
-        client: Any = MongoClient(connection_string, tz_aware=True)
+        client: Any = MongoClient(
+            connection_string, driver=DRIVER_METADATA, tz_aware=True
+        )
         try:
             coll = client[db_name][data_source.collection]
             if not allow_overwrite and coll.estimated_document_count() > 0:
@@ -400,7 +405,9 @@ class MongoDBOfflineStoreNative(OfflineStore):
         connection_string = config.offline_store.connection_string
         db_name = data_source.database or config.offline_store.database
         records = table.to_pylist()
-        client: Any = MongoClient(connection_string, tz_aware=True)
+        client: Any = MongoClient(
+            connection_string, driver=DRIVER_METADATA, tz_aware=True
+        )
         try:
             coll = client[db_name][data_source.collection]
             if records:
