@@ -28,6 +28,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    TYPE_CHECKING,
     Tuple,
     Union,
     cast,
@@ -80,6 +81,9 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
 from feast.project import Project
+
+if TYPE_CHECKING:
+    from feast.diff.apply_progress import ApplyProgressContext
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -759,7 +763,9 @@ class FeatureStore:
         return feature_views_to_materialize
 
     def plan(
-        self, desired_repo_contents: RepoContents
+        self,
+        desired_repo_contents: RepoContents,
+        skip_feature_view_validation: bool = False,
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
 
@@ -803,11 +809,12 @@ class FeatureStore:
             ...     permissions=list())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
-        self._validate_all_feature_views(
-            desired_repo_contents.feature_views,
-            desired_repo_contents.on_demand_feature_views,
-            desired_repo_contents.stream_feature_views,
-        )
+        if not skip_feature_view_validation:
+            self._validate_all_feature_views(
+                desired_repo_contents.feature_views,
+                desired_repo_contents.on_demand_feature_views,
+                desired_repo_contents.stream_feature_views,
+            )
         _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
             desired_repo_contents.data_sources,
@@ -838,7 +845,11 @@ class FeatureStore:
         return registry_diff, infra_diff, new_infra
 
     def _apply_diffs(
-        self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
+        self,
+        registry_diff: RegistryDiff,
+        infra_diff: InfraDiff,
+        new_infra: Infra,
+        progress_ctx: Optional["ApplyProgressContext"] = None,
     ):
         """Applies the given diffs to the metadata store and infrastructure.
 
@@ -847,7 +858,7 @@ class FeatureStore:
             infra_diff: The diff between the current infra and the desired infra.
             new_infra: The desired infra.
         """
-        infra_diff.update()
+        infra_diff.update(progress_ctx=progress_ctx)
         apply_diff_to_registry(
             self._registry, registry_diff, self.project, commit=False
         )
@@ -871,6 +882,7 @@ class FeatureStore:
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
         partial: bool = True,
+        skip_feature_view_validation: bool = False,
     ):
         """Register objects to metadata store and update related infrastructure.
 
@@ -986,11 +998,12 @@ class FeatureStore:
         entities_to_update.append(DUMMY_ENTITY)
 
         # Validate all feature views and make inferences.
-        self._validate_all_feature_views(
-            views_to_update,
-            odfvs_to_update,
-            sfvs_to_update,
-        )
+        if not skip_feature_view_validation:
+            self._validate_all_feature_views(
+                views_to_update,
+                odfvs_to_update,
+                sfvs_to_update,
+            )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
@@ -1229,7 +1242,7 @@ class FeatureStore:
         on_demand_feature_views = list(view for view, _ in odfvs)
 
         # Check that the right request data is present in the entity_df
-        if type(entity_df) == pd.DataFrame:
+        if isinstance(entity_df, pd.DataFrame):
             if self.config.coerce_tz_aware:
                 entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
             for odfv in on_demand_feature_views:
@@ -2726,6 +2739,9 @@ class FeatureStore:
         type_: str = "http",
         no_access_log: bool = True,
         workers: int = 1,
+        worker_connections: int = 1000,
+        max_requests: int = 1000,
+        max_requests_jitter: int = 50,
         metrics: bool = False,
         keep_alive_timeout: int = 30,
         tls_key_path: str = "",
@@ -2745,6 +2761,9 @@ class FeatureStore:
             port=port,
             no_access_log=no_access_log,
             workers=workers,
+            worker_connections=worker_connections,
+            max_requests=max_requests,
+            max_requests_jitter=max_requests_jitter,
             metrics=metrics,
             keep_alive_timeout=keep_alive_timeout,
             tls_key_path=tls_key_path,
