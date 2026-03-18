@@ -17,9 +17,19 @@ Native MongoDB Offline Store Implementation.
 
 This module implements a MongoDB offline store using native MQL aggregation
 pipelines. It uses a single-collection schema where all feature views share
-one collection, discriminated by a ``feature_view`` field.
+one collection. It is event-based: each document represents an observation
+of a FeatureView at a specific point in time. Each document may contain a
+subset (0 or more) of the features defined in that FeatureView, all sharing
+a single event_timestamp.
 
-Schema:
+Collection Index:
+    db.feature_history.create_index([
+        ("feature_view", ASCENDING),
+        ("entity_id", ASCENDING),
+        ("event_timestamp", DESCENDING),
+    ])
+
+Document Schema (example):
     {
         "_id": ObjectId(),
         "entity_id": "<serialized_entity_key>",
@@ -32,12 +42,42 @@ Schema:
         "created_at": ISODate("2026-01-20T12:00:05Z")
     }
 
-Recommended Index:
-    db.feature_history.create_index([
-        ("entity_id", ASCENDING),
-        ("feature_view", ASCENDING),
-        ("event_timestamp", DESCENDING),
-    ])
+Feature Freshness Semantics:
+    This implementation operates at *document-level freshness*, not
+    per-feature freshness. During retrieval (e.g. point-in-time joins),
+    the system selects the most recent document for a given
+    (entity_id, feature_view) that satisfies time constraints, and then
+    extracts all requested features from that document.
+
+    As a result, if a newer document contains only a subset of features,
+    missing features will be returned as NULL—even if older documents
+    contained values for those features. The system does not backfill
+    individual feature values from earlier events.
+
+    This behavior matches common Feast offline store semantics, but may
+    differ from systems that compute "latest value per feature".
+
+Schema Evolution ("Feature Creep"):
+    Because features are stored in a flexible subdocument, different
+    documents for the same FeatureView may contain different sets of
+    feature fields over time. This supports:
+        - adding new features without backfilling historical data
+        - partial writes or sparse feature computation
+
+    However, it also implies:
+        - newly added features will be NULL for older events
+        - partially populated documents may lead to NULL values even
+          when older data contained those features
+
+    Users should ensure that feature computation pipelines write
+    complete feature sets when consistent availability is required.
+
+Notes:
+    - Entity keys are serialized to ensure consistency with Feast’s
+      online store and to avoid type ambiguity.
+    - Point-in-time correctness is enforced per FeatureView.
+    - TTL (time-to-live) constraints are applied per FeatureView during
+      historical retrieval.
 """
 
 import json
@@ -79,12 +119,7 @@ from feast.value_type import ValueType
 
 
 class MongoDBOfflineStoreNativeConfig(FeastConfigBaseModel):
-    """Configuration for the Native MongoDB offline store.
-
-    Uses a single shared collection for all feature views, with documents
-    containing an ``entity_id``, ``feature_view`` discriminator, and nested
-    ``features`` subdocument.
-    """
+    """Configuration for the Native MongoDB offline store."""
 
     type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native.MongoDBOfflineStoreNative"
     """Offline store type selector"""
@@ -100,15 +135,16 @@ class MongoDBOfflineStoreNativeConfig(FeastConfigBaseModel):
 
 
 class MongoDBSourceNative(DataSource):
-    """A MongoDB data source for the Native offline store.
+    """A MongoDB data source for the native offline store.
 
-    Unlike MongoDBSource (Ibis), this source does not specify a collection
-    per FeatureView. Instead, all FeatureViews share a single collection
-    (configured at the store level), and are discriminated by the
-    ``feature_view`` field in each document.
+    Unlike many data source implementations, this source does not map each
+    FeatureView to its own table or collection. Instead, all FeatureViews
+    share a single MongoDB collection (configured at the store level).
 
-    The ``name`` parameter becomes the ``feature_view`` discriminator value
-    used to filter documents in queries.
+    Each document in that collection includes a ``feature_view`` field that
+    identifies which FeatureView it belongs to. The ``name`` of this data
+    source corresponds to that value and is used to filter documents during
+    queries.
     """
 
     def __init__(
@@ -400,7 +436,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
     All feature views share one collection (``feature_history``), with documents
     containing:
     - ``entity_id``: serialized entity key (bytes)
-    - ``feature_view``: discriminator field matching FeatureView name
+    - ``feature_view``: field matching FeatureView name
     - ``features``: subdocument with feature name/value pairs
     - ``event_timestamp``: event time
     - ``created_at``: ingestion time
@@ -623,7 +659,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
                     }
                 )
 
-            # Create temp collection with unique name
+            # Create temporary collection for query
             temp_collection_name = f"tmp_entity_df_{uuid.uuid4().hex[:12]}"
 
             client: Any = MongoClient(connection_string, driver=DRIVER_METADATA)
