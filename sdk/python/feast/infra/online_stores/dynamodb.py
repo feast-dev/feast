@@ -737,7 +737,10 @@ class DynamoDBOnlineStore(OnlineStore):
                 values_data = tbl_res["values"]
                 for feature_name, value_bin in values_data.items():
                     val = ValueProto()
-                    val.ParseFromString(value_bin.value)
+                    if isinstance(value_bin, (bytes, bytearray)):
+                        val.ParseFromString(value_bin)
+                    else:
+                        val.ParseFromString(value_bin.value)
                     features[feature_name] = val
 
                 # Parse timestamp and set result
