@@ -1258,7 +1258,11 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
     is_list = False
     if pa_type_as_str.startswith("list<item: "):
         is_list = True
-        pa_type_as_str = pa_type_as_str.replace("list<item: ", "").replace(">", "")
+        inner_str = pa_type_as_str[len("list<item: ") : -1]
+        # Check for nested list (list of lists) before stripping
+        if inner_str.startswith("list<item: "):
+            return ValueType.LIST_LIST
+        pa_type_as_str = inner_str
 
     if pa_type_as_str.startswith("timestamp"):
         value_type = ValueType.UNIX_TIMESTAMP

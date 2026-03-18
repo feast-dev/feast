@@ -1664,10 +1664,54 @@ class TestNestedCollectionTypes:
         assert result[0] == [1, 1, 2]
         assert result[1] == [3, 3]
 
-    def test_feast_value_type_to_pa_nested(self):
-        """Test feast_value_type_to_pa for nested collection types."""
-        pa_type = feast_value_type_to_pa(ValueType.LIST_LIST)
-        assert pa_type == pyarrow.list_(pyarrow.list_(pyarrow.string()))
+    def test_list_list_proto_roundtrip_values(self):
+        """Test that LIST_LIST roundtrip preserves actual inner values."""
+        values = [[[1, 2, 3], [4, 5]]]
+        protos = python_values_to_proto_values(values, ValueType.LIST_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == [1, 2, 3]
+        assert result[1] == [4, 5]
 
-        pa_type = feast_value_type_to_pa(ValueType.SET_SET)
-        assert pa_type == pyarrow.list_(pyarrow.list_(pyarrow.string()))
+    def test_set_list_proto_roundtrip_values(self):
+        """Test that SET_LIST roundtrip preserves actual inner values."""
+        values = [[["a", "b"], ["c"]]]
+        protos = python_values_to_proto_values(values, ValueType.SET_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == ["a", "b"]
+        assert result[1] == ["c"]
+
+    def test_multi_value_batch_nested(self):
+        """Test multiple nested collection values in a single batch."""
+        values = [[[1, 2], [3]], [[4], [5, 6]]]
+        protos = python_values_to_proto_values(values, ValueType.LIST_LIST)
+        assert len(protos) == 2
+        r0 = feast_value_type_to_python_type(protos[0])
+        r1 = feast_value_type_to_python_type(protos[1])
+        assert r0 == [[1, 2], [3]]
+        assert r1 == [[4], [5, 6]]
+
+    def test_feast_value_type_to_pa_nested(self):
+        """Test feast_value_type_to_pa for all nested collection types."""
+        for vt in (
+            ValueType.LIST_LIST,
+            ValueType.LIST_SET,
+            ValueType.SET_LIST,
+            ValueType.SET_SET,
+        ):
+            pa_type = feast_value_type_to_pa(vt)
+            assert pa_type == pyarrow.list_(pyarrow.list_(pyarrow.string()))
+
+    def test_pa_to_feast_value_type_nested(self):
+        """Test pa_to_feast_value_type recognizes nested list PyArrow types."""
+        assert (
+            pa_to_feast_value_type("list<item: list<item: int64>>")
+            == ValueType.LIST_LIST
+        )
+        assert (
+            pa_to_feast_value_type("list<item: list<item: string>>")
+            == ValueType.LIST_LIST
+        )
+        assert (
+            pa_to_feast_value_type("list<item: list<item: double>>")
+            == ValueType.LIST_LIST
+        )

@@ -134,7 +134,7 @@ def test_nested_field_roundtrip():
     """Field with nested collection type should survive to_proto -> from_proto."""
     test_cases = [
         ("aa", Array(Array(String))),
-        ("as", Array(Set(Int32))),
+        ("as_field", Array(Set(Int32))),
         ("sa", Set(Array(Float64))),
         ("ss", Set(Set(Bool))),
     ]
@@ -145,6 +145,10 @@ def test_nested_field_roundtrip():
         assert restored.name == name, f"Name mismatch for {dtype}"
         assert restored.dtype.to_value_type() == dtype.to_value_type(), (
             f"dtype mismatch for {name}: {restored.dtype} vs {dtype}"
+        )
+        # Verify inner type is preserved (not just ValueType equality)
+        assert str(restored.dtype) == str(dtype), (
+            f"Inner type lost for {name}: got {restored.dtype}, expected {dtype}"
         )
         assert restored.tags == {"user_tag": "value"}, (
             f"Tags should not contain internal tags for {name}"
@@ -176,6 +180,40 @@ def test_uuid_set_feast_type():
     set_time_uuid = Set(TimeUuid)
     assert set_time_uuid.to_value_type() == ValueType.TIME_UUID_SET
     assert from_value_type(set_time_uuid.to_value_type()) == set_time_uuid
+
+
+def test_feast_type_str_roundtrip():
+    """_feast_type_to_str and _str_to_feast_type should roundtrip for nested types."""
+    from feast.field import _feast_type_to_str, _str_to_feast_type
+
+    test_cases = [
+        Array(Array(String)),
+        Array(Array(Int32)),
+        Array(Array(Float64)),
+        Array(Set(Int64)),
+        Array(Set(Bool)),
+        Set(Array(String)),
+        Set(Array(Float32)),
+        Set(Set(Int32)),
+        Set(Set(Float64)),
+    ]
+    for dtype in test_cases:
+        s = _feast_type_to_str(dtype)
+        restored = _str_to_feast_type(s)
+        assert str(restored) == str(dtype), (
+            f"Roundtrip failed: {dtype} -> '{s}' -> {restored}"
+        )
+
+
+def test_str_to_feast_type_invalid():
+    """_str_to_feast_type should raise ValueError on unrecognized type names."""
+    from feast.field import _str_to_feast_type
+
+    with pytest.raises(ValueError, match="Unknown FeastType"):
+        _str_to_feast_type("INVALID_TYPE")
+
+    with pytest.raises(ValueError, match="Unknown FeastType"):
+        _str_to_feast_type("Strig")
 
 
 def test_all_value_types():

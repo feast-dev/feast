@@ -272,9 +272,10 @@ def _str_to_feast_type(type_str: str) -> FeastType:
     try:
         return PrimitiveFeastType[type_str]
     except KeyError:
-        from feast.types import String
-
-        return String
+        raise ValueError(
+            f"Unknown FeastType: {type_str!r}. "
+            f"Valid primitive types: {[t.name for t in PrimitiveFeastType]}"
+        )
 
 
 def _serialize_struct_schema(struct_type: Struct) -> str:

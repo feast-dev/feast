@@ -92,6 +92,15 @@ def _patch_feast_value_json_encoding():
             if len(value) == 0:
                 # Clear will mark the struct as modified so it will be created even if there are no values
                 message.int64_list_val.Clear()
+            elif isinstance(value[0], list):
+                # Nested collection (list of lists).
+                # Default to list_list_val since JSON transport loses the
+                # outer/inner set distinction.
+                rv = RepeatedValue()
+                for inner in value:
+                    inner_val = rv.val.add()
+                    from_json_object(parser, inner, inner_val)
+                message.list_list_val.CopyFrom(rv)
             elif isinstance(value[0], bool):
                 message.bool_list_val.val.extend(value)
             elif isinstance(value[0], str):
