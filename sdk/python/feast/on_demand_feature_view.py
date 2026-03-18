@@ -507,8 +507,6 @@ class OnDemandFeatureView(BaseFeatureView):
             meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
         if self.current_version_number is not None:
             meta.current_version_number = self.current_version_number
-        else:
-            meta.current_version_number = -1
         sources = {}
         for source_name, fv_projection in self.source_feature_view_projections.items():
             sources[source_name] = OnDemandSource(
@@ -599,15 +597,12 @@ class OnDemandFeatureView(BaseFeatureView):
         )
 
         # Restore version fields.
-        on_demand_feature_view_obj.version = (
-            on_demand_feature_view_proto.spec.version or "latest"
-        )
+        spec_version = on_demand_feature_view_proto.spec.version
+        on_demand_feature_view_obj.version = spec_version or "latest"
         cvn = on_demand_feature_view_proto.meta.current_version_number
-        if cvn == -1:
-            on_demand_feature_view_obj.current_version_number = None
-        elif cvn > 0:
+        if cvn > 0:
             on_demand_feature_view_obj.current_version_number = cvn
-        elif cvn == 0 and on_demand_feature_view_proto.spec.version:
+        elif cvn == 0 and spec_version and spec_version.lower() != "latest":
             on_demand_feature_view_obj.current_version_number = 0
         else:
             on_demand_feature_view_obj.current_version_number = None

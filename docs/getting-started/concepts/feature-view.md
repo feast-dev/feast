@@ -164,21 +164,23 @@ Each field can have additional metadata associated with it, specified as key-val
 
 Feature views support automatic version tracking. Every time `feast apply` detects a change to a feature view, a version snapshot is saved to the registry's version history. This enables auditing what changed, reverting to a prior definition, or pinning serving to a known-good version.
 
-{% hint style="warning" %}
-Versioning is **opt-in** and disabled by default. To enable it, add `enable_feature_view_versioning: true` to your registry config in `feature_store.yaml`:
+{% hint style="info" %}
+Version history tracking is **always active** — no configuration needed. Every `feast apply` that changes a feature view automatically records a version snapshot.
+
+To enable **versioned online reads** (e.g., `fv@v2:feature`), add `enable_online_feature_view_versioning: true` to your registry config in `feature_store.yaml`:
 
 ```yaml
 registry:
   path: data/registry.db
-  enable_feature_view_versioning: true
+  enable_online_feature_view_versioning: true
 ```
 
-When disabled, `feast apply` works normally but does not create version history. Version-qualified refs (e.g., `fv@v2:feature`) and version pinning (e.g., `version="v0"`) will raise errors.
+When this flag is off, version-qualified refs (e.g., `fv@v2:feature`) in online reads will raise errors, but version history, version listing, version pinning, and version lookups all work normally.
 {% endhint %}
 
 ### How it works
 
-Once versioning is enabled, version tracking is fully automatic. You don't need to set any version parameter — just use `feast apply` as usual:
+Version tracking is fully automatic. You don't need to set any version parameter — just use `feast apply` as usual:
 
 1. **First apply** — Your feature view definition is saved as **v0**.
 2. **Change something and re-apply** — Feast detects the change, saves the old definition as a snapshot, and saves the new one as **v1**. The version number auto-increments on each real change.

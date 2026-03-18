@@ -510,8 +510,6 @@ class FeatureView(BaseFeatureView):
             meta.materialization_intervals.append(interval_proto)
         if self.current_version_number is not None:
             meta.current_version_number = self.current_version_number
-        else:
-            meta.current_version_number = -1
         return meta
 
     def get_ttl_duration(self):
@@ -672,17 +670,12 @@ class FeatureView(BaseFeatureView):
         feature_view.enable_validation = feature_view_proto.spec.enable_validation
 
         # Restore version fields.
-        feature_view.version = feature_view_proto.spec.version or "latest"
-        # A sentinel of -1 means "not set" (versioning disabled).
-        # A value of 0 means explicitly version 0.
-        # For protos predating the sentinel (current_version_number == 0
-        # with no spec.version), treat as None for backward compat.
+        spec_version = feature_view_proto.spec.version
+        feature_view.version = spec_version or "latest"
         cvn = feature_view_proto.meta.current_version_number
-        if cvn == -1:
-            feature_view.current_version_number = None
-        elif cvn > 0:
+        if cvn > 0:
             feature_view.current_version_number = cvn
-        elif cvn == 0 and feature_view_proto.spec.version:
+        elif cvn == 0 and spec_version and spec_version.lower() != "latest":
             feature_view.current_version_number = 0
         else:
             feature_view.current_version_number = None

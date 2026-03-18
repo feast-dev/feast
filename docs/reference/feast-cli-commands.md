@@ -176,7 +176,7 @@ NAME                 ENTITIES    TYPE
 driver_hourly_stats  {'driver'}  FeatureView
 ```
 
-List version history for a feature view (requires `enable_feature_view_versioning: true` in registry config)
+List version history for a feature view
 
 ```text
 feast feature-views versions FEATURE_VIEW_NAME
