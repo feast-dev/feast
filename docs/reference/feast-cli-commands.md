@@ -179,7 +179,7 @@ driver_hourly_stats  {'driver'}  FeatureView
 List version history for a feature view
 
 ```text
-feast feature-views versions FEATURE_VIEW_NAME
+feast feature-views list-versions FEATURE_VIEW_NAME
 ```
 
 ```text

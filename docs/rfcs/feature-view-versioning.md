@@ -161,7 +161,7 @@ Version history tracking is lightweight registry metadata — just a serialized 
 
 Out of the box, every `feast apply` that changes a feature view will:
 - Record a version snapshot
-- Support `feast feature-views versions <name>` to list history
+- Support `feast feature-views list-versions <name>` to list history
 - Support `registry.list_feature_view_versions(name, project)` programmatically
 - Support `registry.get_feature_view_by_version(name, project, version_number)` for snapshot retrieval
 - Support version pinning via `version="v2"` in feature view definitions
@@ -262,7 +262,7 @@ store.get_online_features(features=["driver_stats@v2:trips_today"], ...)
 
 ```bash
 # List versions
-feast feature-views versions driver_stats
+feast feature-views list-versions driver_stats
 
 # Output:
 # VERSION  TYPE          CREATED              VERSION_ID
@@ -317,11 +317,14 @@ If two concurrent applies both try to forward-declare the same version:
 
 ## Feature Services
 
-Feature services currently have limited versioning support:
+Feature services work with versioned feature views when the online versioning flag is enabled:
 
-- **Always resolve to the active (latest) version.** A `FeatureService` references feature views by name without version qualifiers. At both apply time and retrieval time, the service resolves each reference to the currently active feature view definition.
-- **No `@v<N>` syntax in feature services.** Version-qualified reads (`driver_stats@v2:trips_today`) require string-based feature references passed directly to `get_online_features()`. Feature services do not support pinning individual feature view references to specific versions.
-- **Versioned FVs require the flag.** If any feature view referenced by a feature service has been versioned (`current_version_number > 0`), the `enable_online_feature_view_versioning` flag must be set to `true`. Without it, `feast apply` will reject the feature service with a clear error, and `get_online_features()` will fail at retrieval time.
+- **Automatic version resolution.** When `enable_online_feature_view_versioning` is `true` and a feature service references a versioned feature view (`current_version_number > 0`), the serving path automatically sets `version_tag` on the projection. This ensures `get_online_features()` reads from the correct versioned online store table (e.g., `project_driver_stats_v1`) instead of the unversioned table.
+- **Version-qualified feature refs.** Both `_get_features()` and `_get_feature_views_to_use()` produce version-qualified keys (e.g., `driver_stats@v1:trips_today`) for feature services referencing versioned FVs, keeping the feature ref index and the FV lookup index in sync.
+- **Gated by flag.** If any feature view referenced by a feature service has been versioned (`current_version_number > 0`) but `enable_online_feature_view_versioning` is `false`:
+  - `feast apply` will reject the feature service with a clear error.
+  - `get_online_features()` will fail at retrieval time with a descriptive error message.
+- **No `@v<N>` syntax in feature services.** Version-qualified reads (`driver_stats@v2:trips_today`) using the `@v<N>` syntax require string-based feature references passed directly to `get_online_features()`. Feature services always resolve to the active (latest) version of each referenced feature view.
 - **Future work: per-reference version pinning.** A future enhancement could allow feature services to pin individual feature view references to specific versions (e.g., `FeatureService(features=[driver_stats["v2"]])`).
 
 ## Limitations & Future Work

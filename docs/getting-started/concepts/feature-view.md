@@ -246,7 +246,7 @@ After reverting with a pin, you can go back to normal auto-incrementing behavior
 Use the CLI to inspect version history:
 
 ```bash
-feast feature-views versions driver_stats
+feast feature-views list-versions driver_stats
 ```
 
 ```text

@@ -72,7 +72,7 @@ def feature_view_list(ctx: click.Context, tags: list[str]):
     print(tabulate(table, headers=["NAME", "ENTITIES", "TYPE"], tablefmt="plain"))
 
 
-@feature_views_cmd.command("versions")
+@feature_views_cmd.command("list-versions")
 @click.argument("name", type=click.STRING)
 @click.pass_context
 def feature_view_versions(ctx: click.Context, name: str):
