@@ -86,6 +86,25 @@ All primitive types (except `Map` and `Json`) have corresponding set types for s
 - Set types are best suited for **online serving** use cases where feature values are written as Python sets and retrieved via `get_online_features`.
 {% endhint %}
 
+### Nested Collection Types
+
+Feast supports 2-level nested collections, combining Array and Set types:
+
+| Feast Type | Python Type | ValueType | Description |
+|------------|-------------|-----------|-------------|
+| `Array(Array(T))` | `List[List[T]]` | `LIST_LIST` | List of lists |
+| `Array(Set(T))` | `List[List[T]]` | `LIST_SET` | List of sets (inner elements deduplicated) |
+| `Set(Array(T))` | `List[List[T]]` | `SET_LIST` | Set of lists |
+| `Set(Set(T))` | `List[List[T]]` | `SET_SET` | Set of sets (inner elements deduplicated) |
+
+Where `T` is any supported primitive type (Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp).
+
+**Notes:**
+- Nesting is limited to 2 levels. `Array(Array(Array(T)))` will raise a `ValueError`.
+- Inner type information is preserved via Field tags (`feast:nested_inner_type`) and restored during deserialization.
+- For `Array(Set(T))` and `Set(Set(T))`, inner collection elements are automatically deduplicated.
+- Empty inner collections (`[]`) are stored as empty proto values and round-trip as `None`. For example, `[[1, 2], [], [3]]` becomes `[[1, 2], None, [3]]` after a write-read cycle.
+
 ### Map Types
 
 Map types allow storing dictionary-like data structures:
@@ -233,6 +252,10 @@ user_features = FeatureView(
         Field(name="metadata", dtype=Map),
         Field(name="activity_log", dtype=Array(Map)),
 
+        # Nested collection types
+        Field(name="weekly_scores", dtype=Array(Array(Float64))),
+        Field(name="unique_tags_per_category", dtype=Array(Set(String))),
+
         # JSON type
         Field(name="raw_event", dtype=Json),
 
@@ -288,6 +311,33 @@ related_sessions = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
 
 # UUID sets (unique values)
 unique_devices = {uuid.uuid4(), uuid.uuid4()}
+```
+
+### Nested Collection Type Usage Examples
+
+Nested collections allow storing multi-dimensional data:
+
+```python
+# List of lists — e.g., weekly score history per user
+weekly_scores = [[85.0, 90.5, 78.0], [92.0, 88.5], [95.0, 91.0, 87.5]]
+
+# List of sets — e.g., unique tags assigned per category
+unique_tags_per_category = [["python", "ml"], ["rust", "systems"], ["python", "web"]]
+# Inner sets are automatically deduplicated:
+# [["python", "ml"], ...] (duplicates within each inner set are removed)
+
+# Set of lists — e.g., distinct ordered sequences observed
+distinct_sequences = [[1, 2, 3], [4, 5], [1, 2, 3]]
+
+# Set of sets — e.g., distinct groups of unique items
+distinct_groups = [["a", "b"], ["c", "d"], ["a", "b"]]
+# Inner elements are deduplicated within each set
+```
+
+**Limitation:** Empty inner collections round-trip as `None`:
+```python
+# Input:  [[1, 2], [], [3]]
+# Output: [[1, 2], None, [3]]  (empty [] becomes None after write-read cycle)
 ```
 
 ### Map Type Usage Examples
