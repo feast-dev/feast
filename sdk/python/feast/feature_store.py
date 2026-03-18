@@ -2963,7 +2963,7 @@ class FeatureStore:
         keep_alive_timeout: int = 30,
         tls_key_path: str = "",
         tls_cert_path: str = "",
-        registry_ttl_sec: int = 2,
+        registry_ttl_sec: int = 60,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
