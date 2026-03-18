@@ -231,9 +231,11 @@ class DaskOfflineStore(OfflineStore):
                 # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
                 entity_df_with_features[entity_df_event_timestamp_col] = (
                     entity_df_with_features[entity_df_event_timestamp_col].apply(
-                        lambda x: x
-                        if x.tzinfo is not None
-                        else x.replace(tzinfo=timezone.utc)
+                        lambda x: (
+                            x
+                            if x.tzinfo is not None
+                            else x.replace(tzinfo=timezone.utc)
+                        )
                     )
                 )
 
@@ -654,7 +656,10 @@ def _field_mapping(
     full_feature_names: bool,
 ) -> Tuple[dd.DataFrame, str]:
     # Rename columns by the field mapping dictionary if it exists
-    if feature_view.batch_source.field_mapping:
+    if (
+        feature_view.batch_source is not None
+        and feature_view.batch_source.field_mapping
+    ):
         df_to_join = _run_dask_field_mapping(
             df_to_join, feature_view.batch_source.field_mapping
         )

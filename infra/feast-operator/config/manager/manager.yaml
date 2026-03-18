@@ -19,6 +19,7 @@ metadata:
 spec:
   selector:
     matchLabels:
+      app.kubernetes.io/name: feast-operator
       control-plane: controller-manager
   replicas: 1
   template:
@@ -26,6 +27,7 @@ spec:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
+        app.kubernetes.io/name: feast-operator
         control-plane: controller-manager
     spec:
       # TODO(user): Uncomment the following code to configure the nodeAffinity expression

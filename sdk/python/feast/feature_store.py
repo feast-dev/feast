@@ -15,6 +15,7 @@ import asyncio
 import copy
 import itertools
 import os
+import time
 import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -58,6 +59,7 @@ from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_
 from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
+    ConflictingFeatureViewNames,
     DataFrameSerializationError,
     DataSourceRepeatNamesException,
     FeatureViewNotFoundException,
@@ -99,6 +101,29 @@ from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
 
+_track_materialization = None  # Lazy-loaded on first materialization call
+_track_materialization_loaded = False
+
+
+def _get_track_materialization():
+    """Lazy-import feast.metrics only when materialization tracking is needed.
+
+    Avoids importing the metrics module (and its prometheus_client /
+    psutil dependencies plus temp-dir creation) for every FeatureStore
+    usage such as ``feast apply`` or simple SDK reads.
+    """
+    global _track_materialization, _track_materialization_loaded
+    if not _track_materialization_loaded:
+        _track_materialization_loaded = True
+        try:
+            from feast.metrics import track_materialization
+
+            _track_materialization = track_materialization
+        except Exception:  # pragma: no cover
+            _track_materialization = None
+    return _track_materialization
+
+
 warnings.simplefilter("once", DeprecationWarning)
 
 
@@ -116,9 +141,10 @@ class FeatureStore:
 
     config: RepoConfig
     repo_path: Path
-    _registry: BaseRegistry
-    _provider: Provider
+    _registry: Optional[BaseRegistry]
+    _provider: Optional[Provider]
     _openlineage_emitter: Optional[Any] = None
+    _feature_service_cache: Dict[str, List[str]]
 
     def __init__(
         self,
@@ -159,33 +185,13 @@ class FeatureStore:
                 self.repo_path, utils.get_default_yaml_file_path(self.repo_path)
             )
 
-        registry_config = self.config.registry
-        if registry_config.registry_type == "sql":
-            self._registry = SqlRegistry(registry_config, self.config.project, None)
-        elif registry_config.registry_type == "snowflake.registry":
-            from feast.infra.registry.snowflake import SnowflakeRegistry
+        # Initialize lazy-loaded components as None
+        self._registry = None
+        self._provider = None
+        self._openlineage_emitter = None
 
-            self._registry = SnowflakeRegistry(
-                registry_config, self.config.project, None
-            )
-        elif registry_config and registry_config.registry_type == "remote":
-            from feast.infra.registry.remote import RemoteRegistry
-
-            self._registry = RemoteRegistry(
-                registry_config, self.config.project, None, self.config.auth_config
-            )
-        else:
-            self._registry = Registry(
-                self.config.project,
-                registry_config,
-                repo_path=self.repo_path,
-                auth_config=self.config.auth_config,
-            )
-
-        self._provider = get_provider(self.config)
-
-        # Initialize OpenLineage emitter if configured
-        self._openlineage_emitter = self._init_openlineage_emitter()
+        # Initialize feature service cache for performance optimization
+        self._feature_service_cache = {}
 
     def _init_openlineage_emitter(self) -> Optional[Any]:
         """Initialize OpenLineage emitter if configured and enabled."""
@@ -209,28 +215,85 @@ class FeatureStore:
         return None
 
     def __repr__(self) -> str:
+        # Show lazy loading status without triggering initialization
+        registry_status = "not loaded" if self._registry is None else "loaded"
+        provider_status = "not loaded" if self._provider is None else "loaded"
         return (
             f"FeatureStore(\n"
             f"    repo_path={self.repo_path!r},\n"
             f"    config={self.config!r},\n"
-            f"    registry={self._registry!r},\n"
-            f"    provider={self._provider!r}\n"
+            f"    registry={registry_status},\n"
+            f"    provider={provider_status}\n"
             f")"
         )
 
     @property
     def registry(self) -> BaseRegistry:
         """Gets the registry of this feature store."""
+        if self._registry is None:
+            self._registry = self._create_registry()
+            # Add feature service cache to registry for performance optimization
+            if self._registry and not hasattr(self._registry, "_feature_service_cache"):
+                setattr(
+                    self._registry,
+                    "_feature_service_cache",
+                    self._feature_service_cache,
+                )
+        if self._registry is None:
+            raise RuntimeError("Registry failed to initialize properly")
         return self._registry
+
+    def _create_registry(self) -> BaseRegistry:
+        """Create and initialize the registry."""
+        registry_config = self.config.registry
+        if registry_config.registry_type == "sql":
+            return SqlRegistry(registry_config, self.config.project, None)
+        elif registry_config.registry_type == "snowflake.registry":
+            from feast.infra.registry.snowflake import SnowflakeRegistry
+
+            return SnowflakeRegistry(registry_config, self.config.project, None)
+        elif registry_config and registry_config.registry_type == "remote":
+            from feast.infra.registry.remote import RemoteRegistry
+
+            return RemoteRegistry(
+                registry_config, self.config.project, None, self.config.auth_config
+            )
+        else:
+            return Registry(
+                self.config.project,
+                registry_config,
+                repo_path=self.repo_path,
+                auth_config=self.config.auth_config,
+            )
 
     @property
     def project(self) -> str:
         """Gets the project of this feature store."""
         return self.config.project
 
+    @property
+    def provider(self) -> Provider:
+        """Gets the provider of this feature store."""
+        if self._provider is None:
+            self._provider = get_provider(self.config)
+        return self._provider
+
     def _get_provider(self) -> Provider:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
-        return self._provider
+        return self.provider
+
+    @property
+    def openlineage_emitter(self) -> Optional[Any]:
+        """Gets the OpenLineage emitter of this feature store."""
+        if self._openlineage_emitter is None:
+            self._openlineage_emitter = self._init_openlineage_emitter()
+        return self._openlineage_emitter
+
+    def _clear_feature_service_cache(self):
+        """Clear feature service cache to avoid stale data after registry refresh."""
+        self._feature_service_cache.clear()
+        if hasattr(self.registry, "_feature_service_cache"):
+            getattr(self.registry, "_feature_service_cache").clear()
 
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
@@ -247,7 +310,8 @@ class FeatureStore:
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features().
         """
 
-        self._registry.refresh(self.project)
+        self.registry.refresh(self.project)
+        self._clear_feature_service_cache()
 
     def list_entities(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
@@ -270,7 +334,7 @@ class FeatureStore:
         hide_dummy_entity: bool = True,
         tags: Optional[dict[str, str]] = None,
     ) -> List[Entity]:
-        all_entities = self._registry.list_entities(
+        all_entities = self.registry.list_entities(
             self.project, allow_cache=allow_cache, tags=tags
         )
         return [
@@ -291,7 +355,7 @@ class FeatureStore:
         Returns:
             A list of feature services.
         """
-        return self._registry.list_feature_services(self.project, tags=tags)
+        return self.registry.list_feature_services(self.project, tags=tags)
 
     def _list_all_feature_views(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
@@ -338,7 +402,7 @@ class FeatureStore:
             A list of feature views.
         """
         return utils._list_feature_views(
-            self._registry, self.project, allow_cache, tags=tags
+            self.registry, self.project, allow_cache, tags=tags
         )
 
     def list_batch_feature_views(
@@ -363,7 +427,7 @@ class FeatureStore:
         tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         feature_views = []
-        for fv in self._registry.list_feature_views(
+        for fv in self.registry.list_feature_views(
             self.project, allow_cache=allow_cache, tags=tags
         ):
             if (
@@ -383,7 +447,7 @@ class FeatureStore:
         tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         stream_feature_views = []
-        for sfv in self._registry.list_stream_feature_views(
+        for sfv in self.registry.list_stream_feature_views(
             self.project, allow_cache=allow_cache, tags=tags
         ):
             if hide_dummy_entity and sfv.entities[0] == DUMMY_ENTITY_NAME:
@@ -405,7 +469,7 @@ class FeatureStore:
         Returns:
             A list of on demand feature views.
         """
-        return self._registry.list_on_demand_feature_views(
+        return self.registry.list_on_demand_feature_views(
             self.project, allow_cache=allow_cache, tags=tags
         )
 
@@ -433,7 +497,7 @@ class FeatureStore:
         Returns:
             A list of data sources.
         """
-        return self._registry.list_data_sources(
+        return self.registry.list_data_sources(
             self.project, allow_cache=allow_cache, tags=tags
         )
 
@@ -451,7 +515,7 @@ class FeatureStore:
         Raises:
             EntityNotFoundException: The entity could not be found.
         """
-        return self._registry.get_entity(
+        return self.registry.get_entity(
             name, self.project, allow_cache=allow_registry_cache
         )
 
@@ -471,7 +535,7 @@ class FeatureStore:
         Raises:
             FeatureServiceNotFoundException: The feature service could not be found.
         """
-        return self._registry.get_feature_service(name, self.project, allow_cache)
+        return self.registry.get_feature_service(name, self.project, allow_cache)
 
     def get_feature_view(
         self, name: str, allow_registry_cache: bool = False
@@ -497,7 +561,7 @@ class FeatureStore:
         hide_dummy_entity: bool = True,
         allow_registry_cache: bool = False,
     ) -> FeatureView:
-        feature_view = self._registry.get_feature_view(
+        feature_view = self.registry.get_feature_view(
             name, self.project, allow_cache=allow_registry_cache
         )
         if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
@@ -530,7 +594,7 @@ class FeatureStore:
         hide_dummy_entity: bool = True,
         allow_registry_cache: bool = False,
     ) -> StreamFeatureView:
-        stream_feature_view = self._registry.get_stream_feature_view(
+        stream_feature_view = self.registry.get_stream_feature_view(
             name, self.project, allow_cache=allow_registry_cache
         )
         if hide_dummy_entity and stream_feature_view.entities[0] == DUMMY_ENTITY_NAME:
@@ -552,7 +616,7 @@ class FeatureStore:
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self._registry.get_on_demand_feature_view(
+        return self.registry.get_on_demand_feature_view(
             name, self.project, allow_cache=allow_registry_cache
         )
 
@@ -569,7 +633,7 @@ class FeatureStore:
         Raises:
             DataSourceObjectNotFoundException: The data source could not be found.
         """
-        return self._registry.get_data_source(name, self.project)
+        return self.registry.get_data_source(name, self.project)
 
     def delete_feature_view(self, name: str):
         """
@@ -581,7 +645,7 @@ class FeatureStore:
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self._registry.delete_feature_view(name, self.project)
+        return self.registry.delete_feature_view(name, self.project)
 
     def delete_feature_service(self, name: str):
         """
@@ -593,7 +657,7 @@ class FeatureStore:
         Raises:
             FeatureServiceNotFoundException: The feature view could not be found.
         """
-        return self._registry.delete_feature_service(name, self.project)
+        return self.registry.delete_feature_service(name, self.project)
 
     def _should_use_plan(self):
         """Returns True if plan and _apply_diffs should be used, False otherwise."""
@@ -638,11 +702,21 @@ class FeatureStore:
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in views_to_update], self.config
+            [
+                view.batch_source
+                for view in views_to_update
+                if view.batch_source is not None
+            ],
+            self.config,
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in sfvs_to_update], self.config
+            [
+                view.batch_source
+                for view in sfvs_to_update
+                if view.batch_source is not None
+            ],
+            self.config,
         )
 
         # New feature views may reference previously applied entities.
@@ -706,7 +780,7 @@ class FeatureStore:
 
         if feature_views is None:
             regular_feature_views = utils._list_feature_views(
-                self._registry, self.project, hide_dummy_entity=False
+                self.registry, self.project, hide_dummy_entity=False
             )
             feature_views_to_materialize.extend(
                 [fv for fv in regular_feature_views if fv.online]
@@ -821,19 +895,18 @@ class FeatureStore:
 
         # Compute the desired difference between the current objects in the registry and
         # the desired repo state.
-        registry_diff = diff_between(
-            self._registry, self.project, desired_repo_contents
-        )
+        registry_diff = diff_between(self.registry, self.project, desired_repo_contents)
 
         if progress_ctx:
             progress_ctx.update_phase_progress("Computing infrastructure diff")
 
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
-        self._registry.refresh(project=self.project)
-        current_infra_proto = self._registry.get_infra(self.project).to_proto()
+        self.registry.refresh(project=self.project)
+        self._clear_feature_service_cache()
+        current_infra_proto = self.registry.get_infra(self.project).to_proto()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
-        new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
+        new_infra = self.provider.plan_infra(self.config, desired_registry_proto)
         new_infra_proto = new_infra.to_proto()
         infra_diff = diff_infra_protos(
             current_infra_proto, new_infra_proto, project=self.project
@@ -870,13 +943,13 @@ class FeatureStore:
 
             # Registry phase
             apply_diff_to_registry(
-                self._registry, registry_diff, self.project, commit=False
+                self.registry, registry_diff, self.project, commit=False
             )
 
             if progress_ctx:
                 progress_ctx.update_phase_progress("Committing registry changes")
 
-            self._registry.update_infra(new_infra, self.project, commit=True)
+            self.registry.update_infra(new_infra, self.project, commit=True)
 
             if progress_ctx:
                 progress_ctx.update_phase_progress("Registry update complete")
@@ -891,7 +964,7 @@ class FeatureStore:
 
     def _emit_openlineage_apply_diffs(self, registry_diff: RegistryDiff):
         """Emit OpenLineage events for objects applied via diffs."""
-        if self._openlineage_emitter is None:
+        if self.openlineage_emitter is None:
             return
 
         # Collect all objects that were added or updated
@@ -1059,23 +1132,23 @@ class FeatureStore:
 
         # Add all objects to the registry and update the provider's infrastructure.
         for project in projects_to_update:
-            self._registry.apply_project(project, commit=False)
+            self.registry.apply_project(project, commit=False)
         for ds in data_sources_to_update:
-            self._registry.apply_data_source(ds, project=self.project, commit=False)
+            self.registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
-            self._registry.apply_feature_view(view, project=self.project, commit=False)
+            self.registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
-            self._registry.apply_entity(ent, project=self.project, commit=False)
+            self.registry.apply_entity(ent, project=self.project, commit=False)
         for feature_service in services_to_update:
-            self._registry.apply_feature_service(
+            self.registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
             )
         for validation_references in validation_references_to_update:
-            self._registry.apply_validation_reference(
+            self.registry.apply_validation_reference(
                 validation_references, project=self.project, commit=False
             )
         for permission in permissions_to_update:
-            self._registry.apply_permission(
+            self.registry.apply_permission(
                 permission, project=self.project, commit=False
             )
 
@@ -1116,35 +1189,35 @@ class FeatureStore:
             ]
 
             for data_source in data_sources_to_delete:
-                self._registry.delete_data_source(
+                self.registry.delete_data_source(
                     data_source.name, project=self.project, commit=False
                 )
             for entity in entities_to_delete:
-                self._registry.delete_entity(
+                self.registry.delete_entity(
                     entity.name, project=self.project, commit=False
                 )
             for view in views_to_delete:
-                self._registry.delete_feature_view(
+                self.registry.delete_feature_view(
                     view.name, project=self.project, commit=False
                 )
             for odfv in odfvs_to_delete:
-                self._registry.delete_feature_view(
+                self.registry.delete_feature_view(
                     odfv.name, project=self.project, commit=False
                 )
             for sfv in sfvs_to_delete:
-                self._registry.delete_feature_view(
+                self.registry.delete_feature_view(
                     sfv.name, project=self.project, commit=False
                 )
             for service in services_to_delete:
-                self._registry.delete_feature_service(
+                self.registry.delete_feature_service(
                     service.name, project=self.project, commit=False
                 )
             for validation_references in validation_references_to_delete:
-                self._registry.delete_validation_reference(
+                self.registry.delete_validation_reference(
                     validation_references.name, project=self.project, commit=False
                 )
             for permission in permissions_to_delete:
-                self._registry.delete_permission(
+                self.registry.delete_permission(
                     permission.name, project=self.project, commit=False
                 )
 
@@ -1164,7 +1237,7 @@ class FeatureStore:
             partial=partial,
         )
 
-        self._registry.commit()
+        self.registry.commit()
 
         # Refresh the registry cache to ensure that changes are immediately visible
         # This is especially important for UI and other clients that may be reading
@@ -1182,10 +1255,10 @@ class FeatureStore:
 
     def _emit_openlineage_apply(self, objects: List[Any]):
         """Emit OpenLineage events for applied objects."""
-        if self._openlineage_emitter is None:
+        if self.openlineage_emitter is None:
             return
         try:
-            self._openlineage_emitter.emit_apply(objects, self.project)
+            self.openlineage_emitter.emit_apply(objects, self.project)
         except Exception as e:
             warnings.warn(f"Failed to emit OpenLineage apply events: {e}")
 
@@ -1199,7 +1272,7 @@ class FeatureStore:
         entities = self.list_entities()
 
         self._get_provider().teardown_infra(self.project, tables, entities)
-        self._registry.teardown()
+        self.registry.teardown()
 
     def get_historical_features(
         self,
@@ -1280,11 +1353,13 @@ class FeatureStore:
         if entity_df is None and end_date is None:
             end_date = datetime.now()
 
-        _feature_refs = utils._get_features(self._registry, self.project, features)
+        _feature_refs = utils._get_features(
+            self.registry, self.project, features, allow_cache=True
+        )
         (
             all_feature_views,
             all_on_demand_feature_views,
-        ) = utils._get_feature_views_to_use(self._registry, self.project, features)
+        ) = utils._get_feature_views_to_use(self.registry, self.project, features)
 
         # TODO: This is an interim API change. We should revisit the Provider/OfflineStore
         # historical retrieval interface to avoid ad-hoc argument additions (e.g. passing ODFVs
@@ -1336,7 +1411,7 @@ class FeatureStore:
             on_demand_feature_views,
             _feature_refs,
             entity_df,
-            self._registry,
+            self.registry,
             self.project,
             full_feature_names,
             **kwargs,
@@ -1408,7 +1483,7 @@ class FeatureStore:
             )
         )
 
-        self._registry.apply_saved_dataset(dataset, self.project, commit=True)
+        self.registry.apply_saved_dataset(dataset, self.project, commit=True)
         return dataset
 
     def get_saved_dataset(self, name: str) -> SavedDataset:
@@ -1434,7 +1509,7 @@ class FeatureStore:
                 RuntimeWarning,
             )
 
-        dataset = self._registry.get_saved_dataset(name, self.project)
+        dataset = self.registry.get_saved_dataset(name, self.project)
         provider = self._get_provider()
 
         retrieval_job = provider.retrieve_saved_dataset(
@@ -1664,17 +1739,31 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date) or _utc_now()
 
-                provider.materialize_single_feature_view(
-                    config=self.config,
-                    feature_view=feature_view,
-                    start_date=start_date,
-                    end_date=end_date,
-                    registry=self._registry,
-                    project=self.project,
-                    tqdm_builder=tqdm_builder,
-                )
+                fv_start = time.monotonic()
+                fv_success = True
+                try:
+                    provider.materialize_single_feature_view(
+                        config=self.config,
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        registry=self.registry,
+                        project=self.project,
+                        tqdm_builder=tqdm_builder,
+                    )
+                except Exception:
+                    fv_success = False
+                    raise
+                finally:
+                    _tracker = _get_track_materialization()
+                    if _tracker is not None:
+                        _tracker(
+                            feature_view.name,
+                            fv_success,
+                            time.monotonic() - fv_start,
+                        )
                 if not isinstance(feature_view, OnDemandFeatureView):
-                    self._registry.apply_materialization(
+                    self.registry.apply_materialization(
                         feature_view,
                         self.project,
                         start_date,
@@ -1773,18 +1862,32 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date)
 
-                provider.materialize_single_feature_view(
-                    config=self.config,
-                    feature_view=feature_view,
-                    start_date=start_date,
-                    end_date=end_date,
-                    registry=self._registry,
-                    project=self.project,
-                    tqdm_builder=tqdm_builder,
-                    disable_event_timestamp=disable_event_timestamp,
-                )
+                fv_start = time.monotonic()
+                fv_success = True
+                try:
+                    provider.materialize_single_feature_view(
+                        config=self.config,
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        registry=self.registry,
+                        project=self.project,
+                        tqdm_builder=tqdm_builder,
+                        disable_event_timestamp=disable_event_timestamp,
+                    )
+                except Exception:
+                    fv_success = False
+                    raise
+                finally:
+                    _tracker = _get_track_materialization()
+                    if _tracker is not None:
+                        _tracker(
+                            feature_view.name,
+                            fv_success,
+                            time.monotonic() - fv_start,
+                        )
 
-                self._registry.apply_materialization(
+                self.registry.apply_materialization(
                     feature_view,
                     self.project,
                     start_date,
@@ -1807,10 +1910,10 @@ class FeatureStore:
         end_date: datetime,
     ) -> Optional[str]:
         """Emit OpenLineage START event for materialization."""
-        if self._openlineage_emitter is None:
+        if self.openlineage_emitter is None:
             return None
         try:
-            run_id, success = self._openlineage_emitter.emit_materialize_start(
+            run_id, success = self.openlineage_emitter.emit_materialize_start(
                 feature_views, start_date, end_date, self.project
             )
             # Return run_id only if START was successfully emitted
@@ -1826,10 +1929,10 @@ class FeatureStore:
         feature_views: List[Any],
     ):
         """Emit OpenLineage COMPLETE event for materialization."""
-        if self._openlineage_emitter is None or not run_id:
+        if self.openlineage_emitter is None or not run_id:
             return
         try:
-            self._openlineage_emitter.emit_materialize_complete(
+            self.openlineage_emitter.emit_materialize_complete(
                 run_id, feature_views, self.project
             )
         except Exception as e:
@@ -1841,10 +1944,10 @@ class FeatureStore:
         error_message: str,
     ):
         """Emit OpenLineage FAIL event for materialization."""
-        if self._openlineage_emitter is None or not run_id:
+        if self.openlineage_emitter is None or not run_id:
             return
         try:
-            self._openlineage_emitter.emit_materialize_fail(
+            self.openlineage_emitter.emit_materialize_fail(
                 run_id, self.project, error_message
             )
         except Exception as e:
@@ -2213,6 +2316,91 @@ class FeatureStore:
         provider = self._get_provider()
         await provider.ingest_df_async(feature_view, df)
 
+    async def update_online_store(
+        self,
+        feature_view_name: str,
+        df: pd.DataFrame,
+        update_expressions: Dict[str, str],
+        allow_registry_cache: bool = True,
+    ) -> None:
+        """
+        Update features using DynamoDB-specific list operations.
+
+        This method provides efficient in-place list updates using DynamoDB's native
+        UpdateItem operations with list_append and other expressions. This is more
+        efficient than the read-modify-write pattern for array-based features.
+
+        Args:
+            feature_view_name: The feature view to update.
+            df: DataFrame with new values to append/prepend to existing lists.
+            update_expressions: Dict mapping feature names to DynamoDB update expressions.
+                Examples:
+                - {"transactions": "list_append(transactions, :new_val)"}  # append
+                - {"recent_items": "list_append(:new_val, recent_items)"}  # prepend
+            allow_registry_cache: Whether to allow cached registry.
+
+        Raises:
+            NotImplementedError: If online store doesn't support update expressions.
+            ValueError: If the feature view or update expressions are invalid.
+
+        Example:
+            # Append new transactions to existing transaction history
+            await store.update_online_store(
+                feature_view_name="user_transactions",
+                df=new_transactions_df,
+                update_expressions={
+                    "transaction_history": "list_append(transaction_history, :new_val)",
+                    "recent_amounts": "list_append(:new_val, recent_amounts)"  # prepend
+                }
+            )
+        """
+        # Check if online store supports update expressions
+        provider = self._get_provider()
+        if not hasattr(provider.online_store, "update_online_store_async"):
+            raise NotImplementedError(
+                f"Online store {type(provider.online_store).__name__} "
+                "does not support async update expressions. This feature is only available "
+                "with DynamoDB online store."
+            )
+
+        feature_view, df = self._get_feature_view_and_df_for_online_write(
+            feature_view_name=feature_view_name,
+            df=df,
+            allow_registry_cache=allow_registry_cache,
+            transform_on_write=False,  # Don't transform for updates
+        )
+
+        # Validate that the dataframe has meaningful feature data
+        if df is not None:
+            if df.empty:
+                warnings.warn("Cannot update with empty dataframe")
+                return
+
+            # Check if feature columns are empty
+            feature_column_names = [f.name for f in feature_view.features]
+            if feature_column_names:
+                feature_df = df[feature_column_names]
+                if feature_df.empty or feature_df.isnull().all().all():
+                    warnings.warn("Cannot update with empty feature columns")
+                    return
+
+        # Prepare data for online store
+        from feast.infra.passthrough_provider import PassthroughProvider
+
+        rows_to_write = PassthroughProvider._prep_rows_to_write_for_ingestion(
+            feature_view=feature_view,
+            df=df,
+        )
+
+        # Call DynamoDB-specific async method
+        await provider.online_store.update_online_store_async(
+            config=self.config,
+            table=feature_view,
+            data=rows_to_write,
+            update_expressions=update_expressions,
+            progress=None,
+        )
+
     def write_to_offline_store(
         self,
         feature_view_name: str,
@@ -2238,6 +2426,8 @@ class FeatureStore:
 
         provider = self._get_provider()
         # Get columns of the batch source and the input dataframe.
+        if feature_view.batch_source is None:
+            raise ValueError(f"Feature view '{feature_view.name}' has no batch_source.")
         column_names_and_types = (
             provider.get_table_column_names_and_types_from_data_source(
                 self.config, feature_view.batch_source
@@ -2321,7 +2511,7 @@ class FeatureStore:
             config=self.config,
             features=features,
             entity_rows=entity_rows,
-            registry=self._registry,
+            registry=self.registry,
             project=self.project,
             full_feature_names=full_feature_names,
         )
@@ -2369,7 +2559,7 @@ class FeatureStore:
             config=self.config,
             features=features,
             entity_rows=entity_rows,
-            registry=self._registry,
+            registry=self.registry,
             project=self.project,
             full_feature_names=full_feature_names,
         )
@@ -2399,7 +2589,7 @@ class FeatureStore:
             available_feature_views,
             _,
         ) = utils._get_feature_views_to_use(
-            registry=self._registry,
+            registry=self.registry,
             project=self.project,
             features=features,
             allow_cache=True,
@@ -2600,7 +2790,7 @@ class FeatureStore:
             available_feature_views,
             available_odfv_views,
         ) = utils._get_feature_views_to_use(
-            registry=self._registry,
+            registry=self.registry,
             project=self.project,
             features=features,
             allow_cache=True,
@@ -2826,7 +3016,7 @@ class FeatureStore:
 
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
-        return self._provider.get_feature_server_endpoint()
+        return self.provider.get_feature_server_endpoint()
 
     def serve_ui(
         self,
@@ -2928,7 +3118,7 @@ class FeatureStore:
             feature_service=source,
             logs=logs,
             config=self.config,
-            registry=self._registry,
+            registry=self.registry,
         )
 
     def validate_logged_features(
@@ -3000,7 +3190,7 @@ class FeatureStore:
         Raises:
             ValidationReferenceNotFoundException: The validation reference could not be found.
         """
-        ref = self._registry.get_validation_reference(
+        ref = self.registry.get_validation_reference(
             name, project=self.project, allow_cache=allow_cache
         )
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
@@ -3019,7 +3209,7 @@ class FeatureStore:
         Returns:
             A list of validation references.
         """
-        return self._registry.list_validation_references(
+        return self.registry.list_validation_references(
             self.project, allow_cache=allow_cache, tags=tags
         )
 
@@ -3036,7 +3226,7 @@ class FeatureStore:
         Returns:
             A list of permissions.
         """
-        return self._registry.list_permissions(
+        return self.registry.list_permissions(
             self.project, allow_cache=allow_cache, tags=tags
         )
 
@@ -3053,7 +3243,7 @@ class FeatureStore:
         Raises:
             PermissionObjectNotFoundException: The permission could not be found.
         """
-        return self._registry.get_permission(name, self.project)
+        return self.registry.get_permission(name, self.project)
 
     def list_projects(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
@@ -3068,7 +3258,7 @@ class FeatureStore:
         Returns:
             A list of projects.
         """
-        return self._registry.list_projects(allow_cache=allow_cache, tags=tags)
+        return self.registry.list_projects(allow_cache=allow_cache, tags=tags)
 
     def get_project(self, name: Optional[str]) -> Project:
         """
@@ -3083,7 +3273,7 @@ class FeatureStore:
         Raises:
             ProjectObjectNotFoundException: The project could not be found.
         """
-        return self._registry.get_project(name or self.project)
+        return self.registry.get_project(name or self.project)
 
     def list_saved_datasets(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
@@ -3098,7 +3288,7 @@ class FeatureStore:
         Returns:
             A list of saved datasets.
         """
-        return self._registry.list_saved_datasets(
+        return self.registry.list_saved_datasets(
             self.project, allow_cache=allow_cache, tags=tags
         )
 
@@ -3130,18 +3320,25 @@ def _print_materialization_log(
 
 
 def _validate_feature_views(feature_views: List[BaseFeatureView]):
-    """Verify feature views have case-insensitively unique names"""
-    fv_names = set()
+    """Verify feature views have case-insensitively unique names across all types.
+
+    This validates that no two feature views (of any type: FeatureView,
+    StreamFeatureView, OnDemandFeatureView) share the same case-insensitive name.
+    This is critical because get_online_features uses get_any_feature_view which
+    resolves names in a fixed order, potentially returning the wrong feature view.
+    """
+    fv_by_name: Dict[str, BaseFeatureView] = {}
     for fv in feature_views:
         case_insensitive_fv_name = fv.name.lower()
-        if case_insensitive_fv_name in fv_names:
-            raise ValueError(
-                f"More than one feature view with name {case_insensitive_fv_name} found. "
-                f"Please ensure that all feature view names are case-insensitively unique. "
-                f"It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
+        if case_insensitive_fv_name in fv_by_name:
+            existing_fv = fv_by_name[case_insensitive_fv_name]
+            raise ConflictingFeatureViewNames(
+                fv.name,
+                existing_type=type(existing_fv).__name__,
+                new_type=type(fv).__name__,
             )
         else:
-            fv_names.add(case_insensitive_fv_name)
+            fv_by_name[case_insensitive_fv_name] = fv
 
 
 def _validate_data_sources(data_sources: List[DataSource]):

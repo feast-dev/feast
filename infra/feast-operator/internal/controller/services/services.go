@@ -71,71 +71,20 @@ func (feast *FeastServices) Deploy() error {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initCaConfigMap())
 	}
 
-	services := feast.Handler.FeatureStore.Status.Applied.Services
-	if feast.isOfflineStore() {
-		err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence)
-		if err != nil {
-			return err
-		}
-
-		if err = feast.deployFeastServiceByType(OfflineFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(OfflineFeastType); err != nil {
-			return err
-		}
-	}
-
-	if feast.isOnlineStore() {
-		err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence)
-		if err != nil {
-			return err
-		}
-
-		if err = feast.deployFeastServiceByType(OnlineFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
-			return err
-		}
-	}
-
-	if feast.isLocalRegistry() {
-		err := feast.validateRegistryPersistence(services.Registry.Local.Persistence)
-		if err != nil {
-			return err
-		}
-
-		if err = feast.deployFeastServiceByType(RegistryFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(RegistryFeastType); err != nil {
-			return err
-		}
-	}
-	if feast.isUiServer() {
-		if err = feast.deployFeastServiceByType(UIFeastType); err != nil {
-			return err
-		}
-		if err = feast.createRoute(UIFeastType); err != nil {
-			return err
-		}
-	} else {
-		if err := feast.removeFeastServiceByType(UIFeastType); err != nil {
-			return err
-		}
-		if err := feast.removeRoute(UIFeastType); err != nil {
-			return err
-		}
+	if err := feast.reconcileServices(); err != nil {
+		return err
 	}
 
 	if err := feast.createServiceAccount(); err != nil {
 		return err
 	}
 	if err := feast.createDeployment(); err != nil {
+		return err
+	}
+	if err := feast.createOrDeleteHPA(); err != nil {
+		return err
+	}
+	if err := feast.applyOrDeletePDB(); err != nil {
 		return err
 	}
 	if err := feast.deployClient(); err != nil {
@@ -146,6 +95,69 @@ func (feast *FeastServices) Deploy() error {
 	}
 	if err := feast.deployCronJob(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// reconcileServices validates persistence and deploys or removes each feast
+// service type based on the applied spec.
+func (feast *FeastServices) reconcileServices() error {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+
+	if feast.isOfflineStore() {
+		if err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence); err != nil {
+			return err
+		}
+		if err := feast.deployFeastServiceByType(OfflineFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(OfflineFeastType); err != nil {
+			return err
+		}
+	}
+
+	if feast.isOnlineStore() {
+		if err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence); err != nil {
+			return err
+		}
+		if err := feast.deployFeastServiceByType(OnlineFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
+			return err
+		}
+	}
+
+	if feast.isLocalRegistry() {
+		if err := feast.validateRegistryPersistence(services.Registry.Local.Persistence); err != nil {
+			return err
+		}
+		if err := feast.deployFeastServiceByType(RegistryFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(RegistryFeastType); err != nil {
+			return err
+		}
+	}
+
+	if feast.isUiServer() {
+		if err := feast.deployFeastServiceByType(UIFeastType); err != nil {
+			return err
+		}
+		if err := feast.createRoute(UIFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(UIFeastType); err != nil {
+			return err
+		}
+		if err := feast.removeRoute(UIFeastType); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -338,6 +350,8 @@ func (feast *FeastServices) createDeployment() error {
 		logger.Info("Successfully reconciled", "Deployment", deploy.Name, "operation", op)
 	}
 
+	feast.updateScalingStatus(deploy)
+
 	return nil
 }
 
@@ -381,7 +395,14 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType
 
 func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 	cr := feast.Handler.FeatureStore
+
+	// Determine replica count:
+	// - spec.replicas is set on the Deployment (defaults to 1)
+	// - When HPA is configured, replicas is left unset so the HPA controller manages it
 	replicas := deploy.Spec.Replicas
+	if desired := feast.getDesiredReplicas(); desired != nil {
+		replicas = desired
+	}
 
 	deploy.Labels = feast.getLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
@@ -413,6 +434,8 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountEmptyDirVolumes(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
 	feast.applyNodeSelector(podSpec)
+	feast.applyTopologySpread(podSpec)
+	feast.applyAffinity(podSpec)
 
 	return nil
 }
@@ -590,6 +613,32 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 			deploySettings.Args = append(deploySettings.Args, "--rest-port", strconv.Itoa(int(getTargetRestPort(feastType, tls))))
 		}
 	}
+
+	// Add worker configuration options for online store (feast serve)
+	if feastType == OnlineFeastType {
+		workerConfigs := feast.getWorkerConfigs(feastType)
+		if workerConfigs != nil {
+			if workerConfigs.Workers != nil {
+				deploySettings.Args = append(deploySettings.Args, "--workers", strconv.Itoa(int(*workerConfigs.Workers)))
+			}
+			if workerConfigs.WorkerConnections != nil {
+				deploySettings.Args = append(deploySettings.Args, "--worker-connections", strconv.Itoa(int(*workerConfigs.WorkerConnections)))
+			}
+			if workerConfigs.MaxRequests != nil {
+				deploySettings.Args = append(deploySettings.Args, "--max-requests", strconv.Itoa(int(*workerConfigs.MaxRequests)))
+			}
+			if workerConfigs.MaxRequestsJitter != nil {
+				deploySettings.Args = append(deploySettings.Args, "--max-requests-jitter", strconv.Itoa(int(*workerConfigs.MaxRequestsJitter)))
+			}
+			if workerConfigs.KeepAliveTimeout != nil {
+				deploySettings.Args = append(deploySettings.Args, "--keep-alive-timeout", strconv.Itoa(int(*workerConfigs.KeepAliveTimeout)))
+			}
+			if workerConfigs.RegistryTTLSeconds != nil {
+				deploySettings.Args = append(deploySettings.Args, "--registry_ttl_sec", strconv.Itoa(int(*workerConfigs.RegistryTTLSeconds)))
+			}
+		}
+	}
+
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)
@@ -608,6 +657,11 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 func (feast *FeastServices) getDeploymentStrategy() appsv1.DeploymentStrategy {
 	if feast.Handler.FeatureStore.Status.Applied.Services.DeploymentStrategy != nil {
 		return *feast.Handler.FeatureStore.Status.Applied.Services.DeploymentStrategy
+	}
+	if isScalingEnabled(feast.Handler.FeatureStore) {
+		return appsv1.DeploymentStrategy{
+			Type: appsv1.RollingUpdateDeploymentStrategyType,
+		}
 	}
 	return appsv1.DeploymentStrategy{
 		Type: appsv1.RecreateDeploymentStrategyType,
@@ -671,6 +725,35 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 				"echo $" + TmpFeatureStoreYamlEnvVar + " | base64 -d \u003e " + featureRepoDir + "/feature_store.yaml;\necho \"Feast repo creation complete\";\n",
 		}
 		podSpec.InitContainers = append(podSpec.InitContainers, container)
+
+		if applied.Services.RunFeastApplyOnInit != nil && *applied.Services.RunFeastApplyOnInit {
+			applyContainer := corev1.Container{
+				Name:       "feast-apply",
+				Image:      getFeatureServerImage(),
+				Command:    []string{"feast", "apply"},
+				WorkingDir: featureRepoDir,
+			}
+			// feast apply needs DB/store connectivity, so inherit env, envFrom
+			// and volume mounts from all server container configs.
+			seen := map[string]bool{}
+			for _, feastType := range []FeastServiceType{RegistryFeastType, OnlineFeastType, OfflineFeastType} {
+				if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
+					if serverConfigs.OptionalCtrConfigs.Env != nil {
+						applyContainer.Env = envOverride(applyContainer.Env, *serverConfigs.OptionalCtrConfigs.Env)
+					}
+					if serverConfigs.OptionalCtrConfigs.EnvFrom != nil {
+						applyContainer.EnvFrom = append(applyContainer.EnvFrom, *serverConfigs.OptionalCtrConfigs.EnvFrom...)
+					}
+					for _, vm := range feast.getVolumeMounts(feastType) {
+						if !seen[vm.MountPath] {
+							applyContainer.VolumeMounts = append(applyContainer.VolumeMounts, vm)
+							seen[vm.MountPath] = true
+						}
+					}
+				}
+			}
+			podSpec.InitContainers = append(podSpec.InitContainers, applyContainer)
+		}
 	}
 }
 
@@ -820,6 +903,13 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 	return nil
 }
 
+func (feast *FeastServices) getWorkerConfigs(feastType FeastServiceType) *feastdevv1.WorkerConfigs {
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.WorkerConfigs
+	}
+	return nil
+}
+
 func (feast *FeastServices) isMetricsEnabled(feastType FeastServiceType) bool {
 	if feastType != OnlineFeastType {
 		return false
@@ -862,6 +952,54 @@ func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
 	// This preserves pre-existing selectors while adding operator requirements
 	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, mergedNodeSelector)
 	podSpec.NodeSelector = finalNodeSelector
+}
+
+func (feast *FeastServices) applyTopologySpread(podSpec *corev1.PodSpec) {
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	// User-provided explicit constraints take precedence (including empty array to disable)
+	if services != nil && services.TopologySpreadConstraints != nil {
+		podSpec.TopologySpreadConstraints = services.TopologySpreadConstraints
+		return
+	}
+
+	if !isScalingEnabled(cr) {
+		return
+	}
+
+	podSpec.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{{
+		MaxSkew:           1,
+		TopologyKey:       "topology.kubernetes.io/zone",
+		WhenUnsatisfiable: corev1.ScheduleAnyway,
+		LabelSelector:     metav1.SetAsLabelSelector(feast.getLabels()),
+	}}
+}
+
+func (feast *FeastServices) applyAffinity(podSpec *corev1.PodSpec) {
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	if services != nil && services.Affinity != nil {
+		podSpec.Affinity = services.Affinity
+		return
+	}
+
+	if !isScalingEnabled(cr) {
+		return
+	}
+
+	podSpec.Affinity = &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+				Weight: 100,
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					TopologyKey:   "kubernetes.io/hostname",
+					LabelSelector: metav1.SetAsLabelSelector(feast.getLabels()),
+				},
+			}},
+		},
+	}
 }
 
 // mergeNodeSelectors merges existing and operator node selectors
@@ -1294,6 +1432,67 @@ func IsDeploymentAvailable(conditions []appsv1.DeploymentCondition) bool {
 	}
 
 	return false
+}
+
+// GetPodContainerFailureMessage inspects pods belonging to the given deployment
+// and returns a human-readable message describing the first init or regular
+// container that is in a failing state. Returns empty string if no failure found.
+func (feast *FeastServices) GetPodContainerFailureMessage(deploy appsv1.Deployment) string {
+	podList := corev1.PodList{}
+	labels := feast.getLabels()
+	if err := feast.Handler.Client.List(feast.Handler.Context, &podList,
+		client.InNamespace(deploy.Namespace),
+		client.MatchingLabels(labels),
+	); err != nil {
+		return ""
+	}
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if msg := initContainerFailureMessage(pod); msg != "" {
+			return msg
+		}
+		if msg := containerFailureMessage(pod); msg != "" {
+			return msg
+		}
+	}
+	return ""
+}
+
+func initContainerFailureMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.InitContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" && cs.State.Waiting.Reason != "PodInitializing" {
+			return "Init container '" + cs.Name + "' waiting: " + cs.State.Waiting.Reason +
+				messageIfPresent(cs.State.Waiting.Message)
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Init container '" + cs.Name + "' failed with exit code " +
+				strconv.Itoa(int(cs.State.Terminated.ExitCode)) +
+				messageIfPresent(cs.State.Terminated.Message)
+		}
+	}
+	return ""
+}
+
+func containerFailureMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" && cs.State.Waiting.Reason != "ContainerCreating" {
+			return "Container '" + cs.Name + "' waiting: " + cs.State.Waiting.Reason +
+				messageIfPresent(cs.State.Waiting.Message)
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Container '" + cs.Name + "' failed with exit code " +
+				strconv.Itoa(int(cs.State.Terminated.ExitCode)) +
+				messageIfPresent(cs.State.Terminated.Message)
+		}
+	}
+	return ""
+}
+
+func messageIfPresent(msg string) string {
+	if msg != "" {
+		return " - " + msg
+	}
+	return ""
 }
 
 // GetFeastRestServiceName returns the feast REST service object name based on service type

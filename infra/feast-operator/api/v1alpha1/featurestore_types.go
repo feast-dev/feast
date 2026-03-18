@@ -105,7 +105,7 @@ type GitCloneOptions struct {
 type FeastInitOptions struct {
 	Minimal bool `json:"minimal,omitempty"`
 	// Template for the created project
-	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase;clickhouse
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;couchbase;clickhouse
 	Template string `json:"template,omitempty"`
 }
 
@@ -289,6 +289,8 @@ type FeatureStoreServices struct {
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
+	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
@@ -371,7 +373,7 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid
+	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -382,7 +384,6 @@ type OnlineStoreDBStorePersistence struct {
 var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"snowflake.online",
 	"redis",
-	"ikv",
 	"datastore",
 	"dynamodb",
 	"bigtable",
@@ -397,6 +398,7 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"couchbase.online",
 	"milvus",
 	"hybrid",
+	"mongodb",
 }
 
 // LocalRegistryConfig configures the registry service
@@ -523,6 +525,44 @@ type ServerConfigs struct {
 	// required by the Feast components. Ensure that each volume mount has a corresponding
 	// volume definition in the Volumes field.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// WorkerConfigs defines the worker configuration for the Feast server.
+	// These options are primarily used for production deployments to optimize performance.
+	WorkerConfigs *WorkerConfigs `json:"workerConfigs,omitempty"`
+}
+
+// WorkerConfigs defines the worker configuration for Feast servers.
+// These settings control gunicorn worker processes for production deployments.
+type WorkerConfigs struct {
+	// Workers is the number of worker processes. Use -1 to auto-calculate based on CPU cores (2 * CPU + 1).
+	// Defaults to 1 if not specified.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	Workers *int32 `json:"workers,omitempty"`
+	// WorkerConnections is the maximum number of simultaneous clients per worker process.
+	// Defaults to 1000.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	WorkerConnections *int32 `json:"workerConnections,omitempty"`
+	// MaxRequests is the maximum number of requests a worker will process before restarting.
+	// This helps prevent memory leaks. Defaults to 1000.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	MaxRequests *int32 `json:"maxRequests,omitempty"`
+	// MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+	// thundering herd effect on worker restart. Defaults to 50.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	MaxRequestsJitter *int32 `json:"maxRequestsJitter,omitempty"`
+	// KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+	// Defaults to 30.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	KeepAliveTimeout *int32 `json:"keepAliveTimeout,omitempty"`
+	// RegistryTTLSeconds is the number of seconds after which the registry is refreshed.
+	// Higher values reduce refresh overhead but increase staleness. Defaults to 60.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	RegistryTTLSeconds *int32 `json:"registryTTLSeconds,omitempty"`
 }
 
 // RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.

@@ -139,7 +139,7 @@ def fastapi_test_app():
             test_on_demand_feature_view,
         ]
     )
-    store._registry.apply_saved_dataset(test_saved_dataset, "demo_project")
+    store.registry.apply_saved_dataset(test_saved_dataset, "demo_project")
 
     # Build REST app with registered routes
     rest_server = RestRegistryServer(store)
@@ -773,7 +773,7 @@ def fastapi_test_app_with_multiple_objects():
     store.apply(entities + data_sources + feature_views + feature_services)
 
     for dataset in saved_datasets:
-        store._registry.apply_saved_dataset(dataset, "demo_project")
+        store.registry.apply_saved_dataset(dataset, "demo_project")
 
     rest_server = RestRegistryServer(store)
     client = TestClient(rest_server.app)

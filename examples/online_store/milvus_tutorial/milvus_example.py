@@ -32,39 +32,71 @@ def generate_sample_data():
 
     # Sample product data
     products = [
-        {"id": 1, "name": "Smartphone",
-         "description": "A high-end smartphone with advanced camera features and long battery life."},
-        {"id": 2, "name": "Laptop",
-         "description": "Powerful laptop with fast processor and high-resolution display for professional use."},
-        {"id": 3, "name": "Headphones",
-         "description": "Wireless noise-cancelling headphones with premium sound quality."},
-        {"id": 4, "name": "Smartwatch",
-         "description": "Fitness tracking smartwatch with heart rate monitoring and sleep analysis."},
-        {"id": 5, "name": "Tablet",
-         "description": "Lightweight tablet with vibrant display perfect for reading and browsing."},
-        {"id": 6, "name": "Camera",
-         "description": "Professional digital camera with high-resolution sensor and interchangeable lenses."},
-        {"id": 7, "name": "Speaker",
-         "description": "Bluetooth speaker with rich bass and long battery life for outdoor use."},
-        {"id": 8, "name": "Gaming Console",
-         "description": "Next-generation gaming console with 4K graphics and fast loading times."},
-        {"id": 9, "name": "E-reader",
-         "description": "E-ink display reader with backlight for comfortable reading in any lighting condition."},
-        {"id": 10, "name": "Smart TV",
-         "description": "4K smart television with built-in streaming apps and voice control."}
+        {
+            "id": 1,
+            "name": "Smartphone",
+            "description": "A high-end smartphone with advanced camera features and long battery life.",
+        },
+        {
+            "id": 2,
+            "name": "Laptop",
+            "description": "Powerful laptop with fast processor and high-resolution display for professional use.",
+        },
+        {
+            "id": 3,
+            "name": "Headphones",
+            "description": "Wireless noise-cancelling headphones with premium sound quality.",
+        },
+        {
+            "id": 4,
+            "name": "Smartwatch",
+            "description": "Fitness tracking smartwatch with heart rate monitoring and sleep analysis.",
+        },
+        {
+            "id": 5,
+            "name": "Tablet",
+            "description": "Lightweight tablet with vibrant display perfect for reading and browsing.",
+        },
+        {
+            "id": 6,
+            "name": "Camera",
+            "description": "Professional digital camera with high-resolution sensor and interchangeable lenses.",
+        },
+        {
+            "id": 7,
+            "name": "Speaker",
+            "description": "Bluetooth speaker with rich bass and long battery life for outdoor use.",
+        },
+        {
+            "id": 8,
+            "name": "Gaming Console",
+            "description": "Next-generation gaming console with 4K graphics and fast loading times.",
+        },
+        {
+            "id": 9,
+            "name": "E-reader",
+            "description": "E-ink display reader with backlight for comfortable reading in any lighting condition.",
+        },
+        {
+            "id": 10,
+            "name": "Smart TV",
+            "description": "4K smart television with built-in streaming apps and voice control.",
+        },
     ]
 
     # Create DataFrame
     df = pd.DataFrame(products)
 
     # Generate embeddings using sentence-transformers
-    model = SentenceTransformer('all-MiniLM-L6-v2')  # Small, fast model with 384-dim embeddings
-    embeddings = model.encode(df['description'].tolist())
+    model = SentenceTransformer(
+        "all-MiniLM-L6-v2"
+    )  # Small, fast model with 384-dim embeddings
+    embeddings = model.encode(df["description"].tolist())
 
     # Add embeddings and timestamp to DataFrame
-    df['embedding'] = embeddings.tolist()
-    df['event_timestamp'] = datetime.now() - timedelta(days=1)
-    df['created_timestamp'] = datetime.now() - timedelta(days=1)
+    df["embedding"] = embeddings.tolist()
+    df["event_timestamp"] = datetime.now() - timedelta(days=1)
+    df["created_timestamp"] = datetime.now() - timedelta(days=1)
 
     # Save to parquet file
     parquet_path = "data/sample_data.parquet"
@@ -135,16 +167,20 @@ def perform_similarity_search(store, query_text: str, top_k: int = 3):
     print(f"\nPerforming similarity search for: '{query_text}'")
 
     # Generate embedding for query text
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer("all-MiniLM-L6-v2")
     query_embedding = model.encode(query_text).tolist()
 
     # Perform similarity search using vector embeddings with version 2 API
     try:
         results = store.retrieve_online_documents_v2(
-            features=["product_embeddings:embedding", "product_embeddings:name", "product_embeddings:description"],
+            features=[
+                "product_embeddings:embedding",
+                "product_embeddings:name",
+                "product_embeddings:description",
+            ],
             query=query_embedding,
             top_k=top_k,
-            distance_metric="L2"
+            distance_metric="L2",
         ).to_df()
 
         # Print results
@@ -184,7 +220,9 @@ def main():
     perform_similarity_search(store, "portable computing device for work", top_k=3)
 
     print("\n=== Tutorial Complete ===")
-    print("You've successfully set up Milvus with Feast and performed vector similarity searches!")
+    print(
+        "You've successfully set up Milvus with Feast and performed vector similarity searches!"
+    )
 
 
 if __name__ == "__main__":

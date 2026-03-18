@@ -28,6 +28,40 @@ _Appears in:_
 | `oidc` _[OidcAuthz](#oidcauthz)_ |  |
 
 
+#### AutoscalingConfig
+
+
+
+AutoscalingConfig defines HPA settings for the FeatureStore deployment.
+
+_Appears in:_
+- [ScalingConfig](#scalingconfig)
+
+| Field | Description |
+| --- | --- |
+| `minReplicas` _integer_ | MinReplicas is the lower limit for the number of replicas. Defaults to 1. |
+| `maxReplicas` _integer_ | MaxReplicas is the upper limit for the number of replicas. Required. |
+| `metrics` _[MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metricspec-v2-autoscaling) array_ | Metrics contains the specifications for which to use to calculate the desired replica count.
+If not set, defaults to 80% CPU utilization. |
+| `behavior` _[HorizontalPodAutoscalerBehavior](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerbehavior-v2-autoscaling)_ | Behavior configures the scaling behavior of the target. |
+
+
+#### BatchEngineConfig
+
+
+
+BatchEngineConfig defines the batch compute engine configuration.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `configMapRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a ConfigMap containing the batch engine configuration.
+The ConfigMap should contain YAML-formatted config with 'type' and engine-specific fields. |
+| `configMapKey` _string_ | Key name in the ConfigMap. Defaults to "config" if not specified. |
+
+
 #### ContainerConfigs
 
 
@@ -206,7 +240,19 @@ _Appears in:_
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
+| `runFeastApplyOnInit` _boolean_ | Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true. |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
+| `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
+For static replicas, use spec.replicas instead. |
+| `podDisruptionBudgets` _[PDBConfig](#pdbconfig)_ | PodDisruptionBudgets configures a PodDisruptionBudget for the FeatureStore deployment.
+Only created when scaling is enabled (replicas > 1 or autoscaling). |
+| `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | TopologySpreadConstraints defines how pods are spread across topology domains.
+When scaling is enabled and this is not set, the operator auto-injects a soft
+zone-spread constraint (whenUnsatisfiable: ScheduleAnyway).
+Set to an empty array to disable auto-injection. |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
+When scaling is enabled and this is not set, the operator auto-injects a soft
+pod anti-affinity rule to prefer spreading pods across nodes. |
 
 
 #### FeatureStoreSpec
@@ -226,6 +272,9 @@ _Appears in:_
 | `services` _[FeatureStoreServices](#featurestoreservices)_ |  |
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
+| `batchEngine` _[BatchEngineConfig](#batchengineconfig)_ |  |
+| `replicas` _integer_ | Replicas is the desired number of pod replicas. Used by the scale sub-resource.
+Mutually exclusive with services.scaling.autoscaling. |
 
 
 #### FeatureStoreStatus
@@ -246,6 +295,9 @@ _Appears in:_
 | `feastVersion` _string_ |  |
 | `phase` _string_ |  |
 | `serviceHostnames` _[ServiceHostnames](#servicehostnames)_ |  |
+| `replicas` _integer_ | Replicas is the current number of ready pod replicas (used by the scale sub-resource). |
+| `selector` _string_ | Selector is the label selector for pods managed by the FeatureStore deployment (used by the scale sub-resource). |
+| `scalingStatus` _[ScalingStatus](#scalingstatus)_ | ScalingStatus reports the current scaling state of the FeatureStore deployment. |
 
 
 #### GitCloneOptions
@@ -575,6 +627,24 @@ _Appears in:_
 | `nodeSelector` _map[string]string_ |  |
 
 
+#### PDBConfig
+
+
+
+PDBConfig configures a PodDisruptionBudget for the FeatureStore deployment.
+Exactly one of minAvailable or maxUnavailable must be set.
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `minAvailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#intorstring-intstr-util)_ | MinAvailable specifies the minimum number/percentage of pods that must remain available.
+Mutually exclusive with maxUnavailable. |
+| `maxUnavailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#intorstring-intstr-util)_ | MaxUnavailable specifies the maximum number/percentage of pods that can be unavailable.
+Mutually exclusive with minAvailable. |
+
+
 #### PvcConfig
 
 
@@ -707,6 +777,8 @@ Allowed values: "debug", "info", "warning", "error", "critical". |
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
 volume definition in the Volumes field. |
+| `workerConfigs` _[WorkerConfigs](#workerconfigs)_ | WorkerConfigs defines the worker configuration for the Feast server.
+These options are primarily used for production deployments to optimize performance. |
 | `restAPI` _boolean_ | Enable REST API registry server. |
 | `grpc` _boolean_ | Enable gRPC registry server. Defaults to true if unset. |
 
@@ -726,6 +798,36 @@ _Appears in:_
 | `hostname` _string_ | Host address of the remote registry service - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80` |
 | `feastRef` _[FeatureStoreRef](#featurestoreref)_ | Reference to an existing `FeatureStore` CR in the same k8s cluster. |
 | `tls` _[TlsRemoteRegistryConfigs](#tlsremoteregistryconfigs)_ |  |
+
+
+#### ScalingConfig
+
+
+
+ScalingConfig configures horizontal scaling for the FeatureStore deployment.
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `autoscaling` _[AutoscalingConfig](#autoscalingconfig)_ | Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
+Mutually exclusive with spec.replicas. |
+
+
+#### ScalingStatus
+
+
+
+ScalingStatus reports the observed scaling state.
+
+_Appears in:_
+- [FeatureStoreStatus](#featurestorestatus)
+
+| Field | Description |
+| --- | --- |
+| `currentReplicas` _integer_ | CurrentReplicas is the current number of pod replicas. |
+| `desiredReplicas` _integer_ | DesiredReplicas is the desired number of pod replicas. |
 
 
 #### SecretKeyNames
@@ -771,6 +873,8 @@ Allowed values: "debug", "info", "warning", "error", "critical". |
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
 volume definition in the Volumes field. |
+| `workerConfigs` _[WorkerConfigs](#workerconfigs)_ | WorkerConfigs defines the worker configuration for the Feast server.
+These options are primarily used for production deployments to optimize performance. |
 
 
 #### ServiceHostnames
@@ -821,5 +925,32 @@ _Appears in:_
 | --- | --- |
 | `configMapRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | references the local k8s configmap where the TLS cert resides |
 | `certName` _string_ | defines the configmap key name for the client TLS cert. |
+
+
+#### WorkerConfigs
+
+
+
+WorkerConfigs defines the worker configuration for Feast servers.
+These settings control gunicorn worker processes for production deployments.
+
+_Appears in:_
+- [RegistryServerConfigs](#registryserverconfigs)
+- [ServerConfigs](#serverconfigs)
+
+| Field | Description |
+| --- | --- |
+| `workers` _integer_ | Workers is the number of worker processes. Use -1 to auto-calculate based on CPU cores (2 * CPU + 1).
+Defaults to 1 if not specified. |
+| `workerConnections` _integer_ | WorkerConnections is the maximum number of simultaneous clients per worker process.
+Defaults to 1000. |
+| `maxRequests` _integer_ | MaxRequests is the maximum number of requests a worker will process before restarting.
+This helps prevent memory leaks. Defaults to 1000. |
+| `maxRequestsJitter` _integer_ | MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+thundering herd effect on worker restart. Defaults to 50. |
+| `keepAliveTimeout` _integer_ | KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+Defaults to 30. |
+| `registryTTLSeconds` _integer_ | RegistryTTLSeconds is the number of seconds after which the registry is refreshed.
+Higher values reduce refresh overhead but increase staleness. Defaults to 60. |
 
 

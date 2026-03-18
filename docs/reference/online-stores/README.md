@@ -22,10 +22,6 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [dragonfly.md](dragonfly.md)
 {% endcontent-ref %}
 
-{% content-ref url="ikv.md" %}
-[ikv.md](ikv.md)
-{% endcontent-ref %}
-
 {% content-ref url="datastore.md" %}
 [datastore.md](datastore.md)
 {% endcontent-ref %}
@@ -52,6 +48,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 
 {% content-ref url="mysql.md" %}
 [mysql.md](mysql.md)
+{% endcontent-ref %}
+
+{% content-ref url="mongodb.md" %}
+[mongodb.md](mongodb.md)
 {% endcontent-ref %}
 
 {% content-ref url="hazelcast.md" %}

@@ -55,7 +55,7 @@ def generate_data(num_rows: int, num_features: int, destination: str) -> pd.Data
     df.to_parquet(destination)
 
 
-generate_data(10 ** 3, 250, "benchmark_data.parquet")
+generate_data(10**3, 250, "benchmark_data.parquet")
 
 
 fs = FeatureStore(".")

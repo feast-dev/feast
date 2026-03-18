@@ -263,11 +263,7 @@ class SqliteOnlineStore(OnlineStore):
         rows = {
             k: list(group) for k, group in itertools.groupby(rows, key=lambda r: r[0])
         }
-        for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            )
+        for entity_key_bin in serialized_entity_keys:
             res = {}
             res_ts = None
             for _, feature_name, val_bin, ts in rows.get(entity_key_bin, []):

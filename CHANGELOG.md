@@ -1,5 +1,91 @@
 # Changelog
 
+# [0.61.0](https://github.com/feast-dev/feast/compare/v0.60.0...v0.61.0) (2026-03-10)
+
+
+### Bug Fixes
+
+* Add grpcio dependency group to transformation server Dockerfile ([2c2150a](https://github.com/feast-dev/feast/commit/2c2150a1d7d6bf06e28bb11156fca730fdbce77f))
+* Add https readiness check for rest-registry tests ([ea85e63](https://github.com/feast-dev/feast/commit/ea85e63cd9d77441831702fffbf170fc2ec82a10))
+* Add website build check for PRs and fix blog frontmatter YAML error ([#6079](https://github.com/feast-dev/feast/issues/6079)) ([30a3a43](https://github.com/feast-dev/feast/commit/30a3a439d5f41b1cc3dcb4961f23198c218dc9d1))
+* Added MLflow metric charts across feature selection ([#6080](https://github.com/feast-dev/feast/issues/6080)) ([a403361](https://github.com/feast-dev/feast/commit/a4033611cba7b47ada8d1841f70ec28fe6240589))
+* Check duplicate names for feature view across types ([#5999](https://github.com/feast-dev/feast/issues/5999)) ([95b9af8](https://github.com/feast-dev/feast/commit/95b9af8628ee4c0d68c4937295999cc4e8691004))
+* Fix integration tests ([#6046](https://github.com/feast-dev/feast/issues/6046)) ([02d5548](https://github.com/feast-dev/feast/commit/02d5548a345f0f6a076913f89e788069f87b2769))
+* Fix non-specific label selector on metrics service ([a1a160d](https://github.com/feast-dev/feast/commit/a1a160d9b33e62e6a9e5499964052603f94e4361))
+* Fixed IntegrityError on SqlRegistry ([#6047](https://github.com/feast-dev/feast/issues/6047)) ([325e148](https://github.com/feast-dev/feast/commit/325e1485d285708b9b20e69d8fdeec96df67ea86))
+* Fixed pre-commit check ([114b7db](https://github.com/feast-dev/feast/commit/114b7db6b2afc40c98e9c182990c65b251f6ce90))
+* Fixed uv cache permission error for docker build on mac ([ad807be](https://github.com/feast-dev/feast/commit/ad807be579aa8274ba54e7eb533558aa6b31a8f4))
+* Fixes a `PydanticDeprecatedSince20` warning for trino_offline_store ([#5991](https://github.com/feast-dev/feast/issues/5991)) ([abfd18a](https://github.com/feast-dev/feast/commit/abfd18acf6bf207b057dd818b6a22d97ae69dee8))
+* Integration test failures ([#6040](https://github.com/feast-dev/feast/issues/6040)) ([9165870](https://github.com/feast-dev/feast/commit/91658704209c29315ae17df49f5d5226d08491b9))
+* Ray offline store tests are duplicated across 3 workflows ([54f705a](https://github.com/feast-dev/feast/commit/54f705aeb919f268be40106e229530ef059b139c))
+* Reenable tests ([#6036](https://github.com/feast-dev/feast/issues/6036)) ([82ee7f8](https://github.com/feast-dev/feast/commit/82ee7f8e18df6de67eadf2f8b548346f174e4fdf))
+* Use commitlint pre-commit hook instead of a separate action ([35a81e7](https://github.com/feast-dev/feast/commit/35a81e71a63c4d47cd144ac1ec5180de6d448eaf))
+
+
+### Features
+
+* Add complex type support (Map, JSON, Struct) with schema validation ([#5974](https://github.com/feast-dev/feast/issues/5974)) ([1200dbf](https://github.com/feast-dev/feast/commit/1200dbfe0a4acc65ac1fc6830c8c07dc2258f327))
+* Add materialization, feature freshness, request latency, and push metrics to feature server ([2c6be18](https://github.com/feast-dev/feast/commit/2c6be18bfee9d4bf18ae59490160282b090d3b62))
+* Add non-entity retrieval support for ClickHouse offline store ([4d08ddc](https://github.com/feast-dev/feast/commit/4d08ddcc4d1c3c5ca5b23ce4aad241a9017ef3fd)), closes [#5835](https://github.com/feast-dev/feast/issues/5835)
+* Add OnlineStore for MongoDB ([#6025](https://github.com/feast-dev/feast/issues/6025)) ([bf4e3fa](https://github.com/feast-dev/feast/commit/bf4e3faff653e214bc98f38ec72b29b2a318c8e7)), closes [golang/go#74462](https://github.com/golang/go/issues/74462)
+* Added CodeQL SAST scanning and detect-secrets pre-commit hook ([547b516](https://github.com/feast-dev/feast/commit/547b5161ec709fb0a09473dbd8f8371b2b14bb67))
+* Adding optional name to Aggregation (feast-dev[#5994](https://github.com/feast-dev/feast/issues/5994)) ([#6083](https://github.com/feast-dev/feast/issues/6083)) ([56469f7](https://github.com/feast-dev/feast/commit/56469f7d9bd680a288f7a6430b8ff9cbb9b37510))
+* Feature Server High-Availability on Kubernetes ([#6028](https://github.com/feast-dev/feast/issues/6028)) ([9c07b4c](https://github.com/feast-dev/feast/commit/9c07b4c1dd6c6cf3e1f379c3077821da62648ca9)), closes [Hi#Availability](https://github.com/Hi/issues/Availability) [Hi#Availability](https://github.com/Hi/issues/Availability)
+* **go:** Implement metrics and tracing for http and grpc servers ([#5925](https://github.com/feast-dev/feast/issues/5925)) ([2b4ec9a](https://github.com/feast-dev/feast/commit/2b4ec9a6ef77e1bc9de0f4917559ab53b9f4e5bf))
+* Horizontal scaling support to the Feast operator ([#6000](https://github.com/feast-dev/feast/issues/6000)) ([3ec13e6](https://github.com/feast-dev/feast/commit/3ec13e606f356eb70e5a2c9b336be83f4e65d573))
+* Making feature view source optional (feast-dev[#6074](https://github.com/feast-dev/feast/issues/6074)) ([#6075](https://github.com/feast-dev/feast/issues/6075)) ([76917b7](https://github.com/feast-dev/feast/commit/76917b772762dc98d5c679f772e90a16bb39931b))
+* Support arm docker build ([#6061](https://github.com/feast-dev/feast/issues/6061)) ([1e1f5d9](https://github.com/feast-dev/feast/commit/1e1f5d94486be73d9e9afb85e36773a7a8c15e17))
+* Use orjson for faster JSON serialization in feature server ([6f5203a](https://github.com/feast-dev/feast/commit/6f5203ac50284c4fc5884740cbc3bbca7fd1c7d0))
+
+
+### Performance Improvements
+
+* Optimize protobuf parsing in Redis online store ([#6023](https://github.com/feast-dev/feast/issues/6023)) ([59dfdb8](https://github.com/feast-dev/feast/commit/59dfdb87409085a397dfec065e4ee5d9af3b67d4))
+* Optimize timestamp conversion in _convert_rows_to_protobuf ([33a2e95](https://github.com/feast-dev/feast/commit/33a2e9542a8680aabaeeef757efde079702cac65))
+* Parallelize DynamoDB batch reads in sync online_read ([#6024](https://github.com/feast-dev/feast/issues/6024)) ([9699944](https://github.com/feast-dev/feast/commit/96999443440045fc1786f63d0d12279d0e848d3a))
+* Remove redundant entity key serialization in online_read ([d87283f](https://github.com/feast-dev/feast/commit/d87283fa7d647c48640ec03a342312745d77ffc8))
+
+# [0.60.0](https://github.com/feast-dev/feast/compare/v0.59.0...v0.60.0) (2026-02-17)
+
+
+### Bug Fixes
+
+* Added a flag to correctly download the go binaries ([0f77135](https://github.com/feast-dev/feast/commit/0f77135f19d0a4f67078a71a9a639b2895204980))
+* Adds mapping of date Trino's type into string Feast's type ([531e839](https://github.com/feast-dev/feast/commit/531e8396faadad668d4649391b1e8985f0921aab))
+* **ci:** Use uv run for pytest in master_only benchmark step ([#5957](https://github.com/feast-dev/feast/issues/5957)) ([5096010](https://github.com/feast-dev/feast/commit/5096010027959d0eedbeab34154029251ff1600c))
+* Disable materialized odfvs for historical retrieval ([#5880](https://github.com/feast-dev/feast/issues/5880)) ([739d28a](https://github.com/feast-dev/feast/commit/739d28a336fbbfe75e79b9b661842969d1c90814))
+* Fix linting and formatting issues ([#5907](https://github.com/feast-dev/feast/issues/5907)) ([42ca14a](https://github.com/feast-dev/feast/commit/42ca14a06bfd5ad6a46ebf2a33c2b0211d50609f))
+* Make timestamp field handling  compatible with Athena V3 ([#5936](https://github.com/feast-dev/feast/issues/5936)) ([e2bad34](https://github.com/feast-dev/feast/commit/e2bad34e932aa992465f089cdf9af783978ad40a))
+* Support pgvector under non-default schema ([#5970](https://github.com/feast-dev/feast/issues/5970)) ([c636cd4](https://github.com/feast-dev/feast/commit/c636cd427c91ef4b55a8db811f1430332c7f8e60))
+* unit tests not running on main branch ([#5909](https://github.com/feast-dev/feast/issues/5909)) ([62fe664](https://github.com/feast-dev/feast/commit/62fe66460997501ddb28b7bc979b37c83c8e8702))
+* Update java dep which blocking release ([#5903](https://github.com/feast-dev/feast/issues/5903)) ([a5b8186](https://github.com/feast-dev/feast/commit/a5b8186ffe58188727dcb1ede0e9aab0c7d73cfe))
+* Update the dockerfile with golang 1.24.12. ([#5918](https://github.com/feast-dev/feast/issues/5918)) ([be1b522](https://github.com/feast-dev/feast/commit/be1b52227e1ade9a3be9836391ade45eb1a26909))
+* Use context.Background() in client constructors ([#5897](https://github.com/feast-dev/feast/issues/5897)) ([984f93a](https://github.com/feast-dev/feast/commit/984f93a7af3816e0f6e9f1e3fd5108990f5b669d))
+
+
+### Features
+
+* Add blog post for PyTorch ecosystem announcement ([#5906](https://github.com/feast-dev/feast/issues/5906)) ([d2eb629](https://github.com/feast-dev/feast/commit/d2eb62989b5c045690282eaee87cdebcddc2053b))
+* Add blog post on Feast dbt integration ([#5915](https://github.com/feast-dev/feast/issues/5915)) ([b3c8138](https://github.com/feast-dev/feast/commit/b3c81382986b1ebb402bf45d2145afa1f0b15c9c))
+* Add DynamoDB in-place list update support for array-based features ([#5916](https://github.com/feast-dev/feast/issues/5916)) ([aa5973f](https://github.com/feast-dev/feast/commit/aa5973f936ae2a902ef37e0ae393f9854ccb90c2))
+* Add HTTP connection pooling for remote online store client ([#5895](https://github.com/feast-dev/feast/issues/5895)) ([e022bf8](https://github.com/feast-dev/feast/commit/e022bf8c3497792f3170db13bb2fc83a78326d71))
+* Add integration tests for dbt import ([#5899](https://github.com/feast-dev/feast/issues/5899)) ([a444692](https://github.com/feast-dev/feast/commit/a444692485b7bcce9247ef37a0533b8d38048ce3))
+* Add lazy initialization and feature service caching ([#5924](https://github.com/feast-dev/feast/issues/5924)) ([b37b7d0](https://github.com/feast-dev/feast/commit/b37b7d02ea49606a06064a4d3d974327bf4238c2))
+* Add multiple entity support to dbt integration ([#5901](https://github.com/feast-dev/feast/issues/5901)) ([05a4fb5](https://github.com/feast-dev/feast/commit/05a4fb5e67c8601558fffa092792897bf9583388)), closes [#5872](https://github.com/feast-dev/feast/issues/5872)
+* Add PostgreSQL online store support for Go feature server ([#5963](https://github.com/feast-dev/feast/issues/5963)) ([b8c6f3d](https://github.com/feast-dev/feast/commit/b8c6f3d5b57e586c3c41fdd1fc0175afc2c7b892))
+* Add publish docker image of Go feature server. ([#5923](https://github.com/feast-dev/feast/issues/5923)) ([759d8c6](https://github.com/feast-dev/feast/commit/759d8c6f17c7666412683c1afb05e85232d07f21))
+* Add Set as feature type ([#5888](https://github.com/feast-dev/feast/issues/5888)) ([52458fc](https://github.com/feast-dev/feast/commit/52458fc98f2a94f3c15fb63ea2cf1a259c0b878f))
+* Added online server worker config support in operator ([#5926](https://github.com/feast-dev/feast/issues/5926)) ([193c72a](https://github.com/feast-dev/feast/commit/193c72a8ebeb0022c4814e025346cfa190a91def))
+* Added support for OpenLineage integration ([#5884](https://github.com/feast-dev/feast/issues/5884)) ([df70d8d](https://github.com/feast-dev/feast/commit/df70d8de4322a2e8d4a2dac43509a45b7c7dcd13))
+* Adjust ray offline store to support abfs(s) ADLS Azure Storage ([#5911](https://github.com/feast-dev/feast/issues/5911)) ([d6c0b2d](https://github.com/feast-dev/feast/commit/d6c0b2d02fce988978e0a5742f418fa4844ca7b2))
+* Batch_engine config injection in feature_store.yaml through operator ([#5938](https://github.com/feast-dev/feast/issues/5938)) ([455d56c](https://github.com/feast-dev/feast/commit/455d56c59df213fd8687dc462dd0fac3756e29f6))
+* Consolidate Python packaging - remove setup.py/setup.cfg, standardize on pyproject.toml and uv ([16696b8](https://github.com/feast-dev/feast/commit/16696b814ec6bff7e49e23af697f4a56d17e0b76))
+* **go:** Add MySQL registry store support for Go feature server ([#5933](https://github.com/feast-dev/feast/issues/5933)) ([19f9bb8](https://github.com/feast-dev/feast/commit/19f9bb8223cd853a82eedb42f0d684c9ea5e3aee))
+* Improve local dev experience with file-aware hooks and auto parallelization ([#5956](https://github.com/feast-dev/feast/issues/5956)) ([839b79e](https://github.com/feast-dev/feast/commit/839b79edf8e1f242d1cc2a56cf317e616799b62a))
+* Modernize precommit hooks and optimize test performance ([#5929](https://github.com/feast-dev/feast/issues/5929)) ([ea7d4fa](https://github.com/feast-dev/feast/commit/ea7d4faf0896ff83bf6727d313ea20233ba46591))
+* Optimize container infrastructure for production ([#5881](https://github.com/feast-dev/feast/issues/5881)) ([5ebdac8](https://github.com/feast-dev/feast/commit/5ebdac8c7aa19899fa858d11d2f032e568fc9fb4))
+* Optimize DynamoDB online store for improved latency ([#5889](https://github.com/feast-dev/feast/issues/5889)) ([fcc8274](https://github.com/feast-dev/feast/commit/fcc82749c362c3d05acade55360e67c134dac131))
+
 # [0.59.0](https://github.com/feast-dev/feast/compare/v0.58.0...v0.59.0) (2026-01-16)
 
 

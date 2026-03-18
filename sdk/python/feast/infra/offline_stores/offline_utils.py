@@ -118,6 +118,10 @@ def get_feature_view_query_context(
 
     query_context = []
     for feature_view, features in feature_views_to_feature_map.items():
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source and cannot be queried."
+            )
         reverse_field_mapping = {
             v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
@@ -258,6 +262,37 @@ def get_pyarrow_schema_from_batch_source(
         column_names.append(column_name)
 
     return pa.schema(pa_schema), column_names
+
+
+def cast_arrow_table_to_schema(table: pa.Table, pa_schema: pa.Schema) -> pa.Table:
+    """Cast a PyArrow table to match the target schema, handling struct/map → string.
+
+    PyArrow cannot natively cast struct or map columns to string.  When a
+    SQL-based offline store (BigQuery, Snowflake, Redshift) stores complex
+    Feast types (Map, Struct) as VARCHAR/STRING, the target schema will have
+    string fields while the input table may have struct/map fields (e.g. when
+    the caller provides Python dicts).  This function serialises those columns
+    to JSON strings so the subsequent cast succeeds.
+    """
+    import json as _json
+
+    for i, field in enumerate(table.schema):
+        target_type = pa_schema.field(field.name).type
+        is_complex_source = pa.types.is_struct(field.type) or pa.types.is_map(
+            field.type
+        )
+        is_string_target = pa.types.is_string(target_type) or pa.types.is_large_string(
+            target_type
+        )
+        if is_complex_source and is_string_target:
+            col = table.column(i)
+            json_arr = pa.array(
+                [_json.dumps(v.as_py()) if v.is_valid else None for v in col],
+                type=target_type,
+            )
+            table = table.set_column(i, field.name, json_arr)
+
+    return table.cast(pa_schema)
 
 
 def enclose_in_backticks(value):

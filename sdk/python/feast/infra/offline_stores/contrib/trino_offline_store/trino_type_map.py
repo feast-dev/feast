@@ -21,6 +21,7 @@ def trino_to_feast_value_type(trino_type_as_str: str) -> ValueType:
         "varchar": ValueType.STRING,
         "boolean": ValueType.BOOL,
         "real": ValueType.FLOAT,
+        "date": ValueType.STRING,
     }
     _trino_type_as_str: str = trino_type_as_str
     trino_type_as_str = trino_type_as_str.lower()
@@ -67,6 +68,15 @@ def pa_to_trino_value_type(pa_type_as_str: str) -> str:
 
     if pa_type_as_str.startswith("decimal"):
         return trino_type.format(pa_type_as_str)
+
+    if pa_type_as_str.startswith("map<"):
+        return trino_type.format("varchar")
+
+    if pa_type_as_str == "large_string":
+        return trino_type.format("varchar")
+
+    if pa_type_as_str.startswith("struct<"):
+        return trino_type.format("varchar")
 
     type_map = {
         "null": "null",

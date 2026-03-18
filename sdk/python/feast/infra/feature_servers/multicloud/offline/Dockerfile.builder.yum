@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-311:1
+FROM registry.access.redhat.com/ubi9/python-312:1
 ARG RELEASE
 
 ENV IBIS_VERSION="9.5.0"

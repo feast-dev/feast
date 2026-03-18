@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   EuiPanel,
   EuiTitle,
@@ -16,22 +16,21 @@ import {
 import { CodeBlock, github } from "react-code-blocks";
 import { RegularFeatureViewCustomTabProps } from "../../custom-tabs/types";
 
+const defaultServerUrl =
+  process.env.REACT_APP_FEAST_FEATURE_SERVER_URL || "http://localhost:6566";
+
 const CurlGeneratorTab = ({
   feastObjectQuery,
 }: RegularFeatureViewCustomTabProps) => {
   const data = feastObjectQuery.data as any;
   const [serverUrl, setServerUrl] = useState(() => {
     const savedUrl = localStorage.getItem("feast-feature-server-url");
-    return savedUrl || "http://localhost:6566";
+    return savedUrl || defaultServerUrl;
   });
   const [entityValues, setEntityValues] = useState<Record<string, string>>({});
   const [selectedFeatures, setSelectedFeatures] = useState<
     Record<string, boolean>
   >({});
-
-  useEffect(() => {
-    localStorage.setItem("feast-feature-server-url", serverUrl);
-  }, [serverUrl]);
 
   if (feastObjectQuery.isLoading) {
     return <EuiText>Loading...</EuiText>;
@@ -106,8 +105,12 @@ const CurlGeneratorTab = ({
         <EuiFormRow label="Feature Server URL">
           <EuiFieldText
             value={serverUrl}
-            onChange={(e) => setServerUrl(e.target.value)}
-            placeholder="http://localhost:6566"
+            onChange={(e) => {
+              const nextValue = e.target.value;
+              setServerUrl(nextValue);
+              localStorage.setItem("feast-feature-server-url", nextValue);
+            }}
+            placeholder={defaultServerUrl}
           />
         </EuiFormRow>
 

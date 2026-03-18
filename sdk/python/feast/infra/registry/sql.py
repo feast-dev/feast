@@ -23,6 +23,7 @@ from sqlalchemy import (  # type: ignore
     update,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import IntegrityError
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
@@ -301,15 +302,21 @@ class SqlRegistry(CachingRegistry):
             # Find object in feast_metadata_projects but not in projects
             projects_to_sync = set(feast_metadata_projects.keys()) - set(projects_set)
             for project_name in projects_to_sync:
-                self.apply_project(
-                    Project(
-                        name=project_name,
-                        created_timestamp=datetime.fromtimestamp(
-                            feast_metadata_projects[project_name], tz=timezone.utc
+                try:
+                    self.apply_project(
+                        Project(
+                            name=project_name,
+                            created_timestamp=datetime.fromtimestamp(
+                                feast_metadata_projects[project_name], tz=timezone.utc
+                            ),
                         ),
-                    ),
-                    commit=True,
-                )
+                        commit=True,
+                    )
+                except IntegrityError:
+                    logger.info(
+                        "Project %s already created in projects table by another process.",
+                        project_name,
+                    )
 
             if self.purge_feast_metadata:
                 with self.write_engine.begin() as conn:
@@ -577,6 +584,7 @@ class SqlRegistry(CachingRegistry):
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
+        self._ensure_feature_view_name_is_unique(feature_view, project)
         fv_table = self._infer_fv_table(feature_view)
 
         return self._apply_object(
@@ -995,10 +1003,16 @@ class SqlRegistry(CachingRegistry):
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
-                insert_stmt = insert(table).values(
-                    values,
-                )
-                conn.execute(insert_stmt)
+                try:
+                    with conn.begin_nested():
+                        conn.execute(insert(table).values(values))
+                except IntegrityError:
+                    logger.info(
+                        "Object %s in project %s already created by another "
+                        "process, skipping.",
+                        name,
+                        project,
+                    )
 
             if not isinstance(obj, Project):
                 self.apply_project(
@@ -1028,8 +1042,15 @@ class SqlRegistry(CachingRegistry):
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
-                insert_stmt = insert(feast_metadata).values(values)
-                conn.execute(insert_stmt)
+                try:
+                    with conn.begin_nested():
+                        conn.execute(insert(feast_metadata).values(values))
+                except IntegrityError:
+                    logger.info(
+                        "Project metadata for %s already initialized by "
+                        "another process.",
+                        project,
+                    )
 
     def _delete_object(
         self,
