@@ -50,7 +50,7 @@ import (
 // Constants for requeue
 const (
 	RequeueDelayError       = 5 * time.Second
-	RequeuePeriodicInterval = 5 * time.Minute
+	RequeuePeriodicInterval = 30 * time.Second
 )
 
 // FeatureStoreReconciler reconciles a FeatureStore object
@@ -127,8 +127,12 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		policies, err := r.fetchPermissionsFromRegistry(ctx, cr)
 		if err != nil {
-			logger.V(1).Info("Could not fetch permissions from registry", "error", err)
-		} else if len(policies) > 0 && cr.Status.ClientConfigMap != "" {
+			logger.Error(err, "Failed to fetch permissions from registry")
+		} else if len(policies) == 0 {
+			logger.V(1).Info("No auto-access policies found in registry")
+		} else if cr.Status.ClientConfigMap == "" {
+			logger.Info("Skipping auto-access RBAC reconciliation: clientConfigMap is not set in status")
+		} else {
 			if err := access.ReconcileAutoAccessRBAC(ctx, r.Client, r.Scheme, cr, cr.Namespace, cr.Name, cr.Status.ClientConfigMap, policies); err != nil {
 				logger.Error(err, "Failed to reconcile auto-access RBAC")
 			}
@@ -142,8 +146,10 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *FeatureStoreReconciler) fetchPermissionsFromRegistry(ctx context.Context, cr *feastdevv1.FeatureStore) ([]registry.PermissionPolicy, error) {
+	logger := log.FromContext(ctx)
 	registryRest := cr.Status.ServiceHostnames.RegistryRest
 	if registryRest == "" {
+		logger.V(1).Info("Skipping permission fetch: registry REST API hostname is not set (ensure RestAPI is enabled)")
 		return nil, nil
 	}
 	project := cr.Status.Applied.FeastProject
@@ -151,9 +157,23 @@ func (r *FeatureStoreReconciler) fetchPermissionsFromRegistry(ctx context.Contex
 		project = cr.Spec.FeastProject
 	}
 	if project == "" {
+		logger.Info("Skipping permission fetch: feast project name is not set")
 		return nil, nil
 	}
-	return registry.ListPermissions(ctx, registryRest, project)
+	intraCommToken, err := r.readIntraCommunicationToken(ctx, cr)
+	if err != nil {
+		return nil, err
+	}
+	return registry.ListPermissions(ctx, registryRest, project, intraCommToken)
+}
+
+func (r *FeatureStoreReconciler) readIntraCommunicationToken(ctx context.Context, cr *feastdevv1.FeatureStore) (string, error) {
+	cmName := services.GetIntraCommunicationConfigMapName(cr.Name)
+	cm := &corev1.ConfigMap{}
+	if err := r.Get(ctx, types.NamespacedName{Name: cmName, Namespace: cr.Namespace}, cm); err != nil {
+		return "", err
+	}
+	return cm.Data["token"], nil
 }
 
 func (r *FeatureStoreReconciler) countOtherFeatureStoresInNamespace(ctx context.Context, namespace, excludeName string) int {

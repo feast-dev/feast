@@ -25,7 +25,9 @@ import (
 )
 
 const (
-	TmpFeatureStoreYamlEnvVar = "TMP_FEATURE_STORE_YAML_BASE64"
+	TmpFeatureStoreYamlEnvVar      = "TMP_FEATURE_STORE_YAML_BASE64"
+	IntraCommunicationBase64EnvVar = "INTRA_COMMUNICATION_BASE64"
+	intraCommunicationTokenKey     = "token"
 	feastServerImageVar       = "RELATED_IMAGE_FEATURE_SERVER"
 	cronJobImageVar           = "RELATED_IMAGE_CRON_JOB"
 	FeatureStoreYamlCmKey     = "feature_store.yaml"

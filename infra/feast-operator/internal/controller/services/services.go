@@ -17,6 +17,8 @@ limitations under the License.
 package services
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"strconv"
 	"strings"
@@ -76,6 +78,9 @@ func (feast *FeastServices) Deploy() error {
 	}
 
 	if err := feast.createServiceAccount(); err != nil {
+		return err
+	}
+	if err := feast.createIntraCommunicationConfigMap(); err != nil {
 		return err
 	}
 	if err := feast.createDeployment(); err != nil {
@@ -336,6 +341,38 @@ func (feast *FeastServices) createServiceAccount() error {
 	return nil
 }
 
+// GetIntraCommunicationConfigMapName returns the name of the ConfigMap holding the intra-communication token.
+func GetIntraCommunicationConfigMapName(featureStoreName string) string {
+	return handler.FeastPrefix + featureStoreName + "-intra-comm"
+}
+
+func (feast *FeastServices) createIntraCommunicationConfigMap() error {
+	logger := log.FromContext(feast.Handler.Context)
+	cr := feast.Handler.FeatureStore
+	cmName := GetIntraCommunicationConfigMapName(cr.Name)
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: cr.Namespace},
+	}
+	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, cm, controllerutil.MutateFn(func() error {
+		if cm.Data == nil || cm.Data[intraCommunicationTokenKey] == "" {
+			b := make([]byte, 32)
+			if _, err := rand.Read(b); err != nil {
+				return err
+			}
+			cm.Data = map[string]string{
+				intraCommunicationTokenKey: base64.StdEncoding.EncodeToString(b),
+			}
+		}
+		cm.Labels = feast.getLabels()
+		return controllerutil.SetControllerReference(cr, cm, feast.Handler.Scheme)
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "ConfigMap", cmName, "operation", op)
+	}
+	return nil
+}
+
 func (feast *FeastServices) createDeployment() error {
 	logger := log.FromContext(feast.Handler.Context)
 	deploy := feast.initFeastDeploy()
@@ -464,7 +501,8 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 		name := string(feastType)
 		workingDir := feast.getFeatureRepoDir()
 		cmd := feast.getContainerCommand(feastType)
-		container := getContainer(name, workingDir, cmd, serverConfigs.ContainerConfigs, fsYamlB64)
+		intraCommCMName := GetIntraCommunicationConfigMapName(feast.Handler.FeatureStore.Name)
+		container := getContainer(name, workingDir, cmd, serverConfigs.ContainerConfigs, fsYamlB64, intraCommCMName)
 		tls := feast.getTlsConfigs(feastType)
 		probeHandler := feast.getProbeHandler(feastType, tls)
 		container.Ports = []corev1.ContainerPort{}
@@ -521,7 +559,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 	}
 }
 
-func getContainer(name, workingDir string, cmd []string, containerConfigs feastdevv1.ContainerConfigs, fsYamlB64 string) *corev1.Container {
+func getContainer(name, workingDir string, cmd []string, containerConfigs feastdevv1.ContainerConfigs, fsYamlB64, intraCommCMName string) *corev1.Container {
 	container := &corev1.Container{
 		Name:    name,
 		Command: cmd,
@@ -529,13 +567,22 @@ func getContainer(name, workingDir string, cmd []string, containerConfigs feastd
 	if len(workingDir) > 0 {
 		container.WorkingDir = workingDir
 	}
-	if len(fsYamlB64) > 0 {
-		container.Env = []corev1.EnvVar{
-			{
-				Name:  TmpFeatureStoreYamlEnvVar,
-				Value: fsYamlB64,
+	container.Env = []corev1.EnvVar{
+		{
+			Name: IntraCommunicationBase64EnvVar,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: intraCommCMName},
+					Key:                  intraCommunicationTokenKey,
+				},
 			},
-		}
+		},
+	}
+	if len(fsYamlB64) > 0 {
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  TmpFeatureStoreYamlEnvVar,
+			Value: fsYamlB64,
+		})
 	}
 	applyCtrConfigs(container, containerConfigs)
 	return container

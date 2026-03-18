@@ -18,7 +18,10 @@ package registry
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -39,9 +42,10 @@ type PermissionPolicy struct {
 }
 
 // ListPermissions fetches permissions from the registry REST API for the given project.
+// The intraCommToken is the per-instance secret used to bypass per-user auth on the registry.
 // Uses cluster-internal TLS (InsecureSkipVerify for service certs).
 // Returns policies from GroupBasedPolicy, NamespaceBasedPolicy, and CombinedGroupNamespacePolicy only.
-func ListPermissions(ctx context.Context, registryRestURL string, project string) ([]PermissionPolicy, error) {
+func ListPermissions(ctx context.Context, registryRestURL, project, intraCommToken string) ([]PermissionPolicy, error) {
 	if registryRestURL == "" || project == "" {
 		return nil, nil
 	}
@@ -61,6 +65,9 @@ func ListPermissions(ctx context.Context, registryRestURL string, project string
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	if intraCommToken != "" {
+		req.Header.Set("Authorization", "Bearer "+BuildIntraCommunicationJWT(intraCommToken))
 	}
 	client := &http.Client{
 		Timeout: requestTimeout,
@@ -97,6 +104,21 @@ func ListPermissions(ctx context.Context, registryRestURL string, project string
 		}
 	}
 	return policies, nil
+}
+
+// BuildIntraCommunicationJWT creates a JWT matching the Python SDK's
+// intra-service communication format: HS256 signed with an empty key,
+// sub=":::<token>". The registry recognises this and bypasses per-user
+// permission checks.
+func BuildIntraCommunicationJWT(intraCommToken string) string {
+	b64 := base64.RawURLEncoding.EncodeToString
+	header := b64([]byte(`{"alg":"HS256","typ":"JWT"}`))
+	payload := b64([]byte(`{"sub":":::` + intraCommToken + `"}`))
+	signingInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte(""))
+	mac.Write([]byte(signingInput))
+	sig := b64(mac.Sum(nil))
+	return signingInput + "." + sig
 }
 
 func extractPolicy(policy map[string]json.RawMessage) *PermissionPolicy {

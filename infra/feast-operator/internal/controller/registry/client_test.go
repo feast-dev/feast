@@ -18,9 +18,11 @@ package registry
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -90,11 +92,11 @@ func TestExtractPolicy_SnakeCaseKeys(t *testing.T) {
 }
 
 func TestListPermissions_EmptyInputs(t *testing.T) {
-	policies, err := ListPermissions(context.Background(), "", "project")
+	policies, err := ListPermissions(context.Background(), "", "project", "tok")
 	if err != nil || policies != nil {
 		t.Fatalf("expected nil,nil for empty URL; got %v, %v", policies, err)
 	}
-	policies, err = ListPermissions(context.Background(), "http://localhost", "")
+	policies, err = ListPermissions(context.Background(), "http://localhost", "", "tok")
 	if err != nil || policies != nil {
 		t.Fatalf("expected nil,nil for empty project; got %v, %v", policies, err)
 	}
@@ -145,7 +147,7 @@ func TestListPermissions_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	policies, err := ListPermissions(context.Background(), server.URL, "my_project")
+	policies, err := ListPermissions(context.Background(), server.URL, "my_project", "test-token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -163,7 +165,7 @@ func TestListPermissions_NonOKStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := ListPermissions(context.Background(), server.URL, "p")
+	_, err := ListPermissions(context.Background(), server.URL, "p", "tok")
 	if err == nil {
 		t.Fatal("expected error for non-200 status")
 	}
@@ -176,7 +178,7 @@ func TestListPermissions_EmptyPermissions(t *testing.T) {
 	}))
 	defer server.Close()
 
-	policies, err := ListPermissions(context.Background(), server.URL, "p")
+	policies, err := ListPermissions(context.Background(), server.URL, "p", "tok")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -192,7 +194,7 @@ func TestListPermissions_NoSpecPermission(t *testing.T) {
 	}))
 	defer server.Close()
 
-	policies, err := ListPermissions(context.Background(), server.URL, "p")
+	policies, err := ListPermissions(context.Background(), server.URL, "p", "tok")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -203,9 +205,74 @@ func TestListPermissions_NoSpecPermission(t *testing.T) {
 
 func TestListPermissions_URLWithoutScheme(t *testing.T) {
 	// Verify https:// is prepended when scheme is missing
-	_, err := ListPermissions(context.Background(), "nonexistent-host:8080", "p")
+	_, err := ListPermissions(context.Background(), "nonexistent-host:8080", "p", "tok")
 	if err == nil {
 		t.Fatal("expected error for unreachable host")
+	}
+}
+
+func TestBuildIntraCommunicationJWT(t *testing.T) {
+	secretToken := "my-random-secret-value"
+	jwt := BuildIntraCommunicationJWT(secretToken)
+	parts := strings.Split(jwt, ".")
+	if len(parts) != 3 {
+		t.Fatalf("expected 3 JWT parts, got %d", len(parts))
+	}
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		t.Fatalf("failed to decode payload: %v", err)
+	}
+	var payload struct {
+		Sub string `json:"sub"`
+	}
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		t.Fatalf("failed to unmarshal payload: %v", err)
+	}
+	expectedSub := ":::" + secretToken
+	if payload.Sub != expectedSub {
+		t.Fatalf("expected sub %q, got %q", expectedSub, payload.Sub)
+	}
+}
+
+func TestListPermissions_SendsIntraCommunicationJWT(t *testing.T) {
+	var receivedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"permissions":[]}`))
+	}))
+	defer server.Close()
+
+	_, err := ListPermissions(context.Background(), server.URL, "p", "my-secret")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.HasPrefix(receivedAuth, "Bearer ") {
+		t.Fatalf("expected Bearer token, got %q", receivedAuth)
+	}
+	token := strings.TrimPrefix(receivedAuth, "Bearer ")
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		t.Fatalf("expected valid JWT with 3 parts, got %d", len(parts))
+	}
+}
+
+func TestListPermissions_NoTokenNoAuthHeader(t *testing.T) {
+	var receivedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"permissions":[]}`))
+	}))
+	defer server.Close()
+
+	_, err := ListPermissions(context.Background(), server.URL, "p", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedAuth != "" {
+		t.Fatalf("expected no Authorization header when token is empty, got %q", receivedAuth)
 	}
 }
 
