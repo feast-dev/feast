@@ -24,10 +24,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -83,6 +86,12 @@ func ListPermissions(ctx context.Context, registryRestURL, project, intraCommTok
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("registry returned status %d", resp.StatusCode)
 	}
+	logger := log.FromContext(ctx)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read permissions response body: %w", err)
+	}
+	logger.V(1).Info("Registry permissions response", "body", string(body))
 	var result struct {
 		Permissions []struct {
 			Spec *struct {
@@ -90,7 +99,7 @@ func ListPermissions(ctx context.Context, registryRestURL, project, intraCommTok
 			} `json:"spec,omitempty"`
 		} `json:"permissions,omitempty"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("failed to decode permissions response: %w", err)
 	}
 	var policies []PermissionPolicy
@@ -103,6 +112,7 @@ func ListPermissions(ctx context.Context, registryRestURL, project, intraCommTok
 			policies = append(policies, *pol)
 		}
 	}
+	logger.V(1).Info("Extracted permission policies", "permissionsCount", len(result.Permissions), "policiesCount", len(policies))
 	return policies, nil
 }
 

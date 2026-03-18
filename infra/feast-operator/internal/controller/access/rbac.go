@@ -150,8 +150,14 @@ func reconcileClusterRoleBinding(ctx context.Context, c client.Client, scheme *r
 			Name:     FeastDiscoverClusterRoleName,
 		}
 		crb.Subjects = subjects
-		if owner != nil && scheme != nil {
-			return controllerutil.SetControllerReference(owner, crb, scheme)
+		// Cannot set owner reference: ClusterRoleBinding is cluster-scoped while
+		// FeatureStore is namespace-scoped. Cleanup is handled by CleanupAutoAccessRBAC.
+		if owner != nil {
+			if crb.Labels == nil {
+				crb.Labels = make(map[string]string)
+			}
+			crb.Labels["feast.dev/owner-name"] = owner.GetName()
+			crb.Labels["feast.dev/owner-namespace"] = owner.GetNamespace()
 		}
 		return nil
 	})
