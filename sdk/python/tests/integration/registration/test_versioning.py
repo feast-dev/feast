@@ -1084,3 +1084,83 @@ class TestFeatureServiceVersioningGates:
                 features=[fv],
             )
             store.apply([entity, fv, fs])  # Should not raise
+
+    def test_feature_service_serves_versioned_fv_when_flag_on(
+        self, versioned_fv_and_entity
+    ):
+        """With online versioning on, FeatureService projections carry the correct version_tag."""
+        from feast.utils import _get_feature_views_to_use
+
+        entity, fv_v0, fv_v1 = versioned_fv_and_entity
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._make_store(tmpdir, enable_versioning=True)
+
+            # Apply v0 then v1 to create version history
+            store.apply([entity, fv_v0])
+            store.apply([entity, fv_v1])
+
+            # Create and apply a feature service referencing the versioned FV
+            fs = FeatureService(
+                name="driver_service",
+                features=[fv_v1],
+            )
+            store.apply([fs])
+
+            # Retrieve the registered feature service
+            registered_fs = store.registry.get_feature_service(
+                "driver_service", "test_project"
+            )
+
+            fvs, _ = _get_feature_views_to_use(
+                registry=store.registry,
+                project="test_project",
+                features=registered_fs,
+                allow_cache=False,
+                hide_dummy_entity=False,
+            )
+
+            assert len(fvs) == 1
+            assert fvs[0].projection.version_tag == 1
+            assert fvs[0].projection.name_to_use() == "driver_stats@v1"
+
+    def test_feature_service_feature_refs_include_version_when_flag_on(
+        self, versioned_fv_and_entity
+    ):
+        """With online versioning on, _get_features() produces version-qualified refs."""
+        from feast.utils import _get_features
+
+        entity, fv_v0, fv_v1 = versioned_fv_and_entity
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._make_store(tmpdir, enable_versioning=True)
+
+            # Apply v0 then v1 to create version history
+            store.apply([entity, fv_v0])
+            store.apply([entity, fv_v1])
+
+            # Create and apply a feature service referencing the versioned FV
+            fs = FeatureService(
+                name="driver_service",
+                features=[fv_v1],
+            )
+            store.apply([fs])
+
+            # Retrieve the registered feature service
+            registered_fs = store.registry.get_feature_service(
+                "driver_service", "test_project"
+            )
+
+            refs = _get_features(
+                registry=store.registry,
+                project="test_project",
+                features=registered_fs,
+                allow_cache=False,
+            )
+
+            # All refs should be version-qualified
+            for ref in refs:
+                assert "@v1:" in ref, f"Expected version-qualified ref, got: {ref}"
+
+            # Check specific ref format
+            assert "driver_stats@v1:trips_today" in refs

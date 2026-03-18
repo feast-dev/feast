@@ -1162,21 +1162,23 @@ class FeatureStore:
             }
             for feature_service in services_to_update:
                 for projection in feature_service.feature_view_projections:
-                    fv = fvs_in_batch.get(projection.name)
-                    if fv is None:
+                    ref_fv: Optional[BaseFeatureView] = fvs_in_batch.get(
+                        projection.name
+                    )
+                    if ref_fv is None:
                         try:
-                            fv = self.registry.get_any_feature_view(
+                            ref_fv = self.registry.get_any_feature_view(
                                 projection.name, self.project
                             )
                         except FeatureViewNotFoundException:
                             continue
-                    if (
-                        getattr(fv, "current_version_number", None) is not None
-                        and fv.current_version_number > 0
-                    ):
+                    cur_ver: Optional[int] = getattr(
+                        ref_fv, "current_version_number", None
+                    )
+                    if cur_ver is not None and cur_ver > 0:
                         raise ValueError(
                             f"Feature service '{feature_service.name}' references feature view "
-                            f"'{projection.name}' which is at version v{fv.current_version_number}. "
+                            f"'{projection.name}' which is at version v{cur_ver}. "
                             f"To use versioned feature views in feature services, set "
                             f"'enable_online_feature_view_versioning: true' under 'registry' "
                             f"in feature_store.yaml."
