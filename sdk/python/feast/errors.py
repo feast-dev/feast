@@ -156,6 +156,11 @@ class FeatureViewPinConflict(FeastError):
         )
 
 
+class ConcurrentVersionConflict(FeastError):
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
+
 class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:

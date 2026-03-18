@@ -229,8 +229,8 @@ class Registry(BaseRegistry):
             else False
         )
 
-        self.enable_versioning = (
-            registry_config.enable_feature_view_versioning
+        self.enable_online_versioning = (
+            registry_config.enable_online_feature_view_versioning
             if registry_config is not None
             else False
         )
@@ -601,6 +601,16 @@ class Registry(BaseRegistry):
                 updated_fv.stream_source.to_proto()
             )
 
+        # Update version number if set (forward declaration / pin)
+        if (
+            hasattr(existing_proto.meta, "current_version_number")
+            and hasattr(updated_fv, "current_version_number")
+            and updated_fv.current_version_number is not None
+        ):
+            existing_proto.meta.current_version_number = (
+                updated_fv.current_version_number
+            )
+
         # Update timestamp
         existing_proto.meta.last_updated_timestamp.FromDatetime(datetime.utcnow())
 
@@ -628,11 +638,6 @@ class Registry(BaseRegistry):
     def list_feature_view_versions(
         self, name: str, project: str
     ) -> List[Dict[str, Any]]:
-        if not self.enable_versioning:
-            raise ValueError(
-                "Feature view versioning is not enabled. "
-                "Set 'enable_feature_view_versioning: true' under 'registry' in feature_store.yaml."
-            )
         history = self.cached_registry_proto.feature_view_version_history
         results = []
         for record in history.records:
@@ -652,11 +657,6 @@ class Registry(BaseRegistry):
     def get_feature_view_by_version(
         self, name: str, project: str, version_number: int, allow_cache: bool = False
     ) -> BaseFeatureView:
-        if not self.enable_versioning:
-            raise ValueError(
-                "Feature view versioning is not enabled. "
-                "Set 'enable_feature_view_versioning: true' under 'registry' in feature_store.yaml."
-            )
         record = self._get_version_record(name, project, version_number)
         if record is None:
             raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
@@ -679,60 +679,69 @@ class Registry(BaseRegistry):
         fv_type_str = self._infer_fv_type_string(feature_view)
         is_latest, pin_version = parse_version(feature_view.version)
 
-        if not self.enable_versioning and not is_latest:
-            raise ValueError(
-                f"Cannot pin '{feature_view.name}' to '{feature_view.version}': "
-                f"versioning is disabled. Set 'enable_feature_view_versioning: true' "
-                f"under 'registry' in feature_store.yaml."
-            )
-
         if not is_latest:
-            # Pin to a specific version
+            # Explicit version: check if it exists (pin/revert) or not (forward declaration).
+            # Note: The file registry is last-write-wins for true concurrent races —
+            # this is a pre-existing limitation for all file registry operations.
+            # For multi-client environments, use the SQL registry.
             record = self._get_version_record(feature_view.name, project, pin_version)
-            if record is None:
-                raise FeatureViewVersionNotFound(
+
+            if record is not None:
+                # Version exists → pin/revert to that snapshot
+                # Check that the user hasn't also modified the definition.
+                # Compare user's FV (with version="latest") against active FV.
+                self._prepare_registry_for_changes(project)
+                try:
+                    active_fv = proto_registry_utils.get_any_feature_view(
+                        self.cached_registry_proto, feature_view.name, project
+                    )
+                    user_fv_copy = feature_view.__copy__()
+                    user_fv_copy.version = "latest"
+                    active_fv.version = "latest"
+                    # Clear metadata that differs due to registry state
+                    user_fv_copy.created_timestamp = active_fv.created_timestamp
+                    user_fv_copy.last_updated_timestamp = (
+                        active_fv.last_updated_timestamp
+                    )
+                    user_fv_copy.current_version_number = (
+                        active_fv.current_version_number
+                    )
+                    if hasattr(active_fv, "materialization_intervals"):
+                        user_fv_copy.materialization_intervals = (
+                            active_fv.materialization_intervals
+                        )
+                    if user_fv_copy != active_fv:
+                        raise FeatureViewPinConflict(
+                            feature_view.name, version_tag(pin_version)
+                        )
+                except FeatureViewNotFoundException:
+                    pass
+
+                proto_class, python_class = self._proto_class_for_type(
+                    record.feature_view_type
+                )
+                snap_proto = proto_class.FromString(record.feature_view_proto)
+                restored_fv = python_class.from_proto(snap_proto)
+                restored_fv.version = feature_view.version
+                restored_fv.current_version_number = pin_version
+                restored_fv.last_updated_timestamp = now
+                # Apply the restored FV using the standard path below
+                feature_view = restored_fv
+            else:
+                # Version doesn't exist → forward declaration: create it
+                feature_view.current_version_number = pin_version
+                feature_view_proto = feature_view.to_proto()
+                feature_view_proto.spec.project = project
+                snapshot_proto_bytes = feature_view_proto.SerializeToString()
+                self._prepare_registry_for_changes(project)
+                self._save_version_record(
                     feature_view.name,
-                    version_tag(pin_version),
                     project,
+                    pin_version,
+                    fv_type_str,
+                    snapshot_proto_bytes,
                 )
-
-            # Check that the user hasn't also modified the definition.
-            # Compare user's FV (with version="latest") against active FV.
-            self._prepare_registry_for_changes(project)
-            try:
-                active_fv = proto_registry_utils.get_any_feature_view(
-                    self.cached_registry_proto, feature_view.name, project
-                )
-                user_fv_copy = feature_view.__copy__()
-                user_fv_copy.version = "latest"
-                active_fv.version = "latest"
-                # Clear metadata that differs due to registry state
-                user_fv_copy.created_timestamp = active_fv.created_timestamp
-                user_fv_copy.last_updated_timestamp = active_fv.last_updated_timestamp
-                user_fv_copy.current_version_number = active_fv.current_version_number
-                if hasattr(active_fv, "materialization_intervals"):
-                    user_fv_copy.materialization_intervals = (
-                        active_fv.materialization_intervals
-                    )
-                if user_fv_copy != active_fv:
-                    raise FeatureViewPinConflict(
-                        feature_view.name, version_tag(pin_version)
-                    )
-            except FeatureViewNotFoundException:
-                # FV doesn't exist yet — pinning to a version of a non-existent
-                # FV will fail anyway, let it proceed to the normal error path
-                pass
-
-            proto_class, python_class = self._proto_class_for_type(
-                record.feature_view_type
-            )
-            snap_proto = proto_class.FromString(record.feature_view_proto)
-            restored_fv = python_class.from_proto(snap_proto)
-            restored_fv.version = feature_view.version
-            restored_fv.current_version_number = pin_version
-            restored_fv.last_updated_timestamp = now
-            # Apply the restored FV using the standard path below
-            feature_view = restored_fv
+                # Fall through to apply the FV as active (with current_version_number set)
 
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
@@ -793,7 +802,7 @@ class Registry(BaseRegistry):
                     break
 
         # Version history tracking
-        if self.enable_versioning and is_latest:
+        if is_latest:
             if old_proto_bytes is not None:
                 # FV changed: save old as a version if first time, then save new
                 next_ver = self._next_version_number(feature_view.name, project)

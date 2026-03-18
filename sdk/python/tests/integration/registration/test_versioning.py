@@ -19,19 +19,17 @@ from feast.value_type import ValueType
 
 @pytest.fixture
 def registry():
-    """Create a file-based Registry for testing with versioning enabled."""
+    """Create a file-based Registry for testing. Version history is always-on."""
     with tempfile.TemporaryDirectory() as tmpdir:
         registry_path = Path(tmpdir) / "registry.pb"
-        config = RegistryConfig(
-            path=str(registry_path), enable_feature_view_versioning=True
-        )
+        config = RegistryConfig(path=str(registry_path))
         reg = Registry("test_project", config, None)
         yield reg
 
 
 @pytest.fixture
-def registry_no_versioning():
-    """Create a file-based Registry for testing with versioning disabled (default)."""
+def registry_no_online_versioning():
+    """Create a file-based Registry without online versioning (default)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         registry_path = Path(tmpdir) / "registry.pb"
         config = RegistryConfig(path=str(registry_path))
@@ -189,13 +187,76 @@ class TestFileRegistryVersioning:
         assert active_fv.description == "original"
         assert active_fv.version == "v0"
 
-    def test_pin_to_nonexistent_version_raises(self, registry, make_fv):
+    def test_explicit_version_creates_when_not_exists(self, registry, make_fv):
+        """Explicit version on a new FV creates that version (forward declaration)."""
+        fv = make_fv(description="forward declared v1", version="v1")
+        registry.apply_feature_view(fv, "test_project", commit=True)
+
+        versions = registry.list_feature_view_versions("driver_stats", "test_project")
+        assert len(versions) == 1
+        assert versions[0]["version_number"] == 1
+
+        active_fv = registry.get_feature_view("driver_stats", "test_project")
+        assert active_fv.current_version_number == 1
+
+    def test_explicit_version_reverts_when_exists(self, registry, make_fv, entity):
+        """Explicit version on an existing FV reverts to that snapshot (pin/revert)."""
+        # Create v0
+        fv1 = make_fv(description="original")
+        registry.apply_feature_view(fv1, "test_project", commit=True)
+
+        # Create v1 with schema change
+        fv2 = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+                Field(name="avg_rating", dtype=Float32),
+                Field(name="new_field", dtype=Float32),
+            ],
+            description="updated",
+        )
+        registry.apply_feature_view(fv2, "test_project", commit=True)
+
+        # Pin to v0 (definition must match active FV, only version changes)
+        fv_pin = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+                Field(name="avg_rating", dtype=Float32),
+                Field(name="new_field", dtype=Float32),
+            ],
+            description="updated",
+            version="v0",
+        )
+        registry.apply_feature_view(fv_pin, "test_project", commit=True)
+
+        active_fv = registry.get_feature_view("driver_stats", "test_project")
+        assert active_fv.description == "original"
+        assert active_fv.version == "v0"
+
+    def test_forward_declare_nonexistent_version(self, registry, make_fv):
+        """Forward-declaring a version that doesn't exist creates it."""
         fv = make_fv()
         registry.apply_feature_view(fv, "test_project", commit=True)
 
-        fv_pin = make_fv(version="v99")
-        with pytest.raises(FeatureViewVersionNotFound):
-            registry.apply_feature_view(fv_pin, "test_project", commit=True)
+        # Forward-declare v5 — should create it, not raise
+        fv_v5 = make_fv(description="forward declared v5", version="v5")
+        registry.apply_feature_view(fv_v5, "test_project", commit=True)
+
+        versions = registry.list_feature_view_versions("driver_stats", "test_project")
+        version_numbers = [v["version_number"] for v in versions]
+        assert 5 in version_numbers
+
+        # The active FV should now be the forward-declared v5
+        active_fv = registry.get_feature_view("driver_stats", "test_project")
+        assert active_fv.current_version_number == 5
+        assert active_fv.description == "forward declared v5"
 
     def test_apply_after_pin_creates_new_version(self, registry, make_fv, entity):
         # Create v0
@@ -814,22 +875,21 @@ class TestVersionMetadataIntegration:
         assert len(response.metadata.feature_names.val) == 1
 
 
-class TestVersioningDisabled:
-    """Tests that versioning behavior is properly disabled by default."""
+class TestOnlineVersioningDisabled:
+    """Tests that online versioning guard works for version-qualified refs."""
 
-    def test_apply_does_not_create_version_history(
-        self, registry_no_versioning, make_fv, entity
+    def test_version_qualified_ref_raises_when_online_versioning_disabled(
+        self, registry_no_online_versioning, make_fv, entity
     ):
-        """When versioning is disabled, current_version_number stays None."""
-        fv = make_fv(description="no versioning")
-        registry_no_versioning.apply_feature_view(fv, "test_project", commit=True)
+        """Using @v2 refs raises ValueError when online versioning is disabled."""
+        from feast.utils import _get_feature_views_to_use
 
-        active_fv = registry_no_versioning.get_feature_view(
-            "driver_stats", "test_project"
+        fv = make_fv(description="test fv")
+        registry_no_online_versioning.apply_feature_view(
+            fv, "test_project", commit=True
         )
-        assert active_fv.current_version_number is None
 
-        # Apply a schema change — still no version history
+        # Create v1 with schema change
         fv2 = FeatureView(
             name="driver_stats",
             entities=[entity],
@@ -838,44 +898,20 @@ class TestVersioningDisabled:
                 Field(name="driver_id", dtype=Int64),
                 Field(name="trips_today", dtype=Int64),
                 Field(name="avg_rating", dtype=Float32),
-                Field(name="new_feature", dtype=Float32),
+                Field(name="new_field", dtype=Float32),
             ],
-            description="changed schema",
+            description="version one",
         )
-        registry_no_versioning.apply_feature_view(fv2, "test_project", commit=True)
-
-        active_fv2 = registry_no_versioning.get_feature_view(
-            "driver_stats", "test_project"
+        registry_no_online_versioning.apply_feature_view(
+            fv2, "test_project", commit=True
         )
-        assert active_fv2.current_version_number is None
 
-    def test_pin_to_version_raises_when_disabled(self, registry_no_versioning, make_fv):
-        """Pinning to a version raises ValueError when versioning is disabled."""
-        fv = make_fv(description="no versioning")
-        registry_no_versioning.apply_feature_view(fv, "test_project", commit=True)
-
-        fv_pin = make_fv(version="v0")
-        with pytest.raises(ValueError, match="versioning is disabled"):
-            registry_no_versioning.apply_feature_view(
-                fv_pin, "test_project", commit=True
-            )
-
-    def test_list_versions_raises_when_disabled(self, registry_no_versioning, make_fv):
-        """list_feature_view_versions raises ValueError when versioning is disabled."""
-        fv = make_fv(description="no versioning")
-        registry_no_versioning.apply_feature_view(fv, "test_project", commit=True)
-
-        with pytest.raises(ValueError, match="versioning is not enabled"):
-            registry_no_versioning.list_feature_view_versions(
-                "driver_stats", "test_project"
-            )
-
-    def test_get_by_version_raises_when_disabled(self, registry_no_versioning, make_fv):
-        """get_feature_view_by_version raises ValueError when versioning is disabled."""
-        fv = make_fv(description="no versioning")
-        registry_no_versioning.apply_feature_view(fv, "test_project", commit=True)
-
-        with pytest.raises(ValueError, match="versioning is not enabled"):
-            registry_no_versioning.get_feature_view_by_version(
-                "driver_stats", "test_project", 0
+        # Version-qualified ref should raise
+        with pytest.raises(ValueError, match="online versioning is disabled"):
+            _get_feature_views_to_use(
+                registry=registry_no_online_versioning,
+                project="test_project",
+                features=["driver_stats@v1:trips_today"],
+                allow_cache=False,
+                hide_dummy_entity=False,
             )
