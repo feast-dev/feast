@@ -302,19 +302,13 @@ def _infer_python_type_str(value: Any) -> Optional[str]:
 
 
 def _fetch_documents(
-    connection_string: str,
+    client: Any,
     database: str,
     collection: str,
     pipeline: List[Dict],
 ) -> List[Dict]:
     """Execute an aggregation pipeline and return documents."""
-    if MongoClient is None:
-        raise FeastExtrasDependencyImportError("mongodb", "pymongo is not installed.")
-    client: Any = MongoClient(connection_string, driver=DRIVER_METADATA)
-    try:
-        return list(client[database][collection].aggregate(pipeline))
-    finally:
-        client.close()
+    return list(client[database][collection].aggregate(pipeline))
 
 
 class MongoDBNativeRetrievalJob(RetrievalJob):
@@ -442,6 +436,42 @@ class MongoDBOfflineStoreNative(OfflineStore):
     - ``created_at``: ingestion time
     """
 
+    _index_initialized: bool = False
+
+    @staticmethod
+    def _ensure_indexes(client: Any, db_name: str, collection_name: str) -> None:
+        """Create recommended indexes on the feature_history collection."""
+        collection = client[db_name][collection_name]
+        collection.create_index(
+            [
+                ("entity_id", 1),
+                ("feature_view", 1),
+                ("event_timestamp", -1),
+            ],
+            name="entity_fv_ts_idx",
+        )
+
+    @classmethod
+    def _get_client_and_ensure_indexes(cls, config: RepoConfig) -> Any:
+        """Get a MongoClient and ensure indexes exist (once per process)."""
+        if MongoClient is None:
+            raise FeastExtrasDependencyImportError(
+                "mongodb", "pymongo is not installed."
+            )
+        client: Any = MongoClient(
+            config.offline_store.connection_string, driver=DRIVER_METADATA
+        )
+
+        if not cls._index_initialized:
+            cls._ensure_indexes(
+                client,
+                config.offline_store.database,
+                config.offline_store.collection,
+            )
+            cls._index_initialized = True
+
+        return client
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -463,7 +493,6 @@ class MongoDBOfflineStoreNative(OfflineStore):
             RuntimeWarning,
         )
 
-        connection_string = config.offline_store.connection_string
         db_name = config.offline_store.database
         collection = config.offline_store.collection
         feature_view_name = data_source.feature_view_name
@@ -501,17 +530,21 @@ class MongoDBOfflineStoreNative(OfflineStore):
         ]
 
         def _run() -> pyarrow.Table:
-            docs = _fetch_documents(connection_string, db_name, collection, pipeline)
-            if not docs:
-                return pyarrow.Table.from_pydict({})
+            client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
+            try:
+                docs = _fetch_documents(client, db_name, collection, pipeline)
+                if not docs:
+                    return pyarrow.Table.from_pydict({})
 
-            df = pd.DataFrame(docs)
-            if not df.empty and "event_timestamp" in df.columns:
-                if df["event_timestamp"].dt.tz is None:
-                    df["event_timestamp"] = pd.to_datetime(
-                        df["event_timestamp"], utc=True
-                    )
-            return pyarrow.Table.from_pandas(df, preserve_index=False)
+                df = pd.DataFrame(docs)
+                if not df.empty and "event_timestamp" in df.columns:
+                    if df["event_timestamp"].dt.tz is None:
+                        df["event_timestamp"] = pd.to_datetime(
+                            df["event_timestamp"], utc=True
+                        )
+                return pyarrow.Table.from_pandas(df, preserve_index=False)
+            finally:
+                client.close()
 
         return MongoDBNativeRetrievalJob(query_fn=_run, full_feature_names=False)
 
@@ -536,7 +569,6 @@ class MongoDBOfflineStoreNative(OfflineStore):
             RuntimeWarning,
         )
 
-        connection_string = config.offline_store.connection_string
         db_name = config.offline_store.database
         collection = config.offline_store.collection
         feature_view_name = data_source.feature_view_name
@@ -570,17 +602,21 @@ class MongoDBOfflineStoreNative(OfflineStore):
         ]
 
         def _run() -> pyarrow.Table:
-            docs = _fetch_documents(connection_string, db_name, collection, pipeline)
-            if not docs:
-                return pyarrow.Table.from_pydict({})
+            client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
+            try:
+                docs = _fetch_documents(client, db_name, collection, pipeline)
+                if not docs:
+                    return pyarrow.Table.from_pydict({})
 
-            df = pd.DataFrame(docs)
-            if not df.empty and "event_timestamp" in df.columns:
-                if df["event_timestamp"].dt.tz is None:
-                    df["event_timestamp"] = pd.to_datetime(
-                        df["event_timestamp"], utc=True
-                    )
-            return pyarrow.Table.from_pandas(df, preserve_index=False)
+                df = pd.DataFrame(docs)
+                if not df.empty and "event_timestamp" in df.columns:
+                    if df["event_timestamp"].dt.tz is None:
+                        df["event_timestamp"] = pd.to_datetime(
+                            df["event_timestamp"], utc=True
+                        )
+                return pyarrow.Table.from_pandas(df, preserve_index=False)
+            finally:
+                client.close()
 
         return MongoDBNativeRetrievalJob(query_fn=_run, full_feature_names=False)
 
@@ -604,7 +640,6 @@ class MongoDBOfflineStoreNative(OfflineStore):
             RuntimeWarning,
         )
 
-        connection_string = config.offline_store.connection_string
         db_name = config.offline_store.database
         feature_collection = config.offline_store.collection
         entity_key_version = config.entity_key_serialization_version
@@ -662,7 +697,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
             # Create temporary collection for query
             temp_collection_name = f"tmp_entity_df_{uuid.uuid4().hex[:12]}"
 
-            client: Any = MongoClient(connection_string, driver=DRIVER_METADATA)
+            client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
             try:
                 db = client[db_name]
                 temp_collection = db[temp_collection_name]
