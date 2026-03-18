@@ -454,7 +454,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
                     "event_timestamp": {"$gte": start_utc, "$lte": end_utc},
                 }
             },
-            {"$sort": {"entity_id": 1, "event_timestamp": -1}},
+            {"$sort": {"entity_id": 1, "event_timestamp": -1, "created_at": -1}},
             {
                 "$group": {
                     "_id": "$entity_id",
@@ -585,7 +585,8 @@ class MongoDBOfflineStoreNative(OfflineStore):
         fv_names = list(fv_to_features.keys())
 
         # Build per-FV TTL expression using $switch
-        ttl_expr = _build_ttl_gte_expr(feature_views)
+        relevant_fvs = [fv for fv in feature_views if fv.name in fv_to_features]
+        ttl_expr = _build_ttl_gte_expr(relevant_fvs)
 
         def _run() -> pyarrow.Table:
             if MongoClient is None:
@@ -623,7 +624,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 )
 
             # Create temp collection with unique name
-            temp_collection_name = f"entity_df_{uuid.uuid4().hex[:12]}"
+            temp_collection_name = f"tmp_entity_df_{uuid.uuid4().hex[:12]}"
 
             client: Any = MongoClient(connection_string, driver=DRIVER_METADATA)
             try:
@@ -680,6 +681,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 return pyarrow.Table.from_pydict({})
 
             # Build result DataFrame
+            result = result.reset_index(drop=True)
             rows = []
             for doc in docs:
                 # Start with entity columns from original entity_df
