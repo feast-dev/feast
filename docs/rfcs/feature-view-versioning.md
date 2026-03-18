@@ -315,6 +315,15 @@ If two concurrent applies both try to forward-declare the same version:
 - For single-developer or CI/CD workflows, the file registry works fine.
 - For multi-client environments with concurrent applies, use the SQL registry for proper conflict detection.
 
+## Feature Services
+
+Feature services currently have limited versioning support:
+
+- **Always resolve to the active (latest) version.** A `FeatureService` references feature views by name without version qualifiers. At both apply time and retrieval time, the service resolves each reference to the currently active feature view definition.
+- **No `@v<N>` syntax in feature services.** Version-qualified reads (`driver_stats@v2:trips_today`) require string-based feature references passed directly to `get_online_features()`. Feature services do not support pinning individual feature view references to specific versions.
+- **Versioned FVs require the flag.** If any feature view referenced by a feature service has been versioned (`current_version_number > 0`), the `enable_online_feature_view_versioning` flag must be set to `true`. Without it, `feast apply` will reject the feature service with a clear error, and `get_online_features()` will fail at retrieval time.
+- **Future work: per-reference version pinning.** A future enhancement could allow feature services to pin individual feature view references to specific versions (e.g., `FeatureService(features=[driver_stats["v2"]])`).
+
 ## Limitations & Future Work
 
 - **Online store coverage.** Version-qualified reads are only on SQLite today. Redis, DynamoDB, Bigtable, Postgres, etc. are follow-up work.

@@ -1,17 +1,21 @@
 """Integration tests for feature view versioning."""
 
+import os
 import tempfile
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
+from feast import FeatureStore
 from feast.entity import Entity
 from feast.errors import FeatureViewPinConflict, FeatureViewVersionNotFound
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.registry.registry import Registry
-from feast.repo_config import RegistryConfig
+from feast.repo_config import RegistryConfig, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Float32, Int64
 from feast.value_type import ValueType
@@ -915,3 +919,168 @@ class TestOnlineVersioningDisabled:
                 allow_cache=False,
                 hide_dummy_entity=False,
             )
+
+
+class TestFeatureServiceVersioningGates:
+    """Tests that feature services are gated when referencing versioned feature views."""
+
+    @pytest.fixture
+    def versioned_fv_and_entity(self):
+        """Create a versioned feature view (v1) and its entity."""
+        entity = Entity(
+            name="driver_id",
+            join_keys=["driver_id"],
+            value_type=ValueType.INT64,
+        )
+        # v0 definition
+        fv_v0 = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+            ],
+            description="v0",
+        )
+        # v1 definition (schema change)
+        fv_v1 = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+                Field(name="avg_rating", dtype=Float32),
+            ],
+            description="v1",
+        )
+        return entity, fv_v0, fv_v1
+
+    @pytest.fixture
+    def unversioned_fv_and_entity(self):
+        """Create an unversioned feature view (v0 only) and its entity."""
+        entity = Entity(
+            name="driver_id",
+            join_keys=["driver_id"],
+            value_type=ValueType.INT64,
+        )
+        fv = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+            ],
+            description="only version",
+        )
+        return entity, fv
+
+    def _make_store(self, tmpdir, enable_versioning=False):
+        """Create a FeatureStore with optional online versioning."""
+        registry_path = os.path.join(tmpdir, "registry.db")
+        online_path = os.path.join(tmpdir, "online.db")
+        return FeatureStore(
+            config=RepoConfig(
+                registry=RegistryConfig(
+                    path=registry_path,
+                    enable_online_feature_view_versioning=enable_versioning,
+                ),
+                project="test_project",
+                provider="local",
+                online_store=SqliteOnlineStoreConfig(path=online_path),
+                entity_key_serialization_version=3,
+            )
+        )
+
+    def test_feature_service_apply_fails_with_versioned_fv_when_flag_off(
+        self, versioned_fv_and_entity
+    ):
+        """Apply a feature service referencing a versioned FV with flag off -> ValueError."""
+        entity, fv_v0, fv_v1 = versioned_fv_and_entity
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._make_store(tmpdir, enable_versioning=False)
+
+            # Apply v0 first, then v1 to create version history
+            store.apply([entity, fv_v0])
+            store.apply([entity, fv_v1])
+
+            # Now create a feature service referencing the versioned FV
+            fs = FeatureService(
+                name="driver_service",
+                features=[fv_v1],
+            )
+
+            with pytest.raises(ValueError, match="version v1"):
+                store.apply([fs])
+
+    def test_feature_service_apply_succeeds_with_versioned_fv_when_flag_on(
+        self, versioned_fv_and_entity
+    ):
+        """Apply a feature service referencing a versioned FV with flag on -> succeeds."""
+        entity, fv_v0, fv_v1 = versioned_fv_and_entity
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._make_store(tmpdir, enable_versioning=True)
+
+            # Apply v0 first, then v1 to create version history
+            store.apply([entity, fv_v0])
+            store.apply([entity, fv_v1])
+
+            # Feature service referencing versioned FV should succeed
+            fs = FeatureService(
+                name="driver_service",
+                features=[fv_v1],
+            )
+            store.apply([fs])  # Should not raise
+
+    def test_feature_service_retrieval_fails_with_versioned_fv_when_flag_off(
+        self, versioned_fv_and_entity
+    ):
+        """get_online_features with a feature service referencing a versioned FV, flag off -> ValueError."""
+        entity, fv_v0, fv_v1 = versioned_fv_and_entity
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # First apply with flag on so the feature service can be registered
+            store_on = self._make_store(tmpdir, enable_versioning=True)
+            store_on.apply([entity, fv_v0])
+            store_on.apply([entity, fv_v1])
+            fs = FeatureService(
+                name="driver_service",
+                features=[fv_v1],
+            )
+            store_on.apply([fs])
+
+            # Now create a store with the flag off to test retrieval
+            store_off = self._make_store(tmpdir, enable_versioning=False)
+            registered_fs = store_off.registry.get_feature_service(
+                "driver_service", "test_project"
+            )
+
+            with pytest.raises(ValueError, match="online versioning is disabled"):
+                _get_feature_views_to_use(
+                    registry=store_off.registry,
+                    project="test_project",
+                    features=registered_fs,
+                    allow_cache=False,
+                    hide_dummy_entity=False,
+                )
+
+    def test_feature_service_with_unversioned_fv_succeeds(
+        self, unversioned_fv_and_entity
+    ):
+        """Feature service with v0 FV works fine regardless of flag."""
+        entity, fv = unversioned_fv_and_entity
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._make_store(tmpdir, enable_versioning=False)
+
+            # Apply unversioned FV and feature service
+            fs = FeatureService(
+                name="driver_service",
+                features=[fv],
+            )
+            store.apply([entity, fv, fs])  # Should not raise

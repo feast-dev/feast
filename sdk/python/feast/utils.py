@@ -1300,10 +1300,10 @@ def _get_feature_views_to_use(
     fvs_to_use, od_fvs_to_use = [], []
     for name, version_num, projection in feature_views:
         if version_num is not None:
-            if not getattr(registry, "enable_versioning", False):
+            if not getattr(registry, "enable_online_versioning", False):
                 raise ValueError(
                     f"Version-qualified ref '{name}@v{version_num}' not supported: "
-                    f"versioning is disabled. Set 'enable_feature_view_versioning: true' "
+                    f"online versioning is disabled. Set 'enable_online_feature_view_versioning: true' "
                     f"under 'registry' in feature_store.yaml."
                 )
             # Version-qualified reference: look up the specific version snapshot
@@ -1322,6 +1322,19 @@ def _get_feature_views_to_use(
                 fv.projection.version_tag = version_num
         else:
             fv = registry.get_any_feature_view(name, project, allow_cache)
+            # Gate: feature services must not resolve to versioned FVs when online versioning is off
+            if (
+                isinstance(features, FeatureService)
+                and getattr(fv, "current_version_number", None) is not None
+                and fv.current_version_number > 0
+                and not getattr(registry, "enable_online_versioning", False)
+            ):
+                raise ValueError(
+                    f"Feature service references feature view '{name}' which is at version "
+                    f"v{fv.current_version_number}, but online versioning is disabled. "
+                    f"Set 'enable_online_feature_view_versioning: true' under 'registry' "
+                    f"in feature_store.yaml."
+                )
 
         if isinstance(fv, OnDemandFeatureView):
             od_fvs_to_use.append(

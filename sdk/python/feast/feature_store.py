@@ -1151,6 +1151,37 @@ class FeatureStore:
             self.registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self.registry.apply_entity(ent, project=self.project, commit=False)
+
+        # Gate: feature services must not reference versioned FVs when online versioning is off
+        if not self.config.registry.enable_online_feature_view_versioning:
+            fvs_in_batch = {
+                fv.name: fv
+                for fv in itertools.chain(
+                    views_to_update, odfvs_to_update, sfvs_to_update
+                )
+            }
+            for feature_service in services_to_update:
+                for projection in feature_service.feature_view_projections:
+                    fv = fvs_in_batch.get(projection.name)
+                    if fv is None:
+                        try:
+                            fv = self.registry.get_any_feature_view(
+                                projection.name, self.project
+                            )
+                        except FeatureViewNotFoundException:
+                            continue
+                    if (
+                        getattr(fv, "current_version_number", None) is not None
+                        and fv.current_version_number > 0
+                    ):
+                        raise ValueError(
+                            f"Feature service '{feature_service.name}' references feature view "
+                            f"'{projection.name}' which is at version v{fv.current_version_number}. "
+                            f"To use versioned feature views in feature services, set "
+                            f"'enable_online_feature_view_versioning: true' under 'registry' "
+                            f"in feature_store.yaml."
+                        )
+
         for feature_service in services_to_update:
             self.registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
