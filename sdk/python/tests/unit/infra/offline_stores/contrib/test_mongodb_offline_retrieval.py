@@ -22,8 +22,6 @@ from feast import Entity, FeatureView, Field
 from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb import (
     MongoDBOfflineStoreIbis,
     MongoDBOfflineStoreIbisConfig,
-)
-from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_source import (
     MongoDBSource,
 )
 from feast.repo_config import RepoConfig

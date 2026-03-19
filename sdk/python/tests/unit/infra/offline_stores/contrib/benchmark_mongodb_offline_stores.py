@@ -37,14 +37,12 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb import (
     MongoDBOfflineStoreIbis,
     MongoDBOfflineStoreIbisConfig,
+    MongoDBSource,
 )
 from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native import (
     MongoDBOfflineStoreNative,
     MongoDBOfflineStoreNativeConfig,
     MongoDBSourceNative,
-)
-from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_source import (
-    MongoDBSource,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
