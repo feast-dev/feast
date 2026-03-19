@@ -48,6 +48,7 @@ dependencies = [
 
 [project.optional-dependencies]
 aws = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
+dax = ["feast[aws]", "amazon-dax-client>=2.0.0,<3"]
 azure = [
     "azure-storage-blob>=0.37.0",
     "azure-identity>=1.6.1",
