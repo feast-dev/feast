@@ -1116,7 +1116,8 @@ def _convert_nested_collection_to_proto(
                         )
                         inner_values.append(proto_vals[0])
             repeated = RepeatedValue(val=inner_values)
-            proto = ProtoValue(**{val_attr: repeated})
+            proto = ProtoValue()
+            getattr(proto, val_attr).CopyFrom(repeated)
             result.append(proto)
     return result
 
