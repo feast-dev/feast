@@ -66,18 +66,24 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
         allow_cache: bool = Query(True),
     ):
         def count_resources_for_project(project_name: str):
-            entities = grpc_call(
-                grpc_handler.ListEntities,
-                RegistryServer_pb2.ListEntitiesRequest(
-                    project=project_name, allow_cache=allow_cache
-                ),
-            )
-            data_sources = grpc_call(
-                grpc_handler.ListDataSources,
-                RegistryServer_pb2.ListDataSourcesRequest(
-                    project=project_name, allow_cache=allow_cache
-                ),
-            )
+            try:
+                entities = grpc_call(
+                    grpc_handler.ListEntities,
+                    RegistryServer_pb2.ListEntitiesRequest(
+                        project=project_name, allow_cache=allow_cache
+                    ),
+                )
+            except Exception:
+                entities = {"entities": []}
+            try:
+                data_sources = grpc_call(
+                    grpc_handler.ListDataSources,
+                    RegistryServer_pb2.ListDataSourcesRequest(
+                        project=project_name, allow_cache=allow_cache
+                    ),
+                )
+            except Exception:
+                data_sources = {"dataSources": []}
             try:
                 saved_datasets = grpc_call(
                     grpc_handler.ListSavedDatasets,
