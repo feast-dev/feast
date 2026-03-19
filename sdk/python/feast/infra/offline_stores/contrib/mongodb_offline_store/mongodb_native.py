@@ -83,7 +83,17 @@ Notes:
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import pandas as pd
 import pyarrow
@@ -584,8 +594,10 @@ class MongoDBOfflineStoreNative(OfflineStore):
 
         Instead of using $lookup (which scales poorly), this:
         1. Extracts unique entity_ids and computes timestamp bounds
-        2. Fetches all matching feature data in one query
+        2. Fetches all matching feature data in batched queries
         3. Uses pd.merge_asof for efficient point-in-time joins in Python
+
+        For large entity_df, processing is chunked to bound memory usage.
         """
         if isinstance(entity_df, str):
             raise ValueError(
@@ -613,16 +625,33 @@ class MongoDBOfflineStoreNative(OfflineStore):
         fv_names = list(fv_to_features.keys())
         fv_by_name = {fv.name: fv for fv in feature_views}
 
-        def _run() -> pyarrow.Table:
+        # Chunk size for entity_df processing (bounds memory usage)
+        CHUNK_SIZE = 5000
+        # Batch size for MongoDB $in queries
+        MONGO_BATCH_SIZE = 1000
+
+        def _chunk_dataframe(
+            df: pd.DataFrame, size: int
+        ) -> Generator[pd.DataFrame, None, None]:
+            """Yield successive chunks of a DataFrame."""
+            for i in range(0, len(df), size):
+                yield df.iloc[i : i + size]
+
+        def _run_single(entity_subset_df: pd.DataFrame) -> pd.DataFrame:
+            """Process a single chunk of entity_df and return joined features."""
             # Prepare entity_df: ensure timestamps are UTC
-            result = entity_df.copy()
+            result = entity_subset_df.copy()
             if result[event_timestamp_col].dt.tz is None:
                 result[event_timestamp_col] = pd.to_datetime(
                     result[event_timestamp_col], utc=True
                 )
 
-            # Get join keys (all columns except event_timestamp)
-            entity_columns = [c for c in result.columns if c != event_timestamp_col]
+            # Get join keys (all columns except event_timestamp and internal columns)
+            entity_columns = [
+                c
+                for c in result.columns
+                if c != event_timestamp_col and not c.startswith("_")
+            ]
 
             # Serialize entity keys to bytes (same format as online store)
             result["_entity_id"] = result.apply(
@@ -632,22 +661,20 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 axis=1,
             )
 
-            # Extract unique entity_ids and timestamp bounds
+            # Extract unique entity_ids and timestamp bounds for this chunk
             unique_entity_ids = result["_entity_id"].unique().tolist()
             max_ts = result[event_timestamp_col].max()
 
-            # Batch entity_ids into chunks to avoid huge $in queries
-            BATCH_SIZE = 1000
+            # Fetch feature data in batches
             all_feature_docs: List[Dict] = []
 
             client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
             try:
                 coll = client[db_name][feature_collection]
 
-                for i in range(0, len(unique_entity_ids), BATCH_SIZE):
-                    batch_ids = unique_entity_ids[i : i + BATCH_SIZE]
+                for i in range(0, len(unique_entity_ids), MONGO_BATCH_SIZE):
+                    batch_ids = unique_entity_ids[i : i + MONGO_BATCH_SIZE]
 
-                    # Single query: fetch all matching feature data
                     query = {
                         "entity_id": {"$in": batch_ids},
                         "feature_view": {"$in": fv_names},
@@ -661,66 +688,53 @@ class MongoDBOfflineStoreNative(OfflineStore):
 
             # Handle empty result
             if not all_feature_docs:
-                # Return entity_df with NULL feature columns
                 for fv_name, features in fv_to_features.items():
                     for feat in features:
                         col_name = f"{fv_name}__{feat}" if full_feature_names else feat
                         result[col_name] = None
-                result = result.drop(columns=["_entity_id"])
-                return pyarrow.Table.from_pandas(result, preserve_index=False)
+                return result.drop(columns=["_entity_id"])
 
             # Convert to DataFrame and flatten features subdoc
             feature_df = pd.DataFrame(all_feature_docs)
-
-            # Rename entity_id to _entity_id to match result DataFrame
             feature_df = feature_df.rename(columns={"entity_id": "_entity_id"})
 
-            # Flatten nested 'features' dict into top-level columns
             if "features" in feature_df.columns:
                 features_expanded = pd.json_normalize(feature_df["features"])
                 feature_df = pd.concat(
                     [feature_df.drop(columns=["features"]), features_expanded], axis=1
                 )
 
-            # Ensure timestamps are tz-aware
             if feature_df["event_timestamp"].dt.tz is None:
                 feature_df["event_timestamp"] = pd.to_datetime(
                     feature_df["event_timestamp"], utc=True
                 )
 
-            # Split by feature_view and perform PIT join for each
+            # Sort result for merge_asof
             result = result.sort_values(event_timestamp_col).reset_index(drop=True)
 
+            # Perform PIT join for each feature view
             for fv_name, features in fv_to_features.items():
                 fv = fv_by_name.get(fv_name)
-
-                # Filter to this feature_view's data
                 fv_df = feature_df[feature_df["feature_view"] == fv_name].copy()
 
                 if fv_df.empty:
-                    # No data for this FV - fill with NULLs
                     for feat in features:
                         col_name = f"{fv_name}__{feat}" if full_feature_names else feat
                         result[col_name] = None
                     continue
 
-                # Sort by timestamp for merge_asof
                 fv_df = fv_df.sort_values("event_timestamp").reset_index(drop=True)
 
-                # Select columns for merge
                 merge_cols = ["_entity_id", "event_timestamp"] + [
                     f for f in features if f in fv_df.columns
                 ]
                 fv_df_subset = fv_df[
                     [c for c in merge_cols if c in fv_df.columns]
                 ].copy()
-
-                # Rename to avoid conflicts
                 fv_df_subset = fv_df_subset.rename(
                     columns={"event_timestamp": "_fv_ts"}
                 )
 
-                # Point-in-time join using merge_asof
                 result = pd.merge_asof(
                     result,
                     fv_df_subset,
@@ -730,7 +744,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
                     direction="backward",
                 )
 
-                # Apply TTL: null out stale features
+                # Apply TTL
                 if fv and fv.ttl:
                     cutoff = result[event_timestamp_col] - fv.ttl
                     stale_mask = result["_fv_ts"] < cutoff
@@ -743,25 +757,41 @@ class MongoDBOfflineStoreNative(OfflineStore):
                     if feat in result.columns and full_feature_names:
                         result = result.rename(columns={feat: f"{fv_name}__{feat}"})
                     elif feat not in result.columns:
-                        # Feature wasn't in the data - add NULL column
                         col_name = f"{fv_name}__{feat}" if full_feature_names else feat
                         result[col_name] = None
 
-                # Drop temporary column
                 result = result.drop(columns=["_fv_ts"], errors="ignore")
 
-            # Remove internal entity_id column and restore original order
-            result = result.drop(columns=["_entity_id"], errors="ignore")
-            result = result.sort_index().reset_index(drop=True)
+            return result.drop(columns=["_entity_id"], errors="ignore")
 
-            # Ensure timestamp column is still tz-aware
-            if not result.empty and event_timestamp_col in result.columns:
-                if result[event_timestamp_col].dt.tz is None:
-                    result[event_timestamp_col] = pd.to_datetime(
-                        result[event_timestamp_col], utc=True
+        def _run() -> pyarrow.Table:
+            # Add row index to preserve original ordering
+            working_df = entity_df.copy()
+            working_df["_row_idx"] = range(len(working_df))
+
+            if len(working_df) <= CHUNK_SIZE:
+                # Small workload: process in single pass
+                result_df = _run_single(working_df)
+            else:
+                # Large workload: process in chunks
+                chunk_results = []
+                for chunk in _chunk_dataframe(working_df, CHUNK_SIZE):
+                    chunk_results.append(_run_single(chunk))
+
+                result_df = pd.concat(chunk_results, ignore_index=True)
+
+            # Restore original ordering and remove index column
+            result_df = result_df.sort_values("_row_idx").reset_index(drop=True)
+            result_df = result_df.drop(columns=["_row_idx"], errors="ignore")
+
+            # Ensure timestamp column is tz-aware
+            if not result_df.empty and event_timestamp_col in result_df.columns:
+                if result_df[event_timestamp_col].dt.tz is None:
+                    result_df[event_timestamp_col] = pd.to_datetime(
+                        result_df[event_timestamp_col], utc=True
                     )
 
-            return pyarrow.Table.from_pandas(result, preserve_index=False)
+            return pyarrow.Table.from_pandas(result_df, preserve_index=False)
 
         return MongoDBNativeRetrievalJob(
             query_fn=_run,
