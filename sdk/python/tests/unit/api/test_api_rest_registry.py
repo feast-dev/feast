@@ -1528,6 +1528,86 @@ def test_metrics_resource_counts_via_rest(fastapi_test_app):
     assert isinstance(per_project["demo_project"], dict)
 
 
+def test_metrics_resource_counts_with_permission_errors(fastapi_test_app):
+    """
+    Test that /metrics/resource_counts returns 200 with zero counts for
+    resource types that raise FeastPermissionError, instead of failing
+    the entire request. This simulates the scenario where access is
+    restricted for some resource types via GroupBasedPolicy,
+    NamespaceBasedPolicy, or CombinedGroupNamespacePolicy.
+    """
+    from unittest.mock import patch
+
+    from feast.errors import FeastPermissionError
+
+    original_get = fastapi_test_app.get
+
+    # First, get the baseline counts to know which resources have data
+    baseline = original_get("/metrics/resource_counts?project=demo_project").json()
+    baseline_counts = baseline["counts"]
+
+    # Patch grpc_call to raise FeastPermissionError for entities and data sources
+    # while allowing other resource types to succeed
+    original_grpc_call = None
+
+    def grpc_call_entities_denied(handler_fn, request):
+        handler_name = getattr(handler_fn, "__name__", "")
+        if handler_name in ("ListEntities", "ListDataSources"):
+            raise FeastPermissionError(f"Permission denied for {handler_name}")
+        return original_grpc_call(handler_fn, request)
+
+    with patch("feast.api.registry.rest.metrics.grpc_call") as mock_grpc_call:
+        import feast.api.registry.rest.metrics as metrics_module
+
+        original_grpc_call = metrics_module.__dict__.get("grpc_call")
+        # Restore actual import since patch replaces it
+        from feast.api.registry.rest.rest_utils import grpc_call as real_grpc_call
+
+        original_grpc_call = real_grpc_call
+        mock_grpc_call.side_effect = grpc_call_entities_denied
+
+        response = fastapi_test_app.get("/metrics/resource_counts?project=demo_project")
+
+    assert response.status_code == 200, (
+        f"Expected 200 but got {response.status_code}: {response.text}"
+    )
+    data = response.json()
+    assert "counts" in data
+    counts = data["counts"]
+
+    # Denied resource types should have 0 counts
+    assert counts["entities"] == 0
+    assert counts["dataSources"] == 0
+
+    # Permitted resource types should still have their original counts
+    assert counts["featureViews"] == baseline_counts["featureViews"]
+    assert counts["featureServices"] == baseline_counts["featureServices"]
+    assert counts["features"] == baseline_counts["features"]
+    assert counts["savedDatasets"] == baseline_counts["savedDatasets"]
+
+    # Now test with ALL resource types denied
+    def grpc_call_all_denied(handler_fn, request):
+        handler_name = getattr(handler_fn, "__name__", "")
+        if handler_name.startswith("List") and handler_name != "ListProjects":
+            raise FeastPermissionError(f"Permission denied for {handler_name}")
+        return real_grpc_call(handler_fn, request)
+
+    with patch("feast.api.registry.rest.metrics.grpc_call") as mock_grpc_call:
+        mock_grpc_call.side_effect = grpc_call_all_denied
+
+        response = fastapi_test_app.get("/metrics/resource_counts?project=demo_project")
+
+    assert response.status_code == 200
+    data = response.json()
+    counts = data["counts"]
+
+    # All counts should be 0 when all resource types are denied
+    for resource_type, count in counts.items():
+        assert count == 0, (
+            f"Expected 0 for {resource_type} when permission denied, got {count}"
+        )
+
+
 def test_feature_views_all_types_and_resource_counts_match(fastapi_test_app):
     """
     Test that verifies:
