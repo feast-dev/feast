@@ -106,9 +106,7 @@ const RegularFeatureInstance = ({
           <Route
             path="/versions"
             element={
-              <FeatureViewVersionsTab
-                featureViewName={data?.spec?.name!}
-              />
+              <FeatureViewVersionsTab featureViewName={data?.spec?.name!} />
             }
           />
           {TabRoutes}

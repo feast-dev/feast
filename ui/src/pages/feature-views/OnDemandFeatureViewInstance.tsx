@@ -68,9 +68,7 @@ const OnDemandFeatureInstance = ({ data }: OnDemandFeatureInstanceProps) => {
           <Route
             path="/versions"
             element={
-              <FeatureViewVersionsTab
-                featureViewName={featureViewName!}
-              />
+              <FeatureViewVersionsTab featureViewName={featureViewName!} />
             }
           />
           {CustomTabRoutes}
