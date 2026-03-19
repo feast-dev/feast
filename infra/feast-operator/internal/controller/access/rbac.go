@@ -19,6 +19,7 @@ package access
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,16 +41,16 @@ const (
 func ReconcileAutoAccessRBAC(ctx context.Context, c client.Client, scheme *runtime.Scheme, owner client.Object, namespace, name, clientConfigMapName string, policies []registry.PermissionPolicy) error {
 	subjects := buildSubjects(ctx, c, policies)
 	if len(subjects) == 0 {
-		return nil
+		return CleanupAutoAccessRBAC(ctx, c, namespace, name)
 	}
 	if err := ensureFeastDiscoverClusterRole(ctx, c); err != nil {
 		return err
 	}
-	clusterBindingName := "feast-" + namespace + "-" + name + "-discover"
+	clusterBindingName := "feast-" + namespace + "--" + name + "-discover"
 	if err := reconcileClusterRoleBinding(ctx, c, scheme, owner, clusterBindingName, subjects); err != nil {
 		return err
 	}
-	roleName := "feast-" + name + "-viewer"
+	roleName := "feast-" + namespace + "--" + name + "-viewer"
 	if err := reconcileViewerRole(ctx, c, scheme, owner, namespace, roleName, clientConfigMapName); err != nil {
 		return err
 	}
@@ -76,6 +77,11 @@ func buildSubjects(ctx context.Context, c client.Client, policies []registry.Per
 			})
 		}
 		for _, ns := range p.Namespaces {
+			ns = strings.TrimSpace(ns)
+			if ns == "" {
+				log.FromContext(ctx).V(1).Info("Skipping empty namespace in NamespaceBasedPolicy for auto-access RBAC")
+				continue
+			}
 			subs, err := listSubjectsInNamespace(ctx, c, ns)
 			if err != nil {
 				log.FromContext(ctx).V(1).Info("Failed to list RoleBindings in namespace for NamespaceBasedPolicy", "namespace", ns, "error", err)
@@ -111,6 +117,12 @@ func listSubjectsInNamespace(ctx context.Context, c client.Client, namespace str
 	seen := make(map[string]struct{})
 	for i := range list.Items {
 		for _, s := range list.Items[i].Subjects {
+			if s.Kind != "User" && s.Kind != "Group" {
+				continue
+			}
+			if s.Name == "" {
+				continue
+			}
 			key := subjectKey(s)
 			if _, ok := seen[key]; ok {
 				continue
@@ -139,7 +151,7 @@ func ensureFeastDiscoverClusterRole(ctx context.Context, c client.Client) error 
 	return err
 }
 
-func reconcileClusterRoleBinding(ctx context.Context, c client.Client, scheme *runtime.Scheme, owner client.Object, name string, subjects []rbacv1.Subject) error {
+func reconcileClusterRoleBinding(ctx context.Context, c client.Client, _ *runtime.Scheme, owner client.Object, name string, subjects []rbacv1.Subject) error {
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 	}
@@ -204,9 +216,29 @@ func reconcileViewerRoleBinding(ctx context.Context, c client.Client, scheme *ru
 	return err
 }
 
+// CleanupDiscoverClusterRoleIfLast deletes the shared feast-discover-namespaces
+// ClusterRole when otherFeatureStoreCount is 0 (i.e. no other FeatureStore in
+// the cluster still needs it).
+func CleanupDiscoverClusterRoleIfLast(ctx context.Context, c client.Client, otherFeatureStoreCount int) error {
+	if otherFeatureStoreCount > 0 {
+		return nil
+	}
+	cr := &rbacv1.ClusterRole{}
+	if err := c.Get(ctx, client.ObjectKey{Name: FeastDiscoverClusterRoleName}, cr); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if err := c.Delete(ctx, cr); err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete ClusterRole %s: %w", FeastDiscoverClusterRoleName, err)
+	}
+	return nil
+}
+
 // CleanupAutoAccessRBAC removes the auto-access ClusterRoleBinding, Role, and RoleBinding.
 func CleanupAutoAccessRBAC(ctx context.Context, c client.Client, namespace, name string) error {
-	clusterBindingName := "feast-" + namespace + "-" + name + "-discover"
+	clusterBindingName := "feast-" + namespace + "--" + name + "-discover"
 	crb := &rbacv1.ClusterRoleBinding{}
 	if err := c.Get(ctx, client.ObjectKey{Name: clusterBindingName}, crb); err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -215,7 +247,7 @@ func CleanupAutoAccessRBAC(ctx context.Context, c client.Client, namespace, name
 	} else if err := c.Delete(ctx, crb); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete ClusterRoleBinding %s: %w", clusterBindingName, err)
 	}
-	roleName := "feast-" + name + "-viewer"
+	roleName := "feast-" + namespace + "--" + name + "-viewer"
 	role := &rbacv1.Role{}
 	if err := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: roleName}, role); err != nil {
 		if !apierrors.IsNotFound(err) {

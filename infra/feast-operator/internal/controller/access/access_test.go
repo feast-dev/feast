@@ -42,11 +42,11 @@ func newNamespace(name string, labels map[string]string) *corev1.Namespace {
 	}
 }
 
-func getNamespace(t *testing.T, c client.Client, name string) *corev1.Namespace {
+func getNamespace(t *testing.T, c client.Client) *corev1.Namespace {
 	t.Helper()
 	ns := &corev1.Namespace{}
-	if err := c.Get(context.Background(), client.ObjectKey{Name: name}, ns); err != nil {
-		t.Fatalf("Failed to get namespace %s: %v", name, err)
+	if err := c.Get(context.Background(), client.ObjectKey{Name: "test-ns"}, ns); err != nil {
+		t.Fatalf("Failed to get namespace test-ns: %v", err)
 	}
 	return ns
 }
@@ -58,7 +58,7 @@ func TestEnsureNamespaceLabel_AddsLabel(t *testing.T) {
 	if err := EnsureNamespaceLabel(context.Background(), c, "test-ns"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	updated := getNamespace(t, c, "test-ns")
+	updated := getNamespace(t, c)
 	if updated.Labels[FeastNamespaceLabelKey] != FeastNamespaceLabelValue {
 		t.Fatalf("expected label %s=%s, got %v", FeastNamespaceLabelKey, FeastNamespaceLabelValue, updated.Labels)
 	}
@@ -71,7 +71,7 @@ func TestEnsureNamespaceLabel_AlreadyLabeled(t *testing.T) {
 	if err := EnsureNamespaceLabel(context.Background(), c, "test-ns"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	updated := getNamespace(t, c, "test-ns")
+	updated := getNamespace(t, c)
 	if updated.Labels[FeastNamespaceLabelKey] != FeastNamespaceLabelValue {
 		t.Fatalf("label should still be present")
 	}
@@ -92,7 +92,7 @@ func TestEnsureNamespaceLabel_PreservesExistingLabels(t *testing.T) {
 	if err := EnsureNamespaceLabel(context.Background(), c, "test-ns"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	updated := getNamespace(t, c, "test-ns")
+	updated := getNamespace(t, c)
 	if updated.Labels["existing"] != "label" {
 		t.Fatal("existing label was removed")
 	}
@@ -108,7 +108,7 @@ func TestRemoveNamespaceLabelIfLast_RemovesWhenZero(t *testing.T) {
 	if err := RemoveNamespaceLabelIfLast(context.Background(), c, "test-ns", 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	updated := getNamespace(t, c, "test-ns")
+	updated := getNamespace(t, c)
 	if _, ok := updated.Labels[FeastNamespaceLabelKey]; ok {
 		t.Fatal("label should have been removed")
 	}
@@ -121,7 +121,7 @@ func TestRemoveNamespaceLabelIfLast_KeepsWhenOthersExist(t *testing.T) {
 	if err := RemoveNamespaceLabelIfLast(context.Background(), c, "test-ns", 1); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	updated := getNamespace(t, c, "test-ns")
+	updated := getNamespace(t, c)
 	if updated.Labels[FeastNamespaceLabelKey] != FeastNamespaceLabelValue {
 		t.Fatal("label should not have been removed when other FeatureStores exist")
 	}

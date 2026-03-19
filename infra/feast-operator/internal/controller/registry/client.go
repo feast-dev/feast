@@ -46,15 +46,19 @@ type PermissionPolicy struct {
 
 // ListPermissions fetches permissions from the registry REST API for the given project.
 // The intraCommToken is the per-instance secret used to bypass per-user auth on the registry.
-// Uses cluster-internal TLS (InsecureSkipVerify for service certs).
+// When useTLS is true, uses https with InsecureSkipVerify for cluster-internal service certs.
 // Returns policies from GroupBasedPolicy, NamespaceBasedPolicy, and CombinedGroupNamespacePolicy only.
-func ListPermissions(ctx context.Context, registryRestURL, project, intraCommToken string) ([]PermissionPolicy, error) {
+func ListPermissions(ctx context.Context, registryRestURL, project, intraCommToken string, useTLS bool) ([]PermissionPolicy, error) {
 	if registryRestURL == "" || project == "" {
 		return nil, nil
 	}
 	baseURL := registryRestURL
 	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
-		baseURL = "https://" + baseURL
+		scheme := "http://"
+		if useTLS {
+			scheme = "https://"
+		}
+		baseURL = scheme + baseURL
 	}
 	u, err := url.Parse(baseURL)
 	if err != nil {

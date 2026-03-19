@@ -92,11 +92,11 @@ func TestExtractPolicy_SnakeCaseKeys(t *testing.T) {
 }
 
 func TestListPermissions_EmptyInputs(t *testing.T) {
-	policies, err := ListPermissions(context.Background(), "", "project", "tok")
+	policies, err := ListPermissions(context.Background(), "", "project", "tok", false)
 	if err != nil || policies != nil {
 		t.Fatalf("expected nil,nil for empty URL; got %v, %v", policies, err)
 	}
-	policies, err = ListPermissions(context.Background(), "http://localhost", "", "tok")
+	policies, err = ListPermissions(context.Background(), "http://localhost", "", "tok", false)
 	if err != nil || policies != nil {
 		t.Fatalf("expected nil,nil for empty project; got %v, %v", policies, err)
 	}
@@ -147,7 +147,7 @@ func TestListPermissions_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	policies, err := ListPermissions(context.Background(), server.URL, "my_project", "test-token")
+	policies, err := ListPermissions(context.Background(), server.URL, "my_project", "test-token", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestListPermissions_NonOKStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := ListPermissions(context.Background(), server.URL, "p", "tok")
+	_, err := ListPermissions(context.Background(), server.URL, "p", "tok", false)
 	if err == nil {
 		t.Fatal("expected error for non-200 status")
 	}
@@ -178,7 +178,7 @@ func TestListPermissions_EmptyPermissions(t *testing.T) {
 	}))
 	defer server.Close()
 
-	policies, err := ListPermissions(context.Background(), server.URL, "p", "tok")
+	policies, err := ListPermissions(context.Background(), server.URL, "p", "tok", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestListPermissions_NoSpecPermission(t *testing.T) {
 	}))
 	defer server.Close()
 
-	policies, err := ListPermissions(context.Background(), server.URL, "p", "tok")
+	policies, err := ListPermissions(context.Background(), server.URL, "p", "tok", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -203,16 +203,22 @@ func TestListPermissions_NoSpecPermission(t *testing.T) {
 	}
 }
 
-func TestListPermissions_URLWithoutScheme(t *testing.T) {
-	// Verify https:// is prepended when scheme is missing
-	_, err := ListPermissions(context.Background(), "nonexistent-host:8080", "p", "tok")
+func TestListPermissions_URLWithoutScheme_TLS(t *testing.T) {
+	_, err := ListPermissions(context.Background(), "127.0.0.1:8080", "p", "tok", true)
+	if err == nil {
+		t.Fatal("expected error for unreachable host")
+	}
+}
+
+func TestListPermissions_URLWithoutScheme_NoTLS(t *testing.T) {
+	_, err := ListPermissions(context.Background(), "127.0.0.1:8080", "p", "tok", false)
 	if err == nil {
 		t.Fatal("expected error for unreachable host")
 	}
 }
 
 func TestBuildIntraCommunicationJWT(t *testing.T) {
-	secretToken := "my-random-secret-value"
+	secretToken := "my-random-secret-value" // pragma: allowlist secret
 	jwt := BuildIntraCommunicationJWT(secretToken)
 	parts := strings.Split(jwt, ".")
 	if len(parts) != 3 {
@@ -244,7 +250,7 @@ func TestListPermissions_SendsIntraCommunicationJWT(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := ListPermissions(context.Background(), server.URL, "p", "my-secret")
+	_, err := ListPermissions(context.Background(), server.URL, "p", "my-secret", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -267,7 +273,7 @@ func TestListPermissions_NoTokenNoAuthHeader(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := ListPermissions(context.Background(), server.URL, "p", "")
+	_, err := ListPermissions(context.Background(), server.URL, "p", "", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

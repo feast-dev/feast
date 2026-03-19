@@ -160,7 +160,7 @@ func TestReconcileAutoAccessRBAC_CreatesAllResources(t *testing.T) {
 
 	// Verify ClusterRoleBinding
 	crb := &rbacv1.ClusterRoleBinding{}
-	if err := c.Get(context.Background(), client.ObjectKey{Name: "feast-feast-ns-my-feast-discover"}, crb); err != nil {
+	if err := c.Get(context.Background(), client.ObjectKey{Name: "feast-feast-ns--my-feast-discover"}, crb); err != nil {
 		t.Fatalf("Failed to get ClusterRoleBinding: %v", err)
 	}
 	if len(crb.Subjects) != 1 || crb.Subjects[0].Name != "data-scientists" {
@@ -169,7 +169,7 @@ func TestReconcileAutoAccessRBAC_CreatesAllResources(t *testing.T) {
 
 	// Verify Role
 	role := &rbacv1.Role{}
-	if err := c.Get(context.Background(), client.ObjectKey{Namespace: "feast-ns", Name: "feast-my-feast-viewer"}, role); err != nil {
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: "feast-ns", Name: "feast-feast-ns--my-feast-viewer"}, role); err != nil {
 		t.Fatalf("Failed to get Role: %v", err)
 	}
 	if len(role.Rules) != 1 || role.Rules[0].ResourceNames[0] != "feast-client-config" {
@@ -178,7 +178,7 @@ func TestReconcileAutoAccessRBAC_CreatesAllResources(t *testing.T) {
 
 	// Verify RoleBinding
 	rb := &rbacv1.RoleBinding{}
-	if err := c.Get(context.Background(), client.ObjectKey{Namespace: "feast-ns", Name: "feast-my-feast-viewer"}, rb); err != nil {
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: "feast-ns", Name: "feast-feast-ns--my-feast-viewer"}, rb); err != nil {
 		t.Fatalf("Failed to get RoleBinding: %v", err)
 	}
 	if len(rb.Subjects) != 1 || rb.Subjects[0].Name != "data-scientists" {
@@ -219,7 +219,7 @@ func TestReconcileAutoAccessRBAC_UpdatesExistingResources(t *testing.T) {
 	}
 
 	crb := &rbacv1.ClusterRoleBinding{}
-	if err := c.Get(context.Background(), client.ObjectKey{Name: "feast-feast-ns-fs-discover"}, crb); err != nil {
+	if err := c.Get(context.Background(), client.ObjectKey{Name: "feast-feast-ns--fs-discover"}, crb); err != nil {
 		t.Fatalf("Failed to get ClusterRoleBinding: %v", err)
 	}
 	if len(crb.Subjects) != 1 || crb.Subjects[0].Name != "group-b" {
@@ -231,13 +231,13 @@ func TestCleanupAutoAccessRBAC(t *testing.T) {
 	scheme := newRBACScheme()
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 		&rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: "feast-ns-my-feast-discover"},
+			ObjectMeta: metav1.ObjectMeta{Name: "feast-ns--my-feast-discover"},
 		},
 		&rbacv1.Role{
-			ObjectMeta: metav1.ObjectMeta{Name: "feast-my-feast-viewer", Namespace: "ns"},
+			ObjectMeta: metav1.ObjectMeta{Name: "feast-ns--my-feast-viewer", Namespace: "ns"},
 		},
 		&rbacv1.RoleBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: "feast-my-feast-viewer", Namespace: "ns"},
+			ObjectMeta: metav1.ObjectMeta{Name: "feast-ns--my-feast-viewer", Namespace: "ns"},
 		},
 	).Build()
 
@@ -246,15 +246,15 @@ func TestCleanupAutoAccessRBAC(t *testing.T) {
 	}
 
 	crb := &rbacv1.ClusterRoleBinding{}
-	if err := c.Get(context.Background(), client.ObjectKey{Name: "feast-ns-my-feast-discover"}, crb); err == nil {
+	if err := c.Get(context.Background(), client.ObjectKey{Name: "feast-ns--my-feast-discover"}, crb); err == nil {
 		t.Fatal("ClusterRoleBinding should have been deleted")
 	}
 	role := &rbacv1.Role{}
-	if err := c.Get(context.Background(), client.ObjectKey{Namespace: "ns", Name: "feast-my-feast-viewer"}, role); err == nil {
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: "ns", Name: "feast-ns--my-feast-viewer"}, role); err == nil {
 		t.Fatal("Role should have been deleted")
 	}
 	rb := &rbacv1.RoleBinding{}
-	if err := c.Get(context.Background(), client.ObjectKey{Namespace: "ns", Name: "feast-my-feast-viewer"}, rb); err == nil {
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: "ns", Name: "feast-ns--my-feast-viewer"}, rb); err == nil {
 		t.Fatal("RoleBinding should have been deleted")
 	}
 }
@@ -309,6 +309,49 @@ func TestListSubjectsInNamespace(t *testing.T) {
 	// alice (deduplicated), team-a, bob = 3 unique subjects
 	if len(subjects) != 3 {
 		t.Fatalf("expected 3 unique subjects, got %d: %v", len(subjects), subjects)
+	}
+}
+
+func TestCleanupDiscoverClusterRoleIfLast_DeletesWhenZero(t *testing.T) {
+	scheme := newRBACScheme()
+	cr := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: FeastDiscoverClusterRoleName},
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cr).Build()
+
+	if err := CleanupDiscoverClusterRoleIfLast(context.Background(), c, 0); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := &rbacv1.ClusterRole{}
+	if err := c.Get(context.Background(), client.ObjectKey{Name: FeastDiscoverClusterRoleName}, got); err == nil {
+		t.Fatal("ClusterRole should have been deleted")
+	}
+}
+
+func TestCleanupDiscoverClusterRoleIfLast_KeepsWhenOthersExist(t *testing.T) {
+	scheme := newRBACScheme()
+	cr := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: FeastDiscoverClusterRoleName},
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cr).Build()
+
+	if err := CleanupDiscoverClusterRoleIfLast(context.Background(), c, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := &rbacv1.ClusterRole{}
+	if err := c.Get(context.Background(), client.ObjectKey{Name: FeastDiscoverClusterRoleName}, got); err != nil {
+		t.Fatal("ClusterRole should still exist when other FeatureStores remain")
+	}
+}
+
+func TestCleanupDiscoverClusterRoleIfLast_AlreadyGone(t *testing.T) {
+	scheme := newRBACScheme()
+	c := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	if err := CleanupDiscoverClusterRoleIfLast(context.Background(), c, 0); err != nil {
+		t.Fatalf("expected nil error when ClusterRole already absent, got: %v", err)
 	}
 }
 

@@ -44,4 +44,4 @@ Dashboards should:
 
 - Registry REST API must be enabled (`spec.services.registry.local.server.restAPI: true`)
 - Permissions must be applied via `feast apply` (from `permissions.py` in the feature repo)
-- The operator reconciles permissions periodically (every 5 minutes) to pick up changes
+- The operator reconciles permissions periodically (every 30 seconds) to pick up changes

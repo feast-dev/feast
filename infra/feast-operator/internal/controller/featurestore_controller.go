@@ -87,6 +87,7 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.V(1).Info("FeatureStore CR not found, has been deleted")
+			r.cleanupOnDeletion(ctx, req.NamespacedName.Namespace, req.NamespacedName.Name)
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Unable to get FeatureStore CR")
@@ -95,13 +96,7 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	currentStatus := cr.Status.DeepCopy()
 
 	if cr.DeletionTimestamp != nil {
-		otherCount := r.countOtherFeatureStoresInNamespace(ctx, cr.Namespace, cr.Name)
-		if err := access.RemoveNamespaceLabelIfLast(ctx, r.Client, cr.Namespace, otherCount); err != nil {
-			logger.Error(err, "Failed to remove Feast label from namespace")
-		}
-		if err := access.CleanupAutoAccessRBAC(ctx, r.Client, cr.Namespace, cr.Name); err != nil {
-			logger.Error(err, "Failed to cleanup auto-access RBAC")
-		}
+		r.cleanupOnDeletion(ctx, cr.Namespace, cr.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -125,13 +120,20 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err := access.EnsureNamespaceLabel(ctx, r.Client, cr.Namespace); err != nil {
 			logger.Error(err, "Failed to add Feast label to namespace")
 		}
+		r.addToNamespaceRegistry(ctx, cr)
 		policies, err := r.fetchPermissionsFromRegistry(ctx, cr)
 		if err != nil {
 			logger.Error(err, "Failed to fetch permissions from registry")
-		} else if len(policies) == 0 {
-			logger.V(1).Info("No auto-access policies found in registry")
-		} else if cr.Status.ClientConfigMap == "" {
-			logger.Info("Skipping auto-access RBAC reconciliation: clientConfigMap is not set in status")
+		}
+		if err != nil || len(policies) == 0 || cr.Status.ClientConfigMap == "" {
+			logger.V(1).Info("Auto-access prerequisites missing or registry unreachable; cleaning up stale auto-access RBAC",
+				"policies", len(policies),
+				"clientConfigMapSet", cr.Status.ClientConfigMap != "",
+				"fetchError", err != nil,
+			)
+			if err := access.CleanupAutoAccessRBAC(ctx, r.Client, cr.Namespace, cr.Name); err != nil {
+				logger.Error(err, "Failed to cleanup stale auto-access RBAC")
+			}
 		} else {
 			if err := access.ReconcileAutoAccessRBAC(ctx, r.Client, r.Scheme, cr, cr.Namespace, cr.Name, cr.Status.ClientConfigMap, policies); err != nil {
 				logger.Error(err, "Failed to reconcile auto-access RBAC")
@@ -164,7 +166,11 @@ func (r *FeatureStoreReconciler) fetchPermissionsFromRegistry(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	return registry.ListPermissions(ctx, registryRest, project, intraCommToken)
+	useTLS := cr.Status.Applied.Services.Registry != nil &&
+		cr.Status.Applied.Services.Registry.Local != nil &&
+		cr.Status.Applied.Services.Registry.Local.Server != nil &&
+		cr.Status.Applied.Services.Registry.Local.Server.TLS.IsTLS()
+	return registry.ListPermissions(ctx, registryRest, project, intraCommToken, useTLS)
 }
 
 func (r *FeatureStoreReconciler) readIntraCommunicationToken(ctx context.Context, cr *feastdevv1.FeatureStore) (string, error) {
@@ -176,6 +182,57 @@ func (r *FeatureStoreReconciler) readIntraCommunicationToken(ctx context.Context
 	return cm.Data["token"], nil
 }
 
+func (r *FeatureStoreReconciler) addToNamespaceRegistry(ctx context.Context, cr *feastdevv1.FeatureStore) {
+	logger := log.FromContext(ctx)
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+	if err := feast.AddToNamespaceRegistry(); err != nil {
+		logger.Error(err, "Failed to add feature store to namespace registry")
+	}
+}
+
+func (r *FeatureStoreReconciler) cleanupOnDeletion(ctx context.Context, namespace, name string) {
+	logger := log.FromContext(ctx)
+	otherCount := r.countOtherFeatureStoresInNamespace(ctx, namespace, name)
+	if err := access.RemoveNamespaceLabelIfLast(ctx, r.Client, namespace, otherCount); err != nil {
+		logger.Error(err, "Failed to remove Feast label from namespace")
+	}
+	if err := access.CleanupAutoAccessRBAC(ctx, r.Client, namespace, name); err != nil {
+		logger.Error(err, "Failed to cleanup auto-access RBAC")
+	}
+	clusterCount := r.countOtherFeatureStoresInCluster(ctx, namespace, name)
+	if err := access.CleanupDiscoverClusterRoleIfLast(ctx, r.Client, clusterCount); err != nil {
+		logger.Error(err, "Failed to cleanup discover ClusterRole")
+	}
+	r.cleanupNamespaceRegistry(ctx, &feastdevv1.FeatureStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	})
+}
+
+func (r *FeatureStoreReconciler) cleanupNamespaceRegistry(ctx context.Context, cr *feastdevv1.FeatureStore) {
+	logger := log.FromContext(ctx)
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+	if err := feast.RemoveFromNamespaceRegistry(); err != nil {
+		logger.Error(err, "Failed to remove feature store from namespace registry")
+	}
+}
+
 func (r *FeatureStoreReconciler) countOtherFeatureStoresInNamespace(ctx context.Context, namespace, excludeName string) int {
 	var list feastdevv1.FeatureStoreList
 	if err := r.List(ctx, &list, client.InNamespace(namespace)); err != nil {
@@ -184,6 +241,21 @@ func (r *FeatureStoreReconciler) countOtherFeatureStoresInNamespace(ctx context.
 	count := 0
 	for i := range list.Items {
 		if list.Items[i].Name != excludeName && list.Items[i].DeletionTimestamp == nil {
+			count++
+		}
+	}
+	return count
+}
+
+func (r *FeatureStoreReconciler) countOtherFeatureStoresInCluster(ctx context.Context, namespace, excludeName string) int {
+	var list feastdevv1.FeatureStoreList
+	if err := r.List(ctx, &list); err != nil {
+		return -1
+	}
+	count := 0
+	for i := range list.Items {
+		item := &list.Items[i]
+		if (item.Name != excludeName || item.Namespace != namespace) && item.DeletionTimestamp == nil {
 			count++
 		}
 	}

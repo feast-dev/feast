@@ -28,16 +28,19 @@ const (
 	TmpFeatureStoreYamlEnvVar      = "TMP_FEATURE_STORE_YAML_BASE64"
 	IntraCommunicationBase64EnvVar = "INTRA_COMMUNICATION_BASE64"
 	intraCommunicationTokenKey     = "token"
-	feastServerImageVar       = "RELATED_IMAGE_FEATURE_SERVER"
-	cronJobImageVar           = "RELATED_IMAGE_CRON_JOB"
-	FeatureStoreYamlCmKey     = "feature_store.yaml"
-	EphemeralPath             = "/feast-data"
-	FeatureRepoDir            = "feature_repo"
-	DefaultRegistryPath       = "registry.db"
-	DefaultOnlineStorePath    = "online_store.db"
-	svcDomain                 = ".svc.cluster.local"
+	feastServerImageVar            = "RELATED_IMAGE_FEATURE_SERVER"
+	cronJobImageVar                = "RELATED_IMAGE_CRON_JOB"
+	FeatureStoreYamlCmKey          = "feature_store.yaml"
+	EphemeralPath                  = "/feast-data"
+	FeatureRepoDir                 = "feature_repo"
+	DefaultRegistryPath            = "registry.db"
+	DefaultOnlineStorePath         = "online_store.db"
+	svcDomain                      = ".svc.cluster.local"
 
-	DefaultKubernetesNamespace = "feast-operator-system"
+	// Namespace registry ConfigMap constants
+	NamespaceRegistryConfigMapName = "feast-configs-registry"
+	NamespaceRegistryDataKey       = "namespaces"
+	DefaultKubernetesNamespace     = "feast-operator-system"
 
 	HttpPort              = 80
 	HttpsPort             = 443
