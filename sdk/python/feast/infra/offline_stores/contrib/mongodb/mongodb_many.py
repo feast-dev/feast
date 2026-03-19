@@ -34,7 +34,7 @@ from feast.errors import (
     SavedDatasetLocationAlreadyExists,
 )
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.contrib.mongodb_offline_store import DRIVER_METADATA
+from feast.infra.offline_stores.contrib.mongodb import DRIVER_METADATA
 from feast.infra.offline_stores.ibis import (
     get_historical_features_ibis,
     pull_all_from_table_or_query_ibis,
@@ -86,11 +86,11 @@ def _infer_python_type_str(value: Any) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# MongoDBSource and related classes (collection-per-FeatureView schema)
+# MongoDBSourceMany and related classes (one collection per FeatureView)
 # ---------------------------------------------------------------------------
 
 
-class MongoDBOptions:
+class MongoDBOptionsMany:
     """Options for a MongoDB data source (database + collection)."""
 
     def __init__(self, database: str, collection: str):
@@ -108,21 +108,21 @@ class MongoDBOptions:
     @classmethod
     def from_proto(
         cls, options_proto: DataSourceProto.CustomSourceOptions
-    ) -> "MongoDBOptions":
-        """Deserialize a CustomSourceOptions proto back into a MongoDBOptions instance."""
+    ) -> "MongoDBOptionsMany":
+        """Deserialize a CustomSourceOptions proto back into a MongoDBOptionsMany instance."""
         config = json.loads(options_proto.configuration.decode("utf8"))
         return cls(database=config["database"], collection=config["collection"])
 
 
-class MongoDBSource(DataSource):
-    """A MongoDB collection used as a Feast offline data source.
+class MongoDBSourceMany(DataSource):
+    """A MongoDB collection used as a Feast offline data source (one collection per FeatureView).
 
     ``name`` is the logical Feast name for this source. If omitted, it defaults
     to the value of ``collection``.  At least one of ``name`` or ``collection``
     must be supplied.
 
     ``database`` is the MongoDB database that contains the collection.  When
-    omitted it falls back to ``MongoDBOfflineStoreConfig.database`` at query
+    omitted it falls back to ``MongoDBOfflineStoreManyConfig.database`` at query
     time, so a single store-level default can be shared across many sources.
 
     ``schema_sample_size`` controls how many documents are randomly sampled
@@ -153,7 +153,7 @@ class MongoDBSource(DataSource):
         # At least one of name / collection is non-None; cast to satisfy the type checker.
         name = cast(str, name or collection)
 
-        self._mongodb_options = MongoDBOptions(
+        self._mongodb_options = MongoDBOptionsMany(
             database=database or "",
             collection=collection or name,
         )
@@ -173,9 +173,9 @@ class MongoDBSource(DataSource):
         return super().__hash__()
 
     def __eq__(self, other):
-        if not isinstance(other, MongoDBSource):
+        if not isinstance(other, MongoDBSourceMany):
             raise TypeError(
-                "Comparisons should only involve MongoDBSource class objects."
+                "Comparisons should only involve MongoDBSourceMany class objects."
             )
         return (
             super().__eq__(other)
@@ -195,10 +195,10 @@ class MongoDBSource(DataSource):
         return self._mongodb_options._collection
 
     @staticmethod
-    def from_proto(data_source: DataSourceProto) -> "MongoDBSource":
+    def from_proto(data_source: DataSourceProto) -> "MongoDBSourceMany":
         assert data_source.HasField("custom_options")
         options = json.loads(data_source.custom_options.configuration)
-        return MongoDBSource(
+        return MongoDBSourceMany(
             name=data_source.name,
             database=options["database"],
             collection=options["collection"],
@@ -214,7 +214,7 @@ class MongoDBSource(DataSource):
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
-            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb.MongoDBSource",
+            data_source_class_type="feast.infra.offline_stores.contrib.mongodb.mongodb_many.MongoDBSourceMany",
             field_mapping=self.field_mapping,
             custom_options=self._mongodb_options.to_proto(),
             description=self.description,
@@ -281,15 +281,15 @@ class MongoDBSource(DataSource):
         ]
 
 
-class SavedDatasetMongoDBStorage(SavedDatasetStorage):
-    """Persists a Feast SavedDataset into a MongoDB collection."""
+class SavedDatasetMongoDBStorageMany(SavedDatasetStorage):
+    """Persists a Feast SavedDataset into a MongoDB collection (many-collection schema)."""
 
     _proto_attr_name = "custom_storage"
 
-    mongodb_options: MongoDBOptions
+    mongodb_options: MongoDBOptionsMany
 
     def __init__(self, database: str, collection: str):
-        self.mongodb_options = MongoDBOptions(
+        self.mongodb_options = MongoDBOptionsMany(
             database=database,
             collection=collection,
         )
@@ -297,9 +297,9 @@ class SavedDatasetMongoDBStorage(SavedDatasetStorage):
     @staticmethod
     def from_proto(
         storage_proto: SavedDatasetStorageProto,
-    ) -> "SavedDatasetMongoDBStorage":
+    ) -> "SavedDatasetMongoDBStorageMany":
         options = json.loads(storage_proto.custom_storage.configuration)
-        return SavedDatasetMongoDBStorage(
+        return SavedDatasetMongoDBStorageMany(
             database=options["database"],
             collection=options["collection"],
         )
@@ -308,7 +308,7 @@ class SavedDatasetMongoDBStorage(SavedDatasetStorage):
         return SavedDatasetStorageProto(custom_storage=self.mongodb_options.to_proto())
 
     def to_data_source(self) -> DataSource:
-        return MongoDBSource(
+        return MongoDBSourceMany(
             database=self.mongodb_options._database,
             collection=self.mongodb_options._collection,
         )
@@ -319,10 +319,10 @@ class SavedDatasetMongoDBStorage(SavedDatasetStorage):
 # ---------------------------------------------------------------------------
 
 
-class MongoDBOfflineStoreIbisConfig(FeastConfigBaseModel):
-    """Configuration for the MongoDB Ibis-backed offline store."""
+class MongoDBOfflineStoreManyConfig(FeastConfigBaseModel):
+    """Configuration for the MongoDB offline store (one collection per FeatureView)."""
 
-    type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb.MongoDBOfflineStoreIbis"
+    type: StrictStr = "feast.infra.offline_stores.contrib.mongodb.mongodb_many.MongoDBOfflineStoreMany"
     """Offline store type selector"""
 
     connection_string: StrictStr = "mongodb://localhost:27017"
@@ -332,8 +332,12 @@ class MongoDBOfflineStoreIbisConfig(FeastConfigBaseModel):
     """Default MongoDB database name"""
 
 
-class MongoDBOfflineStoreIbis(OfflineStore):
-    """Offline store backed by MongoDB, using Ibis for point-in-time joins."""
+class MongoDBOfflineStoreMany(OfflineStore):
+    """Offline store backed by MongoDB (one collection per FeatureView).
+
+    Uses Ibis memtables for point-in-time joins. Each FeatureView's data is stored
+    in a separate MongoDB collection, with the collection name matching the source name.
+    """
 
     @staticmethod
     def pull_latest_from_table_or_query(
@@ -346,9 +350,9 @@ class MongoDBOfflineStoreIbis(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        if not isinstance(data_source, MongoDBSource):
+        if not isinstance(data_source, MongoDBSourceMany):
             raise ValueError(
-                f"MongoDBOfflineStore expected a MongoDBSource, "
+                f"MongoDBOfflineStoreMany expected a MongoDBSourceMany, "
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
@@ -405,9 +409,9 @@ class MongoDBOfflineStoreIbis(OfflineStore):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
-        if not isinstance(data_source, MongoDBSource):
+        if not isinstance(data_source, MongoDBSourceMany):
             raise ValueError(
-                f"MongoDBOfflineStore expected a MongoDBSource, "
+                f"MongoDBOfflineStoreMany expected a MongoDBSourceMany, "
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
@@ -436,9 +440,9 @@ def _build_data_source_reader(config: RepoConfig) -> Callable[[DataSource, str],
             raise FeastExtrasDependencyImportError(
                 "mongodb", "pymongo is not installed."
             )
-        if not isinstance(data_source, MongoDBSource):
+        if not isinstance(data_source, MongoDBSourceMany):
             raise ValueError(
-                f"MongoDBOfflineStore reader expected a MongoDBSource, "
+                f"MongoDBOfflineStoreMany reader expected a MongoDBSourceMany, "
                 f"got {type(data_source).__name__!r}."
             )
         connection_string = config.offline_store.connection_string
@@ -487,9 +491,9 @@ def _build_data_source_writer(
             raise FeastExtrasDependencyImportError(
                 "mongodb", "pymongo is not installed."
             )
-        if not isinstance(data_source, MongoDBSource):
+        if not isinstance(data_source, MongoDBSourceMany):
             raise ValueError(
-                f"MongoDBOfflineStore writer expected a MongoDBSource, "
+                f"MongoDBOfflineStoreMany writer expected a MongoDBSourceMany, "
                 f"got {type(data_source).__name__!r}."
             )
         connection_string = config.offline_store.connection_string

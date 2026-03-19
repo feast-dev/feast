@@ -32,10 +32,10 @@ from testcontainers.mongodb import MongoDbContainer
 
 from feast import Entity, FeatureView, Field
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native import (
-    MongoDBOfflineStoreNative,
-    MongoDBOfflineStoreNativeConfig,
-    MongoDBSourceNative,
+from feast.infra.offline_stores.contrib.mongodb.mongodb_one import (
+    MongoDBOfflineStoreOne,
+    MongoDBOfflineStoreOneConfig,
+    MongoDBSourceOne,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -109,7 +109,7 @@ def repo_config(mongodb_connection_string: str) -> RepoConfig:
         project="test_project",
         registry="memory://",
         provider="local",
-        offline_store=MongoDBOfflineStoreNativeConfig(
+        offline_store=MongoDBOfflineStoreOneConfig(
             connection_string=mongodb_connection_string,
             database="feast_test",
             collection="feature_history",
@@ -170,9 +170,9 @@ def sample_data(mongodb_connection_string: str) -> datetime:
 
 
 @pytest.fixture
-def driver_source() -> MongoDBSourceNative:
-    """Create a MongoDBSourceNative for driver stats."""
-    return MongoDBSourceNative(
+def driver_source() -> MongoDBSourceOne:
+    """Create a MongoDBSourceOne for driver stats."""
+    return MongoDBSourceOne(
         name="driver_stats",
         timestamp_field="event_timestamp",
         created_timestamp_column="created_at",
@@ -180,7 +180,7 @@ def driver_source() -> MongoDBSourceNative:
 
 
 @pytest.fixture
-def driver_fv(driver_source: MongoDBSourceNative) -> FeatureView:
+def driver_fv(driver_source: MongoDBSourceOne) -> FeatureView:
     """Create a FeatureView for driver stats."""
     driver_entity = Entity(
         name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
@@ -200,11 +200,11 @@ def driver_fv(driver_source: MongoDBSourceNative) -> FeatureView:
 
 @_requires_docker
 def test_pull_latest_from_table_or_query(
-    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceNative
+    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceOne
 ) -> None:
     """Test pulling latest features per entity from the single collection."""
     now = sample_data
-    job = MongoDBOfflineStoreNative.pull_latest_from_table_or_query(
+    job = MongoDBOfflineStoreOne.pull_latest_from_table_or_query(
         config=repo_config,
         data_source=driver_source,
         join_key_columns=["driver_id"],
@@ -246,7 +246,7 @@ def test_get_historical_features_pit_join(
         }
     )
 
-    job = MongoDBOfflineStoreNative.get_historical_features(
+    job = MongoDBOfflineStoreOne.get_historical_features(
         config=repo_config,
         feature_views=[driver_fv],
         feature_refs=["driver_stats:conv_rate", "driver_stats:acc_rate"],
@@ -277,11 +277,11 @@ def test_get_historical_features_pit_join(
 
 @_requires_docker
 def test_pull_all_from_table_or_query(
-    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceNative
+    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceOne
 ) -> None:
     """Test pulling all features within a time range (no deduplication)."""
     now = sample_data
-    job = MongoDBOfflineStoreNative.pull_all_from_table_or_query(
+    job = MongoDBOfflineStoreOne.pull_all_from_table_or_query(
         config=repo_config,
         data_source=driver_source,
         join_key_columns=["driver_id"],
@@ -330,7 +330,7 @@ def test_ttl_excludes_stale_features(
     collection.insert_many(ttl_docs)
     client.close()
 
-    ttl_source = MongoDBSourceNative(
+    ttl_source = MongoDBSourceOne(
         name="driver_stats_ttl",
         timestamp_field="event_timestamp",
     )
@@ -355,7 +355,7 @@ def test_ttl_excludes_stale_features(
         }
     )
 
-    job = MongoDBOfflineStoreNative.get_historical_features(
+    job = MongoDBOfflineStoreOne.get_historical_features(
         config=repo_config,
         feature_views=[ttl_fv],
         feature_refs=["driver_stats_ttl:conv_rate"],
@@ -422,8 +422,8 @@ def test_multiple_feature_views(
     client.close()
 
     # Create sources and feature views
-    driver_source = MongoDBSourceNative(name="driver_stats_multi")
-    vehicle_source = MongoDBSourceNative(name="vehicle_stats_multi")
+    driver_source = MongoDBSourceOne(name="driver_stats_multi")
+    vehicle_source = MongoDBSourceOne(name="vehicle_stats_multi")
 
     driver_entity = Entity(
         name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
@@ -459,7 +459,7 @@ def test_multiple_feature_views(
         }
     )
 
-    job = MongoDBOfflineStoreNative.get_historical_features(
+    job = MongoDBOfflineStoreOne.get_historical_features(
         config=repo_config,
         feature_views=[driver_fv, vehicle_fv],
         feature_refs=[
@@ -534,7 +534,7 @@ def test_compound_join_keys(
     collection.insert_many(compound_docs)
     client.close()
 
-    source = MongoDBSourceNative(name="user_device_features")
+    source = MongoDBSourceOne(name="user_device_features")
 
     user_entity = Entity(
         name="user_id", join_keys=["user_id"], value_type=ValueType.INT64
@@ -556,7 +556,7 @@ def test_compound_join_keys(
     )
 
     # Test pull_latest: should get one row per unique (user_id, device_id)
-    job = MongoDBOfflineStoreNative.pull_latest_from_table_or_query(
+    job = MongoDBOfflineStoreOne.pull_latest_from_table_or_query(
         config=repo_config,
         data_source=source,
         join_key_columns=["user_id", "device_id"],
@@ -585,7 +585,7 @@ def test_compound_join_keys(
         }
     )
 
-    job = MongoDBOfflineStoreNative.get_historical_features(
+    job = MongoDBOfflineStoreOne.get_historical_features(
         config=repo_config,
         feature_views=[fv],
         feature_refs=["user_device_features:app_opens"],

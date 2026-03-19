@@ -109,7 +109,7 @@ from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, FeastExtrasDependencyImportError
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.contrib.mongodb_offline_store import DRIVER_METADATA
+from feast.infra.offline_stores.contrib.mongodb import DRIVER_METADATA
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
@@ -127,10 +127,12 @@ from feast.type_map import mongodb_to_feast_value_type
 from feast.value_type import ValueType
 
 
-class MongoDBOfflineStoreNativeConfig(FeastConfigBaseModel):
-    """Configuration for the Native MongoDB offline store."""
+class MongoDBOfflineStoreOneConfig(FeastConfigBaseModel):
+    """Configuration for the MongoDB offline store (single shared collection)."""
 
-    type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native.MongoDBOfflineStoreNative"
+    type: StrictStr = (
+        "feast.infra.offline_stores.contrib.mongodb.mongodb_one.MongoDBOfflineStoreOne"
+    )
     """Offline store type selector"""
 
     connection_string: StrictStr = "mongodb://localhost:27017"
@@ -143,12 +145,12 @@ class MongoDBOfflineStoreNativeConfig(FeastConfigBaseModel):
     """Single collection name for all feature views"""
 
 
-class MongoDBSourceNative(DataSource):
-    """A MongoDB data source for the native offline store.
+class MongoDBSourceOne(DataSource):
+    """A MongoDB data source for the single-collection offline store.
 
-    Unlike many data source implementations, this source does not map each
-    FeatureView to its own table or collection. Instead, all FeatureViews
-    share a single MongoDB collection (configured at the store level).
+    Unlike MongoDBSourceMany, this source does not map each FeatureView to
+    its own collection. Instead, all FeatureViews share a single MongoDB
+    collection (configured at the store level).
 
     Each document in that collection includes a ``feature_view`` field that
     identifies which FeatureView it belongs to. The ``name`` of this data
@@ -183,9 +185,9 @@ class MongoDBSourceNative(DataSource):
         return super().__hash__()
 
     def __eq__(self, other):
-        if not isinstance(other, MongoDBSourceNative):
+        if not isinstance(other, MongoDBSourceOne):
             raise TypeError(
-                "Comparisons should only involve MongoDBSourceNative class objects."
+                "Comparisons should only involve MongoDBSourceOne class objects."
             )
         return (
             super().__eq__(other)
@@ -203,9 +205,9 @@ class MongoDBSourceNative(DataSource):
         return DataSourceProto.CUSTOM_SOURCE
 
     @staticmethod
-    def from_proto(data_source: DataSourceProto) -> "MongoDBSourceNative":
+    def from_proto(data_source: DataSourceProto) -> "MongoDBSourceOne":
         assert data_source.HasField("custom_options")
-        return MongoDBSourceNative(
+        return MongoDBSourceOne(
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
@@ -219,7 +221,7 @@ class MongoDBSourceNative(DataSource):
         return DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
-            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native.MongoDBSourceNative",
+            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native.MongoDBSourceOne",
             field_mapping=self.field_mapping,
             custom_options=DataSourceProto.CustomSourceOptions(
                 configuration=json.dumps({"feature_view": self.name}).encode()
@@ -320,7 +322,7 @@ def _fetch_documents(
     return list(client[database][collection].aggregate(pipeline))
 
 
-class MongoDBNativeRetrievalJob(RetrievalJob):
+class MongoDBOneRetrievalJob(RetrievalJob):
     """Retrieval job for native MongoDB offline store queries."""
 
     def __init__(
@@ -384,7 +386,7 @@ def _serialize_entity_key_from_row(
     return serialize_entity_key(entity_key, entity_key_serialization_version)
 
 
-class MongoDBOfflineStoreNative(OfflineStore):
+class MongoDBOfflineStoreOne(OfflineStore):
     """Native MongoDB offline store using single-collection schema.
 
     All feature views share one collection (``feature_history``), with documents
@@ -452,9 +454,9 @@ class MongoDBOfflineStoreNative(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        if not isinstance(data_source, MongoDBSourceNative):
+        if not isinstance(data_source, MongoDBSourceOne):
             raise ValueError(
-                f"MongoDBOfflineStoreNative expected MongoDBSourceNative, "
+                f"MongoDBOfflineStoreOne expected MongoDBSourceOne, "
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
@@ -499,7 +501,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
         ]
 
         def _run() -> pyarrow.Table:
-            client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
+            client = MongoDBOfflineStoreOne._get_client_and_ensure_indexes(config)
             try:
                 docs = _fetch_documents(client, db_name, collection, pipeline)
                 if not docs:
@@ -515,7 +517,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
             finally:
                 client.close()
 
-        return MongoDBNativeRetrievalJob(query_fn=_run, full_feature_names=False)
+        return MongoDBOneRetrievalJob(query_fn=_run, full_feature_names=False)
 
     @staticmethod
     def pull_all_from_table_or_query(
@@ -528,9 +530,9 @@ class MongoDBOfflineStoreNative(OfflineStore):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
-        if not isinstance(data_source, MongoDBSourceNative):
+        if not isinstance(data_source, MongoDBSourceOne):
             raise ValueError(
-                f"MongoDBOfflineStoreNative expected MongoDBSourceNative, "
+                f"MongoDBOfflineStoreOne expected MongoDBSourceOne, "
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
@@ -571,7 +573,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
         ]
 
         def _run() -> pyarrow.Table:
-            client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
+            client = MongoDBOfflineStoreOne._get_client_and_ensure_indexes(config)
             try:
                 docs = _fetch_documents(client, db_name, collection, pipeline)
                 if not docs:
@@ -587,7 +589,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
             finally:
                 client.close()
 
-        return MongoDBNativeRetrievalJob(query_fn=_run, full_feature_names=False)
+        return MongoDBOneRetrievalJob(query_fn=_run, full_feature_names=False)
 
     @staticmethod
     def get_historical_features(
@@ -610,7 +612,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
         """
         if isinstance(entity_df, str):
             raise ValueError(
-                "MongoDBOfflineStoreNative does not support SQL entity_df strings. "
+                "MongoDBOfflineStoreOne does not support SQL entity_df strings. "
                 "Pass a pandas DataFrame instead."
             )
         warnings.warn(
@@ -777,7 +779,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
             working_df["_row_idx"] = range(len(working_df))
 
             # Create client once for all chunks
-            client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
+            client = MongoDBOfflineStoreOne._get_client_and_ensure_indexes(config)
             try:
                 coll = client[db_name][feature_collection]
 
@@ -807,7 +809,7 @@ class MongoDBOfflineStoreNative(OfflineStore):
 
             return pyarrow.Table.from_pandas(result_df, preserve_index=False)
 
-        return MongoDBNativeRetrievalJob(
+        return MongoDBOneRetrievalJob(
             query_fn=_run,
             full_feature_names=full_feature_names,
         )

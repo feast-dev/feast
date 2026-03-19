@@ -19,10 +19,10 @@ from pymongo import MongoClient
 from testcontainers.mongodb import MongoDbContainer
 
 from feast import Entity, FeatureView, Field
-from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb import (
-    MongoDBOfflineStoreIbis,
-    MongoDBOfflineStoreIbisConfig,
-    MongoDBSource,
+from feast.infra.offline_stores.contrib.mongodb.mongodb_many import (
+    MongoDBOfflineStoreMany,
+    MongoDBOfflineStoreManyConfig,
+    MongoDBSourceMany,
 )
 from feast.repo_config import RepoConfig
 from feast.types import Float64, Int64, String
@@ -75,7 +75,7 @@ def repo_config(mongodb_connection_string: str) -> RepoConfig:
         project="test_project",
         registry="memory://",
         provider="local",
-        offline_store=MongoDBOfflineStoreIbisConfig(
+        offline_store=MongoDBOfflineStoreManyConfig(
             connection_string=mongodb_connection_string,
             database="feast_test",
         ),
@@ -129,9 +129,9 @@ def sample_data(mongodb_connection_string: str) -> datetime:
 
 
 @pytest.fixture
-def driver_source() -> MongoDBSource:
-    """Create a MongoDBSource for driver stats."""
-    return MongoDBSource(
+def driver_source() -> MongoDBSourceMany:
+    """Create a MongoDBSourceMany for driver stats."""
+    return MongoDBSourceMany(
         name="driver_stats",
         database="feast_test",
         collection="driver_stats",
@@ -140,7 +140,7 @@ def driver_source() -> MongoDBSource:
 
 
 @pytest.fixture
-def driver_fv(driver_source: MongoDBSource) -> FeatureView:
+def driver_fv(driver_source: MongoDBSourceMany) -> FeatureView:
     """Create a FeatureView for driver stats.
 
     The ttl (time-to-live) parameter defines how far back in time Feast will look
@@ -170,7 +170,7 @@ def driver_fv(driver_source: MongoDBSource) -> FeatureView:
 
 @_requires_docker
 def test_pull_latest_from_table_or_query(
-    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSource
+    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceMany
 ) -> None:
     """Test pulling latest features per entity from MongoDB.
 
@@ -180,7 +180,7 @@ def test_pull_latest_from_table_or_query(
     is from 2 hours ago.
     """
     now = sample_data
-    job = MongoDBOfflineStoreIbis.pull_latest_from_table_or_query(
+    job = MongoDBOfflineStoreMany.pull_latest_from_table_or_query(
         config=repo_config,
         data_source=driver_source,
         join_key_columns=["driver_id"],
@@ -256,7 +256,7 @@ def test_get_historical_features_pit_join(
         }
     )
 
-    job = MongoDBOfflineStoreIbis.get_historical_features(
+    job = MongoDBOfflineStoreMany.get_historical_features(
         config=repo_config,
         feature_views=[driver_fv],
         feature_refs=["driver_stats:conv_rate", "driver_stats:acc_rate"],
@@ -287,11 +287,11 @@ def test_get_historical_features_pit_join(
 
 @_requires_docker
 def test_pull_all_from_table_or_query(
-    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSource
+    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceMany
 ) -> None:
     """Test pulling all features within a time range (no deduplication)."""
     now = sample_data
-    job = MongoDBOfflineStoreIbis.pull_all_from_table_or_query(
+    job = MongoDBOfflineStoreMany.pull_all_from_table_or_query(
         config=repo_config,
         data_source=driver_source,
         join_key_columns=["driver_id"],
@@ -314,7 +314,7 @@ def test_pull_all_from_table_or_query(
 def test_ttl_excludes_stale_features(
     repo_config: RepoConfig,
     mongodb_connection_string: str,
-    driver_source: MongoDBSource,
+    driver_source: MongoDBSourceMany,
 ) -> None:
     """Test that TTL causes stale feature values to be returned as NULL.
 
@@ -339,7 +339,7 @@ def test_ttl_excludes_stale_features(
     client.close()
 
     # Create source and feature view with 1-day TTL
-    ttl_source = MongoDBSource(
+    ttl_source = MongoDBSourceMany(
         name="driver_stats_ttl_test",
         database="feast_test",
         collection="driver_stats_ttl_test",
@@ -367,7 +367,7 @@ def test_ttl_excludes_stale_features(
         }
     )
 
-    job = MongoDBOfflineStoreIbis.get_historical_features(
+    job = MongoDBOfflineStoreMany.get_historical_features(
         config=repo_config,
         feature_views=[ttl_fv],
         feature_refs=["driver_stats_ttl_test:conv_rate"],
@@ -429,13 +429,13 @@ def test_multiple_feature_views(
     client.close()
 
     # Create sources for each collection
-    driver_source = MongoDBSource(
+    driver_source = MongoDBSourceMany(
         name="driver_stats_multi",
         database="feast_test",
         collection="driver_stats_multi",
         timestamp_field="event_timestamp",
     )
-    vehicle_source = MongoDBSource(
+    vehicle_source = MongoDBSourceMany(
         name="vehicle_stats_multi",
         database="feast_test",
         collection="vehicle_stats_multi",
@@ -481,7 +481,7 @@ def test_multiple_feature_views(
     )
 
     # Request features from BOTH feature views
-    job = MongoDBOfflineStoreIbis.get_historical_features(
+    job = MongoDBOfflineStoreMany.get_historical_features(
         config=repo_config,
         feature_views=[driver_fv, vehicle_fv],
         feature_refs=[
@@ -566,7 +566,7 @@ def test_compound_join_keys(
     client.close()
 
     # Create source
-    source = MongoDBSource(
+    source = MongoDBSourceMany(
         name="user_device_features",
         database="feast_test",
         collection="user_device_features",
@@ -594,7 +594,7 @@ def test_compound_join_keys(
     )
 
     # Test pull_latest: should get one row per unique (user_id, device_id) combination
-    job = MongoDBOfflineStoreIbis.pull_latest_from_table_or_query(
+    job = MongoDBOfflineStoreMany.pull_latest_from_table_or_query(
         config=repo_config,
         data_source=source,
         join_key_columns=["user_id", "device_id"],
@@ -622,7 +622,7 @@ def test_compound_join_keys(
         }
     )
 
-    job = MongoDBOfflineStoreIbis.get_historical_features(
+    job = MongoDBOfflineStoreMany.get_historical_features(
         config=repo_config,
         feature_views=[fv],
         feature_refs=["user_device_features:app_opens"],

@@ -34,15 +34,15 @@ from testcontainers.mongodb import MongoDbContainer
 
 from feast import Entity, FeatureView, Field
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb import (
-    MongoDBOfflineStoreIbis,
-    MongoDBOfflineStoreIbisConfig,
-    MongoDBSource,
+from feast.infra.offline_stores.contrib.mongodb.mongodb_many import (
+    MongoDBOfflineStoreMany,
+    MongoDBOfflineStoreManyConfig,
+    MongoDBSourceMany,
 )
-from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native import (
-    MongoDBOfflineStoreNative,
-    MongoDBOfflineStoreNativeConfig,
-    MongoDBSourceNative,
+from feast.infra.offline_stores.contrib.mongodb.mongodb_one import (
+    MongoDBOfflineStoreOne,
+    MongoDBOfflineStoreOneConfig,
+    MongoDBSourceOne,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -149,7 +149,7 @@ def ibis_config(mongodb_connection_string: str) -> RepoConfig:
         project="benchmark",
         registry="memory://",
         provider="local",
-        offline_store=MongoDBOfflineStoreIbisConfig(
+        offline_store=MongoDBOfflineStoreManyConfig(
             connection_string=mongodb_connection_string,
             database="benchmark_db",
         ),
@@ -165,7 +165,7 @@ def native_config(mongodb_connection_string: str) -> RepoConfig:
         project="benchmark",
         registry="memory://",
         provider="local",
-        offline_store=MongoDBOfflineStoreNativeConfig(
+        offline_store=MongoDBOfflineStoreOneConfig(
             connection_string=mongodb_connection_string,
             database="benchmark_db",
             collection="feature_history",
@@ -241,7 +241,7 @@ def _generate_native_data(
 
 def _create_ibis_fv(num_features: int) -> tuple:
     """Create Ibis source and FeatureView."""
-    source = MongoDBSource(
+    source = MongoDBSourceMany(
         name="driver_benchmark",
         database="benchmark_db",
         collection="driver_benchmark",
@@ -267,7 +267,7 @@ def _create_ibis_fv(num_features: int) -> tuple:
 
 def _create_native_fv(num_features: int) -> tuple:
     """Create Native source and FeatureView."""
-    source = MongoDBSourceNative(
+    source = MongoDBSourceOne(
         name="driver_benchmark",
         timestamp_field="event_timestamp",
     )
@@ -406,7 +406,7 @@ def test_scale_rows_ibis(
         feature_refs = [f"driver_benchmark:feature_{i}" for i in range(num_features)]
 
         def run_query():
-            job = MongoDBOfflineStoreIbis.get_historical_features(
+            job = MongoDBOfflineStoreMany.get_historical_features(
                 config=ibis_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
@@ -461,7 +461,7 @@ def test_scale_rows_native(
         feature_refs = [f"driver_benchmark:feature_{i}" for i in range(num_features)]
 
         def run_query():
-            job = MongoDBOfflineStoreNative.get_historical_features(
+            job = MongoDBOfflineStoreOne.get_historical_features(
                 config=native_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
@@ -517,7 +517,7 @@ def test_wide_features_ibis(
         feature_refs = [f"driver_benchmark:feature_{i}" for i in range(num_features)]
 
         def run_query():
-            job = MongoDBOfflineStoreIbis.get_historical_features(
+            job = MongoDBOfflineStoreMany.get_historical_features(
                 config=ibis_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
@@ -570,7 +570,7 @@ def test_wide_features_native(
         feature_refs = [f"driver_benchmark:feature_{i}" for i in range(num_features)]
 
         def run_query():
-            job = MongoDBOfflineStoreNative.get_historical_features(
+            job = MongoDBOfflineStoreOne.get_historical_features(
                 config=native_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
@@ -637,7 +637,7 @@ def test_entity_skew_ibis(
         feature_refs = [f"driver_benchmark:feature_{i}" for i in range(num_features)]
 
         def run_query():
-            job = MongoDBOfflineStoreIbis.get_historical_features(
+            job = MongoDBOfflineStoreMany.get_historical_features(
                 config=ibis_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
@@ -703,7 +703,7 @@ def test_entity_skew_native(
         feature_refs = [f"driver_benchmark:feature_{i}" for i in range(num_features)]
 
         def run_query():
-            job = MongoDBOfflineStoreNative.get_historical_features(
+            job = MongoDBOfflineStoreOne.get_historical_features(
                 config=native_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
@@ -776,7 +776,7 @@ def test_summary_comparison(
         _, ibis_fv = _create_ibis_fv(num_features)
 
         def run_ibis():
-            job = MongoDBOfflineStoreIbis.get_historical_features(
+            job = MongoDBOfflineStoreMany.get_historical_features(
                 config=ibis_config,
                 feature_views=[ibis_fv],
                 feature_refs=feature_refs,
@@ -793,7 +793,7 @@ def test_summary_comparison(
         _, native_fv = _create_native_fv(num_features)
 
         def run_native():
-            job = MongoDBOfflineStoreNative.get_historical_features(
+            job = MongoDBOfflineStoreOne.get_historical_features(
                 config=native_config,
                 feature_views=[native_fv],
                 feature_refs=feature_refs,
