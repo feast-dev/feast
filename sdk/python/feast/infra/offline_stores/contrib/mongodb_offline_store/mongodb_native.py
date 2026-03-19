@@ -400,15 +400,24 @@ class MongoDBOfflineStoreNative(OfflineStore):
 
     @staticmethod
     def _ensure_indexes(client: Any, db_name: str, collection_name: str) -> None:
-        """Create recommended indexes on the feature_history collection."""
+        """Create recommended indexes on the feature_history collection.
+
+        Uses create_index with background=True. If index already exists
+        (with same or different name), this is a no-op.
+        """
         collection = client[db_name][collection_name]
+        # Check if an equivalent index already exists
+        existing_indexes = collection.index_information()
+        target_key = [("entity_id", 1), ("feature_view", 1), ("event_timestamp", -1)]
+
+        for idx_info in existing_indexes.values():
+            if idx_info.get("key") == target_key:
+                return  # Index already exists
+
         collection.create_index(
-            [
-                ("entity_id", 1),
-                ("feature_view", 1),
-                ("event_timestamp", -1),
-            ],
+            target_key,
             name="entity_fv_ts_idx",
+            background=True,
         )
 
     @classmethod
@@ -626,9 +635,9 @@ class MongoDBOfflineStoreNative(OfflineStore):
         fv_by_name = {fv.name: fv for fv in feature_views}
 
         # Chunk size for entity_df processing (bounds memory usage)
-        CHUNK_SIZE = 5000
+        CHUNK_SIZE = 50_000
         # Batch size for MongoDB $in queries
-        MONGO_BATCH_SIZE = 1000
+        MONGO_BATCH_SIZE = 10_000
 
         def _chunk_dataframe(
             df: pd.DataFrame, size: int
@@ -637,8 +646,13 @@ class MongoDBOfflineStoreNative(OfflineStore):
             for i in range(0, len(df), size):
                 yield df.iloc[i : i + size]
 
-        def _run_single(entity_subset_df: pd.DataFrame) -> pd.DataFrame:
-            """Process a single chunk of entity_df and return joined features."""
+        def _run_single(entity_subset_df: pd.DataFrame, coll: Any) -> pd.DataFrame:
+            """Process a single chunk of entity_df and return joined features.
+
+            Args:
+                entity_subset_df: Chunk of entity DataFrame to process
+                coll: MongoDB collection object (reused across chunks)
+            """
             # Prepare entity_df: ensure timestamps are UTC
             result = entity_subset_df.copy()
             if result[event_timestamp_col].dt.tz is None:
@@ -668,23 +682,16 @@ class MongoDBOfflineStoreNative(OfflineStore):
             # Fetch feature data in batches
             all_feature_docs: List[Dict] = []
 
-            client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
-            try:
-                coll = client[db_name][feature_collection]
+            for i in range(0, len(unique_entity_ids), MONGO_BATCH_SIZE):
+                batch_ids = unique_entity_ids[i : i + MONGO_BATCH_SIZE]
 
-                for i in range(0, len(unique_entity_ids), MONGO_BATCH_SIZE):
-                    batch_ids = unique_entity_ids[i : i + MONGO_BATCH_SIZE]
-
-                    query = {
-                        "entity_id": {"$in": batch_ids},
-                        "feature_view": {"$in": fv_names},
-                        "event_timestamp": {"$lte": max_ts},
-                    }
-                    docs = list(coll.find(query, {"_id": 0}))
-                    all_feature_docs.extend(docs)
-
-            finally:
-                client.close()
+                query = {
+                    "entity_id": {"$in": batch_ids},
+                    "feature_view": {"$in": fv_names},
+                    "event_timestamp": {"$lte": max_ts},
+                }
+                docs = list(coll.find(query, {"_id": 0}))
+                all_feature_docs.extend(docs)
 
             # Handle empty result
             if not all_feature_docs:
@@ -769,16 +776,23 @@ class MongoDBOfflineStoreNative(OfflineStore):
             working_df = entity_df.copy()
             working_df["_row_idx"] = range(len(working_df))
 
-            if len(working_df) <= CHUNK_SIZE:
-                # Small workload: process in single pass
-                result_df = _run_single(working_df)
-            else:
-                # Large workload: process in chunks
-                chunk_results = []
-                for chunk in _chunk_dataframe(working_df, CHUNK_SIZE):
-                    chunk_results.append(_run_single(chunk))
+            # Create client once for all chunks
+            client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
+            try:
+                coll = client[db_name][feature_collection]
 
-                result_df = pd.concat(chunk_results, ignore_index=True)
+                if len(working_df) <= CHUNK_SIZE:
+                    # Small workload: process in single pass
+                    result_df = _run_single(working_df, coll)
+                else:
+                    # Large workload: process in chunks
+                    chunk_results = []
+                    for chunk in _chunk_dataframe(working_df, CHUNK_SIZE):
+                        chunk_results.append(_run_single(chunk, coll))
+
+                    result_df = pd.concat(chunk_results, ignore_index=True)
+            finally:
+                client.close()
 
             # Restore original ordering and remove index column
             result_df = result_df.sort_values("_row_idx").reset_index(drop=True)
