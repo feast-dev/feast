@@ -57,3 +57,7 @@ Please see [Data Source](../../getting-started/concepts/data-ingestion.md) for a
 {% content-ref url="clickhouse.md" %}
 [clickhouse.md](clickhouse.md)
 {% endcontent-ref %}
+
+{% content-ref url="oracle.md" %}
+[oracle.md](oracle.md)
+{% endcontent-ref %}

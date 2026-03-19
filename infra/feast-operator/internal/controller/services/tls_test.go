@@ -173,7 +173,7 @@ var _ = Describe("TLS Config", func() {
 			feastDeploy := feast.initFeastDeploy()
 			err = feast.setDeployment(feastDeploy)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(feastDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(feastDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(feastDeploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			Expect(feastDeploy.Spec.Template.Spec.Containers[0].Command).To(ContainElements(ContainSubstring("--key")))
 			Expect(feastDeploy.Spec.Template.Spec.Containers[1].Command).To(ContainElements(ContainSubstring("--key")))

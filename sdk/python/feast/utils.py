@@ -152,6 +152,11 @@ def _get_column_names(
         and reverse-mapped created timestamp column that will be passed into
         the query to the offline store.
     """
+    if feature_view.batch_source is None:
+        raise ValueError(
+            f"Feature view '{feature_view.name}' has no batch_source and cannot be used for offline retrieval."
+        )
+
     # if we have mapped fields, use the original field names in the call to the offline store
     timestamp_field = feature_view.batch_source.timestamp_field
 
@@ -341,6 +346,11 @@ def _convert_arrow_fv_to_proto(
     # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
+
+    if feature_view.batch_source is None:
+        raise ValueError(
+            f"Feature view '{feature_view.name}' has no batch_source and cannot be converted to proto."
+        )
 
     # TODO: This will break if the feature view has aggregations or transformations
     columns = [

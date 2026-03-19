@@ -6,7 +6,7 @@ The PostgreSQL online store provides support for materializing feature values in
 
 * Only the latest feature values are persisted
 
-* sslmode, sslkey_path, sslcert_path, and sslrootcert_path are optional
+* `sslmode` defaults to `require`, which encrypts the connection without certificate verification. To disable SSL (e.g. for local development), set `sslmode: disable`. For certificate verification, set `sslmode` to `verify-ca` or `verify-full` and provide the corresponding `sslrootcert_path` (and optionally `sslcert_path` and `sslkey_path` for mutual TLS)
 
 ## Getting started
 In order to use this online store, you'll need to run `pip install 'feast[postgres]'`. You can get started by then running `feast init -t postgres`.

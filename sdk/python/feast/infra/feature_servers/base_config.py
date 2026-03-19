@@ -37,11 +37,56 @@ class FeatureLoggingConfig(FeastConfigBaseModel):
     """Timeout for adding new log item to the queue."""
 
 
+class MetricsConfig(FeastConfigBaseModel):
+    """Prometheus metrics configuration.
+
+    Follows the same pattern as ``FeatureLoggingConfig``: a single
+    ``enabled`` flag controls global on/off, and per-category booleans
+    allow fine-grained suppression.  Can also be enabled at runtime via
+    the ``feast serve --metrics`` CLI flag — either option is sufficient.
+    """
+
+    enabled: StrictBool = False
+    """Whether Prometheus metrics collection and the metrics HTTP server
+    (default port 8000) should be enabled."""
+
+    resource: StrictBool = True
+    """Emit CPU and memory usage gauges (feast_feature_server_cpu_usage,
+    feast_feature_server_memory_usage)."""
+
+    request: StrictBool = True
+    """Emit per-endpoint request counters and latency histograms
+    (feast_feature_server_request_total,
+    feast_feature_server_request_latency_seconds)."""
+
+    online_features: StrictBool = True
+    """Emit online feature retrieval metrics
+    (feast_online_features_request_total,
+    feast_online_features_entity_count)."""
+
+    push: StrictBool = True
+    """Emit push/write request counters
+    (feast_push_request_total)."""
+
+    materialization: StrictBool = True
+    """Emit materialization success/failure counters and duration histograms
+    (feast_materialization_total,
+    feast_materialization_duration_seconds)."""
+
+    freshness: StrictBool = True
+    """Emit per-feature-view freshness gauges
+    (feast_feature_freshness_seconds)."""
+
+
 class BaseFeatureServerConfig(FeastConfigBaseModel):
     """Base Feature Server config that should be extended"""
 
     enabled: StrictBool = False
     """Whether the feature server should be launched."""
+
+    metrics: Optional[MetricsConfig] = None
+    """Prometheus metrics configuration.  Set ``metrics.enabled: true`` or
+    pass the ``feast serve --metrics`` CLI flag to activate."""
 
     feature_logging: Optional[FeatureLoggingConfig] = None
     """ Feature logging configuration """

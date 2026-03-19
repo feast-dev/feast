@@ -73,9 +73,8 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        batch_source: The batch source of data where this group of features
-            is stored. This is optional ONLY if a push source is specified as the
-            stream_source, since push sources contain their own batch sources.
+        batch_source: Optional batch source of data where this group of features
+            is stored. If no source is provided, this will be None.
         stream_source: The stream source of data where this group of features is stored.
         schema: The schema of the feature view, including feature, timestamp, and entity
             columns. If not specified, can be inferred from the underlying data source.
@@ -97,7 +96,7 @@ class FeatureView(BaseFeatureView):
     name: str
     entities: List[str]
     ttl: Optional[timedelta]
-    batch_source: DataSource
+    batch_source: Optional[DataSource]
     stream_source: Optional[DataSource]
     source_views: Optional[List["FeatureView"]]
     entity_columns: List[Field]
@@ -115,7 +114,7 @@ class FeatureView(BaseFeatureView):
         self,
         *,
         name: str,
-        source: Union[DataSource, "FeatureView", List["FeatureView"]],
+        source: Optional[Union[DataSource, "FeatureView", List["FeatureView"]]] = None,
         sink_source: Optional[DataSource] = None,
         schema: Optional[List[Field]] = None,
         entities: Optional[List[Entity]] = None,
@@ -133,8 +132,9 @@ class FeatureView(BaseFeatureView):
 
         Args:
             name: The unique name of the feature view.
-            source: The source of data for this group of features. May be a stream source, or a batch source.
-                If a stream source, the source should contain a batch_source for backfills & batch materialization.
+            source (optional): The source of data for this group of features. May be a stream source,
+                a batch source, a FeatureView, or a list of FeatureViews. If None, the feature view
+                has no associated data source.
             schema (optional): The schema of the feature view, including feature, timestamp,
                 and entity columns.
             # TODO: clarify that schema is only useful here...
@@ -170,7 +170,9 @@ class FeatureView(BaseFeatureView):
         self.data_source: Optional[DataSource] = None
         self.source_views: List[FeatureView] = []
 
-        if isinstance(source, DataSource):
+        if source is None:
+            pass  # data_source remains None, source_views remains []
+        elif isinstance(source, DataSource):
             self.data_source = source
         elif isinstance(source, FeatureView):
             self.source_views = [source]
@@ -199,11 +201,14 @@ class FeatureView(BaseFeatureView):
         elif self.data_source:
             # Batch source definition
             self.batch_source = self.data_source
-        else:
+        elif self.source_views:
             # Derived view source definition
             if not sink_source:
                 raise ValueError("Derived FeatureView must specify `sink_source`.")
             self.batch_source = sink_source
+        else:
+            # source=None - no batch source
+            self.batch_source = None
 
         # Initialize features and entity columns.
         features: List[Field] = []

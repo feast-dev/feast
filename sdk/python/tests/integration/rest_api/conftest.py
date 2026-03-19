@@ -15,7 +15,6 @@ from tests.integration.rest_api.support import (
     deploy_and_validate_pod,
     execPodCommand,
     get_pod_name_by_prefix,
-    run_kubectl_apply_with_sed,
     run_kubectl_command,
     validate_feature_store_cr_status,
 )
@@ -38,7 +37,12 @@ class FeastRestClient:
         return requests.get(url, params=params, verify=False)
 
 
-def _wait_for_http_ready(route_url: str, timeout: int = 180, interval: int = 5) -> None:
+def _wait_for_http_ready(
+    route_url: str,
+    timeout: int = 300,
+    interval: int = 5,
+    initial_delay: int = 30,
+) -> None:
     """
     Poll the HTTP endpoint until it returns a non-502 response.
 
@@ -47,9 +51,15 @@ def _wait_for_http_ready(route_url: str, timeout: int = 180, interval: int = 5) 
     start before the Feast server is ready, causing all requests to return 502.
     """
     health_url = f"{route_url}/api/v1/projects"
-    deadline = time.time() + timeout
     last_status = None
 
+    if initial_delay > 0:
+        print(
+            f"\n Waiting {initial_delay}s for backend to start after apply/dataset creation..."
+        )
+        time.sleep(initial_delay)
+
+    deadline = time.time() + timeout
     print(
         f"\n Waiting for HTTP endpoint to become ready (timeout={timeout}s): {health_url}"
     )
@@ -90,38 +100,42 @@ def feast_rest_client():
     namespace = "test-ns-feast-rest"
     credit_scoring = "credit-scoring"
     driver_ranking = "driver-ranking"
-    service_name = "feast-test-s3-registry-rest"
+    # Registry REST service name created by the operator for credit-scoring (kind and OpenShift)
+    registry_rest_service = "feast-credit-scoring-registry-rest"
     run_on_openshift = os.getenv("RUN_ON_OPENSHIFT_CI", "false").lower() == "true"
 
     # Create test namespace
     create_namespace(api_instance, namespace)
 
     try:
-        if not run_on_openshift:
-            # Deploy dependencies
-            deploy_and_validate_pod(
-                namespace, str(resource_dir / "redis.yaml"), "app=redis"
-            )
-            deploy_and_validate_pod(
-                namespace, str(resource_dir / "postgres.yaml"), "app=postgres"
-            )
+        # Deploy dependencies (same for kind and OpenShift)
+        deploy_and_validate_pod(
+            namespace, str(resource_dir / "redis.yaml"), "app=redis"
+        )
+        deploy_and_validate_pod(
+            namespace, str(resource_dir / "postgres.yaml"), "app=postgres"
+        )
 
-            # Create and validate FeatureStore CRs
-            create_feast_project(
-                str(resource_dir / "feast_config_credit_scoring.yaml"),
-                namespace,
-                credit_scoring,
-            )
-            validate_feature_store_cr_status(namespace, credit_scoring)
+        # Create and validate FeatureStore CRs (SQL registry, same as kind)
+        create_feast_project(
+            str(resource_dir / "feast_config_credit_scoring.yaml"),
+            namespace,
+            credit_scoring,
+        )
+        validate_feature_store_cr_status(namespace, credit_scoring)
 
-            create_feast_project(
-                str(resource_dir / "feast_config_driver_ranking.yaml"),
-                namespace,
-                driver_ranking,
-            )
-            validate_feature_store_cr_status(namespace, driver_ranking)
+        create_feast_project(
+            str(resource_dir / "feast_config_driver_ranking.yaml"),
+            namespace,
+            driver_ranking,
+        )
+        validate_feature_store_cr_status(namespace, driver_ranking)
 
-            # Deploy ingress and get route URL
+        if run_on_openshift:
+            # OpenShift: expose registry REST via route (no nginx ingress)
+            route_url = create_route(namespace, credit_scoring, registry_rest_service)
+        else:
+            # Kind: deploy nginx ingress and get route URL
             run_kubectl_command(
                 [
                     "apply",
@@ -144,40 +158,14 @@ def feast_rest_client():
             )
             route_url = f"http://{ingress_host}"
 
-            # Apply feast projects
+        # Apply feast projects
+        applyFeastProject(namespace, credit_scoring)
+        applyFeastProject(namespace, driver_ranking)
 
-            applyFeastProject(namespace, credit_scoring)
-
-            applyFeastProject(namespace, driver_ranking)
-
-            # Create Saved Datasets and Permissions
-            pod_name = get_pod_name_by_prefix(namespace, credit_scoring)
-
-            # Apply datasets
-            execPodCommand(
-                namespace, pod_name, ["python", "create_ui_visible_datasets.py"]
-            )
-
-            # Apply permissions
-            execPodCommand(namespace, pod_name, ["python", "permissions_apply.py"])
-
-        else:
-            # OpenShift cluster setup using S3-based registry
-            aws_access_key = os.getenv("AWS_ACCESS_KEY")
-            aws_secret_key = os.getenv("AWS_SECRET_KEY")
-            aws_bucket = os.getenv("AWS_BUCKET_NAME")
-            registry_path = os.getenv("AWS_REGISTRY_FILE_PATH")
-
-            run_kubectl_apply_with_sed(
-                aws_access_key,
-                aws_secret_key,
-                aws_bucket,
-                registry_path,
-                str(resource_dir / "feast_config_rhoai.yaml"),
-                namespace,
-            )
-            validate_feature_store_cr_status(namespace, "test-s3")
-            route_url = create_route(namespace, credit_scoring, service_name)
+        # Create Saved Datasets and Permissions
+        pod_name = get_pod_name_by_prefix(namespace, credit_scoring)
+        execPodCommand(namespace, pod_name, ["python", "create_ui_visible_datasets.py"])
+        execPodCommand(namespace, pod_name, ["python", "permissions_apply.py"])
         if not route_url:
             raise RuntimeError("Route URL could not be fetched.")
 

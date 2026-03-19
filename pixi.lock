@@ -2239,8 +2239,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.60.1.dev28+gc2beabb4a.d20260303
-  sha256: d8f9bea1bbb444aaa8706a838d593661a5031b257a4736070a64a93a1977e335
+  version: 0.60.1.dev59+g523bdfbd7
+  sha256: ed344134c9bbac72f52a54fa06c9efda24b628c063a9e8b8e0a315a92930d46b
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2313,12 +2313,15 @@ packages:
   - pymilvus>2.5 ; extra == 'milvus'
   - milvus-lite==2.4.12 ; extra == 'milvus'
   - feast[setuptools] ; extra == 'milvus'
+  - pymongo>=4.13.0,<5.0.0 ; extra == 'mongodb'
+  - dnspython>=2.0.0 ; extra == 'mongodb'
   - ibis-framework[mssql]>=10.0.0 ; extra == 'mssql'
+  - ibis-framework[oracle]>=10.0.0 ; extra == 'oracle'
   - pymysql ; extra == 'mysql'
   - types-pymysql ; extra == 'mysql'
+  - openlineage-python>=1.40.0 ; extra == 'openlineage'
   - prometheus-client ; extra == 'opentelemetry'
   - psutil ; extra == 'opentelemetry'
-  - openlineage-python>=1.40.0 ; extra == 'openlineage'
   - pyspark>=4.0.0 ; extra == 'spark'
   - trino>=0.305.0,<0.400.0 ; extra == 'trino'
   - regex ; extra == 'trino'
@@ -2329,6 +2332,7 @@ packages:
   - qdrant-client>=1.12.0 ; extra == 'qdrant'
   - transformers>=4.36.0 ; extra == 'rag'
   - datasets>=3.6.0 ; extra == 'rag'
+  - sentence-transformers>=3.0.0 ; extra == 'rag'
   - ray>=2.47.0 ; python_full_version == '3.10.*' and extra == 'ray'
   - codeflare-sdk>=0.31.1 ; python_full_version >= '3.11' and extra == 'ray'
   - redis>=4.2.2,<5 ; extra == 'redis'
@@ -2352,7 +2356,7 @@ packages:
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0,<44 ; extra == 'test'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mssql,mysql,openlineage,opentelemetry,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
   - virtualenv==20.23.0 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
