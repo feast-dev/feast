@@ -1,11 +1,12 @@
 import React from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
-import { EuiPageTemplate } from "@elastic/eui";
+import { EuiBadge, EuiPageTemplate } from "@elastic/eui";
 
 import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
-import { useMatchExact } from "../../hooks/useMatchSubpath";
+import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import OnDemandFeatureViewOverviewTab from "./OnDemandFeatureViewOverviewTab";
+import FeatureViewVersionsTab from "./FeatureViewVersionsTab";
 
 import {
   useOnDemandFeatureViewCustomTabs,
@@ -29,13 +30,30 @@ const OnDemandFeatureInstance = ({ data }: OnDemandFeatureInstanceProps) => {
       <EuiPageTemplate.Header
         restrictWidth
         iconType={FeatureViewIcon}
-        pageTitle={`${featureViewName}`}
+        pageTitle={
+          <>
+            {featureViewName}
+            {data?.meta?.currentVersionNumber != null &&
+              data.meta.currentVersionNumber > 0 && (
+                <EuiBadge color="hollow" style={{ marginLeft: 8 }}>
+                  v{data.meta.currentVersionNumber}
+                </EuiBadge>
+              )}
+          </>
+        }
         tabs={[
           {
             label: "Overview",
             isSelected: useMatchExact(""),
             onClick: () => {
               navigate("");
+            },
+          },
+          {
+            label: "Versions",
+            isSelected: useMatchSubpath("versions"),
+            onClick: () => {
+              navigate("versions");
             },
           },
           ...customNavigationTabs,
@@ -46,6 +64,14 @@ const OnDemandFeatureInstance = ({ data }: OnDemandFeatureInstanceProps) => {
           <Route
             path="/"
             element={<OnDemandFeatureViewOverviewTab data={data} />}
+          />
+          <Route
+            path="/versions"
+            element={
+              <FeatureViewVersionsTab
+                featureViewName={featureViewName!}
+              />
+            }
           />
           {CustomTabRoutes}
         </Routes>

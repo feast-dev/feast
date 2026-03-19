@@ -1,12 +1,13 @@
 import React, { useContext } from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
-import { EuiPageTemplate } from "@elastic/eui";
+import { EuiBadge, EuiPageTemplate } from "@elastic/eui";
 
 import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import RegularFeatureViewOverviewTab from "./RegularFeatureViewOverviewTab";
 import FeatureViewLineageTab from "./FeatureViewLineageTab";
+import FeatureViewVersionsTab from "./FeatureViewVersionsTab";
 
 import {
   useRegularFeatureViewCustomTabs,
@@ -57,6 +58,14 @@ const RegularFeatureInstance = ({
     });
   }
 
+  tabs.push({
+    label: "Versions",
+    isSelected: useMatchSubpath("versions"),
+    onClick: () => {
+      navigate("versions");
+    },
+  });
+
   tabs.push(...customNavigationTabs);
 
   const TabRoutes = useRegularFeatureViewCustomTabRoutes();
@@ -66,7 +75,17 @@ const RegularFeatureInstance = ({
       <EuiPageTemplate.Header
         restrictWidth
         iconType={FeatureViewIcon}
-        pageTitle={`${data?.spec?.name}`}
+        pageTitle={
+          <>
+            {data?.spec?.name}
+            {data?.meta?.currentVersionNumber != null &&
+              data.meta.currentVersionNumber > 0 && (
+                <EuiBadge color="hollow" style={{ marginLeft: 8 }}>
+                  v{data.meta.currentVersionNumber}
+                </EuiBadge>
+              )}
+          </>
+        }
         tabs={tabs}
       />
       <EuiPageTemplate.Section>
@@ -83,6 +102,14 @@ const RegularFeatureInstance = ({
           <Route
             path="/lineage"
             element={<FeatureViewLineageTab data={data} />}
+          />
+          <Route
+            path="/versions"
+            element={
+              <FeatureViewVersionsTab
+                featureViewName={data?.spec?.name!}
+              />
+            }
           />
           {TabRoutes}
         </Routes>

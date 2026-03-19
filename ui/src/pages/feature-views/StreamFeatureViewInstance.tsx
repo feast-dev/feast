@@ -1,11 +1,12 @@
 import React from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
-import { EuiPageTemplate } from "@elastic/eui";
+import { EuiBadge, EuiPageTemplate } from "@elastic/eui";
 
 import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
-import { useMatchExact } from "../../hooks/useMatchSubpath";
+import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import StreamFeatureViewOverviewTab from "./StreamFeatureViewOverviewTab";
+import FeatureViewVersionsTab from "./FeatureViewVersionsTab";
 
 import {
   useStreamFeatureViewCustomTabs,
@@ -30,13 +31,30 @@ const StreamFeatureInstance = ({ data }: StreamFeatureInstanceProps) => {
         restrictWidth
         paddingSize="l"
         iconType={FeatureViewIcon}
-        pageTitle={`${featureViewName}`}
+        pageTitle={
+          <>
+            {featureViewName}
+            {data?.meta?.currentVersionNumber != null &&
+              data.meta.currentVersionNumber > 0 && (
+                <EuiBadge color="hollow" style={{ marginLeft: 8 }}>
+                  v{data.meta.currentVersionNumber}
+                </EuiBadge>
+              )}
+          </>
+        }
         tabs={[
           {
             label: "Overview",
             isSelected: useMatchExact(""),
             onClick: () => {
               navigate("");
+            },
+          },
+          {
+            label: "Versions",
+            isSelected: useMatchSubpath("versions"),
+            onClick: () => {
+              navigate("versions");
             },
           },
           ...customNavigationTabs,
@@ -47,6 +65,14 @@ const StreamFeatureInstance = ({ data }: StreamFeatureInstanceProps) => {
           <Route
             path="/"
             element={<StreamFeatureViewOverviewTab data={data} />}
+          />
+          <Route
+            path="/versions"
+            element={
+              <FeatureViewVersionsTab
+                featureViewName={featureViewName!}
+              />
+            }
           />
           {CustomTabRoutes}
         </Routes>
