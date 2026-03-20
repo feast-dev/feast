@@ -239,6 +239,47 @@ Versioning works on all three feature view types:
 
 Version-qualified reads (`@v<N>`) are currently implemented for the **SQLite** online store. Other online stores will raise a clear error. Expanding to additional stores is follow-up work.
 
+### Materialization
+
+Each version's data lives in its own online store table (e.g., `project_fv_v1`, `project_fv_v2`). By default, `feast materialize` and `feast materialize-incremental` populate the **active (latest)** version's table. To populate a specific version's table, pass the `--version` flag along with a single `--views` target:
+
+```bash
+# Materialize v1 of driver_stats
+feast materialize --views driver_stats --version v1 2024-01-01T00:00:00 2024-01-15T00:00:00
+
+# Incrementally materialize v2 of driver_stats
+feast materialize-incremental --views driver_stats --version v2 2024-01-15T00:00:00
+```
+
+Python SDK equivalent:
+
+```python
+store.materialize(
+    feature_views=["driver_stats"],
+    version="v2",
+    start_date=start,
+    end_date=end,
+)
+```
+
+**Requirements:**
+- `enable_online_feature_view_versioning: true` must be set in `feature_store.yaml`
+- `--version` requires `--views` with exactly one feature view name
+- The specified version must exist in the registry (created by a prior `feast apply`)
+- Without `--version`, materialization targets the active version's table (existing behavior)
+
+**Multi-version workflow example:**
+
+```bash
+# Model A uses v1, Model B uses v2 — populate both tables
+feast materialize --views driver_stats --version v1 2024-01-01T00:00:00 2024-02-01T00:00:00
+feast materialize --views driver_stats --version v2 2024-01-01T00:00:00 2024-02-01T00:00:00
+
+# Models can now query their respective versions online
+# Model A: store.get_online_features(features=["driver_stats@v1:trips_today"], ...)
+# Model B: store.get_online_features(features=["driver_stats@v2:trips_today"], ...)
+```
+
 ## API Surface
 
 ### Python SDK
@@ -256,6 +297,10 @@ FeatureView(name="driver_stats", ..., version="v2")
 
 # Version-qualified online read (requires enable_online_feature_view_versioning)
 store.get_online_features(features=["driver_stats@v2:trips_today"], ...)
+
+# Materialize a specific version
+store.materialize(feature_views=["driver_stats"], version="v2", start_date=start, end_date=end)
+store.materialize_incremental(feature_views=["driver_stats"], version="v2", end_date=end)
 ```
 
 ### CLI
@@ -268,6 +313,10 @@ feast feature-views list-versions driver_stats
 # VERSION  TYPE          CREATED              VERSION_ID
 # v0       feature_view  2024-01-15 10:30:00  a1b2c3d4-...
 # v1       feature_view  2024-01-16 14:22:00  e5f6g7h8-...
+
+# Materialize a specific version
+feast materialize --views driver_stats --version v2 2024-01-01T00:00:00 2024-02-01T00:00:00
+feast materialize-incremental --views driver_stats --version v2 2024-02-01T00:00:00
 ```
 
 ### Configuration

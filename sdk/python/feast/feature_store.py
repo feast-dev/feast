@@ -100,6 +100,7 @@ from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
+from feast.version_utils import parse_version
 
 _track_materialization = None  # Lazy-loaded on first materialization call
 _track_materialization_loaded = False
@@ -772,9 +773,39 @@ class FeatureStore:
         for feature_service in feature_services_to_update:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
+    def _validate_materialize_version(
+        self,
+        version: Optional[str],
+        feature_views: Optional[List[str]],
+    ) -> Optional[int]:
+        """Validate and parse the version parameter for materialize calls.
+
+        Returns the parsed version number, or None if no version was specified.
+        """
+        if version is None:
+            return None
+
+        if not feature_views or len(feature_views) != 1:
+            raise ValueError(
+                "--version requires --views with exactly one feature view."
+            )
+
+        if not self.config.registry.enable_online_feature_view_versioning:
+            raise ValueError(
+                "Version-aware materialization requires "
+                "'enable_online_feature_view_versioning: true' under 'registry' "
+                "in feature_store.yaml."
+            )
+
+        is_latest, version_number = parse_version(version)
+        if is_latest:
+            return None
+        return version_number
+
     def _get_feature_views_to_materialize(
         self,
         feature_views: Optional[List[str]],
+        version: Optional[int] = None,
     ) -> List[Union[FeatureView, OnDemandFeatureView]]:
         """
         Returns the list of feature views that should be materialized.
@@ -783,6 +814,8 @@ class FeatureStore:
 
         Args:
             feature_views: List of names of feature views to materialize.
+            version: If set, load this specific version number from the registry
+                instead of the active definition. Requires exactly one feature view name.
 
         Raises:
             FeatureViewNotFoundException: One of the specified feature views could not be found.
@@ -814,15 +847,25 @@ class FeatureStore:
         else:
             for name in feature_views:
                 feature_view: Union[FeatureView, OnDemandFeatureView]
-                try:
-                    feature_view = self._get_feature_view(name, hide_dummy_entity=False)
-                except FeatureViewNotFoundException:
+                if version is not None:
+                    feature_view = cast(
+                        Union[FeatureView, OnDemandFeatureView],
+                        self.registry.get_feature_view_by_version(
+                            name, self.project, version
+                        ),
+                    )
+                else:
                     try:
-                        feature_view = self._get_stream_feature_view(
+                        feature_view = self._get_feature_view(
                             name, hide_dummy_entity=False
                         )
                     except FeatureViewNotFoundException:
-                        feature_view = self.get_on_demand_feature_view(name)
+                        try:
+                            feature_view = self._get_stream_feature_view(
+                                name, hide_dummy_entity=False
+                            )
+                        except FeatureViewNotFoundException:
+                            feature_view = self.get_on_demand_feature_view(name)
 
                 if hasattr(feature_view, "online") and not feature_view.online:
                     raise ValueError(
@@ -1151,38 +1194,6 @@ class FeatureStore:
             self.registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self.registry.apply_entity(ent, project=self.project, commit=False)
-
-        # Gate: feature services must not reference versioned FVs when online versioning is off
-        if not self.config.registry.enable_online_feature_view_versioning:
-            fvs_in_batch = {
-                fv.name: fv
-                for fv in itertools.chain(
-                    views_to_update, odfvs_to_update, sfvs_to_update
-                )
-            }
-            for feature_service in services_to_update:
-                for projection in feature_service.feature_view_projections:
-                    ref_fv: Optional[BaseFeatureView] = fvs_in_batch.get(
-                        projection.name
-                    )
-                    if ref_fv is None:
-                        try:
-                            ref_fv = self.registry.get_any_feature_view(
-                                projection.name, self.project
-                            )
-                        except FeatureViewNotFoundException:
-                            continue
-                    cur_ver: Optional[int] = getattr(
-                        ref_fv, "current_version_number", None
-                    )
-                    if cur_ver is not None and cur_ver > 0:
-                        raise ValueError(
-                            f"Feature service '{feature_service.name}' references feature view "
-                            f"'{projection.name}' which is at version v{cur_ver}. "
-                            f"To use versioned feature views in feature services, set "
-                            f"'enable_online_feature_view_versioning: true' under 'registry' "
-                            f"in feature_store.yaml."
-                        )
 
         for feature_service in services_to_update:
             self.registry.apply_feature_service(
@@ -1678,6 +1689,7 @@ class FeatureStore:
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
         full_feature_names: bool = False,
+        version: Optional[str] = None,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1694,6 +1706,8 @@ class FeatureStore:
                 materialization for the specified feature views.
             full_feature_names (bool): If True, feature names will be prefixed with the corresponding
                 feature view name.
+            version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
+                with exactly one entry and enable_online_feature_view_versioning to be enabled.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -1709,8 +1723,9 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
-            feature_views
+            feature_views, version=parsed_version
         )
         _print_materialization_log(
             None,
@@ -1831,6 +1846,7 @@ class FeatureStore:
         feature_views: Optional[List[str]] = None,
         disable_event_timestamp: bool = False,
         full_feature_names: bool = False,
+        version: Optional[str] = None,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -1847,6 +1863,8 @@ class FeatureStore:
             disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
             full_feature_names (bool): If True, feature names will be prefixed with the corresponding
                 feature view name.
+            version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
+                with exactly one entry and enable_online_feature_view_versioning to be enabled.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -1866,8 +1884,9 @@ class FeatureStore:
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
             )
 
+        parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
-            feature_views
+            feature_views, version=parsed_version
         )
         _print_materialization_log(
             start_date,
