@@ -1,7 +1,8 @@
 """
-Performance benchmarks comparing the two MongoDB offline store implementations -
-one Collection with all feature views
-vs. a schema of N collections for N features views.
+Performance benchmarks comparing MongoDB offline store implementations: Many vs One.
+
+- Many: One collection per FeatureView (MongoDBOfflineStoreMany)
+- One: Single shared collection for all FeatureViews (MongoDBOfflineStoreOne)
 
 These tests measure performance across different scaling dimensions:
 1. Row count scaling (entity_df size)
@@ -13,8 +14,8 @@ Metrics captured:
 - Memory (peak Python memory via tracemalloc)
 - MongoDB server metrics (opcounters, execution stats)
 
-Run with: pytest benchmark_mongodb_offline_stores.py -v -s
-Skip slow tests: pytest benchmark_mongodb_offline_stores.py -v -s -m "not slow"
+Run with: pytest benchmark.py -v -s
+Skip slow tests: pytest benchmark.py -v -s -m "not slow"
 """
 
 import time
@@ -145,8 +146,8 @@ def mongodb_connection_string(mongodb_container: MongoDbContainer) -> str:
 
 
 @pytest.fixture
-def ibis_config(mongodb_connection_string: str) -> RepoConfig:
-    """RepoConfig for Ibis implementation."""
+def many_config(mongodb_connection_string: str) -> RepoConfig:
+    """RepoConfig for Many implementation (one collection per FeatureView)."""
     return RepoConfig(
         project="benchmark",
         registry="memory://",
@@ -161,8 +162,8 @@ def ibis_config(mongodb_connection_string: str) -> RepoConfig:
 
 
 @pytest.fixture
-def native_config(mongodb_connection_string: str) -> RepoConfig:
-    """RepoConfig for Native implementation."""
+def one_config(mongodb_connection_string: str) -> RepoConfig:
+    """RepoConfig for One implementation (single shared collection)."""
     return RepoConfig(
         project="benchmark",
         registry="memory://",
@@ -177,7 +178,7 @@ def native_config(mongodb_connection_string: str) -> RepoConfig:
     )
 
 
-def _generate_ibis_data(
+def _generate_many_data(
     client: MongoClient,
     db_name: str,
     collection_name: str,
@@ -185,7 +186,7 @@ def _generate_ibis_data(
     num_features: int,
     rows_per_entity: int = 5,
 ) -> datetime:
-    """Generate test data for Ibis (one collection per FV, flat schema)."""
+    """Generate test data for Many (one collection per FV, flat schema)."""
     collection = client[db_name][collection_name]
     collection.drop()
 
@@ -206,7 +207,7 @@ def _generate_ibis_data(
     return now
 
 
-def _generate_native_data(
+def _generate_one_data(
     client: MongoClient,
     db_name: str,
     collection_name: str,
@@ -215,7 +216,7 @@ def _generate_native_data(
     num_features: int,
     rows_per_entity: int = 5,
 ) -> datetime:
-    """Generate test data for Native (single collection, nested features)."""
+    """Generate test data for One (single collection, nested features)."""
     collection = client[db_name][collection_name]
     # Don't drop - may have multiple FVs in same collection
 
@@ -241,8 +242,8 @@ def _generate_native_data(
     return now
 
 
-def _create_ibis_fv(num_features: int) -> tuple:
-    """Create Ibis source and FeatureView."""
+def _create_many_fv(num_features: int) -> tuple:
+    """Create Many source and FeatureView."""
     source = MongoDBSourceMany(
         name="driver_benchmark",
         database="benchmark_db",
@@ -267,8 +268,8 @@ def _create_ibis_fv(num_features: int) -> tuple:
     return source, fv
 
 
-def _create_native_fv(num_features: int) -> tuple:
-    """Create Native source and FeatureView."""
+def _create_one_fv(num_features: int) -> tuple:
+    """Create One source and FeatureView."""
     source = MongoDBSourceOne(
         name="driver_benchmark",
         timestamp_field="event_timestamp",
@@ -375,10 +376,10 @@ ROW_COUNTS = [
 
 @_requires_docker
 @pytest.mark.parametrize("num_rows", ROW_COUNTS)
-def test_scale_rows_ibis(
-    mongodb_connection_string: str, ibis_config: RepoConfig, num_rows: int
+def test_scale_rows_many(
+    mongodb_connection_string: str, many_config: RepoConfig, num_rows: int
 ) -> None:
-    """Benchmark Ibis implementation with varying entity_df sizes.
+    """Benchmark Many implementation with varying entity_df sizes.
 
     Measures: runtime, peak memory, MongoDB opcounters.
     """
@@ -387,7 +388,7 @@ def test_scale_rows_ibis(
 
     client = MongoClient(mongodb_connection_string)
     try:
-        now = _generate_ibis_data(
+        now = _generate_many_data(
             client,
             "benchmark_db",
             "driver_benchmark",
@@ -396,7 +397,7 @@ def test_scale_rows_ibis(
             rows_per_entity=3,
         )
 
-        _, fv = _create_ibis_fv(num_features)
+        _, fv = _create_many_fv(num_features)
 
         entity_df = pd.DataFrame(
             {
@@ -409,7 +410,7 @@ def test_scale_rows_ibis(
 
         def run_query():
             job = MongoDBOfflineStoreMany.get_historical_features(
-                config=ibis_config,
+                config=many_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
                 entity_df=entity_df,
@@ -428,10 +429,10 @@ def test_scale_rows_ibis(
 
 @_requires_docker
 @pytest.mark.parametrize("num_rows", ROW_COUNTS)
-def test_scale_rows_native(
-    mongodb_connection_string: str, native_config: RepoConfig, num_rows: int
+def test_scale_rows_one(
+    mongodb_connection_string: str, one_config: RepoConfig, num_rows: int
 ) -> None:
-    """Benchmark Native implementation with varying entity_df sizes.
+    """Benchmark One implementation with varying entity_df sizes.
 
     Measures: runtime, peak memory, MongoDB opcounters.
     """
@@ -441,7 +442,7 @@ def test_scale_rows_native(
     client = MongoClient(mongodb_connection_string)
     try:
         client["benchmark_db"]["feature_history"].drop()
-        now = _generate_native_data(
+        now = _generate_one_data(
             client,
             "benchmark_db",
             "feature_history",
@@ -451,7 +452,7 @@ def test_scale_rows_native(
             rows_per_entity=3,
         )
 
-        _, fv = _create_native_fv(num_features)
+        _, fv = _create_one_fv(num_features)
 
         entity_df = pd.DataFrame(
             {
@@ -464,7 +465,7 @@ def test_scale_rows_native(
 
         def run_query():
             job = MongoDBOfflineStoreOne.get_historical_features(
-                config=native_config,
+                config=one_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
                 entity_df=entity_df,
@@ -490,15 +491,15 @@ FEATURE_COUNTS = [10, 50, 100]  # Use [50, 100, 150, 200] for full benchmark
 
 @_requires_docker
 @pytest.mark.parametrize("num_features", FEATURE_COUNTS)
-def test_wide_features_ibis(
-    mongodb_connection_string: str, ibis_config: RepoConfig, num_features: int
+def test_wide_features_many(
+    mongodb_connection_string: str, many_config: RepoConfig, num_features: int
 ) -> None:
-    """Benchmark Ibis with varying feature width."""
+    """Benchmark Many with varying feature width."""
     num_entities = 1000
 
     client = MongoClient(mongodb_connection_string)
     try:
-        now = _generate_ibis_data(
+        now = _generate_many_data(
             client,
             "benchmark_db",
             "driver_benchmark",
@@ -507,7 +508,7 @@ def test_wide_features_ibis(
             rows_per_entity=3,
         )
 
-        _, fv = _create_ibis_fv(num_features)
+        _, fv = _create_many_fv(num_features)
 
         entity_df = pd.DataFrame(
             {
@@ -520,7 +521,7 @@ def test_wide_features_ibis(
 
         def run_query():
             job = MongoDBOfflineStoreMany.get_historical_features(
-                config=ibis_config,
+                config=many_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
                 entity_df=entity_df,
@@ -541,16 +542,16 @@ def test_wide_features_ibis(
 
 @_requires_docker
 @pytest.mark.parametrize("num_features", FEATURE_COUNTS)
-def test_wide_features_native(
-    mongodb_connection_string: str, native_config: RepoConfig, num_features: int
+def test_wide_features_one(
+    mongodb_connection_string: str, one_config: RepoConfig, num_features: int
 ) -> None:
-    """Benchmark Native with varying feature width."""
+    """Benchmark One with varying feature width."""
     num_entities = 1000
 
     client = MongoClient(mongodb_connection_string)
     try:
         client["benchmark_db"]["feature_history"].drop()
-        now = _generate_native_data(
+        now = _generate_one_data(
             client,
             "benchmark_db",
             "feature_history",
@@ -560,7 +561,7 @@ def test_wide_features_native(
             rows_per_entity=3,
         )
 
-        _, fv = _create_native_fv(num_features)
+        _, fv = _create_one_fv(num_features)
 
         entity_df = pd.DataFrame(
             {
@@ -573,7 +574,7 @@ def test_wide_features_native(
 
         def run_query():
             job = MongoDBOfflineStoreOne.get_historical_features(
-                config=native_config,
+                config=one_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
                 entity_df=entity_df,
@@ -599,10 +600,10 @@ def test_wide_features_native(
 
 @_requires_docker
 @pytest.mark.parametrize("unique_ratio", [1.0, 0.5, 0.1])  # 100%, 50%, 10% unique
-def test_entity_skew_ibis(
-    mongodb_connection_string: str, ibis_config: RepoConfig, unique_ratio: float
+def test_entity_skew_many(
+    mongodb_connection_string: str, many_config: RepoConfig, unique_ratio: float
 ) -> None:
-    """Benchmark Ibis with varying entity uniqueness in entity_df."""
+    """Benchmark Many with varying entity uniqueness in entity_df."""
     import numpy as np
 
     total_rows = 5000
@@ -612,7 +613,7 @@ def test_entity_skew_ibis(
 
     client = MongoClient(mongodb_connection_string)
     try:
-        now = _generate_ibis_data(
+        now = _generate_many_data(
             client,
             "benchmark_db",
             "driver_benchmark",
@@ -621,7 +622,7 @@ def test_entity_skew_ibis(
             rows_per_entity=5,
         )
 
-        _, fv = _create_ibis_fv(num_features)
+        _, fv = _create_many_fv(num_features)
 
         # Create entity_df with repeated entity_ids
         entity_ids = np.random.choice(
@@ -640,7 +641,7 @@ def test_entity_skew_ibis(
 
         def run_query():
             job = MongoDBOfflineStoreMany.get_historical_features(
-                config=ibis_config,
+                config=many_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
                 entity_df=entity_df,
@@ -652,7 +653,7 @@ def test_entity_skew_ibis(
 
         result = _run_benchmark_full(run_query, mongo_client=client)
         print(
-            f"\n[IBIS] Unique ratio: {unique_ratio:.0%} ({num_unique_entities:,} unique / {total_rows:,} rows)"
+            f"\n[MANY] Unique ratio: {unique_ratio:.0%} ({num_unique_entities:,} unique / {total_rows:,} rows)"
         )
         print(f"  Time:   {result.elapsed_seconds:.3f}s")
         print(f"  Memory: {result.peak_memory_mb:.1f} MB")
@@ -664,10 +665,10 @@ def test_entity_skew_ibis(
 
 @_requires_docker
 @pytest.mark.parametrize("unique_ratio", [1.0, 0.5, 0.1])
-def test_entity_skew_native(
-    mongodb_connection_string: str, native_config: RepoConfig, unique_ratio: float
+def test_entity_skew_one(
+    mongodb_connection_string: str, one_config: RepoConfig, unique_ratio: float
 ) -> None:
-    """Benchmark Native with varying entity uniqueness in entity_df."""
+    """Benchmark One with varying entity uniqueness in entity_df."""
     import numpy as np
 
     total_rows = 5000
@@ -678,7 +679,7 @@ def test_entity_skew_native(
     client = MongoClient(mongodb_connection_string)
     try:
         client["benchmark_db"]["feature_history"].drop()
-        now = _generate_native_data(
+        now = _generate_one_data(
             client,
             "benchmark_db",
             "feature_history",
@@ -688,7 +689,7 @@ def test_entity_skew_native(
             rows_per_entity=5,
         )
 
-        _, fv = _create_native_fv(num_features)
+        _, fv = _create_one_fv(num_features)
 
         entity_ids = np.random.choice(
             num_unique_entities, size=total_rows, replace=True
@@ -706,7 +707,7 @@ def test_entity_skew_native(
 
         def run_query():
             job = MongoDBOfflineStoreOne.get_historical_features(
-                config=native_config,
+                config=one_config,
                 feature_views=[fv],
                 feature_refs=feature_refs,
                 entity_df=entity_df,
@@ -718,7 +719,7 @@ def test_entity_skew_native(
 
         result = _run_benchmark_full(run_query, mongo_client=client)
         print(
-            f"\n[NATIVE] Unique ratio: {unique_ratio:.0%} ({num_unique_entities:,} unique / {total_rows:,} rows)"
+            f"\n[ONE] Unique ratio: {unique_ratio:.0%} ({num_unique_entities:,} unique / {total_rows:,} rows)"
         )
         print(f"  Time:   {result.elapsed_seconds:.3f}s")
         print(f"  Memory: {result.peak_memory_mb:.1f} MB")
@@ -735,7 +736,7 @@ def test_entity_skew_native(
 
 @_requires_docker
 def test_summary_comparison(
-    mongodb_connection_string: str, ibis_config: RepoConfig, native_config: RepoConfig
+    mongodb_connection_string: str, many_config: RepoConfig, one_config: RepoConfig
 ) -> None:
     """Run a standard comparison and print summary with full metrics."""
     num_entities = 2000
@@ -743,8 +744,8 @@ def test_summary_comparison(
 
     client = MongoClient(mongodb_connection_string)
     try:
-        # Setup Ibis data
-        now = _generate_ibis_data(
+        # Setup Many data
+        now = _generate_many_data(
             client,
             "benchmark_db",
             "driver_benchmark",
@@ -753,9 +754,9 @@ def test_summary_comparison(
             rows_per_entity=5,
         )
 
-        # Setup Native data
+        # Setup One data
         client["benchmark_db"]["feature_history"].drop()
-        _generate_native_data(
+        _generate_one_data(
             client,
             "benchmark_db",
             "feature_history",
@@ -774,13 +775,13 @@ def test_summary_comparison(
 
         feature_refs = [f"driver_benchmark:feature_{i}" for i in range(num_features)]
 
-        # Ibis benchmark
-        _, ibis_fv = _create_ibis_fv(num_features)
+        # Many benchmark
+        _, many_fv = _create_many_fv(num_features)
 
-        def run_ibis():
+        def run_many():
             job = MongoDBOfflineStoreMany.get_historical_features(
-                config=ibis_config,
-                feature_views=[ibis_fv],
+                config=many_config,
+                feature_views=[many_fv],
                 feature_refs=feature_refs,
                 entity_df=entity_df,
                 registry=MagicMock(),
@@ -789,15 +790,15 @@ def test_summary_comparison(
             )
             return job.to_df()
 
-        ibis_result = _run_benchmark_full(run_ibis, mongo_client=client)
+        many_result = _run_benchmark_full(run_many, mongo_client=client)
 
-        # Native benchmark
-        _, native_fv = _create_native_fv(num_features)
+        # One benchmark
+        _, one_fv = _create_one_fv(num_features)
 
-        def run_native():
+        def run_one():
             job = MongoDBOfflineStoreOne.get_historical_features(
-                config=native_config,
-                feature_views=[native_fv],
+                config=one_config,
+                feature_views=[one_fv],
                 feature_refs=feature_refs,
                 entity_df=entity_df,
                 registry=MagicMock(),
@@ -806,30 +807,31 @@ def test_summary_comparison(
             )
             return job.to_df()
 
-        native_result = _run_benchmark_full(run_native, mongo_client=client)
+        one_result = _run_benchmark_full(run_one, mongo_client=client)
 
         # Print summary
         print("\n" + "=" * 70)
-        print("SUMMARY COMPARISON")
+        print("SUMMARY COMPARISON: Many vs One")
         print("=" * 70)
         print(f"Entities: {num_entities:,} | Features: {num_features}")
         print("-" * 70)
-        print(f"{'Metric':<20} {'Ibis':>20} {'Native':>20}")
+        print(f"{'Metric':<20} {'Many':>20} {'One':>20}")
         print("-" * 70)
         print(
-            f"{'Time (s)':<20} {ibis_result.elapsed_seconds:>20.3f} {native_result.elapsed_seconds:>20.3f}"
+            f"{'Time (s)':<20} {many_result.elapsed_seconds:>20.3f} {one_result.elapsed_seconds:>20.3f}"
         )
         print(
-            f"{'Memory (MB)':<20} {ibis_result.peak_memory_mb:>20.1f} {native_result.peak_memory_mb:>20.1f}"
+            f"{'Memory (MB)':<20} {many_result.peak_memory_mb:>20.1f} {one_result.peak_memory_mb:>20.1f}"
         )
         print(
-            f"{'Rows/sec':<20} {num_entities / ibis_result.elapsed_seconds:>20,.0f} {num_entities / native_result.elapsed_seconds:>20,.0f}"
+            f"{'Rows/sec':<20} {num_entities / many_result.elapsed_seconds:>20,.0f} {num_entities / one_result.elapsed_seconds:>20,.0f}"
         )
         print("-" * 70)
 
-        if native_result.elapsed_seconds > 0:
-            ratio = native_result.elapsed_seconds / ibis_result.elapsed_seconds
-            print(f"Ibis is {ratio:.1f}x faster than Native")
+        if one_result.elapsed_seconds > 0:
+            ratio = one_result.elapsed_seconds / many_result.elapsed_seconds
+            faster = "Many" if ratio > 1 else "One"
+            print(f"{faster} is {max(ratio, 1 / ratio):.1f}x faster")
         print("=" * 70)
 
     finally:
