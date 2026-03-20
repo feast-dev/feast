@@ -109,7 +109,7 @@ from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, FeastExtrasDependencyImportError
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.contrib.mongodb import DRIVER_METADATA
+from feast.infra.offline_stores.contrib.mongodb_offline_store import DRIVER_METADATA
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
@@ -130,9 +130,7 @@ from feast.value_type import ValueType
 class MongoDBOfflineStoreOneConfig(FeastConfigBaseModel):
     """Configuration for the MongoDB offline store (single shared collection)."""
 
-    type: StrictStr = (
-        "feast.infra.offline_stores.contrib.mongodb.mongodb_one.MongoDBOfflineStoreOne"
-    )
+    type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_one.MongoDBOfflineStoreOne"
     """Offline store type selector"""
 
     connection_string: StrictStr = "mongodb://localhost:27017"

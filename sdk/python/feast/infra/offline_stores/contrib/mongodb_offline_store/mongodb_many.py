@@ -34,7 +34,7 @@ from feast.errors import (
     SavedDatasetLocationAlreadyExists,
 )
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.contrib.mongodb import DRIVER_METADATA
+from feast.infra.offline_stores.contrib.mongodb_offline_store import DRIVER_METADATA
 from feast.infra.offline_stores.ibis import (
     get_historical_features_ibis,
     pull_all_from_table_or_query_ibis,
@@ -214,7 +214,7 @@ class MongoDBSourceMany(DataSource):
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
-            data_source_class_type="feast.infra.offline_stores.contrib.mongodb.mongodb_many.MongoDBSourceMany",
+            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_many.MongoDBSourceMany",
             field_mapping=self.field_mapping,
             custom_options=self._mongodb_options.to_proto(),
             description=self.description,
@@ -322,7 +322,7 @@ class SavedDatasetMongoDBStorageMany(SavedDatasetStorage):
 class MongoDBOfflineStoreManyConfig(FeastConfigBaseModel):
     """Configuration for the MongoDB offline store (one collection per FeatureView)."""
 
-    type: StrictStr = "feast.infra.offline_stores.contrib.mongodb.mongodb_many.MongoDBOfflineStoreMany"
+    type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_many.MongoDBOfflineStoreMany"
     """Offline store type selector"""
 
     connection_string: StrictStr = "mongodb://localhost:27017"

@@ -1,8 +1,20 @@
 """
-Unit tests for MongoDB offline store (Ibis-based implementation).
+Unit tests for MongoDB Native offline store implementation.
 
-Docker-dependent tests are marked with ``@_requires_docker`` and are skipped when
-Docker is unavailable.
+This tests the single-collection schema where all feature views share one
+collection (``feature_history``), discriminated by ``feature_view`` field.
+
+Schema:
+    {
+        "entity_id": bytes,  # serialized entity key
+        "feature_view": str,
+        "features": { "feat1": val, ... },
+        "event_timestamp": datetime,
+        "created_at": datetime
+    }
+
+Docker-dependent tests are marked with ``@_requires_docker`` and are skipped
+when Docker is unavailable.
 """
 
 from datetime import datetime, timedelta
@@ -19,11 +31,14 @@ from pymongo import MongoClient
 from testcontainers.mongodb import MongoDbContainer
 
 from feast import Entity, FeatureView, Field
-from feast.infra.offline_stores.contrib.mongodb.mongodb_many import (
-    MongoDBOfflineStoreMany,
-    MongoDBOfflineStoreManyConfig,
-    MongoDBSourceMany,
+from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_one import (
+    MongoDBOfflineStoreOne,
+    MongoDBOfflineStoreOneConfig,
+    MongoDBSourceOne,
 )
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Float64, Int64, String
 from feast.value_type import ValueType
@@ -46,6 +61,25 @@ _requires_docker = pytest.mark.skipif(
     not docker_available,
     reason="Docker is not available or not running.",
 )
+
+ENTITY_KEY_VERSION = 3
+
+
+def _make_entity_id(join_keys: dict) -> bytes:
+    """Create serialized entity key from join key dict."""
+    entity_key = EntityKeyProto()
+    for key in sorted(join_keys.keys()):
+        entity_key.join_keys.append(key)
+        val = ValueProto()
+        value = join_keys[key]
+        if isinstance(value, int):
+            val.int64_val = value
+        elif isinstance(value, str):
+            val.string_val = value
+        else:
+            val.string_val = str(value)
+        entity_key.entity_values.append(val)
+    return serialize_entity_key(entity_key, ENTITY_KEY_VERSION)
 
 
 @pytest.fixture(scope="module")
@@ -70,58 +104,65 @@ def mongodb_connection_string(mongodb_container: MongoDbContainer) -> str:
 
 @pytest.fixture
 def repo_config(mongodb_connection_string: str) -> RepoConfig:
-    """Create a RepoConfig with MongoDB offline store."""
+    """Create a RepoConfig with MongoDB Native offline store."""
     return RepoConfig(
         project="test_project",
         registry="memory://",
         provider="local",
-        offline_store=MongoDBOfflineStoreManyConfig(
+        offline_store=MongoDBOfflineStoreOneConfig(
             connection_string=mongodb_connection_string,
             database="feast_test",
+            collection="feature_history",
         ),
         online_store={"type": "sqlite"},
-        entity_key_serialization_version=3,
+        entity_key_serialization_version=ENTITY_KEY_VERSION,
     )
 
 
 @pytest.fixture
 def sample_data(mongodb_connection_string: str) -> datetime:
-    """Insert sample driver stats data into MongoDB.
+    """Insert sample data using the single-collection schema.
 
-    Returns the 'now' timestamp used as the latest event_timestamp.
-
-    Note: The collection name 'driver_stats' is defined in the MongoDBSource
-    (see driver_source fixture), not in the RepoConfig. RepoConfig provides
-    connection_string and database; the source defines the collection.
+    Creates documents for 'driver_stats' feature view with entity_id,
+    feature_view discriminator, and nested features subdocument.
     """
     client: MongoClient = MongoClient(mongodb_connection_string)
     db = client["feast_test"]
-    collection = db["driver_stats"]
+    collection = db["feature_history"]
     collection.drop()
 
     now = datetime.now(tz=pytz.UTC)
+
+    # Create documents using the native schema
     docs = [
         {
-            "driver_id": 1,
-            "conv_rate": 0.5,
-            "acc_rate": 0.9,
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats",
+            "features": {"conv_rate": 0.5, "acc_rate": 0.9},
             "event_timestamp": now - timedelta(hours=2),
+            "created_at": now - timedelta(hours=2),
         },
         {
-            "driver_id": 1,
-            "conv_rate": 0.6,
-            "acc_rate": 0.85,
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats",
+            "features": {"conv_rate": 0.6, "acc_rate": 0.85},
             "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
         },
-        {"driver_id": 1, "conv_rate": 0.7, "acc_rate": 0.8, "event_timestamp": now},
         {
-            "driver_id": 2,
-            "conv_rate": 0.3,
-            "acc_rate": 0.95,
-            "event_timestamp": now - timedelta(hours=2),
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats",
+            "features": {"conv_rate": 0.7, "acc_rate": 0.8},
+            "event_timestamp": now,
+            "created_at": now,
         },
-        # Driver 2 has no "now" timestamp - only data from 2 hours ago
-        # This tests that pull_latest correctly handles entities with different latest timestamps
+        {
+            "entity_id": _make_entity_id({"driver_id": 2}),
+            "feature_view": "driver_stats",
+            "features": {"conv_rate": 0.3, "acc_rate": 0.95},
+            "event_timestamp": now - timedelta(hours=2),
+            "created_at": now - timedelta(hours=2),
+        },
     ]
     collection.insert_many(docs)
     client.close()
@@ -129,28 +170,18 @@ def sample_data(mongodb_connection_string: str) -> datetime:
 
 
 @pytest.fixture
-def driver_source() -> MongoDBSourceMany:
-    """Create a MongoDBSourceMany for driver stats."""
-    return MongoDBSourceMany(
+def driver_source() -> MongoDBSourceOne:
+    """Create a MongoDBSourceOne for driver stats."""
+    return MongoDBSourceOne(
         name="driver_stats",
-        database="feast_test",
-        collection="driver_stats",
         timestamp_field="event_timestamp",
+        created_timestamp_column="created_at",
     )
 
 
 @pytest.fixture
-def driver_fv(driver_source: MongoDBSourceMany) -> FeatureView:
-    """Create a FeatureView for driver stats.
-
-    The ttl (time-to-live) parameter defines how far back in time Feast will look
-    for feature values during point-in-time joins. If a feature's event_timestamp
-    is older than (entity_timestamp - ttl), that feature value is considered stale
-    and will be returned as NULL.
-
-    This is different from MongoDB TTL indexes which automatically delete documents
-    after a period of time. Feast TTL is a query-time filter, not a storage policy.
-    """
+def driver_fv(driver_source: MongoDBSourceOne) -> FeatureView:
+    """Create a FeatureView for driver stats."""
     driver_entity = Entity(
         name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
     )
@@ -158,7 +189,6 @@ def driver_fv(driver_source: MongoDBSourceMany) -> FeatureView:
         name="driver_stats",
         entities=[driver_entity],
         schema=[
-            # Include entity column in schema so entity_columns is populated
             Field(name="driver_id", dtype=Int64),
             Field(name="conv_rate", dtype=Float64),
             Field(name="acc_rate", dtype=Float64),
@@ -170,93 +200,53 @@ def driver_fv(driver_source: MongoDBSourceMany) -> FeatureView:
 
 @_requires_docker
 def test_pull_latest_from_table_or_query(
-    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceMany
+    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceOne
 ) -> None:
-    """Test pulling latest features per entity from MongoDB.
-
-    This test verifies that pull_latest returns only the most recent feature
-    values for each entity (driver_id), even when entities have different
-    latest timestamps. Driver 1 has data at now, but driver 2's latest data
-    is from 2 hours ago.
-    """
+    """Test pulling latest features per entity from the single collection."""
     now = sample_data
-    job = MongoDBOfflineStoreMany.pull_latest_from_table_or_query(
+    job = MongoDBOfflineStoreOne.pull_latest_from_table_or_query(
         config=repo_config,
         data_source=driver_source,
         join_key_columns=["driver_id"],
         feature_name_columns=["conv_rate", "acc_rate"],
         timestamp_field="event_timestamp",
-        created_timestamp_column=None,
+        created_timestamp_column="created_at",
         start_date=now - timedelta(days=1),
         end_date=now + timedelta(hours=1),
     )
 
     df = job.to_df()
 
-    # Validate DataFrame structure
     assert isinstance(df, pd.DataFrame)
-    assert set(df.columns) == {"driver_id", "conv_rate", "acc_rate", "event_timestamp"}
-    assert len(df) == 2  # Two unique drivers
+    assert len(df) == 2  # Two unique entity_ids
 
-    # Extract rows for each driver
-    driver1_rows = df[df["driver_id"] == 1]
-    driver2_rows = df[df["driver_id"] == 2]
-
-    # Each driver should have exactly one row (the latest)
-    assert len(driver1_rows) == 1
-    assert len(driver2_rows) == 1
-
-    driver1 = driver1_rows.iloc[0]
-    driver2 = driver2_rows.iloc[0]
-
-    # Validate types
-    assert isinstance(driver1["conv_rate"], float)
-    assert isinstance(driver1["acc_rate"], float)
-
-    # Driver 1's latest values (from "now")
-    assert driver1["conv_rate"] == pytest.approx(0.7)
-    assert driver1["acc_rate"] == pytest.approx(0.8)
-
-    # Driver 2's latest values (from 2 hours ago - driver 2 has no "now" data)
-    # This demonstrates that pull_latest correctly handles entities with
-    # different "latest" timestamps
-    assert driver2["conv_rate"] == pytest.approx(0.3)
-    assert driver2["acc_rate"] == pytest.approx(0.95)
+    # Sort by entity_id for predictable assertions
+    # Note: entity_id is bytes, so we check features directly
+    conv_rates = sorted(df["conv_rate"].tolist())
+    assert conv_rates[0] == pytest.approx(0.3)  # Driver 2's only value
+    assert conv_rates[1] == pytest.approx(0.7)  # Driver 1's latest value
 
 
 @_requires_docker
 def test_get_historical_features_pit_join(
     repo_config: RepoConfig, sample_data: datetime, driver_fv: FeatureView
 ) -> None:
-    """Test point-in-time join retrieves correct feature values.
-
-    Point-in-time (PIT) join ensures that for each entity row, we get the
-    feature values that were valid AT THAT POINT IN TIME - not future data
-    that would cause data leakage in ML training.
-    """
+    """Test point-in-time join retrieves correct feature values."""
     now = sample_data
 
-    # Entity dataframe: request features at specific timestamps
-    # Each row says "give me driver X's features as they were at time T"
+    # Entity dataframe with driver_id column (must match join keys)
     entity_df = pd.DataFrame(
         {
             "driver_id": [1, 1, 2],
             "event_timestamp": [
-                now
-                - timedelta(
-                    hours=1, minutes=30
-                ),  # Should get conv_rate=0.5 (before 0.6 was written)
-                now
-                - timedelta(
-                    minutes=30
-                ),  # Should get conv_rate=0.6 (before 0.7 was written)
-                now
-                - timedelta(hours=1),  # Should get conv_rate=0.3 (only data available)
+                now - timedelta(hours=1, minutes=30),  # Should get conv_rate=0.5
+                now - timedelta(minutes=30),  # Should get conv_rate=0.6
+                now - timedelta(hours=1),  # Should get conv_rate=0.3
             ],
         }
     )
 
-    job = MongoDBOfflineStoreMany.get_historical_features(
+    job = MongoDBOfflineStoreOne.get_historical_features(
         config=repo_config,
         feature_views=[driver_fv],
         feature_refs=["driver_stats:conv_rate", "driver_stats:acc_rate"],
@@ -287,17 +277,17 @@ def test_get_historical_features_pit_join(
 
 @_requires_docker
 def test_pull_all_from_table_or_query(
-    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceMany
+    repo_config: RepoConfig, sample_data: datetime, driver_source: MongoDBSourceOne
 ) -> None:
     """Test pulling all features within a time range (no deduplication)."""
     now = sample_data
-    job = MongoDBOfflineStoreMany.pull_all_from_table_or_query(
+    job = MongoDBOfflineStoreOne.pull_all_from_table_or_query(
         config=repo_config,
         data_source=driver_source,
         join_key_columns=["driver_id"],
         feature_name_columns=["conv_rate", "acc_rate"],
         timestamp_field="event_timestamp",
-        created_timestamp_column=None,
+        created_timestamp_column="created_at",
         start_date=now - timedelta(hours=1, minutes=30),
         end_date=now + timedelta(hours=1),
     )
@@ -305,61 +295,59 @@ def test_pull_all_from_table_or_query(
     df = job.to_df()
     assert isinstance(df, pd.DataFrame)
     # Should get 2 rows: driver 1 (1hr ago, now)
-    # Excludes: driver 1 row from 2 hours ago (before start_date)
-    #           driver 2 row from 2 hours ago (before start_date)
+    # Excludes: driver 1 from 2 hours ago, driver 2 from 2 hours ago
     assert len(df) == 2
 
 
 @_requires_docker
 def test_ttl_excludes_stale_features(
-    repo_config: RepoConfig,
-    mongodb_connection_string: str,
-    driver_source: MongoDBSourceMany,
+    repo_config: RepoConfig, mongodb_connection_string: str
 ) -> None:
-    """Test that TTL causes stale feature values to be returned as NULL.
-
-    Feast TTL (time-to-live) is a query-time filter: if a feature's event_timestamp
-    is older than (entity_timestamp - ttl), that feature is considered stale.
-    This is different from MongoDB TTL indexes which delete documents.
-    """
-    # Insert data with a very old timestamp
+    """Test that TTL causes stale feature values to be returned as NULL."""
     client: MongoClient = MongoClient(mongodb_connection_string)
     db = client["feast_test"]
-    collection = db["driver_stats_ttl_test"]
-    collection.drop()
+    collection = db["feature_history"]
 
     now = datetime.now(tz=pytz.UTC)
-    docs = [
-        # Fresh data (within TTL)
-        {"driver_id": 1, "conv_rate": 0.9, "event_timestamp": now - timedelta(hours=1)},
-        # Stale data (outside 1-day TTL when queried from "now")
-        {"driver_id": 2, "conv_rate": 0.5, "event_timestamp": now - timedelta(days=2)},
+
+    # Insert docs with different ages
+    ttl_docs = [
+        {
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats_ttl",
+            "features": {"conv_rate": 0.9},
+            "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
+        },
+        {
+            "entity_id": _make_entity_id({"driver_id": 2}),
+            "feature_view": "driver_stats_ttl",
+            "features": {"conv_rate": 0.5},
+            "event_timestamp": now - timedelta(days=2),  # Stale
+            "created_at": now - timedelta(days=2),
+        },
     ]
-    collection.insert_many(docs)
+    collection.insert_many(ttl_docs)
     client.close()
 
-    # Create source and feature view with 1-day TTL
-    ttl_source = MongoDBSourceMany(
-        name="driver_stats_ttl_test",
-        database="feast_test",
-        collection="driver_stats_ttl_test",
+    ttl_source = MongoDBSourceOne(
+        name="driver_stats_ttl",
         timestamp_field="event_timestamp",
     )
     driver_entity = Entity(
         name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
     )
     ttl_fv = FeatureView(
-        name="driver_stats_ttl_test",
+        name="driver_stats_ttl",
         entities=[driver_entity],
         schema=[
             Field(name="driver_id", dtype=Int64),
             Field(name="conv_rate", dtype=Float64),
         ],
         source=ttl_source,
-        ttl=timedelta(days=1),  # Features older than 1 day are stale
+        ttl=timedelta(days=1),
     )
 
-    # Request features "as of now" for both drivers
     entity_df = pd.DataFrame(
         {
             "driver_id": [1, 2],
@@ -367,10 +355,10 @@ def test_ttl_excludes_stale_features(
         }
     )
 
-    job = MongoDBOfflineStoreMany.get_historical_features(
+    job = MongoDBOfflineStoreOne.get_historical_features(
         config=repo_config,
         feature_views=[ttl_fv],
-        feature_refs=["driver_stats_ttl_test:conv_rate"],
+        feature_refs=["driver_stats_ttl:conv_rate"],
         entity_df=entity_df,
         registry=MagicMock(),
         project=repo_config.project,
@@ -379,10 +367,10 @@ def test_ttl_excludes_stale_features(
 
     result_df = job.to_df().sort_values("driver_id").reset_index(drop=True)
 
-    # Driver 1: fresh data within TTL → should have value
+    # Driver 1: fresh → has value
     assert result_df.loc[0, "conv_rate"] == pytest.approx(0.9)
 
-    # Driver 2: stale data outside TTL → should be NULL
+    # Driver 2: stale → NULL
     assert pd.isna(result_df.loc[1, "conv_rate"])
 
 
@@ -390,59 +378,53 @@ def test_ttl_excludes_stale_features(
 def test_multiple_feature_views(
     repo_config: RepoConfig, mongodb_connection_string: str
 ) -> None:
-    """Test joining features from multiple MongoDB collections/FeatureViews.
-
-    This simulates a real-world scenario where features come from different
-    data sources (e.g., driver stats from one collection, vehicle stats from another).
-    """
+    """Test joining features from multiple feature views in the same collection."""
     client: MongoClient = MongoClient(mongodb_connection_string)
     db = client["feast_test"]
+    collection = db["feature_history"]
 
-    # Collection 1: Driver stats
-    driver_collection = db["driver_stats_multi"]
-    driver_collection.drop()
     now = datetime.now(tz=pytz.UTC)
-    driver_docs = [
-        {"driver_id": 1, "rating": 4.8, "event_timestamp": now - timedelta(hours=1)},
-        {"driver_id": 2, "rating": 4.5, "event_timestamp": now - timedelta(hours=1)},
-    ]
-    driver_collection.insert_many(driver_docs)
 
-    # Collection 2: Vehicle stats (same driver_id, different features)
-    vehicle_collection = db["vehicle_stats_multi"]
-    vehicle_collection.drop()
-    vehicle_docs = [
+    # Insert documents for two different feature views
+    multi_docs = [
+        # driver_stats_multi
         {
-            "driver_id": 1,
-            "vehicle_age": 2,
-            "mileage": 50000,
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats_multi",
+            "features": {"rating": 4.8},
             "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
         },
         {
-            "driver_id": 2,
-            "vehicle_age": 5,
-            "mileage": 120000,
+            "entity_id": _make_entity_id({"driver_id": 2}),
+            "feature_view": "driver_stats_multi",
+            "features": {"rating": 4.5},
             "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
+        },
+        # vehicle_stats_multi
+        {
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "vehicle_stats_multi",
+            "features": {"vehicle_age": 2, "mileage": 50000},
+            "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
+        },
+        {
+            "entity_id": _make_entity_id({"driver_id": 2}),
+            "feature_view": "vehicle_stats_multi",
+            "features": {"vehicle_age": 5, "mileage": 120000},
+            "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
         },
     ]
-    vehicle_collection.insert_many(vehicle_docs)
+    collection.insert_many(multi_docs)
     client.close()
 
-    # Create sources for each collection
-    driver_source = MongoDBSourceMany(
-        name="driver_stats_multi",
-        database="feast_test",
-        collection="driver_stats_multi",
-        timestamp_field="event_timestamp",
-    )
-    vehicle_source = MongoDBSourceMany(
-        name="vehicle_stats_multi",
-        database="feast_test",
-        collection="vehicle_stats_multi",
-        timestamp_field="event_timestamp",
-    )
+    # Create sources and feature views
+    driver_source = MongoDBSourceOne(name="driver_stats_multi")
+    vehicle_source = MongoDBSourceOne(name="vehicle_stats_multi")
 
-    # Create entities and feature views
     driver_entity = Entity(
         name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
     )
@@ -460,9 +442,7 @@ def test_multiple_feature_views(
 
     vehicle_fv = FeatureView(
         name="vehicle_stats_multi",
-        entities=[
-            driver_entity
-        ],  # todo these two FeatureViews have the same entities list [driver_entity]
+        entities=[driver_entity],
         schema=[
             Field(name="driver_id", dtype=Int64),
             Field(name="vehicle_age", dtype=Int64),
@@ -472,7 +452,6 @@ def test_multiple_feature_views(
         ttl=timedelta(days=1),
     )
 
-    # Entity dataframe requesting features for both drivers
     entity_df = pd.DataFrame(
         {
             "driver_id": [1, 2],
@@ -480,8 +459,7 @@ def test_multiple_feature_views(
         }
     )
 
-    # Request features from BOTH feature views
-    job = MongoDBOfflineStoreMany.get_historical_features(
+    job = MongoDBOfflineStoreOne.get_historical_features(
         config=repo_config,
         feature_views=[driver_fv, vehicle_fv],
         feature_refs=[
@@ -497,7 +475,6 @@ def test_multiple_feature_views(
 
     result_df = job.to_df().sort_values("driver_id").reset_index(drop=True)
 
-    # Verify we got features from both collections joined correctly
     assert len(result_df) == 2
     assert set(result_df.columns) >= {"driver_id", "rating", "vehicle_age", "mileage"}
 
@@ -516,64 +493,49 @@ def test_multiple_feature_views(
 def test_compound_join_keys(
     repo_config: RepoConfig, mongodb_connection_string: str
 ) -> None:
-    """Test with compound/composite join keys (multiple entity columns).
-
-    This tests scenarios where entities are identified by multiple keys,
-    e.g., (user_id, device_id) or (store_id, product_id).
-    """
+    """Test with compound/composite join keys (multiple entity columns)."""
     client: MongoClient = MongoClient(mongodb_connection_string)
     db = client["feast_test"]
+    collection = db["feature_history"]
 
-    # Create collection with compound key (user_id + device_id)
-    collection = db["user_device_features"]
-    collection.drop()
     now = datetime.now(tz=pytz.UTC)
 
-    # Same user_id can have different device_ids with different features
-    docs = [
+    # Insert documents with compound keys (user_id + device_id)
+    compound_docs = [
         {
-            "user_id": 1,
-            "device_id": "mobile",
-            "app_opens": 50,
+            "entity_id": _make_entity_id({"user_id": 1, "device_id": "mobile"}),
+            "feature_view": "user_device_features",
+            "features": {"app_opens": 50},
             "event_timestamp": now - timedelta(hours=2),
+            "created_at": now - timedelta(hours=2),
         },
         {
-            "user_id": 1,
-            "device_id": "mobile",
-            "app_opens": 55,
+            "entity_id": _make_entity_id({"user_id": 1, "device_id": "mobile"}),
+            "feature_view": "user_device_features",
+            "features": {"app_opens": 55},  # Latest for this entity
             "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
         },
         {
-            "user_id": 1,
-            "device_id": "desktop",
-            "app_opens": 10,
+            "entity_id": _make_entity_id({"user_id": 1, "device_id": "desktop"}),
+            "feature_view": "user_device_features",
+            "features": {"app_opens": 10},
             "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
         },
         {
-            "user_id": 2,
-            "device_id": "mobile",
-            "app_opens": 100,
+            "entity_id": _make_entity_id({"user_id": 2, "device_id": "tablet"}),
+            "feature_view": "user_device_features",
+            "features": {"app_opens": 25},
             "event_timestamp": now - timedelta(hours=1),
-        },
-        {
-            "user_id": 2,
-            "device_id": "tablet",
-            "app_opens": 25,
-            "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
         },
     ]
-    collection.insert_many(docs)
+    collection.insert_many(compound_docs)
     client.close()
 
-    # Create source
-    source = MongoDBSourceMany(
-        name="user_device_features",
-        database="feast_test",
-        collection="user_device_features",
-        timestamp_field="event_timestamp",
-    )
+    source = MongoDBSourceOne(name="user_device_features")
 
-    # Create entities with compound keys
     user_entity = Entity(
         name="user_id", join_keys=["user_id"], value_type=ValueType.INT64
     )
@@ -593,25 +555,26 @@ def test_compound_join_keys(
         ttl=timedelta(days=1),
     )
 
-    # Test pull_latest: should get one row per unique (user_id, device_id) combination
-    job = MongoDBOfflineStoreMany.pull_latest_from_table_or_query(
+    # Test pull_latest: should get one row per unique (user_id, device_id)
+    job = MongoDBOfflineStoreOne.pull_latest_from_table_or_query(
         config=repo_config,
         data_source=source,
         join_key_columns=["user_id", "device_id"],
         feature_name_columns=["app_opens"],
         timestamp_field="event_timestamp",
-        created_timestamp_column=None,
+        created_timestamp_column="created_at",
         start_date=now - timedelta(days=1),
         end_date=now + timedelta(hours=1),
     )
 
     df = job.to_df()
-    assert len(df) == 4  # 4 unique (user_id, device_id) combinations
+    assert len(df) == 3  # 3 unique (user_id, device_id) combinations
 
-    # Verify user 1, mobile got the LATEST value (55, not 50)
-    user1_mobile = df[(df["user_id"] == 1) & (df["device_id"] == "mobile")]
-    assert len(user1_mobile) == 1
-    assert user1_mobile.iloc[0]["app_opens"] == 55
+    # Verify we got the latest value (55) for user 1, mobile
+    app_opens_values = sorted(df["app_opens"].tolist())
+    assert 55 in app_opens_values  # Latest for user 1, mobile
+    assert 10 in app_opens_values  # user 1, desktop
+    assert 25 in app_opens_values  # user 2, tablet
 
     # Test get_historical_features with compound keys
     entity_df = pd.DataFrame(
@@ -622,7 +585,7 @@ def test_compound_join_keys(
         }
     )
 
-    job = MongoDBOfflineStoreMany.get_historical_features(
+    job = MongoDBOfflineStoreOne.get_historical_features(
         config=repo_config,
         feature_views=[fv],
         feature_refs=["user_device_features:app_opens"],

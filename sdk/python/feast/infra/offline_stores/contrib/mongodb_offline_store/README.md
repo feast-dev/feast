@@ -31,7 +31,7 @@ Two MongoDB offline store implementations optimized for different use cases.
 
 ```yaml
 offline_store:
-  type: feast.infra.offline_stores.contrib.mongodb.mongodb_many.MongoDBOfflineStoreMany
+  type: feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_many.MongoDBOfflineStoreMany
   connection_string: mongodb://localhost:27017
   database: feast
 ```
@@ -69,7 +69,7 @@ offline_store:
 
 ```yaml
 offline_store:
-  type: feast.infra.offline_stores.contrib.mongodb.mongodb_one.MongoDBOfflineStoreOne
+  type: feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_one.MongoDBOfflineStoreOne
   connection_string: mongodb://localhost:27017
   database: feast
   collection: feature_history

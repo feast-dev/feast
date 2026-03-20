@@ -34,12 +34,12 @@ from testcontainers.mongodb import MongoDbContainer
 
 from feast import Entity, FeatureView, Field
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.contrib.mongodb.mongodb_many import (
+from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_many import (
     MongoDBOfflineStoreMany,
     MongoDBOfflineStoreManyConfig,
     MongoDBSourceMany,
 )
-from feast.infra.offline_stores.contrib.mongodb.mongodb_one import (
+from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_one import (
     MongoDBOfflineStoreOne,
     MongoDBOfflineStoreOneConfig,
     MongoDBSourceOne,
