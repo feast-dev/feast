@@ -1,5 +1,7 @@
 """
-Performance benchmarks comparing Ibis vs Native MongoDB offline store implementations.
+Performance benchmarks comparing the two MongoDB offline store implementations -
+one Collection with all feature views
+vs. a schema of N collections for N features views.
 
 These tests measure performance across different scaling dimensions:
 1. Row count scaling (entity_df size)
