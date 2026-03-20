@@ -359,6 +359,26 @@ class MongoDBOfflineStoreMany(OfflineStore):
             "MongoDB offline store is in preview. API may change without notice.",
             RuntimeWarning,
         )
+
+        # Ensure index exists for efficient queries
+        if MongoClient is not None:
+            connection_string = config.offline_store.connection_string
+            db_name = data_source.database or config.offline_store.database
+            client: Any = MongoClient(
+                connection_string, driver=DRIVER_METADATA, tz_aware=True
+            )
+            try:
+                _ensure_index_many(
+                    client=client,
+                    db_name=db_name,
+                    collection_name=data_source.collection,
+                    join_keys=join_key_columns,
+                    timestamp_field=timestamp_field,
+                    created_timestamp_column=created_timestamp_column,
+                )
+            finally:
+                client.close()
+
         return pull_latest_from_table_or_query_ibis(
             config=config,
             data_source=data_source,
@@ -473,6 +493,47 @@ def _build_data_source_reader(config: RepoConfig) -> Callable[[DataSource, str],
         return ibis.memtable(df)
 
     return reader
+
+
+# Track which collections have had indexes ensured (module-level cache)
+_indexes_ensured: set = set()
+
+
+def _ensure_index_many(
+    client: Any,
+    db_name: str,
+    collection_name: str,
+    join_keys: List[str],
+    timestamp_field: str,
+    created_timestamp_column: Optional[str] = None,
+) -> None:
+    """Create recommended index on a Many-schema collection.
+
+    Index is on: join_keys (ascending) + timestamp (descending) + created_at (descending).
+    Uses a module-level cache to avoid redundant index creation checks.
+    """
+    cache_key = f"{db_name}.{collection_name}"
+    if cache_key in _indexes_ensured:
+        return
+
+    coll = client[db_name][collection_name]
+
+    # Build index key: join_keys (asc) + timestamp (desc) + created_at (desc)
+    index_keys = [(k, 1) for k in join_keys]
+    index_keys.append((timestamp_field, -1))
+    if created_timestamp_column:
+        index_keys.append((created_timestamp_column, -1))
+
+    # Check if equivalent index already exists
+    existing_indexes = coll.index_information()
+    for idx_info in existing_indexes.values():
+        if idx_info.get("key") == index_keys:
+            _indexes_ensured.add(cache_key)
+            return
+
+    # Create the index
+    coll.create_index(index_keys, background=True)
+    _indexes_ensured.add(cache_key)
 
 
 def _build_data_source_writer(

@@ -145,7 +145,7 @@ db.order_stats.createIndex({
 })
 ```
 
-**Note**: The Many implementation does not auto-create indexes. Create them manually or via a migration script.
+**Note**: The Many implementation auto-creates indexes during `pull_latest_from_table_or_query` (materialization).
 
 ### One (shared collection)
 
