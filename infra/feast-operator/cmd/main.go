@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -41,6 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -185,11 +187,9 @@ func main() {
 		Kind:    "Notebook",
 	}
 	// Validate Notebook CRD availability and skip controller setup if CRD is missing
-	crdExists, err := validateNotebookCRD(mgr.GetConfig(), notebookGVK)
+	crdExists, err := validateNotebookCRD(context.Background(), mgr.GetConfig(), notebookGVK)
 	if err != nil {
 		setupLog.Error(err, "Notebook CRD validation failed for feast specific configmap", "GVK", notebookGVK)
-		// If we can't verify (e.g., permission denied), set up controller anyway
-		// If CRD is confirmed missing, skip controller setup
 		if !crdExists {
 			setupLog.Info("Skipping Notebook ConfigMap controller setup - Notebook CRD not found")
 		} else {
@@ -197,15 +197,23 @@ func main() {
 		}
 	}
 	if crdExists {
-		if err = (&controller.NotebookConfigMapReconciler{
-			Client:      mgr.GetClient(),
-			Scheme:      mgr.GetScheme(),
-			NotebookGVK: notebookGVK,
-		}).SetupWithManager(mgr); err != nil {
+		if err = setupNotebookController(mgr, notebookGVK); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "NotebookConfigMap")
 			os.Exit(1)
 		}
-		setupLog.Info("Notebook ConfigMap controller setup completed successfully")
+	} else {
+		// CRD not found at startup (not an error, just not installed yet).
+		// During DSC deployment the Notebook CRD may be installed after the Feast
+		// operator starts. Poll in the background and trigger a process restart
+		// when the CRD appears so the controller can register during normal startup.
+		// Dynamic controller registration on a running manager is not supported by
+		// controller-runtime v0.18 (cache sync fails for late-added informers).
+		setupLog.Info("Notebook CRD not found at startup, will poll for CRD availability", "GVK", notebookGVK)
+		if addErr := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+			return waitForCRDAndRestart(ctx, mgr.GetConfig(), notebookGVK)
+		})); addErr != nil {
+			setupLog.Error(addErr, "Failed to add CRD watcher runnable")
+		}
 	}
 	// +kubebuilder:scaffold:builder
 
@@ -227,7 +235,7 @@ func main() {
 
 // validateNotebookCRD checks if the Notebook CRD exists in the cluster
 // Returns (crdExists bool, error) where crdExists is true if CRD exists, false if not found or unknown
-func validateNotebookCRD(config *rest.Config, gvk schema.GroupVersionKind) (bool, error) {
+func validateNotebookCRD(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind) (bool, error) {
 	apiextensionsClientset, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
 		return false, fmt.Errorf("failed to create apiextensions client: %w", err)
@@ -240,7 +248,7 @@ func validateNotebookCRD(config *rest.Config, gvk schema.GroupVersionKind) (bool
 	crdName := plural + "." + gvk.Group
 
 	_, err = apiextensionsClientset.ApiextensionsV1().CustomResourceDefinitions().Get(
-		context.Background(),
+		ctx,
 		crdName,
 		metav1.GetOptions{},
 	)
@@ -268,4 +276,48 @@ func validateNotebookCRD(config *rest.Config, gvk schema.GroupVersionKind) (bool
 
 	setupLog.Info("Notebook CRD validated successfully", "CRD", crdName, "GVK", gvk)
 	return true, nil
+}
+
+const crdPollInterval = 5 * time.Second
+
+func setupNotebookController(mgr ctrl.Manager, notebookGVK schema.GroupVersionKind) error {
+	if err := (&controller.NotebookConfigMapReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		NotebookGVK: notebookGVK,
+	}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+	setupLog.Info("Notebook ConfigMap controller setup completed successfully")
+	return nil
+}
+
+// waitForCRDAndRestart polls for the Notebook CRD and exits the process when
+// it becomes available. Kubernetes will restart the pod, and on the next startup
+// the controller registers normally via the standard code path. This avoids
+// dynamically adding controllers to a running manager, which causes cache sync
+// failures in controller-runtime v0.18.
+func waitForCRDAndRestart(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind) error {
+	ticker := time.NewTicker(crdPollInterval)
+	defer ticker.Stop()
+
+	setupLog.Info("Waiting for Notebook CRD to become available...", "GVK", gvk)
+
+	for {
+		select {
+		case <-ctx.Done():
+			setupLog.Info("Context cancelled, stopping CRD watch", "GVK", gvk)
+			return nil
+		case <-ticker.C:
+			crdExists, err := validateNotebookCRD(ctx, config, gvk)
+			if err != nil {
+				setupLog.Error(err, "Failed to check Notebook CRD availability, will retry")
+				continue
+			}
+			if crdExists {
+				setupLog.Info("Notebook CRD detected, restarting operator to initialize Notebook ConfigMap controller", "GVK", gvk)
+				os.Exit(0)
+			}
+		}
+	}
 }
