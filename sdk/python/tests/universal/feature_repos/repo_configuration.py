@@ -108,6 +108,33 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
         ]
     )
 
+# MongoDB offline stores (require testcontainers and pymongo)
+if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False") == "True":
+    try:
+        from tests.universal.feature_repos.universal.data_sources.mongodb import (
+            MongoDBManyDataSourceCreator,
+            # MongoDBOneDataSourceCreator,  # TODO: Not registered - see TODO in mongodb.py
+        )
+
+        AVAILABLE_OFFLINE_STORES.extend(
+            [
+                ("local", MongoDBManyDataSourceCreator),
+                # TODO: MongoDBOneDataSourceCreator requires DataSourceCreator interface
+                # changes to pass entity/join key info. See mongodb.py for details.
+                # ("local", MongoDBOneDataSourceCreator),
+            ]
+        )
+        OFFLINE_STORE_TO_PROVIDER_CONFIG["mongodb_many"] = (
+            "local",
+            MongoDBManyDataSourceCreator,
+        )
+        # OFFLINE_STORE_TO_PROVIDER_CONFIG["mongodb_one"] = (
+        #     "local",
+        #     MongoDBOneDataSourceCreator,
+        # )
+    except ImportError:
+        pass  # pymongo or testcontainers not installed
+
 AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
 ] = {"sqlite": ({"type": "sqlite"}, None)}

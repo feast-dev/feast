@@ -219,7 +219,7 @@ class MongoDBSourceOne(DataSource):
         return DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
-            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native.MongoDBSourceOne",
+            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_one.MongoDBSourceOne",
             field_mapping=self.field_mapping,
             custom_options=DataSourceProto.CustomSourceOptions(
                 configuration=json.dumps({"feature_view": self.name}).encode()
@@ -655,7 +655,12 @@ class MongoDBOfflineStoreOne(OfflineStore):
             """
             # Prepare entity_df: ensure timestamps are UTC
             result = entity_subset_df.copy()
-            if result[event_timestamp_col].dt.tz is None:
+            # Convert timestamp column to datetime if needed
+            if not pd.api.types.is_datetime64_any_dtype(result[event_timestamp_col]):
+                result[event_timestamp_col] = pd.to_datetime(
+                    result[event_timestamp_col], utc=True
+                )
+            elif result[event_timestamp_col].dt.tz is None:
                 result[event_timestamp_col] = pd.to_datetime(
                     result[event_timestamp_col], utc=True
                 )
