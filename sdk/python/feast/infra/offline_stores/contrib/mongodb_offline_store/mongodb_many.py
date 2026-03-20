@@ -12,6 +12,69 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+MongoDB Offline Store Implementation (Many Collections).
+
+This module implements a MongoDB offline store using a many-collection schema
+where each FeatureView maps to its own dedicated MongoDB collection. It uses
+Ibis for point-in-time joins, loading collection data into in-memory tables.
+
+Collection Structure:
+    Each FeatureView has its own collection named after the source:
+        - driver_stats FeatureView → db.driver_stats collection
+        - vehicle_stats FeatureView → db.vehicle_stats collection
+
+Collection Index (auto-created during materialization):
+    db.<collection>.createIndex({
+        "<join_key_1>": 1,
+        "<join_key_2>": 1,  // if compound key
+        "event_timestamp": -1,
+        "created_at": -1    // if created_timestamp_column is set
+    })
+
+Document Schema (example for driver_stats):
+    {
+        "_id": ObjectId(),
+        "driver_id": 1001,
+        "event_timestamp": ISODate("2026-01-20T12:00:00Z"),
+        "created_at": ISODate("2026-01-20T12:00:05Z"),
+        "rating": 4.91,
+        "trips_last_7d": 132
+    }
+
+    Note: Features are stored as top-level fields (flat schema), not nested
+    in a subdocument. This differs from the "One" implementation.
+
+Point-in-Time Join Strategy:
+    1. Load entire collection into an Ibis memtable
+    2. Load entity_df into an Ibis memtable
+    3. Use Ibis/pandas merge_asof for point-in-time correctness
+    4. Apply TTL filtering per FeatureView
+
+Performance Characteristics:
+    - Fast for small to medium collections (fits in memory)
+    - Optimized Ibis memtable operations for joins
+    - ⚠️ Loads ENTIRE collection into memory - may OOM on large collections
+
+When to Use:
+    ✅ Small to medium feature stores where collections fit in memory
+    ✅ When query performance is the priority
+    ✅ When you want simple, flat document schemas
+    ✅ When each FeatureView has independent scaling needs
+
+    ❌ Avoid when collections are very large (use MongoDBOfflineStoreOne instead)
+    ❌ Avoid in memory-constrained environments
+
+Comparison with MongoDBOfflineStoreOne:
+    | Aspect          | Many (this module)    | One                   |
+    |-----------------|----------------------|------------------------|
+    | Collections     | N (one per FV)       | 1 (shared)            |
+    | Schema          | Flat top-level       | Nested features{}     |
+    | Memory          | Loads all docs       | Filters by entity     |
+    | Performance     | Faster at scale      | Memory-efficient      |
+    | Entity ID       | Native columns       | Serialized bytes      |
+"""
+
 import json
 import warnings
 from datetime import datetime
