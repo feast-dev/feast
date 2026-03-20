@@ -22,10 +22,13 @@ Two MongoDB offline store implementations optimized for different use cases.
 {
   "driver_id": 1001,
   "event_timestamp": ISODate("2024-01-15T10:00:00Z"),
+  "created_at": ISODate("2024-01-15T10:00:01Z"),  // Optional tie-breaker
   "trips_today": 5,
   "rating": 4.8
 }
 ```
+
+Ties (same `event_timestamp`) are broken by `created_timestamp_column` if configured.
 
 ### Configuration
 
