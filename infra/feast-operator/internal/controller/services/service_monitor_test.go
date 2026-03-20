@@ -110,35 +110,34 @@ var _ = Describe("ServiceMonitor", func() {
 		})
 	})
 
-	Describe("setServiceMonitor", func() {
-		It("should populate the ServiceMonitor spec with correct selector and endpoint", func() {
-			sm := feast.initServiceMonitor()
-			Expect(feast.setServiceMonitor(sm)).To(Succeed())
+	Describe("buildServiceMonitorApplyConfig", func() {
+		It("should build the correct SSA payload with labels, endpoints, selector, and owner reference", func() {
+			sm := feast.buildServiceMonitorApplyConfig()
 
-			labels := sm.GetLabels()
-			Expect(labels).To(HaveKeyWithValue(NameLabelKey, featureStore.Name))
-			Expect(labels).To(HaveKeyWithValue(ServiceTypeLabelKey, string(OnlineFeastType)))
+			Expect(*sm.APIVersion).To(Equal("monitoring.coreos.com/v1"))
+			Expect(*sm.Kind).To(Equal("ServiceMonitor"))
+			Expect(*sm.Name).To(Equal(feast.GetFeastServiceName(OnlineFeastType)))
+			Expect(*sm.Namespace).To(Equal(featureStore.Namespace))
 
-			spec, ok := sm.Object["spec"].(map[string]interface{})
-			Expect(ok).To(BeTrue())
+			Expect(sm.Labels).To(HaveKeyWithValue(NameLabelKey, featureStore.Name))
+			Expect(sm.Labels).To(HaveKeyWithValue(ServiceTypeLabelKey, string(OnlineFeastType)))
 
-			endpoints, ok := spec["endpoints"].([]interface{})
-			Expect(ok).To(BeTrue())
-			Expect(endpoints).To(HaveLen(1))
-			ep := endpoints[0].(map[string]interface{})
-			Expect(ep["port"]).To(Equal("metrics"))
-			Expect(ep["path"]).To(Equal("/metrics"))
+			Expect(sm.OwnerReferences).To(HaveLen(1))
+			ownerRef := sm.OwnerReferences[0]
+			Expect(*ownerRef.APIVersion).To(Equal(feastdevv1.GroupVersion.String()))
+			Expect(*ownerRef.Kind).To(Equal("FeatureStore"))
+			Expect(*ownerRef.Name).To(Equal(featureStore.Name))
+			Expect(*ownerRef.Controller).To(BeTrue())
+			Expect(*ownerRef.BlockOwnerDeletion).To(BeTrue())
 
-			selector, ok := spec["selector"].(map[string]interface{})
-			Expect(ok).To(BeTrue())
-			matchLabels := selector["matchLabels"].(map[string]interface{})
-			Expect(matchLabels[NameLabelKey]).To(Equal(featureStore.Name))
-			Expect(matchLabels[ServiceTypeLabelKey]).To(Equal(string(OnlineFeastType)))
+			Expect(sm.Spec).NotTo(BeNil())
+			Expect(sm.Spec.Endpoints).To(HaveLen(1))
+			Expect(*sm.Spec.Endpoints[0].Port).To(Equal("metrics"))
+			Expect(*sm.Spec.Endpoints[0].Path).To(Equal("/metrics"))
 
-			ownerRefs := sm.GetOwnerReferences()
-			Expect(ownerRefs).To(HaveLen(1))
-			Expect(ownerRefs[0].Name).To(Equal(featureStore.Name))
-			Expect(*ownerRefs[0].Controller).To(BeTrue())
+			Expect(sm.Spec.Selector).NotTo(BeNil())
+			Expect(sm.Spec.Selector.MatchLabels).To(HaveKeyWithValue(NameLabelKey, featureStore.Name))
+			Expect(sm.Spec.Selector.MatchLabels).To(HaveKeyWithValue(ServiceTypeLabelKey, string(OnlineFeastType)))
 		})
 	})
 

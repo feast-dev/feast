@@ -20405,7 +20405,7 @@ rules:
   - delete
   - get
   - list
-  - update
+  - patch
   - watch
 - apiGroups:
   - policy

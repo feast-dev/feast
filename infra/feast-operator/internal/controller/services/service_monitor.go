@@ -17,9 +17,15 @@ limitations under the License.
 package services
 
 import (
+	"encoding/json"
+
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
+	monitoringv1apply "github.com/prometheus-operator/prometheus-operator/pkg/client/applyconfiguration/monitoring/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"k8s.io/apimachinery/pkg/types"
+	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -30,32 +36,38 @@ var serviceMonitorGVK = schema.GroupVersionKind{
 }
 
 // createOrDeleteServiceMonitor reconciles the ServiceMonitor for the
-// FeatureStore's online store metrics endpoint. When the Prometheus Operator
-// CRD is not present in the cluster, this is a no-op. When metrics are enabled
-// on the online store, a ServiceMonitor is created; otherwise any existing
-// ServiceMonitor is deleted.
+// FeatureStore's online store metrics endpoint using Server-Side Apply.
+// When the Prometheus Operator CRD is not present in the cluster, this is
+// a no-op. When metrics are enabled on the online store, a ServiceMonitor
+// is applied; otherwise any existing ServiceMonitor is deleted.
 func (feast *FeastServices) createOrDeleteServiceMonitor() error {
 	if !hasServiceMonitorCRD {
 		return nil
 	}
 
 	if feast.isOnlineStore() && feast.isMetricsEnabled(OnlineFeastType) {
-		return feast.createServiceMonitor()
+		return feast.applyServiceMonitor()
 	}
 
 	return feast.deleteServiceMonitor()
 }
 
-func (feast *FeastServices) createServiceMonitor() error {
-	logger := log.FromContext(feast.Handler.Context)
-	sm := feast.initServiceMonitor()
-	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, sm, controllerutil.MutateFn(func() error {
-		return feast.setServiceMonitor(sm)
-	})); err != nil {
+func (feast *FeastServices) applyServiceMonitor() error {
+	smApply := feast.buildServiceMonitorApplyConfig()
+	data, err := json.Marshal(smApply)
+	if err != nil {
 		return err
-	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
-		logger.Info("Successfully reconciled", "ServiceMonitor", sm.GetName(), "operation", op)
 	}
+
+	sm := feast.initServiceMonitor()
+	logger := log.FromContext(feast.Handler.Context)
+	if err := feast.Handler.Client.Patch(feast.Handler.Context, sm,
+		client.RawPatch(types.ApplyPatchType, data),
+		client.FieldOwner(fieldManager), client.ForceOwnership); err != nil {
+		return err
+	}
+	logger.Info("Successfully applied", "ServiceMonitor", sm.GetName())
+
 	return nil
 }
 
@@ -72,25 +84,34 @@ func (feast *FeastServices) initServiceMonitor() *unstructured.Unstructured {
 	return sm
 }
 
-func (feast *FeastServices) setServiceMonitor(sm *unstructured.Unstructured) error {
+// buildServiceMonitorApplyConfig constructs the fully desired ServiceMonitor
+// state for Server-Side Apply.
+func (feast *FeastServices) buildServiceMonitorApplyConfig() *monitoringv1apply.ServiceMonitorApplyConfiguration {
 	cr := feast.Handler.FeatureStore
+	objMeta := feast.GetObjectMetaType(OnlineFeastType)
 
-	sm.SetLabels(feast.getFeastTypeLabels(OnlineFeastType))
-
-	sm.Object["spec"] = map[string]interface{}{
-		"endpoints": []interface{}{
-			map[string]interface{}{
-				"port": "metrics",
-				"path": "/metrics",
-			},
-		},
-		"selector": map[string]interface{}{
-			"matchLabels": map[string]interface{}{
-				NameLabelKey:        cr.Name,
-				ServiceTypeLabelKey: string(OnlineFeastType),
-			},
-		},
-	}
-
-	return controllerutil.SetControllerReference(cr, sm, feast.Handler.Scheme)
+	return monitoringv1apply.ServiceMonitor(objMeta.Name, objMeta.Namespace).
+		WithLabels(feast.getFeastTypeLabels(OnlineFeastType)).
+		WithOwnerReferences(
+			metav1apply.OwnerReference().
+				WithAPIVersion(feastdevv1.GroupVersion.String()).
+				WithKind("FeatureStore").
+				WithName(cr.Name).
+				WithUID(cr.UID).
+				WithController(true).
+				WithBlockOwnerDeletion(true),
+		).
+		WithSpec(monitoringv1apply.ServiceMonitorSpec().
+			WithEndpoints(
+				monitoringv1apply.Endpoint().
+					WithPort("metrics").
+					WithPath("/metrics"),
+			).
+			WithSelector(metav1apply.LabelSelector().
+				WithMatchLabels(map[string]string{
+					NameLabelKey:        cr.Name,
+					ServiceTypeLabelKey: string(OnlineFeastType),
+				}),
+			),
+		)
 }
