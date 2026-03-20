@@ -69,6 +69,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             "database": "test",
             "vector_enabled": True,
             "port": self.container.get_exposed_port(5432),
+            "sslmode": "disable",
         }
 
     def teardown(self):
