@@ -2,8 +2,9 @@ import requests
 
 
 class OIDCDiscoveryService:
-    def __init__(self, discovery_url: str):
+    def __init__(self, discovery_url: str, verify_ssl: bool = True):
         self.discovery_url = discovery_url
+        self._verify_ssl = verify_ssl
         self._discovery_data = None  # Initialize it lazily.
 
     @property
@@ -15,7 +16,7 @@ class OIDCDiscoveryService:
 
     def _fetch_discovery_data(self) -> dict:
         try:
-            response = requests.get(self.discovery_url)
+            response = requests.get(self.discovery_url, verify=self._verify_ssl)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:

@@ -1,5 +1,6 @@
 import logging
 import os
+import ssl
 from typing import Optional
 from unittest.mock import Mock
 
@@ -40,7 +41,8 @@ class OidcTokenParser(TokenParser):
         self._auth_config = auth_config
         self._k8s_parser = k8s_parser
         self.oidc_discovery_service = OIDCDiscoveryService(
-            self._auth_config.auth_discovery_url
+            self._auth_config.auth_discovery_url,
+            verify_ssl=self._auth_config.verify_ssl,
         )
 
     async def _validate_token(self, access_token: str):
@@ -91,8 +93,14 @@ class OidcTokenParser(TokenParser):
     def _decode_token(self, access_token: str) -> dict:
         """Fetch the JWKS signing key and decode + verify the JWT."""
         optional_custom_headers = {"User-agent": "custom-user-agent"}
+        ssl_ctx = ssl.create_default_context()
+        if not self._auth_config.verify_ssl:
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
         jwks_client = PyJWKClient(
-            self.oidc_discovery_service.get_jwks_url(), headers=optional_custom_headers
+            self.oidc_discovery_service.get_jwks_url(),
+            headers=optional_custom_headers,
+            ssl_context=ssl_ctx,
         )
         signing_key = jwks_client.get_signing_key_from_jwt(access_token)
         return jwt.decode(

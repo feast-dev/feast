@@ -36,6 +36,7 @@ class AuthConfig(FeastConfigBaseModel):
 class OidcAuthConfig(AuthConfig):
     auth_discovery_url: str
     client_id: str
+    verify_ssl: bool = True
 
 
 class OidcClientAuthConfig(OidcAuthConfig):

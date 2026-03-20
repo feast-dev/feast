@@ -69,7 +69,8 @@ class OidcAuthClientManager(AuthenticationClientManager):
         """Obtain an access token via client_credentials or ROPG flow."""
         assert self.auth_config.auth_discovery_url is not None
         token_endpoint = OIDCDiscoveryService(
-            self.auth_config.auth_discovery_url
+            self.auth_config.auth_discovery_url,
+            verify_ssl=self.auth_config.verify_ssl,
         ).get_token_url()
 
         if self.auth_config.client_secret and not (
@@ -91,7 +92,10 @@ class OidcAuthClientManager(AuthenticationClientManager):
 
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         token_response = requests.post(
-            token_endpoint, data=token_request_body, headers=headers
+            token_endpoint,
+            data=token_request_body,
+            headers=headers,
+            verify=self.auth_config.verify_ssl,
         )
 
         if token_response.status_code == 200:
