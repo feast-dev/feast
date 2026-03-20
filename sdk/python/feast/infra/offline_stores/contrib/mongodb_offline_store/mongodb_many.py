@@ -45,6 +45,43 @@ Document Schema (example for driver_stats):
     Note: Features are stored as top-level fields (flat schema), not nested
     in a subdocument. This differs from the "One" implementation.
 
+Feature Freshness Semantics:
+    This implementation operates at *document-level freshness*, not
+    per-feature freshness. During retrieval (e.g. point-in-time joins),
+    the system selects the most recent document for a given entity that
+    satisfies time constraints, and then extracts all requested features
+    from that document.
+
+    As a result, if a newer document contains only a subset of features,
+    missing features will be returned as NULL—even if older documents
+    contained values for those features. The system does not backfill
+    individual feature values from earlier events.
+
+    This behavior matches common Feast offline store semantics, but may
+    differ from systems that compute "latest value per feature".
+
+Schema Evolution ("Feature Creep"):
+    Because documents can have varying fields over time, different documents
+    in the same collection may contain different sets of feature fields.
+    This supports:
+        - Adding new features without backfilling historical data
+        - Partial writes or sparse feature computation
+
+    However, it also implies:
+        - Newly added features will be NULL for older events
+        - Partially populated documents may lead to NULL values even
+          when older data contained those features
+
+    Users should ensure that feature computation pipelines write complete
+    feature sets when consistent availability is required.
+
+Notes:
+    - Entity keys are stored as native MongoDB types (not serialized),
+      which differs from the "One" implementation.
+    - Point-in-time correctness is enforced per FeatureView.
+    - TTL (time-to-live) constraints are applied per FeatureView during
+      historical retrieval.
+
 Point-in-Time Join Strategy:
     1. Load entire collection into an Ibis memtable
     2. Load entity_df into an Ibis memtable
