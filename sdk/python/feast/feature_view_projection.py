@@ -74,6 +74,9 @@ class FeatureViewProjection:
         for feature in self.features:
             feature_reference_proto.feature_columns.append(feature.to_proto())
 
+        if self.version_tag is not None:
+            feature_reference_proto.version_tag = self.version_tag
+
         return feature_reference_proto
 
     @staticmethod
@@ -96,6 +99,9 @@ class FeatureViewProjection:
         )
         for feature_column in proto.feature_columns:
             feature_view_projection.features.append(Field.from_proto(feature_column))
+
+        if proto.version_tag > 0:
+            feature_view_projection.version_tag = proto.version_tag
 
         return feature_view_projection
 

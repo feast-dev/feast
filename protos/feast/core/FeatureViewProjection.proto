@@ -32,4 +32,7 @@ message FeatureViewProjection {
   // Streaming DataSource from where this view can consume "online" feature data.
   DataSource stream_source = 9;
 
+  // Optional version tag for version-qualified feature references (e.g., @v2).
+  int32 version_tag = 10;
+
 }

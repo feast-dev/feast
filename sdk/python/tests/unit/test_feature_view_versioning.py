@@ -440,7 +440,10 @@ class TestTableId:
             ttl=timedelta(days=1),
         )
         fv.current_version_number = 1
-        assert _table_id("my_project", fv) == "my_project_test_fv_v1"
+        assert (
+            _table_id("my_project", fv, enable_versioning=True)
+            == "my_project_test_fv_v1"
+        )
 
     def test_v5_with_suffix(self):
         from datetime import timedelta
@@ -456,7 +459,10 @@ class TestTableId:
             ttl=timedelta(days=1),
         )
         fv.current_version_number = 5
-        assert _table_id("my_project", fv) == "my_project_test_fv_v5"
+        assert (
+            _table_id("my_project", fv, enable_versioning=True)
+            == "my_project_test_fv_v5"
+        )
 
 
 class TestValidateFeatureRefsVersioned:

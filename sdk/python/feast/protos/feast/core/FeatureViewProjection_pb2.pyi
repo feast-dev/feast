@@ -49,6 +49,7 @@ class FeatureViewProjection(google.protobuf.message.Message):
     CREATED_TIMESTAMP_COLUMN_FIELD_NUMBER: builtins.int
     BATCH_SOURCE_FIELD_NUMBER: builtins.int
     STREAM_SOURCE_FIELD_NUMBER: builtins.int
+    VERSION_TAG_FIELD_NUMBER: builtins.int
     feature_view_name: builtins.str
     """The feature view name"""
     feature_view_name_alias: builtins.str
@@ -68,6 +69,8 @@ class FeatureViewProjection(google.protobuf.message.Message):
     @property
     def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Streaming DataSource from where this view can consume "online" feature data."""
+    version_tag: builtins.int
+    """Optional version tag for version-qualified feature references (e.g., @v2)."""
     def __init__(
         self,
         *,
@@ -80,8 +83,9 @@ class FeatureViewProjection(google.protobuf.message.Message):
         created_timestamp_column: builtins.str = ...,
         batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
         stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
+        version_tag: builtins.int = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "stream_source", b"stream_source"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "created_timestamp_column", b"created_timestamp_column", "date_partition_column", b"date_partition_column", "feature_columns", b"feature_columns", "feature_view_name", b"feature_view_name", "feature_view_name_alias", b"feature_view_name_alias", "join_key_map", b"join_key_map", "stream_source", b"stream_source", "timestamp_field", b"timestamp_field"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "created_timestamp_column", b"created_timestamp_column", "date_partition_column", b"date_partition_column", "feature_columns", b"feature_columns", "feature_view_name", b"feature_view_name", "feature_view_name_alias", b"feature_view_name_alias", "join_key_map", b"join_key_map", "stream_source", b"stream_source", "timestamp_field", b"timestamp_field", "version_tag", b"version_tag"]) -> None: ...
 
 global___FeatureViewProjection = FeatureViewProjection

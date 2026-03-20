@@ -1237,17 +1237,6 @@ def _get_features(
 
         # Build feature reference list
         for projection in feature_service_from_registry.feature_view_projections:
-            if getattr(registry, "enable_online_versioning", False):
-                try:
-                    fv = registry.get_any_feature_view(
-                        projection.name, project, allow_cache
-                    )
-                    ver = getattr(fv, "current_version_number", None)
-                    if ver is not None and ver > 0:
-                        projection = copy.copy(projection)
-                        projection.version_tag = ver
-                except Exception:
-                    pass
             _feature_refs.extend(
                 [f"{projection.name_to_use()}:{f.name}" for f in projection.features]
             )
@@ -1333,28 +1322,6 @@ def _get_feature_views_to_use(
                 fv.projection.version_tag = version_num
         else:
             fv = registry.get_any_feature_view(name, project, allow_cache)
-            # Gate: feature services must not resolve to versioned FVs when online versioning is off
-            cur_ver: Optional[int] = getattr(fv, "current_version_number", None)
-            if (
-                isinstance(features, FeatureService)
-                and cur_ver is not None
-                and cur_ver > 0
-                and not getattr(registry, "enable_online_versioning", False)
-            ):
-                raise ValueError(
-                    f"Feature service references feature view '{name}' which is at version "
-                    f"v{cur_ver}, but online versioning is disabled. "
-                    f"Set 'enable_online_feature_view_versioning: true' under 'registry' "
-                    f"in feature_store.yaml."
-                )
-            # For FeatureService refs: resolve the active version when online versioning is on
-            if (
-                isinstance(features, FeatureService)
-                and cur_ver is not None
-                and cur_ver > 0
-                and getattr(registry, "enable_online_versioning", False)
-            ):
-                version_num = cur_ver
 
         if isinstance(fv, OnDemandFeatureView):
             od_fvs_to_use.append(

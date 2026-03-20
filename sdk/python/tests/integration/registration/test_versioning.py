@@ -994,10 +994,10 @@ class TestFeatureServiceVersioningGates:
             )
         )
 
-    def test_feature_service_apply_fails_with_versioned_fv_when_flag_off(
+    def test_feature_service_apply_succeeds_with_versioned_fv_when_flag_off(
         self, versioned_fv_and_entity
     ):
-        """Apply a feature service referencing a versioned FV with flag off -> ValueError."""
+        """Apply a feature service referencing a versioned FV with flag off -> succeeds."""
         entity, fv_v0, fv_v1 = versioned_fv_and_entity
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1012,9 +1012,7 @@ class TestFeatureServiceVersioningGates:
                 name="driver_service",
                 features=[fv_v1],
             )
-
-            with pytest.raises(ValueError, match="version v1"):
-                store.apply([fs])
+            store.apply([fs])  # Should not raise
 
     def test_feature_service_apply_succeeds_with_versioned_fv_when_flag_on(
         self, versioned_fv_and_entity
@@ -1036,10 +1034,10 @@ class TestFeatureServiceVersioningGates:
             )
             store.apply([fs])  # Should not raise
 
-    def test_feature_service_retrieval_fails_with_versioned_fv_when_flag_off(
+    def test_feature_service_retrieval_succeeds_with_versioned_fv_when_flag_off(
         self, versioned_fv_and_entity
     ):
-        """get_online_features with a feature service referencing a versioned FV, flag off -> ValueError."""
+        """get_online_features with a feature service referencing a versioned FV, flag off -> succeeds."""
         entity, fv_v0, fv_v1 = versioned_fv_and_entity
         from feast.utils import _get_feature_views_to_use
 
@@ -1060,14 +1058,15 @@ class TestFeatureServiceVersioningGates:
                 "driver_service", "test_project"
             )
 
-            with pytest.raises(ValueError, match="online versioning is disabled"):
-                _get_feature_views_to_use(
-                    registry=store_off.registry,
-                    project="test_project",
-                    features=registered_fs,
-                    allow_cache=False,
-                    hide_dummy_entity=False,
-                )
+            fvs, _ = _get_feature_views_to_use(
+                registry=store_off.registry,
+                project="test_project",
+                features=registered_fs,
+                allow_cache=False,
+                hide_dummy_entity=False,
+            )
+
+            assert len(fvs) == 1
 
     def test_feature_service_with_unversioned_fv_succeeds(
         self, unversioned_fv_and_entity
@@ -1088,7 +1087,8 @@ class TestFeatureServiceVersioningGates:
     def test_feature_service_serves_versioned_fv_when_flag_on(
         self, versioned_fv_and_entity
     ):
-        """With online versioning on, FeatureService projections carry the correct version_tag."""
+        """With online versioning on, FeatureService projections do not carry version_tag;
+        the FV in the registry carries current_version_number."""
         from feast.utils import _get_feature_views_to_use
 
         entity, fv_v0, fv_v1 = versioned_fv_and_entity
@@ -1121,13 +1121,19 @@ class TestFeatureServiceVersioningGates:
             )
 
             assert len(fvs) == 1
-            assert fvs[0].projection.version_tag == 1
-            assert fvs[0].projection.name_to_use() == "driver_stats@v1"
+            assert fvs[0].projection.version_tag is None
+            assert fvs[0].projection.name_to_use() == "driver_stats"
 
-    def test_feature_service_feature_refs_include_version_when_flag_on(
+            # Verify the FV in the registry has the correct version
+            fv_from_registry = store.registry.get_feature_view(
+                "driver_stats", "test_project"
+            )
+            assert fv_from_registry.current_version_number == 1
+
+    def test_feature_service_feature_refs_are_plain_when_flag_on(
         self, versioned_fv_and_entity
     ):
-        """With online versioning on, _get_features() produces version-qualified refs."""
+        """With online versioning on, _get_features() produces plain (non-versioned) refs for FeatureService."""
         from feast.utils import _get_features
 
         entity, fv_v0, fv_v1 = versioned_fv_and_entity
@@ -1158,9 +1164,44 @@ class TestFeatureServiceVersioningGates:
                 allow_cache=False,
             )
 
-            # All refs should be version-qualified
+            # Refs should be plain (no version qualifier)
             for ref in refs:
-                assert "@v1:" in ref, f"Expected version-qualified ref, got: {ref}"
+                assert "@v" not in ref, f"Expected plain ref, got: {ref}"
 
             # Check specific ref format
-            assert "driver_stats@v1:trips_today" in refs
+            assert "driver_stats:trips_today" in refs
+
+    def test_unpin_from_versioned_to_latest(self, versioned_fv_and_entity):
+        """Pin a FV to v1, then apply with version='latest' (no schema change) -> unpinned."""
+        entity, fv_v0, fv_v1 = versioned_fv_and_entity
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = self._make_store(tmpdir, enable_versioning=True)
+
+            # Apply v0 then v1 to create version history (v1 has schema change)
+            store.apply([entity, fv_v0])
+            store.apply([entity, fv_v1])
+
+            # Verify it's pinned to v1
+            reloaded = store.registry.get_feature_view("driver_stats", "test_project")
+            assert reloaded.current_version_number == 1
+
+            # Now re-apply the same schema with version="latest" to unpin
+            fv_latest = FeatureView(
+                name="driver_stats",
+                entities=[entity],
+                ttl=timedelta(days=1),
+                schema=[
+                    Field(name="driver_id", dtype=Int64),
+                    Field(name="trips_today", dtype=Int64),
+                    Field(name="avg_rating", dtype=Float32),
+                ],
+                version="latest",
+                description="v1",
+            )
+            store.apply([entity, fv_latest])
+
+            # Reload and verify unpinned
+            reloaded = store.registry.get_feature_view("driver_stats", "test_project")
+            assert reloaded.current_version_number is None
+            assert reloaded.version == "latest"
