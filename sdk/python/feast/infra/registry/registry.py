@@ -601,18 +601,21 @@ class Registry(BaseRegistry):
                 updated_fv.stream_source.to_proto()
             )
 
-        # Update version number if set (forward declaration / pin)
-        if (
-            hasattr(existing_proto.meta, "current_version_number")
-            and hasattr(updated_fv, "current_version_number")
-            and updated_fv.current_version_number is not None
+        # Update or clear version pin
+        if hasattr(existing_proto.meta, "current_version_number") and hasattr(
+            updated_fv, "current_version_number"
         ):
-            existing_proto.meta.current_version_number = (
-                updated_fv.current_version_number
-            )
+            if updated_fv.current_version_number is not None:
+                existing_proto.meta.current_version_number = (
+                    updated_fv.current_version_number
+                )
+            else:
+                # Unpin: reset to proto default (0).
+                # from_proto interprets cvn=0 with spec.version="latest" as None.
+                existing_proto.meta.current_version_number = 0
 
         # Update timestamp
-        existing_proto.meta.last_updated_timestamp.FromDatetime(datetime.utcnow())
+        existing_proto.meta.last_updated_timestamp.FromDatetime(_utc_now())
 
     def _save_version_record(
         self,
