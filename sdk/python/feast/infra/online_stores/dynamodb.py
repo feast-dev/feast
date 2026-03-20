@@ -306,15 +306,16 @@ class DynamoDBOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         # Table operations (describe, create, delete) are NOT supported by DAX.
-        # Always use regular DynamoDB client for table management.
-        dynamodb_client = self._get_dynamodb_client(
+        # Create fresh non-DAX clients directly (don't use cached _get_dynamodb_* methods
+        # as those may cache DAX clients for data operations).
+        dynamodb_client = _initialize_dynamodb_client(
             online_config.region,
             online_config.endpoint_url,
             online_config.session_based_auth,
             use_dax=False,
             dax_endpoint=None,
         )
-        dynamodb_resource = self._get_dynamodb_resource(
+        dynamodb_resource = _initialize_dynamodb_resource(
             online_config.region,
             online_config.endpoint_url,
             online_config.session_based_auth,
@@ -411,8 +412,9 @@ class DynamoDBOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         # Table operations (delete) are NOT supported by DAX.
-        # Always use regular DynamoDB client for table management.
-        dynamodb_resource = self._get_dynamodb_resource(
+        # Create fresh non-DAX client directly (don't use cached _get_dynamodb_resource
+        # as it may cache DAX client for data operations).
+        dynamodb_resource = _initialize_dynamodb_resource(
             online_config.region,
             online_config.endpoint_url,
             online_config.session_based_auth,
