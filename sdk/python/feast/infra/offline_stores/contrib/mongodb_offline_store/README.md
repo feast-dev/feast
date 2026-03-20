@@ -128,16 +128,31 @@ Benchmarks with 10 features, 3 historical rows per entity:
 
 ### Many (per-collection)
 
+Each collection should have an index on the join keys + timestamp:
+
 ```javascript
-db.driver_stats.createIndex({ "driver_id": 1, "event_timestamp": -1 })
+// For a FeatureView with join key "driver_id"
+db.driver_stats.createIndex({
+  "driver_id": 1,           // Join key(s)
+  "event_timestamp": -1
+})
+
+// For a FeatureView with compound join keys
+db.order_stats.createIndex({
+  "customer_id": 1,
+  "order_id": 1,
+  "event_timestamp": -1
+})
 ```
+
+**Note**: The Many implementation does not auto-create indexes. Create them manually or via a migration script.
 
 ### One (shared collection)
 
 ```javascript
 db.feature_history.createIndex({
   "entity_id": 1,
-  "feature_view": 1, 
+  "feature_view": 1,
   "event_timestamp": -1
 })
 ```
