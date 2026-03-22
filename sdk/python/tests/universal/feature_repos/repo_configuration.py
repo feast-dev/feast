@@ -193,6 +193,9 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
     from tests.universal.feature_repos.universal.online_store.milvus import (
         MilvusOnlineStoreCreator,
     )
+    from tests.universal.feature_repos.universal.online_store.postgres import (
+        PGVectorOnlineStoreCreator,
+    )
     from tests.universal.feature_repos.universal.online_store.redis import (
         RedisOnlineStoreCreator,
     )
@@ -206,6 +209,10 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
         "datastore": ("datastore", DatastoreOnlineStoreCreator),
         "bigtable": ("bigtable", BigtableOnlineStoreCreator),
     }
+    AVAILABLE_ONLINE_STORES["pgvector"] = (
+        {"type": "postgres", "vector_enabled": True, "sslmode": "disable"},
+        PGVectorOnlineStoreCreator,
+    )
 
     for key, replacement in replacements.items():
         if key in AVAILABLE_ONLINE_STORES:
