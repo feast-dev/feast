@@ -24,7 +24,13 @@ from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.feature_server import get_app
 from feast.online_response import OnlineResponse
-from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
+from feast.protos.feast.serving.ServingService_pb2 import (
+    FeatureList,
+    FieldStatus,
+    GetOnlineFeaturesResponse,
+    GetOnlineFeaturesResponseMetadata,
+)
+from feast.protos.feast.types.Value_pb2 import Value
 from feast.utils import _utc_now
 from tests.foo_provider import FooProvider
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
@@ -664,3 +670,82 @@ def load_artifacts(app: FastAPI):
     assert lookup_tables["sentiment_labels"]["LABEL_1"] == "neutral"
     assert lookup_tables["sentiment_labels"]["LABEL_2"] == "positive"
     assert lookup_tables["emoji_sentiment"]["😊"] == "positive"
+
+
+def _build_online_response_with_features():
+    """Build a GetOnlineFeaturesResponse with real feature data."""
+    feature_names = ["driver_id", "driver_lat", "driver_long"]
+    proto = GetOnlineFeaturesResponse(
+        metadata=GetOnlineFeaturesResponseMetadata(
+            feature_names=FeatureList(val=feature_names),
+        ),
+        results=[
+            GetOnlineFeaturesResponse.FeatureVector(
+                values=[Value(int64_val=123)],
+                statuses=[FieldStatus.PRESENT],
+            ),
+            GetOnlineFeaturesResponse.FeatureVector(
+                values=[Value(double_val=42.0)],
+                statuses=[FieldStatus.PRESENT],
+            ),
+            GetOnlineFeaturesResponse.FeatureVector(
+                values=[Value(double_val=-73.5)],
+                statuses=[FieldStatus.PRESENT],
+            ),
+        ],
+        status=True,
+    )
+    return OnlineResponse(proto)
+
+
+@pytest.mark.parametrize("async_online_read", [True, False])
+def test_get_online_features_non_empty_response(async_online_read, mock_fs_factory):
+    """Non-empty responses must pass FastAPI response_model validation (no 500)."""
+    fs = mock_fs_factory(online_read=async_online_read)
+    response_obj = _build_online_response_with_features()
+    fs.get_online_features = MagicMock(return_value=response_obj)
+    fs.get_online_features_async = AsyncMock(return_value=response_obj)
+
+    client = TestClient(get_app(fs))
+    resp = client.post("/get-online-features", json=get_online_features_body())
+    assert resp.status_code == 200
+
+    body = resp.json()
+    assert body["metadata"]["feature_names"] == [
+        "driver_id",
+        "driver_lat",
+        "driver_long",
+    ]
+    assert len(body["results"]) == 3
+    assert body["results"][0]["values"] == [123]
+    assert body["results"][0]["statuses"] == ["PRESENT"]
+
+
+def test_metadata_model_accepts_raw_proto_dict():
+    """OnlineFeaturesMetadataResponse must accept the un-patched MessageToDict
+    format where feature_names is ``{"val": [...]}}`` instead of a flat list."""
+    from feast.feature_server import (
+        OnlineFeaturesMetadataResponse,
+        OnlineFeaturesResponse,
+    )
+
+    meta = OnlineFeaturesMetadataResponse.model_validate(
+        {"feature_names": {"val": ["feat_a", "feat_b"]}}
+    )
+    assert meta.feature_names == ["feat_a", "feat_b"]
+
+    meta_flat = OnlineFeaturesMetadataResponse.model_validate(
+        {"feature_names": ["feat_a", "feat_b"]}
+    )
+    assert meta_flat.feature_names == ["feat_a", "feat_b"]
+
+    full = OnlineFeaturesResponse.model_validate(
+        {
+            "metadata": {"feature_names": {"val": ["x", "y"]}},
+            "results": [
+                {"values": [1], "statuses": ["PRESENT"], "event_timestamps": []}
+            ],
+        }
+    )
+    assert full.metadata is not None
+    assert full.metadata.feature_names == ["x", "y"]
