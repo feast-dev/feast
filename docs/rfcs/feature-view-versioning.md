@@ -364,6 +364,60 @@ If two concurrent applies both try to forward-declare the same version:
 - For single-developer or CI/CD workflows, the file registry works fine.
 - For multi-client environments with concurrent applies, use the SQL registry for proper conflict detection.
 
+## Staged Publishing (`--no-promote`)
+
+By default, `feast apply` atomically saves a version snapshot **and** promotes it to the active definition. This works well for additive changes, but for breaking schema changes you may want to stage the new version without disrupting unversioned consumers.
+
+### The Problem
+
+Without `--no-promote`, a phased rollout looks like:
+
+1. `feast apply` — saves v2 and promotes it (all unversioned consumers now hit v2)
+2. Immediately pin back to v1 — `version="v1"` in the definition, then `feast apply` again
+
+This leaves a transition window where unversioned consumers briefly see the new schema. Authors can also forget the pin-back step.
+
+### The Solution
+
+The `--no-promote` flag saves the version snapshot without updating the active feature view definition. The new version is accessible only via explicit `@v<N>` reads and `--version` materialization.
+
+**CLI usage:**
+
+```bash
+feast apply --no-promote
+```
+
+**Python SDK equivalent:**
+
+```python
+store.apply([entity, feature_view], no_promote=True)
+```
+
+### Phased Rollout Workflow
+
+1. **Stage the new version:**
+   ```bash
+   feast apply --no-promote
+   ```
+   This publishes v2 without promoting it. All unversioned consumers continue using v1.
+
+2. **Populate the v2 online table:**
+   ```bash
+   feast materialize --views driver_stats --version v2 ...
+   ```
+
+3. **Migrate consumers one at a time:**
+   - Consumer A switches to `driver_stats@v2:trips_today`
+   - Consumer B switches to `driver_stats@v2:avg_rating`
+
+4. **Promote v2 as the default:**
+   ```bash
+   feast apply
+   ```
+   Or pin to v2: set `version="v2"` in the definition and run `feast apply`.
+
+> **Note:** By default, `feast apply` (without `--no-promote`) promotes the new version immediately. Use `--no-promote` only when you need a controlled, phased rollout.
+
 ## Feature Services
 
 Feature services work with versioned feature views when the online versioning flag is enabled:
@@ -375,6 +429,7 @@ Feature services work with versioned feature views when the online versioning fl
   - `get_online_features()` will fail at retrieval time with a descriptive error message.
 - **No `@v<N>` syntax in feature services.** Version-qualified reads (`driver_stats@v2:trips_today`) using the `@v<N>` syntax require string-based feature references passed directly to `get_online_features()`. Feature services always resolve to the active (latest) version of each referenced feature view.
 - **Future work: per-reference version pinning.** A future enhancement could allow feature services to pin individual feature view references to specific versions (e.g., `FeatureService(features=[driver_stats["v2"]])`).
+- **`--no-promote` versions are not served.** Feature services always resolve to the active (promoted) version. Versions published with `--no-promote` are not visible to feature services until promoted via a regular `feast apply` or explicit pin.
 
 ## Limitations & Future Work
 

@@ -160,7 +160,7 @@ Feature names must be unique within a [feature view](feature-view.md#feature-vie
 
 Each field can have additional metadata associated with it, specified as key-value [tags](https://rtd.feast.dev/en/master/feast.html#feast.field.Field).
 
-## Versioning
+## \[Alpha\] Versioning
 
 Feature views support automatic version tracking. Every time `feast apply` detects a change to a feature view, a version snapshot is saved to the registry's version history. This enables auditing what changed, reverting to a prior definition, or pinning serving to a known-good version.
 

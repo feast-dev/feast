@@ -255,7 +255,11 @@ class BaseRegistry(ABC):
     # Feature view operations
     @abstractmethod
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         """
         Registers a single feature view with Feast
@@ -264,6 +268,9 @@ class BaseRegistry(ABC):
             feature_view: Feature view that will be registered
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
+            no_promote: If True, save a new version snapshot without promoting
+                it to the active definition. The new version is accessible only
+                via explicit @v<N> reads.
         """
         raise NotImplementedError
 

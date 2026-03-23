@@ -494,8 +494,12 @@ class PassthroughProvider(Provider):
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
+        from feast.utils import _strip_version_from_ref
+
         feature_name_columns = [
-            ref.replace(":", "__") if dataset.full_feature_names else ref.split(":")[1]
+            _strip_version_from_ref(ref).replace(":", "__")
+            if dataset.full_feature_names
+            else ref.split(":")[1]
             for ref in dataset.features
         ]
 

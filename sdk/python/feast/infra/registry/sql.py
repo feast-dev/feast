@@ -621,7 +621,11 @@ class SqlRegistry(CachingRegistry):
         )
 
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         self._ensure_feature_view_name_is_unique(feature_view, project)
         fv_table = self._infer_fv_table(feature_view)
@@ -794,6 +798,11 @@ class SqlRegistry(CachingRegistry):
                         )
                     # Re-read the next available version number
                     next_ver = self._get_next_version_number(feature_view.name, project)
+
+            if no_promote:
+                # Save version snapshot but skip updating the active row.
+                # The new version is accessible only via explicit @v<N> reads.
+                return
 
             # Re-serialize with updated version number
             with self.write_engine.begin() as conn:

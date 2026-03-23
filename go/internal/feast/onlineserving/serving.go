@@ -492,6 +492,11 @@ func ParseFeatureReference(featureRef string) (featureViewName, featureName stri
 		featureViewName = parsedFeatureName[0]
 		featureName = parsedFeatureName[1]
 	}
+
+	// Strip @v<N> version qualifier from feature view name
+	if atIdx := strings.Index(featureViewName, "@"); atIdx >= 0 {
+		featureViewName = featureViewName[:atIdx]
+	}
 	return
 }
 

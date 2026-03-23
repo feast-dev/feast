@@ -1205,3 +1205,182 @@ class TestFeatureServiceVersioningGates:
             reloaded = store.registry.get_feature_view("driver_stats", "test_project")
             assert reloaded.current_version_number is None
             assert reloaded.version == "latest"
+
+
+class TestNoPromote:
+    """Tests for the no_promote flag on apply_feature_view."""
+
+    def test_no_promote_saves_version_without_updating_active(
+        self, registry, make_fv, entity
+    ):
+        """Apply v0, then schema change with no_promote=True.
+        Version record for v1 should exist, but active FV keeps v0's schema."""
+        fv0 = make_fv(description="original v0")
+        registry.apply_feature_view(fv0, "test_project", commit=True)
+
+        # Schema change with no_promote
+        fv1 = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+                Field(name="avg_rating", dtype=Float32),
+                Field(name="new_feature", dtype=Float32),  # Schema change
+            ],
+            description="staged v1",
+        )
+        registry.apply_feature_view(fv1, "test_project", commit=True, no_promote=True)
+
+        # Version v1 should exist in history
+        versions = registry.list_feature_view_versions("driver_stats", "test_project")
+        assert len(versions) == 2
+        assert versions[0]["version_number"] == 0
+        assert versions[1]["version_number"] == 1
+
+        # Active FV should still be v0 (initial apply with version="latest"
+        # has current_version_number=None since proto 0 maps to None for latest)
+        active = registry.get_feature_view("driver_stats", "test_project")
+        assert active.current_version_number is None
+        assert active.description == "original v0"
+        # v0 schema has 3 fields (driver_id, trips_today, avg_rating)
+        feature_names = {f.name for f in active.schema}
+        assert "new_feature" not in feature_names
+
+    def test_no_promote_then_regular_apply_promotes(self, registry, make_fv, entity):
+        """Apply with no_promote, then re-apply the same schema change without
+        no_promote. The new version should now be promoted to active."""
+        fv0 = make_fv(description="original")
+        registry.apply_feature_view(fv0, "test_project", commit=True)
+
+        # Schema change with no_promote
+        fv1_schema = [
+            Field(name="driver_id", dtype=Int64),
+            Field(name="trips_today", dtype=Int64),
+            Field(name="avg_rating", dtype=Float32),
+            Field(name="extra", dtype=Float32),
+        ]
+        fv1 = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=fv1_schema,
+            description="staged v1",
+        )
+        registry.apply_feature_view(fv1, "test_project", commit=True, no_promote=True)
+
+        # Now apply same schema change without no_promote
+        fv1_promote = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=fv1_schema,
+            description="promoted v1",
+        )
+        registry.apply_feature_view(
+            fv1_promote, "test_project", commit=True, no_promote=False
+        )
+
+        # Active FV should now have the new schema
+        active = registry.get_feature_view("driver_stats", "test_project")
+        feature_names = {f.name for f in active.schema}
+        assert "extra" in feature_names
+
+    def test_no_promote_then_explicit_pin_promotes(self, registry, make_fv, entity):
+        """Apply with no_promote, then pin to v1. Active should now be v1."""
+        fv0 = make_fv(description="original")
+        registry.apply_feature_view(fv0, "test_project", commit=True)
+
+        # Schema change with no_promote
+        fv1 = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+                Field(name="avg_rating", dtype=Float32),
+                Field(name="pinned_feature", dtype=Float32),
+            ],
+            description="staged v1",
+        )
+        registry.apply_feature_view(fv1, "test_project", commit=True, no_promote=True)
+
+        # Active is still v0 (initial apply with version="latest"
+        # has current_version_number=None since proto 0 maps to None for latest)
+        active = registry.get_feature_view("driver_stats", "test_project")
+        assert active.current_version_number is None
+
+        # Pin to v1 (user's definition must match current active, only version changes)
+        fv_pin = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+                Field(name="avg_rating", dtype=Float32),
+            ],
+            description="original",
+            version="v1",
+        )
+        registry.apply_feature_view(fv_pin, "test_project", commit=True)
+
+        # Active should now be v1's snapshot
+        active = registry.get_feature_view("driver_stats", "test_project")
+        assert active.current_version_number == 1
+        feature_names = {f.name for f in active.schema}
+        assert "pinned_feature" in feature_names
+
+    def test_no_promote_noop_without_schema_change(self, registry, make_fv):
+        """Apply with no_promote but no schema change — metadata-only update,
+        no new version should be created."""
+        fv0 = make_fv(description="original")
+        registry.apply_feature_view(fv0, "test_project", commit=True)
+
+        # Same schema, different description (metadata-only)
+        fv_same = make_fv(description="updated description only")
+        registry.apply_feature_view(
+            fv_same, "test_project", commit=True, no_promote=True
+        )
+
+        # Still only v0
+        versions = registry.list_feature_view_versions("driver_stats", "test_project")
+        assert len(versions) == 1
+        assert versions[0]["version_number"] == 0
+
+    def test_no_promote_version_accessible_by_explicit_ref(
+        self, registry, make_fv, entity
+    ):
+        """After no_promote apply, the new version should be accessible via
+        get_feature_view_by_version()."""
+        fv0 = make_fv(description="original")
+        registry.apply_feature_view(fv0, "test_project", commit=True)
+
+        # Schema change with no_promote
+        fv1 = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+                Field(name="avg_rating", dtype=Float32),
+                Field(name="explicit_feature", dtype=Float32),
+            ],
+            description="staged v1",
+        )
+        registry.apply_feature_view(fv1, "test_project", commit=True, no_promote=True)
+
+        # Should be accessible by explicit version ref
+        v1_fv = registry.get_feature_view_by_version("driver_stats", "test_project", 1)
+        assert v1_fv.current_version_number == 1
+        feature_names = {f.name for f in v1_fv.schema}
+        assert "explicit_feature" in feature_names
+
+        # v0 should also still be accessible
+        v0_fv = registry.get_feature_view_by_version("driver_stats", "test_project", 0)
+        assert v0_fv.current_version_number == 0
+        feature_names_v0 = {f.name for f in v0_fv.schema}
+        assert "explicit_feature" not in feature_names_v0

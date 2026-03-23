@@ -975,6 +975,7 @@ class FeatureStore:
         infra_diff: InfraDiff,
         new_infra: Infra,
         progress_ctx: Optional["ApplyProgressContext"] = None,
+        no_promote: bool = False,
     ):
         """Applies the given diffs to the metadata store and infrastructure.
 
@@ -998,7 +999,11 @@ class FeatureStore:
 
             # Registry phase
             apply_diff_to_registry(
-                self.registry, registry_diff, self.project, commit=False
+                self.registry,
+                registry_diff,
+                self.project,
+                commit=False,
+                no_promote=no_promote,
             )
 
             if progress_ctx:
@@ -1049,6 +1054,7 @@ class FeatureStore:
         objects_to_delete: Optional[List[FeastObject]] = None,
         partial: bool = True,
         skip_feature_view_validation: bool = False,
+        no_promote: bool = False,
     ):
         """Register objects to metadata store and update related infrastructure.
 
@@ -1191,7 +1197,9 @@ class FeatureStore:
         for ds in data_sources_to_update:
             self.registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
-            self.registry.apply_feature_view(view, project=self.project, commit=False)
+            self.registry.apply_feature_view(
+                view, project=self.project, commit=False, no_promote=no_promote
+            )
         for ent in entities_to_update:
             self.registry.apply_entity(ent, project=self.project, commit=False)
 

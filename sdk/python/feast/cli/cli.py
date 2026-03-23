@@ -276,12 +276,20 @@ def plan_command(
     is_flag=True,
     help="Disable progress bars during apply operation.",
 )
+@click.option(
+    "--no-promote",
+    is_flag=True,
+    default=False,
+    help="Save new versions without promoting them to active. "
+    "New versions are accessible via @v<N> reads and --version materialization.",
+)
 @click.pass_context
 def apply_total_command(
     ctx: click.Context,
     skip_source_validation: bool,
     skip_feature_view_validation: bool,
     no_progress: bool,
+    no_promote: bool,
 ):
     """
     Create or update a feature store deployment
@@ -304,6 +312,7 @@ def apply_total_command(
             repo,
             skip_source_validation,
             skip_feature_view_validation,
+            no_promote=no_promote,
         )
     except FeastProviderLoginError as e:
         print(str(e))

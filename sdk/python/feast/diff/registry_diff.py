@@ -314,6 +314,7 @@ def apply_diff_to_registry(
     registry_diff: RegistryDiff,
     project: str,
     commit: bool = True,
+    no_promote: bool = False,
 ):
     """
     Applies the given diff to the given Feast project in the registry.
@@ -404,6 +405,7 @@ def apply_diff_to_registry(
                     cast(BaseFeatureView, feast_object_diff.new_feast_object),
                     project,
                     commit=False,
+                    no_promote=no_promote,
                 )
             elif feast_object_diff.feast_object_type == FeastObjectType.PERMISSION:
                 registry.apply_permission(

@@ -259,7 +259,11 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         fv_table_str = self._infer_fv_table(feature_view)
         fv_column_name = fv_table_str[:-1]

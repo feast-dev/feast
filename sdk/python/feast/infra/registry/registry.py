@@ -670,7 +670,11 @@ class Registry(BaseRegistry):
         return fv
 
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         feature_view.ensure_valid()
 
@@ -789,6 +793,9 @@ class Registry(BaseRegistry):
                     return
                 else:
                     old_proto_bytes = existing_feature_view_proto.SerializeToString()
+                    # Save a copy before deletion for no_promote restore
+                    existing_proto_copy = type(existing_feature_view_proto)()
+                    existing_proto_copy.CopyFrom(existing_feature_view_proto)
                     existing_feature_view = type(feature_view).from_proto(
                         existing_feature_view_proto
                     )
@@ -814,6 +821,27 @@ class Registry(BaseRegistry):
                         feature_view.name, project, 0, fv_type_str, old_proto_bytes
                     )
                     next_ver = 1
+
+                if no_promote:
+                    # Save version snapshot but keep the old active definition
+                    no_promote_fv = feature_view.__copy__()
+                    no_promote_fv.current_version_number = next_ver
+                    no_promote_proto = no_promote_fv.to_proto()
+                    no_promote_proto.spec.project = project
+                    no_promote_proto_bytes = no_promote_proto.SerializeToString()
+                    self._save_version_record(
+                        feature_view.name,
+                        project,
+                        next_ver,
+                        fv_type_str,
+                        no_promote_proto_bytes,
+                    )
+                    # Re-insert the old active definition (was deleted above)
+                    existing_feature_views_of_same_type.append(existing_proto_copy)
+                    if commit:
+                        self.commit()
+                    return
+
                 feature_view.current_version_number = next_ver
                 feature_view_proto = feature_view.to_proto()
                 feature_view_proto.spec.project = project
