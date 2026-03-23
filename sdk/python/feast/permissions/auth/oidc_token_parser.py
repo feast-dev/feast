@@ -140,11 +140,17 @@ class OidcTokenParser(TokenParser):
         # check if intra server communication
         user = self._get_intra_comm_user(access_token)
         if user:
-            return user
-
         if self._is_kubernetes_token(access_token):
-            logger.debug("Detected kubernetes.io claim — validating via TokenReview")
-            return await self._validate_k8s_sa_token_and_extract_namespace(access_token)
+            logger.debug(
+                "Detected kubernetes.io claim — validating via TokenReview"
+            )
+            try:
+                return await self._validate_k8s_sa_token_and_extract_namespace(access_token)
+            except AuthenticationError:
+                raise
+            except Exception as e:
+                logger.error(f"Kubernetes token validation failed: {e}")
+                raise AuthenticationError(f"Kubernetes token validation failed: {e}")
 
         # Standard OIDC / Keycloak flow
         try:
