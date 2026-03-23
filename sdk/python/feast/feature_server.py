@@ -40,7 +40,6 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
 from fastapi.responses import JSONResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
-from google.protobuf.json_format import MessageToDict
 from pydantic import BaseModel
 
 import feast
@@ -52,6 +51,7 @@ from feast.errors import (
     FeastError,
 )
 from feast.feast_object import FeastObject
+from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
@@ -365,10 +365,7 @@ def get_app(
                 )
 
             response_dict = await run_in_threadpool(
-                MessageToDict,
-                response.proto,
-                preserving_proto_field_name=True,
-                float_precision=18,
+                convert_response_to_dict, response.proto
             )
             return ORJSONResponse(content=response_dict)
 
@@ -401,10 +398,7 @@ def get_app(
                 )
 
             response_dict = await run_in_threadpool(
-                MessageToDict,
-                response.proto,
-                preserving_proto_field_name=True,
-                float_precision=18,
+                convert_response_to_dict, response.proto
             )
             return ORJSONResponse(content=response_dict)
 
