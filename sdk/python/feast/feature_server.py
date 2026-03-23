@@ -38,10 +38,10 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from google.protobuf.json_format import MessageToDict
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 import feast
 from feast import metrics as feast_metrics
@@ -109,6 +109,32 @@ class GetOnlineDocumentsRequest(BaseModel):
     query: Optional[List[float]] = None
     query_string: Optional[str] = None
     api_version: Optional[int] = 1
+
+
+class FeatureVectorResponse(BaseModel):
+    values: List[Any] = []
+    statuses: List[str] = []
+    event_timestamps: List[str] = []
+
+
+class OnlineFeaturesMetadataResponse(BaseModel):
+    feature_names: List[str] = []
+
+    @field_validator("feature_names", mode="before")
+    @classmethod
+    def _unwrap_feature_list(cls, v: Any) -> Any:
+        """Accept both the proto_json-patched flat list and the raw
+        protobuf ``{"val": [...]}`` dict produced by ``MessageToDict``
+        when the monkey-patch is absent or ineffective."""
+        if isinstance(v, dict) and "val" in v:
+            return v["val"]
+        return v
+
+
+class OnlineFeaturesResponse(BaseModel):
+    metadata: Optional[OnlineFeaturesMetadataResponse] = None
+    results: List[FeatureVectorResponse] = []
+    status: Optional[bool] = None
 
 
 class ChatMessage(BaseModel):
@@ -338,8 +364,9 @@ def get_app(
     @app.post(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
     )
-    async def get_online_features(request: GetOnlineFeaturesRequest) -> ORJSONResponse:
+    async def get_online_features(request: GetOnlineFeaturesRequest) -> Any:
         with feast_metrics.track_request_latency(
             "/get-online-features",
         ) as metrics_ctx:
@@ -370,15 +397,16 @@ def get_app(
                 preserving_proto_field_name=True,
                 float_precision=18,
             )
-            return ORJSONResponse(content=response_dict)
+            return response_dict
 
     @app.post(
         "/retrieve-online-documents",
         dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
     )
     async def retrieve_online_documents(
         request: GetOnlineDocumentsRequest,
-    ) -> ORJSONResponse:
+    ) -> Any:
         with feast_metrics.track_request_latency("/retrieve-online-documents"):
             logger.warning(
                 "This endpoint is in alpha and will be moved to /get-online-features when stable."
@@ -406,7 +434,7 @@ def get_app(
                 preserving_proto_field_name=True,
                 float_precision=18,
             )
-            return ORJSONResponse(content=response_dict)
+            return response_dict
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
