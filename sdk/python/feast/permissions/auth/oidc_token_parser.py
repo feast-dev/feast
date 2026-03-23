@@ -11,6 +11,7 @@ from jwt import PyJWKClient
 from starlette.authentication import (
     AuthenticationError,
 )
+from kubernetes import client, config
 
 from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.auth_model import OidcAuthConfig
@@ -25,21 +26,16 @@ class OidcTokenParser(TokenParser):
     A ``TokenParser`` to use an OIDC server to retrieve the user details.
     Server settings are retrieved from the ``auth`` configuration of the Feature store.
 
-    When running inside Kubernetes, an optional ``k8s_parser`` can be supplied.
     Incoming tokens that contain a ``kubernetes.io`` claim (i.e. Kubernetes
-    service-account tokens) are delegated to the K8s parser, while all other
-    tokens follow the standard OIDC/Keycloak JWKS validation path.
+    service-account tokens) are handled via a lightweight TokenReview that
+    extracts only the namespace — no RBAC queries needed.  All other tokens
+    follow the standard OIDC/Keycloak JWKS validation path.
     """
 
     _auth_config: OidcAuthConfig
 
-    def __init__(
-        self,
-        auth_config: OidcAuthConfig,
-        k8s_parser: Optional[TokenParser] = None,
-    ):
+    def __init__(self, auth_config: OidcAuthConfig):
         self._auth_config = auth_config
-        self._k8s_parser = k8s_parser
         self.oidc_discovery_service = OIDCDiscoveryService(
             self._auth_config.auth_discovery_url,
             verify_ssl=self._auth_config.verify_ssl,
@@ -147,11 +143,11 @@ class OidcTokenParser(TokenParser):
         if user:
             return user
 
-        if self._k8s_parser and self._is_kubernetes_token(access_token):
+        if self._is_kubernetes_token(access_token):
             logger.debug(
-                "Detected kubernetes.io claim — delegating to KubernetesTokenParser"
+                "Detected kubernetes.io claim — validating via TokenReview"
             )
-            return await self._k8s_parser.user_details_from_access_token(access_token)
+            return await self._validate_k8s_sa_token_and_extract_namespace(access_token)
 
         # Standard OIDC / Keycloak flow
         try:
@@ -181,6 +177,38 @@ class OidcTokenParser(TokenParser):
         except jwt.exceptions.InvalidTokenError:
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
+
+    @staticmethod
+    async def _validate_k8s_sa_token_and_extract_namespace(access_token: str) -> User:
+        """Validate a K8s SA token via TokenReview and extract the namespace.
+
+        Lightweight alternative to full KubernetesTokenParser — only validates
+        the token and extracts the namespace from the authenticated identity.
+        No RBAC queries (RoleBindings, ClusterRoleBindings) are performed,
+        so the server SA needs only ``tokenreviews/create`` permission.
+        """
+        config.load_incluster_config()
+        auth_v1 = client.AuthenticationV1Api()
+
+        token_review = client.V1TokenReview(
+            spec=client.V1TokenReviewSpec(token=access_token)
+        )
+        response = auth_v1.create_token_review(token_review)
+
+        if not response.status.authenticated:
+            raise AuthenticationError(
+                f"Kubernetes token validation failed: {response.status.error}"
+            )
+
+        username = getattr(response.status.user, "username", "") or ""
+        namespaces = []
+        if username.startswith("system:serviceaccount:") and username.count(":") >= 3:
+            namespaces.append(username.split(":")[2])
+
+        logger.info(
+            f"SA token validated — user: {username}, namespaces: {namespaces}"
+        )
+        return User(username=username, roles=[], groups=[], namespaces=namespaces)
 
     def _get_intra_comm_user(self, access_token: str) -> Optional[User]:
         intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")

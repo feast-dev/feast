@@ -121,21 +121,7 @@ def init_auth_manager(
             token_parser = KubernetesTokenParser()
         elif auth_type == AuthManagerType.OIDC:
             assert isinstance(auth_config, OidcAuthConfig)
-            k8s_parser = None
-            try:
-                from feast.permissions.auth.kubernetes_token_parser import (
-                    KubernetesTokenParser,
-                )
-
-                k8s_parser = KubernetesTokenParser()
-                logger.info(
-                    "K8s API available — SA token support enabled for OIDC auth"
-                )
-            except Exception as e:
-                logger.info(f"K8s API unavailable ({e}) — OIDC-only token parsing")
-            token_parser = OidcTokenParser(
-                auth_config=auth_config, k8s_parser=k8s_parser
-            )
+            token_parser = OidcTokenParser(auth_config=auth_config)
         else:
             raise ValueError(f"Unmanaged authorization manager type {auth_type}")
 
