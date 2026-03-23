@@ -127,7 +127,6 @@ def compute_non_entity_date_range(
     end_date: Optional[datetime] = None,
     default_window_days: int = 30,
 ) -> Tuple[datetime, datetime]:
-
     if end_date is None:
         end_date = datetime.now(tz=timezone.utc)
     else:
