@@ -140,6 +140,8 @@ class OidcTokenParser(TokenParser):
         # check if intra server communication
         user = self._get_intra_comm_user(access_token)
         if user:
+            return user
+
         if self._is_kubernetes_token(access_token):
             logger.debug(
                 "Detected kubernetes.io claim — validating via TokenReview"
