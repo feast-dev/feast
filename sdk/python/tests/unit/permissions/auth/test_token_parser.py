@@ -434,9 +434,7 @@ def test_oidc_parser_handles_sa_token_via_token_review(
         )
         mock_handle.assert_called_once_with("sa-token")
 
-    assertpy.assert_that(user.username).is_equal_to(
-        "system:serviceaccount:feast:feast"
-    )
+    assertpy.assert_that(user.username).is_equal_to("system:serviceaccount:feast:feast")
     assertpy.assert_that(user.namespaces).is_equal_to(["feast"])
     assertpy.assert_that(user.roles).is_equal_to([])
     assertpy.assert_that(user.groups).is_equal_to([])

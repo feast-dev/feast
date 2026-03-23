@@ -11,7 +11,6 @@ from jwt import PyJWKClient
 from starlette.authentication import (
     AuthenticationError,
 )
-from kubernetes import client, config
 
 from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.auth_model import OidcAuthConfig
@@ -144,9 +143,7 @@ class OidcTokenParser(TokenParser):
             return user
 
         if self._is_kubernetes_token(access_token):
-            logger.debug(
-                "Detected kubernetes.io claim — validating via TokenReview"
-            )
+            logger.debug("Detected kubernetes.io claim — validating via TokenReview")
             return await self._validate_k8s_sa_token_and_extract_namespace(access_token)
 
         # Standard OIDC / Keycloak flow
@@ -187,6 +184,8 @@ class OidcTokenParser(TokenParser):
         No RBAC queries (RoleBindings, ClusterRoleBindings) are performed,
         so the server SA needs only ``tokenreviews/create`` permission.
         """
+        from kubernetes import client, config
+
         config.load_incluster_config()
         auth_v1 = client.AuthenticationV1Api()
 
@@ -205,9 +204,7 @@ class OidcTokenParser(TokenParser):
         if username.startswith("system:serviceaccount:") and username.count(":") >= 3:
             namespaces.append(username.split(":")[2])
 
-        logger.info(
-            f"SA token validated — user: {username}, namespaces: {namespaces}"
-        )
+        logger.info(f"SA token validated — user: {username}, namespaces: {namespaces}")
         return User(username=username, roles=[], groups=[], namespaces=namespaces)
 
     def _get_intra_comm_user(self, access_token: str) -> Optional[User]:
