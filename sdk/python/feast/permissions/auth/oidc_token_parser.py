@@ -59,12 +59,18 @@ class OidcTokenParser(TokenParser):
 
     @staticmethod
     def _extract_username_or_raise_error(data: dict) -> str:
-        """Extract the username from the decoded JWT. Raises if missing — identity is mandatory."""
-        if "preferred_username" not in data:
-            raise AuthenticationError(
-                "Missing preferred_username field in access token."
-            )
-        return data["preferred_username"]
+        """Extract the username from the decoded JWT. Raises if missing — identity is mandatory.
+
+        Checks ``preferred_username`` first (Keycloak default), then falls back
+        to ``upn`` (Azure AD / Entra ID).
+        """
+        if "preferred_username" in data:
+            return data["preferred_username"]
+        if "upn" in data:
+            return data["upn"]
+        raise AuthenticationError(
+            "Missing preferred_username or upn field in access token."
+        )
 
     @staticmethod
     def _extract_claim(data: dict, *keys: str, expected_type: type = list):
