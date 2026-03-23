@@ -143,11 +143,11 @@ class OidcTokenParser(TokenParser):
             return user
 
         if self._is_kubernetes_token(access_token):
-            logger.debug(
-                "Detected kubernetes.io claim — validating via TokenReview"
-            )
+            logger.debug("Detected kubernetes.io claim — validating via TokenReview")
             try:
-                return await self._validate_k8s_sa_token_and_extract_namespace(access_token)
+                return await self._validate_k8s_sa_token_and_extract_namespace(
+                    access_token
+                )
             except AuthenticationError:
                 raise
             except Exception as e:
