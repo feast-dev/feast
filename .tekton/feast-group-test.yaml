@@ -1,4 +1,25 @@
 ---
+# Feast Group Test Pipeline (Pipelines-as-Code)
+#
+# This PipelineRun triggers integration tests across multiple Feast components
+# (feast-operator and feature-server) in a single run. It is used for
+# group testing when changes may affect more than one component.
+#
+# Triggers:
+#   - Event: group-test (e.g. from Konflux/App Studio group-test workflow)
+#   - Comment: /group-test on a pull request
+#
+# Pipeline definition: odh-konflux-central/integration-tests/feast/pr-group-testing-pipeline.yaml
+# Components tested: odh-feast-operator-ci, odh-feature-server-ci
+#
+# Images used in the test are built from the PR by the per-component PR pipelines
+# (odh-feast-operator-pull-request, odh-feature-server-pull-request). generate-snapshot
+# assembles a snapshot of those PR-built image refs; deploy-and-test uses them and the
+# PR commit for e2e and REST API tests. See .tekton/README.md for details.
+#
+# Required template variables (supplied by Pipelines-as-Code):
+#   - revision, target_branch, pull_request_number, git_auth_secret
+#
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
