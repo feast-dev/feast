@@ -195,6 +195,18 @@ class BaseFeatureView(ABC):
         """
         if not self.name:
             raise ValueError("Feature view needs a name.")
+        if "@" in self.name:
+            raise ValueError(
+                f"Feature view name '{self.name}' must not contain '@'. "
+                f"The '@' character is reserved for version-qualified references "
+                f"(e.g., 'fv@v2:feature')."
+            )
+        if ":" in self.name:
+            raise ValueError(
+                f"Feature view name '{self.name}' must not contain ':'. "
+                f"The ':' character is reserved as the separator in fully qualified "
+                f"feature references (e.g., 'feature_view:feature_name')."
+            )
 
     def with_name(self, name: str):
         """

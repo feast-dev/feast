@@ -370,15 +370,78 @@ class TestParseFeatureRef:
         with pytest.raises(ValueError, match="Invalid feature reference"):
             _parse_feature_ref("driver_stats_trips")
 
-    def test_invalid_version_format(self):
-        with pytest.raises(ValueError, match="Invalid version"):
-            _parse_feature_ref("driver_stats@abc:trips")
+    def test_unrecognized_version_falls_back(self):
+        """Unrecognized version format falls back to treating full fv_part as the name."""
+        fv, version, feat = _parse_feature_ref("driver_stats@abc:trips")
+        assert fv == "driver_stats@abc"
+        assert version is None
+        assert feat == "trips"
 
     def test_empty_version(self):
         fv, version, feat = _parse_feature_ref("driver_stats@:trips")
         assert fv == "driver_stats"
         assert version is None
         assert feat == "trips"
+
+    def test_at_sign_in_fv_name_falls_back_gracefully(self):
+        """Legacy FV name with @ falls back to treating whole pre-colon string as name."""
+        fv, version, feat = _parse_feature_ref("my@weird:feature")
+        assert fv == "my@weird"
+        assert version is None
+        assert feat == "feature"
+
+    def test_at_sign_with_valid_version_still_parses(self):
+        """A valid @v<N> suffix still parses as a version."""
+        fv, version, feat = _parse_feature_ref("stats@v2:trips")
+        assert fv == "stats"
+        assert version == 2
+        assert feat == "trips"
+
+
+class TestEnsureValidRejectsReservedChars:
+    def test_at_sign_in_name_raises(self):
+        from datetime import timedelta
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+
+        entity = Entity(name="entity_id", join_keys=["entity_id"])
+        fv = FeatureView(
+            name="my@weird_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+        )
+        with pytest.raises(ValueError, match="must not contain '@'"):
+            fv.ensure_valid()
+
+    def test_colon_in_name_raises(self):
+        from datetime import timedelta
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+
+        entity = Entity(name="entity_id", join_keys=["entity_id"])
+        fv = FeatureView(
+            name="my:weird_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+        )
+        with pytest.raises(ValueError, match="must not contain ':'"):
+            fv.ensure_valid()
+
+    def test_valid_name_passes(self):
+        from datetime import timedelta
+
+        from feast.entity import Entity
+        from feast.feature_view import FeatureView
+
+        entity = Entity(name="entity_id", join_keys=["entity_id"])
+        fv = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+        )
+        fv.ensure_valid()  # Should not raise
 
 
 class TestStripVersionFromRef:

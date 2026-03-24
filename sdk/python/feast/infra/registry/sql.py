@@ -627,6 +627,7 @@ class SqlRegistry(CachingRegistry):
         commit: bool = True,
         no_promote: bool = False,
     ):
+        feature_view.ensure_valid()
         self._ensure_feature_view_name_is_unique(feature_view, project)
         fv_table = self._infer_fv_table(feature_view)
         fv_type_str = self._infer_fv_type_string(feature_view)

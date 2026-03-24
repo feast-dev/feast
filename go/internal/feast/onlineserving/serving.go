@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -495,7 +496,11 @@ func ParseFeatureReference(featureRef string) (featureViewName, featureName stri
 
 	// Strip @v<N> version qualifier from feature view name
 	if atIdx := strings.Index(featureViewName, "@"); atIdx >= 0 {
-		featureViewName = featureViewName[:atIdx]
+		suffix := featureViewName[atIdx+1:]
+		matched, _ := regexp.MatchString(`^[vV]\d+$`, suffix)
+		if matched {
+			featureViewName = featureViewName[:atIdx]
+		}
 	}
 	return
 }

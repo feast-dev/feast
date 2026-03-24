@@ -94,10 +94,8 @@ def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
     # Parse version number from formats like "v2", "V2"
     match = re.match(r"^[vV](\d+)$", version_str)
     if not match:
-        raise ValueError(
-            f"Invalid version '{version_str}' in feature reference '{ref}'. "
-            f"Expected format: 'v<number>' or 'latest'"
-        )
+        # Not a recognized version format — treat entire fv_part as the name
+        return (fv_part, None, feature_name)
 
     return (fv_name, int(match.group(1)), feature_name)
 

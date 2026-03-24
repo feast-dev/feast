@@ -437,6 +437,7 @@ Feature services work with versioned feature views when the online versioning fl
 - **Offline store versioning.** This RFC covers online reads only. Versioned historical retrieval is out of scope.
 - **Version deletion.** There is no mechanism to prune old versions. This could be added later if registries grow large.
 - **Cross-version joins.** Joining features from different versions of the same feature view in `get_historical_features` is not supported.
+- **Naming restrictions.** Feature view names must not contain `@` or `:` since these characters are reserved for version-qualified references (`fv@v2:feature`). `feast apply` rejects new feature views with these characters. The parser falls back gracefully for legacy feature views that already contain `@` in their names — unrecognized `@` suffixes are treated as part of the name rather than raising errors.
 
 ## Open Questions
 

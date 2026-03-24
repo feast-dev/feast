@@ -208,6 +208,18 @@ Version history tracking in the registry (listing versions, pinning, `--no-promo
 
 For the complete design, concurrency semantics, and feature service interactions, see the [Feature View Versioning RFC](../rfcs/feature-view-versioning.md).
 
+## Naming Restrictions
+
+Feature references use a structured format: `feature_view_name@v<N>:feature_name`. To avoid
+ambiguity, the following characters are reserved and must not appear in feature view or feature names:
+
+- **`@`** — Reserved as the version delimiter (e.g., `driver_stats@v2:trips_today`). `feast apply`
+  will reject feature views with `@` in their name. If you have existing feature views with `@` in
+  their names, they will continue to work for unversioned reads, but we recommend renaming them to
+  avoid ambiguity with the `@v<N>` syntax.
+- **`:`** — Reserved as the separator between feature view name and feature name in fully qualified
+  feature references (e.g., `driver_stats:trips_today`).
+
 ## Known Limitations
 
 - **Online store coverage** — Version-qualified reads (`@v<N>`) are SQLite-only today. Other online stores are follow-up work.

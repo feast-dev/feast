@@ -1384,3 +1384,35 @@ class TestNoPromote:
         assert v0_fv.current_version_number == 0
         feature_names_v0 = {f.name for f in v0_fv.schema}
         assert "explicit_feature" not in feature_names_v0
+
+
+class TestFeatureViewNameValidation:
+    """Tests that feature view names with reserved characters are rejected on apply."""
+
+    def test_apply_feature_view_with_at_sign_raises(self, registry, entity):
+        """Applying a feature view with '@' in its name should raise ValueError."""
+        fv = FeatureView(
+            name="my_weirdly_@_named_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+            ],
+        )
+        with pytest.raises(ValueError, match="must not contain '@'"):
+            registry.apply_feature_view(fv, "test_project", commit=True)
+
+    def test_apply_feature_view_with_colon_raises(self, registry, entity):
+        """Applying a feature view with ':' in its name should raise ValueError."""
+        fv = FeatureView(
+            name="my:weird:fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trips_today", dtype=Int64),
+            ],
+        )
+        with pytest.raises(ValueError, match="must not contain ':'"):
+            registry.apply_feature_view(fv, "test_project", commit=True)
