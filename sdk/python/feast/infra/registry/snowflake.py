@@ -265,6 +265,7 @@ class SnowflakeRegistry(BaseRegistry):
         commit: bool = True,
         no_promote: bool = False,
     ):
+        feature_view.ensure_valid()
         fv_table_str = self._infer_fv_table(feature_view)
         fv_column_name = fv_table_str[:-1]
         return self._apply_object(
