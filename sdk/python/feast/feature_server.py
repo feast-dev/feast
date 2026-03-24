@@ -38,7 +38,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
 
@@ -126,20 +126,6 @@ class OpenAISearchMetadata(BaseModel):
     content_field: Optional[str] = None
 
 
-class OpenAIComparisonFilter(BaseModel):
-    key: str
-    type: str
-    value: Union[str, int, float, bool, List[Union[str, int]]]
-
-
-class OpenAICompoundFilter(BaseModel):
-    type: str
-    filters: List[Union[OpenAIComparisonFilter, "OpenAICompoundFilter"]]
-
-
-OpenAICompoundFilter.model_rebuild()
-
-
 class OpenAIRankingOptions(BaseModel):
     ranker: Optional[str] = None
     score_threshold: Optional[float] = None
@@ -147,7 +133,7 @@ class OpenAIRankingOptions(BaseModel):
 
 class OpenAISearchRequest(BaseModel):
     query: Union[str, List[str]]
-    filters: Optional[Union[OpenAIComparisonFilter, OpenAICompoundFilter]] = None
+    filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
     max_num_results: Optional[int] = 10
     ranking_options: Optional[OpenAIRankingOptions] = None
     rewrite_query: Optional[bool] = None
@@ -543,34 +529,30 @@ def get_app(
     async def openai_vector_store_search(
         vector_store_id: str,
         request: OpenAISearchRequest,
-    ) -> ORJSONResponse:
+    ) -> JSONResponse:
         with feast_metrics.track_request_latency(
             "/v1/vector_stores/{vector_store_id}/search"
         ):
             try:
-                result = await run_in_threadpool(
-                    lambda: store.retrieve_online_documents_openai(
-                        vector_store_id=vector_store_id,
-                        query=request.query,
-                        max_num_results=request.max_num_results or 10,
-                        filters=(
-                            request.filters.model_dump() if request.filters else None
-                        ),
-                        ranking_options=(
-                            request.ranking_options.model_dump()
-                            if request.ranking_options
-                            else None
-                        ),
-                        rewrite_query=request.rewrite_query,
-                        features_to_retrieve=(
-                            request.metadata.features_to_retrieve
-                            if request.metadata
-                            else None
-                        ),
-                    )
+                result = await store.retrieve_online_documents_openai(
+                    vector_store_id=vector_store_id,
+                    query=request.query,
+                    max_num_results=request.max_num_results or 10,
+                    filters=request.filters,
+                    ranking_options=(
+                        request.ranking_options.model_dump()
+                        if request.ranking_options
+                        else None
+                    ),
+                    rewrite_query=request.rewrite_query,
+                    features_to_retrieve=(
+                        request.metadata.features_to_retrieve
+                        if request.metadata
+                        else None
+                    ),
                 )
             except FeatureViewNotFoundException:
-                return ORJSONResponse(
+                return JSONResponse(
                     status_code=404,
                     content={
                         "error": {
@@ -579,7 +561,7 @@ def get_app(
                         }
                     },
                 )
-            return ORJSONResponse(content=result)
+            return JSONResponse(content=result)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:

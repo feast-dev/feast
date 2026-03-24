@@ -323,7 +323,7 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_features: Optional[List[str]],
-        query: Optional[List[float]],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
@@ -333,15 +333,15 @@ class PassthroughProvider(Provider):
         result = []
         if self.online_store:
             result = self.online_store.retrieve_online_documents_v2(
-                config,
-                table,
-                requested_features,
-                query,
-                top_k,
-                distance_metric,
-                query_string,
-                filters,
-                include_feature_view_version_metadata,
+                config=config,
+                table=table,
+                requested_features=requested_features,
+                embedding=embedding,
+                top_k=top_k,
+                distance_metric=distance_metric,
+                query_string=query_string,
+                filters=filters,
+                include_feature_view_version_metadata=include_feature_view_version_metadata,
             )
         return result
 
