@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import ibis
 import pandas as pd
@@ -275,6 +275,63 @@ class TestNonEntityRetrieval:
             registry=MagicMock(),
             project="test_project",
             end_date=end_date,
+        )
+
+        df = job.to_df()
+
+        driver1_data = df[df["driver_id"] == 1]
+        assert len(driver1_data) >= 1
+        assert 0.3 in driver1_data["conv_rate"].values
+
+    @patch("feast.infra.offline_stores.duckdb.datetime")
+    def test_no_dates_provided_defaults_to_current_time_and_filters_data(
+        self, mock_datetime, monkeypatch
+    ):
+        fixed_now = datetime(2023, 1, 7, 12, 0, 0, tzinfo=timezone.utc)
+        mock_datetime.now.return_value = fixed_now
+
+        src = pd.DataFrame(
+            {
+                "driver_id": [1, 1, 1],
+                "event_timestamp": pd.to_datetime(
+                    [
+                        "2023-01-05T12:00:00Z",
+                        "2023-01-06T18:00:00Z",
+                        "2023-01-07T11:00:00Z",
+                    ]
+                ),
+                "conv_rate": [0.1, 0.2, 0.3],
+            }
+        )
+        monkeypatch.setattr(
+            duckdb_mod, "_read_data_source", _mock_data_source_reader(src)
+        )
+
+        repo_config = RepoConfig(
+            project="test_project",
+            registry="test_registry",
+            provider="local",
+            offline_store=_mock_duckdb_offline_store_config(),
+        )
+
+        fv = FeatureView(
+            name="test_fv",
+            entities=_mock_entity(),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="conv_rate", dtype=Float32),
+            ],
+            source=FileSource(path="unused", timestamp_field="event_timestamp"),
+            ttl=timedelta(days=1),
+        )
+
+        job = DuckDBOfflineStore.get_historical_features(
+            config=repo_config,
+            feature_views=[fv],
+            feature_refs=["test_fv:conv_rate"],
+            entity_df=None,
+            registry=MagicMock(),
+            project="test_project",
         )
 
         df = job.to_df()

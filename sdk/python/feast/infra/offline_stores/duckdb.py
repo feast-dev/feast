@@ -23,9 +23,10 @@ from feast.infra.offline_stores.ibis import (
     write_logged_features_ibis,
 )
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.infra.offline_stores.offline_utils import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import make_tzaware
+from feast.utils import make_tzaware, to_naive_utc
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
@@ -114,9 +115,6 @@ def _write_data_source(
         )
 
 
-DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
-
-
 def _build_entity_df_from_sources(
     config: RepoConfig,
     feature_views: List[FeatureView],
@@ -124,7 +122,7 @@ def _build_entity_df_from_sources(
     end_date: datetime,
     data_source_reader: Callable[[DataSource, str], Table],
 ) -> pd.DataFrame:
-
+    
     entity_dfs: List[pd.DataFrame] = []
 
     for fv in feature_views:
@@ -136,10 +134,13 @@ def _build_entity_df_from_sources(
 
         timestamp_field = fv.batch_source.timestamp_field
 
+        start_naive = to_naive_utc(start_date)
+        end_naive = to_naive_utc(end_date)
+
         fv_table = fv_table.filter(
             ibis.and_(
-                fv_table[timestamp_field] >= ibis.literal(start_date),
-                fv_table[timestamp_field] <= ibis.literal(end_date),
+                fv_table[timestamp_field] >= ibis.literal(start_naive),
+                fv_table[timestamp_field] <= ibis.literal(end_naive),
             )
         )
 
@@ -219,10 +220,9 @@ class DuckDBOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
-        **kwargs,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
-        start_date: Optional[datetime] = kwargs.get("start_date", None)
-        end_date: Optional[datetime] = kwargs.get("end_date", None)
         non_entity_mode = entity_df is None
 
         if non_entity_mode:

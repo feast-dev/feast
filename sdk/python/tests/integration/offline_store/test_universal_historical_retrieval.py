@@ -731,7 +731,7 @@ def test_historical_features_field_mapping(
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores(only=["file"])
+@pytest.mark.universal_offline_stores(only=["file", "duckdb"])
 def test_historical_features_non_entity_retrieval(environment):
     """Test get_historical_features with entity_df=None using start_date/end_date.
 
