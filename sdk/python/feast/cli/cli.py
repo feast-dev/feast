@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+import os
 from datetime import datetime
 from importlib.metadata import version as importlib_version
 from pathlib import Path
@@ -461,6 +462,14 @@ def init_command(project_directory, minimal: bool, template: str, repo_path: str
     """Create a new Feast repository"""
     if not project_directory:
         project_directory = generate_project_name()
+
+    # When project_directory is an absolute or relative path (contains os.sep),
+    # treat it as the target directory with the basename as the project name.
+    # This allows `feast init /tmp/test` to work as expected.
+    if os.sep in project_directory:
+        if not repo_path:
+            repo_path = project_directory
+        project_directory = os.path.basename(project_directory)
 
     if minimal:
         template = "minimal"
