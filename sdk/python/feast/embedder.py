@@ -1,10 +1,124 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    List,
+    Optional,
+    Protocol,
+    runtime_checkable,
+)
+
+import pandas as pd
 
 if TYPE_CHECKING:
     import numpy as np
-import pandas as pd
+
+    from feast.repo_config import EmbeddingModelConfig
+
+
+@runtime_checkable
+class EmbeddingProvider(Protocol):
+    """Protocol for query-time embedding providers.
+
+    Implement this to plug in any embedding backend (OpenAI, Cohere,
+    SentenceTransformers, a local model, etc.) for use in
+    ``retrieve_online_documents_openai`` and the OpenAI-compatible
+    feature server endpoints.
+
+    Example::
+
+        class MyEmbeddingProvider:
+            def embed(self, texts: List[str]) -> List[List[float]]:
+                return my_model.encode(texts)
+
+            async def aembed(self, texts: List[str]) -> List[List[float]]:
+                return await my_model.aencode(texts)
+    """
+
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        """Return one embedding vector per input text."""
+        ...
+
+    async def aembed(self, texts: List[str]) -> List[List[float]]:
+        """Async variant of :meth:`embed`."""
+        ...
+
+
+class LiteLLMEmbeddingProvider(EmbeddingProvider):
+    """EmbeddingProvider backed by LiteLLM.
+
+    Constructed automatically when ``embedding_model`` is set in
+    ``feature_store.yaml`` and no custom provider is supplied.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        api_key: Optional[str] = None,
+        api_base: Optional[str] = None,
+        api_version: Optional[str] = None,
+        dimensions: Optional[int] = None,
+    ):
+        self.model = model
+        self.api_key = api_key
+        self.api_base = api_base
+        self.api_version = api_version
+        self.dimensions = dimensions
+
+    @classmethod
+    def from_config(cls, config: "EmbeddingModelConfig") -> "LiteLLMEmbeddingProvider":
+        """Build a provider from a :class:`~feast.repo_config.EmbeddingModelConfig`."""
+        from feast.repo_config import EmbeddingModelConfig
+
+        assert isinstance(config, EmbeddingModelConfig)
+        return cls(
+            model=config.model,
+            api_key=config.api_key,
+            api_base=config.api_base,
+            api_version=config.api_version,
+            dimensions=config.dimensions,
+        )
+
+    def _litellm_kwargs(self, texts: List[str]) -> dict:
+        kwargs: dict = {"model": self.model, "input": texts}
+        if self.api_key:
+            kwargs["api_key"] = self.api_key
+        if self.api_base:
+            kwargs["api_base"] = self.api_base
+        if self.api_version:
+            kwargs["api_version"] = self.api_version
+        if self.dimensions:
+            kwargs["dimensions"] = self.dimensions
+        return kwargs
+
+    def _import_litellm(self):
+        try:
+            from litellm import embedding as litellm_embedding
+
+            return litellm_embedding
+        except ImportError:
+            raise ImportError(
+                "litellm is required for query embedding. "
+                "Install with: pip install litellm"
+            )
+
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        litellm_embedding = self._import_litellm()
+        response = litellm_embedding(**self._litellm_kwargs(texts))
+        return [item["embedding"] for item in response.data]
+
+    async def aembed(self, texts: List[str]) -> List[List[float]]:
+        try:
+            from litellm import aembedding as litellm_aembedding
+        except ImportError:
+            raise ImportError(
+                "litellm is required for async query embedding. "
+                "Install with: pip install litellm"
+            )
+        response = await litellm_aembedding(**self._litellm_kwargs(texts))
+        return [item["embedding"] for item in response.data]
 
 
 @dataclass

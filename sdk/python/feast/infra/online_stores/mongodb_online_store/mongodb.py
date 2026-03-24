@@ -20,6 +20,12 @@ import feast.version
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
 from feast.feature_view import FeatureView
+from feast.filter_models import (
+    ComparisonFilter,
+    CompoundFilter,
+    FilterTranslator,
+    FilterType,
+)
 from feast.infra.key_encoding_utils import deserialize_entity_key, serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
@@ -36,6 +42,64 @@ from feast.type_map import (
 logger = getLogger(__name__)
 
 DRIVER_METADATA = DriverInfo(name="Feast", version=feast.version.get_version())
+
+_MONGO_COMPARISON_OPS: Dict[str, str] = {
+    "eq": "$eq",
+    "ne": "$ne",
+    "gt": "$gt",
+    "gte": "$gte",
+    "lt": "$lt",
+    "lte": "$lte",
+}
+
+
+class MongoDBFilterTranslator(FilterTranslator):
+    """Translates Feast filters into MongoDB Query Language (MQL) expressions.
+
+    Filter keys are prefixed with the feature path so they match the
+    document layout used by :class:`MongoDBOnlineStore`::
+
+        features.<table_name>.<key>
+    """
+
+    def __init__(self, table_name: str):
+        self.table_name = table_name
+
+    def _field(self, key: str) -> str:
+        return f"features.{self.table_name}.{key}"
+
+    def translate(self, filters: FilterType) -> Optional[Dict[str, Any]]:
+        if filters is None:
+            return None
+        return self._dispatch(filters)
+
+    def translate_comparison(self, f: ComparisonFilter) -> Dict[str, Any]:
+        field = self._field(f.key)
+
+        if f.type in _MONGO_COMPARISON_OPS:
+            return {field: {_MONGO_COMPARISON_OPS[f.type]: f.value}}
+
+        if f.type == "in":
+            if not isinstance(f.value, list):
+                raise ValueError(
+                    f"'in' filter requires a list value, got {type(f.value)}"
+                )
+            return {field: {"$in": f.value}}
+
+        if f.type == "nin":
+            if not isinstance(f.value, list):
+                raise ValueError(
+                    f"'nin' filter requires a list value, got {type(f.value)}"
+                )
+            return {field: {"$nin": f.value}}
+
+        raise ValueError(f"Unsupported comparison operator: {f.type}")
+
+    def translate_compound(self, f: CompoundFilter) -> Dict[str, Any]:
+        clauses = [self._dispatch(sub) for sub in f.filters]
+        if f.type == "and":
+            return {"$and": clauses}
+        return {"$or": clauses}
 
 
 class MongoDBOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -232,6 +296,7 @@ class MongoDBOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -277,16 +342,20 @@ class MongoDBOnlineStore(OnlineStore):
         query_vector = [float(v) for v in embedding]
 
         num_candidates = max(top_k * 10, 100)
+        vector_search_stage: Dict[str, Any] = {
+            "index": idx_name,
+            "path": path,
+            "queryVector": query_vector,
+            "numCandidates": num_candidates,
+            "limit": top_k,
+        }
+
+        mql_filter = MongoDBFilterTranslator(table.name).translate(filters)
+        if mql_filter:
+            vector_search_stage["filter"] = mql_filter
+
         pipeline: List[Dict[str, Any]] = [
-            {
-                "$vectorSearch": {
-                    "index": idx_name,
-                    "path": path,
-                    "queryVector": query_vector,
-                    "numCandidates": num_candidates,
-                    "limit": top_k,
-                }
-            },
+            {"$vectorSearch": vector_search_stage},
             {
                 "$addFields": {
                     "score": {"$meta": "vectorSearchScore"},

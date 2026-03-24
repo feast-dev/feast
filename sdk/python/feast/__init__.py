@@ -19,13 +19,20 @@ from .chunker import BaseChunker, ChunkingConfig, TextChunker
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
 from .dataframe import DataFrameEngine, FeastDataFrame
 from .doc_embedder import DocEmbedder, SchemaTransformFn
-from .embedder import BaseEmbedder, EmbeddingConfig, MultiModalEmbedder
+from .embedder import (
+    BaseEmbedder,
+    EmbeddingConfig,
+    EmbeddingProvider,
+    LiteLLMEmbeddingProvider,
+    MultiModalEmbedder,
+)
 from .entity import Entity
 from .feature import Feature
 from .feature_service import FeatureService
 from .feature_store import FeatureStore
 from .feature_view import FeatureView, FeatureViewState
 from .field import Field
+from .filter_models import FilterTranslator
 from .labeling import ConflictPolicy, LabelView
 from .on_demand_feature_view import OnDemandFeatureView
 from .project import Project
@@ -79,4 +86,7 @@ __all__ = [
     "BaseEmbedder",
     "MultiModalEmbedder",
     "EmbeddingConfig",
+    "EmbeddingProvider",
+    "LiteLLMEmbeddingProvider",
+    "FilterTranslator",
 ]
