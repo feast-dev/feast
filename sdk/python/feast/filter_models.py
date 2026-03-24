@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel
@@ -31,6 +32,56 @@ class CompoundFilter(BaseModel):
 CompoundFilter.model_rebuild()
 
 FilterType = Optional[Union[ComparisonFilter, CompoundFilter]]
+
+
+class FilterTranslator(ABC):
+    """Abstract base for translating Feast filters into backend-native expressions.
+
+    Each online store backend provides a concrete subclass that knows how to
+    turn :class:`ComparisonFilter` / :class:`CompoundFilter` trees into the
+    query language understood by the underlying database or search engine.
+
+    The :meth:`translate` entry-point handles ``None`` via :meth:`_empty` and
+    delegates to :meth:`translate_comparison` / :meth:`translate_compound`
+    through the shared :meth:`_dispatch` recursion, so subclasses only need to
+    implement the three abstract leaf methods.
+    """
+
+    @abstractmethod
+    def translate(self, filters: FilterType) -> Any:
+        """Return the backend-native filter expression."""
+        ...
+
+    def _dispatch(self, filter_obj: Union[ComparisonFilter, CompoundFilter]) -> Any:
+        """Route to comparison or compound handler (used for recursion)."""
+        if isinstance(filter_obj, ComparisonFilter):
+            return self.translate_comparison(filter_obj)
+        elif isinstance(filter_obj, CompoundFilter):
+            return self.translate_compound(filter_obj)
+        raise ValueError(f"Unknown filter type: {type(filter_obj)}")
+
+    @abstractmethod
+    def translate_comparison(self, f: ComparisonFilter) -> Any:
+        """Translate a single comparison into a backend-native expression."""
+        ...
+
+    @abstractmethod
+    def translate_compound(self, f: CompoundFilter) -> Any:
+        """Translate a compound (AND/OR) filter into a backend-native expression."""
+        ...
+
+
+def filters_contain_numeric_comparison(
+    filter_obj: Union[ComparisonFilter, CompoundFilter],
+) -> bool:
+    """Return True if any leaf comparison uses a numeric value."""
+    if isinstance(filter_obj, ComparisonFilter):
+        return isinstance(filter_obj.value, (int, float)) and not isinstance(
+            filter_obj.value, bool
+        )
+    if isinstance(filter_obj, CompoundFilter):
+        return any(filters_contain_numeric_comparison(f) for f in filter_obj.filters)
+    return False
 
 
 def convert_dict_to_filter(

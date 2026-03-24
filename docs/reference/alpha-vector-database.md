@@ -33,6 +33,100 @@ backwards compatibility and the adopt industry standard naming conventions.
 
 **Note**: Milvus, SQLite, and ScyllaDB implement the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
 
+## OpenAI-Compatible Vector Store Search
+
+Feast exposes an OpenAI-compatible vector store search endpoint at `POST /v1/vector_stores/{feature_view}/search`. This endpoint accepts plain text queries, handles embedding server-side, and returns results in the [OpenAI Vector Store Search API](https://platform.openai.com/docs/api-reference/vector-stores-search) format.
+
+This is useful for AI agents and LLM tool-calling workflows where the client cannot produce raw embedding vectors.
+
+### Requirements
+
+- An `embedding_model` section in your `feature_store.yaml` (uses [LiteLLM](https://docs.litellm.ai/) for provider support):
+
+```yaml
+embedding_model:
+  model: text-embedding-3-small
+  api_key: ${OPENAI_API_KEY}
+  # api_base, api_version, dimensions are optional
+```
+
+- A feature view with `vector_index=True` on a vector field, materialized to an online store that supports vector search.
+- For metadata filtering with numeric or boolean comparisons, set `enable_openai_compatible_store: true` on your online store config and run `feast apply` to update the schema.
+
+### Usage
+
+Start the feature server with `feast serve`, then send a search request:
+
+```bash
+curl -X POST http://localhost:6566/v1/vector_stores/my_feature_view/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "wireless noise-cancelling headphones",
+    "max_num_results": 5
+  }'
+```
+
+### Request fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `query` | `string` or `list[string]` | (required) | Plain text search query. Lists are joined with spaces before embedding. |
+| `max_num_results` | `int` | `10` | Maximum number of results to return. |
+| `filters` | `object` | `null` | OpenAI-style filters (see below). |
+| `ranking_options` | `object` | `null` | Accepted but not yet applied. |
+| `rewrite_query` | `bool` | `null` | Accepted but not yet applied. |
+| `metadata` | `object` | `null` | Optional. `metadata.features_to_retrieve` selects specific features. |
+
+### Filters
+
+The endpoint supports OpenAI-style filters for narrowing results beyond vector similarity.
+
+**Comparison operators:** `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`
+
+```json
+{"type": "eq", "key": "category", "value": "Electronics"}
+```
+
+**Compound operators:** `and`, `or` (nest to arbitrary depth)
+
+```json
+{
+  "type": "and",
+  "filters": [
+    {"type": "eq", "key": "category", "value": "Electronics"},
+    {"type": "gte", "key": "rating", "value": 4.5}
+  ]
+}
+```
+
+String equality filters work on all backends. Numeric and boolean filters require `enable_openai_compatible_store: true` in the online store config.
+
+### Response format
+
+Responses follow the OpenAI `vector_store.search_results.page` schema:
+
+```json
+{
+  "object": "vector_store.search_results.page",
+  "search_query": ["wireless noise-cancelling headphones"],
+  "data": [
+    {
+      "file_id": "my_feature_view_42",
+      "filename": "my_feature_view",
+      "score": 0.92,
+      "attributes": {"name": "...", "category": "..."},
+      "content": [
+        {"type": "text", "text": "..."}
+      ]
+    }
+  ],
+  "has_more": false,
+  "next_page": null
+}
+```
+
+Pagination is not yet implemented; `has_more` is always `false`.
+
 ## Examples
 
 - See the v0 [Rag Demo](https://github.com/feast-dev/feast-workshop/blob/rag/module_4_rag) for an example on how to use vector database using the `retrieve_online_documents` method (planning migration and deprecation (planning migration and deprecation).
