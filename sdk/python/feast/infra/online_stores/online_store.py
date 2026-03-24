@@ -556,8 +556,8 @@ class OnlineStore(ABC):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
-        include_feature_view_version_metadata: bool = False,
         filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],

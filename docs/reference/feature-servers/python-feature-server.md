@@ -457,6 +457,66 @@ Prometheus adds an `instance` label per pod, so there is no
 duplication.  Use `sum(rate(...))` or `histogram_quantile(...)` across
 instances as usual.
 
+## OpenAI-Compatible Vector Store Search
+
+The feature server exposes an OpenAI-compatible vector store search endpoint. This allows clients (including LLM agents and tool-calling frameworks) to search vector data with plain text queries, without computing embeddings client-side.
+
+### Endpoint
+
+`POST /v1/vector_stores/{vector_store_id}/search`
+
+The `vector_store_id` path parameter is the **feature view name**.
+
+### Configuration
+
+Add an `embedding_model` section to your `feature_store.yaml`:
+
+```yaml
+embedding_model:
+  model: text-embedding-3-small
+  api_key: ${OPENAI_API_KEY}
+```
+
+Any [LiteLLM](https://docs.litellm.ai/)-supported provider works (OpenAI, Ollama, Azure, Cohere, etc.). See [Alpha Vector Database](../alpha-vector-database.md#openai-compatible-vector-store-search) for full configuration and filter details.
+
+### Example
+
+```bash
+curl -X POST http://localhost:6566/v1/vector_stores/product_catalog/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "wireless noise-cancelling headphones",
+    "max_num_results": 5,
+    "filters": {
+      "type": "eq",
+      "key": "category",
+      "value": "Electronics"
+    }
+  }'
+```
+
+The response follows the OpenAI `vector_store.search_results.page` format:
+
+```json
+{
+  "object": "vector_store.search_results.page",
+  "search_query": ["wireless noise-cancelling headphones"],
+  "data": [
+    {
+      "file_id": "product_catalog_42",
+      "filename": "product_catalog",
+      "score": 0.92,
+      "attributes": {"name": "Sony WH-1000XM5", "category": "Electronics"},
+      "content": [{"type": "text", "text": "Sony WH-1000XM5"}]
+    }
+  ],
+  "has_more": false,
+  "next_page": null
+}
+```
+
+For metadata filtering with numeric comparisons, set `enable_openai_compatible_store: true` on your online store config and run `feast apply`.
+
 ## Starting the feature server in TLS(SSL) mode
 
 Enabling TLS mode ensures that data between the Feast client and server is transmitted securely. For an ideal production environment, it is recommended to start the feature server in TLS mode.
@@ -529,6 +589,7 @@ The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/pyth
 |----------------------------|---------------------------------|-------------------------------------------------------|----------------------------------------------------------------|
 | /get-online-features       | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
 | /retrieve-online-documents | FeatureView                     | Read Online                                           | Retrieve online documents from the feature store for RAG       |
+| /v1/vector_stores/{id}/search | FeatureView                  | Read Online                                           | OpenAI-compatible vector search with server-side embedding     |
 | /push                      | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
 | /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
 | /materialize               | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |

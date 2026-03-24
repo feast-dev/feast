@@ -467,7 +467,7 @@ class Provider(ABC):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        query: Optional[List[float]],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
