@@ -43,7 +43,7 @@ from feast.infra.key_encoding_utils import (
     serialize_entity_key,
     serialize_f32,
 )
-from feast.infra.online_stores.helpers import compute_table_id
+from feast.infra.online_stores.helpers import compute_table_id, extract_text_and_num
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
@@ -125,6 +125,8 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
 
     text_search_enabled: bool = False
 
+    enable_openai_compatible_store: bool = False
+
 
 class SqliteOnlineStore(OnlineStore):
     """
@@ -135,6 +137,7 @@ class SqliteOnlineStore(OnlineStore):
     """
 
     _conn: Optional[sqlite3.Connection] = None
+    _table_has_value_num: Optional[Dict[str, bool]] = None
 
     @staticmethod
     def _get_db_path(config: RepoConfig) -> str:
@@ -159,6 +162,38 @@ class SqliteOnlineStore(OnlineStore):
 
         return self._conn
 
+    def _check_table_has_value_num(
+        self, conn: sqlite3.Connection, table_name: str
+    ) -> bool:
+        """Check if the value_num column exists in the given table, with caching."""
+        if self._table_has_value_num is None:
+            self._table_has_value_num = {}
+        if table_name in self._table_has_value_num:
+            return self._table_has_value_num[table_name]
+
+        cur = conn.execute(f"PRAGMA table_info({_quote_id(table_name)})")
+        columns = {row[1] for row in cur.fetchall()}
+        exists = "value_num" in columns
+        self._table_has_value_num[table_name] = exists
+        return exists
+
+    def _filters_need_value_num(
+        self, filters: Union[ComparisonFilter, CompoundFilter]
+    ) -> bool:
+        """Check if any filter in the tree requires the value_num column."""
+        if isinstance(filters, ComparisonFilter):
+            value = filters.value
+            if isinstance(value, list):
+                if value:
+                    col, _ = self._filter_col_and_val(value[0])
+                    return col == "value_num"
+                return False
+            col, _ = self._filter_col_and_val(value)
+            return col == "value_num"
+        elif isinstance(filters, CompoundFilter):
+            return any(self._filters_need_value_num(f) for f in filters.filters)
+        return False
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -176,6 +211,42 @@ class SqliteOnlineStore(OnlineStore):
         conn = self._get_conn(config)
         project = config.project
         feature_type_dict = {f.name: f.dtype for f in table.features}
+        table_name = _table_id(
+            project, table, config.registry.enable_online_feature_view_versioning
+        )
+
+        include_value_num = getattr(
+            config.online_store, "enable_openai_compatible_store", False
+        )
+        if include_value_num:
+            include_value_num = self._check_table_has_value_num(conn, table_name)
+            if not include_value_num:
+                logging.warning(
+                    "enable_openai_compatible_store is True but value_num column "
+                    "not found in table '%s'. Run `feast apply` to add it. "
+                    "Writing without value_num.",
+                    table_name,
+                )
+                include_value_num = False
+        columns = ["entity_key", "feature_name", "value"]
+        if include_value_num:
+            columns.extend(["value_text", "value_num"])
+        if config.online_store.vector_enabled:
+            columns.append("vector_value")
+        columns.extend(["event_ts", "created_ts"])
+
+        pk_cols = {"entity_key", "feature_name"}
+        col_csv = ", ".join(columns)
+        placeholders = ", ".join(["?"] * len(columns))
+        update_set = ", ".join(
+            f"{c} = excluded.{c}" for c in columns if c not in pk_cols
+        )
+        upsert_sql = (
+            f"INSERT INTO {_quote_id(table_name)} ({col_csv}) "
+            f"VALUES ({placeholders}) "
+            f"ON CONFLICT(entity_key, feature_name) DO UPDATE SET {update_set};"
+        )
+
         with conn:
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
@@ -186,27 +257,17 @@ class SqliteOnlineStore(OnlineStore):
                 if created_ts is not None:
                     created_ts = to_naive_utc(created_ts)
 
-                table_name = _table_id(
-                    project,
-                    table,
-                    config.registry.enable_online_feature_view_versioning,
-                )
                 for feature_name, val in values.items():
-                    value_text = None
-                    value_num = None
-                    val_type = val.WhichOneof("val")
-                    if val_type == "string_val":
-                        value_text = val.string_val
-                    elif val_type in (
-                        "int64_val",
-                        "int32_val",
-                        "double_val",
-                        "float_val",
-                    ):
-                        value_num = float(getattr(val, val_type))
-                    elif val_type == "bool_val":
-                        value_num = 1.0 if val.bool_val else 0.0
-
+                    row: List[Any] = [
+                        entity_key_bin,
+                        feature_name,
+                        val.SerializeToString(),
+                    ]
+                    if include_value_num:
+                        value_text, value_num = extract_text_and_num(
+                            val, include_value_num
+                        )
+                        row.extend([value_text, value_num])
                     if config.online_store.vector_enabled:
                         if (
                             feature_type_dict.get(feature_name, None)
@@ -222,51 +283,10 @@ class SqliteOnlineStore(OnlineStore):
                             )  # type: ignore
                         else:
                             val_bin = feast_value_type_to_python_type(val)
-                        conn.execute(
-                            f"""
-                            INSERT INTO {table_name} (entity_key, feature_name, value, value_text, value_num, vector_value, event_ts, created_ts)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            ON CONFLICT(entity_key, feature_name) DO UPDATE SET
-                                value = excluded.value,
-                                value_text = excluded.value_text,
-                                value_num = excluded.value_num,
-                                vector_value = excluded.vector_value,
-                                event_ts = excluded.event_ts,
-                                created_ts = excluded.created_ts;
-                            """,
-                            (
-                                entity_key_bin,
-                                feature_name,
-                                val.SerializeToString(),
-                                value_text,
-                                value_num,
-                                val_bin,
-                                timestamp,
-                                created_ts,
-                            ),
-                        )
-                    else:
-                        conn.execute(
-                            f"""
-                            INSERT INTO {table_name} (entity_key, feature_name, value, value_text, value_num, event_ts, created_ts)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                            ON CONFLICT(entity_key, feature_name) DO UPDATE SET
-                                value = excluded.value,
-                                value_text = excluded.value_text,
-                                value_num = excluded.value_num,
-                                event_ts = excluded.event_ts,
-                                created_ts = excluded.created_ts;
-                            """,
-                            (
-                                entity_key_bin,
-                                feature_name,
-                                val.SerializeToString(),
-                                value_text,
-                                value_num,
-                                timestamp,
-                                created_ts,
-                            ),
-                        )
+                        row.append(val_bin)
+                    row.extend([timestamp, created_ts])
+
+                    conn.execute(upsert_sql, tuple(row))
 
                 if progress:
                     progress(1)
@@ -293,7 +313,7 @@ class SqliteOnlineStore(OnlineStore):
         # Fetch all entities in one go
         cur.execute(
             f"SELECT entity_key, feature_name, value, event_ts "
-            f"FROM {_table_id(config.project, table, config.registry.enable_online_feature_view_versioning)} "
+            f"FROM {_quote_id(_table_id(config.project, table, config.registry.enable_online_feature_view_versioning))} "
             f"WHERE entity_key IN ({','.join('?' * len(entity_keys))}) "
             f"ORDER BY entity_key",
             serialized_entity_keys,
@@ -332,29 +352,39 @@ class SqliteOnlineStore(OnlineStore):
     ):
         conn = self._get_conn(config)
         project = config.project
+        include_value_num = getattr(
+            config.online_store, "enable_openai_compatible_store", False
+        )
 
         versioning = config.registry.enable_online_feature_view_versioning
         for table in tables_to_keep:
+            tbl = _table_id(project, table, versioning)
+            value_num_col = "value_num REAL," if include_value_num else ""
             conn.execute(
-<<<<<<< HEAD
-                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table, versioning)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
-=======
-                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, value_text TEXT, value_num REAL, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
->>>>>>> e96a11626 (Phase 1: Added basic open ai competible search api in the vector store)
+                f"CREATE TABLE IF NOT EXISTS {_quote_id(tbl)} (entity_key BLOB, feature_name TEXT, value BLOB, value_text TEXT, {value_num_col} vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
             )
             conn.execute(
-                f"CREATE INDEX IF NOT EXISTS {_table_id(project, table, versioning)}_ek ON {_table_id(project, table, versioning)} (entity_key);"
+                f"CREATE INDEX IF NOT EXISTS {_quote_id(tbl + '_ek')} ON {_quote_id(tbl)} (entity_key);"
             )
+            _alter_table_add_column_if_missing(conn, tbl, "value_text", "TEXT")
+            if include_value_num:
+                _alter_table_add_column_if_missing(conn, tbl, "value_num", "REAL")
+                if self._table_has_value_num is None:
+                    self._table_has_value_num = {}
+                self._table_has_value_num[tbl] = True
 
         for table in tables_to_delete:
             conn.execute(
-                f"DROP TABLE IF EXISTS {_table_id(project, table, versioning)}"
+                f"DROP TABLE IF EXISTS {_quote_id(_table_id(project, table, versioning))}"
             )
 
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
     ) -> List[InfraObject]:
         project = config.project
+        include_value_num = getattr(
+            config.online_store, "enable_openai_compatible_store", False
+        )
 
         infra_objects: List[InfraObject] = [
             SqliteTable(
@@ -364,6 +394,7 @@ class SqliteOnlineStore(OnlineStore):
                     FeatureView.from_proto(view),
                     config.registry.enable_online_feature_view_versioning,
                 ),
+                include_value_num=include_value_num,
             )
             for view in [
                 *desired_registry_proto.feature_views,
@@ -442,9 +473,10 @@ class SqliteOnlineStore(OnlineStore):
         cur.execute(
             f"""
             INSERT INTO vec_table(rowid, vector_value)
-            select rowid, vector_value from {table_name}
-            where feature_name = "{vector_field}"
-        """
+            select rowid, vector_value from {_quote_id(table_name)}
+            where feature_name = ?
+        """,
+            (vector_field,),
         )
         cur.execute(
             f"""
@@ -454,7 +486,7 @@ class SqliteOnlineStore(OnlineStore):
             """
         )
 
-        # Have to join this with the {table_name} to get the feature name and entity_key
+        # Have to join this with the main table to get the feature name and entity_key
         # Also the `top_k` doesn't appear to be working for some reason
         cur.execute(
             f"""
@@ -474,7 +506,7 @@ class SqliteOnlineStore(OnlineStore):
                 order by distance
                 limit ?
             ) f
-            left join {table_name} fv
+            left join {_quote_id(table_name)} fv
             on f.rowid = fv.rowid
         """,
             (query_embedding_bin, top_k),
@@ -555,7 +587,7 @@ class SqliteOnlineStore(OnlineStore):
         if op_type in _SQLITE_COMPARISON_OPS:
             col, db_value = self._filter_col_and_val(value)
             clause = (
-                f"{ek_col} IN (SELECT entity_key FROM {table_name} "
+                f"{ek_col} IN (SELECT entity_key FROM {_quote_id(table_name)} "
                 f"WHERE feature_name = ? AND {col} {_SQLITE_COMPARISON_OPS[op_type]} ?)"
             )
             return clause, [key, db_value]
@@ -571,7 +603,7 @@ class SqliteOnlineStore(OnlineStore):
             db_values = [self._filter_col_and_val(v)[1] for v in value]
             placeholders = ", ".join(["?"] * len(value))
             clause = (
-                f"{ek_col} IN (SELECT entity_key FROM {table_name} "
+                f"{ek_col} IN (SELECT entity_key FROM {_quote_id(table_name)} "
                 f"WHERE feature_name = ? AND {col} IN ({placeholders}))"
             )
             return clause, [key] + db_values
@@ -587,7 +619,7 @@ class SqliteOnlineStore(OnlineStore):
             db_values = [self._filter_col_and_val(v)[1] for v in value]
             placeholders = ", ".join(["?"] * len(value))
             clause = (
-                f"{ek_col} IN (SELECT entity_key FROM {table_name} "
+                f"{ek_col} IN (SELECT entity_key FROM {_quote_id(table_name)} "
                 f"WHERE feature_name = ? AND {col} NOT IN ({placeholders}))"
             )
             return clause, [key] + db_values
@@ -600,6 +632,8 @@ class SqliteOnlineStore(OnlineStore):
         table_name: str,
         alias: Optional[str] = None,
     ) -> Tuple[str, List[Any]]:
+        if not filter_obj.filters:
+            return "", []
         parts: List[str] = []
         all_params: List[Any] = []
         for sub in filter_obj.filters:
@@ -617,15 +651,12 @@ class SqliteOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        query: Optional[List[float]],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
-<<<<<<< HEAD
-        include_feature_view_version_metadata: bool = False,
-=======
         filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
->>>>>>> e96a11626 (Phase 1: Added basic open ai competible search api in the vector store)
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -639,7 +670,7 @@ class SqliteOnlineStore(OnlineStore):
             config: Feast configuration object
             table: FeatureView object as the table to search
             requested_features: List of requested features to retrieve
-            query: Query embedding to search for (optional)
+            embedding: Query embedding to search for (optional)
             top_k: Number of items to return
             distance_metric: Distance metric to use (optional)
             query_string: The query string to search for using keyword search (bm25) (optional)
@@ -654,6 +685,16 @@ class SqliteOnlineStore(OnlineStore):
                 "You must enable either vector search or text search in the online store config"
             )
 
+        if filters is not None:
+            if not getattr(
+                config.online_store, "enable_openai_compatible_store", False
+            ):
+                raise ValueError(
+                    "Metadata filtering requires `enable_openai_compatible_store: true` "
+                    "in your online store config. After setting it, run `feast apply` "
+                    "to update the database schema."
+                )
+
         conn = self._get_conn(config)
         cur = conn.cursor()
 
@@ -666,12 +707,19 @@ class SqliteOnlineStore(OnlineStore):
         )
         vector_field = _get_vector_field(table)
 
+        if filters is not None and self._filters_need_value_num(filters):
+            if not self._check_table_has_value_num(conn, table_name):
+                raise ValueError(
+                    "Numerical filtering requires the `value_num` column. "
+                    "Run `feast apply` to add it."
+                )
+
         filter_clause, filter_params = self._translate_filters(
             filters, table_name, alias="fv2"
         )
 
         if online_store.vector_enabled:
-            query_embedding_bin = serialize_f32(query, vector_field_length)  # type: ignore
+            query_embedding_bin = serialize_f32(embedding, vector_field_length)  # type: ignore
             cur.execute(
                 f"""
                 CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
@@ -682,9 +730,10 @@ class SqliteOnlineStore(OnlineStore):
             cur.execute(
                 f"""
                 INSERT INTO vec_table (rowid, vector_value)
-                select rowid, vector_value from {table_name}
-                where feature_name = "{vector_field}"
-                """
+                select rowid, vector_value from {_quote_id(table_name)}
+                where feature_name = ?
+                """,
+                (vector_field,),
             )
         elif online_store.text_search_enabled:
             string_field_list = [
@@ -719,7 +768,8 @@ class SqliteOnlineStore(OnlineStore):
             )
 
         if online_store.vector_enabled:
-            where_parts = [f'fv2.feature_name != "{vector_field}"']
+            where_parts = ["fv2.feature_name != ?"]
+            vector_params = [vector_field]
             if filter_clause:
                 where_parts.append(filter_clause)
             where_sql = " AND ".join(where_parts)
@@ -744,13 +794,13 @@ class SqliteOnlineStore(OnlineStore):
                     order by distance
                     limit ?
                 ) f
-                left join {table_name} fv
+                left join {_quote_id(table_name)} fv
                     on f.rowid = fv.rowid
-                left join {table_name} fv2
+                left join {_quote_id(table_name)} fv2
                     on fv.entity_key = fv2.entity_key
                 where {where_sql}
                 """,
-                [query_embedding_bin, top_k] + filter_params,
+                [query_embedding_bin, top_k] + vector_params + filter_params,
             )
         elif online_store.text_search_enabled:
             where_parts_text = []
@@ -770,7 +820,7 @@ class SqliteOnlineStore(OnlineStore):
                     f.distance,
                     fv.event_ts,
                     fv.created_ts
-                from {table_name} fv
+                from {_quote_id(table_name)} fv
                 inner join (
                     select
                         fv_rowid,
@@ -879,6 +929,36 @@ def _initialize_conn(
     return db
 
 
+def _alter_table_add_column_if_missing(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_type: str,
+) -> None:
+    """Add a column to an existing SQLite table, ignoring if it already exists.
+
+    SQLite's ALTER TABLE ADD COLUMN doesn't support IF NOT EXISTS, so we
+    catch the specific OperationalError for duplicate columns and re-raise
+    anything else (connection failures, disk errors, etc.).
+    """
+    try:
+        conn.execute(
+            f"ALTER TABLE {_quote_id(table_name)} ADD COLUMN {_quote_id(column_name)} {column_type}"
+        )
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e).lower():
+            raise
+
+
+def _quote_id(identifier: str) -> str:
+    """Quote a SQLite identifier to prevent SQL injection.
+
+    Uses the standard SQL double-quote mechanism:  any embedded
+    double-quote characters are escaped by doubling them.
+    """
+    return '"' + identifier.replace('"', '""') + '"'
+
+
 def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
     return compute_table_id(project, table, enable_versioning)
 
@@ -895,11 +975,13 @@ class SqliteTable(InfraObject):
 
     path: str
     conn: sqlite3.Connection
+    _include_value_num: bool
 
-    def __init__(self, path: str, name: str):
+    def __init__(self, path: str, name: str, include_value_num: bool = False):
         super().__init__(name)
         self.path = path
         self.conn = _initialize_conn(path)
+        self._include_value_num = include_value_num
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         sqlite_table_proto = self.to_proto()
@@ -937,6 +1019,7 @@ class SqliteTable(InfraObject):
                 sqlite_vec.load(self.conn)
             except ModuleNotFoundError:
                 logging.warning("Cannot use sqlite_vec for vector search")
+        value_num_col = "value_num REAL," if self._include_value_num else ""
         self.conn.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {self.name} (
@@ -944,7 +1027,7 @@ class SqliteTable(InfraObject):
                 feature_name TEXT,
                 value BLOB,
                 value_text TEXT,
-                value_num REAL,
+                {value_num_col}
                 vector_value BLOB,
                 event_ts timestamp,
                 created_ts timestamp,
@@ -955,6 +1038,11 @@ class SqliteTable(InfraObject):
         self.conn.execute(
             f"CREATE INDEX IF NOT EXISTS {self.name}_ek ON {self.name} (entity_key);"
         )
+        _alter_table_add_column_if_missing(self.conn, self.name, "value_text", "TEXT")
+        if self._include_value_num:
+            _alter_table_add_column_if_missing(
+                self.conn, self.name, "value_num", "REAL"
+            )
 
     def teardown(self):
         self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
@@ -992,13 +1080,14 @@ def _generate_bm25_search_insert_query(
     """
     _string_fields = ", ".join(string_field_list)
     query = f"INSERT INTO search_table (entity_key, fv_rowid, {_string_fields})\nSELECT\n\tDISTINCT fv0.entity_key,\n\tfv0.rowid as fv_rowid"
-    from_query = f"\nFROM (select rowid, * from {table_name} where feature_name = '{string_field_list[0]}') fv0"
+    quoted_table = _quote_id(table_name)
+    from_query = f"\nFROM (select rowid, * from {quoted_table} where feature_name = '{string_field_list[0]}') fv0"
 
     for i, string_field in enumerate(string_field_list):
-        query += f"\n\t,fv{i}.value_text as {string_field}"
+        query += f"\n\t,fv{i}.value as {string_field}"
         if i > 0:
             from_query += (
-                f"\nLEFT JOIN (select rowid, * from {table_name} where feature_name = '{string_field}') fv{i}"
+                f"\nLEFT JOIN (select rowid, * from {quoted_table} where feature_name = '{string_field}') fv{i}"
                 + f"\n\tON fv0.entity_key = fv{i}.entity_key"
             )
 

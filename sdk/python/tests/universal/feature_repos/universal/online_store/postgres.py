@@ -73,6 +73,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             "password": "test!@#$%",
             "database": "test",
             "vector_enabled": True,
+            "enable_openai_compatible_store": True,
             "port": self.container.get_exposed_port(5432),
             "sslmode": "disable",
         }

@@ -68,7 +68,12 @@ from feast.errors import (
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
-from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view import (
+    DUMMY_ENTITY,
+    DUMMY_ENTITY_ID,
+    DUMMY_ENTITY_NAME,
+    FeatureView,
+)
 from feast.filter_models import ComparisonFilter, CompoundFilter, convert_dict_to_filter
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -2956,8 +2961,8 @@ class FeatureStore:
             top_k,
             distance_metric,
             query_string,
-            include_feature_view_version_metadata,
             filters,
+            include_feature_view_version_metadata,
         )
 
     def retrieve_online_documents_openai(
@@ -3076,6 +3081,12 @@ class FeatureStore:
 
         response_dict = response.to_dict()
 
+        entity_key_names = {
+            col.name
+            for col in feature_view.entity_columns
+            if col.name != DUMMY_ENTITY_ID
+        }
+
         result_data = []
         if response_dict:
             first_key = next(iter(response_dict))
@@ -3089,14 +3100,24 @@ class FeatureStore:
                     val = values[i] if i < len(values) else None
                     if key == "distance":
                         score = float(val) if val is not None else 0.0
-                    else:
+                    elif key not in entity_key_names:
                         attributes[key] = val
                         if isinstance(val, str):
                             content_parts.append({"type": "text", "text": val})
 
+                if entity_key_names:
+                    key_parts = [
+                        str(response_dict[k][i])
+                        for k in sorted(entity_key_names)
+                        if k in response_dict and i < len(response_dict[k])
+                    ]
+                    file_id = f"{vector_store_id}_{'_'.join(key_parts)}"
+                else:
+                    file_id = f"{vector_store_id}_{i}"
+
                 result_data.append(
                     {
-                        "file_id": f"{vector_store_id}_{i}",
+                        "file_id": file_id,
                         "filename": vector_store_id,
                         "score": score,
                         "attributes": attributes,
@@ -3184,14 +3205,14 @@ class FeatureStore:
         Search and return document features from the online document store.
         """
         vector_field_metadata = _get_feature_view_vector_field_metadata(table)
-        if vector_field_metadata:
+        if vector_field_metadata and vector_field_metadata.vector_search_metric:
             distance_metric = vector_field_metadata.vector_search_metric
 
         documents = provider.retrieve_online_documents_v2(
             config=self.config,
             table=table,
             requested_features=requested_features,
-            query=query,
+            embedding=query,
             top_k=top_k,
             distance_metric=distance_metric,
             query_string=query_string,

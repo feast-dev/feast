@@ -38,7 +38,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from google.protobuf.json_format import MessageToDict
 from pydantic import BaseModel, field_validator
@@ -492,7 +492,7 @@ def get_app(
     async def openai_vector_store_search(
         vector_store_id: str,
         request: OpenAISearchRequest,
-    ) -> ORJSONResponse:
+    ) -> JSONResponse:
         with feast_metrics.track_request_latency(
             "/v1/vector_stores/{vector_store_id}/search"
         ):
@@ -519,7 +519,7 @@ def get_app(
                     )
                 )
             except FeatureViewNotFoundException:
-                return ORJSONResponse(
+                return JSONResponse(
                     status_code=404,
                     content={
                         "error": {
@@ -528,7 +528,7 @@ def get_app(
                         }
                     },
                 )
-            return ORJSONResponse(content=result)
+            return JSONResponse(content=result)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
