@@ -2169,76 +2169,104 @@ class FeatureStore:
         Raises:
             Exception: For unsupported OnDemandFeatureView modes
         """
-        if feature_view.mode == "python" and isinstance(
-            feature_view.feature_transformation, PythonTransformation
-        ):
-            input_dict = (
-                df.to_dict(orient="records")[0]
-                if feature_view.singleton
-                else df.to_dict(orient="list")
+        _should_track = False
+        try:
+            from feast.metrics import _config as _metrics_config
+
+            _should_track = _metrics_config.online_features and getattr(
+                feature_view, "track_metrics", False
             )
+        except Exception:
+            pass
 
-            if feature_view.singleton:
-                transformed_rows = []
+        if _should_track:
+            import time as _time
 
-                for i, row in df.iterrows():
-                    output = feature_view.feature_transformation.udf(row.to_dict())
-                    if i == 0:
-                        transformed_rows = output
+            _t0 = _time.monotonic()
+
+        try:
+            if feature_view.mode == "python" and isinstance(
+                feature_view.feature_transformation, PythonTransformation
+            ):
+                input_dict = (
+                    df.to_dict(orient="records")[0]
+                    if feature_view.singleton
+                    else df.to_dict(orient="list")
+                )
+
+                if feature_view.singleton:
+                    transformed_rows = []
+
+                    for i, row in df.iterrows():
+                        output = feature_view.feature_transformation.udf(row.to_dict())
+                        if i == 0:
+                            transformed_rows = output
+                        else:
+                            for k in output:
+                                if isinstance(output[k], list):
+                                    transformed_rows[k].extend(output[k])
+                                else:
+                                    transformed_rows[k].append(output[k])
+
+                    transformed_data = pd.DataFrame(transformed_rows)
+                else:
+                    transformed_data = feature_view.feature_transformation.udf(
+                        input_dict
+                    )
+
+                if feature_view.write_to_online_store:
+                    entities = [
+                        self.get_entity(entity)
+                        for entity in (feature_view.entities or [])
+                    ]
+                    join_keys = [entity.join_key for entity in entities if entity]
+                    join_keys = [k for k in join_keys if k in input_dict.keys()]
+                    transformed_df = (
+                        pd.DataFrame(transformed_data)
+                        if not isinstance(transformed_data, pd.DataFrame)
+                        else transformed_data
+                    )
+                    input_df = pd.DataFrame(
+                        [input_dict] if feature_view.singleton else input_dict
+                    )
+                    if input_df.shape[0] == transformed_df.shape[0]:
+                        for k in input_dict:
+                            if k not in transformed_data:
+                                transformed_data[k] = input_dict[k]
+                        transformed_df = pd.DataFrame(transformed_data)
                     else:
-                        for k in output:
-                            if isinstance(output[k], list):
-                                transformed_rows[k].extend(output[k])
-                            else:
-                                transformed_rows[k].append(output[k])
-
-                transformed_data = pd.DataFrame(transformed_rows)
-            else:
-                transformed_data = feature_view.feature_transformation.udf(input_dict)
-
-            if feature_view.write_to_online_store:
-                entities = [
-                    self.get_entity(entity) for entity in (feature_view.entities or [])
-                ]
-                join_keys = [entity.join_key for entity in entities if entity]
-                join_keys = [k for k in join_keys if k in input_dict.keys()]
-                transformed_df = (
-                    pd.DataFrame(transformed_data)
-                    if not isinstance(transformed_data, pd.DataFrame)
-                    else transformed_data
-                )
-                input_df = pd.DataFrame(
-                    [input_dict] if feature_view.singleton else input_dict
-                )
-                if input_df.shape[0] == transformed_df.shape[0]:
+                        transformed_df = pd.merge(
+                            transformed_df,
+                            input_df,
+                            how="left",
+                            on=join_keys,
+                        )
+                else:
+                    # overwrite any transformed features and update the dictionary
                     for k in input_dict:
                         if k not in transformed_data:
                             transformed_data[k] = input_dict[k]
-                    transformed_df = pd.DataFrame(transformed_data)
-                else:
-                    transformed_df = pd.merge(
-                        transformed_df,
-                        input_df,
-                        how="left",
-                        on=join_keys,
-                    )
+
+                return pd.DataFrame(transformed_data)
+
+            elif feature_view.mode == "pandas" and isinstance(
+                feature_view.feature_transformation, PandasTransformation
+            ):
+                transformed_df = feature_view.feature_transformation.udf(df)
+                for col in df.columns:
+                    transformed_df[col] = df[col]
+                return transformed_df
             else:
-                # overwrite any transformed features and update the dictionary
-                for k in input_dict:
-                    if k not in transformed_data:
-                        transformed_data[k] = input_dict[k]
+                raise Exception("Unsupported OnDemandFeatureView mode")
+        finally:
+            if _should_track:
+                from feast.metrics import track_write_transformation
 
-            return pd.DataFrame(transformed_data)
-
-        elif feature_view.mode == "pandas" and isinstance(
-            feature_view.feature_transformation, PandasTransformation
-        ):
-            transformed_df = feature_view.feature_transformation.udf(df)
-            for col in df.columns:
-                transformed_df[col] = df[col]
-            return transformed_df
-        else:
-            raise Exception("Unsupported OnDemandFeatureView mode")
+                track_write_transformation(
+                    feature_view.name,
+                    feature_view.mode,
+                    _time.monotonic() - _t0,
+                )
 
     def _validate_vector_features(self, feature_view, df: pd.DataFrame) -> None:
         """

@@ -189,6 +189,18 @@ class OnlineStore(ABC):
 
         # Check for versioned reads on unsupported stores
         self._check_versioned_read_support(grouped_refs)
+        _track_read = False
+        try:
+            from feast.metrics import _config as _metrics_config
+
+            _track_read = _metrics_config.online_features
+        except Exception:
+            pass
+
+        if _track_read:
+            import time as _time
+
+            _read_start = _time.monotonic()
 
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
@@ -223,6 +235,11 @@ class OnlineStore(ABC):
                 output_len,
                 include_feature_view_version_metadata,
             )
+
+        if _track_read:
+            from feast.metrics import track_online_store_read
+
+            track_online_store_read(_time.monotonic() - _read_start)
 
         if requested_on_demand_feature_views:
             utils._augment_response_with_on_demand_transforms(
@@ -316,6 +333,19 @@ class OnlineStore(ABC):
 
             return idxs, read_rows, output_len
 
+        _track_read = False
+        try:
+            from feast.metrics import _config as _metrics_config
+
+            _track_read = _metrics_config.online_features
+        except Exception:
+            pass
+
+        if _track_read:
+            import time as _time
+
+            _read_start = _time.monotonic()
+
         all_responses = await asyncio.gather(
             *[
                 query_table(table, requested_features)
@@ -341,6 +371,11 @@ class OnlineStore(ABC):
                 output_len,
                 include_feature_view_version_metadata,
             )
+
+        if _track_read:
+            from feast.metrics import track_online_store_read
+
+            track_online_store_read(_time.monotonic() - _read_start)
 
         if requested_on_demand_feature_views:
             utils._augment_response_with_on_demand_transforms(

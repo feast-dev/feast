@@ -753,11 +753,27 @@ def _augment_response_with_on_demand_transforms(
     initial_response_arrow: Optional[pyarrow.Table] = None
     initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
+    def _is_metrics_active():
+        try:
+            from feast.metrics import _config
+
+            return _config.online_features
+        except Exception:
+            return False
+
+    _metrics_active = _is_metrics_active()
+
     # Apply on demand transformations and augment the result rows
     odfv_result_names = set()
     for odfv_name, _feature_refs in odfv_feature_refs.items():
         odfv = requested_odfv_map[odfv_name]
         if not odfv.write_to_online_store:
+            _should_track = _metrics_active and getattr(odfv, "track_metrics", False)
+            if _should_track:
+                import time as _time
+
+                _transform_start = _time.monotonic()
+
             # Apply aggregations if configured.
             if odfv.aggregations:
                 if odfv.mode == "python":
@@ -778,11 +794,12 @@ def _augment_response_with_on_demand_transforms(
                         odfv.entities,
                         odfv.mode,
                     )
+                continue
 
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
             # TODO: Fix to make it work for having both aggregation and transformation
             #  ticket: https://github.com/feast-dev/feast/issues/5689
-            elif odfv.mode == "python":
+            if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
@@ -797,6 +814,13 @@ def _augment_response_with_on_demand_transforms(
             else:
                 raise Exception(
                     f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
+                )
+
+            if _should_track:
+                from feast.metrics import track_transformation
+
+                track_transformation(
+                    odfv_name, odfv.mode, _time.monotonic() - _transform_start
                 )
 
             transformed_features = (

@@ -526,7 +526,6 @@ maturin==1.12.6 \
     --hash=sha256:fa84b7493a2e80759cacc2e668fa5b444d55b9994e90707c42904f55d6322c1e
     # via
     #   cryptography
-    #   orjson
     #   pydantic-core
     #   rpds-py
     #   watchfiles
@@ -804,9 +803,9 @@ typing-extensions==4.15.0 \
     # via
     #   mypy
     #   setuptools-scm
-uv-dynamic-versioning==0.13.0 \
-    --hash=sha256:3220cbf10987d862d78e9931957782a274fa438d33efb1fa26b8155353749e06 \
-    --hash=sha256:86d37b89fa2b6836a515301f74ea2d56a1bc59a46a74d66a24c869d1fc8f7585
+uv-dynamic-versioning==0.14.0 \
+    --hash=sha256:574fbc07e87ace45c01d55967ad3b864871257b98ff5b8ac87c261227ac8db5b \
+    --hash=sha256:e087c346a786e98d41292ac2315180fb700cedfb30565fc973d64ce11a112387
     # via mcp
 versioneer==0.29 \
     --hash=sha256:0f1a137bb5d6811e96a79bb0486798aeae9b9c6efc24b389659cebb0ee396cb9 \

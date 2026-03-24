@@ -211,8 +211,8 @@ push_request_count = Counter(
 # ---------------------------------------------------------------------------
 # Materialization metrics
 # ---------------------------------------------------------------------------
-materialization_total = Counter(
-    "feast_materialization_total",
+materialization_result_total = Counter(
+    "feast_materialization_result_total",
     "Total materialization runs per feature view",
     ["feature_view", "status"],
 )
@@ -221,6 +221,27 @@ materialization_duration_seconds = Histogram(
     "Duration of materialization per feature view in seconds",
     ["feature_view"],
     buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0, 3600.0),
+)
+
+# ---------------------------------------------------------------------------
+# Sub-request timing — online store reads and ODFV transformations
+# ---------------------------------------------------------------------------
+online_store_read_duration_seconds = Histogram(
+    "feast_feature_server_online_store_read_duration_seconds",
+    "Duration of the online store read phase in seconds (covers all table reads including parallel async)",
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+)
+transformation_duration_seconds = Histogram(
+    "feast_feature_server_transformation_duration_seconds",
+    "Duration of on-demand feature view transformations on read in seconds",
+    ["odfv_name", "mode"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
+)
+write_transformation_duration_seconds = Histogram(
+    "feast_feature_server_write_transformation_duration_seconds",
+    "Duration of on-demand feature view transformations on write in seconds",
+    ["odfv_name", "mode"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
 )
 
 # ---------------------------------------------------------------------------
@@ -306,6 +327,31 @@ def track_push(push_source: str, mode: str):
     push_request_count.labels(push_source=push_source, mode=mode).inc()
 
 
+def track_online_store_read(duration_seconds: float):
+    """Record the duration of the online store read phase."""
+    if not _config.online_features:
+        return
+    online_store_read_duration_seconds.observe(duration_seconds)
+
+
+def track_transformation(odfv_name: str, mode: str, duration_seconds: float):
+    """Record the duration of an on-demand feature view read-path transformation."""
+    if not _config.online_features:
+        return
+    transformation_duration_seconds.labels(odfv_name=odfv_name, mode=mode).observe(
+        duration_seconds
+    )
+
+
+def track_write_transformation(odfv_name: str, mode: str, duration_seconds: float):
+    """Record the duration of an on-demand feature view write-path transformation."""
+    if not _config.online_features:
+        return
+    write_transformation_duration_seconds.labels(
+        odfv_name=odfv_name, mode=mode
+    ).observe(duration_seconds)
+
+
 def track_materialization(
     feature_view_name: str, success: bool, duration_seconds: float
 ):
@@ -313,7 +359,9 @@ def track_materialization(
     if not _config.materialization:
         return
     status = "success" if success else "failure"
-    materialization_total.labels(feature_view=feature_view_name, status=status).inc()
+    materialization_result_total.labels(
+        feature_view=feature_view_name, status=status
+    ).inc()
     materialization_duration_seconds.labels(feature_view=feature_view_name).observe(
         duration_seconds
     )
