@@ -62,7 +62,12 @@ class MetricsConfig(FeastConfigBaseModel):
     online_features: StrictBool = True
     """Emit online feature retrieval metrics
     (feast_online_features_request_total,
-    feast_online_features_entity_count)."""
+    feast_online_features_entity_count,
+    feast_feature_server_online_store_read_duration_seconds,
+    feast_feature_server_transformation_duration_seconds,
+    feast_feature_server_write_transformation_duration_seconds).
+    ODFV transformation metrics additionally require track_metrics=True
+    on the OnDemandFeatureView definition."""
 
     push: StrictBool = True
     """Emit push/write request counters
@@ -70,7 +75,7 @@ class MetricsConfig(FeastConfigBaseModel):
 
     materialization: StrictBool = True
     """Emit materialization success/failure counters and duration histograms
-    (feast_materialization_total,
+    (feast_materialization_result_total,
     feast_materialization_duration_seconds)."""
 
     freshness: StrictBool = True

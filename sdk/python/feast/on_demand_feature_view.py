@@ -131,6 +131,8 @@ class OnDemandFeatureView(BaseFeatureView):
             maintainer.
     """
 
+    _TRACK_METRICS_TAG = "feast:track_metrics"
+
     name: str
     entities: Optional[List[str]]
     features: List[Field]
@@ -143,6 +145,7 @@ class OnDemandFeatureView(BaseFeatureView):
     owner: str
     write_to_online_store: bool
     singleton: bool
+    track_metrics: bool
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     aggregations: List[Aggregation]
@@ -163,6 +166,7 @@ class OnDemandFeatureView(BaseFeatureView):
         owner: str = "",
         write_to_online_store: bool = False,
         singleton: bool = False,
+        track_metrics: bool = False,
         aggregations: Optional[List[Aggregation]] = None,
     ):
         """
@@ -189,6 +193,11 @@ class OnDemandFeatureView(BaseFeatureView):
             the online store for faster retrieval.
             singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
                 (only applicable when mode="python").
+            track_metrics (optional): Whether to emit Prometheus timing metrics
+                (``feast_feature_server_transformation_duration_seconds``) for
+                this ODFV.  Defaults to ``False``.  Set to ``True`` to opt in
+                to per-ODFV transformation duration tracking when the server
+                is started with metrics enabled.
             aggregations (optional): List of aggregations to apply before transformation.
         """
         super().__init__(
@@ -255,6 +264,7 @@ class OnDemandFeatureView(BaseFeatureView):
             raise ValueError(
                 ODFVErrorMessages.singleton_mode_requires_python(self.mode)
             )
+        self.track_metrics = track_metrics
         self.aggregations = aggregations or []
 
     def _add_source_to_collections(self, odfv_source: OnDemandSourceType) -> None:
@@ -318,6 +328,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton,
+            track_metrics=self.track_metrics,
         )
         fv.entities = self.entities
         fv.features = self.features
@@ -345,6 +356,7 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.write_to_online_store != other.write_to_online_store
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.singleton != other.singleton
+            or self.track_metrics != other.track_metrics
             or self.aggregations != other.aggregations
         ):
             return False
@@ -471,6 +483,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
         feature_transformation = transformation_to_proto(self.feature_transformation)
 
+        tags = dict(self.tags) if self.tags else {}
+        if self.track_metrics:
+            tags[self._TRACK_METRICS_TAG] = "true"
+        else:
+            tags.pop(self._TRACK_METRICS_TAG, None)
+
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             entities=self.entities or None,
@@ -482,7 +500,7 @@ class OnDemandFeatureView(BaseFeatureView):
             feature_transformation=feature_transformation,
             mode=self.mode,
             description=self.description,
-            tags=self.tags,
+            tags=tags,
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton or False,
@@ -519,6 +537,13 @@ class OnDemandFeatureView(BaseFeatureView):
             on_demand_feature_view_proto
         )
 
+        # Extract track_metrics from proto tags and strip the internal key
+        # so it doesn't leak into user-facing self.tags.
+        proto_tags = dict(on_demand_feature_view_proto.spec.tags)
+        track_metrics = (
+            proto_tags.pop(cls._TRACK_METRICS_TAG, "false").lower() == "true"
+        )
+
         # Create the OnDemandFeatureView object
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
@@ -527,10 +552,11 @@ class OnDemandFeatureView(BaseFeatureView):
             feature_transformation=transformation,
             mode=on_demand_feature_view_proto.spec.mode or "pandas",
             description=on_demand_feature_view_proto.spec.description,
-            tags=dict(on_demand_feature_view_proto.spec.tags),
+            tags=proto_tags,
             owner=on_demand_feature_view_proto.spec.owner,
             write_to_online_store=optional_fields["write_to_online_store"],
             singleton=optional_fields["singleton"],
+            track_metrics=track_metrics,
             aggregations=optional_fields["aggregations"],
         )
 
@@ -1118,6 +1144,7 @@ def on_demand_feature_view(
     owner: str = "",
     write_to_online_store: bool = False,
     singleton: bool = False,
+    track_metrics: bool = False,
     explode: bool = False,
 ):
     """
@@ -1140,6 +1167,8 @@ def on_demand_feature_view(
             the online store for faster retrieval.
         singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
             (only applicable when mode="python").
+        track_metrics (optional): Whether to emit Prometheus timing metrics for this ODFV.
+            Defaults to False. Set to True to opt in when the server is started with metrics.
         explode (optional): A boolean that indicates whether the transformation explodes the input data into multiple rows.
     """
 
@@ -1164,6 +1193,7 @@ def on_demand_feature_view(
             write_to_online_store=write_to_online_store,
             entities=entities,
             singleton=singleton,
+            track_metrics=track_metrics,
             udf=user_function,
             udf_string=udf_string,
         )
