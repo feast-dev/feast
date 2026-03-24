@@ -709,6 +709,21 @@ type KubernetesAuthz struct {
 // https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
 type OidcAuthz struct {
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
+	// The key within the Secret that contains the OIDC configuration as a YAML-encoded value.
+	// When set, only this key is read and its YAML value is expected to contain the OIDC properties
+	// (e.g. client_id, auth_discovery_url). This allows sharing a single Secret across services.
+	// When unset, each top-level key in the Secret is treated as a separate OIDC property.
+	// +optional
+	SecretKeyName string `json:"secretKeyName,omitempty"`
+	// The name of the environment variable that client pods will use to read a pre-existing OIDC token.
+	// When set, the client feature_store.yaml will include token_env_var with this value.
+	// When unset, the client config is bare `type: oidc` which falls back to FEAST_OIDC_TOKEN or the pod's SA token.
+	// +optional
+	TokenEnvVar *string `json:"tokenEnvVar,omitempty"`
+	// Whether to verify SSL certificates when communicating with the OIDC provider.
+	// Defaults to true. Set to false for self-signed certificates (common in internal OpenShift clusters).
+	// +optional
+	VerifySSL *bool `json:"verifySSL,omitempty"`
 }
 
 // TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.

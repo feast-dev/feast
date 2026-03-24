@@ -70,6 +70,10 @@ spec:
                       OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                       https://auth0.
                     properties:
+                      secretKeyName:
+                        description: The key within the Secret that contains the OIDC
+                          configuration as a YAML-encoded value.
+                        type: string
                       secretRef:
                         description: |-
                           LocalObjectReference contains enough information to let you locate the
@@ -84,6 +88,15 @@ spec:
                             type: string
                         type: object
                         x-kubernetes-map-type: atomic
+                      tokenEnvVar:
+                        description: The name of the environment variable that client
+                          pods will use to read a pre-existing OIDC token.
+                        type: string
+                      verifySSL:
+                        description: |-
+                          Whether to verify SSL certificates when communicating with the OIDC provider.
+                          Defaults to true.
+                        type: boolean
                     required:
                     - secretRef
                     type: object
@@ -5765,6 +5778,10 @@ spec:
                           OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                           https://auth0.
                         properties:
+                          secretKeyName:
+                            description: The key within the Secret that contains the
+                              OIDC configuration as a YAML-encoded value.
+                            type: string
                           secretRef:
                             description: |-
                               LocalObjectReference contains enough information to let you locate the
@@ -5779,6 +5796,15 @@ spec:
                                 type: string
                             type: object
                             x-kubernetes-map-type: atomic
+                          tokenEnvVar:
+                            description: The name of the environment variable that
+                              client pods will use to read a pre-existing OIDC token.
+                            type: string
+                          verifySSL:
+                            description: |-
+                              Whether to verify SSL certificates when communicating with the OIDC provider.
+                              Defaults to true.
+                            type: boolean
                         required:
                         - secretRef
                         type: object

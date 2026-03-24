@@ -101,24 +101,34 @@ func getBaseServiceRepoConfig(
 	if isRemoteRegistry(featureStore) {
 		repoConfig.Registry = clientRepoConfig.Registry
 	}
-	repoConfig.AuthzConfig = clientRepoConfig.AuthzConfig
-
 	appliedSpec := featureStore.Status.Applied
 	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
-		propertiesMap, authSecretErr := secretExtractionFunc("", appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+		repoConfig.AuthzConfig = AuthzConfig{Type: OidcAuthType}
+
+		propertiesMap, authSecretErr := secretExtractionFunc("", appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, appliedSpec.AuthzConfig.OidcAuthz.SecretKeyName)
 		if authSecretErr != nil {
 			return repoConfig, authSecretErr
 		}
 
 		oidcParameters := map[string]interface{}{}
-		for _, oidcProperty := range OidcProperties {
+		for _, oidcProperty := range OidcServerProperties {
 			if val, exists := propertiesMap[string(oidcProperty)]; exists {
 				oidcParameters[string(oidcProperty)] = val
 			} else {
 				return repoConfig, missingOidcSecretProperty(oidcProperty)
 			}
 		}
+		for _, oidcProperty := range OidcOptionalSecretProperties {
+			if val, exists := propertiesMap[string(oidcProperty)]; exists {
+				oidcParameters[string(oidcProperty)] = val
+			}
+		}
+		if appliedSpec.AuthzConfig.OidcAuthz.VerifySSL != nil {
+			oidcParameters[string(OidcVerifySsl)] = *appliedSpec.AuthzConfig.OidcAuthz.VerifySSL
+		}
 		repoConfig.AuthzConfig.OidcParameters = oidcParameters
+	} else {
+		repoConfig.AuthzConfig = clientRepoConfig.AuthzConfig
 	}
 
 	return repoConfig, nil
@@ -356,21 +366,13 @@ func getRepoConfig(
 			repoConfig.AuthzConfig = AuthzConfig{
 				Type: OidcAuthType,
 			}
-
-			propertiesMap, err := secretExtractionFunc("", status.Applied.AuthzConfig.OidcAuthz.SecretRef.Name, "")
-			if err != nil {
-				return repoConfig, err
-			}
-
 			oidcClientProperties := map[string]interface{}{}
-			for _, oidcProperty := range OidcProperties {
-				if val, exists := propertiesMap[string(oidcProperty)]; exists {
-					oidcClientProperties[string(oidcProperty)] = val
-				} else {
-					return repoConfig, missingOidcSecretProperty(oidcProperty)
-				}
+			if status.Applied.AuthzConfig.OidcAuthz.TokenEnvVar != nil {
+				oidcClientProperties[string(OidcTokenEnvVar)] = *status.Applied.AuthzConfig.OidcAuthz.TokenEnvVar
 			}
-			repoConfig.AuthzConfig.OidcParameters = oidcClientProperties
+			if len(oidcClientProperties) > 0 {
+				repoConfig.AuthzConfig.OidcParameters = oidcClientProperties
+			}
 		}
 	}
 	return repoConfig, nil

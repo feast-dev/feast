@@ -62,6 +62,10 @@ spec:
                       OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                       https://auth0.
                     properties:
+                      secretKeyName:
+                        description: The key within the Secret that contains the OIDC
+                          configuration as a YAML-encoded value.
+                        type: string
                       secretRef:
                         description: |-
                           LocalObjectReference contains enough information to let you locate the
@@ -76,6 +80,15 @@ spec:
                             type: string
                         type: object
                         x-kubernetes-map-type: atomic
+                      tokenEnvVar:
+                        description: The name of the environment variable that client
+                          pods will use to read a pre-existing OIDC token.
+                        type: string
+                      verifySSL:
+                        description: |-
+                          Whether to verify SSL certificates when communicating with the OIDC provider.
+                          Defaults to true.
+                        type: boolean
                     required:
                     - secretRef
                     type: object
@@ -3129,6 +3142,10 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  runFeastApplyOnInit:
+                    description: Runs feast apply on pod start to populate the registry.
+                      Defaults to true. Ignored when DisableInitContainers is true.
+                    type: boolean
                   scaling:
                     description: Scaling configures horizontal scaling for the FeatureStore
                       deployment (e.g. HPA autoscaling).
@@ -5695,7 +5712,6 @@ spec:
                 type: object
             required:
             - feastProject
-            - replicas
             type: object
             x-kubernetes-validations:
             - message: replicas > 1 and services.scaling.autoscaling are mutually
@@ -5754,6 +5770,10 @@ spec:
                           OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                           https://auth0.
                         properties:
+                          secretKeyName:
+                            description: The key within the Secret that contains the
+                              OIDC configuration as a YAML-encoded value.
+                            type: string
                           secretRef:
                             description: |-
                               LocalObjectReference contains enough information to let you locate the
@@ -5768,6 +5788,15 @@ spec:
                                 type: string
                             type: object
                             x-kubernetes-map-type: atomic
+                          tokenEnvVar:
+                            description: The name of the environment variable that
+                              client pods will use to read a pre-existing OIDC token.
+                            type: string
+                          verifySSL:
+                            description: |-
+                              Whether to verify SSL certificates when communicating with the OIDC provider.
+                              Defaults to true.
+                            type: boolean
                         required:
                         - secretRef
                         type: object
@@ -8871,6 +8900,11 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      runFeastApplyOnInit:
+                        description: Runs feast apply on pod start to populate the
+                          registry. Defaults to true. Ignored when DisableInitContainers
+                          is true.
+                        type: boolean
                       scaling:
                         description: Scaling configures horizontal scaling for the
                           FeatureStore deployment (e.g. HPA autoscaling).
@@ -11458,7 +11492,6 @@ spec:
                     type: object
                 required:
                 - feastProject
-                - replicas
                 type: object
                 x-kubernetes-validations:
                 - message: replicas > 1 and services.scaling.autoscaling are mutually
@@ -13920,6 +13953,10 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  runFeastApplyOnInit:
+                    description: Runs feast apply on pod start to populate the registry.
+                      Defaults to true. Ignored when DisableInitContainers is true.
+                    type: boolean
                   securityContext:
                     description: PodSecurityContext holds pod-level security attributes
                       and common container settings.
@@ -18163,6 +18200,11 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      runFeastApplyOnInit:
+                        description: Runs feast apply on pod start to populate the
+                          registry. Defaults to true. Ignored when DisableInitContainers
+                          is true.
+                        type: boolean
                       securityContext:
                         description: PodSecurityContext holds pod-level security attributes
                           and common container settings.

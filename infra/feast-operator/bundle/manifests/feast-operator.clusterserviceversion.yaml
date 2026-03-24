@@ -50,7 +50,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-03-10T20:00:10Z"
+    createdAt: "2026-03-24T07:09:46Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.61.0

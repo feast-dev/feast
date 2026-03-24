@@ -91,6 +91,8 @@ const (
 	OidcClientSecret     OidcPropertyType = "client_secret"
 	OidcUsername         OidcPropertyType = "username"
 	OidcPassword         OidcPropertyType = "password"
+	OidcTokenEnvVar      OidcPropertyType = "token_env_var"
+	OidcVerifySsl        OidcPropertyType = "verify_ssl"
 
 	OidcMissingSecretError string = "missing OIDC secret: %s"
 )
@@ -208,9 +210,8 @@ var (
 		},
 	}
 
-	OidcServerProperties = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
-	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
-	OidcProperties       = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl, OidcClientSecret, OidcUsername, OidcPassword}
+	OidcServerProperties         = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
+	OidcOptionalSecretProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
 )
 
 // Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.

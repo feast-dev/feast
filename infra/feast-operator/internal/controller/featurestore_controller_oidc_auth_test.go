@@ -496,12 +496,6 @@ func expectedServerOidcAuthorizConfig() services.AuthzConfig {
 func expectedClientOidcAuthorizConfig() services.AuthzConfig {
 	return services.AuthzConfig{
 		Type: services.OidcAuthType,
-		OidcParameters: map[string]interface{}{
-			string(services.OidcClientId):         "client-id",
-			string(services.OidcAuthDiscoveryUrl): "auth-discovery-url",
-			string(services.OidcClientSecret):     "client-secret",
-			string(services.OidcUsername):         "username",
-			string(services.OidcPassword):         "password"},
 	}
 }
 
