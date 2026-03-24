@@ -1,5 +1,6 @@
 import base64
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -96,16 +97,38 @@ for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
         if milvus_type:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = milvus_type
 
+logger = logging.getLogger(__name__)
+
+MILVUS_NATIVE_NUMERIC_TYPES = {
+    DataType.INT32,
+    DataType.INT64,
+    DataType.FLOAT,
+    DataType.DOUBLE,
+    DataType.BOOL,
+}
+
+
+def _milvus_escape_string(s: str) -> str:
+    """Escape a string for safe use inside a Milvus single-quoted literal.
+
+    Backslashes must be escaped first; otherwise a trailing backslash in the
+    input would combine with the escaped quote to break out of the literal.
+    """
+    return s.replace("\\", "\\\\").replace("'", "\\'")
+
 
 def _milvus_fmt(value: Any) -> str:
     """Format a Python value for use in a Milvus boolean expression.
 
-    Feast's Milvus store maps all non-vector features to VARCHAR, so
-    every value is formatted as a quoted string.
+    Handles numeric types natively (unquoted) so that Milvus performs
+    numeric comparison instead of lexicographic string comparison.
+    Bool is checked first because Python ``bool`` is a subclass of ``int``.
     """
-    s = str(value)
-    escaped = s.replace("'", "\\'")
-    return f"'{escaped}'"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return f"'{_milvus_escape_string(str(value))}'"
 
 
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -126,6 +149,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     nlist: Optional[int] = 128
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
+    enable_openai_compatible_store: Optional[bool] = False
 
 
 class MilvusOnlineStore(OnlineStore):
@@ -137,7 +161,7 @@ class MilvusOnlineStore(OnlineStore):
     """
 
     client: Optional[MilvusClient] = None
-    _collections: Dict[str, Any] = {}
+    _collections: Optional[Dict[str, Any]] = None
 
     def _get_db_path(self, config: RepoConfig) -> str:
         assert (
@@ -177,6 +201,8 @@ class MilvusOnlineStore(OnlineStore):
         self.client = self._connect(config)
         vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
         collection_name = _table_id(config.project, table)
+        if self._collections is None:
+            self._collections = {}
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
             composite_key_name = _get_composite_key_name(table)
@@ -198,6 +224,7 @@ class MilvusOnlineStore(OnlineStore):
                 "created_timestamp",
             ]
             fields_to_add = [f for f in table.schema if f.name not in fields_to_exclude]
+            use_typed = config.online_store.enable_openai_compatible_store
             for field in fields_to_add:
                 dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
                 if dtype is None and isinstance(field.dtype, ComplexFeastType):
@@ -209,6 +236,13 @@ class MilvusOnlineStore(OnlineStore):
                                 name=field.name,
                                 dtype=dtype,
                                 dim=config.online_store.embedding_dim,
+                            )
+                        )
+                    elif use_typed and dtype in MILVUS_NATIVE_NUMERIC_TYPES:
+                        fields.append(
+                            FieldSchema(
+                                name=field.name,
+                                dtype=dtype,
                             )
                         )
                     else:
@@ -287,14 +321,19 @@ class MilvusOnlineStore(OnlineStore):
         entity_batch_to_insert = []
         unique_entities: dict[str, dict[str, Any]] = {}
         required_fields = {field["name"] for field in collection["fields"]}
+        collection_field_types = {
+            field["name"]: field["type"] for field in collection["fields"]
+        }
+        schema_internal_fields = {"event_ts", "created_ts"}
+        collection_has_native_numerics = any(
+            collection_field_types.get(name) in MILVUS_NATIVE_NUMERIC_TYPES
+            for name in required_fields - schema_internal_fields
+        )
         for entity_key, values_dict, timestamp, created_ts in data:
-            # need to construct the composite primary key also need to handle the fact that entities are a list
             entity_key_str = serialize_entity_key(
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
-            # to recover the entity key just run:
-            # deserialize_entity_key(bytes.fromhex(entity_key_str), entity_key_serialization_version=3)
             composite_key_name = _get_composite_key_name(table)
 
             timestamp_int = int(to_naive_utc(timestamp).timestamp() * 1e6)
@@ -312,6 +351,7 @@ class MilvusOnlineStore(OnlineStore):
                 values_dict,
                 vector_cols=vector_cols,
                 serialize_to_string=True,
+                use_native_numeric_types=collection_has_native_numerics,
             )
 
             # Remove timestamp fields that are handled separately to avoid conflicts
@@ -330,10 +370,11 @@ class MilvusOnlineStore(OnlineStore):
                 "created_ts": created_ts_int,
             }
             single_entity_record.update(values_dict)
-            # Ensure all required fields exist, setting missing ones to empty strings
             for field in required_fields:
                 if field not in single_entity_record:
-                    single_entity_record[field] = ""
+                    single_entity_record[field] = _default_for_milvus_type(
+                        collection_field_types.get(field, DataType.VARCHAR)
+                    )
             # Store only the latest event timestamp per entity
             if (
                 entity_key_str not in unique_entities
@@ -507,7 +548,7 @@ class MilvusOnlineStore(OnlineStore):
 
         for table in tables_to_delete:
             collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
+            if self._collections and self._collections.get(collection_name, None):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
 
@@ -525,7 +566,7 @@ class MilvusOnlineStore(OnlineStore):
         self.client = self._connect(config)
         for table in tables:
             collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
+            if self._collections and self._collections.get(collection_name, None):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
 
@@ -556,12 +597,13 @@ class MilvusOnlineStore(OnlineStore):
         self,
         filter_obj: ComparisonFilter,
     ) -> str:
-        """Translate a comparison filter to a Milvus boolean expression.
-
-        Feast's Milvus store maps all non-vector features to VARCHAR
-        columns, so values are always formatted as quoted strings.
-        """
+        """Translate a comparison filter to a Milvus boolean expression."""
         key, value, op_type = filter_obj.key, filter_obj.value, filter_obj.type
+
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", key):
+            raise ValueError(
+                f"Invalid filter key: {key!r}. Keys must be valid field identifiers."
+            )
 
         milvus_ops = {"gt": ">", "gte": ">=", "lt": "<", "lte": "<="}
 
@@ -606,8 +648,8 @@ class MilvusOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
-        include_feature_view_version_metadata: bool = False,
         filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -629,7 +671,9 @@ class MilvusOnlineStore(OnlineStore):
             List of tuples containing the event timestamp, entity key, and feature values
         """
         entity_name_feast_primitive_type_map = {
-            k.name: k.dtype for k in table.entity_columns
+            k.name: k.dtype
+            for k in list(table.entity_columns) + list(table.features)
+            if isinstance(k.dtype, PrimitiveFeastType)
         }
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
@@ -667,6 +711,27 @@ class MilvusOnlineStore(OnlineStore):
 
         self.client.load_collection(collection_name)
 
+        if filters and _filters_contain_numeric_comparison(filters):
+            collection_field_types = {
+                f["name"]: f["type"] for f in collection["fields"]
+            }
+            schema_internal_fields = {"event_ts", "created_ts"}
+            has_native = any(
+                collection_field_types.get(name) in MILVUS_NATIVE_NUMERIC_TYPES
+                for name in collection_field_types
+                if name not in schema_internal_fields
+            )
+            if not has_native:
+                logger.warning(
+                    "Numeric comparison filters (gt, gte, lt, lte) are being used "
+                    "but this collection stores numeric fields as VARCHAR. This "
+                    "causes lexicographic comparison instead of numeric comparison "
+                    "(e.g. '9' > '100' is True as a string). To fix this, set "
+                    "'enable_openai_compatible_store: true' in your online_store "
+                    "config, then teardown and re-apply your feature store to "
+                    "recreate collections with native numeric types."
+                )
+
         metadata_filter_expr = self._translate_filters(filters)
 
         def _combine_exprs(*parts: Optional[str]) -> Optional[str]:
@@ -695,10 +760,11 @@ class MilvusOnlineStore(OnlineStore):
                     "No string fields found in the feature view for text search in hybrid mode"
                 )
 
+            escaped_query = _milvus_escape_string(query_string)
             filter_expressions = []
             for field in string_field_list:
                 if field in output_fields:
-                    filter_expressions.append(f"{field} LIKE '%{query_string}%'")
+                    filter_expressions.append(f"{field} LIKE '%{escaped_query}%'")
 
             text_filter = " OR ".join(filter_expressions) if filter_expressions else ""
             combined_filter = _combine_exprs(text_filter, metadata_filter_expr)
@@ -748,10 +814,11 @@ class MilvusOnlineStore(OnlineStore):
                     "No string fields found in the feature view for text search"
                 )
 
+            escaped_query = _milvus_escape_string(query_string)
             filter_expressions = []
             for field in string_field_list:
                 if field in output_fields:
-                    filter_expressions.append(f"{field} LIKE '%{query_string}%'")
+                    filter_expressions.append(f"{field} LIKE '%{escaped_query}%'")
 
             text_filter = " OR ".join(filter_expressions)
 
@@ -825,13 +892,31 @@ class MilvusOnlineStore(OnlineStore):
                         PrimitiveFeastType.INT32,
                     ]:
                         res[field] = ValueProto(int64_val=int(field_value))
+                    elif entity_name_feast_primitive_type_map.get(
+                        field, PrimitiveFeastType.INVALID
+                    ) in [
+                        PrimitiveFeastType.FLOAT64,
+                        PrimitiveFeastType.FLOAT32,
+                    ]:
+                        res[field] = ValueProto(double_val=float(field_value))
+                    elif (
+                        entity_name_feast_primitive_type_map.get(
+                            field, PrimitiveFeastType.INVALID
+                        )
+                        == PrimitiveFeastType.BOOL
+                    ):
+                        res[field] = ValueProto(bool_val=bool(field_value))
                     elif field == composite_key_name:
                         pass
                     elif isinstance(field_value, bytes):
                         val.ParseFromString(field_value)
                         res[field] = val
+                    elif isinstance(field_value, int):
+                        res[field] = ValueProto(int64_val=field_value)
+                    elif isinstance(field_value, float):
+                        res[field] = ValueProto(double_val=field_value)
                     else:
-                        val.string_val = field_value
+                        val.string_val = str(field_value)
                         res[field] = val
                 distance = hit.get("distance", None)
                 res["distance"] = (
@@ -849,10 +934,40 @@ def _get_composite_key_name(table: FeatureView) -> str:
     return "_".join([field.name for field in table.entity_columns]) + "_pk"
 
 
+_MILVUS_TYPE_DEFAULTS: Dict[DataType, Any] = {
+    DataType.INT32: 0,
+    DataType.INT64: 0,
+    DataType.FLOAT: 0.0,
+    DataType.DOUBLE: 0.0,
+    DataType.BOOL: False,
+    DataType.VARCHAR: "",
+}
+
+
+def _default_for_milvus_type(dtype: DataType) -> Any:
+    return _MILVUS_TYPE_DEFAULTS.get(dtype, "")
+
+
+_NUMERIC_COMPARISON_OPS = {"gt", "gte", "lt", "lte"}
+
+
+def _filters_contain_numeric_comparison(
+    filter_obj: Union[ComparisonFilter, CompoundFilter],
+) -> bool:
+    if isinstance(filter_obj, ComparisonFilter):
+        return filter_obj.type in _NUMERIC_COMPARISON_OPS and isinstance(
+            filter_obj.value, (int, float)
+        )
+    if isinstance(filter_obj, CompoundFilter):
+        return any(_filters_contain_numeric_comparison(f) for f in filter_obj.filters)
+    return False
+
+
 def _extract_proto_values_to_dict(
     input_dict: Dict[str, Any],
     vector_cols: List[str],
-    serialize_to_string=False,
+    serialize_to_string: bool = False,
+    use_native_numeric_types: bool = False,
 ) -> Dict[str, Any]:
     numeric_vector_list_types = [
         k
@@ -885,13 +1000,16 @@ def _extract_proto_values_to_dict(
                             not in ["string_val", "bytes_val", "unix_timestamp_val"]
                             + numeric_types
                         ):
-                            # For complex types, use base64 encoding instead of decode
                             vector_values = base64.b64encode(
                                 feature_values.SerializeToString()
                             ).decode("utf-8")
                         elif proto_val_type == "bytes_val":
                             byte_data = getattr(feature_values, proto_val_type)
                             vector_values = base64.b64encode(byte_data).decode("utf-8")
+                        elif (
+                            use_native_numeric_types and proto_val_type in numeric_types
+                        ):
+                            vector_values = getattr(feature_values, proto_val_type)
                         else:
                             if not isinstance(feature_values, str):
                                 vector_values = str(
@@ -902,8 +1020,13 @@ def _extract_proto_values_to_dict(
                     output_dict[feature_name] = vector_values
             else:
                 if serialize_to_string:
-                    if not isinstance(feature_values, str):
-                        feature_values = str(feature_values)
-                    output_dict[feature_name] = feature_values
+                    if use_native_numeric_types and isinstance(
+                        feature_values, (int, float)
+                    ):
+                        output_dict[feature_name] = feature_values
+                    else:
+                        if not isinstance(feature_values, str):
+                            feature_values = str(feature_values)
+                        output_dict[feature_name] = feature_values
 
     return output_dict
