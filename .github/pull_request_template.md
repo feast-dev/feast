@@ -11,7 +11,7 @@
 
 # What this PR does / why we need it:
 <!--
-Outline what you're doing
+Outline what you're doing and why.
 -->
 
 # Which issue(s) this PR fixes:
@@ -20,6 +20,15 @@ Outline what you're doing
 Usage: `Fixes #<issue number>`, or `Fixes (paste link of issue)`.
 -->
 
+# Checks
+- [ ] I've made sure the tests are passing.
+- [ ] My commits are signed off (`git commit -s`)
+- [ ] My PR title follows [conventional commits](https://www.conventionalcommits.org/) format
+
+## Testing Strategy
+- [ ] Unit tests
+- [ ] Manual tests
+- [ ] Testing is not required for this change
 
 # Misc
 <!--
