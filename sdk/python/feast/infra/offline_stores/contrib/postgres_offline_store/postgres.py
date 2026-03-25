@@ -1,6 +1,6 @@
 import contextlib
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from enum import Enum
 from typing import (
     Any,
@@ -46,7 +46,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
-from feast.utils import _utc_now, make_tzaware
+from feast.utils import compute_non_entity_date_range
 
 from .postgres_source import PostgreSQLSource
 
@@ -129,36 +129,16 @@ class PostgreSQLOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, PostgreSQLSource)
-        start_date: Optional[datetime] = kwargs.get("start_date", None)
-        end_date: Optional[datetime] = kwargs.get("end_date", None)
+        start_date: Optional[datetime] = kwargs.get("start_date")
+        end_date: Optional[datetime] = kwargs.get("end_date")
 
         # Handle non-entity retrieval mode
         if entity_df is None:
-            # Default to current time if end_date not provided
-            if end_date is None:
-                end_date = _utc_now()
-            else:
-                end_date = make_tzaware(end_date)
-
-            # Calculate start_date from TTL if not provided
-
-            if start_date is None:
-                # Find the maximum TTL across all feature views to ensure we capture enough data
-                max_ttl_seconds = 0
-                for fv in feature_views:
-                    if fv.ttl and isinstance(fv.ttl, timedelta):
-                        ttl_seconds = int(fv.ttl.total_seconds())
-                        max_ttl_seconds = max(max_ttl_seconds, ttl_seconds)
-
-                if max_ttl_seconds > 0:
-                    # Start from (end_date - max_ttl) to ensure we capture all relevant features
-                    start_date = end_date - timedelta(seconds=max_ttl_seconds)
-                else:
-                    # If no TTL is set, default to 30 days before end_date
-                    start_date = end_date - timedelta(days=30)
-            else:
-                start_date = make_tzaware(start_date)
-
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=start_date,
+                end_date=end_date,
+            )
             entity_df = pd.DataFrame({"event_timestamp": [end_date]})
 
         entity_schema = _get_entity_schema(entity_df, config)
