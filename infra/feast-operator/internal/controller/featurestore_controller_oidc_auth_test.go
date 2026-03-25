@@ -523,7 +523,7 @@ func createValidOidcSecret(secretName string) *corev1.Secret {
 
 func createInvalidOidcSecret(secretName string) *corev1.Secret {
 	oidcProperties := validOidcSecretMap()
-	delete(oidcProperties, string(services.OidcClientId))
+	delete(oidcProperties, string(services.OidcAuthDiscoveryUrl))
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,

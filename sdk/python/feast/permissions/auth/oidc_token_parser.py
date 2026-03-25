@@ -79,13 +79,13 @@ class OidcTokenParser(TokenParser):
         path = ".".join(keys)
         for key in keys:
             if not isinstance(node, dict) or key not in node:
-                logger.warning(
+                logger.debug(
                     f"Missing {key} in access token claim path '{path}'. Defaulting to {expected_type()}."
                 )
                 return expected_type()
             node = node[key]
         if not isinstance(node, expected_type):
-            logger.warning(
+            logger.debug(
                 f"Expected {expected_type.__name__} at '{path}', got {type(node).__name__}. Defaulting to {expected_type()}."
             )
             return expected_type()
@@ -172,8 +172,12 @@ class OidcTokenParser(TokenParser):
             data = self._decode_token(access_token)
 
             current_user = self._extract_username_or_raise_error(data)
-            roles = self._extract_claim(
-                data, "resource_access", self._auth_config.client_id, "roles"
+            roles = (
+                self._extract_claim(
+                    data, "resource_access", self._auth_config.client_id, "roles"
+                )
+                if self._auth_config.client_id
+                else []
             )
             groups = self._extract_claim(data, "groups")
 
@@ -185,7 +189,7 @@ class OidcTokenParser(TokenParser):
                 roles=roles,
                 groups=groups,
             )
-        except jwt.exceptions.InvalidTokenError:
+        except jwt.exceptions.PyJWTError:
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
 
@@ -225,9 +229,12 @@ class OidcTokenParser(TokenParser):
         intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
 
         if intra_communication_base64:
-            decoded_token = jwt.decode(
-                access_token, options={"verify_signature": False}
-            )
+            try:
+                decoded_token = jwt.decode(
+                    access_token, options={"verify_signature": False}
+                )
+            except jwt.exceptions.DecodeError:
+                return None
             if "preferred_username" in decoded_token:
                 preferred_username: str = decoded_token["preferred_username"]
                 if (

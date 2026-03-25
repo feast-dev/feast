@@ -135,7 +135,7 @@ def _is_oidc_client_config(auth_dict: dict) -> bool:
     if auth_dict.get("type") != AuthType.OIDC.value:
         return False
     has_client_keys = bool(_OIDC_CLIENT_KEYS & auth_dict.keys())
-    has_server_keys = "auth_discovery_url" in auth_dict or "client_id" in auth_dict
+    has_server_keys = "auth_discovery_url" in auth_dict
     return has_client_keys or not has_server_keys
 
 

@@ -210,8 +210,8 @@ var (
 		},
 	}
 
-	OidcServerProperties         = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
-	OidcOptionalSecretProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
+	OidcServerProperties         = []OidcPropertyType{OidcAuthDiscoveryUrl}
+	OidcOptionalSecretProperties = []OidcPropertyType{OidcClientId, OidcClientSecret, OidcUsername, OidcPassword}
 )
 
 // Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.

@@ -35,13 +35,13 @@ class AuthConfig(FeastConfigBaseModel):
 
 class OidcAuthConfig(AuthConfig):
     auth_discovery_url: str
-    client_id: str
+    client_id: Optional[str] = None
     verify_ssl: bool = True
 
 
 class OidcClientAuthConfig(OidcAuthConfig):
     auth_discovery_url: Optional[str] = None  # type: ignore[assignment]
-    client_id: Optional[str] = None  # type: ignore[assignment]
+    client_id: Optional[str] = None
 
     username: Optional[str] = None
     password: Optional[str] = None
