@@ -31,7 +31,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 from feast.infra.utils.clickhouse.connection_utils import get_client
 from feast.saved_dataset import SavedDatasetStorage
-from feast.utils import _utc_now, make_tzaware
+from feast.utils import compute_non_entity_date_range
 
 
 class ClickhouseOfflineStoreConfig(ClickhouseConfig):
@@ -56,12 +56,11 @@ class ClickhouseOfflineStore(OfflineStore):
 
         # Handle non-entity retrieval mode
         if entity_df is None:
-            end_date = kwargs.get("end_date", None)
-            if end_date is None:
-                end_date = _utc_now()
-            else:
-                end_date = make_tzaware(end_date)
-
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
             entity_df = pd.DataFrame({"event_timestamp": [end_date]})
 
         entity_schema = _get_entity_schema(entity_df, config)

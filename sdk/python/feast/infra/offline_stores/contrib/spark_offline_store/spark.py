@@ -3,7 +3,7 @@ import tempfile
 import uuid
 import warnings
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -52,7 +52,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
-from feast.utils import _get_fields_with_aliases
+from feast.utils import _get_fields_with_aliases, compute_non_entity_date_range
 
 # Make sure spark warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
@@ -183,8 +183,11 @@ class SparkOfflineStore(OfflineStore):
         # This makes date-range retrievals possible without enumerating entities upfront; sources remain bounded by time.
         non_entity_mode = entity_df is None
         if non_entity_mode:
-            # Why: derive bounded time window without requiring entities; uses max TTL fallback to constrain scans.
-            start_date, end_date = _compute_non_entity_dates(feature_views, kwargs)
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
             entity_df_event_timestamp_range = (start_date, end_date)
 
             # Build query contexts so we can reuse entity names and per-view table info consistently.
@@ -617,29 +620,6 @@ def get_spark_session_or_start_new_with_repoconfig(
         spark_session = spark_builder.getOrCreate()
     spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
     return spark_session
-
-
-def _compute_non_entity_dates(
-    feature_views: List[FeatureView], kwargs: Dict[str, Any]
-) -> Tuple[datetime, datetime]:
-    # Why: bounds the scan window when no entity_df is provided using explicit dates or max TTL fallback.
-    start_date_opt = cast(Optional[datetime], kwargs.get("start_date"))
-    end_date_opt = cast(Optional[datetime], kwargs.get("end_date"))
-    end_date: datetime = end_date_opt or datetime.now(timezone.utc)
-
-    if start_date_opt is None:
-        max_ttl_seconds = 0
-        for fv in feature_views:
-            if fv.ttl and isinstance(fv.ttl, timedelta):
-                max_ttl_seconds = max(max_ttl_seconds, int(fv.ttl.total_seconds()))
-        start_date: datetime = (
-            end_date - timedelta(seconds=max_ttl_seconds)
-            if max_ttl_seconds > 0
-            else end_date - timedelta(days=30)
-        )
-    else:
-        start_date = start_date_opt
-    return (start_date, end_date)
 
 
 def _gather_all_entities(

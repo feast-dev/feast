@@ -4,7 +4,7 @@ import os
 import typing
 import warnings
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import (
     Any,
@@ -70,6 +70,38 @@ def make_tzaware(t: datetime) -> datetime:
         return t.replace(tzinfo=timezone.utc)
     else:
         return t
+
+
+def compute_non_entity_date_range(
+    feature_views: List["FeatureView"],
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    default_window_days: int = 30,
+) -> Tuple[datetime, datetime]:
+
+    if end_date is None:
+        end_date = datetime.now(tz=timezone.utc)
+    else:
+        end_date = make_tzaware(end_date)
+
+    if start_date is None:
+        max_ttl_seconds = max(
+            (
+                int(fv.ttl.total_seconds())
+                for fv in feature_views
+                if fv.ttl and isinstance(fv.ttl, timedelta)
+            ),
+            default=0,
+        )
+        start_date = end_date - timedelta(
+            seconds=max_ttl_seconds
+            if max_ttl_seconds > 0
+            else default_window_days * 86400
+        )
+    else:
+        start_date = make_tzaware(start_date)
+
+    return start_date, end_date
 
 
 def make_df_tzaware(t: pd.DataFrame) -> pd.DataFrame:
