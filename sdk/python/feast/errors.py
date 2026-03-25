@@ -143,7 +143,6 @@ class VersionedOnlineReadNotSupported(FeastError):
         super().__init__(
             f"Versioned feature reads (@v{version}) are not yet supported by {store_name}. "
             f"Currently only SQLite supports version-qualified feature references. "
-            f"See https://github.com/feast-dev/feast/issues/6200"
         )
 
 

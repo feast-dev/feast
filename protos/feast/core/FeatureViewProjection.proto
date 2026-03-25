@@ -33,6 +33,6 @@ message FeatureViewProjection {
   DataSource stream_source = 9;
 
   // Optional version tag for version-qualified feature references (e.g., @v2).
-  int32 version_tag = 10;
+  optional int32 version_tag = 10;
 
 }

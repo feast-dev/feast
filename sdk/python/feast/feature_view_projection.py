@@ -100,7 +100,7 @@ class FeatureViewProjection:
         for feature_column in proto.feature_columns:
             feature_view_projection.features.append(Field.from_proto(feature_column))
 
-        if proto.version_tag > 0:
+        if proto.HasField("version_tag"):
             feature_view_projection.version_tag = proto.version_tag
 
         return feature_view_projection
