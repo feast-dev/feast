@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Literal, Optional, Union
 
@@ -24,6 +24,7 @@ from feast.infra.offline_stores.ibis import (
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.utils import compute_non_entity_date_range
 
 
 def get_ibis_connection(config: RepoConfig):
@@ -153,35 +154,6 @@ class OracleOfflineStoreConfig(FeastConfigBaseModel):
         return self
 
 
-def _resolve_date_range(
-    start_date: Optional[datetime],
-    end_date: Optional[datetime],
-    feature_views: List[FeatureView],
-) -> tuple:
-    """Resolve start/end dates to a UTC-aware range, using TTL as a fallback window."""
-    if end_date is None:
-        end_date = datetime.now(tz=timezone.utc)
-    elif end_date.tzinfo is None:
-        end_date = end_date.replace(tzinfo=timezone.utc)
-
-    if start_date is None:
-        max_ttl_seconds = max(
-            (
-                int(fv.ttl.total_seconds())
-                for fv in feature_views
-                if fv.ttl and isinstance(fv.ttl, timedelta)
-            ),
-            default=0,
-        )
-        start_date = end_date - timedelta(
-            seconds=max_ttl_seconds if max_ttl_seconds > 0 else 30 * 86400
-        )
-    elif start_date.tzinfo is None:
-        start_date = start_date.replace(tzinfo=timezone.utc)
-
-    return start_date, end_date
-
-
 def _build_entity_df_from_feature_sources(
     con,
     feature_views: List[FeatureView],
@@ -254,10 +226,10 @@ class OracleOfflineStore(OfflineStore):
 
         # Handle non-entity retrieval mode (start_date/end_date only)
         if entity_df is None:
-            start_date, end_date = _resolve_date_range(
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
                 start_date=kwargs.get("start_date"),
                 end_date=kwargs.get("end_date"),
-                feature_views=feature_views,
             )
             entity_df = _build_entity_df_from_feature_sources(
                 con, feature_views, start_date, end_date
