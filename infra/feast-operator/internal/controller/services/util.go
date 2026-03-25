@@ -21,6 +21,7 @@ import (
 )
 
 var isOpenShift = false
+var hasServiceMonitorCRD = false
 
 func IsRegistryServer(featureStore *feastdevv1.FeatureStore) bool {
 	return IsLocalRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Local.Server != nil
@@ -374,6 +375,12 @@ func IsOpenShift() bool {
 	return isOpenShift
 }
 
+// HasServiceMonitorCRD returns whether the monitoring.coreos.com API group
+// (Prometheus Operator) is available in the cluster.
+func HasServiceMonitorCRD() bool {
+	return hasServiceMonitorCRD
+}
+
 // SetIsOpenShift sets the global flag isOpenShift by the controller manager.
 // We don't need to keep fetching the API every reconciliation cycle that we need to know about the platform.
 func SetIsOpenShift(cfg *rest.Config) {
@@ -393,7 +400,9 @@ func SetIsOpenShift(cfg *rest.Config) {
 	for _, v := range apiList.Groups {
 		if v.Name == "route.openshift.io" {
 			isOpenShift = true
-			break
+		}
+		if v.Name == "monitoring.coreos.com" {
+			hasServiceMonitorCRD = true
 		}
 	}
 }
