@@ -95,6 +95,7 @@ def get_repo_files(repo_root: Path) -> List[Path]:
         ".pytest_cache",
         "__pycache__",
         ".ipynb_checkpoints",
+        "**/*.ipynb",
     ]
     ignore_files = get_ignore_files(repo_root, ignore_paths)
 
