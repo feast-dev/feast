@@ -27,6 +27,7 @@ Usage: `Fixes #<issue number>`, or `Fixes (paste link of issue)`.
 
 ## Testing Strategy
 - [ ] Unit tests
+- [ ] Integration tests
 - [ ] Manual tests
 - [ ] Testing is not required for this change
 
