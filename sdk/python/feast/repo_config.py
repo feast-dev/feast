@@ -82,6 +82,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "qdrant": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
     "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
+    "mongodb": "feast.infra.online_stores.mongodb_online_store.MongoDBOnlineStore",
     "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
@@ -102,6 +103,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
+    "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {

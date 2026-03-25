@@ -240,6 +240,7 @@ _Appears in:_
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
+| `runFeastApplyOnInit` _boolean_ | Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true. |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
 | `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
 For static replicas, use spec.replicas instead. |

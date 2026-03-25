@@ -93,8 +93,7 @@ class BaseFeatureView(ABC):
         self.created_timestamp = None
         self.last_updated_timestamp = None
 
-        if source:
-            self.source = source
+        self.source = source
 
     @property
     @abstractmethod

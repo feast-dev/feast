@@ -43,7 +43,6 @@ dependencies = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
-    "orjson>=3.9.0",
 ]
 
 [project.optional-dependencies]
@@ -97,10 +96,15 @@ milvus = [
     "milvus-lite==2.4.12",
     "feast[setuptools]"
 ]
+mongodb = [
+    "pymongo>=4.13.0,<5.0.0",
+    "dnspython>=2.0.0",
+]
 mssql = ["ibis-framework[mssql]>=10.0.0"]
+oracle = ["ibis-framework[oracle]>=10.0.0"]
 mysql = ["pymysql", "types-PyMySQL"]
-opentelemetry = ["prometheus_client", "psutil"]
 openlineage = ["openlineage-python>=1.40.0"]
+opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=4.0.0"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]==3.2.5"]
@@ -112,6 +116,7 @@ qdrant = ["qdrant-client>=1.12.0"]
 rag = [
     "transformers>=4.36.0",
     "datasets>=3.6.0",
+    "sentence-transformers>=3.0.0",
 ]
 ray = [
 'ray>=2.47.0; python_version == "3.10"',
@@ -148,7 +153,7 @@ test = [
 ]
 
 ci = [
-    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, oracle, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
     "virtualenv==20.23.0",
     "dbt-artifacts-parser",

@@ -1631,6 +1631,7 @@ spec:
                                 - couchbase.offline
                                 - clickhouse
                                 - ray
+                                - oracle
                                 type: string
                             required:
                             - secretRef
@@ -2140,6 +2141,7 @@ spec:
                                 - couchbase.online
                                 - milvus
                                 - hybrid
+                                - mongodb
                                 type: string
                             required:
                             - secretRef
@@ -3127,6 +3129,10 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  runFeastApplyOnInit:
+                    description: Runs feast apply on pod start to populate the registry.
+                      Defaults to true. Ignored when DisableInitContainers is true.
+                    type: boolean
                   scaling:
                     description: Scaling configures horizontal scaling for the FeatureStore
                       deployment (e.g. HPA autoscaling).
@@ -5693,7 +5699,6 @@ spec:
                 type: object
             required:
             - feastProject
-            - replicas
             type: object
             x-kubernetes-validations:
             - message: replicas > 1 and services.scaling.autoscaling are mutually
@@ -7340,6 +7345,7 @@ spec:
                                     - couchbase.offline
                                     - clickhouse
                                     - ray
+                                    - oracle
                                     type: string
                                 required:
                                 - secretRef
@@ -7857,6 +7863,7 @@ spec:
                                     - couchbase.online
                                     - milvus
                                     - hybrid
+                                    - mongodb
                                     type: string
                                 required:
                                 - secretRef
@@ -8867,6 +8874,11 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      runFeastApplyOnInit:
+                        description: Runs feast apply on pod start to populate the
+                          registry. Defaults to true. Ignored when DisableInitContainers
+                          is true.
+                        type: boolean
                       scaling:
                         description: Scaling configures horizontal scaling for the
                           FeatureStore deployment (e.g. HPA autoscaling).
@@ -11454,7 +11466,6 @@ spec:
                     type: object
                 required:
                 - feastProject
-                - replicas
                 type: object
                 x-kubernetes-validations:
                 - message: replicas > 1 and services.scaling.autoscaling are mutually
@@ -12952,6 +12963,7 @@ spec:
                                 - couchbase.online
                                 - milvus
                                 - hybrid
+                                - mongodb
                                 type: string
                             required:
                             - secretRef
@@ -13915,6 +13927,10 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  runFeastApplyOnInit:
+                    description: Runs feast apply on pod start to populate the registry.
+                      Defaults to true. Ignored when DisableInitContainers is true.
+                    type: boolean
                   securityContext:
                     description: PodSecurityContext holds pod-level security attributes
                       and common container settings.
@@ -17171,6 +17187,7 @@ spec:
                                     - couchbase.online
                                     - milvus
                                     - hybrid
+                                    - mongodb
                                     type: string
                                 required:
                                 - secretRef
@@ -18157,6 +18174,11 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      runFeastApplyOnInit:
+                        description: Runs feast apply on pod start to populate the
+                          registry. Defaults to true. Ignored when DisableInitContainers
+                          is true.
+                        type: boolean
                       securityContext:
                         description: PodSecurityContext holds pod-level security attributes
                           and common container settings.

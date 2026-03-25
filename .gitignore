@@ -264,3 +264,6 @@ Desktop.ini
 
 # AgentReady reports
 .agentready/
+
+# Claude Code project settings
+.claude/

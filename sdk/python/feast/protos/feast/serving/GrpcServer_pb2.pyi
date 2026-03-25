@@ -4,6 +4,7 @@ isort:skip_file
 """
 import builtins
 import collections.abc
+import feast.protos.feast.types.Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
@@ -34,15 +35,35 @@ class PushRequest(google.protobuf.message.Message):
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
+    class TypedFeaturesEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        @property
+        def value(self) -> feast.protos.feast.types.Value_pb2.Value: ...
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: feast.protos.feast.types.Value_pb2.Value | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
     FEATURES_FIELD_NUMBER: builtins.int
     STREAM_FEATURE_VIEW_FIELD_NUMBER: builtins.int
     ALLOW_REGISTRY_CACHE_FIELD_NUMBER: builtins.int
     TO_FIELD_NUMBER: builtins.int
+    TYPED_FEATURES_FIELD_NUMBER: builtins.int
     @property
     def features(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
     stream_feature_view: builtins.str
     allow_registry_cache: builtins.bool
     to: builtins.str
+    @property
+    def typed_features(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.protos.feast.types.Value_pb2.Value]: ...
     def __init__(
         self,
         *,
@@ -50,8 +71,9 @@ class PushRequest(google.protobuf.message.Message):
         stream_feature_view: builtins.str = ...,
         allow_registry_cache: builtins.bool = ...,
         to: builtins.str = ...,
+        typed_features: collections.abc.Mapping[builtins.str, feast.protos.feast.types.Value_pb2.Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_registry_cache", b"allow_registry_cache", "features", b"features", "stream_feature_view", b"stream_feature_view", "to", b"to"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_registry_cache", b"allow_registry_cache", "features", b"features", "stream_feature_view", b"stream_feature_view", "to", b"to", "typed_features", b"typed_features"]) -> None: ...
 
 global___PushRequest = PushRequest
 
@@ -87,21 +109,42 @@ class WriteToOnlineStoreRequest(google.protobuf.message.Message):
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
+    class TypedFeaturesEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        @property
+        def value(self) -> feast.protos.feast.types.Value_pb2.Value: ...
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: feast.protos.feast.types.Value_pb2.Value | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
     FEATURES_FIELD_NUMBER: builtins.int
     FEATURE_VIEW_NAME_FIELD_NUMBER: builtins.int
     ALLOW_REGISTRY_CACHE_FIELD_NUMBER: builtins.int
+    TYPED_FEATURES_FIELD_NUMBER: builtins.int
     @property
     def features(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
     feature_view_name: builtins.str
     allow_registry_cache: builtins.bool
+    @property
+    def typed_features(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.protos.feast.types.Value_pb2.Value]: ...
     def __init__(
         self,
         *,
         features: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         feature_view_name: builtins.str = ...,
         allow_registry_cache: builtins.bool = ...,
+        typed_features: collections.abc.Mapping[builtins.str, feast.protos.feast.types.Value_pb2.Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_registry_cache", b"allow_registry_cache", "feature_view_name", b"feature_view_name", "features", b"features"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_registry_cache", b"allow_registry_cache", "feature_view_name", b"feature_view_name", "features", b"features", "typed_features", b"typed_features"]) -> None: ...
 
 global___WriteToOnlineStoreRequest = WriteToOnlineStoreRequest
 

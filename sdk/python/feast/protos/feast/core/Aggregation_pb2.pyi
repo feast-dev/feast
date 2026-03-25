@@ -22,8 +22,10 @@ class Aggregation(google.protobuf.message.Message):
     FUNCTION_FIELD_NUMBER: builtins.int
     TIME_WINDOW_FIELD_NUMBER: builtins.int
     SLIDE_INTERVAL_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
     column: builtins.str
     function: builtins.str
+    name: builtins.str
     @property
     def time_window(self) -> google.protobuf.duration_pb2.Duration: ...
     @property
@@ -35,8 +37,9 @@ class Aggregation(google.protobuf.message.Message):
         function: builtins.str = ...,
         time_window: google.protobuf.duration_pb2.Duration | None = ...,
         slide_interval: google.protobuf.duration_pb2.Duration | None = ...,
+        name: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["slide_interval", b"slide_interval", "time_window", b"time_window"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["column", b"column", "function", b"function", "slide_interval", b"slide_interval", "time_window", b"time_window"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["column", b"column", "function", b"function", "name", b"name", "slide_interval", b"slide_interval", "time_window", b"time_window"]) -> None: ...
 
 global___Aggregation = Aggregation
