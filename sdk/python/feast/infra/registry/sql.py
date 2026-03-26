@@ -561,24 +561,36 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
-        deleted_count = 0
-        for table in {
-            feature_views,
-            on_demand_feature_views,
-            stream_feature_views,
-        }:
-            deleted_count += self._delete_object(
-                table, name, project, "feature_view_name", None
-            )
-        if deleted_count == 0:
-            raise FeatureViewNotFoundException(name, project)
-        # Clean up version history for the deleted feature view
         with self.write_engine.begin() as conn:
+            deleted_count = 0
+            for table in {
+                feature_views,
+                on_demand_feature_views,
+                stream_feature_views,
+            }:
+                stmt = delete(table).where(
+                    table.c.feature_view_name == name,
+                    table.c.project_id == project,
+                )
+                rows = conn.execute(stmt)
+                deleted_count += rows.rowcount
+            if deleted_count == 0:
+                raise FeatureViewNotFoundException(name, project)
+            # Clean up version history in the same transaction
             stmt = delete(feature_view_version_history).where(
                 feature_view_version_history.c.feature_view_name == name,
                 feature_view_version_history.c.project_id == project,
             )
             conn.execute(stmt)
+
+        self.apply_project(
+            self.get_project(name=project, allow_cache=False), commit=True
+        )
+        if not self.purge_feast_metadata:
+            with self.write_engine.begin() as conn:
+                self._set_last_updated_metadata(_utc_now(), project, conn)
+        if self.cache_mode == "sync":
+            self.refresh()
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         return self._delete_object(

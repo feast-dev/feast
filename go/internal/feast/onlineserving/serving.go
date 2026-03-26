@@ -494,12 +494,13 @@ func ParseFeatureReference(featureRef string) (featureViewName, featureName stri
 		featureName = parsedFeatureName[1]
 	}
 
-	// Strip @v<N> version qualifier from feature view name
+	// Reject @v<N> version qualifier — Go feature server does not support versioned reads
 	if atIdx := strings.Index(featureViewName, "@"); atIdx >= 0 {
 		suffix := featureViewName[atIdx+1:]
 		matched, _ := regexp.MatchString(`^[vV]\d+$`, suffix)
 		if matched {
-			featureViewName = featureViewName[:atIdx]
+			e = fmt.Errorf("versioned feature refs (@%s) are not supported by the Go feature server", suffix)
+			return
 		}
 	}
 	return
