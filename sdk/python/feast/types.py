@@ -177,17 +177,10 @@ class Array(ComplexFeastType):
 
     def __init__(self, base_type: Union[PrimitiveFeastType, "ComplexFeastType"]):
         # Allow Struct, Array, and Set as base types for nested collections
-        if isinstance(base_type, (Struct, Array, Set)):
-            # Enforce 2-level depth limit: reject Array(Array(Array(...))) etc.
-            if isinstance(base_type, (Array, Set)) and isinstance(
-                base_type.base_type, (Array, Set)
-            ):
-                raise ValueError(
-                    f"Nested collection types are limited to 2 levels of nesting. "
-                    f"{type(base_type).__name__}({type(base_type.base_type).__name__}(...)) "
-                    f"is too deeply nested."
-                )
-        elif base_type not in SUPPORTED_BASE_TYPES:
+        if (
+            not isinstance(base_type, (Struct, Array, Set))
+            and base_type not in SUPPORTED_BASE_TYPES
+        ):
             raise ValueError(
                 f"Type {type(base_type)} is currently not supported as a base type for Array."
             )
@@ -230,15 +223,7 @@ class Set(ComplexFeastType):
 
     def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
         # Allow Array and Set as base types for nested collections
-        if isinstance(base_type, (Array, Set)):
-            # Enforce 2-level depth limit
-            if isinstance(base_type.base_type, (Array, Set)):
-                raise ValueError(
-                    f"Nested collection types are limited to 2 levels of nesting. "
-                    f"{type(base_type).__name__}({type(base_type.base_type).__name__}(...)) "
-                    f"is too deeply nested."
-                )
-        else:
+        if not isinstance(base_type, (Array, Set)):
             # Sets do not support MAP as a base type
             supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t not in (Map,)]
             if base_type not in supported_set_types:

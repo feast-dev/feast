@@ -84,19 +84,24 @@ def test_nested_set_set():
     assert from_feast_type(t) == ValueType.SET_SET
 
 
-def test_nested_depth_limit():
-    """3 levels of nesting should raise ValueError."""
-    with pytest.raises(ValueError, match="too deeply nested"):
-        Array(Array(Array(String)))
+def test_nested_unbounded_depth():
+    """Nesting depth should be unbounded."""
+    # 3-level
+    t3 = Array(Array(Array(String)))
+    assert t3.to_value_type() == ValueType.LIST_LIST
 
-    with pytest.raises(ValueError, match="too deeply nested"):
-        Array(Set(Array(String)))
+    t3_mixed = Array(Set(Array(String)))
+    assert t3_mixed.to_value_type() == ValueType.LIST_SET
 
-    with pytest.raises(ValueError, match="too deeply nested"):
-        Set(Array(Array(String)))
+    t3_set = Set(Array(Array(String)))
+    assert t3_set.to_value_type() == ValueType.SET_LIST
 
-    with pytest.raises(ValueError, match="too deeply nested"):
-        Set(Set(Set(String)))
+    t3_set2 = Set(Set(Set(String)))
+    assert t3_set2.to_value_type() == ValueType.SET_SET
+
+    # 4-level
+    t4 = Array(Array(Array(Array(Int32))))
+    assert t4.to_value_type() == ValueType.LIST_LIST
 
 
 def test_nested_from_value_type_roundtrip():
@@ -129,6 +134,10 @@ def test_nested_pyarrow_conversion():
     pa_type = from_feast_to_pyarrow_type(Set(Set(Bool)))
     assert pa_type == pyarrow.list_(pyarrow.list_(pyarrow.bool_()))
 
+    # 3-level: Array(Array(Array(Int32))) -> list(list(list(int32)))
+    pa_type = from_feast_to_pyarrow_type(Array(Array(Array(Int32))))
+    assert pa_type == pyarrow.list_(pyarrow.list_(pyarrow.list_(pyarrow.int32())))
+
 
 def test_nested_field_roundtrip():
     """Field with nested collection type should survive to_proto -> from_proto."""
@@ -137,6 +146,11 @@ def test_nested_field_roundtrip():
         ("as_field", Array(Set(Int32))),
         ("sa", Set(Array(Float64))),
         ("ss", Set(Set(Bool))),
+        # 3-level nesting
+        ("aaa", Array(Array(Array(Int32)))),
+        ("asa", Array(Set(Array(String)))),
+        # 4-level nesting
+        ("aaaa", Array(Array(Array(Array(Float64))))),
     ]
     for name, dtype in test_cases:
         field = Field(name=name, dtype=dtype, tags={"user_tag": "value"})
@@ -196,6 +210,10 @@ def test_feast_type_str_roundtrip():
         Set(Array(Float32)),
         Set(Set(Int32)),
         Set(Set(Float64)),
+        # 3+ level nesting
+        Array(Array(Array(String))),
+        Array(Set(Array(Int32))),
+        Set(Set(Set(Float64))),
     ]
     for dtype in test_cases:
         s = _feast_type_to_str(dtype)

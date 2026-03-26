@@ -323,8 +323,9 @@ def python_type_to_feast_value_type(
         if not recurse:
             raise ValueError(
                 f"Value type for field {name} is {type(value)} but "
-                f"recursion is not allowed. Array types can only be one level "
-                f"deep."
+                f"recursion is not allowed. Nested collection types cannot be "
+                f"inferred automatically; use an explicit Field dtype instead "
+                f"(e.g., dtype=Array(Array(Int32)))."
             )
 
         # This is the final type which we infer from the list
@@ -1109,8 +1110,16 @@ def _convert_nested_collection_to_proto(
                     if len(inner_list) == 0:
                         # Empty inner collection: store as empty ProtoValue
                         inner_values.append(ProtoValue())
+                    elif any(
+                        isinstance(item, (list, set, tuple)) for item in inner_list
+                    ):
+                        # Deeper nesting (3+ levels): recurse
+                        inner_proto = _convert_nested_collection_to_proto(
+                            feast_value_type, [inner_list]
+                        )
+                        inner_values.append(inner_proto[0])
                     else:
-                        # Wrap the inner list as a single list-typed Value
+                        # Leaf level: wrap as a single list-typed Value
                         proto_vals = python_values_to_proto_values(
                             [inner_list], ValueType.UNKNOWN
                         )
