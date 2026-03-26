@@ -206,6 +206,14 @@ class Array(ComplexFeastType):
         value_type_list_name = value_type_name + "_LIST"
         return ValueType[value_type_list_name]
 
+    def __eq__(self, other):
+        if isinstance(other, Array):
+            return self.base_type == other.base_type
+        return False
+
+    def __hash__(self):
+        return hash(("Array", hash(self.base_type)))
+
     def __str__(self):
         return f"Array({self.base_type})"
 
@@ -249,6 +257,14 @@ class Set(ComplexFeastType):
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
         value_type_set_name = value_type_name + "_SET"
         return ValueType[value_type_set_name]
+
+    def __eq__(self, other):
+        if isinstance(other, Set):
+            return self.base_type == other.base_type
+        return False
+
+    def __hash__(self):
+        return hash(("Set", hash(self.base_type)))
 
     def __str__(self):
         return f"Set({self.base_type})"
