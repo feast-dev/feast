@@ -1,6 +1,9 @@
+import logging
 import os
+import random
+import time
 from types import MethodType
-from typing import List, Optional, Set, Union, no_type_check
+from typing import Callable, List, Optional, Set, Union, no_type_check
 
 import pandas as pd
 from pyspark import SparkContext
@@ -22,6 +25,94 @@ from feast.infra.contrib.stream_processor import (
 from feast.infra.provider import get_provider
 from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
+
+logger = logging.getLogger(__name__)
+
+# Patterns that indicate transient errors which should be retried
+TRANSIENT_ERROR_PATTERNS = [
+    "writetimeout",
+    "readtimeout",
+    "unavailable",
+    "operationtimedout",
+    "nohostsavailable",
+    "connection refused",
+    "connection reset",
+    "timeout",
+    "overloaded",
+]
+
+
+def _is_transient_error(exc: Exception) -> bool:
+    """Check if an exception is a transient error that should be retried."""
+    exc_str = str(exc).lower()
+    exc_type = type(exc).__name__.lower()
+
+    for pattern in TRANSIENT_ERROR_PATTERNS:
+        if pattern in exc_str or pattern in exc_type:
+            return True
+    return False
+
+
+def _write_with_retry(
+    write_fn: Callable[[], None],
+    operation_name: str,
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 30.0,
+) -> None:
+    """
+    Execute a write function with exponential backoff retry for transient errors.
+
+    Args:
+        write_fn: The write function to execute
+        operation_name: Name of the operation for logging
+        max_retries: Maximum number of retry attempts
+        base_delay: Base delay in seconds for exponential backoff
+        max_delay: Maximum delay in seconds between retries
+
+    Raises:
+        Exception: The last exception if all retries are exhausted or if a
+                   non-transient error occurs
+    """
+    last_exception: Optional[Exception] = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            write_fn()
+            if attempt > 0:
+                logger.info(
+                    f"[{operation_name}] Succeeded after {attempt} retry attempt(s)"
+                )
+            return  # Success
+        except Exception as e:
+            last_exception = e
+
+            if not _is_transient_error(e):
+                # Permanent error - don't retry, bubble up immediately
+                logger.error(
+                    f"[{operation_name}] Permanent error (not retrying): "
+                    f"{type(e).__name__}: {e}"
+                )
+                raise
+
+            if attempt < max_retries:
+                # Calculate delay with exponential backoff + jitter
+                delay = min(base_delay * (2**attempt), max_delay)
+                jitter = random.uniform(0, delay * 0.1)
+                total_delay = delay + jitter
+
+                logger.warning(
+                    f"[{operation_name}] Transient error, retry {attempt + 1}/{max_retries} "
+                    f"after {total_delay:.2f}s: {type(e).__name__}: {e}"
+                )
+                time.sleep(total_delay)
+            else:
+                # Max retries exceeded - bubble up the exception
+                logger.error(
+                    f"[{operation_name}] Max retries ({max_retries}) exceeded: "
+                    f"{type(e).__name__}: {e}"
+                )
+                raise
 
 
 class SparkProcessorConfig(ProcessorConfig):
@@ -279,11 +370,28 @@ class SparkKafkaProcessor(StreamProcessor):
                 rows = self.preprocess_fn(rows)
 
             # Finally persist the data to the online store and/or offline store.
+            # Use retry with exponential backoff for transient errors.
             if rows.size > 0:
                 if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
-                    self.fs.write_to_online_store(self.sfv.name, rows)
+                    _write_with_retry(
+                        write_fn=lambda: self.fs.write_to_online_store(
+                            self.sfv.name, rows
+                        ),
+                        operation_name=f"write_to_online_store[{self.sfv.name}][batch_id={batch_id}]",
+                        max_retries=3,
+                        base_delay=1.0,
+                        max_delay=30.0,
+                    )
                 if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
-                    self.fs.write_to_offline_store(self.sfv.name, rows)
+                    _write_with_retry(
+                        write_fn=lambda: self.fs.write_to_offline_store(
+                            self.sfv.name, rows
+                        ),
+                        operation_name=f"write_to_offline_store[{self.sfv.name}][batch_id={batch_id}]",
+                        max_retries=3,
+                        base_delay=1.0,
+                        max_delay=30.0,
+                    )
 
         query = (
             df.writeStream.outputMode("update")
@@ -294,4 +402,14 @@ class SparkKafkaProcessor(StreamProcessor):
         )
 
         query.awaitTermination(timeout=self.query_timeout)
+
+        # Check if the query terminated with an error and propagate it
+        # This ensures exceptions from batch_write() bubble up to the caller
+        query_exception = query.exception()
+        if query_exception is not None:
+            logger.error(
+                f"Streaming query terminated with exception: {query_exception}"
+            )
+            raise query_exception
+
         return query
