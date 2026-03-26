@@ -167,6 +167,12 @@ class RegistryConfig(FeastBaseModel):
         Once this is set to True, it cannot be reverted back to False. Reverting back to False will
         only reset the project but not all the projects"""
 
+    enable_online_feature_view_versioning: StrictBool = False
+    """ bool: Enable versioned online store tables and version-qualified reads
+        (e.g., 'fv@v2:feature'). When True, each schema version gets its own
+        online store table and can be queried independently. Version history
+        tracking in the registry is always active regardless of this setting. """
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":

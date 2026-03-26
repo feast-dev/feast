@@ -191,7 +191,6 @@ class OracleOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-
         con = get_ibis_connection(config)
 
         return pull_latest_from_table_or_query_ibis(

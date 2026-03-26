@@ -255,7 +255,11 @@ class BaseRegistry(ABC):
     # Feature view operations
     @abstractmethod
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         """
         Registers a single feature view with Feast
@@ -264,6 +268,9 @@ class BaseRegistry(ABC):
             feature_view: Feature view that will be registered
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
+            no_promote: If True, save a new version snapshot without promoting
+                it to the active definition. The new version is accessible only
+                via explicit @v<N> reads.
         """
         raise NotImplementedError
 
@@ -490,6 +497,46 @@ class BaseRegistry(ABC):
             List of feature views
         """
         raise NotImplementedError
+
+    def list_feature_view_versions(
+        self, name: str, project: str
+    ) -> List[Dict[str, Any]]:
+        """
+        List version history for a feature view.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+
+        Returns:
+            List of version records with version, version_number, feature_view_type,
+            created_timestamp, and version_id.
+        """
+        raise NotImplementedError(
+            "list_feature_view_versions is not implemented for this registry"
+        )
+
+    def get_feature_view_by_version(
+        self, name: str, project: str, version_number: int, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        """
+        Retrieve a feature view snapshot for a specific version number.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            version_number: The version number to retrieve
+            allow_cache: Whether to allow returning from a cached registry
+
+        Returns:
+            The feature view snapshot at the specified version.
+
+        Raises:
+            FeatureViewVersionNotFound: if the version doesn't exist.
+        """
+        raise NotImplementedError(
+            "get_feature_view_by_version is not implemented for this registry"
+        )
 
     @abstractmethod
     def apply_materialization(

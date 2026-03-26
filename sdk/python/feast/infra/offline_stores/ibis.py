@@ -197,7 +197,7 @@ def get_historical_features_ibis(
             }
         )
 
-        full_name_prefix = feature_view.projection.name_alias or feature_view.name
+        full_name_prefix = feature_view.projection.name_to_use()
 
         feature_refs = [
             fr.split(":")[1]
@@ -205,13 +205,16 @@ def get_historical_features_ibis(
             if fr.startswith(f"{full_name_prefix}:")
         ]
 
+        # Use base name (without version) for column naming
+        base_name_prefix = feature_view.projection.name_alias or feature_view.name
+
         if full_feature_names:
             fv_table = fv_table.rename(
-                {f"{full_name_prefix}__{feature}": feature for feature in feature_refs}
+                {f"{base_name_prefix}__{feature}": feature for feature in feature_refs}
             )
 
             feature_refs = [
-                f"{full_name_prefix}__{feature}" for feature in feature_refs
+                f"{base_name_prefix}__{feature}" for feature in feature_refs
             ]
 
         return (

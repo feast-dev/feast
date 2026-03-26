@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from feast import Entity, utils
 from feast.batch_feature_view import BatchFeatureView
+from feast.errors import VersionedOnlineReadNotSupported
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
@@ -154,6 +155,7 @@ class OnlineStore(ABC):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         if isinstance(entity_rows, list):
             columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
@@ -185,6 +187,8 @@ class OnlineStore(ABC):
             native_entity_values=True,
         )
 
+        # Check for versioned reads on unsupported stores
+        self._check_versioned_read_support(grouped_refs)
         _track_read = False
         try:
             from feast.metrics import _config as _metrics_config
@@ -229,6 +233,7 @@ class OnlineStore(ABC):
                 requested_features,
                 table,
                 output_len,
+                include_feature_view_version_metadata,
             )
 
         if _track_read:
@@ -249,6 +254,19 @@ class OnlineStore(ABC):
         )
         return OnlineResponse(online_features_response)
 
+    def _check_versioned_read_support(self, grouped_refs):
+        """Raise an error if versioned reads are attempted on unsupported stores."""
+        from feast.infra.online_stores.sqlite import SqliteOnlineStore
+
+        if isinstance(self, SqliteOnlineStore):
+            return
+        for table, _ in grouped_refs:
+            version_tag = getattr(table.projection, "version_tag", None)
+            if version_tag is not None:
+                raise VersionedOnlineReadNotSupported(
+                    self.__class__.__name__, version_tag
+                )
+
     async def get_online_features_async(
         self,
         config: RepoConfig,
@@ -260,6 +278,7 @@ class OnlineStore(ABC):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         if isinstance(entity_rows, list):
             columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
@@ -290,6 +309,9 @@ class OnlineStore(ABC):
             full_feature_names=full_feature_names,
             native_entity_values=True,
         )
+
+        # Check for versioned reads on unsupported stores
+        self._check_versioned_read_support(grouped_refs)
 
         async def query_table(table, requested_features):
             # Get the correct set of entity values with the correct join keys.
@@ -347,6 +369,7 @@ class OnlineStore(ABC):
                 requested_features,
                 table,
                 output_len,
+                include_feature_view_version_metadata,
             )
 
         if _track_read:
@@ -472,6 +495,7 @@ class OnlineStore(ABC):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],

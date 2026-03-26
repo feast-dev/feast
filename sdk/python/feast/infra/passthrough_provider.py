@@ -247,6 +247,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         return self.online_store.get_online_features(
             config=config,
@@ -255,6 +256,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
     async def get_online_features_async(
@@ -268,6 +270,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         return await self.online_store.get_online_features_async(
             config=config,
@@ -276,6 +279,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
     async def online_read_async(
@@ -322,6 +326,7 @@ class PassthroughProvider(Provider):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List:
         result = []
         if self.online_store:
@@ -333,6 +338,7 @@ class PassthroughProvider(Provider):
                 top_k,
                 distance_metric,
                 query_string,
+                include_feature_view_version_metadata,
             )
         return result
 
@@ -488,8 +494,12 @@ class PassthroughProvider(Provider):
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
+        from feast.utils import _strip_version_from_ref
+
         feature_name_columns = [
-            ref.replace(":", "__") if dataset.full_feature_names else ref.split(":")[1]
+            _strip_version_from_ref(ref).replace(":", "__")
+            if dataset.full_feature_names
+            else ref.split(":")[1]
             for ref in dataset.features
         ]
 

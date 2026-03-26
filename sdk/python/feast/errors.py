@@ -128,6 +128,38 @@ class FeatureViewNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Feature view {name} does not exist")
 
 
+class FeatureViewVersionNotFound(FeastObjectNotFoundException):
+    def __init__(self, name, version, project=None):
+        if project:
+            super().__init__(
+                f"Version {version} of feature view {name} does not exist in project {project}"
+            )
+        else:
+            super().__init__(f"Version {version} of feature view {name} does not exist")
+
+
+class VersionedOnlineReadNotSupported(FeastError):
+    def __init__(self, store_name: str, version: int):
+        super().__init__(
+            f"Versioned feature reads (@v{version}) are not yet supported by {store_name}. "
+            f"Currently only SQLite supports version-qualified feature references. "
+        )
+
+
+class FeatureViewPinConflict(FeastError):
+    def __init__(self, name, version):
+        super().__init__(
+            f"Cannot pin feature view '{name}' to {version} because the definition has also been modified. "
+            f"To pin to an older version, only change the 'version' parameter — do not modify other fields. "
+            f"To apply a new definition, use version='latest' or omit the version parameter."
+        )
+
+
+class ConcurrentVersionConflict(FeastError):
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
+
 class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:

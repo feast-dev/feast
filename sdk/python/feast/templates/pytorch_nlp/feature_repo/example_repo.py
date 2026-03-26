@@ -96,6 +96,7 @@ text_features_fv = FeatureView(
     online=True,
     source=sentiment_source,
     tags={"team": "nlp", "domain": "sentiment_analysis"},
+    version="latest",
 )
 
 # Feature view for user-level aggregations
@@ -123,6 +124,7 @@ user_stats_fv = FeatureView(
     online=True,
     source=sentiment_source,
     tags={"team": "nlp", "domain": "user_behavior"},
+    version="latest",
 )
 
 # Request source for real-time inference
