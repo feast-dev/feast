@@ -65,83 +65,155 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
         ),
         allow_cache: bool = Query(True),
     ):
-        def count_resources_for_project(project_name: str):
+        """
+        Resource counts and feature store inventory metadata.
+
+        Returns counts per resource type, plus enriched summaries:
+        feature services (names), feature views (with per-view feature
+        count and materialization info), project list, and the registry
+        last-updated timestamp.
+        """
+
+        def get_registry_last_updated() -> Optional[str]:
             try:
-                entities = grpc_call(
+                from google.protobuf.empty_pb2 import Empty as EmptyProto
+
+                registry_proto = grpc_call(grpc_handler.Proto, EmptyProto())
+                return registry_proto.get("lastUpdated", None)
+            except Exception:
+                return None
+
+        def _extract_fv_summary(any_fv: dict, project_name: str) -> Optional[Dict]:
+            fv = _extract_feature_view_from_any(any_fv)
+            if not fv:
+                return None
+            spec = fv.get("spec", {})
+            features = spec.get("features", [])
+            return {
+                "name": spec.get("name", ""),
+                "project": project_name,
+                "type": fv.get("type", "featureView"),
+                "featureCount": len(features) if isinstance(features, list) else 0,
+            }
+
+        def collect_resources_for_project(project_name: str) -> dict:
+            entities_list: list = []
+            try:
+                entities_resp = grpc_call(
                     grpc_handler.ListEntities,
                     RegistryServer_pb2.ListEntitiesRequest(
                         project=project_name, allow_cache=allow_cache
                     ),
                 )
+                entities_list = entities_resp.get("entities", [])
             except Exception:
-                entities = {"entities": []}
+                pass
+
+            data_sources_list: list = []
             try:
-                data_sources = grpc_call(
+                ds_resp = grpc_call(
                     grpc_handler.ListDataSources,
                     RegistryServer_pb2.ListDataSourcesRequest(
                         project=project_name, allow_cache=allow_cache
                     ),
                 )
+                data_sources_list = ds_resp.get("dataSources", [])
             except Exception:
-                data_sources = {"dataSources": []}
+                pass
+
+            saved_datasets_list: list = []
             try:
-                saved_datasets = grpc_call(
+                sd_resp = grpc_call(
                     grpc_handler.ListSavedDatasets,
                     RegistryServer_pb2.ListSavedDatasetsRequest(
                         project=project_name, allow_cache=allow_cache
                     ),
                 )
+                saved_datasets_list = sd_resp.get("savedDatasets", [])
             except Exception:
-                saved_datasets = {"savedDatasets": []}
+                pass
+
+            features_list: list = []
             try:
-                features = grpc_call(
+                feat_resp = grpc_call(
                     grpc_handler.ListFeatures,
                     RegistryServer_pb2.ListFeaturesRequest(
                         project=project_name, allow_cache=allow_cache
                     ),
                 )
+                features_list = feat_resp.get("features", [])
             except Exception:
-                features = {"features": []}
+                pass
+
+            raw_fv_list: list = []
+            fv_summaries: List[Dict] = []
             try:
-                feature_views = grpc_call(
+                fv_resp = grpc_call(
                     grpc_handler.ListAllFeatureViews,
                     RegistryServer_pb2.ListAllFeatureViewsRequest(
                         project=project_name, allow_cache=allow_cache
                     ),
                 )
+                raw_fv_list = fv_resp.get("featureViews", [])
+                for any_fv in raw_fv_list:
+                    summary = _extract_fv_summary(any_fv, project_name)
+                    if summary:
+                        fv_summaries.append(summary)
             except Exception:
-                feature_views = {"featureViews": []}
+                pass
+
+            fs_summaries: List[Dict] = []
+            raw_fs_list: list = []
             try:
-                feature_services = grpc_call(
+                fs_resp = grpc_call(
                     grpc_handler.ListFeatureServices,
                     RegistryServer_pb2.ListFeatureServicesRequest(
                         project=project_name, allow_cache=allow_cache
                     ),
                 )
+                raw_fs_list = fs_resp.get("featureServices", [])
+                for fs in raw_fs_list:
+                    spec = fs.get("spec", {})
+                    fs_summaries.append(
+                        {"name": spec.get("name", ""), "project": project_name}
+                    )
             except Exception:
-                feature_services = {"featureServices": []}
+                pass
+
             return {
-                "entities": len(entities.get("entities", [])),
-                "dataSources": len(data_sources.get("dataSources", [])),
-                "savedDatasets": len(saved_datasets.get("savedDatasets", [])),
-                "features": len(features.get("features", [])),
-                "featureViews": len(feature_views.get("featureViews", [])),
-                "featureServices": len(feature_services.get("featureServices", [])),
+                "counts": {
+                    "entities": len(entities_list),
+                    "dataSources": len(data_sources_list),
+                    "savedDatasets": len(saved_datasets_list),
+                    "features": len(features_list),
+                    "featureViews": len(fv_summaries),
+                    "featureServices": len(fs_summaries),
+                },
+                "featureServices": fs_summaries,
+                "featureViews": fv_summaries,
             }
 
+        registry_last_updated = get_registry_last_updated()
+
         if project:
-            counts = count_resources_for_project(project)
-            return {"project": project, "counts": counts}
+            resources = collect_resources_for_project(project)
+            return {
+                "project": project,
+                "counts": resources["counts"],
+                "featureServices": resources["featureServices"],
+                "featureViews": resources["featureViews"],
+                "projects": [{"name": project}],
+                "registryLastUpdated": registry_last_updated,
+            }
         else:
-            # List all projects via gRPC
             projects_resp = grpc_call(
                 grpc_handler.ListProjects,
                 RegistryServer_pb2.ListProjectsRequest(allow_cache=allow_cache),
             )
-            all_projects = [
-                p["spec"]["name"] for p in projects_resp.get("projects", [])
-            ]
-            all_counts = {}
+            all_projects = projects_resp.get("projects", [])
+            project_names = [p["spec"]["name"] for p in all_projects if "spec" in p]
+
+            all_counts: Dict[str, dict] = {}
             total_counts = {
                 "entities": 0,
                 "dataSources": 0,
@@ -150,12 +222,37 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 "featureViews": 0,
                 "featureServices": 0,
             }
-            for project_name in all_projects:
-                counts = count_resources_for_project(project_name)
-                all_counts[project_name] = counts
+            all_fs: List[Dict] = []
+            all_fv: List[Dict] = []
+            project_summaries: List[Dict] = []
+
+            for pname in project_names:
+                resources = collect_resources_for_project(pname)
+                counts = resources["counts"]
+                all_counts[pname] = counts
                 for k in total_counts:
                     total_counts[k] += counts[k]
-            return {"total": total_counts, "perProject": all_counts}
+                all_fs.extend(resources["featureServices"])
+                all_fv.extend(resources["featureViews"])
+                proj_info: Dict = next(
+                    (p for p in all_projects if p.get("spec", {}).get("name") == pname),
+                    {},
+                )
+                project_summaries.append(
+                    {
+                        "name": pname,
+                        "description": proj_info.get("spec", {}).get("description", ""),
+                    }
+                )
+
+            return {
+                "total": total_counts,
+                "perProject": all_counts,
+                "featureServices": all_fs,
+                "featureViews": all_fv,
+                "projects": project_summaries,
+                "registryLastUpdated": registry_last_updated,
+            }
 
     @router.get(
         "/metrics/popular_tags", tags=["Metrics"], response_model=PopularTagsResponse
