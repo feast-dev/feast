@@ -39,15 +39,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/access"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/authz"
 	feasthandler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/registry"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	routev1 "github.com/openshift/api/route/v1"
 )
 
 // Constants for requeue
 const (
-	RequeueDelayError = 5 * time.Second
+	RequeueDelayError       = 5 * time.Second
+	RequeuePeriodicInterval = 30 * time.Second
 )
 
 // FeatureStoreReconciler reconciles a FeatureStore object
@@ -62,7 +65,8 @@ type FeatureStoreReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims;serviceaccounts,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings;clusterroles;clusterrolebindings;subjectaccessreviews,verbs=get;list;create;update;watch;delete
-// +kubebuilder:rbac:groups=core,resources=secrets;pods;namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=core,resources=secrets;pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;create;update;watch;delete
@@ -82,18 +86,8 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	err := r.Get(ctx, req.NamespacedName, cr)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// CR deleted since request queued, child objects getting GC'd, no requeue
 			logger.V(1).Info("FeatureStore CR not found, has been deleted")
-			// Clean up namespace registry entry even if the CR is not found
-			if err := r.cleanupNamespaceRegistry(ctx, &feastdevv1.FeatureStore{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      req.NamespacedName.Name,
-					Namespace: req.NamespacedName.Namespace,
-				},
-			}); err != nil {
-				logger.Error(err, "Failed to clean up namespace registry entry for deleted FeatureStore")
-				// Don't return error here as the CR is already deleted
-			}
+			r.cleanupOnDeletion(ctx, req.NamespacedName.Namespace, req.NamespacedName.Name)
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Unable to get FeatureStore CR")
@@ -101,13 +95,8 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	currentStatus := cr.Status.DeepCopy()
 
-	// Handle deletion - clean up namespace registry entry
 	if cr.DeletionTimestamp != nil {
-		logger.Info("FeatureStore is being deleted, cleaning up namespace registry entry")
-		if err := r.cleanupNamespaceRegistry(ctx, cr); err != nil {
-			logger.Error(err, "Failed to clean up namespace registry entry")
-			return ctrl.Result{}, err
-		}
+		r.cleanupOnDeletion(ctx, cr.Namespace, cr.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -127,23 +116,150 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// Add to namespace registry if deployment was successful and not being deleted
-	if recErr == nil && cr.DeletionTimestamp == nil {
-		feast := services.FeastServices{
-			Handler: feasthandler.FeastHandler{
-				Client:       r.Client,
-				Context:      ctx,
-				FeatureStore: cr,
-				Scheme:       r.Scheme,
-			},
+	if recErr == nil && cr.DeletionTimestamp == nil && apimeta.IsStatusConditionTrue(cr.Status.Conditions, feastdevv1.ReadyType) {
+		if err := access.EnsureNamespaceLabel(ctx, r.Client, cr.Namespace); err != nil {
+			logger.Error(err, "Failed to add Feast label to namespace")
 		}
-		if err := feast.AddToNamespaceRegistry(); err != nil {
-			logger.Error(err, "Failed to add FeatureStore to namespace registry")
-			// Don't return error here as the FeatureStore is already deployed successfully
+		r.addToNamespaceRegistry(ctx, cr)
+		policies, err := r.fetchPermissionsFromRegistry(ctx, cr)
+		if err != nil {
+			logger.Error(err, "Failed to fetch permissions from registry")
+		}
+		if err != nil || len(policies) == 0 || cr.Status.ClientConfigMap == "" {
+			logger.V(1).Info("Auto-access prerequisites missing or registry unreachable; cleaning up stale auto-access RBAC",
+				"policies", len(policies),
+				"clientConfigMapSet", cr.Status.ClientConfigMap != "",
+				"fetchError", err != nil,
+			)
+			if err := access.CleanupAutoAccessRBAC(ctx, r.Client, cr.Namespace, cr.Name); err != nil {
+				logger.Error(err, "Failed to cleanup stale auto-access RBAC")
+			}
+		} else {
+			if err := access.ReconcileAutoAccessRBAC(ctx, r.Client, r.Scheme, cr, cr.Namespace, cr.Name, cr.Status.ClientConfigMap, policies); err != nil {
+				logger.Error(err, "Failed to reconcile auto-access RBAC")
+			}
 		}
 	}
 
+	if recErr == nil && result.RequeueAfter == 0 {
+		result.RequeueAfter = RequeuePeriodicInterval
+	}
 	return result, recErr
+}
+
+func (r *FeatureStoreReconciler) fetchPermissionsFromRegistry(ctx context.Context, cr *feastdevv1.FeatureStore) ([]registry.PermissionPolicy, error) {
+	logger := log.FromContext(ctx)
+	registryRest := cr.Status.ServiceHostnames.RegistryRest
+	if registryRest == "" {
+		logger.V(1).Info("Skipping permission fetch: registry REST API hostname is not set (ensure RestAPI is enabled)")
+		return nil, nil
+	}
+	project := cr.Status.Applied.FeastProject
+	if project == "" {
+		project = cr.Spec.FeastProject
+	}
+	if project == "" {
+		logger.Info("Skipping permission fetch: feast project name is not set")
+		return nil, nil
+	}
+	intraCommToken, err := r.readIntraCommunicationToken(ctx, cr)
+	if err != nil {
+		return nil, err
+	}
+	useTLS := cr.Status.Applied.Services.Registry != nil &&
+		cr.Status.Applied.Services.Registry.Local != nil &&
+		cr.Status.Applied.Services.Registry.Local.Server != nil &&
+		cr.Status.Applied.Services.Registry.Local.Server.TLS.IsTLS()
+	return registry.ListPermissions(ctx, registryRest, project, intraCommToken, useTLS)
+}
+
+func (r *FeatureStoreReconciler) readIntraCommunicationToken(ctx context.Context, cr *feastdevv1.FeatureStore) (string, error) {
+	cmName := services.GetIntraCommunicationConfigMapName(cr.Name)
+	cm := &corev1.ConfigMap{}
+	if err := r.Get(ctx, types.NamespacedName{Name: cmName, Namespace: cr.Namespace}, cm); err != nil {
+		return "", err
+	}
+	return cm.Data["token"], nil
+}
+
+func (r *FeatureStoreReconciler) addToNamespaceRegistry(ctx context.Context, cr *feastdevv1.FeatureStore) {
+	logger := log.FromContext(ctx)
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+	if err := feast.AddToNamespaceRegistry(); err != nil {
+		logger.Error(err, "Failed to add feature store to namespace registry")
+	}
+}
+
+func (r *FeatureStoreReconciler) cleanupOnDeletion(ctx context.Context, namespace, name string) {
+	logger := log.FromContext(ctx)
+	otherCount := r.countOtherFeatureStoresInNamespace(ctx, namespace, name)
+	if err := access.RemoveNamespaceLabelIfLast(ctx, r.Client, namespace, otherCount); err != nil {
+		logger.Error(err, "Failed to remove Feast label from namespace")
+	}
+	if err := access.CleanupAutoAccessRBAC(ctx, r.Client, namespace, name); err != nil {
+		logger.Error(err, "Failed to cleanup auto-access RBAC")
+	}
+	clusterCount := r.countOtherFeatureStoresInCluster(ctx, namespace, name)
+	if err := access.CleanupDiscoverClusterRoleIfLast(ctx, r.Client, clusterCount); err != nil {
+		logger.Error(err, "Failed to cleanup discover ClusterRole")
+	}
+	r.cleanupNamespaceRegistry(ctx, &feastdevv1.FeatureStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	})
+}
+
+func (r *FeatureStoreReconciler) cleanupNamespaceRegistry(ctx context.Context, cr *feastdevv1.FeatureStore) {
+	logger := log.FromContext(ctx)
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+	if err := feast.RemoveFromNamespaceRegistry(); err != nil {
+		logger.Error(err, "Failed to remove feature store from namespace registry")
+	}
+}
+
+func (r *FeatureStoreReconciler) countOtherFeatureStoresInNamespace(ctx context.Context, namespace, excludeName string) int {
+	var list feastdevv1.FeatureStoreList
+	if err := r.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		return -1
+	}
+	count := 0
+	for i := range list.Items {
+		if list.Items[i].Name != excludeName && list.Items[i].DeletionTimestamp == nil {
+			count++
+		}
+	}
+	return count
+}
+
+func (r *FeatureStoreReconciler) countOtherFeatureStoresInCluster(ctx context.Context, namespace, excludeName string) int {
+	var list feastdevv1.FeatureStoreList
+	if err := r.List(ctx, &list); err != nil {
+		return -1
+	}
+	count := 0
+	for i := range list.Items {
+		item := &list.Items[i]
+		if (item.Name != excludeName || item.Namespace != namespace) && item.DeletionTimestamp == nil {
+			count++
+		}
+	}
+	return count
 }
 
 func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1.FeatureStore) (result ctrl.Result, err error) {
@@ -247,20 +363,6 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return bldr.Complete(r)
 
-}
-
-// cleanupNamespaceRegistry removes the feature store instance from the namespace registry
-func (r *FeatureStoreReconciler) cleanupNamespaceRegistry(ctx context.Context, cr *feastdevv1.FeatureStore) error {
-	feast := services.FeastServices{
-		Handler: feasthandler.FeastHandler{
-			Client:       r.Client,
-			Context:      ctx,
-			FeatureStore: cr,
-			Scheme:       r.Scheme,
-		},
-	}
-
-	return feast.RemoveFromNamespaceRegistry()
 }
 
 // if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.

@@ -378,7 +378,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			cmList := corev1.ConfigMapList{}
 			err = k8sClient.List(ctx, &cmList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cmList.Items).To(HaveLen(1))
+			Expect(cmList.Items).To(HaveLen(2))
 
 			feast := services.FeastServices{
 				Handler: handler.FeastHandler{

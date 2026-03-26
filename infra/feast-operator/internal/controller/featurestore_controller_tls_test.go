@@ -245,7 +245,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			cmList := corev1.ConfigMapList{}
 			err = k8sClient.List(ctx, &cmList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cmList.Items).To(HaveLen(1))
+			Expect(cmList.Items).To(HaveLen(2))
 
 			// check deployment
 			deploy := &appsv1.Deployment{}
@@ -257,7 +257,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			registryContainer := services.GetRegistryContainer(*deploy)
-			Expect(registryContainer.Env).To(HaveLen(1))
+			Expect(registryContainer.Env).To(HaveLen(2))
 			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -278,7 +278,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 
 			// check offline config
 			offlineContainer := services.GetOfflineContainer(*deploy)
-			Expect(offlineContainer.Env).To(HaveLen(1))
+			Expect(offlineContainer.Env).To(HaveLen(2))
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -295,7 +295,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 
 			// check online config
 			onlineContainer := services.GetOnlineContainer(*deploy)
-			Expect(onlineContainer.Env).To(HaveLen(1))
+			Expect(onlineContainer.Env).To(HaveLen(2))
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -309,7 +309,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 			err = yaml.Unmarshal(envByte, repoConfigOnline)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfigOnline).To(Equal(&testConfig))
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(2))
 
 			// check client config
 			cm := &corev1.ConfigMap{}

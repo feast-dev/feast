@@ -41,63 +41,73 @@ class KubernetesTokenParser(TokenParser):
         Raises:
             AuthenticationError if any error happens.
         """
-        # First, try to extract user information using Token Access Review
+        # Check for intra-communication token before hitting the K8s TokenReview API
+        intra_user = self._check_intra_communication_token(access_token)
+        if intra_user is not None:
+            return intra_user
+
+        # Extract groups/namespaces via Token Access Review
         groups, namespaces = self._extract_groups_and_namespaces_from_token(
             access_token
         )
 
         # Try to determine if this is a service account or regular user
         try:
-            # Attempt to decode as JWT (for service accounts)
             sa_namespace, sa_name = _decode_token(access_token)
             current_user = f"{sa_namespace}:{sa_name}"
             logger.info(
                 f"Request received from ServiceAccount: {sa_name} in namespace: {sa_namespace}"
             )
 
-            intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
-            if sa_name is not None and sa_name == intra_communication_base64:
-                return User(username=sa_name, roles=[], groups=[], namespaces=[])
-            else:
-                current_namespace = self._read_namespace_from_file()
-                logger.info(
-                    f"Looking for ServiceAccount roles of {sa_namespace}:{sa_name} in {current_namespace}"
-                )
+            current_namespace = self._read_namespace_from_file()
+            logger.info(
+                f"Looking for ServiceAccount roles of {sa_namespace}:{sa_name} in {current_namespace}"
+            )
 
-                # Get roles using existing method
-                roles = self.get_roles(
-                    current_namespace=current_namespace,
-                    service_account_namespace=sa_namespace,
-                    service_account_name=sa_name,
-                )
-                logger.info(f"Roles: {roles}")
+            roles = self.get_roles(
+                current_namespace=current_namespace,
+                service_account_namespace=sa_namespace,
+                service_account_name=sa_name,
+            )
+            logger.info(f"Roles: {roles}")
 
-                return User(
-                    username=current_user,
-                    roles=roles,
-                    groups=groups,
-                    namespaces=namespaces,
-                )
+            return User(
+                username=current_user,
+                roles=roles,
+                groups=groups,
+                namespaces=namespaces,
+            )
 
         except AuthenticationError as e:
             # If JWT decoding fails, this is likely a user token
-            # Use Token Access Review to get user information
             logger.info(f"Token is not a JWT (likely a user token): {e}")
 
-            # Get username from Token Access Review
             username = self._get_username_from_token_review(access_token)
             if not username:
                 raise AuthenticationError("Could not extract username from token")
 
             logger.info(f"Request received from User: {username}")
 
-            # Extract roles for the user from RoleBindings and ClusterRoleBindings
             logger.info(f"Extracting roles for user {username} with groups: {groups}")
             roles = self.get_user_roles(username, groups)
 
             return User(
                 username=username, roles=roles, groups=groups, namespaces=namespaces
             )
+
+    def _check_intra_communication_token(self, access_token: str) -> User | None:
+        """Short-circuits authentication for operator intra-communication tokens."""
+        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+        if not intra_communication_base64:
+            return None
+        try:
+            _, sa_name = _decode_token(access_token)
+            if sa_name == intra_communication_base64:
+                logger.info("Authenticated intra-communication request")
+                return User(username=sa_name, roles=[], groups=[], namespaces=[])
+        except AuthenticationError:
+            pass
+        return None
 
     def _read_namespace_from_file(self):
         try:

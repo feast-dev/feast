@@ -20377,6 +20377,15 @@ rules:
   - ""
   resources:
   - namespaces
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - pods
   - secrets
   verbs:
