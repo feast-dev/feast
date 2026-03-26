@@ -92,7 +92,6 @@ def get_repo_files(repo_root: Path) -> List[Path]:
         ".git",
         ".feastignore",
         ".venv",
-        "**/*.ipynb",
         "**/*.ipynb_checkpoints",
         "**/*.pytest_cache",
         "**/*__pycache__",
