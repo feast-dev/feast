@@ -1503,10 +1503,49 @@ def test_metrics_resource_counts_via_rest(fastapi_test_app):
     assert "featureViews" in counts
     assert "featureServices" in counts
 
-    # Verify counts are integers
     for key, value in counts.items():
         assert isinstance(value, int)
         assert value >= 0
+
+    # Verify feature services summaries
+    assert "featureServices" in data
+    assert isinstance(data["featureServices"], list)
+    assert len(data["featureServices"]) == counts["featureServices"]
+    for fs in data["featureServices"]:
+        assert "name" in fs
+        assert "project" in fs
+        assert fs["project"] == "demo_project"
+    service_names = [fs["name"] for fs in data["featureServices"]]
+    assert "user_service" in service_names
+
+    # Verify feature views summaries with detail
+    assert "featureViews" in data
+    assert isinstance(data["featureViews"], list)
+    assert len(data["featureViews"]) == counts["featureViews"]
+    for fv in data["featureViews"]:
+        assert "name" in fv
+        assert "project" in fv
+        assert "type" in fv
+        assert "featureCount" in fv
+        assert isinstance(fv["featureCount"], int)
+        assert fv["featureCount"] >= 0
+        assert fv["project"] == "demo_project"
+    fv_names = [fv["name"] for fv in data["featureViews"]]
+    assert "user_profile" in fv_names
+    user_profile_fv = next(
+        fv for fv in data["featureViews"] if fv["name"] == "user_profile"
+    )
+    assert user_profile_fv["featureCount"] == 2
+
+    # Verify projects list
+    assert "projects" in data
+    assert isinstance(data["projects"], list)
+    assert len(data["projects"]) == 1
+    assert data["projects"][0]["name"] == "demo_project"
+
+    # Verify registry last updated
+    assert "registryLastUpdated" in data
+    assert data["registryLastUpdated"] is not None
 
     # Test without project parameter (should return all projects)
     response = fastapi_test_app.get("/metrics/resource_counts")
@@ -1526,6 +1565,28 @@ def test_metrics_resource_counts_via_rest(fastapi_test_app):
     per_project = data["perProject"]
     assert "demo_project" in per_project
     assert isinstance(per_project["demo_project"], dict)
+
+    # Verify metadata in all-projects mode
+    assert "featureServices" in data
+    assert isinstance(data["featureServices"], list)
+
+    assert "featureViews" in data
+    assert isinstance(data["featureViews"], list)
+    for fv in data["featureViews"]:
+        assert "name" in fv
+        assert "project" in fv
+        assert "type" in fv
+        assert "featureCount" in fv
+
+    assert "projects" in data
+    assert isinstance(data["projects"], list)
+    assert len(data["projects"]) >= 1
+    for proj in data["projects"]:
+        assert "name" in proj
+        assert "description" in proj
+
+    assert "registryLastUpdated" in data
+    assert data["registryLastUpdated"] is not None
 
 
 def test_metrics_resource_counts_with_permission_errors(fastapi_test_app):
@@ -1585,6 +1646,10 @@ def test_metrics_resource_counts_with_permission_errors(fastapi_test_app):
     assert counts["features"] == baseline_counts["features"]
     assert counts["savedDatasets"] == baseline_counts["savedDatasets"]
 
+    # Permitted metadata summaries should still be populated
+    assert len(data["featureViews"]) == baseline_counts["featureViews"]
+    assert len(data["featureServices"]) == baseline_counts["featureServices"]
+
     # Now test with ALL resource types denied
     def grpc_call_all_denied(handler_fn, request):
         handler_name = getattr(handler_fn, "__name__", "")
@@ -1606,6 +1671,10 @@ def test_metrics_resource_counts_with_permission_errors(fastapi_test_app):
         assert count == 0, (
             f"Expected 0 for {resource_type} when permission denied, got {count}"
         )
+
+    # Metadata summaries should be empty when all permissions are denied
+    assert data["featureViews"] == []
+    assert data["featureServices"] == []
 
 
 def test_feature_views_all_types_and_resource_counts_match(fastapi_test_app):
@@ -1931,3 +2000,19 @@ def test_all_endpoints_return_404_for_invalid_objects(fastapi_test_app):
     data = response.json()
     assert data["status_code"] == 404
     assert data["error_type"] == "FeastObjectNotFoundException"
+
+
+def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
+    """Test /metrics/resource_counts with a non-existent project returns empty data."""
+    response = fastapi_test_app.get(
+        "/metrics/resource_counts?project=nonexistent_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    counts = data["counts"]
+    for value in counts.values():
+        assert value == 0
+    assert data["featureServices"] == []
+    assert data["featureViews"] == []
+    assert "registryLastUpdated" in data
