@@ -260,7 +260,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			cmList := corev1.ConfigMapList{}
 			err = k8sClient.List(ctx, &cmList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cmList.Items).To(HaveLen(1))
+			Expect(cmList.Items).To(HaveLen(2))
 
 			feast := services.FeastServices{
 				Handler: handler.FeastHandler{
@@ -287,7 +287,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(services.GetOfflineContainer(*deploy)).To(BeNil())
 			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(2))
 			env := getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
 			Expect(env).NotTo(BeNil())
 

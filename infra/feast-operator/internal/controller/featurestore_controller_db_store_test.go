@@ -538,7 +538,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			cmList := corev1.ConfigMapList{}
 			err = k8sClient.List(ctx, &cmList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cmList.Items).To(HaveLen(1))
+			Expect(cmList.Items).To(HaveLen(2))
 
 			feast := services.FeastServices{
 				Handler: handler.FeastHandler{
@@ -558,7 +558,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			registryContainer := services.GetRegistryContainer(*deploy)
-			Expect(registryContainer.Env).To(HaveLen(1))
+			Expect(registryContainer.Env).To(HaveLen(2))
 			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -602,7 +602,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(repoConfig).To(Equal(testConfig))
 
 			offlineContainer := services.GetOfflineContainer(*deploy)
-			Expect(offlineContainer.Env).To(HaveLen(1))
+			Expect(offlineContainer.Env).To(HaveLen(2))
 			assertEnvFrom(*offlineContainer)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
@@ -620,7 +620,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 
 			onlineContainer := services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.VolumeMounts).To(HaveLen(1))
-			Expect(onlineContainer.Env).To(HaveLen(1))
+			Expect(onlineContainer.Env).To(HaveLen(2))
 			assertEnvFrom(*onlineContainer)
 			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
@@ -637,7 +637,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfigOnline).To(Equal(testConfig))
 			onlineContainer = services.GetOnlineContainer(*deploy)
-			Expect(onlineContainer.Env).To(HaveLen(1))
+			Expect(onlineContainer.Env).To(HaveLen(2))
 
 			// check client config
 			cm := &corev1.ConfigMap{}
