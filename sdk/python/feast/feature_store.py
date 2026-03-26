@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
-import copy
 import itertools
+import logging
 import os
 import time
 import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -29,6 +28,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    TYPE_CHECKING,
     Tuple,
     Union,
     cast,
@@ -36,10 +36,8 @@ from typing import (
 
 if TYPE_CHECKING:
     from feast.diff.apply_progress import ApplyProgressContext
-
 import pandas as pd
 import pyarrow as pa
-from colorama import Fore, Style
 from fastapi.concurrency import run_in_threadpool
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -85,6 +83,9 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
 from feast.project import Project
+
+if TYPE_CHECKING:
+    from feast.diff.apply_progress import ApplyProgressContext
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -125,6 +126,7 @@ def _get_track_materialization():
 
 
 warnings.simplefilter("once", DeprecationWarning)
+logger = logging.getLogger(__name__)
 
 
 class FeatureStore:
@@ -831,7 +833,6 @@ class FeatureStore:
         self,
         desired_repo_contents: RepoContents,
         skip_feature_view_validation: bool = False,
-        progress_ctx: Optional["ApplyProgressContext"] = None,
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
 
@@ -841,8 +842,6 @@ class FeatureStore:
 
         Args:
             desired_repo_contents: The desired repo state.
-            skip_feature_view_validation: If True, skip validation of feature views. This can be useful when the validation
-                system is being overly strict. Use with caution and report any issues on GitHub. Default is False.
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -897,9 +896,6 @@ class FeatureStore:
         # the desired repo state.
         registry_diff = diff_between(self.registry, self.project, desired_repo_contents)
 
-        if progress_ctx:
-            progress_ctx.update_phase_progress("Computing infrastructure diff")
-
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
         self.registry.refresh(project=self.project)
@@ -927,7 +923,6 @@ class FeatureStore:
             registry_diff: The diff between the current registry and the desired registry.
             infra_diff: The diff between the current infra and the desired infra.
             new_infra: The desired infra.
-            progress_ctx: Optional progress context for tracking apply progress.
         """
         try:
             # Infrastructure phase
@@ -951,13 +946,7 @@ class FeatureStore:
 
             self.registry.update_infra(new_infra, self.project, commit=True)
 
-            if progress_ctx:
-                progress_ctx.update_phase_progress("Registry update complete")
-                progress_ctx.complete_phase()
-        finally:
-            # Always cleanup progress bars
-            if progress_ctx:
-                progress_ctx.cleanup()
+        self._registry.update_infra(new_infra, self.project, commit=True)
 
         # Emit OpenLineage events for applied objects
         self._emit_openlineage_apply_diffs(registry_diff)
@@ -1002,18 +991,12 @@ class FeatureStore:
         an online store), it will commit the updated registry. All operations are idempotent, meaning they can safely
         be rerun.
 
-        Note: The apply method does NOT delete objects that are removed from the provided list. To delete objects
-        from the registry, use explicit delete methods like delete_feature_view(), delete_feature_service(), or
-        pass objects to the objects_to_delete parameter with partial=False.
-
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
             objects_to_delete: A list of objects to be deleted from the registry and removed from the
                 provider's infrastructure. This deletion will only be performed if partial is set to False.
             partial: If True, apply will only handle the specified objects; if False, apply will also delete
                 all the objects in objects_to_delete, and tear down any associated cloud resources.
-            skip_feature_view_validation: If True, skip validation of feature views. This can be useful when the validation
-                system is being overly strict. Use with caution and report any issues on GitHub. Default is False.
 
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
@@ -1364,17 +1347,6 @@ class FeatureStore:
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's not passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
-
-        # Deliberately disable writing to online store for ODFVs during historical retrieval
-        # since it's not applicable in this context.
-        # This does not change the output, since it forces to recompute ODFVs on historical retrieval
-        # but that is fine, since ODFVs precompute does not to work for historical retrieval (as per docs), only for online retrieval
-        # Copy to avoid side effects outside of this method
-        all_on_demand_feature_views = copy.deepcopy(all_on_demand_feature_views)
-
-        for odfv in all_on_demand_feature_views:
-            odfv.write_to_online_store = False
-
         fvs, odfvs = utils._group_feature_refs(
             _feature_refs,
             all_feature_views,
@@ -1384,7 +1356,7 @@ class FeatureStore:
         on_demand_feature_views = list(view for view, _ in odfvs)
 
         # Check that the right request data is present in the entity_df
-        if type(entity_df) == pd.DataFrame:
+        if isinstance(entity_df, pd.DataFrame):
             if self.config.coerce_tz_aware:
                 entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
             for odfv in on_demand_feature_views:
@@ -1526,8 +1498,9 @@ class FeatureStore:
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No source feature views found."
+            logger.warning(
+                "ODFV %s materialization: No source feature views found.",
+                feature_view.name,
             )
             return
         start_date = utils.make_tzaware(start_date)
@@ -1554,20 +1527,24 @@ class FeatureStore:
         all_join_keys = {key for key in all_join_keys if key}
 
         if not all_join_keys:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No join keys found in source views. Cannot create entity_df. Skipping."
+            logger.warning(
+                "ODFV %s materialization: No join keys found in source views. Cannot create entity_df. Skipping.",
+                feature_view.name,
             )
             return
 
         if len(entity_timestamp_col_names) > 1:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: Found multiple timestamp columns in sources ({entity_timestamp_col_names}). This is not supported. Skipping."
+            logger.warning(
+                "ODFV %s materialization: Found multiple timestamp columns in sources (%s). This is not supported. Skipping.",
+                feature_view.name,
+                entity_timestamp_col_names,
             )
             return
 
         if not entity_timestamp_col_names:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No batch sources with timestamp columns found for sources. Skipping."
+            logger.warning(
+                "ODFV %s materialization: No batch sources with timestamp columns found for sources. Skipping.",
+                feature_view.name,
             )
             return
 
@@ -1596,8 +1573,9 @@ class FeatureStore:
                 all_source_dfs.append(df)
 
         if not all_source_dfs:
-            print(
-                f"No source data found for ODFV {feature_view.name} in the given time range. Skipping materialization."
+            logger.info(
+                "No source data found for ODFV %s in the given time range. Skipping materialization.",
+                feature_view.name,
             )
             return
 
@@ -1660,10 +1638,8 @@ class FeatureStore:
             >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> fs.materialize_incremental(end_date=_utc_now() - timedelta(minutes=5))
-            Materializing...
-            <BLANKLINE>
-            ...
         """
+        _print_materializing_banner()
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views
         )
@@ -1812,10 +1788,8 @@ class FeatureStore:
             >>> fs.materialize(
             ...     start_date=_utc_now() - timedelta(hours=3), end_date=_utc_now() - timedelta(minutes=10)
             ... )
-            Materializing...
-            <BLANKLINE>
-            ...
         """
+        _print_materializing_banner()
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
@@ -3202,7 +3176,7 @@ class FeatureStore:
 
             return exc
         else:
-            print(f"{t.shape[0]} rows were validated.")
+            logger.info("%s rows were validated.", t.shape[0])
 
         if cache_profile:
             self.apply(reference)
@@ -3333,18 +3307,25 @@ def _print_materialization_log(
     start_date, end_date, num_feature_views: int, online_store: str
 ):
     if start_date:
-        print(
-            f"Materializing {Style.BRIGHT + Fore.GREEN}{num_feature_views}{Style.RESET_ALL} feature views"
-            f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
-            f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}"
-            f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
+        logger.info(
+            "Materializing %s feature views from %s to %s into the %s online store.",
+            num_feature_views,
+            utils.make_tzaware(start_date.replace(microsecond=0)),
+            utils.make_tzaware(end_date.replace(microsecond=0)),
+            online_store,
         )
     else:
-        print(
-            f"Materializing {Style.BRIGHT + Fore.GREEN}{num_feature_views}{Style.RESET_ALL} feature views"
-            f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}"
-            f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
+        logger.info(
+            "Materializing %s feature views to %s into the %s online store.",
+            num_feature_views,
+            utils.make_tzaware(end_date.replace(microsecond=0)),
+            online_store,
         )
+
+
+def _print_materializing_banner() -> None:
+    logger.info("Materializing...")
+    logger.info("")
 
 
 def _validate_feature_views(feature_views: List[BaseFeatureView]):
