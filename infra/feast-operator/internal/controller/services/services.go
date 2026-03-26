@@ -101,6 +101,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployCronJob(); err != nil {
 		return err
 	}
+	if err := feast.createOrDeleteServiceMonitor(); err != nil {
+		return err
+	}
 
 	return nil
 }
