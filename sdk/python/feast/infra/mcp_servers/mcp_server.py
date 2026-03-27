@@ -6,7 +6,7 @@ to expose Feast functionality through the Model Context Protocol.
 """
 
 import logging
-from typing import Literal, Optional
+from typing import Optional
 
 from feast.feature_store import FeatureStore
 
@@ -44,7 +44,7 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
         )
 
-        transport: Literal["sse", "http"] = getattr(config, "mcp_transport", "sse")
+        transport = getattr(config, "mcp_transport", "sse") or "sse"
         if transport == "http":
             mount_http = getattr(mcp, "mount_http", None)
             if mount_http is None:
@@ -63,7 +63,6 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
                 )
                 mcp.mount()
         else:
-            # Code should not reach here
             raise McpTransportNotSupportedError(
                 f"Unsupported mcp_transport={transport!r}. Expected 'sse' or 'http'."
             )
