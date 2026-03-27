@@ -21,6 +21,7 @@ import {
   EuiSpacer,
   EuiLoadingSpinner,
   EuiToolTip,
+  EuiBadge,
 } from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
@@ -64,6 +65,8 @@ interface NodeData {
   type: FEAST_FCO_TYPES;
   metadata: any;
   permissions?: any[]; // Add permissions field
+  versionNumber?: number;
+  versionInfo?: { totalVersions: number; latestDescription?: string };
 }
 
 const getNodeColor = (type: FEAST_FCO_TYPES) => {
@@ -119,6 +122,8 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   const icon = getNodeIcon(data.type);
   const [isHovered, setIsHovered] = useState(false);
   const hasPermissions = data.permissions && data.permissions.length > 0;
+  const hasVersion =
+    data.versionNumber != null && data.versionNumber > 0;
 
   const handleClick = () => {
     let path;
@@ -203,6 +208,40 @@ const CustomNode = ({ data }: { data: NodeData }) => {
             }}
           >
             P
+          </div>
+        </EuiToolTip>
+      )}
+
+      {/* Version indicator */}
+      {hasVersion && (
+        <EuiToolTip
+          position="bottom"
+          content={
+            <div style={{ margin: 0 }}>
+              <div>Version: {data.versionNumber}</div>
+              {data.versionInfo && (
+                <>
+                  <div>Total versions: {data.versionInfo.totalVersions}</div>
+                  {data.versionInfo.latestDescription && (
+                    <div>Latest: {data.versionInfo.latestDescription}</div>
+                  )}
+                </>
+              )}
+              <div style={{ marginTop: 4, fontStyle: "italic" }}>
+                Click node for full history
+              </div>
+            </div>
+          }
+        >
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              zIndex: 5,
+            }}
+          >
+            <EuiBadge color="hollow">v{data.versionNumber}</EuiBadge>
           </div>
         </EuiToolTip>
       )}
@@ -474,6 +513,20 @@ const Legend = () => {
           <div style={{ fontSize: 12, color: textColor }}>{item.label}</div>
         </div>
       ))}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginTop: 5,
+          paddingTop: 5,
+          borderTop: `1px solid ${borderColor}`,
+        }}
+      >
+        <EuiBadge color="hollow" style={{ marginRight: 8 }}>
+          vN
+        </EuiBadge>
+        <div style={{ fontSize: 12, color: textColor }}>Version Changed</div>
+      </div>
     </div>
   );
 };
@@ -482,9 +535,39 @@ const registryToFlow = (
   objects: feast.core.Registry,
   relationships: EntityRelation[],
   permissions?: any[],
+  versionHistory?: feast.core.IFeatureViewVersionRecord[],
 ) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+
+  // Build a lookup of version info by feature view name
+  const versionInfoMap = new Map<
+    string,
+    { totalVersions: number; latestDescription?: string }
+  >();
+  if (versionHistory) {
+    const grouped: Record<string, feast.core.IFeatureViewVersionRecord[]> = {};
+    for (let i = 0; i < versionHistory.length; i++) {
+      const record = versionHistory[i];
+      const name = record.featureViewName;
+      if (!name) continue;
+      if (!grouped[name]) grouped[name] = [];
+      grouped[name].push(record);
+    }
+    const groupedNames = Object.keys(grouped);
+    for (let i = 0; i < groupedNames.length; i++) {
+      const name = groupedNames[i];
+      const records = grouped[name];
+      records.sort(
+        (a: feast.core.IFeatureViewVersionRecord, b: feast.core.IFeatureViewVersionRecord) =>
+          (b.versionNumber ?? 0) - (a.versionNumber ?? 0),
+      );
+      versionInfoMap.set(name, {
+        totalVersions: records.length,
+        latestDescription: records[0]?.description ?? undefined,
+      });
+    }
+  }
 
   objects.featureServices?.forEach((fs) => {
     nodes.push({
@@ -507,60 +590,69 @@ const registryToFlow = (
   });
 
   objects.featureViews?.forEach((fv) => {
+    const fvName = fv.spec?.name;
     nodes.push({
-      id: `fv-${fv.spec?.name}`,
+      id: `fv-${fvName}`,
       type: "custom",
       data: {
-        label: fv.spec?.name,
+        label: fvName,
         type: FEAST_FCO_TYPES.featureView,
         metadata: fv,
         permissions: permissions
           ? getEntityPermissions(
               permissions,
               FEAST_FCO_TYPES.featureView,
-              fv.spec?.name,
+              fvName,
             )
           : [],
+        versionNumber: fv.meta?.currentVersionNumber ?? undefined,
+        versionInfo: fvName ? versionInfoMap.get(fvName) : undefined,
       },
       position: { x: 0, y: 0 },
     });
   });
 
   objects.onDemandFeatureViews?.forEach((odfv) => {
+    const odfvName = odfv.spec?.name;
     nodes.push({
-      id: `odfv-${odfv.spec?.name}`,
+      id: `odfv-${odfvName}`,
       type: "custom",
       data: {
-        label: odfv.spec?.name,
+        label: odfvName,
         type: FEAST_FCO_TYPES.featureView,
         metadata: odfv,
         permissions: permissions
           ? getEntityPermissions(
               permissions,
               FEAST_FCO_TYPES.featureView,
-              odfv.spec?.name,
+              odfvName,
             )
           : [],
+        versionNumber: odfv.meta?.currentVersionNumber ?? undefined,
+        versionInfo: odfvName ? versionInfoMap.get(odfvName) : undefined,
       },
       position: { x: 0, y: 0 },
     });
   });
 
   objects.streamFeatureViews?.forEach((sfv) => {
+    const sfvName = sfv.spec?.name;
     nodes.push({
-      id: `sfv-${sfv.spec?.name}`,
+      id: `sfv-${sfvName}`,
       type: "custom",
       data: {
-        label: sfv.spec?.name,
+        label: sfvName,
         type: FEAST_FCO_TYPES.featureView,
         metadata: sfv,
         permissions: permissions
           ? getEntityPermissions(
               permissions,
               FEAST_FCO_TYPES.featureView,
-              sfv.spec?.name,
+              sfvName,
             )
           : [],
+        versionNumber: sfv.meta?.currentVersionNumber ?? undefined,
+        versionInfo: sfvName ? versionInfoMap.get(sfvName) : undefined,
       },
       position: { x: 0, y: 0 },
     });
@@ -750,10 +842,14 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         return rel.source && rel.target && rel.source.name && rel.target.name;
       });
 
+      const versionRecords =
+        registryData.featureViewVersionHistory?.records ?? undefined;
+
       const { nodes: initialNodes, edges: initialEdges } = registryToFlow(
         registryData,
         validRelationships,
         permissions,
+        versionRecords as feast.core.IFeatureViewVersionRecord[] | undefined,
       );
 
       const { nodes: layoutedNodes, edges: layoutedEdges } =
@@ -775,6 +871,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     showIndirectRelationships,
     showIsolatedNodes,
     filterNode,
+    permissions,
     setNodes,
     setEdges,
   ]);
