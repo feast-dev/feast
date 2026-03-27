@@ -123,7 +123,7 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   const [isHovered, setIsHovered] = useState(false);
   const hasPermissions = data.permissions && data.permissions.length > 0;
   const hasVersion =
-    data.versionNumber != null && data.versionNumber > 0;
+    data.versionNumber != null && data.versionNumber > 1;
 
   const handleClick = () => {
     let path;

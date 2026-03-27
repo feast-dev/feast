@@ -57,7 +57,7 @@ const renderVisualization = (
 };
 
 describe("RegistryVisualization version indicators", () => {
-  test("renders version badge on feature view with currentVersionNumber > 0", async () => {
+  test("renders version badge on feature view with currentVersionNumber > 1", async () => {
     const registry = makeRegistry({
       featureViews: [
         feast.core.FeatureView.create({
@@ -119,6 +119,39 @@ describe("RegistryVisualization version indicators", () => {
     });
 
     expect(screen.queryByText("v0")).not.toBeInTheDocument();
+  });
+
+  test("does not render version badge when currentVersionNumber is 1 (initial version)", async () => {
+    const registry = makeRegistry({
+      featureViews: [
+        feast.core.FeatureView.create({
+          spec: { name: "initial_fv" },
+          meta: { currentVersionNumber: 1 },
+        }),
+      ],
+      entities: [
+        feast.core.Entity.create({
+          spec: { name: "my_entity" },
+        }),
+      ],
+    });
+
+    const relationships = [
+      makeRelationship(
+        "initial_fv",
+        FEAST_FCO_TYPES.featureView,
+        "my_entity",
+        FEAST_FCO_TYPES.entity,
+      ),
+    ];
+
+    renderVisualization(registry, relationships);
+
+    await waitFor(() => {
+      expect(screen.getByText("initial_fv")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("v1")).not.toBeInTheDocument();
   });
 
   test("does not render version badge when meta has no version", async () => {
