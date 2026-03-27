@@ -92,9 +92,9 @@ def get_repo_files(repo_root: Path) -> List[Path]:
         ".git",
         ".feastignore",
         ".venv",
-        ".pytest_cache",
-        "__pycache__",
-        ".ipynb_checkpoints",
+        "**/.ipynb_checkpoints",
+        "**/.pytest_cache",
+        "**/__pycache__",
     ]
     ignore_files = get_ignore_files(repo_root, ignore_paths)
 

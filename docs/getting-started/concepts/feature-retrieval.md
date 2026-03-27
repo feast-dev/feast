@@ -115,6 +115,46 @@ The timestamp on which an event occurred, as found in a feature view's data sour
 
 Event timestamps are used during point-in-time joins to ensure that the latest feature values are joined from feature views onto entity rows. Event timestamps are also used to ensure that old feature values aren't served to models during online serving.
 
+#### Why `event_timestamp` is required in the entity dataframe
+
+When calling `get_historical_features()`, the `entity_df` must include an `event_timestamp` column. This timestamp acts as the **upper bound (inclusive)** for which feature values are allowed to be retrieved for each entity row. Feast performs a point-in-time join (also called a "last known good value" temporal join): for each entity row, it retrieves the latest feature values with a timestamp **at or before** the entity row's `event_timestamp`.
+
+This ensures **point-in-time correctness**, which is critical to prevent **data leakage** during model training. Without this constraint, features generated *after* the prediction time could leak into training data—effectively letting the model "see the future"—leading to inflated offline metrics that do not translate to real-world performance.
+
+For example, if you want to predict whether a driver will be rated well on April 12 at 10:00 AM, the entity dataframe row should have `event_timestamp = datetime(2021, 4, 12, 10, 0, 0)`. Feast will then only join feature values observed on or before that time, excluding any data generated after 10:00 AM.
+
+#### Retrieving features without an entity dataframe
+
+While the entity dataframe is the standard way to retrieve historical features, Feast also supports **entity-less historical feature retrieval** by datetime range. This is useful when:
+
+- You are training **time-series or population-level models** and don't have a pre-defined list of entity IDs.
+- You want **all features in a time window** for exploratory analysis or batch training on full history.
+- Constructing an entity dataframe upfront is unnecessarily complex or expensive.
+
+Instead of passing `entity_df`, you specify a time window with `start_date` and/or `end_date`:
+
+```python
+from datetime import datetime
+
+training_df = store.get_historical_features(
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_hourly_stats:avg_daily_trips",
+    ],
+    start_date=datetime(2025, 7, 1),
+    end_date=datetime(2025, 7, 2),
+).to_df()
+```
+
+If `start_date` is omitted, it defaults to `end_date` minus the feature view TTL. If `end_date` is omitted, it defaults to the current time. Point-in-time correctness is still preserved.
+
+{% hint style="warning" %}
+Entity-less retrieval is currently supported for the **Postgres**, **Dask**, **Spark**, and **Ray** offline stores. You cannot mix `entity_df` with `start_date`/`end_date` in the same call.
+{% endhint %}
+
+For more details, see the [FAQ](../faq.md#how-do-i-run-get_historical_features-without-providing-an-entity-dataframe) and [this blog post on entity-less historical feature retrieval](https://feast.dev/blog/entity-less-historical-features-retrieval/).
+
 ### Dataset
 
 A dataset is a collection of rows that is produced by a historical retrieval from Feast in order to train a model. A dataset is produced by a join from one or more feature views onto an entity dataframe. Therefore, a dataset may consist of features from multiple feature views.
