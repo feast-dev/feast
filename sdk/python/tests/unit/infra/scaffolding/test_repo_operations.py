@@ -92,6 +92,7 @@ def test_feastignore_no_stars():
             {
                 (repo_root / "foo/b.py").resolve(),
                 (repo_root / "bar/subdir1/f.py").resolve(),
+                (repo_root / "foo/.ipynb_checkpoints/foo-checkpoint.py").resolve(),
             }
         )
         assertpy.assert_that(get_repo_files(repo_root)).is_equal_to(
@@ -122,6 +123,13 @@ def test_feastignore_with_stars():
             {
                 (repo_root / "foo/b.py").resolve(),
                 (repo_root / "bar/subdir1/f.py").resolve(),
+                (
+                    repo_root
+                    / "bar/subdir1/subdir2/.ipynb_checkpoints/nested-checkpoint.py"
+                ).resolve(),
+                (
+                    repo_root / "bar/subdir1/.ipynb_checkpoints/subdir1-checkpoint.py"
+                ).resolve(),
                 (repo_root / "bar/e.py").resolve(),
                 (repo_root / "bar/subdir1/f.py").resolve(),
                 (repo_root / "bar/subdir1/subdir2/g.py").resolve(),
@@ -147,6 +155,13 @@ def test_feastignore_with_stars2():
         assertpy.assert_that(get_ignore_files(repo_root, ignore_paths)).is_equal_to(
             {
                 (repo_root / "bar/subdir1/f.py").resolve(),
+                (
+                    repo_root
+                    / "bar/subdir1/subdir2/.ipynb_checkpoints/nested-checkpoint.py"
+                ).resolve(),
+                (
+                    repo_root / "bar/subdir1/.ipynb_checkpoints/subdir1-checkpoint.py"
+                ).resolve(),
                 (repo_root / "bar/e.py").resolve(),
                 (repo_root / "bar/subdir1/f.py").resolve(),
                 (repo_root / "bar/subdir1/subdir2/g.py").resolve(),
