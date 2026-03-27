@@ -84,6 +84,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
     "mongodb": "feast.infra.online_stores.mongodb_online_store.MongoDBOnlineStore",
     "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
+    "chronon": "feast.infra.online_stores.chronon_online_store.chronon.ChrononOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
@@ -104,6 +105,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
     "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
+    "chronon": "feast.infra.offline_stores.contrib.chronon_offline_store.chronon.ChrononOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
