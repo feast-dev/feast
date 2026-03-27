@@ -220,17 +220,12 @@ class OnlineStore(ABC):
                 requested_features=requested_features,
             )
 
-            feature_data = utils._convert_rows_to_protobuf(
-                requested_features, read_rows
-            )
-
-            # Populate the result_rows with the Features from the OnlineStore inplace.
             utils._populate_response_from_feature_data(
-                feature_data,
+                requested_features,
+                read_rows,
                 idxs,
                 online_features_response,
                 full_feature_names,
-                requested_features,
                 table,
                 output_len,
                 include_feature_view_version_metadata,
@@ -356,17 +351,12 @@ class OnlineStore(ABC):
         for (idxs, read_rows, output_len), (table, requested_features) in zip(
             all_responses, grouped_refs
         ):
-            feature_data = utils._convert_rows_to_protobuf(
-                requested_features, read_rows
-            )
-
-            # Populate the result_rows with the Features from the OnlineStore inplace.
             utils._populate_response_from_feature_data(
-                feature_data,
+                requested_features,
+                read_rows,
                 idxs,
                 online_features_response,
                 full_feature_names,
-                requested_features,
                 table,
                 output_len,
                 include_feature_view_version_metadata,

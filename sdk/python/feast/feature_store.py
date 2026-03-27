@@ -3064,18 +3064,13 @@ class FeatureStore:
             entity_key_dict,
         )
 
-        feature_data = utils._convert_rows_to_protobuf(
-            requested_features=features_to_request,
-            read_rows=list(zip(datevals, list_of_feature_dicts)),
-        )
-
         online_features_response = GetOnlineFeaturesResponse(results=[])
         utils._populate_response_from_feature_data(
-            feature_data=feature_data,
+            requested_features=features_to_request,
+            read_rows=list(zip(datevals, list_of_feature_dicts)),
             indexes=idxs,
             online_features_response=online_features_response,
             full_feature_names=False,
-            requested_features=features_to_request,
             table=table,
             output_len=output_len,
             include_feature_view_version_metadata=include_feature_view_version_metadata,

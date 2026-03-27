@@ -603,11 +603,11 @@ class TestVersionMetadataIntegration:
         # Mock response generation without version metadata
         response = GetOnlineFeaturesResponse()
         _populate_response_from_feature_data(
-            feature_data=[],
-            indexes=[],
+            requested_features=["trips_today"],
+            read_rows=[],
+            indexes=(),
             online_features_response=response,
             full_feature_names=True,
-            requested_features=["trips_today"],
             table=active_fv,
             output_len=0,
             include_feature_view_version_metadata=False,  # Default behavior
@@ -651,11 +651,11 @@ class TestVersionMetadataIntegration:
         # Mock response generation with version metadata
         response = GetOnlineFeaturesResponse()
         _populate_response_from_feature_data(
-            feature_data=[],
-            indexes=[],
+            requested_features=["trips_today", "total_earnings"],
+            read_rows=[],
+            indexes=(),
             online_features_response=response,
             full_feature_names=False,  # Test without prefixes
-            requested_features=["trips_today", "total_earnings"],
             table=active_fv,
             output_len=0,
             include_feature_view_version_metadata=True,  # Enable metadata
@@ -687,11 +687,11 @@ class TestVersionMetadataIntegration:
         # Test with full feature names (prefixed)
         response = GetOnlineFeaturesResponse()
         _populate_response_from_feature_data(
-            feature_data=[],
-            indexes=[],
+            requested_features=["trips_today"],
+            read_rows=[],
+            indexes=(),
             online_features_response=response,
             full_feature_names=True,  # Enable prefixes
-            requested_features=["trips_today"],
             table=active_fv,
             output_len=0,
             include_feature_view_version_metadata=True,
@@ -764,11 +764,11 @@ class TestVersionMetadataIntegration:
 
         # Process first feature view
         _populate_response_from_feature_data(
-            feature_data=[],
-            indexes=[],
+            requested_features=["trips_today"],
+            read_rows=[],
+            indexes=(),
             online_features_response=response,
             full_feature_names=False,
-            requested_features=["trips_today"],
             table=driver_fv,
             output_len=0,
             include_feature_view_version_metadata=True,
@@ -776,11 +776,11 @@ class TestVersionMetadataIntegration:
 
         # Process second feature view
         _populate_response_from_feature_data(
-            feature_data=[],
-            indexes=[],
+            requested_features=["total_bookings", "cancellation_rate"],
+            read_rows=[],
+            indexes=(),
             online_features_response=response,
             full_feature_names=False,
-            requested_features=["total_bookings", "cancellation_rate"],
             table=user_fv,
             output_len=0,
             include_feature_view_version_metadata=True,
@@ -819,22 +819,22 @@ class TestVersionMetadataIntegration:
 
         # Process same feature view twice (simulating multiple features from same view)
         _populate_response_from_feature_data(
-            feature_data=[],
-            indexes=[],
+            requested_features=["trips_today"],
+            read_rows=[],
+            indexes=(),
             online_features_response=response,
             full_feature_names=False,
-            requested_features=["trips_today"],
             table=active_fv,
             output_len=0,
             include_feature_view_version_metadata=True,
         )
 
         _populate_response_from_feature_data(
-            feature_data=[],
-            indexes=[],
+            requested_features=["avg_rating"],
+            read_rows=[],
+            indexes=(),
             online_features_response=response,
             full_feature_names=False,
-            requested_features=["avg_rating"],
             table=active_fv,
             output_len=0,
             include_feature_view_version_metadata=True,
@@ -864,11 +864,11 @@ class TestVersionMetadataIntegration:
         # Test calling without the new parameter (should default to False)
         response = GetOnlineFeaturesResponse()
         _populate_response_from_feature_data(
-            feature_data=[],
-            indexes=[],
+            requested_features=["trips_today"],
+            read_rows=[],
+            indexes=(),
             online_features_response=response,
             full_feature_names=True,
-            requested_features=["trips_today"],
             table=active_fv,
             output_len=0,
             # Note: include_feature_view_version_metadata parameter omitted
