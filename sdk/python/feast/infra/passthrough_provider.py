@@ -471,6 +471,7 @@ class PassthroughProvider(Provider):
         self,
         config: RepoConfig,
         feature_views: List[Union[FeatureView, OnDemandFeatureView]],
+        on_demand_feature_views: List[OnDemandFeatureView],
         feature_refs: List[str],
         entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
@@ -478,6 +479,7 @@ class PassthroughProvider(Provider):
         full_feature_names: bool,
         **kwargs,
     ) -> RetrievalJob:
+        del on_demand_feature_views
         job = self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
