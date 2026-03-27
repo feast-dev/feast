@@ -122,8 +122,7 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   const icon = getNodeIcon(data.type);
   const [isHovered, setIsHovered] = useState(false);
   const hasPermissions = data.permissions && data.permissions.length > 0;
-  const hasVersion =
-    data.versionNumber != null && data.versionNumber > 1;
+  const hasVersion = data.versionNumber != null && data.versionNumber > 1;
 
   const handleClick = () => {
     let path;
@@ -559,8 +558,10 @@ const registryToFlow = (
       const name = groupedNames[i];
       const records = grouped[name];
       records.sort(
-        (a: feast.core.IFeatureViewVersionRecord, b: feast.core.IFeatureViewVersionRecord) =>
-          (b.versionNumber ?? 0) - (a.versionNumber ?? 0),
+        (
+          a: feast.core.IFeatureViewVersionRecord,
+          b: feast.core.IFeatureViewVersionRecord,
+        ) => (b.versionNumber ?? 0) - (a.versionNumber ?? 0),
       );
       versionInfoMap.set(name, {
         totalVersions: records.length,

@@ -304,21 +304,20 @@ describe("RegistryVisualization version indicators", () => {
           spec: { name: "my_entity" },
         }),
       ],
-      featureViewVersionHistory:
-        feast.core.FeatureViewVersionHistory.create({
-          records: [
-            feast.core.FeatureViewVersionRecord.create({
-              featureViewName: "versioned_fv",
-              versionNumber: 1,
-              description: "Initial version",
-            }),
-            feast.core.FeatureViewVersionRecord.create({
-              featureViewName: "versioned_fv",
-              versionNumber: 2,
-              description: "Added new features",
-            }),
-          ],
-        }),
+      featureViewVersionHistory: feast.core.FeatureViewVersionHistory.create({
+        records: [
+          feast.core.FeatureViewVersionRecord.create({
+            featureViewName: "versioned_fv",
+            versionNumber: 1,
+            description: "Initial version",
+          }),
+          feast.core.FeatureViewVersionRecord.create({
+            featureViewName: "versioned_fv",
+            versionNumber: 2,
+            description: "Added new features",
+          }),
+        ],
+      }),
     });
 
     const relationships = [
