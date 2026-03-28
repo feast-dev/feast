@@ -77,10 +77,8 @@ class ValueType(enum.Enum):
     TIME_UUID_LIST = 39
     UUID_SET = 40
     TIME_UUID_SET = 41
-    LIST_LIST = 42
-    LIST_SET = 43
-    SET_LIST = 44
-    SET_SET = 45
+    VALUE_LIST = 42
+    VALUE_SET = 43
 
 
 ListType = Union[

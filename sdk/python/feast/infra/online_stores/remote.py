@@ -108,7 +108,7 @@ class RemoteOnlineStore(OnlineStore):
 
         # Nested collection types use feast_value_type_to_python_type
         # which handles recursive conversion of RepeatedValue protos.
-        if val_attr in ("list_list_val", "list_set_val", "set_list_val", "set_set_val"):
+        if val_attr in ("list_val", "set_val"):
             return feast_value_type_to_python_type(proto_value)
 
         # Map/Struct types are converted to Python dicts by

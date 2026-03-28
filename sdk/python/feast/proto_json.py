@@ -63,7 +63,7 @@ def _patch_feast_value_json_encoding():
         # to JSON. The parse back result will be different from original message.
         if which is None or which == "null_val":
             return None
-        elif which in ("list_list_val", "list_set_val", "set_list_val", "set_set_val"):
+        elif which in ("list_val", "set_val"):
             # Nested collection: RepeatedValue containing Values
             repeated = getattr(message, which)
             value = [
@@ -96,13 +96,13 @@ def _patch_feast_value_json_encoding():
                 # Nested collection (list of lists).
                 # Check any() to handle cases where the first element is None
                 # (empty inner collections round-trip through proto as None).
-                # Default to list_list_val since JSON transport loses the
+                # Default to list_val since JSON transport loses the
                 # outer/inner set distinction.
                 rv = RepeatedValue()
                 for inner in value:
                     inner_val = rv.val.add()
                     from_json_object(parser, inner, inner_val)
-                message.list_list_val.CopyFrom(rv)
+                message.list_val.CopyFrom(rv)
             elif isinstance(value[0], bool):
                 message.bool_list_val.val.extend(value)
             elif isinstance(value[0], str):

@@ -54,63 +54,61 @@ def test_set_feast_type():
 
 
 def test_nested_array_array():
-    """Array(Array(T)) should produce LIST_LIST."""
+    """Array(Array(T)) should produce VALUE_LIST."""
     t = Array(Array(String))
-    assert t.to_value_type() == ValueType.LIST_LIST
-    assert from_feast_type(t) == ValueType.LIST_LIST
+    assert t.to_value_type() == ValueType.VALUE_LIST
+    assert from_feast_type(t) == ValueType.VALUE_LIST
 
     t2 = Array(Array(Int32))
-    assert t2.to_value_type() == ValueType.LIST_LIST
+    assert t2.to_value_type() == ValueType.VALUE_LIST
 
 
 def test_nested_array_set():
-    """Array(Set(T)) should produce LIST_SET."""
+    """Array(Set(T)) should produce VALUE_LIST."""
     t = Array(Set(String))
-    assert t.to_value_type() == ValueType.LIST_SET
-    assert from_feast_type(t) == ValueType.LIST_SET
+    assert t.to_value_type() == ValueType.VALUE_LIST
+    assert from_feast_type(t) == ValueType.VALUE_LIST
 
 
 def test_nested_set_array():
-    """Set(Array(T)) should produce SET_LIST."""
+    """Set(Array(T)) should produce VALUE_SET."""
     t = Set(Array(String))
-    assert t.to_value_type() == ValueType.SET_LIST
-    assert from_feast_type(t) == ValueType.SET_LIST
+    assert t.to_value_type() == ValueType.VALUE_SET
+    assert from_feast_type(t) == ValueType.VALUE_SET
 
 
 def test_nested_set_set():
-    """Set(Set(T)) should produce SET_SET."""
+    """Set(Set(T)) should produce VALUE_SET."""
     t = Set(Set(String))
-    assert t.to_value_type() == ValueType.SET_SET
-    assert from_feast_type(t) == ValueType.SET_SET
+    assert t.to_value_type() == ValueType.VALUE_SET
+    assert from_feast_type(t) == ValueType.VALUE_SET
 
 
 def test_nested_unbounded_depth():
     """Nesting depth should be unbounded."""
     # 3-level
     t3 = Array(Array(Array(String)))
-    assert t3.to_value_type() == ValueType.LIST_LIST
+    assert t3.to_value_type() == ValueType.VALUE_LIST
 
     t3_mixed = Array(Set(Array(String)))
-    assert t3_mixed.to_value_type() == ValueType.LIST_SET
+    assert t3_mixed.to_value_type() == ValueType.VALUE_LIST
 
     t3_set = Set(Array(Array(String)))
-    assert t3_set.to_value_type() == ValueType.SET_LIST
+    assert t3_set.to_value_type() == ValueType.VALUE_SET
 
     t3_set2 = Set(Set(Set(String)))
-    assert t3_set2.to_value_type() == ValueType.SET_SET
+    assert t3_set2.to_value_type() == ValueType.VALUE_SET
 
     # 4-level
     t4 = Array(Array(Array(Array(Int32))))
-    assert t4.to_value_type() == ValueType.LIST_LIST
+    assert t4.to_value_type() == ValueType.VALUE_LIST
 
 
 def test_nested_from_value_type_roundtrip():
     """from_value_type should return a placeholder for nested types."""
     for vt in (
-        ValueType.LIST_LIST,
-        ValueType.LIST_SET,
-        ValueType.SET_LIST,
-        ValueType.SET_SET,
+        ValueType.VALUE_LIST,
+        ValueType.VALUE_SET,
     ):
         ft = from_value_type(vt)
         assert ft.to_value_type() == vt

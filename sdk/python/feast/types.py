@@ -190,10 +190,8 @@ class Array(ComplexFeastType):
     def to_value_type(self) -> ValueType:
         if isinstance(self.base_type, Struct):
             return ValueType.STRUCT_LIST
-        if isinstance(self.base_type, Array):
-            return ValueType.LIST_LIST
-        if isinstance(self.base_type, Set):
-            return ValueType.LIST_SET
+        if isinstance(self.base_type, (Array, Set)):
+            return ValueType.VALUE_LIST
         assert isinstance(self.base_type, PrimitiveFeastType)
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
         value_type_list_name = value_type_name + "_LIST"
@@ -234,10 +232,8 @@ class Set(ComplexFeastType):
         self.base_type = base_type
 
     def to_value_type(self) -> ValueType:
-        if isinstance(self.base_type, Array):
-            return ValueType.SET_LIST
-        if isinstance(self.base_type, Set):
-            return ValueType.SET_SET
+        if isinstance(self.base_type, (Array, Set)):
+            return ValueType.VALUE_SET
         assert isinstance(self.base_type, PrimitiveFeastType)
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
         value_type_set_name = value_type_name + "_SET"
@@ -437,14 +433,10 @@ def from_value_type(
 
     # Nested collection types use placeholder inner types.
     # Real inner type is restored from Field tags during deserialization.
-    if value_type == ValueType.LIST_LIST:
+    if value_type == ValueType.VALUE_LIST:
         return Array(Array(String))
-    if value_type == ValueType.LIST_SET:
-        return Array(Set(String))
-    if value_type == ValueType.SET_LIST:
+    if value_type == ValueType.VALUE_SET:
         return Set(Array(String))
-    if value_type == ValueType.SET_SET:
-        return Set(Set(String))
 
     raise ValueError(f"Could not convert value type {value_type} to FeastType.")
 
@@ -471,14 +463,10 @@ def from_feast_type(
         return ValueType.STRUCT_LIST
 
     # Handle nested collection types
-    if isinstance(feast_type, Array) and isinstance(feast_type.base_type, Array):
-        return ValueType.LIST_LIST
-    if isinstance(feast_type, Array) and isinstance(feast_type.base_type, Set):
-        return ValueType.LIST_SET
-    if isinstance(feast_type, Set) and isinstance(feast_type.base_type, Array):
-        return ValueType.SET_LIST
-    if isinstance(feast_type, Set) and isinstance(feast_type.base_type, Set):
-        return ValueType.SET_SET
+    if isinstance(feast_type, Array) and isinstance(feast_type.base_type, (Array, Set)):
+        return ValueType.VALUE_LIST
+    if isinstance(feast_type, Set) and isinstance(feast_type.base_type, (Array, Set)):
+        return ValueType.VALUE_SET
 
     if feast_type in VALUE_TYPES_TO_FEAST_TYPES.values():
         return list(VALUE_TYPES_TO_FEAST_TYPES.keys())[

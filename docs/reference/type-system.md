@@ -88,21 +88,21 @@ All primitive types (except `Map` and `Json`) have corresponding set types for s
 
 ### Nested Collection Types
 
-Feast supports 2-level nested collections, combining Array and Set types:
+Feast supports arbitrarily nested collections using a recursive `VALUE_LIST` / `VALUE_SET` design. The outer container determines the proto enum (`VALUE_LIST` for `Array(…)`, `VALUE_SET` for `Set(…)`), while the full inner type structure is persisted via a mandatory `feast:nested_inner_type` Field tag.
 
 | Feast Type | Python Type | ValueType | Description |
 |------------|-------------|-----------|-------------|
-| `Array(Array(T))` | `List[List[T]]` | `LIST_LIST` | List of lists |
-| `Array(Set(T))` | `List[List[T]]` | `LIST_SET` | List of sets (inner elements deduplicated) |
-| `Set(Array(T))` | `List[List[T]]` | `SET_LIST` | Set of lists |
-| `Set(Set(T))` | `List[List[T]]` | `SET_SET` | Set of sets (inner elements deduplicated) |
+| `Array(Array(T))` | `List[List[T]]` | `VALUE_LIST` | List of lists |
+| `Array(Set(T))` | `List[List[T]]` | `VALUE_LIST` | List of sets |
+| `Set(Array(T))` | `List[List[T]]` | `VALUE_SET` | Set of lists |
+| `Set(Set(T))` | `List[List[T]]` | `VALUE_SET` | Set of sets |
+| `Array(Array(Array(T)))` | `List[List[List[T]]]` | `VALUE_LIST` | 3-level nesting |
 
-Where `T` is any supported primitive type (Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp).
+Where `T` is any supported primitive type (Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp) or another nested collection type.
 
 **Notes:**
-- Nesting is limited to 2 levels. `Array(Array(Array(T)))` will raise a `ValueError`.
-- Inner type information is preserved via Field tags (`feast:nested_inner_type`) and restored during deserialization.
-- For `Array(Set(T))` and `Set(Set(T))`, inner collection elements are automatically deduplicated.
+- Nesting depth is **unlimited**. `Array(Array(Array(T)))`, `Set(Array(Set(T)))`, etc. are all supported.
+- Inner type information is preserved via Field tags (`feast:nested_inner_type`) and restored during deserialization. This tag is mandatory for nested collection types.
 - Empty inner collections (`[]`) are stored as empty proto values and round-trip as `None`. For example, `[[1, 2], [], [3]]` becomes `[[1, 2], None, [3]]` after a write-read cycle.
 
 ### Map Types
@@ -315,7 +315,7 @@ unique_devices = {uuid.uuid4(), uuid.uuid4()}
 
 ### Nested Collection Type Usage Examples
 
-Nested collections allow storing multi-dimensional data:
+Nested collections allow storing multi-dimensional data with unlimited depth:
 
 ```python
 # List of lists — e.g., weekly score history per user
@@ -323,15 +323,12 @@ weekly_scores = [[85.0, 90.5, 78.0], [92.0, 88.5], [95.0, 91.0, 87.5]]
 
 # List of sets — e.g., unique tags assigned per category
 unique_tags_per_category = [["python", "ml"], ["rust", "systems"], ["python", "web"]]
-# Inner sets are automatically deduplicated:
-# [["python", "ml"], ...] (duplicates within each inner set are removed)
 
-# Set of lists — e.g., distinct ordered sequences observed
-distinct_sequences = [[1, 2, 3], [4, 5], [1, 2, 3]]
+# 3-level nesting — e.g., multi-dimensional matrices
+Field(name="tensor", dtype=Array(Array(Array(Float64))))
 
-# Set of sets — e.g., distinct groups of unique items
-distinct_groups = [["a", "b"], ["c", "d"], ["a", "b"]]
-# Inner elements are deduplicated within each set
+# Mixed nesting
+Field(name="grouped_tags", dtype=Array(Set(Array(String))))
 ```
 
 **Limitation:** Empty inner collections round-trip as `None`:

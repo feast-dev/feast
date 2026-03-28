@@ -171,13 +171,7 @@ class Field:
             dtype = Array(inner_struct)
             user_tags = {k: v for k, v in tags.items() if k not in internal_tags}
         elif (
-            value_type
-            in (
-                ValueType.LIST_LIST,
-                ValueType.LIST_SET,
-                ValueType.SET_LIST,
-                ValueType.SET_SET,
-            )
+            value_type in (ValueType.VALUE_LIST, ValueType.VALUE_SET)
             and NESTED_COLLECTION_INNER_TYPE_TAG in tags
         ):
             dtype = _str_to_feast_type(tags[NESTED_COLLECTION_INNER_TYPE_TAG])
