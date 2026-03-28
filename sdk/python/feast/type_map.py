@@ -749,7 +749,7 @@ def _python_set_to_proto_values(
         return [
             (
                 ProtoValue(
-                    **{set_field_name: set_proto_type(val=[str(e) for e in value])}  # type: ignore[arg-type]
+                    **{set_field_name: set_proto_type(val=[str(e) for e in value])}  # type: ignore[arg-type, misc]
                 )
                 if value is not None
                 else ProtoValue()
@@ -822,7 +822,7 @@ def _convert_list_values_to_proto(
         return [
             (
                 ProtoValue(
-                    **{field_name: proto_type(val=[str(e) for e in value])}  # type: ignore[arg-type]
+                    **{field_name: proto_type(val=[str(e) for e in value])}  # type: ignore[arg-type, misc]
                 )
                 if value is not None
                 else ProtoValue()
