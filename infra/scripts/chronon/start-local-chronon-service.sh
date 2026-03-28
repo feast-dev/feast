@@ -84,10 +84,8 @@ run_quickstart_online_prep() {
     cd /srv/chronon
     run.py --conf production/group_bys/quickstart/purchases.v1 --mode upload --ds 2023-12-01
     run.py --conf production/group_bys/quickstart/returns.v1 --mode upload --ds 2023-12-01
-    # pragma: allowlist secret
-    /opt/spark/bin/spark-submit --class ai.chronon.quickstart.online.Spark2MongoLoader --master local[*] /srv/onlineImpl/target/scala-2.12/mongo-online-impl-assembly-0.1.0-SNAPSHOT.jar default.quickstart_purchases_v1_upload mongodb://admin:admin@'"${MONGO_CONTAINER}"':27017/?authSource=admin
-    # pragma: allowlist secret
-    /opt/spark/bin/spark-submit --class ai.chronon.quickstart.online.Spark2MongoLoader --master local[*] /srv/onlineImpl/target/scala-2.12/mongo-online-impl-assembly-0.1.0-SNAPSHOT.jar default.quickstart_returns_v1_upload mongodb://admin:admin@'"${MONGO_CONTAINER}"':27017/?authSource=admin
+    /opt/spark/bin/spark-submit --class ai.chronon.quickstart.online.Spark2MongoLoader --master local[*] /srv/onlineImpl/target/scala-2.12/mongo-online-impl-assembly-0.1.0-SNAPSHOT.jar default.quickstart_purchases_v1_upload mongodb://admin:admin@'"${MONGO_CONTAINER}"':27017/?authSource=admin  # pragma: allowlist secret
+    /opt/spark/bin/spark-submit --class ai.chronon.quickstart.online.Spark2MongoLoader --master local[*] /srv/onlineImpl/target/scala-2.12/mongo-online-impl-assembly-0.1.0-SNAPSHOT.jar default.quickstart_returns_v1_upload mongodb://admin:admin@'"${MONGO_CONTAINER}"':27017/?authSource=admin  # pragma: allowlist secret
     run.py --mode metadata-upload --conf production/joins/quickstart/training_set.v2 --ds 2023-12-01
     run.py --mode fetch --type join --name quickstart/training_set.v2 -k "{\"user_id\":\"5\"}"
   '
