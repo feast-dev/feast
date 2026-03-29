@@ -85,7 +85,7 @@ for logger_name in logging.root.manager.loggerDict:  # type: ignore
 
 
 def pytest_configure(config):
-    if platform in ["darwin", "windows"]:
+    if platform in ["darwin"] or platform.startswith("win"):
         multiprocessing.set_start_method("spawn", force=True)
     else:
         multiprocessing.set_start_method("fork")

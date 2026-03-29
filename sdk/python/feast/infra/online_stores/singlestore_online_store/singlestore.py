@@ -80,7 +80,7 @@ class SingleStoreOnlineStore(OnlineStore):
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=3,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 ).hex()
                 timestamp = _to_naive_utc(timestamp)
                 if created_ts is not None:
@@ -102,7 +102,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 current_batch = insert_values[i : i + batch_size]
                 cur.executemany(
                     f"""
-                    INSERT INTO {_table_id(project, table)}
+                    INSERT INTO {_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
                     (entity_key, feature_name, value, event_ts, created_ts)
                     values (%s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
@@ -130,7 +130,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 keys.append(
                     serialize_entity_key(
                         entity_key,
-                        entity_key_serialization_version=3,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
                     ).hex()
                 )
 
@@ -138,7 +138,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 entity_key_placeholders = ",".join(["%s" for _ in keys])
                 cur.execute(
                     f"""
-                    SELECT entity_key, feature_name, value, event_ts FROM {_table_id(project, table)}
+                    SELECT entity_key, feature_name, value, event_ts FROM {_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
                     WHERE entity_key IN ({entity_key_placeholders})
                     ORDER BY event_ts;
                     """,
@@ -151,7 +151,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 )
                 cur.execute(
                     f"""
-                    SELECT entity_key, feature_name, value, event_ts FROM {_table_id(project, table)}
+                    SELECT entity_key, feature_name, value, event_ts FROM {_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
                     WHERE entity_key IN ({entity_key_placeholders}) and feature_name IN ({requested_features_placeholders})
                     ORDER BY event_ts;
                     """,
@@ -191,21 +191,23 @@ class SingleStoreOnlineStore(OnlineStore):
         partial: bool,
     ) -> None:
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
         with self._get_cursor(config) as cur:
             # We don't create any special state for the entities in this implementation.
             for table in tables_to_keep:
+                table_name = _table_id(project, table, versioning)
                 cur.execute(
-                    f"""CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key VARCHAR(512),
+                    f"""CREATE TABLE IF NOT EXISTS {table_name} (entity_key VARCHAR(512),
                     feature_name VARCHAR(256),
                     value BLOB,
                     event_ts timestamp NULL DEFAULT NULL,
                     created_ts timestamp NULL DEFAULT NULL,
                     PRIMARY KEY(entity_key, feature_name),
-                    INDEX {_table_id(project, table)}_ek (entity_key))"""
+                    INDEX {table_name}_ek (entity_key))"""
                 )
 
             for table in tables_to_delete:
-                _drop_table_and_index(cur, project, table)
+                _drop_table_and_index(cur, project, table, versioning)
 
     def teardown(
         self,
@@ -214,16 +216,26 @@ class SingleStoreOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ) -> None:
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
         with self._get_cursor(config) as cur:
             for table in tables:
-                _drop_table_and_index(cur, project, table)
+                _drop_table_and_index(cur, project, table, versioning)
 
 
-def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
-    table_name = _table_id(project, table)
+def _drop_table_and_index(
+    cur: Cursor, project: str, table: FeatureView, enable_versioning: bool
+) -> None:
+    table_name = _table_id(project, table, enable_versioning)
     cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    name = table.name
+    if enable_versioning:
+        version = getattr(table.projection, "version_tag", None)
+        if version is None:
+            version = getattr(table, "current_version_number", None)
+        if version is not None and version > 0:
+            name = f"{table.name}_v{version}"
+    return f"{project}_{name}"
