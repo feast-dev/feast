@@ -152,7 +152,15 @@ class PostgreSQLOnlineStore(OnlineStore):
                 event_ts = EXCLUDED.event_ts,
                 created_ts = EXCLUDED.created_ts;
         """
-        ).format(sql.Identifier(_table_id(config.project, table)))
+        ).format(
+            sql.Identifier(
+                _table_id(
+                    config.project,
+                    table,
+                    config.registry.enable_online_feature_view_versioning,
+                )
+            )
+        )
 
         # Push data into the online store
         with self._get_conn(config) as conn, conn.cursor() as cur:
@@ -214,7 +222,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 FROM {} WHERE entity_key = ANY(%s) AND feature_name = ANY(%s);
                 """
             ).format(
-                sql.Identifier(_table_id(config.project, table)),
+                sql.Identifier(
+                    _table_id(
+                        config.project,
+                        table,
+                        config.registry.enable_online_feature_view_versioning,
+                    )
+                ),
             )
             params = (keys, requested_features)
         else:
@@ -224,7 +238,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 FROM {} WHERE entity_key = ANY(%s);
                 """
             ).format(
-                sql.Identifier(_table_id(config.project, table)),
+                sql.Identifier(
+                    _table_id(
+                        config.project,
+                        table,
+                        config.registry.enable_online_feature_view_versioning,
+                    )
+                ),
             )
             params = (keys, [])
         return query, params
@@ -304,12 +324,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                     ),
                 )
 
+            versioning = config.registry.enable_online_feature_view_versioning
             for table in tables_to_delete:
-                table_name = _table_id(project, table)
+                table_name = _table_id(project, table, versioning)
                 cur.execute(_drop_table_and_index(table_name))
 
             for table in tables_to_keep:
-                table_name = _table_id(project, table)
+                table_name = _table_id(project, table, versioning)
                 if config.online_store.vector_enabled:
                     vector_value_type = "vector"
                 else:
@@ -363,10 +384,11 @@ class PostgreSQLOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
         try:
             with self._get_conn(config) as conn, conn.cursor() as cur:
                 for table in tables:
-                    table_name = _table_id(project, table)
+                    table_name = _table_id(project, table, versioning)
                     cur.execute(_drop_table_and_index(table_name))
                 conn.commit()
         except Exception:
@@ -432,7 +454,9 @@ class PostgreSQLOnlineStore(OnlineStore):
             ]
         ] = []
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
-            table_name = _table_id(project, table)
+            table_name = _table_id(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
 
             # Search query template to find the top k items that are closest to the given embedding
             # SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
@@ -533,7 +557,11 @@ class PostgreSQLOnlineStore(OnlineStore):
             and feature.name in requested_features
         ]
 
-        table_name = _table_id(config.project, table)
+        table_name = _table_id(
+            config.project,
+            table,
+            config.registry.enable_online_feature_view_versioning,
+        )
 
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
             query = None
@@ -794,8 +822,15 @@ class PostgreSQLOnlineStore(OnlineStore):
         return result
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    name = table.name
+    if enable_versioning:
+        version = getattr(table.projection, "version_tag", None)
+        if version is None:
+            version = getattr(table, "current_version_number", None)
+        if version is not None and version > 0:
+            name = f"{table.name}_v{version}"
+    return f"{project}_{name}"
 
 
 def _drop_table_and_index(table_name):
