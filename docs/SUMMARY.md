@@ -211,3 +211,6 @@
   * [ADR-0006: Kubernetes Operator](adr/ADR-0006-kubernetes-operator.md)
   * [ADR-0007: Unified Feature Transformations](adr/ADR-0007-unified-feature-transformations.md)
   * [ADR-0008: Feature View Versioning](adr/ADR-0008-feature-view-versioning.md)
+  * [ADR-0009: Contribution and Extensibility](adr/ADR-0009-contribution-extensibility.md)
+  * [ADR-0010: Vector Database Integration](adr/ADR-0010-vector-database-integration.md)
+  * [ADR-0011: Data Quality Monitoring](adr/ADR-0011-data-quality-monitoring.md)

@@ -18,6 +18,9 @@ An Architecture Decision Record captures a single architectural decision, includ
 | [ADR-0006](ADR-0006-kubernetes-operator.md) | Kubernetes Operator | Accepted | RFC-042 |
 | [ADR-0007](ADR-0007-unified-feature-transformations.md) | Unified Feature Transformations and Feature Views | Accepted | RFC-043 |
 | [ADR-0008](ADR-0008-feature-view-versioning.md) | Feature View Versioning | Accepted | Feature View Versioning RFC |
+| [ADR-0009](ADR-0009-contribution-extensibility.md) | Contribution and Extensibility Architecture | Accepted | RFC-014 |
+| [ADR-0010](ADR-0010-vector-database-integration.md) | Vector Database Integration for LLM/RAG Support | Accepted | RFC-040 |
+| [ADR-0011](ADR-0011-data-quality-monitoring.md) | Data Quality Monitoring | Accepted | RFC-027 |
 
 ## Creating a New ADR
 
