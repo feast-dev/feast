@@ -11,10 +11,10 @@ from singlestoredb.connection import Connection, Cursor
 from singlestoredb.exceptions import InterfaceError
 
 from feast import Entity, FeatureView, RepoConfig
-from feast.importer import import_class
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.helpers import _to_naive_utc, online_store_table_id
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
@@ -222,6 +222,7 @@ class SingleStoreOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ) -> None:
         project = config.project
         versioning = config.registry.enable_online_feature_view_versioning
@@ -232,41 +233,18 @@ class SingleStoreOnlineStore(OnlineStore):
                     continue
 
                 versions = []
-                try:
-                    from feast.repo_config import REGISTRY_CLASS_FOR_TYPE
-
-                    registry_type = getattr(config.registry, "registry_type", "file")
-                    registry_class_path = REGISTRY_CLASS_FOR_TYPE[registry_type]
-                    module_name, class_name = registry_class_path.rsplit(".", 1)
-                    registry_cls = import_class(module_name, class_name, "Registry")
-                    if registry_type == "file":
-                        registry = registry_cls(
-                            project=project,
-                            registry_config=config.registry,
-                            repo_path=config.repo_path,
+                if registry is not None:
+                    try:
+                        versions = registry.list_feature_view_versions(
+                            name=table.name, project=project
                         )
-                    elif registry_type in {"sql", "remote", "snowflake.registry"}:
-                        registry = registry_cls(
-                            registry_config=config.registry,
-                            project=project,
-                            repo_path=config.repo_path,
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to list feature view versions for %s during teardown; will fall back to dropping discovered versioned tables. Error: %s",
+                            table.name,
+                            e,
                         )
-                    else:
-                        registry = registry_cls(
-                            project=project,
-                            registry_config=config.registry,
-                            repo_path=config.repo_path,
-                        )
-                    versions = registry.list_feature_view_versions(
-                        name=table.name, project=project
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "Failed to list feature view versions for %s during teardown; will fall back to dropping discovered versioned tables. Error: %s",
-                        table.name,
-                        e,
-                    )
-                    versions = []
+                        versions = []
 
                 if not versions:
                     _drop_table_and_index(cur, project, table, enable_versioning=True)
@@ -303,19 +281,11 @@ def _drop_table_and_index(
 
 
 def _quote_identifier(identifier: str) -> str:
-    """Quote a SingleStore/MySQL identifier safely using backticks.
-
-    Backticks are escaped by doubling them. This does not validate existence,
-    but prevents SQL injection through identifier interpolation.
-    """
-
     escaped = identifier.replace("`", "``")
     return f"`{escaped}`"
 
 
-def _drop_discovered_versioned_tables(
-    cur: Cursor, project: str, table: FeatureView
-) -> None:
+def _drop_discovered_versioned_tables(cur: Cursor, project: str, table: FeatureView) -> None:
     base_table_name = online_store_table_id(project, table, enable_versioning=False)
     escaped_base_table_name = base_table_name.replace("\\", "\\\\")
     escaped_base_table_name = escaped_base_table_name.replace("%", "\\%")
