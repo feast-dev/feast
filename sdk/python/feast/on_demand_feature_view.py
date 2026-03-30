@@ -35,6 +35,7 @@ from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.utils import _utc_now
 from feast.value_type import ValueType
+from feast.version_utils import normalize_version_string
 
 warnings.simplefilter("once", DeprecationWarning)
 OnDemandSourceType = Union[FeatureView, FeatureViewProjection, RequestSource]
@@ -168,6 +169,7 @@ class OnDemandFeatureView(BaseFeatureView):
         singleton: bool = False,
         track_metrics: bool = False,
         aggregations: Optional[List[Aggregation]] = None,
+        version: str = "latest",
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -208,6 +210,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=owner,
         )
 
+        self.version = version
         schema = schema or []
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.sources = sources
@@ -328,6 +331,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton,
+            version=self.version,
             track_metrics=self.track_metrics,
         )
         fv.entities = self.entities
@@ -336,6 +340,49 @@ class OnDemandFeatureView(BaseFeatureView):
         fv.entity_columns = copy.copy(self.entity_columns)
 
         return fv
+
+    def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
+        """Check for OnDemandFeatureView schema/UDF changes."""
+        if super()._schema_or_udf_changed(other):
+            return True
+
+        if not isinstance(other, OnDemandFeatureView):
+            return True
+
+        # UDF/transformation changes
+        # Handle None cases for feature_transformation
+        if (
+            self.feature_transformation is None
+            and other.feature_transformation is not None
+        ):
+            return True
+        if (
+            self.feature_transformation is not None
+            and other.feature_transformation is None
+        ):
+            return True
+        if (
+            self.feature_transformation is not None
+            and other.feature_transformation is not None
+            and self.feature_transformation != other.feature_transformation
+        ):
+            return True
+        if self.mode != other.mode:
+            return True
+        if (
+            self.source_feature_view_projections
+            != other.source_feature_view_projections
+        ):
+            return True
+        if self.source_request_sources != other.source_request_sources:
+            return True
+        if sorted(self.entity_columns) != sorted(other.entity_columns):
+            return True
+        if self.aggregations != other.aggregations:
+            return True
+
+        # Skip configuration: write_to_online_store, singleton
+        return False
 
     def __eq__(self, other):
         if not isinstance(other, OnDemandFeatureView):
@@ -358,6 +405,8 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.singleton != other.singleton
             or self.track_metrics != other.track_metrics
             or self.aggregations != other.aggregations
+            or normalize_version_string(self.version)
+            != normalize_version_string(other.version)
         ):
             return False
 
@@ -468,6 +517,8 @@ class OnDemandFeatureView(BaseFeatureView):
             meta.created_timestamp.FromDatetime(self.created_timestamp)
         if self.last_updated_timestamp:
             meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+        if self.current_version_number is not None:
+            meta.current_version_number = self.current_version_number
         sources = {}
         for source_name, fv_projection in self.source_feature_view_projections.items():
             sources[source_name] = OnDemandSource(
@@ -505,6 +556,7 @@ class OnDemandFeatureView(BaseFeatureView):
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton or False,
             aggregations=self.aggregations,
+            version=self.version,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
@@ -569,6 +621,17 @@ class OnDemandFeatureView(BaseFeatureView):
         on_demand_feature_view_obj.projection = FeatureViewProjection.from_definition(
             on_demand_feature_view_obj
         )
+
+        # Restore version fields.
+        spec_version = on_demand_feature_view_proto.spec.version
+        on_demand_feature_view_obj.version = spec_version or "latest"
+        cvn = on_demand_feature_view_proto.meta.current_version_number
+        if cvn > 0:
+            on_demand_feature_view_obj.current_version_number = cvn
+        elif cvn == 0 and spec_version and spec_version.lower() != "latest":
+            on_demand_feature_view_obj.current_version_number = 0
+        else:
+            on_demand_feature_view_obj.current_version_number = None
 
         # Set timestamps if present
         cls._set_timestamps_from_proto(
@@ -1146,6 +1209,7 @@ def on_demand_feature_view(
     singleton: bool = False,
     track_metrics: bool = False,
     explode: bool = False,
+    version: str = "latest",
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -1196,6 +1260,7 @@ def on_demand_feature_view(
             track_metrics=track_metrics,
             udf=user_function,
             udf_string=udf_string,
+            version=version,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function

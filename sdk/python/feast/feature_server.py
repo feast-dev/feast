@@ -99,12 +99,14 @@ class GetOnlineFeaturesRequest(BaseModel):
     feature_service: Optional[str] = None
     features: List[str] = []
     full_feature_names: bool = False
+    include_feature_view_version_metadata: bool = False
 
 
 class GetOnlineDocumentsRequest(BaseModel):
     feature_service: Optional[str] = None
     features: List[str] = []
     full_feature_names: bool = False
+    include_feature_view_version_metadata: bool = False
     top_k: Optional[int] = None
     query: Optional[List[float]] = None
     query_string: Optional[str] = None
@@ -162,7 +164,7 @@ def _resolve_feature_counts(
         feat_count = sum(len(p.features) for p in projections)
     elif isinstance(features, list):
         feat_count = len(features)
-        fv_names = {ref.split(":")[0] for ref in features if ":" in ref}
+        fv_names = {ref.split(":")[0].split("@")[0] for ref in features if ":" in ref}
         fv_count = len(fv_names)
     else:
         feat_count = 0
@@ -382,6 +384,7 @@ def get_app(
                 features=features,
                 entity_rows=request.entities,
                 full_feature_names=request.full_feature_names,
+                include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
 
             if store._get_provider().async_supported.online.read:
@@ -414,12 +417,17 @@ def get_app(
             features = await _get_features(request, store)
 
             read_params = dict(
-                features=features, query=request.query, top_k=request.top_k
+                features=features,
+                query=request.query,
+                top_k=request.top_k,
             )
             if request.api_version == 2 and request.query_string is not None:
                 read_params["query_string"] = request.query_string
 
             if request.api_version == 2:
+                read_params["include_feature_view_version_metadata"] = (
+                    request.include_feature_view_version_metadata
+                )
                 response = await run_in_threadpool(
                     lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
                 )

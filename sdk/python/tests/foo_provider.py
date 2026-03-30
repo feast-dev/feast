@@ -155,6 +155,7 @@ class FooProvider(Provider):
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -174,6 +175,7 @@ class FooProvider(Provider):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -206,6 +208,7 @@ class FooProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         pass
 
@@ -220,6 +223,7 @@ class FooProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         pass
 

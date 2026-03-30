@@ -276,12 +276,20 @@ def plan_command(
     is_flag=True,
     help="Disable progress bars during apply operation.",
 )
+@click.option(
+    "--no-promote",
+    is_flag=True,
+    default=False,
+    help="Save new versions without promoting them to active. "
+    "New versions are accessible via @v<N> reads and --version materialization.",
+)
 @click.pass_context
 def apply_total_command(
     ctx: click.Context,
     skip_source_validation: bool,
     skip_feature_view_validation: bool,
     no_progress: bool,
+    no_promote: bool,
 ):
     """
     Create or update a feature store deployment
@@ -304,6 +312,7 @@ def apply_total_command(
             repo,
             skip_source_validation,
             skip_feature_view_validation,
+            no_promote=no_promote,
         )
     except FeastProviderLoginError as e:
         print(str(e))
@@ -351,6 +360,12 @@ def registry_dump_command(ctx: click.Context):
     is_flag=True,
     help="Materialize all available data using current datetime as event timestamp (useful when source data lacks event timestamps)",
 )
+@click.option(
+    "--version",
+    "feature_view_version",
+    default=None,
+    help="Version to materialize (e.g., 'v2'). Requires --views with exactly one feature view.",
+)
 @click.pass_context
 def materialize_command(
     ctx: click.Context,
@@ -358,6 +373,7 @@ def materialize_command(
     end_ts: Optional[str],
     views: List[str],
     disable_event_timestamp: bool,
+    feature_view_version: Optional[str],
 ):
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
@@ -395,6 +411,7 @@ def materialize_command(
         start_date=start_date,
         end_date=end_date,
         disable_event_timestamp=disable_event_timestamp,
+        version=feature_view_version,
     )
 
 
@@ -406,8 +423,19 @@ def materialize_command(
     help="Feature views to incrementally materialize",
     multiple=True,
 )
+@click.option(
+    "--version",
+    "feature_view_version",
+    default=None,
+    help="Version to materialize (e.g., 'v2'). Requires --views with exactly one feature view.",
+)
 @click.pass_context
-def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List[str]):
+def materialize_incremental_command(
+    ctx: click.Context,
+    end_ts: str,
+    views: List[str],
+    feature_view_version: Optional[str],
+):
     """
     Run an incremental materialization job to ingest new data into the online store. Feast will read
     all data from the previously ingested point to END_TS from the offline store and write it to the
@@ -420,6 +448,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     store.materialize_incremental(
         feature_views=None if not views else views,
         end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
+        version=feature_view_version,
     )
 
 

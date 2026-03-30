@@ -56,6 +56,8 @@ class BaseFeatureView(ABC):
     projection: FeatureViewProjection
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
+    version: str
+    current_version_number: Optional[int]
 
     @abstractmethod
     def __init__(
@@ -92,6 +94,10 @@ class BaseFeatureView(ABC):
         self.projection = FeatureViewProjection.from_definition(self)
         self.created_timestamp = None
         self.last_updated_timestamp = None
+        if not hasattr(self, "version"):
+            self.version = "latest"
+        if not hasattr(self, "current_version_number"):
+            self.current_version_number = None
 
         self.source = source
 
@@ -147,6 +153,17 @@ class BaseFeatureView(ABC):
 
         return cp
 
+    def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
+        """Check if schema or UDF-related fields have changed (version-worthy changes).
+
+        Callers always match by name first, so name comparison is omitted here.
+        """
+        if sorted(self.features) != sorted(other.features):
+            return True
+        # Skip metadata: description, tags, owner, projection
+        # Skip source changes: treat as deployment/location details, not schema changes
+        return False
+
     def __eq__(self, other):
         if not isinstance(other, BaseFeatureView):
             raise TypeError(
@@ -178,6 +195,18 @@ class BaseFeatureView(ABC):
         """
         if not self.name:
             raise ValueError("Feature view needs a name.")
+        if "@" in self.name:
+            raise ValueError(
+                f"Feature view name '{self.name}' must not contain '@'. "
+                f"The '@' character is reserved for version-qualified references "
+                f"(e.g., 'fv@v2:feature')."
+            )
+        if ":" in self.name:
+            raise ValueError(
+                f"Feature view name '{self.name}' must not contain ':'. "
+                f"The ':' character is reserved as the separator in fully qualified "
+                f"feature references (e.g., 'feature_view:feature_name')."
+            )
 
     def with_name(self, name: str):
         """
