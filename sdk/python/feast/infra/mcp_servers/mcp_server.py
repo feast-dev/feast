@@ -44,7 +44,7 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
         )
 
-        transport = getattr(config, "mcp_transport", "sse") or "sse"
+        transport = getattr(config, "mcp_transport", "sse")
         if transport == "http":
             mount_http = getattr(mcp, "mount_http", None)
             if mount_http is None:
@@ -63,6 +63,7 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
                 )
                 mcp.mount()
         else:
+            # Defensive guard for programmatic callers.
             raise McpTransportNotSupportedError(
                 f"Unsupported mcp_transport={transport!r}. Expected 'sse' or 'http'."
             )

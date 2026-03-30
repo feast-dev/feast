@@ -159,7 +159,7 @@ jobs:
             -H "mcp-protocol-version: 2025-03-26" \
             -H "mcp-session-id: ${SESSION_ID}" \
             --data '{}' \
-            http://127.0.0.1:6566/mcp || true
+            http://127.0.0.1:6566/mcp
 
           grep -Eq "^HTTP/.* 400" /tmp/mcp_headers2
           grep -Eiq "^content-type: application/json" /tmp/mcp_headers2
