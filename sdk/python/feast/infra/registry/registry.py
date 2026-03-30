@@ -31,6 +31,8 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    FeatureViewPinConflict,
+    FeatureViewVersionNotFound,
     PermissionNotFoundException,
     ProjectNotFoundException,
     ProjectObjectNotFoundException,
@@ -48,12 +50,18 @@ from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.permission import Permission
 from feast.project import Project
 from feast.project_metadata import ProjectMetadata
+from feast.protos.feast.core.FeatureViewVersion_pb2 import FeatureViewVersionRecord
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
+from feast.version_utils import (
+    generate_version_id,
+    parse_version,
+    version_tag,
+)
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -217,6 +225,12 @@ class Registry(BaseRegistry):
 
         self.purge_feast_metadata = (
             registry_config.purge_feast_metadata
+            if registry_config is not None
+            else False
+        )
+
+        self.enable_online_versioning = (
+            registry_config.enable_online_feature_view_versioning
             if registry_config is not None
             else False
         )
@@ -470,8 +484,197 @@ class Registry(BaseRegistry):
         )
         return proto_registry_utils.get_entity(registry_proto, name, project)
 
+    def _infer_fv_type_string(self, feature_view) -> str:
+        if isinstance(feature_view, StreamFeatureView):
+            return "stream_feature_view"
+        elif isinstance(feature_view, FeatureView):
+            return "feature_view"
+        elif isinstance(feature_view, OnDemandFeatureView):
+            return "on_demand_feature_view"
+        else:
+            raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
+
+    def _proto_class_for_type(self, fv_type: str):
+        from feast.protos.feast.core.FeatureView_pb2 import (
+            FeatureView as FeatureViewProto,
+        )
+        from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+            OnDemandFeatureView as OnDemandFeatureViewProto,
+        )
+        from feast.protos.feast.core.StreamFeatureView_pb2 import (
+            StreamFeatureView as StreamFeatureViewProto,
+        )
+
+        if fv_type == "stream_feature_view":
+            return StreamFeatureViewProto, StreamFeatureView
+        elif fv_type == "feature_view":
+            return FeatureViewProto, FeatureView
+        elif fv_type == "on_demand_feature_view":
+            return OnDemandFeatureViewProto, OnDemandFeatureView
+        else:
+            raise ValueError(f"Unknown feature view type: {fv_type}")
+
+    def _next_version_number(self, name: str, project: str) -> int:
+        history = self.cached_registry_proto.feature_view_version_history
+        max_ver = -1
+        for record in history.records:
+            if record.feature_view_name == name and record.project_id == project:
+                if record.version_number > max_ver:
+                    max_ver = record.version_number
+        return max_ver + 1
+
+    def _get_version_record(
+        self, name: str, project: str, version_number: int
+    ) -> Optional[FeatureViewVersionRecord]:
+        history = self.cached_registry_proto.feature_view_version_history
+        for record in history.records:
+            if (
+                record.feature_view_name == name
+                and record.project_id == project
+                and record.version_number == version_number
+            ):
+                return record
+        return None
+
+    def _update_metadata_fields(
+        self, existing_proto: Any, updated_fv: BaseFeatureView
+    ) -> None:
+        """Update non-version-significant fields without creating new version."""
+        from feast.feature_view import FeatureView
+
+        # Metadata fields
+        existing_proto.spec.description = updated_fv.description
+        existing_proto.spec.tags.clear()
+        existing_proto.spec.tags.update(updated_fv.tags)
+        existing_proto.spec.owner = updated_fv.owner
+        if hasattr(existing_proto.spec, "version") and hasattr(updated_fv, "version"):
+            existing_proto.spec.version = getattr(updated_fv, "version")
+
+        # Configuration fields (FeatureView)
+        if (
+            hasattr(existing_proto.spec, "ttl")
+            and hasattr(updated_fv, "ttl")
+            and updated_fv.ttl
+        ):
+            if isinstance(updated_fv, FeatureView):
+                ttl_duration = updated_fv.get_ttl_duration()
+                if ttl_duration:
+                    existing_proto.spec.ttl.CopyFrom(ttl_duration)
+        if hasattr(existing_proto.spec, "online") and hasattr(updated_fv, "online"):
+            existing_proto.spec.online = getattr(updated_fv, "online")
+        if hasattr(existing_proto.spec, "offline") and hasattr(updated_fv, "offline"):
+            existing_proto.spec.offline = getattr(updated_fv, "offline")
+        if hasattr(existing_proto.spec, "enable_validation") and hasattr(
+            updated_fv, "enable_validation"
+        ):
+            existing_proto.spec.enable_validation = getattr(
+                updated_fv, "enable_validation"
+            )
+
+        # OnDemandFeatureView configuration
+        if hasattr(existing_proto.spec, "write_to_online_store") and hasattr(
+            updated_fv, "write_to_online_store"
+        ):
+            existing_proto.spec.write_to_online_store = getattr(
+                updated_fv, "write_to_online_store"
+            )
+        if hasattr(existing_proto.spec, "singleton") and hasattr(
+            updated_fv, "singleton"
+        ):
+            existing_proto.spec.singleton = getattr(updated_fv, "singleton")
+
+        # Data sources (treat as configuration)
+        if (
+            hasattr(existing_proto.spec, "batch_source")
+            and hasattr(updated_fv, "batch_source")
+            and updated_fv.batch_source
+        ):
+            existing_proto.spec.batch_source.CopyFrom(
+                updated_fv.batch_source.to_proto()
+            )
+        if (
+            hasattr(existing_proto.spec, "stream_source")
+            and hasattr(updated_fv, "stream_source")
+            and updated_fv.stream_source
+        ):
+            existing_proto.spec.stream_source.CopyFrom(
+                updated_fv.stream_source.to_proto()
+            )
+
+        # Update or clear version pin
+        if hasattr(existing_proto.meta, "current_version_number") and hasattr(
+            updated_fv, "current_version_number"
+        ):
+            if updated_fv.current_version_number is not None:
+                existing_proto.meta.current_version_number = (
+                    updated_fv.current_version_number
+                )
+            else:
+                # Unpin: reset to proto default (0).
+                # from_proto interprets cvn=0 with spec.version="latest" as None.
+                existing_proto.meta.current_version_number = 0
+
+        # Update timestamp
+        existing_proto.meta.last_updated_timestamp.FromDatetime(_utc_now())
+
+    def _save_version_record(
+        self,
+        name: str,
+        project: str,
+        version_number: int,
+        fv_type: str,
+        proto_bytes: bytes,
+    ):
+        now = _utc_now()
+        record = FeatureViewVersionRecord(
+            feature_view_name=name,
+            project_id=project,
+            version_number=version_number,
+            feature_view_type=fv_type,
+            feature_view_proto=proto_bytes,
+            description="",
+            version_id=generate_version_id(),
+        )
+        record.created_timestamp.FromDatetime(now)
+        self.cached_registry_proto.feature_view_version_history.records.append(record)
+
+    def list_feature_view_versions(
+        self, name: str, project: str
+    ) -> List[Dict[str, Any]]:
+        history = self.cached_registry_proto.feature_view_version_history
+        results = []
+        for record in history.records:
+            if record.feature_view_name == name and record.project_id == project:
+                results.append(
+                    {
+                        "version": version_tag(record.version_number),
+                        "version_number": record.version_number,
+                        "feature_view_type": record.feature_view_type,
+                        "created_timestamp": record.created_timestamp.ToDatetime(),
+                        "version_id": record.version_id,
+                    }
+                )
+        results.sort(key=lambda r: r["version_number"])
+        return results
+
+    def get_feature_view_by_version(
+        self, name: str, project: str, version_number: int, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        record = self._get_version_record(name, project, version_number)
+        if record is None:
+            raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
+        proto_class, python_class = self._proto_class_for_type(record.feature_view_type)
+        snap_proto = proto_class.FromString(record.feature_view_proto)
+        fv = python_class.from_proto(snap_proto)
+        fv.current_version_number = version_number
+        return fv
+
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         feature_view.ensure_valid()
 
@@ -479,6 +682,73 @@ class Registry(BaseRegistry):
         if not feature_view.created_timestamp:
             feature_view.created_timestamp = now
         feature_view.last_updated_timestamp = now
+
+        fv_type_str = self._infer_fv_type_string(feature_view)
+        is_latest, pin_version = parse_version(feature_view.version)
+
+        if not is_latest:
+            # Explicit version: check if it exists (pin/revert) or not (forward declaration).
+            # Note: The file registry is last-write-wins for true concurrent races —
+            # this is a pre-existing limitation for all file registry operations.
+            # For multi-client environments, use the SQL registry.
+            record = self._get_version_record(feature_view.name, project, pin_version)
+
+            if record is not None:
+                # Version exists → pin/revert to that snapshot
+                # Check that the user hasn't also modified the definition.
+                # Compare user's FV (with version="latest") against active FV.
+                self._prepare_registry_for_changes(project)
+                try:
+                    active_fv = proto_registry_utils.get_any_feature_view(
+                        self.cached_registry_proto, feature_view.name, project
+                    )
+                    user_fv_copy = feature_view.__copy__()
+                    user_fv_copy.version = "latest"
+                    active_fv.version = "latest"
+                    # Clear metadata that differs due to registry state
+                    user_fv_copy.created_timestamp = active_fv.created_timestamp
+                    user_fv_copy.last_updated_timestamp = (
+                        active_fv.last_updated_timestamp
+                    )
+                    user_fv_copy.current_version_number = (
+                        active_fv.current_version_number
+                    )
+                    if hasattr(active_fv, "materialization_intervals"):
+                        user_fv_copy.materialization_intervals = (
+                            active_fv.materialization_intervals
+                        )
+                    if user_fv_copy != active_fv:
+                        raise FeatureViewPinConflict(
+                            feature_view.name, version_tag(pin_version)
+                        )
+                except FeatureViewNotFoundException:
+                    pass
+
+                proto_class, python_class = self._proto_class_for_type(
+                    record.feature_view_type
+                )
+                snap_proto = proto_class.FromString(record.feature_view_proto)
+                restored_fv = python_class.from_proto(snap_proto)
+                restored_fv.version = feature_view.version
+                restored_fv.current_version_number = pin_version
+                restored_fv.last_updated_timestamp = now
+                # Apply the restored FV using the standard path below
+                feature_view = restored_fv
+            else:
+                # Version doesn't exist → forward declaration: create it
+                feature_view.current_version_number = pin_version
+                feature_view_proto = feature_view.to_proto()
+                feature_view_proto.spec.project = project
+                snapshot_proto_bytes = feature_view_proto.SerializeToString()
+                self._prepare_registry_for_changes(project)
+                self._save_version_record(
+                    feature_view.name,
+                    project,
+                    pin_version,
+                    fv_type_str,
+                    snapshot_proto_bytes,
+                )
+                # Fall through to apply the FV as active (with current_version_number set)
 
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
@@ -502,6 +772,7 @@ class Registry(BaseRegistry):
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
+        old_proto_bytes = None
         for idx, existing_feature_view_proto in enumerate(
             existing_feature_views_of_same_type
         ):
@@ -509,12 +780,22 @@ class Registry(BaseRegistry):
                 existing_feature_view_proto.spec.name == feature_view_proto.spec.name
                 and existing_feature_view_proto.spec.project == project
             ):
-                if (
-                    feature_view.__class__.from_proto(existing_feature_view_proto)
-                    == feature_view
-                ):
+                existing_feature_view = feature_view.__class__.from_proto(
+                    existing_feature_view_proto
+                )
+                if not feature_view._schema_or_udf_changed(existing_feature_view):
+                    # Update non-version-significant fields in place
+                    self._update_metadata_fields(
+                        existing_feature_view_proto, feature_view
+                    )
+                    if commit:
+                        self.commit()
                     return
                 else:
+                    old_proto_bytes = existing_feature_view_proto.SerializeToString()
+                    # Save a copy before deletion for no_promote restore
+                    existing_proto_copy = type(existing_feature_view_proto)()
+                    existing_proto_copy.CopyFrom(existing_feature_view_proto)
                     existing_feature_view = type(feature_view).from_proto(
                         existing_feature_view_proto
                     )
@@ -529,6 +810,54 @@ class Registry(BaseRegistry):
                     feature_view_proto.spec.project = project
                     del existing_feature_views_of_same_type[idx]
                     break
+
+        # Version history tracking
+        if is_latest:
+            if old_proto_bytes is not None:
+                # FV changed: save old as a version if first time, then save new
+                next_ver = self._next_version_number(feature_view.name, project)
+                if next_ver == 0:
+                    self._save_version_record(
+                        feature_view.name, project, 0, fv_type_str, old_proto_bytes
+                    )
+                    next_ver = 1
+
+                if no_promote:
+                    # Save version snapshot but keep the old active definition
+                    no_promote_fv = feature_view.__copy__()
+                    no_promote_fv.current_version_number = next_ver
+                    no_promote_proto = no_promote_fv.to_proto()
+                    no_promote_proto.spec.project = project
+                    no_promote_proto_bytes = no_promote_proto.SerializeToString()
+                    self._save_version_record(
+                        feature_view.name,
+                        project,
+                        next_ver,
+                        fv_type_str,
+                        no_promote_proto_bytes,
+                    )
+                    # Re-insert the old active definition (was deleted above)
+                    existing_feature_views_of_same_type.append(existing_proto_copy)
+                    if commit:
+                        self.commit()
+                    return
+
+                feature_view.current_version_number = next_ver
+                feature_view_proto = feature_view.to_proto()
+                feature_view_proto.spec.project = project
+                new_proto_bytes = feature_view_proto.SerializeToString()
+                self._save_version_record(
+                    feature_view.name, project, next_ver, fv_type_str, new_proto_bytes
+                )
+            else:
+                # New FV: save as v0
+                feature_view.current_version_number = 0
+                feature_view_proto = feature_view.to_proto()
+                feature_view_proto.spec.project = project
+                new_proto_bytes = feature_view_proto.SerializeToString()
+                self._save_version_record(
+                    feature_view.name, project, 0, fv_type_str, new_proto_bytes
+                )
 
         existing_feature_views_of_same_type.append(feature_view_proto)
         if commit:
@@ -706,6 +1035,7 @@ class Registry(BaseRegistry):
         self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
+        found = False
         for idx, existing_feature_view_proto in enumerate(
             self.cached_registry_proto.feature_views
         ):
@@ -714,35 +1044,48 @@ class Registry(BaseRegistry):
                 and existing_feature_view_proto.spec.project == project
             ):
                 del self.cached_registry_proto.feature_views[idx]
-                if commit:
-                    self.commit()
-                return
+                found = True
+                break
 
-        for idx, existing_on_demand_feature_view_proto in enumerate(
-            self.cached_registry_proto.on_demand_feature_views
-        ):
-            if (
-                existing_on_demand_feature_view_proto.spec.name == name
-                and existing_on_demand_feature_view_proto.spec.project == project
+        if not found:
+            for idx, existing_on_demand_feature_view_proto in enumerate(
+                self.cached_registry_proto.on_demand_feature_views
             ):
-                del self.cached_registry_proto.on_demand_feature_views[idx]
-                if commit:
-                    self.commit()
-                return
+                if (
+                    existing_on_demand_feature_view_proto.spec.name == name
+                    and existing_on_demand_feature_view_proto.spec.project == project
+                ):
+                    del self.cached_registry_proto.on_demand_feature_views[idx]
+                    found = True
+                    break
 
-        for idx, existing_stream_feature_view_proto in enumerate(
-            self.cached_registry_proto.stream_feature_views
-        ):
-            if (
-                existing_stream_feature_view_proto.spec.name == name
-                and existing_stream_feature_view_proto.spec.project == project
+        if not found:
+            for idx, existing_stream_feature_view_proto in enumerate(
+                self.cached_registry_proto.stream_feature_views
             ):
-                del self.cached_registry_proto.stream_feature_views[idx]
-                if commit:
-                    self.commit()
-                return
+                if (
+                    existing_stream_feature_view_proto.spec.name == name
+                    and existing_stream_feature_view_proto.spec.project == project
+                ):
+                    del self.cached_registry_proto.stream_feature_views[idx]
+                    found = True
+                    break
 
-        raise FeatureViewNotFoundException(name, project)
+        if not found:
+            raise FeatureViewNotFoundException(name, project)
+
+        # Clean up version history for the deleted feature view
+        history = self.cached_registry_proto.feature_view_version_history
+        indices_to_remove = [
+            i
+            for i, record in enumerate(history.records)
+            if record.feature_view_name == name and record.project_id == project
+        ]
+        for i in reversed(indices_to_remove):
+            del history.records[i]
+
+        if commit:
+            self.commit()
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         self._prepare_registry_for_changes(project)

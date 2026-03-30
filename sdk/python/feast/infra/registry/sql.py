@@ -11,6 +11,7 @@ from sqlalchemy import (  # type: ignore
     BigInteger,
     Column,
     Index,
+    Integer,
     LargeBinary,
     MetaData,
     String,
@@ -18,6 +19,7 @@ from sqlalchemy import (  # type: ignore
     Text,
     create_engine,
     delete,
+    func,
     insert,
     select,
     update,
@@ -30,10 +32,13 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
+    ConcurrentVersionConflict,
     DataSourceObjectNotFoundException,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    FeatureViewPinConflict,
+    FeatureViewVersionNotFound,
     PermissionNotFoundException,
     ProjectNotFoundException,
     ProjectObjectNotFoundException,
@@ -72,6 +77,11 @@ from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
+from feast.version_utils import (
+    generate_version_id,
+    parse_version,
+    version_tag,
+)
 
 metadata = MetaData()
 
@@ -200,6 +210,24 @@ permissions = Table(
 
 Index("idx_permissions_project_id", permissions.c.project_id)
 
+feature_view_version_history = Table(
+    "feature_view_version_history",
+    metadata,
+    Column("feature_view_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
+    Column("version_number", Integer, primary_key=True),
+    Column("feature_view_type", String(50), nullable=False),
+    Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("created_timestamp", BigInteger, nullable=False),
+    Column("description", Text, nullable=True),
+    Column("version_id", String(36), nullable=False),
+)
+
+Index(
+    "idx_fv_version_history_project_id",
+    feature_view_version_history.c.project_id,
+)
+
 
 class FeastMetadataKeys(Enum):
     LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
@@ -267,6 +295,9 @@ class SqlRegistry(CachingRegistry):
             registry_config.thread_pool_executor_worker_count
         )
         self.purge_feast_metadata = registry_config.purge_feast_metadata
+        self.enable_online_versioning = (
+            registry_config.enable_online_feature_view_versioning
+        )
         super().__init__(
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
@@ -337,6 +368,7 @@ class SqlRegistry(CachingRegistry):
             saved_datasets,
             validation_references,
             permissions,
+            feature_view_version_history,
         }:
             with self.write_engine.begin() as conn:
                 stmt = delete(t)
@@ -529,17 +561,36 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
-        deleted_count = 0
-        for table in {
-            feature_views,
-            on_demand_feature_views,
-            stream_feature_views,
-        }:
-            deleted_count += self._delete_object(
-                table, name, project, "feature_view_name", None
+        with self.write_engine.begin() as conn:
+            deleted_count = 0
+            for table in {
+                feature_views,
+                on_demand_feature_views,
+                stream_feature_views,
+            }:
+                stmt = delete(table).where(
+                    table.c.feature_view_name == name,
+                    table.c.project_id == project,
+                )
+                rows = conn.execute(stmt)
+                deleted_count += rows.rowcount
+            if deleted_count == 0:
+                raise FeatureViewNotFoundException(name, project)
+            # Clean up version history in the same transaction
+            stmt = delete(feature_view_version_history).where(
+                feature_view_version_history.c.feature_view_name == name,
+                feature_view_version_history.c.project_id == project,
             )
-        if deleted_count == 0:
-            raise FeatureViewNotFoundException(name, project)
+            conn.execute(stmt)
+
+        self.apply_project(
+            self.get_project(name=project, allow_cache=False), commit=True
+        )
+        if not self.purge_feast_metadata:
+            with self.write_engine.begin() as conn:
+                self._set_last_updated_metadata(_utc_now(), project, conn)
+        if self.cache_mode == "sync":
+            self.refresh()
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
@@ -582,14 +633,228 @@ class SqlRegistry(CachingRegistry):
         )
 
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
+        feature_view.ensure_valid()
         self._ensure_feature_view_name_is_unique(feature_view, project)
         fv_table = self._infer_fv_table(feature_view)
+        fv_type_str = self._infer_fv_type_string(feature_view)
 
-        return self._apply_object(
+        is_latest, pin_version = parse_version(feature_view.version)
+
+        if not is_latest:
+            # Explicit version: check if it exists (pin/revert) or not (forward declaration)
+            snapshot = self._get_version_snapshot(
+                feature_view.name, project, pin_version
+            )
+
+            if snapshot is not None:
+                # Version exists → pin/revert to that snapshot
+                # Check that the user hasn't also modified the definition.
+                # Compare user's FV (with version="latest") against active FV.
+                try:
+                    active_fv = self._get_any_feature_view(feature_view.name, project)
+                    user_fv_copy = feature_view.__copy__()
+                    user_fv_copy.version = "latest"
+                    active_fv.version = "latest"
+                    # Clear metadata that differs due to registry state
+                    user_fv_copy.created_timestamp = active_fv.created_timestamp
+                    user_fv_copy.last_updated_timestamp = (
+                        active_fv.last_updated_timestamp
+                    )
+                    user_fv_copy.current_version_number = (
+                        active_fv.current_version_number
+                    )
+                    if hasattr(active_fv, "materialization_intervals"):
+                        user_fv_copy.materialization_intervals = (
+                            active_fv.materialization_intervals
+                        )
+                    if user_fv_copy != active_fv:
+                        raise FeatureViewPinConflict(
+                            feature_view.name, version_tag(pin_version)
+                        )
+                except FeatureViewNotFoundException:
+                    pass
+
+                snap_type, snap_proto_bytes = snapshot
+                proto_class, python_class = self._proto_class_for_type(snap_type)
+                snap_proto = proto_class.FromString(snap_proto_bytes)
+                restored_fv = python_class.from_proto(snap_proto)
+                restored_fv.version = feature_view.version
+                restored_fv.current_version_number = pin_version
+                return self._apply_object(
+                    fv_table,
+                    project,
+                    "feature_view_name",
+                    restored_fv,
+                    "feature_view_proto",
+                )
+            else:
+                # Version doesn't exist → forward declaration: create it
+                feature_view.current_version_number = pin_version
+                snapshot_proto = feature_view.to_proto()
+                snapshot_proto.spec.project = project
+                snapshot_proto_bytes = snapshot_proto.SerializeToString()
+                try:
+                    self._save_version_snapshot(
+                        feature_view.name,
+                        project,
+                        pin_version,
+                        fv_type_str,
+                        snapshot_proto_bytes,
+                    )
+                except IntegrityError:
+                    raise ConcurrentVersionConflict(
+                        f"Version v{pin_version} of '{feature_view.name}' was just created by "
+                        f"another concurrent apply. Pull latest and retry."
+                    )
+                # Apply the FV as active
+                return self._apply_object(
+                    fv_table,
+                    project,
+                    "feature_view_name",
+                    feature_view,
+                    "feature_view_proto",
+                )
+
+        # Normal (latest) apply: snapshot old version if changed, then save new
+        # First check if the FV already exists so we can snapshot the old one.
+        # Use write_engine for both reads to avoid read replica lag issues.
+        old_proto_bytes = None
+        with self.write_engine.begin() as conn:
+            stmt = select(fv_table).where(
+                fv_table.c.feature_view_name == feature_view.name,
+                fv_table.c.project_id == project,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                old_proto_bytes = row._mapping["feature_view_proto"]
+
+        # Apply the object (handles idempotency check internally)
+        # We need to detect if _apply_object actually made a change
+        # by checking before/after
+        self._apply_object(
             fv_table, project, "feature_view_name", feature_view, "feature_view_proto"
         )
+
+        # After apply, read the current proto to see if it changed
+        with self.write_engine.begin() as conn:
+            stmt = select(fv_table).where(
+                fv_table.c.feature_view_name == feature_view.name,
+                fv_table.c.project_id == project,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                new_proto_bytes = row._mapping["feature_view_proto"]
+            else:
+                return  # shouldn't happen
+
+        if old_proto_bytes is not None:
+            # Deserialize both versions to compare schema/UDF changes
+            proto_class, fv_class = self._proto_class_for_type(fv_type_str)
+            old_proto = proto_class.FromString(old_proto_bytes)
+            new_proto = proto_class.FromString(new_proto_bytes)
+
+            old_fv = fv_class.from_proto(old_proto)
+            new_fv = fv_class.from_proto(new_proto)
+
+            if not new_fv._schema_or_udf_changed(old_fv):
+                # No version-significant change, skip version creation
+                return
+
+        # Something changed (or new FV). Save version snapshot(s).
+        if old_proto_bytes is not None:
+            # Snapshot the old version first (if not already in history)
+            next_ver = self._get_next_version_number(feature_view.name, project)
+            if next_ver == 0:
+                # First time versioning: save old as v0
+                self._save_version_snapshot(
+                    feature_view.name,
+                    project,
+                    0,
+                    fv_type_str,
+                    old_proto_bytes,
+                )
+                next_ver = 1
+
+            # Retry loop: if a concurrent apply claimed the same version number,
+            # re-read MAX+1 and try again. The client said "latest" so the
+            # exact number doesn't matter.
+            max_retries = 3
+            for attempt in range(max_retries):
+                # Update current_version_number before saving snapshot
+                feature_view.current_version_number = next_ver
+                snapshot_proto = feature_view.to_proto()
+                snapshot_proto.spec.project = project
+                snapshot_proto_bytes = snapshot_proto.SerializeToString()
+
+                try:
+                    # Save new as next version (with correct current_version_number)
+                    self._save_version_snapshot(
+                        feature_view.name,
+                        project,
+                        next_ver,
+                        fv_type_str,
+                        snapshot_proto_bytes,
+                    )
+                    break
+                except IntegrityError:
+                    if attempt == max_retries - 1:
+                        raise ConcurrentVersionConflict(
+                            f"Failed to assign version for '{feature_view.name}' after "
+                            f"{max_retries} attempts due to concurrent applies. "
+                            f"Please retry."
+                        )
+                    # Re-read the next available version number
+                    next_ver = self._get_next_version_number(feature_view.name, project)
+
+            if no_promote:
+                # Save version snapshot but skip updating the active row.
+                # The new version is accessible only via explicit @v<N> reads.
+                return
+
+            # Re-serialize with updated version number
+            with self.write_engine.begin() as conn:
+                update_stmt = (
+                    update(fv_table)
+                    .where(
+                        fv_table.c.feature_view_name == feature_view.name,
+                        fv_table.c.project_id == project,
+                    )
+                    .values(
+                        feature_view_proto=snapshot_proto_bytes,
+                    )
+                )
+                conn.execute(update_stmt)
+        else:
+            # New FV: save as v0
+            feature_view.current_version_number = 0
+            snapshot_proto = feature_view.to_proto()
+            snapshot_proto.spec.project = project
+            snapshot_proto_bytes = snapshot_proto.SerializeToString()
+            self._save_version_snapshot(
+                feature_view.name,
+                project,
+                0,
+                fv_type_str,
+                snapshot_proto_bytes,
+            )
+            with self.write_engine.begin() as conn:
+                update_stmt = (
+                    update(fv_table)
+                    .where(
+                        fv_table.c.feature_view_name == feature_view.name,
+                        fv_table.c.project_id == project,
+                    )
+                    .values(
+                        feature_view_proto=snapshot_proto_bytes,
+                    )
+                )
+                conn.execute(update_stmt)
 
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
@@ -828,6 +1093,118 @@ class SqlRegistry(CachingRegistry):
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
         return python_class, proto_class
+
+    def _infer_fv_type_string(self, feature_view) -> str:
+        if isinstance(feature_view, StreamFeatureView):
+            return "stream_feature_view"
+        elif isinstance(feature_view, FeatureView):
+            return "feature_view"
+        elif isinstance(feature_view, OnDemandFeatureView):
+            return "on_demand_feature_view"
+        else:
+            raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
+
+    def _proto_class_for_type(self, fv_type: str):
+        if fv_type == "stream_feature_view":
+            return StreamFeatureViewProto, StreamFeatureView
+        elif fv_type == "feature_view":
+            return FeatureViewProto, FeatureView
+        elif fv_type == "on_demand_feature_view":
+            return OnDemandFeatureViewProto, OnDemandFeatureView
+        else:
+            raise ValueError(f"Unknown feature view type: {fv_type}")
+
+    def _get_next_version_number(self, name: str, project: str) -> int:
+        with self.write_engine.begin() as conn:
+            stmt = select(
+                func.coalesce(
+                    func.max(feature_view_version_history.c.version_number) + 1, 0
+                )
+            ).where(
+                feature_view_version_history.c.feature_view_name == name,
+                feature_view_version_history.c.project_id == project,
+            )
+            result = conn.execute(stmt).scalar()
+            return result or 0
+
+    def _save_version_snapshot(
+        self,
+        name: str,
+        project: str,
+        version_number: int,
+        fv_type: str,
+        proto_bytes: bytes,
+    ):
+        now = int(_utc_now().timestamp())
+        vid = generate_version_id()
+        with self.write_engine.begin() as conn:
+            stmt = insert(feature_view_version_history).values(
+                feature_view_name=name,
+                project_id=project,
+                version_number=version_number,
+                feature_view_type=fv_type,
+                feature_view_proto=proto_bytes,
+                created_timestamp=now,
+                description="",
+                version_id=vid,
+            )
+            conn.execute(stmt)
+
+    def _get_version_snapshot(
+        self, name: str, project: str, version_number: int
+    ) -> Optional[tuple]:
+        with self.read_engine.begin() as conn:
+            stmt = select(feature_view_version_history).where(
+                feature_view_version_history.c.feature_view_name == name,
+                feature_view_version_history.c.project_id == project,
+                feature_view_version_history.c.version_number == version_number,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                return (
+                    row._mapping["feature_view_type"],
+                    row._mapping["feature_view_proto"],
+                )
+            return None
+
+    def get_feature_view_by_version(
+        self, name: str, project: str, version_number: int, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        snapshot = self._get_version_snapshot(name, project, version_number)
+        if snapshot is None:
+            raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
+        snap_type, snap_proto_bytes = snapshot
+        proto_class, python_class = self._proto_class_for_type(snap_type)
+        snap_proto = proto_class.FromString(snap_proto_bytes)
+        fv = python_class.from_proto(snap_proto)
+        fv.current_version_number = version_number
+        return fv
+
+    def list_feature_view_versions(
+        self, name: str, project: str
+    ) -> List[Dict[str, Any]]:
+        with self.read_engine.begin() as conn:
+            stmt = (
+                select(feature_view_version_history)
+                .where(
+                    feature_view_version_history.c.feature_view_name == name,
+                    feature_view_version_history.c.project_id == project,
+                )
+                .order_by(feature_view_version_history.c.version_number)
+            )
+            rows = conn.execute(stmt).all()
+            return [
+                {
+                    "version": version_tag(row._mapping["version_number"]),
+                    "version_number": row._mapping["version_number"],
+                    "feature_view_type": row._mapping["feature_view_type"],
+                    "created_timestamp": datetime.fromtimestamp(
+                        row._mapping["created_timestamp"], tz=timezone.utc
+                    ),
+                    "version_id": row._mapping["version_id"],
+                }
+                for row in rows
+            ]
 
     def get_user_metadata(
         self, project: str, feature_view: BaseFeatureView
