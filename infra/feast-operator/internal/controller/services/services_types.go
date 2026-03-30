@@ -97,6 +97,11 @@ const (
 	OidcMissingSecretError string = "missing OIDC secret: %s"
 )
 
+const (
+	ManagedByLabelKey   = "app.kubernetes.io/managed-by"
+	ManagedByLabelValue = "feast-operator"
+)
+
 var (
 	DefaultImage          = "quay.io/feastdev/feature-server:" + feastversion.FeastVersion
 	DefaultCronJobImage   = "quay.io/openshift/origin-cli:4.17"

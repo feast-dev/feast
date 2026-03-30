@@ -1,10 +1,16 @@
+- op: test
+  path: "/spec/template/spec/containers/0/env/1/name"
+  value: RELATED_IMAGE_FEATURE_SERVER
 - op: replace
-  path: "/spec/template/spec/containers/0/env/0"
+  path: "/spec/template/spec/containers/0/env/1"
   value:
     name: RELATED_IMAGE_FEATURE_SERVER
     value: ${FS_IMG}
+- op: test
+  path: "/spec/template/spec/containers/0/env/2/name"
+  value: RELATED_IMAGE_CRON_JOB
 - op: replace
-  path: "/spec/template/spec/containers/0/env/1"
+  path: "/spec/template/spec/containers/0/env/2"
   value:
     name: RELATED_IMAGE_CRON_JOB
     value: ${CJ_IMG}

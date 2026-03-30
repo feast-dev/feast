@@ -214,7 +214,7 @@ func (r *NotebookConfigMapReconciler) setNotebookConfigMapData(
 	if cm.Labels == nil {
 		cm.Labels = make(map[string]string)
 	}
-	cm.Labels["managed-by"] = "feast-operator"
+	cm.Labels[services.ManagedByLabelKey] = services.ManagedByLabelValue
 	cm.Labels["source-resource"] = notebook.GetName()
 	cm.Labels["source-kind"] = notebook.GetObjectKind().GroupVersionKind().Kind
 
