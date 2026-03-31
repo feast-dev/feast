@@ -666,30 +666,6 @@ def _group_feature_refs(
     return fvs_result, odfvs_result
 
 
-def construct_response_feature_vector(
-    values_vector: Iterable[Any],
-    statuses_vector: Iterable[Any],
-    timestamp_vector: Iterable[Any],
-    mapping_indexes: Iterable[List[int]],
-    output_len: int,
-) -> GetOnlineFeaturesResponse.FeatureVector:
-    values_output: Iterable[Any] = [None] * output_len
-    statuses_output: Iterable[Any] = [None] * output_len
-    timestamp_output: Iterable[Any] = [None] * output_len
-
-    for i, destinations in enumerate(mapping_indexes):
-        for idx in destinations:
-            values_output[idx] = values_vector[i]  # type: ignore[index]
-            statuses_output[idx] = statuses_vector[i]  # type: ignore[index]
-            timestamp_output[idx] = timestamp_vector[i]  # type: ignore[index]
-
-    return GetOnlineFeaturesResponse.FeatureVector(
-        values=values_output,
-        statuses=statuses_output,
-        event_timestamps=timestamp_output,
-    )
-
-
 def _apply_aggregations_to_response(
     response_data: Union[pyarrow.Table, Dict[str, List[Any]]],
     aggregations,
@@ -1130,115 +1106,6 @@ def ensure_request_data_values_exist(
         raise RequestDataNotFoundInEntityRowsException(feature_names=missing_features)
 
 
-def _populate_response_from_feature_data(
-    feature_data: Iterable[
-        Tuple[
-            Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[ValueProto]
-        ]
-    ],
-    indexes: Iterable[List[int]],
-    online_features_response: GetOnlineFeaturesResponse,
-    full_feature_names: bool,
-    requested_features: Iterable[str],
-    table: "FeatureView",
-    output_len: int,
-    include_feature_view_version_metadata: bool = False,
-):
-    """Populate the GetOnlineFeaturesResponse with feature data.
-
-    This method assumes that `_read_from_online_store` returns data for each
-    combination of Entities in `entity_rows` in the same order as they
-    are provided.
-
-    Args:
-        feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
-        indexes: A list of indexes which should be the same length as `feature_data`. Each list
-            of indexes corresponds to a set of result rows in `online_features_response`.
-        online_features_response: The object to populate.
-        full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
-            changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
-            "customer_fv__daily_transactions").
-        requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
-            data in `feature_data`.
-        table: The FeatureView that `feature_data` was retrieved from.
-        output_len: The number of result rows in `online_features_response`.
-    """
-    # Add the feature names to the response.
-    # Use name_to_use() which includes version tag (e.g. "fv@v2") when a
-    # version-qualified ref was used, so multi-version queries produce
-    # distinct column names like "fv@v1__feat" and "fv@v2__feat".
-    table_name = table.projection.name_to_use()
-    clean_table_name = table.projection.name_alias or table.projection.name
-    requested_feature_refs = [
-        f"{table_name}__{feature_name}" if full_feature_names else feature_name
-        for feature_name in requested_features
-    ]
-    online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
-
-    # Add version metadata if requested
-    if include_feature_view_version_metadata:
-        # Check if this feature view already exists in metadata to avoid duplicates
-        existing_names = [
-            fvm.name for fvm in online_features_response.metadata.feature_view_metadata
-        ]
-        if clean_table_name not in existing_names:
-            fv_metadata = online_features_response.metadata.feature_view_metadata.add()
-            fv_metadata.name = clean_table_name
-            # Extract version from the table's current_version_number attribute
-            fv_metadata.version = getattr(table, "current_version_number", 0) or 0
-
-    # Process each feature vector in a single pass
-    for timestamp_vector, statuses_vector, values_vector in feature_data:
-        response_vector = construct_response_feature_vector(
-            values_vector, statuses_vector, timestamp_vector, indexes, output_len
-        )
-        online_features_response.results.append(response_vector)
-
-
-def _populate_response_from_feature_data_v2(
-    feature_data: Iterable[
-        Tuple[
-            Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[ValueProto]
-        ]
-    ],
-    indexes: Iterable[List[int]],
-    online_features_response: GetOnlineFeaturesResponse,
-    requested_features: Iterable[str],
-    output_len: int,
-):
-    """Populate the GetOnlineFeaturesResponse with feature data.
-
-    This method assumes that `_read_from_online_store` returns data for each
-    combination of Entities in `entity_rows` in the same order as they
-    are provided.
-
-    Args:
-        feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
-        indexes: A list of indexes which should be the same length as `feature_data`. Each list
-            of indexes corresponds to a set of result rows in `online_features_response`.
-        online_features_response: The object to populate.
-        full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
-            changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
-            "customer_fv__daily_transactions").
-        requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
-            data in `feature_data`.
-        output_len: The number of result rows in `online_features_response`.
-    """
-    # Add the feature names to the response.
-    requested_feature_refs = [(feature_name) for feature_name in requested_features]
-    online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
-
-    timestamps, statuses, values = zip(*feature_data)
-
-    # Populate the result with data fetched from the OnlineStore
-    # which is guaranteed to be aligned with `requested_features`.
-    for timestamp_vector, statuses_vector, values_vector in feature_data:
-        response_vector = construct_response_feature_vector(
-            values_vector, statuses_vector, timestamp_vector, indexes, output_len
-        )
-        online_features_response.results.append(response_vector)
-
-
 def _convert_entity_key_to_proto_to_dict(
     entity_key_vals: List[EntityKeyProto],
 ) -> Dict[str, List[ValueProto]]:
@@ -1612,36 +1479,99 @@ def _get_entity_key_protos(
     return entity_key_protos
 
 
-def _convert_rows_to_protobuf(
+def _populate_response_from_feature_data(
     requested_features: List[str],
     read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
-) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[ValueProto]]]:
-    n_rows = len(read_rows)
+    indexes: Iterable[List[int]],
+    online_features_response: GetOnlineFeaturesResponse,
+    full_feature_names: bool,
+    table: "FeatureView",
+    output_len: int,
+    include_feature_view_version_metadata: bool = False,
+):
+    """Populate the GetOnlineFeaturesResponse from raw online_read rows.
+
+    Converts raw rows from the OnlineStore into protobuf FeatureVectors and
+    appends them to the response. This method assumes that ``online_read``
+    returns data for each unique entity in the same order as ``indexes``.
+
+    Args:
+        requested_features: The names of the features to extract from
+            each row. Determines the order of FeatureVectors in the response.
+        read_rows: Raw output from ``OnlineStore.online_read`` — a list of
+            ``(event_timestamp, feature_dict)`` tuples, one per unique entity.
+            ``feature_dict`` may be ``None`` when the entity is not found.
+        indexes: A tuple of lists that maps each unique entity (by position
+            in ``read_rows``) to one or more output positions in the response.
+            Used to fan-out deduplicated reads back to the original request rows.
+        online_features_response: The protobuf response object to populate.
+        full_feature_names: If True, feature names are prefixed with the
+            feature view name (e.g. ``"driver_fv__trips_today"``).
+        table: The FeatureView that ``read_rows`` was retrieved from.
+        output_len: Total number of result rows in the response.
+        include_feature_view_version_metadata: If True, version metadata
+            for the feature view is added to the response.
+    """
+    n_features = len(requested_features)
+
+    table_name = table.projection.name_to_use()
+    clean_table_name = table.projection.name_alias or table.projection.name
+    feature_refs = [
+        f"{table_name}__{fn}" if full_feature_names else fn for fn in requested_features
+    ]
+    online_features_response.metadata.feature_names.val.extend(feature_refs)
+
+    if include_feature_view_version_metadata:
+        existing_names = [
+            fvm.name for fvm in online_features_response.metadata.feature_view_metadata
+        ]
+        if clean_table_name not in existing_names:
+            fv_metadata = online_features_response.metadata.feature_view_metadata.add()
+            fv_metadata.name = clean_table_name
+            fv_metadata.version = getattr(table, "current_version_number", 0) or 0
 
     null_value = ValueProto()
-    null_status = FieldStatus.NOT_FOUND
-    present_status = FieldStatus.PRESENT
+    null_ts = Timestamp()
+    PRESENT = FieldStatus.PRESENT
+    NOT_FOUND = FieldStatus.NOT_FOUND
 
-    # Pre-compute timestamps once per entity (not per feature)
-    # This reduces O(features * entities) to O(entities) for timestamp conversion
-    row_timestamps = []
+    row_ts_protos = []
     for row_ts, _ in read_rows:
-        ts_proto = Timestamp()
+        ts = Timestamp()
         if row_ts is not None:
-            ts_proto.FromDatetime(row_ts)
-        row_timestamps.append(ts_proto)
+            ts.FromDatetime(row_ts)
+        row_ts_protos.append(ts)
 
-    requested_features_vectors = []
-    for feature_name in requested_features:
-        ts_vector = list(row_timestamps)  # Shallow copy of pre-computed timestamps
-        status_vector = [null_status] * n_rows
-        value_vector = [null_value] * n_rows
-        for idx, (_, feature_data) in enumerate(read_rows):
-            if (feature_data is not None) and (feature_name in feature_data):
-                status_vector[idx] = present_status
-                value_vector[idx] = feature_data[feature_name]
-        requested_features_vectors.append((ts_vector, status_vector, value_vector))
-    return requested_features_vectors
+    ts_template = [null_ts] * output_len
+    indexes_tuple = tuple(indexes)
+    for row_idx, destinations in enumerate(indexes_tuple):
+        ts = row_ts_protos[row_idx]
+        for out_idx in destinations:
+            ts_template[out_idx] = ts
+
+    feat_values = [[null_value] * output_len for _ in range(n_features)]
+    feat_statuses = [[NOT_FOUND] * output_len for _ in range(n_features)]
+
+    feat_idx_map = {name: i for i, name in enumerate(requested_features)}
+    for row_idx, destinations in enumerate(indexes_tuple):
+        _, feature_data = read_rows[row_idx]
+        if feature_data is None:
+            continue
+        for feat_name, feat_val in feature_data.items():
+            f_idx = feat_idx_map.get(feat_name)
+            if f_idx is not None:
+                for out_idx in destinations:
+                    feat_values[f_idx][out_idx] = feat_val
+                    feat_statuses[f_idx][out_idx] = PRESENT
+
+    for f_idx in range(n_features):
+        online_features_response.results.append(
+            GetOnlineFeaturesResponse.FeatureVector(
+                values=feat_values[f_idx],
+                statuses=feat_statuses[f_idx],
+                event_timestamps=list(ts_template),
+            )
+        )
 
 
 def has_all_tags(
