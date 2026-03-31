@@ -36,6 +36,7 @@ from feast.cli.features import (
     get_online_features,
 )
 from feast.cli.label_views import label_views_cmd
+from feast.cli.monitor import monitor_cmd
 from feast.cli.on_demand_feature_views import on_demand_feature_views_cmd
 from feast.cli.permissions import feast_permissions_cmd
 from feast.cli.projects import projects_cmd
@@ -652,6 +653,7 @@ cli.add_command(serve_offline_command)
 cli.add_command(serve_registry_command)
 cli.add_command(serve_transformations_command)
 cli.add_command(dbt_cmd)
+cli.add_command(monitor_cmd)
 
 if __name__ == "__main__":
     cli()
