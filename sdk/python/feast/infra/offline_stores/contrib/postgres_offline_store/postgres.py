@@ -1,6 +1,6 @@
 import contextlib
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import (
     Any,
@@ -288,6 +288,240 @@ class PostgreSQLOfflineStore(OfflineStore):
             full_feature_names=False,
             on_demand_feature_views=None,
         )
+
+    @staticmethod
+    def compute_monitoring_metrics(
+        config: RepoConfig,
+        data_source: DataSource,
+        feature_columns: List[Tuple[str, str]],
+        timestamp_field: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        histogram_bins: int = 20,
+        top_n: int = 10,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+        assert isinstance(data_source, PostgreSQLSource)
+
+        from_expression = data_source.get_table_query_string()
+        ts_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+            cast_style="timestamptz",
+            date_time_separator=" ",
+        )
+
+        numeric_features = [n for n, t in feature_columns if t == "numeric"]
+        categorical_features = [n for n, t in feature_columns if t == "categorical"]
+        results: List[Dict[str, Any]] = []
+
+        with _get_conn(config.offline_store) as conn:
+            conn.read_only = True
+
+            if numeric_features:
+                results.extend(
+                    _sql_numeric_stats(
+                        conn,
+                        from_expression,
+                        numeric_features,
+                        ts_filter,
+                        histogram_bins,
+                    )
+                )
+
+            for col_name in categorical_features:
+                results.append(
+                    _sql_categorical_stats(
+                        conn,
+                        from_expression,
+                        col_name,
+                        ts_filter,
+                        top_n,
+                    )
+                )
+
+        return results
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+        assert isinstance(data_source, PostgreSQLSource)
+
+        from_expression = data_source.get_table_query_string()
+
+        with _get_conn(config.offline_store) as conn:
+            conn.read_only = True
+            with conn.cursor() as cur:
+                cur.execute(f'SELECT MAX("{timestamp_field}") FROM {from_expression}')
+                row = cur.fetchone()
+
+        if row is None or row[0] is None:
+            return None
+        val = row[0]
+        if isinstance(val, datetime):
+            return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        return datetime.combine(val, datetime.min.time(), tzinfo=timezone.utc)
+
+    # ------------------------------------------------------------------ #
+    #  Monitoring metrics storage (native PostgreSQL)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+        with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {_MON_FEATURE_TABLE} (
+                    project_id        VARCHAR(255) NOT NULL,
+                    feature_view_name VARCHAR(255) NOT NULL,
+                    feature_name      VARCHAR(255) NOT NULL,
+                    metric_date       DATE         NOT NULL,
+                    granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                    data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                    computed_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
+                    feature_type      VARCHAR(50)  NOT NULL,
+                    row_count         BIGINT,
+                    null_count        BIGINT,
+                    null_rate         DOUBLE PRECISION,
+                    mean              DOUBLE PRECISION,
+                    stddev            DOUBLE PRECISION,
+                    min_val           DOUBLE PRECISION,
+                    max_val           DOUBLE PRECISION,
+                    p50               DOUBLE PRECISION,
+                    p75               DOUBLE PRECISION,
+                    p90               DOUBLE PRECISION,
+                    p95               DOUBLE PRECISION,
+                    p99               DOUBLE PRECISION,
+                    histogram         JSONB,
+                    PRIMARY KEY (project_id, feature_view_name, feature_name,
+                                 metric_date, granularity, data_source_type)
+                );
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_project
+                    ON {_MON_FEATURE_TABLE} (project_id);
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_view
+                    ON {_MON_FEATURE_TABLE} (project_id, feature_view_name);
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_date
+                    ON {_MON_FEATURE_TABLE} (metric_date);
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_granularity
+                    ON {_MON_FEATURE_TABLE} (granularity);
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_baseline
+                    ON {_MON_FEATURE_TABLE} (project_id, feature_view_name, feature_name)
+                    WHERE is_baseline = TRUE;
+            """)
+
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {_MON_VIEW_TABLE} (
+                    project_id        VARCHAR(255) NOT NULL,
+                    feature_view_name VARCHAR(255) NOT NULL,
+                    metric_date       DATE         NOT NULL,
+                    granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                    data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                    computed_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
+                    total_row_count   BIGINT,
+                    total_features    INTEGER,
+                    features_with_nulls INTEGER,
+                    avg_null_rate     DOUBLE PRECISION,
+                    max_null_rate     DOUBLE PRECISION,
+                    PRIMARY KEY (project_id, feature_view_name, metric_date,
+                                 granularity, data_source_type)
+                );
+            """)
+
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {_MON_SERVICE_TABLE} (
+                    project_id           VARCHAR(255) NOT NULL,
+                    feature_service_name VARCHAR(255) NOT NULL,
+                    metric_date          DATE         NOT NULL,
+                    granularity          VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                    data_source_type     VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                    computed_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    is_baseline          BOOLEAN      NOT NULL DEFAULT FALSE,
+                    total_feature_views  INTEGER,
+                    total_features       INTEGER,
+                    avg_null_rate        DOUBLE PRECISION,
+                    max_null_rate        DOUBLE PRECISION,
+                    PRIMARY KEY (project_id, feature_service_name, metric_date,
+                                 granularity, data_source_type)
+                );
+            """)
+            conn.commit()
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        if not metrics:
+            return
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+
+        table, columns, pk_columns = _mon_table_meta(metric_type)
+        _mon_upsert(config.offline_store, table, columns, pk_columns, metrics)
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional["date"] = None,
+        end_date: Optional["date"] = None,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+
+        _, columns, _ = _mon_table_meta(metric_type)
+        return _mon_query(
+            config.offline_store,
+            metric_type,
+            columns,
+            project,
+            filters,
+            start_date,
+            end_date,
+        )
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+
+        conditions = [sql.SQL("project_id = %s")]
+        params: list = [project]
+
+        if feature_view_name:
+            conditions.append(sql.SQL("feature_view_name = %s"))
+            params.append(feature_view_name)
+        if feature_name:
+            conditions.append(sql.SQL("feature_name = %s"))
+            params.append(feature_name)
+        if data_source_type:
+            conditions.append(sql.SQL("data_source_type = %s"))
+            params.append(data_source_type)
+
+        conditions.append(sql.SQL("is_baseline = TRUE"))
+
+        query = sql.SQL("UPDATE {} SET is_baseline = FALSE WHERE {}").format(
+            sql.Identifier(_MON_FEATURE_TABLE),
+            sql.SQL(" AND ").join(conditions),
+        )
+
+        with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
+            cur.execute(query, params)
+            conn.commit()
 
 
 class PostgreSQLRetrievalJob(RetrievalJob):
@@ -782,3 +1016,414 @@ LEFT JOIN (
 {% endfor %}
 {% endif %}
 """
+
+
+# ------------------------------------------------------------------ #
+#  Monitoring SQL push-down helpers
+# ------------------------------------------------------------------ #
+
+_EMPTY_METRIC_TEMPLATE: Dict[str, Any] = {
+    "feature_type": "numeric",
+    "row_count": 0,
+    "null_count": 0,
+    "null_rate": 0.0,
+    "mean": None,
+    "stddev": None,
+    "min_val": None,
+    "max_val": None,
+    "p50": None,
+    "p75": None,
+    "p90": None,
+    "p95": None,
+    "p99": None,
+    "histogram": None,
+}
+
+
+def _sql_numeric_stats(
+    conn,
+    from_expression: str,
+    feature_names: List[str],
+    ts_filter: str,
+    histogram_bins: int,
+) -> List[Dict[str, Any]]:
+    """Batch-compute numeric statistics via one SQL query, then histograms."""
+    # 11 aggregate columns per feature (non_null, mean..p99) + 1 row_count
+    select_parts = ["COUNT(*)"]
+    for col in feature_names:
+        q = f'"{col}"'
+        c = f"{q}::float8"
+        select_parts.extend(
+            [
+                f"COUNT({q})",
+                f"AVG({c})",
+                f"STDDEV_SAMP({c})",
+                f"MIN({c})",
+                f"MAX({c})",
+                f"PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY {c})",
+            ]
+        )
+
+    query = (
+        f"SELECT {', '.join(select_parts)} "
+        f"FROM {from_expression} AS _src WHERE {ts_filter}"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(query)
+        row = cur.fetchone()
+
+    if row is None:
+        return [{**_EMPTY_METRIC_TEMPLATE, "feature_name": n} for n in feature_names]
+
+    row_count = row[0]
+    results: List[Dict[str, Any]] = []
+
+    for i, col in enumerate(feature_names):
+        base = 1 + i * 10
+        non_null = row[base] or 0
+        null_count = row_count - non_null
+
+        min_val = _opt_float(row[base + 3])
+        max_val = _opt_float(row[base + 4])
+
+        result: Dict[str, Any] = {
+            "feature_name": col,
+            "feature_type": "numeric",
+            "row_count": row_count,
+            "null_count": null_count,
+            "null_rate": null_count / row_count if row_count > 0 else 0.0,
+            "mean": _opt_float(row[base + 1]),
+            "stddev": _opt_float(row[base + 2]),
+            "min_val": min_val,
+            "max_val": max_val,
+            "p50": _opt_float(row[base + 5]),
+            "p75": _opt_float(row[base + 6]),
+            "p90": _opt_float(row[base + 7]),
+            "p95": _opt_float(row[base + 8]),
+            "p99": _opt_float(row[base + 9]),
+            "histogram": None,
+        }
+
+        if min_val is not None and max_val is not None and non_null > 0:
+            result["histogram"] = _sql_numeric_histogram(
+                conn,
+                from_expression,
+                col,
+                ts_filter,
+                histogram_bins,
+                min_val,
+                max_val,
+            )
+
+        results.append(result)
+
+    return results
+
+
+def _sql_numeric_histogram(
+    conn,
+    from_expression: str,
+    col_name: str,
+    ts_filter: str,
+    bins: int,
+    min_val: float,
+    max_val: float,
+) -> Dict[str, Any]:
+    q_col = f'"{col_name}"'
+
+    if min_val == max_val:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT COUNT(*) FROM {from_expression} AS _src "
+                f"WHERE {q_col} IS NOT NULL AND {ts_filter}"
+            )
+            cnt = (cur.fetchone() or (0,))[0]
+        return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
+
+    upper = max_val + (max_val - min_val) * 1e-10
+    bin_width = (max_val - min_val) / bins
+
+    query = (
+        f"SELECT width_bucket({q_col}::float8, {min_val}, {upper}, {bins}) AS bucket, "
+        f"COUNT(*) AS cnt "
+        f"FROM {from_expression} AS _src "
+        f"WHERE {q_col} IS NOT NULL AND {ts_filter} "
+        f"GROUP BY bucket ORDER BY bucket"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
+
+    counts = [0] * bins
+    for bucket, cnt in rows:
+        if 1 <= bucket <= bins:
+            counts[bucket - 1] = cnt
+
+    bin_edges = [min_val + i * bin_width for i in range(bins + 1)]
+    return {
+        "bins": [float(b) for b in bin_edges],
+        "counts": counts,
+        "bin_width": float(bin_width),
+    }
+
+
+def _sql_categorical_stats(
+    conn,
+    from_expression: str,
+    col_name: str,
+    ts_filter: str,
+    top_n: int,
+) -> Dict[str, Any]:
+    q_col = f'"{col_name}"'
+
+    query = (
+        f"WITH filtered AS ("
+        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_filter}"
+        f") "
+        f"SELECT "
+        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
+        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
+        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
+        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
+        f"  {q_col}::text AS value, COUNT(*) AS cnt "
+        f"FROM filtered WHERE {q_col} IS NOT NULL "
+        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
+
+    if not rows:
+        return {
+            **_EMPTY_METRIC_TEMPLATE,
+            "feature_name": col_name,
+            "feature_type": "categorical",
+        }
+
+    row_count = rows[0][0]
+    null_count = rows[0][1]
+    unique_count = rows[0][2]
+
+    top_entries = [{"value": r[3], "count": r[4]} for r in rows]
+    top_total = sum(e["count"] for e in top_entries)
+    other_count = (row_count - null_count) - top_total
+
+    return {
+        "feature_name": col_name,
+        "feature_type": "categorical",
+        "row_count": row_count,
+        "null_count": null_count,
+        "null_rate": null_count / row_count if row_count > 0 else 0.0,
+        "mean": None,
+        "stddev": None,
+        "min_val": None,
+        "max_val": None,
+        "p50": None,
+        "p75": None,
+        "p90": None,
+        "p95": None,
+        "p99": None,
+        "histogram": {
+            "values": top_entries,
+            "other_count": max(other_count, 0),
+            "unique_count": unique_count,
+        },
+    }
+
+
+def _opt_float(val: Any) -> Optional[float]:
+    """Convert a DB aggregate result to float, preserving None."""
+    return float(val) if val is not None else None
+
+
+# ------------------------------------------------------------------ #
+#  Monitoring metrics storage helpers
+# ------------------------------------------------------------------ #
+
+_MON_FEATURE_TABLE = "feast_monitoring_feature_metrics"
+_MON_VIEW_TABLE = "feast_monitoring_feature_view_metrics"
+_MON_SERVICE_TABLE = "feast_monitoring_feature_service_metrics"
+
+_MON_FEATURE_COLUMNS = [
+    "project_id",
+    "feature_view_name",
+    "feature_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+    "computed_at",
+    "is_baseline",
+    "feature_type",
+    "row_count",
+    "null_count",
+    "null_rate",
+    "mean",
+    "stddev",
+    "min_val",
+    "max_val",
+    "p50",
+    "p75",
+    "p90",
+    "p95",
+    "p99",
+    "histogram",
+]
+_MON_FEATURE_PK = [
+    "project_id",
+    "feature_view_name",
+    "feature_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+]
+
+_MON_VIEW_COLUMNS = [
+    "project_id",
+    "feature_view_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+    "computed_at",
+    "is_baseline",
+    "total_row_count",
+    "total_features",
+    "features_with_nulls",
+    "avg_null_rate",
+    "max_null_rate",
+]
+_MON_VIEW_PK = [
+    "project_id",
+    "feature_view_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+]
+
+_MON_SERVICE_COLUMNS = [
+    "project_id",
+    "feature_service_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+    "computed_at",
+    "is_baseline",
+    "total_feature_views",
+    "total_features",
+    "avg_null_rate",
+    "max_null_rate",
+]
+_MON_SERVICE_PK = [
+    "project_id",
+    "feature_service_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+]
+
+
+def _mon_table_meta(metric_type: str):
+    if metric_type == "feature":
+        return _MON_FEATURE_TABLE, _MON_FEATURE_COLUMNS, _MON_FEATURE_PK
+    if metric_type == "feature_view":
+        return _MON_VIEW_TABLE, _MON_VIEW_COLUMNS, _MON_VIEW_PK
+    if metric_type == "feature_service":
+        return _MON_SERVICE_TABLE, _MON_SERVICE_COLUMNS, _MON_SERVICE_PK
+    raise ValueError(f"Unknown metric_type '{metric_type}'")
+
+
+def _mon_upsert(
+    pg_config: PostgreSQLConfig,
+    table: str,
+    columns: List[str],
+    pk_columns: List[str],
+    rows: List[Dict[str, Any]],
+) -> None:
+    import json as _json
+
+    non_pk = [c for c in columns if c not in pk_columns]
+    col_ids = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
+    placeholders = sql.SQL(", ").join(sql.Placeholder() for _ in columns)
+    update_clause = sql.SQL(", ").join(
+        sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(c), sql.Identifier(c))
+        for c in non_pk
+    )
+    pk_ids = sql.SQL(", ").join(sql.Identifier(c) for c in pk_columns)
+
+    query = sql.SQL(
+        "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT ({}) DO UPDATE SET {}"
+    ).format(sql.Identifier(table), col_ids, placeholders, pk_ids, update_clause)
+
+    with _get_conn(pg_config) as conn, conn.cursor() as cur:
+        for row in rows:
+            values = []
+            for col in columns:
+                val = row.get(col)
+                if col == "histogram" and val is not None:
+                    val = _json.dumps(val)
+                values.append(val)
+            cur.execute(query, values)
+        conn.commit()
+
+
+def _mon_query(
+    pg_config: PostgreSQLConfig,
+    metric_type: str,
+    columns: List[str],
+    project: str,
+    filters: Optional[Dict[str, Any]] = None,
+    start_date: Optional["date"] = None,
+    end_date: Optional["date"] = None,
+) -> List[Dict[str, Any]]:
+    import json as _json
+    from datetime import date as _date
+    from datetime import datetime as _datetime
+
+    table, _, _ = _mon_table_meta(metric_type)
+
+    conditions = [sql.SQL("project_id = %s")]
+    params: list = [project]
+
+    if filters:
+        for key, value in filters.items():
+            if value is not None:
+                conditions.append(sql.SQL("{} = %s").format(sql.Identifier(key)))
+                params.append(value)
+
+    if start_date:
+        conditions.append(sql.SQL("metric_date >= %s"))
+        params.append(start_date)
+    if end_date:
+        conditions.append(sql.SQL("metric_date <= %s"))
+        params.append(end_date)
+
+    col_ids = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
+    query = sql.SQL("SELECT {} FROM {} WHERE {} ORDER BY metric_date ASC").format(
+        col_ids,
+        sql.Identifier(table),
+        sql.SQL(" AND ").join(conditions),
+    )
+
+    with _get_conn(pg_config) as conn, conn.cursor() as cur:
+        conn.read_only = True
+        cur.execute(query, params)
+        rows = cur.fetchall()
+
+    results = []
+    for row in rows:
+        record = dict(zip(columns, row))
+        if "histogram" in record and isinstance(record["histogram"], str):
+            record["histogram"] = _json.loads(record["histogram"])
+        if "metric_date" in record and isinstance(record["metric_date"], _date):
+            record["metric_date"] = record["metric_date"].isoformat()
+        if "computed_at" in record and isinstance(record["computed_at"], _datetime):
+            record["computed_at"] = record["computed_at"].isoformat()
+        results.append(record)
+
+    return results

@@ -7,6 +7,7 @@ from feast.api.registry.rest.feature_views import get_feature_view_router
 from feast.api.registry.rest.features import get_feature_router
 from feast.api.registry.rest.lineage import get_lineage_router
 from feast.api.registry.rest.metrics import get_metrics_router
+from feast.api.registry.rest.monitoring import get_monitoring_router
 from feast.api.registry.rest.permissions import get_permission_router
 from feast.api.registry.rest.projects import get_project_router
 from feast.api.registry.rest.saved_datasets import get_saved_dataset_router
@@ -25,3 +26,4 @@ def register_all_routes(app: FastAPI, grpc_handler, server=None):
     app.include_router(get_saved_dataset_router(grpc_handler))
     app.include_router(get_search_router(grpc_handler))
     app.include_router(get_metrics_router(grpc_handler, server))
+    app.include_router(get_monitoring_router(grpc_handler, server))
