@@ -38,6 +38,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [postgres.md](postgres.md)
 {% endcontent-ref %}
 
+{% content-ref url="hbase.md" %}
+[hbase.md](hbase.md)
+{% endcontent-ref %}
+
 {% content-ref url="cassandra.md" %}
 [cassandra.md](cassandra.md)
 {% endcontent-ref %}
@@ -68,4 +72,24 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 
 {% content-ref url="singlestore.md" %}
 [singlestore.md](singlestore.md)
+{% endcontent-ref %}
+
+{% content-ref url="elasticsearch.md" %}
+[elasticsearch.md](elasticsearch.md)
+{% endcontent-ref %}
+
+{% content-ref url="qdrant.md" %}
+[qdrant.md](qdrant.md)
+{% endcontent-ref %}
+
+{% content-ref url="milvus.md" %}
+[milvus.md](milvus.md)
+{% endcontent-ref %}
+
+{% content-ref url="faiss.md" %}
+[faiss.md](faiss.md)
+{% endcontent-ref %}
+
+{% content-ref url="hybrid.md" %}
+[hybrid.md](hybrid.md)
 {% endcontent-ref %}
