@@ -406,6 +406,34 @@ def apply_total_with_repo_instance(
         # Cleanup is handled in the new _apply_diffs method
         pass
 
+    _submit_baseline_jobs_if_needed(store, project_name, repo)
+
+
+def _submit_baseline_jobs_if_needed(store, project_name, repo):
+    """Submit async baseline DQM jobs for new features after feast apply."""
+    try:
+        from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
+
+        if not isinstance(store.config.offline_store, PostgreSQLConfig):
+            return
+
+        from feast.monitoring.monitoring_service import MonitoringService
+
+        svc = MonitoringService(store)
+        feature_views = list(repo.feature_views)
+        if not feature_views:
+            return
+
+        job_ids = svc.submit_baseline_for_new_features(
+            project=project_name, feature_views=feature_views
+        )
+        for job_id in job_ids:
+            click.echo(f"  → Queued baseline metrics computation (DQM job: {job_id})")
+    except Exception:
+        logging.getLogger(__name__).debug(
+            "Monitoring baseline submission skipped (non-critical)", exc_info=True
+        )
+
 
 def log_infra_changes(
     views_to_keep: Set[FeatureView], views_to_delete: Set[FeatureView]
