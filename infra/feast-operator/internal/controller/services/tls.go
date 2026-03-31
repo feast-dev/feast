@@ -224,12 +224,16 @@ func (feast *FeastServices) mountTlsConfig(feastType FeastServiceType, podSpec *
 				},
 			},
 		})
+		tlsMount := corev1.VolumeMount{
+			Name:      volName,
+			MountPath: GetTlsPath(feastType),
+			ReadOnly:  true,
+		}
 		if i, container := getContainerByType(feastType, *podSpec); container != nil {
-			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
-				Name:      volName,
-				MountPath: GetTlsPath(feastType),
-				ReadOnly:  true,
-			})
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, tlsMount)
+		}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, tlsMount)
 		}
 	}
 }
@@ -245,12 +249,16 @@ func mountTlsRemoteRegistryConfig(podSpec *corev1.PodSpec, tls *feastdevv1.TlsRe
 				},
 			},
 		})
+		tlsMount := corev1.VolumeMount{
+			Name:      volName,
+			MountPath: GetTlsPath(RegistryFeastType),
+			ReadOnly:  true,
+		}
 		for i := range podSpec.Containers {
-			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
-				Name:      volName,
-				MountPath: GetTlsPath(RegistryFeastType),
-				ReadOnly:  true,
-			})
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, tlsMount)
+		}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, tlsMount)
 		}
 	}
 }
@@ -267,13 +275,17 @@ func (feast *FeastServices) mountCustomCABundle(podSpec *corev1.PodSpec) {
 			},
 		})
 
+		caMount := corev1.VolumeMount{
+			Name:      customCaBundle.VolumeName,
+			MountPath: tlsPathCustomCABundle,
+			ReadOnly:  true,
+			SubPath:   "ca-bundle.crt",
+		}
 		for i := range podSpec.Containers {
-			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
-				Name:      customCaBundle.VolumeName,
-				MountPath: tlsPathCustomCABundle,
-				ReadOnly:  true,
-				SubPath:   "ca-bundle.crt",
-			})
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, caMount)
+		}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, caMount)
 		}
 
 		log.FromContext(feast.Handler.Context).Info("Mounted custom CA bundle ConfigMap to Feast pods.")
