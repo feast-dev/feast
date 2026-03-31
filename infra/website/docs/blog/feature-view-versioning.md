@@ -1,8 +1,11 @@
+---
+title: Feast Introduces Experimental Feature View Versioning
+description: Feast now supports experimental feature view versioning — bringing automatic version tracking, safe rollback, and multi-version online serving to your feature store. Only supported for SQLite today; we're inviting the community to test and give feedback.
+date: 2026-03-31
+authors: ["Francisco Javier Arceo"]
+---
+
 # Feast Introduces Experimental Feature View Versioning 🚀
-
-*March 31, 2026* | *Francisco Javier Arceo*
-
-## Overview
 
 We are excited to announce the experimental release of **Feature View Versioning** in Feast — a long-requested capability that brings automatic version tracking, safe rollback, and multi-version online serving to your feature store.
 
@@ -185,7 +188,7 @@ Versioning works across all three feature view types:
 3. Run `feast apply` as usual — version history tracking starts automatically.
 4. Explore your version history with `feast feature-views list-versions <name>`.
 
-For full details, see the [Feature View Versioning documentation](../reference/alpha-feature-view-versioning.md) and the [Feature View Versioning RFC](../rfcs/feature-view-versioning.md).
+For full details, see the [Feature View Versioning documentation](https://docs.feast.dev/reference/alpha-feature-view-versioning).
 
 ## Share Your Feedback
 
