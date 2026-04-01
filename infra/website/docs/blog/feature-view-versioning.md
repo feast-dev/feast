@@ -13,9 +13,27 @@ This feature is still **experimental** and we would love to hear your feedback. 
 
 ## Why Feature Versioning Matters
 
-In practice, feature views evolve constantly. Data scientists add new features, rename columns, change transformation logic, or swap data sources. Today, every `feast apply` silently overwrites the existing definition — with no record of what it looked like before.
+Serving data in production AI applications is one of the hardest problems in ML engineering. The Feast community is built on practitioners who run these high-stakes pipelines every day — where **point-in-time correctness** is not just a nice-to-have but a hard requirement for model integrity. A feature value seen by the wrong model at the wrong time can silently corrupt predictions, skew training data, or violate data-privacy contracts. This is the most important motivating factor behind our versioning work.
 
-This creates three persistent pain points:
+Feature versioning solves two distinct but equally real problems:
+
+### Case 1: Fixing Forward in Production (the critical path)
+
+A live feature view powering a production model needs to be updated — perhaps a critical bug in a transformation logic, a renamed column, or a changed data source. In an ideal world you'd cut over to a brand-new feature view and update every downstream consumer atomically. In practice that's rarely viable: models are already deployed, consumers are already reading that name, and a rename causes an immediate outage.
+
+With feature versioning you can overwrite the existing feature view definition while retaining the complete history as a recoverable snapshot. If the change turns out to break something, you can roll back to the previous version. You always have an audit trail: who changed what, when, and what the feature looked like at every prior point in time.
+
+This case is the hardest to get right. When your feature is live in production, correctness is non-negotiable. The materialized data that feeds real-time predictions must stay consistent with the schema that was active when it was written — otherwise you risk serving stale rows with the wrong columns to models that expect the new schema, or vice versa. Our per-version table design (see below) exists precisely to prevent that class of failure.
+
+### Case 2: Offline Experimentation Before Production
+
+During active feature development, multiple data scientists may be building and evaluating competing versions of the same feature simultaneously — different transformations, different data sources, different schemas. Today there is no first-class way to manage this in Feast without creating separate feature views with different names and hoping teams don't collide.
+
+With versioning, teams can stage a new feature version using `--no-promote`, test it in isolation, and only promote it to the active (default) definition once it has been validated. The rest of the system sees no change until the promotion happens.
+
+### The Persistent Pain Points
+
+Both cases expose the same underlying gaps that exist today:
 
 1. **No audit trail.** Teams struggle to answer "what did this feature view look like last week?" or "when was this schema changed and by whom?"
 2. **No safe rollback.** If a schema change breaks a downstream model, the only recourse is to manually reconstruct the old definition — often from memory or version control history.
@@ -94,9 +112,11 @@ online_features = store.get_online_features(
 )
 ```
 
-Multiple versions can be queried in a single call, making gradual migrations straightforward: keep serving the old version to existing consumers while routing new consumers to the latest.
+Multiple versions can be queried in a single call, making gradual migrations straightforward: keep serving the old version to existing consumers while routing new consumers to the latest. **By default, unversioned requests always resolve to the latest promoted version** — opting into a specific version requires the explicit `@v<N>` syntax.
 
 ### Online Store Table Naming
+
+Each version owns its own isolated online table (see [The Challenges of Correctness](#the-challenges-of-correctness-in-feature-versioning) below for why this design is necessary for point-in-time correctness):
 
 - v0 continues to use the existing, unversioned table (e.g., `project_driver_stats`) — fully backward compatible
 - v1 and later use suffixed tables (e.g., `project_driver_stats_v1`, `project_driver_stats_v2`)
@@ -136,7 +156,20 @@ This saves the version snapshot without updating the active definition. Unversio
 
 ## The Challenges of Correctness in Feature Versioning
 
-Feature versioning might sound simple in principle, but **getting it right is surprisingly hard**, especially for materialization.
+Feature versioning might sound simple in principle, but **getting it right is surprisingly hard**, especially for materialization. This is particularly acute for Case 1 above — production systems where the consistency of data matters and the cost of a mistake is high.
+
+### Why We Can't Share a Single Online Table
+
+The naive approach to versioning would be to keep a single online table and tag rows with a version column. We explicitly rejected this design.
+
+Each version of a feature view may have a completely different schema — different columns, different types, different derivation logic. A single shared table would require the union of all column schemas across all versions, leading to sparse rows, broken type contracts, and materialization jobs that cannot safely run in parallel. More fundamentally, it makes **point-in-time correctness impossible**: a model trained against v1 of a feature must retrieve v1 rows, not v2 rows that happen to occupy the same table.
+
+Instead, we give each version its own online table:
+
+- v0 continues to use the existing, unversioned table (e.g., `project_driver_stats`) — fully backward compatible
+- v1 and later use suffixed tables (e.g., `project_driver_stats_v1`, `project_driver_stats_v2`)
+
+This is more operationally complex — more tables to manage, more materialization jobs to schedule — but it is the **only design that guarantees correctness**. Each version's materialized data is isolated, independently freshed, and independently queryable. A buggy v2 materialization cannot corrupt v1 data.
 
 ### The Core Tension
 
@@ -152,6 +185,12 @@ Each version of a feature view may have a completely different schema, source, o
 Today, running `feast materialize` without specifying a version fills the **active** version's table. To populate a historical version's table, you must explicitly pass `--version v<N>` so Feast can reconstruct the schema from the saved snapshot and target the correct online table.
 
 This matters for correctness: if you apply v2 of a feature view (which drops a column) and then run an unversioned `feast materialize`, the v1 online table is not automatically backfilled or maintained. Teams need to think carefully about which versions they want to keep materialized and for how long.
+
+### What This Means for Clients
+
+The multi-table design does introduce a responsibility shift toward the client. By default, unversioned feature requests (`driver_stats:trips_today`) resolve to the **latest promoted version** — no change to existing consumers. But clients that need to pin to a specific version must opt in explicitly using the `@v<N>` syntax (`driver_stats@v1:trips_today`).
+
+This is an intentional design choice. Automatic version following would hide schema changes from consumers that may not be ready for them. Explicit version pinning keeps the contract between producers and consumers clear and auditable — each consumer controls exactly which version of a feature it reads.
 
 ### Tradeoffs
 
