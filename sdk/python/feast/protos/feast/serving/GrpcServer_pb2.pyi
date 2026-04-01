@@ -4,7 +4,7 @@ isort:skip_file
 """
 import builtins
 import collections.abc
-import feast.protos.feast.types.Value_pb2
+import feast.types.Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
@@ -42,12 +42,12 @@ class PushRequest(google.protobuf.message.Message):
         VALUE_FIELD_NUMBER: builtins.int
         key: builtins.str
         @property
-        def value(self) -> feast.protos.feast.types.Value_pb2.Value: ...
+        def value(self) -> feast.types.Value_pb2.Value: ...
         def __init__(
             self,
             *,
             key: builtins.str = ...,
-            value: feast.protos.feast.types.Value_pb2.Value | None = ...,
+            value: feast.types.Value_pb2.Value | None = ...,
         ) -> None: ...
         def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
@@ -63,7 +63,7 @@ class PushRequest(google.protobuf.message.Message):
     allow_registry_cache: builtins.bool
     to: builtins.str
     @property
-    def typed_features(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.protos.feast.types.Value_pb2.Value]: ...
+    def typed_features(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.Value]: ...
     def __init__(
         self,
         *,
@@ -71,7 +71,7 @@ class PushRequest(google.protobuf.message.Message):
         stream_feature_view: builtins.str = ...,
         allow_registry_cache: builtins.bool = ...,
         to: builtins.str = ...,
-        typed_features: collections.abc.Mapping[builtins.str, feast.protos.feast.types.Value_pb2.Value] | None = ...,
+        typed_features: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.Value] | None = ...,
     ) -> None: ...
     def ClearField(self, field_name: typing_extensions.Literal["allow_registry_cache", b"allow_registry_cache", "features", b"features", "stream_feature_view", b"stream_feature_view", "to", b"to", "typed_features", b"typed_features"]) -> None: ...
 
@@ -116,12 +116,12 @@ class WriteToOnlineStoreRequest(google.protobuf.message.Message):
         VALUE_FIELD_NUMBER: builtins.int
         key: builtins.str
         @property
-        def value(self) -> feast.protos.feast.types.Value_pb2.Value: ...
+        def value(self) -> feast.types.Value_pb2.Value: ...
         def __init__(
             self,
             *,
             key: builtins.str = ...,
-            value: feast.protos.feast.types.Value_pb2.Value | None = ...,
+            value: feast.types.Value_pb2.Value | None = ...,
         ) -> None: ...
         def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
@@ -135,14 +135,14 @@ class WriteToOnlineStoreRequest(google.protobuf.message.Message):
     feature_view_name: builtins.str
     allow_registry_cache: builtins.bool
     @property
-    def typed_features(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.protos.feast.types.Value_pb2.Value]: ...
+    def typed_features(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.Value]: ...
     def __init__(
         self,
         *,
         features: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         feature_view_name: builtins.str = ...,
         allow_registry_cache: builtins.bool = ...,
-        typed_features: collections.abc.Mapping[builtins.str, feast.protos.feast.types.Value_pb2.Value] | None = ...,
+        typed_features: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.Value] | None = ...,
     ) -> None: ...
     def ClearField(self, field_name: typing_extensions.Literal["allow_registry_cache", b"allow_registry_cache", "feature_view_name", b"feature_view_name", "features", b"features", "typed_features", b"typed_features"]) -> None: ...
 

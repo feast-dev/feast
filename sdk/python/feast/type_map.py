@@ -15,6 +15,7 @@
 import decimal
 import json
 import logging
+import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
@@ -67,7 +68,10 @@ NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
 logger = logging.getLogger(__name__)
 
 
-def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
+def feast_value_type_to_python_type(
+    field_value_proto: ProtoValue,
+    feature_type: Optional[ValueType] = None,
+) -> Any:
     """
     Converts field value Proto to Dict and returns each field's Feast Value Type value
     in their respective Python value.
@@ -148,6 +152,26 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     elif val_attr.endswith("_set_val") and val_attr != "unix_timestamp_set_val":
         val = set(val)
 
+    # Convert UUID values to uuid.UUID objects
+    if val_attr in ("uuid_val", "time_uuid_val"):
+        return uuid_module.UUID(val) if isinstance(val, str) else val
+    if val_attr in ("uuid_list_val", "time_uuid_list_val"):
+        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
+    if val_attr in ("uuid_set_val", "time_uuid_set_val"):
+        return {uuid_module.UUID(v) if isinstance(v, str) else v for v in val}
+
+    # Backward compatibility: handle UUIDs stored as string_val/string_list_val with feature_type hint
+    if feature_type in (ValueType.UUID, ValueType.TIME_UUID) and isinstance(val, str):
+        return uuid_module.UUID(val)
+    if feature_type in (ValueType.UUID_LIST, ValueType.TIME_UUID_LIST) and isinstance(
+        val, list
+    ):
+        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
+    if feature_type in (ValueType.UUID_SET, ValueType.TIME_UUID_SET) and isinstance(
+        val, set
+    ):
+        return {uuid_module.UUID(v) if isinstance(v, str) else v for v in val}
+
     return val
 
 
@@ -184,6 +208,8 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
         ValueType.BYTES: "bytes",
         ValueType.BOOL: "bool",
         ValueType.UNIX_TIMESTAMP: "datetime64[ns]",
+        ValueType.UUID: "str",
+        ValueType.TIME_UUID: "str",
     }
     if (
         value_type.name in ("MAP", "JSON", "STRUCT")
@@ -247,6 +273,7 @@ def python_type_to_feast_value_type(
         "datetime64[ns, utc]": ValueType.UNIX_TIMESTAMP,
         "date": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
+        "uuid": ValueType.UUID,
     }
 
     if type_name in type_map:
@@ -405,6 +432,20 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "JSON_LIST": ValueType.JSON_LIST,
         "STRUCT": ValueType.STRUCT,
         "STRUCT_LIST": ValueType.STRUCT_LIST,
+        "BYTES_SET": ValueType.BYTES_SET,
+        "STRING_SET": ValueType.STRING_SET,
+        "INT32_SET": ValueType.INT32_SET,
+        "INT64_SET": ValueType.INT64_SET,
+        "DOUBLE_SET": ValueType.DOUBLE_SET,
+        "FLOAT_SET": ValueType.FLOAT_SET,
+        "BOOL_SET": ValueType.BOOL_SET,
+        "UNIX_TIMESTAMP_SET": ValueType.UNIX_TIMESTAMP_SET,
+        "UUID": ValueType.UUID,
+        "TIME_UUID": ValueType.TIME_UUID,
+        "UUID_LIST": ValueType.UUID_LIST,
+        "TIME_UUID_LIST": ValueType.TIME_UUID_LIST,
+        "UUID_SET": ValueType.UUID_SET,
+        "TIME_UUID_SET": ValueType.TIME_UUID_SET,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -436,6 +477,16 @@ PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.STRING_LIST: (StringList, "string_list_val", [np.str_, str]),
     ValueType.BOOL_LIST: (BoolList, "bool_list_val", [np.bool_, bool]),
     ValueType.BYTES_LIST: (BytesList, "bytes_list_val", [np.bytes_, bytes]),
+    ValueType.UUID_LIST: (
+        StringList,
+        "uuid_list_val",
+        [np.str_, str, uuid_module.UUID],
+    ),
+    ValueType.TIME_UUID_LIST: (
+        StringList,
+        "time_uuid_list_val",
+        [np.str_, str, uuid_module.UUID],
+    ),
 }
 
 PYTHON_SET_VALUE_TYPE_TO_PROTO_VALUE: Dict[
@@ -461,6 +512,12 @@ PYTHON_SET_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.STRING_SET: (StringSet, "string_set_val", [np.str_, str]),
     ValueType.BOOL_SET: (BoolSet, "bool_set_val", [np.bool_, bool]),
     ValueType.BYTES_SET: (BytesSet, "bytes_set_val", [np.bytes_, bytes]),
+    ValueType.UUID_SET: (StringSet, "uuid_set_val", [np.str_, str, uuid_module.UUID]),
+    ValueType.TIME_UUID_SET: (
+        StringSet,
+        "time_uuid_set_val",
+        [np.str_, str, uuid_module.UUID],
+    ),
 }
 
 PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
@@ -486,6 +543,8 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.IMAGE_BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
+    ValueType.UUID: ("uuid_val", lambda x: str(x), {str, uuid_module.UUID}),
+    ValueType.TIME_UUID: ("time_uuid_val", lambda x: str(x), {str, uuid_module.UUID}),
 }
 
 
@@ -685,6 +744,19 @@ def _python_set_to_proto_values(
             converted_values, set_field_name, set_proto_type
         )
 
+    if feast_value_type in (ValueType.UUID_SET, ValueType.TIME_UUID_SET):
+        # uuid.UUID objects must be converted to str for StringSet proto.
+        return [
+            (
+                ProtoValue(
+                    **{set_field_name: set_proto_type(val=[str(e) for e in value])}  # type: ignore[arg-type, misc]
+                )
+                if value is not None
+                else ProtoValue()
+            )
+            for value in converted_values
+        ]
+
     # Generic set conversion
     return [
         ProtoValue(**{set_field_name: set_proto_type(val=value)})  # type: ignore[arg-type]
@@ -744,6 +816,19 @@ def _convert_list_values_to_proto(
         )
     if feast_value_type == ValueType.BOOL_LIST:
         return _convert_bool_collection_to_proto(values, field_name, proto_type)
+
+    if feast_value_type in (ValueType.UUID_LIST, ValueType.TIME_UUID_LIST):
+        # uuid.UUID objects must be converted to str for StringList proto.
+        return [
+            (
+                ProtoValue(
+                    **{field_name: proto_type(val=[str(e) for e in value])}  # type: ignore[arg-type, misc]
+                )
+                if value is not None
+                else ProtoValue()
+            )
+            for value in values
+        ]
 
     # Generic list conversion
     return [
@@ -1058,6 +1143,12 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "bytes_set_val": ValueType.BYTES_SET,
     "bool_set_val": ValueType.BOOL_SET,
     "unix_timestamp_set_val": ValueType.UNIX_TIMESTAMP_SET,
+    "uuid_set_val": ValueType.UUID_SET,
+    "time_uuid_set_val": ValueType.TIME_UUID_SET,
+    "uuid_val": ValueType.UUID,
+    "time_uuid_val": ValueType.TIME_UUID,
+    "uuid_list_val": ValueType.UUID_LIST,
+    "time_uuid_list_val": ValueType.TIME_UUID_LIST,
 }
 
 VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
@@ -1347,6 +1438,12 @@ def _convert_value_name_to_snowflake_udf(value_name: str, project_name: str) -> 
         "FLOAT_LIST": f"feast_{project_name}_snowflake_array_float_to_list_double_proto",
         "BOOL_LIST": f"feast_{project_name}_snowflake_array_boolean_to_list_bool_proto",
         "UNIX_TIMESTAMP_LIST": f"feast_{project_name}_snowflake_array_timestamp_to_list_unix_timestamp_proto",
+        "UUID": f"feast_{project_name}_snowflake_varchar_to_string_proto",
+        "TIME_UUID": f"feast_{project_name}_snowflake_varchar_to_string_proto",
+        "UUID_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "TIME_UUID_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "UUID_SET": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "TIME_UUID_SET": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
     }
     return name_map[value_name].upper()
 
@@ -1550,8 +1647,8 @@ def pg_type_to_feast_value_type(type_str: str) -> ValueType:
         "timestamp with time zone[]": ValueType.UNIX_TIMESTAMP_LIST,
         "numeric[]": ValueType.DOUBLE_LIST,
         "numeric": ValueType.DOUBLE,
-        "uuid": ValueType.STRING,
-        "uuid[]": ValueType.STRING_LIST,
+        "uuid": ValueType.UUID,
+        "uuid[]": ValueType.UUID_LIST,
         "json": ValueType.MAP,
         "jsonb": ValueType.MAP,
         "json[]": ValueType.MAP_LIST,
@@ -1598,6 +1695,12 @@ def feast_value_type_to_pa(
         ValueType.STRUCT: pyarrow.struct([]),
         ValueType.STRUCT_LIST: pyarrow.list_(pyarrow.struct([])),
         ValueType.NULL: pyarrow.null(),
+        ValueType.UUID: pyarrow.string(),
+        ValueType.TIME_UUID: pyarrow.string(),
+        ValueType.UUID_LIST: pyarrow.list_(pyarrow.string()),
+        ValueType.TIME_UUID_LIST: pyarrow.list_(pyarrow.string()),
+        ValueType.UUID_SET: pyarrow.list_(pyarrow.string()),
+        ValueType.TIME_UUID_SET: pyarrow.list_(pyarrow.string()),
     }
     return type_map[feast_type]
 
@@ -1750,7 +1853,7 @@ def cb_columnar_type_to_feast_value_type(type_str: str) -> ValueType:
         "object": ValueType.UNKNOWN,
         "array": ValueType.UNKNOWN,
         "multiset": ValueType.UNKNOWN,
-        "uuid": ValueType.STRING,
+        "uuid": ValueType.UUID,
     }
     value = (
         type_map[type_str.lower()]
@@ -1776,6 +1879,8 @@ def convert_scalar_column(
         return series.astype("boolean")
     elif value_type == ValueType.STRING:
         return series.astype("string")
+    elif value_type in [ValueType.UUID, ValueType.TIME_UUID]:
+        return series.astype("string")
     elif value_type == ValueType.UNIX_TIMESTAMP:
         return pd.to_datetime(series, unit="s", errors="coerce")
     elif value_type in (ValueType.JSON, ValueType.STRUCT, ValueType.MAP):
@@ -1795,6 +1900,18 @@ def convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series:
         ValueType.STRING_LIST: object,
         ValueType.BYTES_LIST: object,
         ValueType.UNIX_TIMESTAMP_LIST: "datetime64[s]",
+        ValueType.UUID_LIST: object,
+        ValueType.TIME_UUID_LIST: object,
+        ValueType.BYTES_SET: object,
+        ValueType.STRING_SET: object,
+        ValueType.INT32_SET: np.int32,
+        ValueType.INT64_SET: np.int64,
+        ValueType.FLOAT_SET: np.float32,
+        ValueType.DOUBLE_SET: np.float64,
+        ValueType.BOOL_SET: np.bool_,
+        ValueType.UNIX_TIMESTAMP_SET: "datetime64[s]",
+        ValueType.UUID_SET: object,
+        ValueType.TIME_UUID_SET: object,
     }
 
     target_dtype = base_type_map.get(value_type, object)
