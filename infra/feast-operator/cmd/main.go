@@ -29,16 +29,23 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -67,6 +74,29 @@ func init() {
 	utilruntime.Must(feastdevv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(feastdevv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
+}
+
+func newCacheOptions() cache.Options {
+	managedBySelector := labels.SelectorFromSet(labels.Set{
+		services.ManagedByLabelKey: services.ManagedByLabelValue,
+	})
+	managedByFilter := cache.ByObject{Label: managedBySelector}
+
+	return cache.Options{
+		DefaultTransform: cache.TransformStripManagedFields(),
+		ByObject: map[client.Object]cache.ByObject{
+			&corev1.ConfigMap{}:                      managedByFilter,
+			&appsv1.Deployment{}:                     managedByFilter,
+			&corev1.Service{}:                        managedByFilter,
+			&corev1.ServiceAccount{}:                 managedByFilter,
+			&corev1.PersistentVolumeClaim{}:          managedByFilter,
+			&rbacv1.RoleBinding{}:                    managedByFilter,
+			&rbacv1.Role{}:                           managedByFilter,
+			&batchv1.CronJob{}:                       managedByFilter,
+			&autoscalingv2.HorizontalPodAutoscaler{}: managedByFilter,
+			&policyv1.PodDisruptionBudget{}:          managedByFilter,
+		},
+	}
 }
 
 func main() {
@@ -155,6 +185,7 @@ func main() {
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
 		// LeaderElectionReleaseOnCancel: true,
+		Cache: newCacheOptions(),
 		Client: client.Options{
 			Cache: &client.CacheOptions{
 				DisableFor: []client.Object{

@@ -381,7 +381,7 @@ var _ = Describe("NotebookConfigMap Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(cm.Data).To(HaveKey(projectName))
 			Expect(cm.Data[projectName]).To(Equal(testYAMLContent))
-			Expect(cm.Labels["managed-by"]).To(Equal("feast-operator"))
+			Expect(cm.Labels[services.ManagedByLabelKey]).To(Equal(services.ManagedByLabelValue))
 			Expect(cm.Labels["source-resource"]).To(Equal(notebookName))
 			Expect(cm.Labels["source-kind"]).To(Equal("Notebook"))
 			Expect(cm.OwnerReferences).To(HaveLen(1))

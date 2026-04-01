@@ -442,9 +442,10 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 	}
 
 	deploy.Labels = feast.getLabels()
+	selectorLabels := feast.getSelectorLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
 		Replicas: replicas,
-		Selector: metav1.SetAsLabelSelector(deploy.GetLabels()),
+		Selector: metav1.SetAsLabelSelector(selectorLabels),
 		Strategy: feast.getDeploymentStrategy(),
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
@@ -832,7 +833,7 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	}
 
 	svc.Spec = corev1.ServiceSpec{
-		Selector: feast.getLabels(),
+		Selector: feast.getSelectorLabels(),
 		Type:     corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
@@ -990,7 +991,7 @@ func (feast *FeastServices) applyTopologySpread(podSpec *corev1.PodSpec) {
 		MaxSkew:           1,
 		TopologyKey:       "topology.kubernetes.io/zone",
 		WhenUnsatisfiable: corev1.ScheduleAnyway,
-		LabelSelector:     metav1.SetAsLabelSelector(feast.getLabels()),
+		LabelSelector:     metav1.SetAsLabelSelector(feast.getSelectorLabels()),
 	}}
 }
 
@@ -1013,7 +1014,7 @@ func (feast *FeastServices) applyAffinity(podSpec *corev1.PodSpec) {
 				Weight: 100,
 				PodAffinityTerm: corev1.PodAffinityTerm{
 					TopologyKey:   "kubernetes.io/hostname",
-					LabelSelector: metav1.SetAsLabelSelector(feast.getLabels()),
+					LabelSelector: metav1.SetAsLabelSelector(feast.getSelectorLabels()),
 				},
 			}},
 		},
@@ -1074,9 +1075,21 @@ func (feast *FeastServices) getFeastTypeLabels(feastType FeastServiceType) map[s
 	return labels
 }
 
-func (feast *FeastServices) getLabels() map[string]string {
+// getSelectorLabels returns the minimal label set used for immutable selectors
+// (Deployment spec.selector, Service spec.selector, TopologySpreadConstraints, PodAffinity).
+// This must NOT change after initial resource creation.
+func (feast *FeastServices) getSelectorLabels() map[string]string {
 	return map[string]string{
 		NameLabelKey: feast.Handler.FeatureStore.Name,
+	}
+}
+
+// getLabels returns the full label set for mutable metadata (ObjectMeta.Labels).
+// Includes the managed-by label used by the informer cache filter.
+func (feast *FeastServices) getLabels() map[string]string {
+	return map[string]string{
+		NameLabelKey:      feast.Handler.FeatureStore.Name,
+		ManagedByLabelKey: ManagedByLabelValue,
 	}
 }
 
@@ -1450,6 +1463,67 @@ func IsDeploymentAvailable(conditions []appsv1.DeploymentCondition) bool {
 	}
 
 	return false
+}
+
+// GetPodContainerFailureMessage inspects pods belonging to the given deployment
+// and returns a human-readable message describing the first init or regular
+// container that is in a failing state. Returns empty string if no failure found.
+func (feast *FeastServices) GetPodContainerFailureMessage(deploy appsv1.Deployment) string {
+	podList := corev1.PodList{}
+	selectorLabels := feast.getSelectorLabels()
+	if err := feast.Handler.Client.List(feast.Handler.Context, &podList,
+		client.InNamespace(deploy.Namespace),
+		client.MatchingLabels(selectorLabels),
+	); err != nil {
+		return ""
+	}
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if msg := initContainerFailureMessage(pod); msg != "" {
+			return msg
+		}
+		if msg := containerFailureMessage(pod); msg != "" {
+			return msg
+		}
+	}
+	return ""
+}
+
+func initContainerFailureMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.InitContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" && cs.State.Waiting.Reason != "PodInitializing" {
+			return "Init container '" + cs.Name + "' waiting: " + cs.State.Waiting.Reason +
+				messageIfPresent(cs.State.Waiting.Message)
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Init container '" + cs.Name + "' failed with exit code " +
+				strconv.Itoa(int(cs.State.Terminated.ExitCode)) +
+				messageIfPresent(cs.State.Terminated.Message)
+		}
+	}
+	return ""
+}
+
+func containerFailureMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" && cs.State.Waiting.Reason != "ContainerCreating" {
+			return "Container '" + cs.Name + "' waiting: " + cs.State.Waiting.Reason +
+				messageIfPresent(cs.State.Waiting.Message)
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Container '" + cs.Name + "' failed with exit code " +
+				strconv.Itoa(int(cs.State.Terminated.ExitCode)) +
+				messageIfPresent(cs.State.Terminated.Message)
+		}
+	}
+	return ""
+}
+
+func messageIfPresent(msg string) string {
+	if msg != "" {
+		return " - " + msg
+	}
+	return ""
 }
 
 // GetFeastRestServiceName returns the feast REST service object name based on service type
