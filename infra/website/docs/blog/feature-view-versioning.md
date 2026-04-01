@@ -17,7 +17,7 @@ This feature is still **experimental** and we would love to hear your feedback. 
 
 ## Why Feature Versioning Matters
 
-Serving data in production AI applications is one of the hardest problems in ML engineering. The Feast community is built on practitioners who run these high-stakes pipelines every day — where **point-in-time correctness** is not just a nice-to-have but a hard requirement for model integrity. A feature value seen by the wrong model at the wrong time can silently corrupt predictions, skew training data, or violate data-privacy contracts. This is the most important motivating factor behind our versioning work.
+Serving data in production AI applications is one of the hardest problems in ML engineering. The Feast community is built on practitioners who run these high-stakes pipelines every day — where **point-in-time correctness** is not just a nice-to-have but a hard requirement for model integrity. A feature value seen by the wrong model at the wrong time can silently corrupt predictions and, in high stakes scenarios, impact critical business applications. This is the most important motivating factor behind our versioning work.
 
 Feature versioning solves two distinct but equally real problems:
 
