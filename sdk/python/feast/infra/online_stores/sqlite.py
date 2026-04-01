@@ -59,6 +59,7 @@ from feast.utils import (
     _serialize_vector_to_float_list,
     to_naive_utc,
 )
+from feast.infra.online_stores.helpers import online_store_table_id
 
 
 def adapt_date_iso(val: date):
@@ -124,6 +125,10 @@ class SqliteOnlineStore(OnlineStore):
     """
 
     _conn: Optional[sqlite3.Connection] = None
+
+    @property
+    def supports_versioned_online_reads(self) -> bool:
+        return True
 
     @staticmethod
     def _get_db_path(config: RepoConfig) -> str:

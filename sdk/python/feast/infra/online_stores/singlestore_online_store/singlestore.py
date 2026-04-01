@@ -10,8 +10,9 @@ from singlestoredb.connection import Connection, Cursor
 from singlestoredb.exceptions import InterfaceError
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.importer import import_class
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.online_stores.helpers import _to_naive_utc
+from feast.infra.online_stores.helpers import _to_naive_utc, online_store_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -40,6 +41,10 @@ class SingleStoreOnlineStore(OnlineStore):
     """
 
     _conn: Optional[Connection] = None
+
+    @property
+    def supports_versioned_online_reads(self) -> bool:
+        return True
 
     def _init_conn(self, config: RepoConfig) -> Connection:
         online_store_config = config.online_store
@@ -102,7 +107,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 current_batch = insert_values[i : i + batch_size]
                 cur.executemany(
                     f"""
-                    INSERT INTO {_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
+                    INSERT INTO {online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
                     (entity_key, feature_name, value, event_ts, created_ts)
                     values (%s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
@@ -138,7 +143,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 entity_key_placeholders = ",".join(["%s" for _ in keys])
                 cur.execute(
                     f"""
-                    SELECT entity_key, feature_name, value, event_ts FROM {_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
+                    SELECT entity_key, feature_name, value, event_ts FROM {online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
                     WHERE entity_key IN ({entity_key_placeholders})
                     ORDER BY event_ts;
                     """,
@@ -151,7 +156,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 )
                 cur.execute(
                     f"""
-                    SELECT entity_key, feature_name, value, event_ts FROM {_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
+                    SELECT entity_key, feature_name, value, event_ts FROM {online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
                     WHERE entity_key IN ({entity_key_placeholders}) and feature_name IN ({requested_features_placeholders})
                     ORDER BY event_ts;
                     """,
@@ -195,7 +200,7 @@ class SingleStoreOnlineStore(OnlineStore):
         with self._get_cursor(config) as cur:
             # We don't create any special state for the entities in this implementation.
             for table in tables_to_keep:
-                table_name = _table_id(project, table, versioning)
+                table_name = online_store_table_id(project, table, versioning)
                 cur.execute(
                     f"""CREATE TABLE IF NOT EXISTS {table_name} (entity_key VARCHAR(512),
                     feature_name VARCHAR(256),
@@ -219,23 +224,66 @@ class SingleStoreOnlineStore(OnlineStore):
         versioning = config.registry.enable_online_feature_view_versioning
         with self._get_cursor(config) as cur:
             for table in tables:
-                _drop_table_and_index(cur, project, table, versioning)
+                if not versioning:
+                    _drop_table_and_index(cur, project, table, enable_versioning=False)
+                    continue
+
+                versions = []
+                try:
+                    from feast.repo_config import REGISTRY_CLASS_FOR_TYPE
+
+                    registry_type = getattr(config.registry, "registry_type", "file")
+                    registry_class_path = REGISTRY_CLASS_FOR_TYPE[registry_type]
+                    module_name, class_name = registry_class_path.rsplit(".", 1)
+                    registry_cls = import_class(module_name, class_name, "Registry")
+                    if registry_type == "file":
+                        registry = registry_cls(
+                            project=project,
+                            registry_config=config.registry,
+                            repo_path=config.repo_path,
+                        )
+                    elif registry_type in {"sql", "remote", "snowflake.registry"}:
+                        registry = registry_cls(
+                            registry_config=config.registry,
+                            project=project,
+                            repo_path=config.repo_path,
+                        )
+                    else:
+                        registry = registry_cls(
+                            project=project,
+                            registry_config=config.registry,
+                            repo_path=config.repo_path,
+                        )
+                    versions = registry.list_feature_view_versions(
+                        name=table.name, project=project
+                    )
+                except Exception:
+                    versions = []
+
+                if not versions:
+                    _drop_table_and_index(cur, project, table, enable_versioning=True)
+                    continue
+
+                for record in versions:
+                    version_number = record.get("version_number")
+                    if version_number is None:
+                        continue
+                    _drop_table_and_index(
+                        cur,
+                        project,
+                        table,
+                        enable_versioning=True,
+                        version=version_number,
+                    )
 
 
 def _drop_table_and_index(
-    cur: Cursor, project: str, table: FeatureView, enable_versioning: bool
+    cur: Cursor,
+    project: str,
+    table: FeatureView,
+    enable_versioning: bool,
+    version: Optional[int] = None,
 ) -> None:
-    table_name = _table_id(project, table, enable_versioning)
-    cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
+    table_name = online_store_table_id(project, table, enable_versioning, version)
+    cur.execute(f"DROP INDEX IF EXISTS {table_name}_ek ON {table_name};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
-
-
-def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
-    name = table.name
-    if enable_versioning:
-        version = getattr(table.projection, "version_tag", None)
-        if version is None:
-            version = getattr(table, "current_version_number", None)
-        if version is not None and version > 0:
-            name = f"{table.name}_v{version}"
-    return f"{project}_{name}"

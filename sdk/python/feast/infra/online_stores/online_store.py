@@ -40,6 +40,10 @@ class OnlineStore(ABC):
     """
 
     @property
+    def supports_versioned_online_reads(self) -> bool:
+        return False
+
+    @property
     def async_supported(self) -> SupportedAsyncMethods:
         return SupportedAsyncMethods()
 
