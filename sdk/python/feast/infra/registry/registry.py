@@ -755,7 +755,10 @@ class Registry(BaseRegistry):
         self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
-        self._ensure_feature_view_name_is_unique(feature_view, project)
+        # allow_cache=True: _prepare_registry_for_changes (line above) already loaded the cache;
+        # using allow_cache=False would re-read from store and overwrite cached_registry_proto,
+        # discarding any uncommitted in-memory changes from prior commit=False calls.
+        self._ensure_feature_view_name_is_unique(feature_view, project, allow_cache=True)
         existing_feature_views_of_same_type: RepeatedCompositeFieldContainer
         if isinstance(feature_view, StreamFeatureView):
             existing_feature_views_of_same_type = (
