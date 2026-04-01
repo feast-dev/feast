@@ -394,7 +394,10 @@ class Registry(BaseRegistry):
         registry = self._prepare_registry_for_changes(project)
 
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
-            if existing_data_source_proto.name == data_source.name:
+            if (
+                existing_data_source_proto.name == data_source.name
+                and existing_data_source_proto.project == project
+            ):
                 existing_data_source = DataSource.from_proto(existing_data_source_proto)
                 # Check if the data source has actually changed
                 if existing_data_source == data_source:
@@ -423,7 +426,7 @@ class Registry(BaseRegistry):
         for idx, data_source_proto in enumerate(
             self.cached_registry_proto.data_sources
         ):
-            if data_source_proto.name == name:
+            if data_source_proto.name == name and data_source_proto.project == project:
                 del self.cached_registry_proto.data_sources[idx]
                 if commit:
                     self.commit()
