@@ -1088,7 +1088,8 @@ def _convert_nested_collection_to_proto(
                         # Empty inner collection: store as empty ProtoValue
                         inner_values.append(ProtoValue())
                     elif any(
-                        isinstance(item, (list, set, tuple)) for item in inner_list
+                        isinstance(item, (list, set, tuple, np.ndarray))
+                        for item in inner_list
                     ):
                         # Deeper nesting (3+ levels): recurse using VALUE_LIST
                         inner_proto = _convert_nested_collection_to_proto(
@@ -1765,6 +1766,8 @@ def feast_value_type_to_pa(
         ValueType.JSON_LIST: pyarrow.list_(pyarrow.large_string()),
         ValueType.STRUCT: pyarrow.struct([]),
         ValueType.STRUCT_LIST: pyarrow.list_(pyarrow.struct([])),
+        # Placeholder: inner type is unknown from ValueType alone.
+        # Callers needing accurate inner types should use from_feast_to_pyarrow_type() with a FeastType.
         ValueType.VALUE_LIST: pyarrow.list_(pyarrow.list_(pyarrow.string())),
         ValueType.VALUE_SET: pyarrow.list_(pyarrow.list_(pyarrow.string())),
         ValueType.NULL: pyarrow.null(),
