@@ -187,7 +187,9 @@ class OidcTokenParser(TokenParser):
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
 
-    async def _validate_k8s_sa_token_and_extract_namespace(self, access_token: str) -> User:
+    async def _validate_k8s_sa_token_and_extract_namespace(
+        self, access_token: str
+    ) -> User:
         """Validate a K8s SA token via TokenReview and extract the namespace.
 
         Lightweight alternative to full KubernetesTokenParser — only validates
