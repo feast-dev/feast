@@ -58,6 +58,38 @@ def project_current(ctx: click.Context):
     )
 
 
+@projects_cmd.command("delete")
+@click.argument("name", type=click.STRING)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    default=False,
+    help="Skip confirmation prompt.",
+)
+@click.pass_context
+def project_delete(ctx: click.Context, name: str, yes: bool):
+    """
+    Delete a project and all its registered objects.
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        store.get_project(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    if not yes:
+        click.confirm(
+            f"This will permanently delete project '{name}' and all its registered objects. Are you sure?",
+            abort=True,
+        )
+
+    store.delete_project(name)
+    print(f"Project '{name}' successfully deleted.")
+
+
 @projects_cmd.command(name="list")
 @tagsOption
 @click.pass_context

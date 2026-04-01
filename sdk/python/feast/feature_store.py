@@ -3388,6 +3388,19 @@ class FeatureStore:
         """
         return self.registry.get_project(name or self.project)
 
+    def delete_project(self, name: str, commit: bool = True) -> None:
+        """
+        Deletes a project from the registry.
+
+        Args:
+            name: Name of the project to delete.
+            commit: Whether the change should be persisted immediately.
+
+        Raises:
+            ProjectObjectNotFoundException: The project could not be found.
+        """
+        return self.registry.delete_project(name, commit=commit)
+
     def list_saved_datasets(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[SavedDataset]:
