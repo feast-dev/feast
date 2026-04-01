@@ -4,6 +4,7 @@ from typing import Any, List, Optional
 
 import mmh3
 
+from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.key_encoding_utils import (
     serialize_entity_key,
@@ -11,7 +12,6 @@ from feast.infra.key_encoding_utils import (
 )
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.feature_view import FeatureView
 
 
 def get_online_store_from_config(online_store_config: Any) -> OnlineStore:

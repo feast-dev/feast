@@ -39,6 +39,8 @@ from feast.field import Field
 from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
+    deserialize_f32,
+    deserialize_val,
     serialize_entity_key,
     serialize_f32,
 )
@@ -59,7 +61,6 @@ from feast.utils import (
     _serialize_vector_to_float_list,
     to_naive_utc,
 )
-from feast.infra.online_stores.helpers import online_store_table_id
 
 
 def adapt_date_iso(val: date):

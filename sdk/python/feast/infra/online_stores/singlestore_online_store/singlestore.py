@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 from collections import defaultdict
 from datetime import datetime
+import logging
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import singlestoredb
@@ -17,6 +18,8 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+
+logger = logging.getLogger(__name__)
 
 
 class SingleStoreOnlineStoreConfig(FeastConfigBaseModel):
@@ -107,7 +110,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 current_batch = insert_values[i : i + batch_size]
                 cur.executemany(
                     f"""
-                    INSERT INTO {online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
+                    INSERT INTO {_quote_identifier(online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
                     (entity_key, feature_name, value, event_ts, created_ts)
                     values (%s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
@@ -143,7 +146,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 entity_key_placeholders = ",".join(["%s" for _ in keys])
                 cur.execute(
                     f"""
-                    SELECT entity_key, feature_name, value, event_ts FROM {online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
+                    SELECT entity_key, feature_name, value, event_ts FROM {_quote_identifier(online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
                     WHERE entity_key IN ({entity_key_placeholders})
                     ORDER BY event_ts;
                     """,
@@ -156,7 +159,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 )
                 cur.execute(
                     f"""
-                    SELECT entity_key, feature_name, value, event_ts FROM {online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning)}
+                    SELECT entity_key, feature_name, value, event_ts FROM {_quote_identifier(online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
                     WHERE entity_key IN ({entity_key_placeholders}) and feature_name IN ({requested_features_placeholders})
                     ORDER BY event_ts;
                     """,
@@ -202,13 +205,13 @@ class SingleStoreOnlineStore(OnlineStore):
             for table in tables_to_keep:
                 table_name = online_store_table_id(project, table, versioning)
                 cur.execute(
-                    f"""CREATE TABLE IF NOT EXISTS {table_name} (entity_key VARCHAR(512),
+                    f"""CREATE TABLE IF NOT EXISTS {_quote_identifier(table_name)} (entity_key VARCHAR(512),
                     feature_name VARCHAR(256),
                     value BLOB,
                     event_ts timestamp NULL DEFAULT NULL,
                     created_ts timestamp NULL DEFAULT NULL,
                     PRIMARY KEY(entity_key, feature_name),
-                    INDEX {table_name}_ek (entity_key))"""
+                    INDEX {_quote_identifier(table_name + '_ek')} (entity_key))"""
                 )
 
             for table in tables_to_delete:
@@ -257,11 +260,17 @@ class SingleStoreOnlineStore(OnlineStore):
                     versions = registry.list_feature_view_versions(
                         name=table.name, project=project
                     )
-                except Exception:
+                except Exception as e:
+                    logger.warning(
+                        "Failed to list feature view versions for %s during teardown; will fall back to dropping discovered versioned tables. Error: %s",
+                        table.name,
+                        e,
+                    )
                     versions = []
 
                 if not versions:
                     _drop_table_and_index(cur, project, table, enable_versioning=True)
+                    _drop_discovered_versioned_tables(cur, project, table)
                     continue
 
                 for record in versions:
@@ -276,6 +285,8 @@ class SingleStoreOnlineStore(OnlineStore):
                         version=version_number,
                     )
 
+                _drop_discovered_versioned_tables(cur, project, table)
+
 
 def _drop_table_and_index(
     cur: Cursor,
@@ -285,5 +296,38 @@ def _drop_table_and_index(
     version: Optional[int] = None,
 ) -> None:
     table_name = online_store_table_id(project, table, enable_versioning, version)
-    cur.execute(f"DROP INDEX IF EXISTS {table_name}_ek ON {table_name};")
-    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+    table_name_quoted = _quote_identifier(table_name)
+    index_name_quoted = _quote_identifier(f"{table_name}_ek")
+    cur.execute(f"DROP INDEX IF EXISTS {index_name_quoted} ON {table_name_quoted};")
+    cur.execute(f"DROP TABLE IF EXISTS {table_name_quoted}")
+
+
+def _quote_identifier(identifier: str) -> str:
+    """Quote a SingleStore/MySQL identifier safely using backticks.
+
+    Backticks are escaped by doubling them. This does not validate existence,
+    but prevents SQL injection through identifier interpolation.
+    """
+
+    escaped = identifier.replace("`", "``")
+    return f"`{escaped}`"
+
+
+def _drop_discovered_versioned_tables(cur: Cursor, project: str, table: FeatureView) -> None:
+    base_table_name = online_store_table_id(project, table, enable_versioning=False)
+    like_pattern = f"{base_table_name}_v%"
+    try:
+        cur.execute("SHOW TABLES LIKE %s", (like_pattern,))
+        rows = cur.fetchall() or []
+        for row in rows:
+            table_name = row[0]
+            cur.execute(
+                f"DROP INDEX IF EXISTS {_quote_identifier(table_name + '_ek')} ON {_quote_identifier(table_name)};"
+            )
+            cur.execute(f"DROP TABLE IF EXISTS {_quote_identifier(table_name)}")
+    except Exception as e:
+        logger.warning(
+            "Failed to discover/drop versioned tables for %s during teardown fallback. Error: %s",
+            table.name,
+            e,
+        )
