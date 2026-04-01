@@ -5,6 +5,10 @@ date: 2026-03-31
 authors: ["Francisco Javier Arceo"]
 ---
 
+<div class="hero-image">
+  <img src="/images/blog/feast-feature-versioning-hero.png" alt="Feast Feature Versioning" loading="lazy">
+</div>
+
 # Feast Introduces Experimental Feature View Versioning 🚀
 
 We are excited to announce the experimental release of **Feature View Versioning** in Feast — a long-requested capability that brings automatic version tracking, safe rollback, and multi-version online serving to your feature store.
