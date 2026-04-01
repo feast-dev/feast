@@ -164,41 +164,46 @@ func (feast *FeastServices) createNamespaceRegistryRoleBinding(targetNamespace s
 // setNamespaceRegistryRoleBinding sets the RoleBinding for namespace registry access
 func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBinding) error {
 	// Create a Role that allows reading the ConfigMap
+	roleName := NamespaceRegistryConfigMapName + "-reader"
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      NamespaceRegistryConfigMapName + "-reader",
+			Name:      roleName,
 			Namespace: rb.Namespace,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"configmaps"},
-				ResourceNames: []string{NamespaceRegistryConfigMapName},
-				Verbs:         []string{"get", "list"},
-			},
 		},
 	}
 
-	// Create or update the Role
-	if _, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, role, controllerutil.MutateFn(func() error {
-		role.Rules = []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"configmaps"},
-				ResourceNames: []string{NamespaceRegistryConfigMapName},
-				Verbs:         []string{"get", "list"},
-			},
+	// Check if the Role already exists
+	existingRole := &rbacv1.Role{}
+	err := feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
+		Name:      roleName,
+		Namespace: rb.Namespace,
+	}, existingRole)
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Role doesn't exist, create it
+			role.Rules = []rbacv1.PolicyRule{
+				{
+					APIGroups:     []string{""},
+					Resources:     []string{"configmaps"},
+					ResourceNames: []string{NamespaceRegistryConfigMapName},
+					Verbs:         []string{"get", "list"},
+				},
+			}
+			if err := feast.Handler.Client.Create(feast.Handler.Context, role); err != nil {
+				return fmt.Errorf("failed to create namespace registry Role: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to get namespace registry Role: %w", err)
 		}
-		return nil
-	})); err != nil {
-		return err
 	}
+	// If Role already exists, we don't need to update it since it's shared across FeatureStores
 
 	// Set the RoleBinding
 	rb.RoleRef = rbacv1.RoleRef{
 		APIGroup: "rbac.authorization.k8s.io",
 		Kind:     "Role",
-		Name:     role.Name,
+		Name:     roleName,
 	}
 
 	rb.Subjects = []rbacv1.Subject{
