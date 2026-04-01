@@ -211,7 +211,7 @@ These tradeoffs are real and we're still refining the model based on community e
 
 This is an experimental feature and there are known gaps:
 
-- **Online store support** — Version-qualified reads (`@v<N>`) are **SQLite-only** today. We plan to add Redis, DynamoDB, Bigtable, Postgres, and others based on community demand. If you need a specific store, [open a GitHub issue](https://github.com/feast-dev/feast/issues/new) and let us know.
+- **Online store support** — Version-qualified reads (`@v<N>`) are **SQLite-only** today. We plan to add Redis, DynamoDB, Bigtable, Postgres, and others based on community demand. If you need a specific store, [comment or upvote on the appropriate the child GitHub issue of the main GitHub issue](https://github.com/feast-dev/feast/issues/2728) and let us know.
 - **Offline store versioning** — Versioned historical retrieval is not yet supported.
 - **Version deletion** — There is no mechanism today to prune old versions from the registry.
 - **Feature services** — Feature services always resolve to the active (promoted) version. `--no-promote` versions are not accessible through feature services until promoted.
