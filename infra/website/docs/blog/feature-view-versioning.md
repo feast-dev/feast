@@ -11,7 +11,7 @@ authors: ["Francisco Javier Arceo"]
 
 # Feast Introduces Experimental Feature View Versioning 🚀
 
-We are excited to announce the experimental release of **Feature View Versioning** in Feast — a long-requested capability that brings automatic version tracking, safe rollback, and multi-version online serving to your feature store.
+We are excited to announce the experimental release of **Feature View Versioning** in Feast — a [long-requested capability](https://github.com/feast-dev/feast/issues/2728) that brings automatic version tracking, safe rollback, and multi-version online serving to your feature store.
 
 This feature is still **experimental** and we would love to hear your feedback. Try it out and let us know what works, what doesn't, and which online stores you'd like to see supported next.
 
