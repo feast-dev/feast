@@ -2192,3 +2192,58 @@ def test_cross_type_feature_view_odfv_conflict(test_registry: BaseRegistry):
     # Cleanup
     test_registry.delete_feature_view("shared_odfv_name", project)
     test_registry.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
+def test_cross_project_feature_view_name_allowed(test_registry: BaseRegistry):
+    """
+    Test that different projects can use the same feature view names.
+    This is a regression test for issue #6209.
+    """
+    project_a = "project_a"
+    project_b = "project_b"
+
+    # Create a FeatureView in project A
+    feature_view_a = FeatureView(
+        name="shared_name",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=FileSource(path="data.parquet"),
+    )
+
+    # Create a StreamFeatureView with the same name in project B
+    stream_feature_view_b = StreamFeatureView(
+        name="shared_name",
+        entities=[],
+        schema=[Field(name="feature2", dtype=Float32)],
+        source=KafkaSource(
+            name="kafka_source",
+            kafka_bootstrap_servers="localhost:9092",
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+            batch_source=FileSource(path="stream_data.parquet"),
+        ),
+        aggregations=[],
+    )
+
+    # Both should apply successfully without ConflictingFeatureViewNames error
+    test_registry.apply_feature_view(feature_view_a, project_a)
+    test_registry.apply_feature_view(stream_feature_view_b, project_b)
+
+    # Verify both exist in their respective projects
+    retrieved_fv_a = test_registry.get_feature_view("shared_name", project_a)
+    assert retrieved_fv_a.name == "shared_name"
+    assert isinstance(retrieved_fv_a, FeatureView)
+    assert not isinstance(retrieved_fv_a, StreamFeatureView)
+
+    retrieved_sfv_b = test_registry.get_stream_feature_view("shared_name", project_b)
+    assert retrieved_sfv_b.name == "shared_name"
+    assert isinstance(retrieved_sfv_b, StreamFeatureView)
+
+    # Cleanup
+    test_registry.delete_feature_view("shared_name", project_a)
+    test_registry.delete_feature_view("shared_name", project_b)
+    test_registry.teardown()
