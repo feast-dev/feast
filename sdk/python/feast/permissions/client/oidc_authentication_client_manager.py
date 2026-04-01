@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 
 import jwt
 import requests
@@ -56,7 +57,7 @@ class OidcAuthClientManager(AuthenticationClientManager):
             )
 
     @staticmethod
-    def _read_sa_token() -> str | None:
+    def _read_sa_token() -> Optional[str]:
         """Read the Kubernetes service account token from the standard mount path."""
         if os.path.isfile(SA_TOKEN_PATH):
             with open(SA_TOKEN_PATH) as f:
@@ -67,7 +68,11 @@ class OidcAuthClientManager(AuthenticationClientManager):
 
     def _fetch_token_from_idp(self) -> str:
         """Obtain an access token via client_credentials or ROPG flow."""
-        assert self.auth_config.auth_discovery_url is not None
+        if self.auth_config.auth_discovery_url is None:
+            raise ValueError(
+                "auth_discovery_url is required for IDP token fetch "
+                "(client_credentials or ROPG flow)."
+            )
         token_endpoint = OIDCDiscoveryService(
             self.auth_config.auth_discovery_url,
             verify_ssl=self.auth_config.verify_ssl,

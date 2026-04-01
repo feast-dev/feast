@@ -715,7 +715,8 @@ type OidcAuthz struct {
 	// When unset, each top-level key in the Secret is treated as a separate OIDC property.
 	// +optional
 	SecretKeyName string `json:"secretKeyName,omitempty"`
-	// The name of the environment variable that client pods will use to read a pre-existing OIDC token.
+	// The name of the environment variable that Feast SDK client pods (e.g. workbenches, application pods)
+	// will read a pre-existing OIDC token from.
 	// When set, the client feature_store.yaml will include token_env_var with this value.
 	// When unset, the client config is bare `type: oidc` which falls back to FEAST_OIDC_TOKEN or the pod's SA token.
 	// +optional

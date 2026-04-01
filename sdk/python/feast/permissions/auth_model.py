@@ -19,7 +19,8 @@ def _check_mutually_exclusive(**groups: Tuple[object, ...]) -> None:
     if partial:
         raise ValueError(
             f"Incomplete configuration for '{partial[0]}': "
-            f"all fields in this group are required when any is set."
+            f"configure all of these fields together, or none at all. "
+            f"Check the documentation for valid credential combinations."
         )
     active = [name for name, vals in groups.items() if all(vals)]
     if len(active) > 1:

@@ -39,6 +39,7 @@ class OidcTokenParser(TokenParser):
             self._auth_config.auth_discovery_url,
             verify_ssl=self._auth_config.verify_ssl,
         )
+        self._k8s_auth_api = None
 
     async def _validate_token(self, access_token: str):
         """
@@ -117,24 +118,14 @@ class OidcTokenParser(TokenParser):
             leeway=10,  # accepts tokens generated up to 10 seconds in the past, in case of clock skew
         )
 
-    @staticmethod
-    def _is_kubernetes_token(access_token: str) -> bool:
-        """Check if the token contains the ``kubernetes.io`` claim (a dict with namespace, pod, serviceaccount)."""
-        try:
-            unverified = jwt.decode(access_token, options={"verify_signature": False})
-        except jwt.exceptions.DecodeError as e:
-            raise AuthenticationError(f"Failed to decode token: {e}")
-        return isinstance(unverified.get("kubernetes.io"), dict)
-
     async def user_details_from_access_token(self, access_token: str) -> User:
         """
         Validate the access token then decode it to extract the user credentials,
         roles, and groups.
 
-        Kubernetes service-account tokens (identified by the ``kubernetes.io``
-        claim) are delegated to the K8s parser when available (namespaces are
-        extracted there, not here — Keycloak JWTs don't carry namespace claims).
-        All other tokens follow the standard Keycloak JWKS validation path.
+        A single unverified decode is performed upfront for lightweight routing:
+        intra-server communication, Kubernetes SA tokens (identified by the
+        ``kubernetes.io`` claim), or standard OIDC/Keycloak JWKS validation.
 
         Returns:
             User: Current user, with associated roles, groups, or namespaces.
@@ -142,13 +133,16 @@ class OidcTokenParser(TokenParser):
         Raises:
             AuthenticationError if any error happens.
         """
+        try:
+            unverified = jwt.decode(access_token, options={"verify_signature": False})
+        except jwt.exceptions.DecodeError as e:
+            raise AuthenticationError(f"Failed to decode token: {e}")
 
-        # check if intra server communication
-        user = self._get_intra_comm_user(access_token)
+        user = self._get_intra_comm_user(unverified)
         if user:
             return user
 
-        if self._is_kubernetes_token(access_token):
+        if isinstance(unverified.get("kubernetes.io"), dict):
             logger.debug("Detected kubernetes.io claim — validating via TokenReview")
             try:
                 return await self._validate_k8s_sa_token_and_extract_namespace(
@@ -193,8 +187,7 @@ class OidcTokenParser(TokenParser):
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
 
-    @staticmethod
-    async def _validate_k8s_sa_token_and_extract_namespace(access_token: str) -> User:
+    async def _validate_k8s_sa_token_and_extract_namespace(self, access_token: str) -> User:
         """Validate a K8s SA token via TokenReview and extract the namespace.
 
         Lightweight alternative to full KubernetesTokenParser — only validates
@@ -204,13 +197,14 @@ class OidcTokenParser(TokenParser):
         """
         from kubernetes import client, config
 
-        config.load_incluster_config()
-        auth_v1 = client.AuthenticationV1Api()
+        if self._k8s_auth_api is None:
+            config.load_incluster_config()
+            self._k8s_auth_api = client.AuthenticationV1Api()
 
         token_review = client.V1TokenReview(
             spec=client.V1TokenReviewSpec(token=access_token)
         )
-        response = auth_v1.create_token_review(token_review)
+        response = self._k8s_auth_api.create_token_review(token_review)
 
         if not response.status.authenticated:
             raise AuthenticationError(
@@ -225,16 +219,11 @@ class OidcTokenParser(TokenParser):
         logger.info(f"SA token validated — user: {username}, namespaces: {namespaces}")
         return User(username=username, roles=[], groups=[], namespaces=namespaces)
 
-    def _get_intra_comm_user(self, access_token: str) -> Optional[User]:
+    @staticmethod
+    def _get_intra_comm_user(decoded_token: dict) -> Optional[User]:
         intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
 
         if intra_communication_base64:
-            try:
-                decoded_token = jwt.decode(
-                    access_token, options={"verify_signature": False}
-                )
-            except jwt.exceptions.DecodeError:
-                return None
             if "preferred_username" in decoded_token:
                 preferred_username: str = decoded_token["preferred_username"]
                 if (
