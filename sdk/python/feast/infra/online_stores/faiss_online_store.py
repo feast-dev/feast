@@ -66,9 +66,7 @@ class FaissOnlineStore(OnlineStore):
         self._in_memory_stores: Dict[str, InMemoryStore] = {}
         self._config: Optional[FaissOnlineStoreConfig] = None
 
-    def _get_index(
-        self, table_key: str
-    ) -> Optional[faiss.IndexIVFFlat]:
+    def _get_index(self, table_key: str) -> Optional[faiss.IndexIVFFlat]:
         return self._indices.get(table_key)
 
     def update(
@@ -95,9 +93,7 @@ class FaissOnlineStore(OnlineStore):
 
             if table_key not in self._indices or not partial:
                 quantizer = faiss.IndexFlatL2(dimension)
-                index = faiss.IndexIVFFlat(
-                    quantizer, dimension, self._config.nlist
-                )
+                index = faiss.IndexIVFFlat(quantizer, dimension, self._config.nlist)
                 index.train(
                     np.random.rand(self._config.nlist * 100, dimension).astype(
                         np.float32
@@ -202,13 +198,9 @@ class FaissOnlineStore(OnlineStore):
         ]
         mask = np.array(existing_indices) != -1
         if np.any(mask):
-            index.remove_ids(
-                np.array([idx for idx in existing_indices if idx != -1])
-            )
+            index.remove_ids(np.array([idx for idx in existing_indices if idx != -1]))
 
-        new_indices = np.arange(
-            index.ntotal, index.ntotal + len(feature_vectors_array)
-        )
+        new_indices = np.arange(index.ntotal, index.ntotal + len(feature_vectors_array))
         index.add(feature_vectors_array)
 
         for sk, idx in zip(serialized_keys, new_indices):
