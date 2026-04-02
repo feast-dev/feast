@@ -840,3 +840,102 @@ def test_historical_features_non_entity_retrieval(environment):
     assert 300 in actual_trips, (
         "Latest trip value 300 for driver 1002 should be present"
     )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: f"full:{v}")
+def test_odfv_projection(environment, universal_data_sources, full_feature_names):
+    """
+    Test that requesting a subset of ODFV features only returns those features.
+
+    Regression test for issue #6099: OnDemandFeatureViews should honor output
+    projection in offline retrieval, matching the behavior of online retrieval.
+
+    Before the fix, offline retrieval would return ALL ODFV output features even
+    when only a subset was requested, while online retrieval correctly returned
+    only the requested features.
+    """
+    store = environment.feature_store
+
+    (entities, datasets, data_sources) = universal_data_sources
+
+    feature_views = construct_universal_feature_views(data_sources)
+
+    # Add request data needed for ODFV
+    entity_df_with_request_data = datasets.entity_df.copy(deep=True)
+    entity_df_with_request_data["val_to_add"] = [
+        i for i in range(len(entity_df_with_request_data))
+    ]
+
+    store.apply([driver(), *feature_views.values()])
+
+    # The conv_rate_plus_100 ODFV has 3 output features:
+    # - conv_rate_plus_100
+    # - conv_rate_plus_val_to_add
+    # - conv_rate_plus_100_rounded
+
+    # Test 1: Request only ONE ODFV feature
+    job = store.get_historical_features(
+        entity_df=entity_df_with_request_data,
+        features=[
+            "conv_rate_plus_100:conv_rate_plus_100",  # Request only this one
+        ],
+        full_feature_names=full_feature_names,
+    )
+
+    actual_df = job.to_df()
+
+    # Determine expected column names based on full_feature_names setting
+    expected_feature = (
+        "conv_rate_plus_100__conv_rate_plus_100"
+        if full_feature_names
+        else "conv_rate_plus_100"
+    )
+    unrequested_feature_1 = (
+        "conv_rate_plus_100__conv_rate_plus_val_to_add"
+        if full_feature_names
+        else "conv_rate_plus_val_to_add"
+    )
+    unrequested_feature_2 = (
+        "conv_rate_plus_100__conv_rate_plus_100_rounded"
+        if full_feature_names
+        else "conv_rate_plus_100_rounded"
+    )
+
+    # Verify the requested feature is present
+    assert expected_feature in actual_df.columns, (
+        f"Requested feature '{expected_feature}' should be in the result"
+    )
+
+    # Verify unrequested ODFV features are NOT present (this is the key fix)
+    assert unrequested_feature_1 not in actual_df.columns, (
+        f"Unrequested ODFV feature '{unrequested_feature_1}' should NOT be in the result. "
+        f"This indicates the bug from issue #6099 still exists."
+    )
+    assert unrequested_feature_2 not in actual_df.columns, (
+        f"Unrequested ODFV feature '{unrequested_feature_2}' should NOT be in the result. "
+        f"This indicates the bug from issue #6099 still exists."
+    )
+
+    # Test 2: Request TWO out of THREE ODFV features
+    job2 = store.get_historical_features(
+        entity_df=entity_df_with_request_data,
+        features=[
+            "conv_rate_plus_100:conv_rate_plus_100",
+            "conv_rate_plus_100:conv_rate_plus_val_to_add",
+            # Deliberately NOT requesting conv_rate_plus_100_rounded
+        ],
+        full_feature_names=full_feature_names,
+    )
+
+    actual_df2 = job2.to_df()
+
+    # Verify the two requested features are present
+    assert expected_feature in actual_df2.columns
+    assert unrequested_feature_1 in actual_df2.columns
+
+    # Verify the unrequested feature is NOT present
+    assert unrequested_feature_2 not in actual_df2.columns, (
+        f"Unrequested ODFV feature '{unrequested_feature_2}' should NOT be in the result"
+    )

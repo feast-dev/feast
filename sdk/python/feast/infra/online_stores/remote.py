@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
@@ -36,6 +37,17 @@ from feast.utils import _get_feature_view_vector_field_metadata
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
+
+
+def _json_safe(val: Any) -> Any:
+    """Convert uuid.UUID objects and sets to JSON-serializable form."""
+    if isinstance(val, uuid_module.UUID):
+        return str(val)
+    if isinstance(val, set):
+        return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
+    if isinstance(val, list):
+        return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
+    return val
 
 
 class RemoteOnlineStoreConfig(FeastConfigBaseModel):
@@ -103,6 +115,16 @@ class RemoteOnlineStore(OnlineStore):
         if val_attr in ("map_list_val", "struct_list_val"):
             return [json.dumps(v) for v in feast_value_type_to_python_type(proto_value)]
 
+        # UUID types are stored as strings in proto — return them directly
+        # to avoid feast_value_type_to_python_type converting to uuid.UUID
+        # objects which are not JSON-serializable.
+        if val_attr in ("uuid_val", "time_uuid_val"):
+            return getattr(proto_value, val_attr)
+        if val_attr in ("uuid_list_val", "time_uuid_list_val"):
+            return list(getattr(proto_value, val_attr).val)
+        if val_attr in ("uuid_set_val", "time_uuid_set_val"):
+            return list(getattr(proto_value, val_attr).val)
+
         return feast_value_type_to_python_type(proto_value)
 
     def online_write_batch(
@@ -128,9 +150,8 @@ class RemoteOnlineStore(OnlineStore):
             for join_key, entity_value_proto in zip(
                 entity_key_proto.join_keys, entity_key_proto.entity_values
             ):
-                columnar_data[join_key].append(
-                    feast_value_type_to_python_type(entity_value_proto)
-                )
+                val = feast_value_type_to_python_type(entity_value_proto)
+                columnar_data[join_key].append(_json_safe(val))
 
             # Populate feature values – use transport-safe conversion that
             # preserves JSON strings instead of parsing them into dicts.

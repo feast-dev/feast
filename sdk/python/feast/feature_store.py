@@ -1447,6 +1447,19 @@ class FeatureStore:
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
 
+        # ODFV source FV dependencies (e.g. driver_stats:conv_rate) are resolved
+        # by _group_feature_refs and included in `fvs`, but not in _feature_refs.
+        # Offline stores use feature_refs to map which features to fetch from each
+        # FV, so we must include these implicit dependency refs.
+        _feature_refs_for_provider = list(_feature_refs)
+        existing_refs = set(_feature_refs)
+        for view, feats in fvs:
+            for feat in feats:
+                ref = f"{view.projection.name_to_use()}:{feat}"
+                if ref not in existing_refs:
+                    _feature_refs_for_provider.append(ref)
+                    existing_refs.add(ref)
+
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
             if self.config.coerce_tz_aware:
@@ -1473,7 +1486,7 @@ class FeatureStore:
         job = provider.get_historical_features(
             self.config,
             feature_views,
-            _feature_refs,
+            _feature_refs_for_provider,
             entity_df,
             self.registry,
             self.project,
@@ -2768,7 +2781,10 @@ class FeatureStore:
             online_features_response=online_features_response,
             data=requested_features_data,
         )
-        return OnlineResponse(online_features_response)
+        feature_types = {
+            f.name: f.dtype.to_value_type() for f in requested_feature_view.features
+        }
+        return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def retrieve_online_documents_v2(
         self,
@@ -3058,7 +3074,8 @@ class FeatureStore:
             online_features_response.metadata.feature_names.val.extend(
                 features_to_request
             )
-            return OnlineResponse(online_features_response)
+            feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
+            return OnlineResponse(online_features_response, feature_types=feature_types)
 
         table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
@@ -3081,7 +3098,8 @@ class FeatureStore:
             data=entity_key_dict,
         )
 
-        return OnlineResponse(online_features_response)
+        feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
+        return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def serve(
         self,
