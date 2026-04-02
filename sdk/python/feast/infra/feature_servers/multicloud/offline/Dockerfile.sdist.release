@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-312:1
+FROM registry.access.redhat.com/ubi9/python-312-minimal:1
 
 ENV APACHE_ARROW_VERSION="17.0.0"
 ENV MILVUS_LITE_VERSION="2.4.12"
@@ -13,6 +13,7 @@ ENV THIRD_PARTY_PATH=/tmp/hermeto-generic-output/deps/generic
 # unecessary for konflux build
 ENV RPM_PATH=/tmp/hermeto-rpm-output/deps/rpm/x86_64
 USER 0
+RUN microdnf install -y shadow-utils && microdnf clean all
 RUN useradd mockbuild
 RUN groupadd mock
 RUN usermod -G mock mockbuild
@@ -71,7 +72,7 @@ RUN mkdir ${APP_ROOT}/src/arrow ${ARROW_HOME} ${APP_ROOT}/src/arrow-build && \
     ARROW_ZLIB_URL="${THIRD_PARTY_PATH}/zlib-1.3.1.tar.gz" \
     ARROW_ZSTD_URL="${THIRD_PARTY_PATH}/zstd-1.5.6.tar.gz" \
     && \
-    cmake \
+    cmake -G Ninja \
     -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
     -DARROW_COMPUTE=ON \
     -DARROW_ACERO=ON \
