@@ -58,10 +58,13 @@ def _table_id(project: str, table: FeatureView, enable_versioning: bool = False)
 
 
 class FaissOnlineStore(OnlineStore):
-    _indices: Dict[str, faiss.IndexIVFFlat] = {}
-    _in_memory_stores: Dict[str, InMemoryStore] = {}
-    _config: Optional[FaissOnlineStoreConfig] = None
     _logger: logging.Logger = logging.getLogger(__name__)
+
+    def __init__(self):
+        super().__init__()
+        self._indices: Dict[str, faiss.IndexIVFFlat] = {}
+        self._in_memory_stores: Dict[str, InMemoryStore] = {}
+        self._config: Optional[FaissOnlineStoreConfig] = None
 
     def _get_index(
         self, table_key: str
