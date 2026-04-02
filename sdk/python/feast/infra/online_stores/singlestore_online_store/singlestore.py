@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
+import logging
 from collections import defaultdict
 from datetime import datetime
-import logging
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import singlestoredb
@@ -211,7 +211,7 @@ class SingleStoreOnlineStore(OnlineStore):
                     event_ts timestamp NULL DEFAULT NULL,
                     created_ts timestamp NULL DEFAULT NULL,
                     PRIMARY KEY(entity_key, feature_name),
-                    INDEX {_quote_identifier(table_name + '_ek')} (entity_key))"""
+                    INDEX {_quote_identifier(table_name + "_ek")} (entity_key))"""
                 )
 
             for table in tables_to_delete:
@@ -313,16 +313,22 @@ def _quote_identifier(identifier: str) -> str:
     return f"`{escaped}`"
 
 
-def _drop_discovered_versioned_tables(cur: Cursor, project: str, table: FeatureView) -> None:
+def _drop_discovered_versioned_tables(
+    cur: Cursor, project: str, table: FeatureView
+) -> None:
     base_table_name = online_store_table_id(project, table, enable_versioning=False)
-    like_pattern = f"{base_table_name}_v%"
+    escaped_base_table_name = base_table_name.replace("\\", "\\\\")
+    escaped_base_table_name = escaped_base_table_name.replace("%", "\\%")
+    escaped_base_table_name = escaped_base_table_name.replace("_", "\\_")
+    like_pattern = f"{escaped_base_table_name}\\_v%"
     try:
-        cur.execute("SHOW TABLES LIKE %s", (like_pattern,))
+        cur.execute("SHOW TABLES LIKE %s ESCAPE '\\\\'", (like_pattern,))
         rows = cur.fetchall() or []
         for row in rows:
             table_name = row[0]
+            index_name = f"{table_name}_ek"
             cur.execute(
-                f"DROP INDEX IF EXISTS {_quote_identifier(table_name + '_ek')} ON {_quote_identifier(table_name)};"
+                f"DROP INDEX IF EXISTS {_quote_identifier(index_name)} ON {_quote_identifier(table_name)};"
             )
             cur.execute(f"DROP TABLE IF EXISTS {_quote_identifier(table_name)}")
     except Exception as e:
