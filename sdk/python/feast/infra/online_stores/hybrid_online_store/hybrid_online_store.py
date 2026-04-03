@@ -289,11 +289,6 @@ class HybridOnlineStore(OnlineStore):
                     f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration."
                 )
 
-        tag_name = getattr(config.online_store, "routing_tag", "tribe")
-        raise ValueError(
-            f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore."
-        )
-
     def teardown(
         self,
         config: RepoConfig,

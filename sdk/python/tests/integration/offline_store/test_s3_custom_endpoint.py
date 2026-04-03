@@ -31,7 +31,7 @@ def test_registration_and_retrieval_from_custom_s3_endpoint(
             "It may be better to deduplicate AWS configuration or use sub-processes for isolation"
         )
 
-    os.environ["AWS_ACCESS_KEY_ID"] = "AKIAIOSFODNN7EXAMPLE"
+    os.environ["AWS_ACCESS_KEY_ID"] = "AKIAIOSFODNN7EXAMPLE"  # pragma: allowlist secret
     os.environ["AWS_SECRET_ACCESS_KEY"] = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
     with construct_test_environment(config) as environment:

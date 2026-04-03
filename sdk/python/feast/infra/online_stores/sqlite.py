@@ -46,8 +46,8 @@ from feast.infra.key_encoding_utils import (
 )
 from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.online_stores.vector_store import VectorStoreConfig
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto

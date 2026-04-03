@@ -28,7 +28,7 @@ repo_root = find_repo(__file__)
 # Template README.md
 ############################
 roadmap_path = repo_root / "docs" / "roadmap.md"
-with open(roadmap_path, "r") as f:
+with open(roadmap_path, "r", encoding="utf-8") as f:
     # skip first lines since it has the title
     roadmap_contents_lines = f.readlines()[2:]
 
@@ -36,7 +36,7 @@ with open(roadmap_path, "r") as f:
     roadmap_contents = "".join(roadmap_contents_lines)
 
 template_path = repo_root / "infra" / "templates" / "README.md.jinja2"
-with open(template_path) as f:
+with open(template_path, encoding="utf-8") as f:
     template = Template(f.read())
 
 # Compile template
@@ -49,5 +49,5 @@ readme_md = (
 )
 
 readme_path = repo_root / "README.md"
-with open(readme_path, "w") as f:
+with open(readme_path, "w", encoding="utf-8") as f:
     f.write(readme_md)

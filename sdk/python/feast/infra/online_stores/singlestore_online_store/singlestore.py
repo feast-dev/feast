@@ -285,7 +285,9 @@ def _quote_identifier(identifier: str) -> str:
     return f"`{escaped}`"
 
 
-def _drop_discovered_versioned_tables(cur: Cursor, project: str, table: FeatureView) -> None:
+def _drop_discovered_versioned_tables(
+    cur: Cursor, project: str, table: FeatureView
+) -> None:
     base_table_name = online_store_table_id(project, table, enable_versioning=False)
     escaped_base_table_name = base_table_name.replace("\\", "\\\\")
     escaped_base_table_name = escaped_base_table_name.replace("%", "\\%")
