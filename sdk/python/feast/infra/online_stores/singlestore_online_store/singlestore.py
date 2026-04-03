@@ -247,6 +247,7 @@ class SingleStoreOnlineStore(OnlineStore):
                         versions = []
 
                 if not versions:
+                    _drop_table_and_index(cur, project, table, enable_versioning=False)
                     _drop_table_and_index(cur, project, table, enable_versioning=True)
                     _drop_discovered_versioned_tables(cur, project, table)
                     continue
