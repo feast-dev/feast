@@ -264,6 +264,8 @@ class SingleStoreOnlineStore(OnlineStore):
                         version=version_number,
                     )
 
+                # Always drop the base (unversioned) table as well
+                _drop_table_and_index(cur, project, table, enable_versioning=False)
                 _drop_discovered_versioned_tables(cur, project, table)
 
 
