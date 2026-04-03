@@ -106,6 +106,11 @@ class RemoteOnlineStore(OnlineStore):
         if val_attr == "json_list_val":
             return list(getattr(proto_value, val_attr).val)
 
+        # Nested collection types use feast_value_type_to_python_type
+        # which handles recursive conversion of RepeatedValue protos.
+        if val_attr in ("list_val", "set_val"):
+            return feast_value_type_to_python_type(proto_value)
+
         # Map/Struct types are converted to Python dicts by
         # feast_value_type_to_python_type.  Serialise them to JSON strings
         # so the server-side DataFrame gets VARCHAR columns instead of
@@ -204,6 +209,12 @@ class RemoteOnlineStore(OnlineStore):
             logger.debug("Able to retrieve the online features from feature server.")
             response_json = json.loads(response.text)
             event_ts = self._get_event_ts(response_json)
+            # Build feature name -> ValueType mapping so we can reconstruct
+            # complex types (nested collections, sets, etc.) that cannot be
+            # inferred from raw JSON values alone.
+            feature_type_map: Dict[str, ValueType] = {
+                f.name: f.dtype.to_value_type() for f in table.features
+            }
             # Iterating over results and converting the API results in column format to row format.
             result_tuples: List[
                 Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
@@ -223,13 +234,16 @@ class RemoteOnlineStore(OnlineStore):
                             ]
                             == "PRESENT"
                         ):
+                            feature_value_type = feature_type_map.get(
+                                feature_name, ValueType.UNKNOWN
+                            )
                             message = python_values_to_proto_values(
                                 [
                                     response_json["results"][index]["values"][
                                         feature_value_index
                                     ]
                                 ],
-                                ValueType.UNKNOWN,
+                                feature_value_type,
                             )
                             feature_values_dict[feature_name] = message[0]
                         else:

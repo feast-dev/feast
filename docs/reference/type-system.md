@@ -86,6 +86,25 @@ All primitive types (except `Map` and `Json`) have corresponding set types for s
 - Set types are best suited for **online serving** use cases where feature values are written as Python sets and retrieved via `get_online_features`.
 {% endhint %}
 
+### Nested Collection Types
+
+Feast supports arbitrarily nested collections using a recursive `VALUE_LIST` / `VALUE_SET` design. The outer container determines the proto enum (`VALUE_LIST` for `Array(…)`, `VALUE_SET` for `Set(…)`), while the full inner type structure is persisted via a mandatory `feast:nested_inner_type` Field tag.
+
+| Feast Type | Python Type | ValueType | Description |
+|------------|-------------|-----------|-------------|
+| `Array(Array(T))` | `List[List[T]]` | `VALUE_LIST` | List of lists |
+| `Array(Set(T))` | `List[List[T]]` | `VALUE_LIST` | List of sets |
+| `Set(Array(T))` | `List[List[T]]` | `VALUE_SET` | Set of lists |
+| `Set(Set(T))` | `List[List[T]]` | `VALUE_SET` | Set of sets |
+| `Array(Array(Array(T)))` | `List[List[List[T]]]` | `VALUE_LIST` | 3-level nesting |
+
+Where `T` is any supported primitive type (Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp) or another nested collection type.
+
+**Notes:**
+- Nesting depth is **unlimited**. `Array(Array(Array(T)))`, `Set(Array(Set(T)))`, etc. are all supported.
+- Inner type information is preserved via Field tags (`feast:nested_inner_type`) and restored during deserialization. This tag is mandatory for nested collection types.
+- Empty inner collections (`[]`) are stored as empty proto values and round-trip as `None`. For example, `[[1, 2], [], [3]]` becomes `[[1, 2], None, [3]]` after a write-read cycle.
+
 ### Map Types
 
 Map types allow storing dictionary-like data structures:
@@ -233,6 +252,10 @@ user_features = FeatureView(
         Field(name="metadata", dtype=Map),
         Field(name="activity_log", dtype=Array(Map)),
 
+        # Nested collection types
+        Field(name="weekly_scores", dtype=Array(Array(Float64))),
+        Field(name="unique_tags_per_category", dtype=Array(Set(String))),
+
         # JSON type
         Field(name="raw_event", dtype=Json),
 
@@ -288,6 +311,30 @@ related_sessions = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
 
 # UUID sets (unique values)
 unique_devices = {uuid.uuid4(), uuid.uuid4()}
+```
+
+### Nested Collection Type Usage Examples
+
+Nested collections allow storing multi-dimensional data with unlimited depth:
+
+```python
+# List of lists — e.g., weekly score history per user
+weekly_scores = [[85.0, 90.5, 78.0], [92.0, 88.5], [95.0, 91.0, 87.5]]
+
+# List of sets — e.g., unique tags assigned per category
+unique_tags_per_category = [["python", "ml"], ["rust", "systems"], ["python", "web"]]
+
+# 3-level nesting — e.g., multi-dimensional matrices
+Field(name="tensor", dtype=Array(Array(Array(Float64))))
+
+# Mixed nesting
+Field(name="grouped_tags", dtype=Array(Set(Array(String))))
+```
+
+**Limitation:** Empty inner collections round-trip as `None`:
+```python
+# Input:  [[1, 2], [], [3]]
+# Output: [[1, 2], None, [3]]  (empty [] becomes None after write-read cycle)
 ```
 
 ### Map Type Usage Examples

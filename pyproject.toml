@@ -149,7 +149,7 @@ test = [
     "testcontainers==4.9.0",
     "minio==7.2.11",
     "python-keycloak==4.2.2",
-    "cryptography>=43.0,<44",
+    "cryptography>=43.0",
 ]
 
 ci = [
