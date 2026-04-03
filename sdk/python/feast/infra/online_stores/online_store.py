@@ -255,9 +255,10 @@ class OnlineStore(ABC):
 
     def _check_versioned_read_support(self, grouped_refs):
         """Raise an error if versioned reads are attempted on unsupported stores."""
+        from feast.infra.online_stores.dynamodb import DynamoDBOnlineStore
         from feast.infra.online_stores.sqlite import SqliteOnlineStore
 
-        if isinstance(self, SqliteOnlineStore):
+        if isinstance(self, (SqliteOnlineStore, DynamoDBOnlineStore)):
             return
         for table, _ in grouped_refs:
             version_tag = getattr(table.projection, "version_tag", None)
