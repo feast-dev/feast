@@ -299,5 +299,27 @@ class HybridOnlineStore(OnlineStore):
         """Teardown all managed online stores for the given FeatureViews and Entities."""
 
         self._initialize_online_stores(config)
-        for store in self.online_stores.values():
-            store.teardown(config, tables, entities, registry=registry)
+        tables_by_tribe: Dict[str, List[FeatureView]] = {}
+        for table in tables:
+            tribe = self._get_routing_tag_value(table, config)
+            if not tribe:
+                tag_name = getattr(config.online_store, "routing_tag", "tribe")
+                raise ValueError(
+                    f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore."
+                )
+            tables_by_tribe.setdefault(tribe, []).append(table)
+
+        for tribe, tribe_tables in tables_by_tribe.items():
+            online_store = self._get_online_store(tribe, config)
+            if not online_store:
+                raise NotImplementedError(
+                    f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration."
+                )
+
+            tribe_config = RepoConfig(**self._prepare_repo_conf(config, tribe))
+            online_store.teardown(
+                tribe_config,
+                tribe_tables,
+                entities,
+                registry=registry,
+            )
