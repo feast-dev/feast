@@ -253,6 +253,7 @@ class SnowflakeOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 

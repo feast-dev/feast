@@ -67,6 +67,7 @@ class FooProvider(Provider):
         project: str,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         pass
 

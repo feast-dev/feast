@@ -299,6 +299,7 @@ class HazelcastOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         online_store_config = config.online_store
         if not isinstance(online_store_config, HazelcastOnlineStoreConfig):

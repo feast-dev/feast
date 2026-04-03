@@ -617,6 +617,7 @@ class RemoteOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         pass
 

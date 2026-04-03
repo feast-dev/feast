@@ -306,6 +306,7 @@ class BigtableOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         # Because of historical reasons, Feast calls them tables. We use this alias for
         # readability.

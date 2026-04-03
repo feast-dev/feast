@@ -385,6 +385,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         project = config.project
         schema_name = config.online_store.db_schema or config.online_store.user

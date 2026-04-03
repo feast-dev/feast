@@ -509,6 +509,7 @@ class MilvusOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         self.client = self._connect(config)
         for table in tables:

@@ -212,6 +212,7 @@ class HbaseOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         """
         Delete tables from the Hbase Online Store.

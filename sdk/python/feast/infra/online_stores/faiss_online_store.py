@@ -100,6 +100,7 @@ class FaissOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         versioning = config.registry.enable_online_feature_view_versioning
         for table in tables:

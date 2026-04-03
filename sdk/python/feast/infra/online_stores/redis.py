@@ -190,6 +190,7 @@ class RedisOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         """
         We delete the keys in redis for tables/views being removed.

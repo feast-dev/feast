@@ -100,7 +100,7 @@ class MySQLOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
         else:
-            batch_size = config.online_store.bacth_size
+            batch_size = config.online_store.batch_size
             if not batch_size or batch_size < 2:
                 raise ValueError("Batch size must be at least 2")
             insert_values = []
@@ -296,6 +296,7 @@ class MySQLOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ) -> None:
         conn = self._get_conn(config)
         cur = conn.cursor()
