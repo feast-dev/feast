@@ -39,6 +39,7 @@ from feast.infra.online_stores.helpers import (
     compute_versioned_name,
 )
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel

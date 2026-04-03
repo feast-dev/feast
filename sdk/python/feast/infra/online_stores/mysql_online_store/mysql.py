@@ -12,6 +12,7 @@ from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
