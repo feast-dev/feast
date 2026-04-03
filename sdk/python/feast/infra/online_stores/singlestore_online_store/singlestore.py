@@ -297,7 +297,7 @@ def _drop_discovered_versioned_tables(
     escaped_base_table_name = escaped_base_table_name.replace("_", "\\_")
     like_pattern = f"{escaped_base_table_name}\\_v%"
     try:
-        cur.execute("SHOW TABLES LIKE %s ESCAPE '\\\\'", (like_pattern,))
+        cur.execute("SHOW TABLES LIKE %s", (like_pattern,))
         rows = cur.fetchall() or []
         for row in rows:
             table_name = row[0]
