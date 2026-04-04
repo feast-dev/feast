@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 
 import {
@@ -11,30 +11,26 @@ import {
   EuiSpacer,
 } from "@elastic/eui";
 
-import useLoadRegistry from "../../queries/useLoadRegistry";
 import DatasourcesListingTable from "./DataSourcesListingTable";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
 import DataSourceIndexEmptyState from "./DataSourceIndexEmptyState";
 import { DataSourceIcon } from "../../graphics/DataSourceIcon";
 import { useSearchQuery } from "../../hooks/useSearchInputWithTags";
 import { feast } from "../../protos";
 import ExportButton from "../../components/ExportButton";
+import useResourceQuery, {
+  dataSourceListPath,
+} from "../../queries/useResourceQuery";
 
 const useLoadDatasources = () => {
-  const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams();
-  const registryQuery = useLoadRegistry(registryUrl, projectName);
-
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.objects.dataSources;
-
-  return {
-    ...registryQuery,
-    data,
-  };
+  return useResourceQuery<any[]>({
+    resourceType: "data-sources-list",
+    project: projectName,
+    protoSelect: (d) => d.objects.dataSources,
+    restPath: dataSourceListPath(projectName),
+    restSelect: (d) => d.dataSources,
+  });
 };
 
 const filterFn = (data: feast.core.IDataSource[], searchTokens: string[]) => {

@@ -1,13 +1,14 @@
-import { useContext, useMemo } from "react";
-import RegistryPathContext from "../contexts/RegistryPathContext";
-import useLoadRegistry from "../queries/useLoadRegistry";
+import { useMemo } from "react";
+import { useParams } from "react-router-dom";
 import { feast } from "../protos";
+import useResourceQuery, {
+  featureViewListPath,
+  featureServiceListPath,
+} from "../queries/useResourceQuery";
 
-// Usage of generic type parameter T
-// https://stackoverflow.com/questions/53203409/how-to-tell-typescript-that-im-returning-an-array-of-arrays-of-the-input-type
 const buildTagCollection = <T>(
   array: T[],
-  recordExtractor: (unknownFCO: T) => Record<string, string> | undefined, // Assumes that tags are always a Record<string, string>
+  recordExtractor: (unknownFCO: T) => Record<string, string> | undefined,
 ): Record<string, Record<string, T[]>> => {
   const tagCollection = array.reduce(
     (memo: Record<string, Record<string, T[]>>, fco: T) => {
@@ -38,17 +39,18 @@ const buildTagCollection = <T>(
 };
 
 const useFeatureViewTagsAggregation = () => {
-  const registryUrl = useContext(RegistryPathContext);
-  const query = useLoadRegistry(registryUrl);
+  const { projectName } = useParams();
+  const query = useResourceQuery<any[]>({
+    resourceType: "tags-fvs",
+    project: projectName,
+    protoSelect: (d) => d.objects.featureViews,
+    restPath: featureViewListPath(projectName),
+    restSelect: (d) => d.featureViews,
+  });
 
   const data = useMemo(() => {
-    return query.data && query.data.objects && query.data.objects.featureViews
-      ? buildTagCollection<feast.core.IFeatureView>(
-          query.data.objects.featureViews!,
-          (fv) => {
-            return fv.spec?.tags!;
-          },
-        )
+    return query.data
+      ? buildTagCollection<any>(query.data, (fv) => fv.spec?.tags)
       : undefined;
   }, [query.data]);
 
@@ -59,19 +61,18 @@ const useFeatureViewTagsAggregation = () => {
 };
 
 const useFeatureServiceTagsAggregation = () => {
-  const registryUrl = useContext(RegistryPathContext);
-  const query = useLoadRegistry(registryUrl);
+  const { projectName } = useParams();
+  const query = useResourceQuery<any[]>({
+    resourceType: "tags-fss",
+    project: projectName,
+    protoSelect: (d) => d.objects.featureServices,
+    restPath: featureServiceListPath(projectName),
+    restSelect: (d) => d.featureServices,
+  });
 
   const data = useMemo(() => {
-    return query.data &&
-      query.data.objects &&
-      query.data.objects.featureServices
-      ? buildTagCollection<feast.core.IFeatureService>(
-          query.data.objects.featureServices,
-          (fs) => {
-            return fs.spec?.tags!;
-          },
-        )
+    return query.data
+      ? buildTagCollection<any>(query.data, (fs) => fs.spec?.tags)
       : undefined;
   }, [query.data]);
 

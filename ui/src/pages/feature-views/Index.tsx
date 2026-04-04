@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 
 import {
@@ -13,7 +13,6 @@ import {
 
 import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
 
-import useLoadRegistry from "../../queries/useLoadRegistry";
 import FeatureViewListingTable from "./FeatureViewListingTable";
 import {
   filterInputInterface,
@@ -22,26 +21,24 @@ import {
 } from "../../hooks/useSearchInputWithTags";
 import { genericFVType, regularFVInterface } from "../../parsers/mergedFVTypes";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
 import FeatureViewIndexEmptyState from "./FeatureViewIndexEmptyState";
 import { useFeatureViewTagsAggregation } from "../../hooks/useTagsAggregation";
 import TagSearch from "../../components/TagSearch";
 import ExportButton from "../../components/ExportButton";
+import useResourceQuery, {
+  featureViewListPath,
+  restFeatureViewsToMergedList,
+} from "../../queries/useResourceQuery";
 
 const useLoadFeatureViews = () => {
-  const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams();
-  const registryQuery = useLoadRegistry(registryUrl, projectName);
-
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.mergedFVList;
-
-  return {
-    ...registryQuery,
-    data,
-  };
+  return useResourceQuery<genericFVType[]>({
+    resourceType: "feature-views-list",
+    project: projectName,
+    protoSelect: (d) => d.mergedFVList,
+    restPath: featureViewListPath(projectName),
+    restSelect: restFeatureViewsToMergedList,
+  });
 };
 
 const shouldIncludeFVsGivenTokenGroups = (

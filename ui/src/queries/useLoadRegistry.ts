@@ -385,8 +385,15 @@ const useLoadRegistry = (url: string, projectName?: string) => {
   const resolvedMode = useResolvedMode();
   const { fetchOptions } = useDataMode();
 
+  // Proto mode uses the same key format as useResourceQuery so all hooks
+  // that need the proto registry share a single cached fetch.
+  const queryKey =
+    resolvedMode === "proto"
+      ? ["proto-registry", url, projectName || "all"]
+      : ["registry-rest-bulk", url, projectName || "all"];
+
   return useQuery(
-    `registry:${resolvedMode}:${url}:${projectName || "all"}`,
+    queryKey,
     () => {
       if (resolvedMode === "proto") {
         return fetchProto(url, projectName);
@@ -401,4 +408,5 @@ const useLoadRegistry = (url: string, projectName?: string) => {
 };
 
 export default useLoadRegistry;
+export { fetchProto, useResolvedMode };
 export type { FeatureStoreAllData };

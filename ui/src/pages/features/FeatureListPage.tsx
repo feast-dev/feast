@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import {
   EuiBasicTable,
   EuiTableFieldDataColumnType,
@@ -19,9 +19,10 @@ import {
 import EuiCustomLink from "../../components/EuiCustomLink";
 import ExportButton from "../../components/ExportButton";
 import { useParams } from "react-router-dom";
-import useLoadRegistry from "../../queries/useLoadRegistry";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
 import { FeatureIcon } from "../../graphics/FeatureIcon";
+import useResourceQuery, {
+  featuresListPath,
+} from "../../queries/useResourceQuery";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import {
   getEntityPermissions,
@@ -43,11 +44,20 @@ type FeatureColumn =
 
 const FeatureListPage = () => {
   const { projectName } = useParams();
-  const registryUrl = useContext(RegistryPathContext);
-  const { data, isLoading, isError } = useLoadRegistry(
-    registryUrl,
-    projectName,
-  );
+  const { data: features, isLoading, isError } = useResourceQuery<any[]>({
+    resourceType: "features-list",
+    project: projectName,
+    protoSelect: (d) => d.allFeatures,
+    restPath: featuresListPath(projectName),
+    restSelect: (d) => d.features,
+  });
+  const { data: permissions } = useResourceQuery<any[]>({
+    resourceType: "permissions",
+    project: projectName,
+    protoSelect: (d) => d.permissions,
+    restPath: `/permissions?project=${encodeURIComponent(projectName || "")}`,
+    restSelect: (d) => d.permissions,
+  });
   const [searchText, setSearchText] = useState("");
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
 
@@ -57,17 +67,17 @@ const FeatureListPage = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(100);
 
-  const featuresWithPermissions: Feature[] = (data?.allFeatures || []).map(
+  const featuresWithPermissions: Feature[] = (features || []).map(
     (feature) => {
       return {
         ...feature,
         permissions: getEntityPermissions(
           selectedPermissionAction
             ? filterPermissionsByAction(
-                data?.permissions,
+                permissions,
                 selectedPermissionAction,
               )
-            : data?.permissions,
+            : permissions,
           FEAST_FCO_TYPES.featureView,
           feature.featureView,
         ),
@@ -75,9 +85,9 @@ const FeatureListPage = () => {
     },
   );
 
-  const features: Feature[] = featuresWithPermissions;
+  const enrichedFeatures: Feature[] = featuresWithPermissions;
 
-  const filteredFeatures = features.filter((feature) =>
+  const filteredFeatures = enrichedFeatures.filter((feature) =>
     feature.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 

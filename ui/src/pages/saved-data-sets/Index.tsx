@@ -1,28 +1,26 @@
-import React, { useContext } from "react";
+import React from "react";
+import { useParams } from "react-router-dom";
 
 import { EuiPageTemplate, EuiLoadingSpinner } from "@elastic/eui";
 
 import { DatasetIcon } from "../../graphics/DatasetIcon";
 
-import useLoadRegistry from "../../queries/useLoadRegistry";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
 import DatasetsListingTable from "./DatasetsListingTable";
 import DatasetsIndexEmptyState from "./DatasetsIndexEmptyState";
+import useResourceQuery, {
+  savedDatasetListPath,
+} from "../../queries/useResourceQuery";
 
 const useLoadSavedDataSets = () => {
-  const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
-
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.objects.savedDatasets;
-
-  return {
-    ...registryQuery,
-    data,
-  };
+  const { projectName } = useParams();
+  return useResourceQuery<any[]>({
+    resourceType: "saved-datasets-list",
+    project: projectName,
+    protoSelect: (d) => d.objects.savedDatasets,
+    restPath: savedDatasetListPath(projectName),
+    restSelect: (d) => d.savedDatasets,
+  });
 };
 
 const Index = () => {
