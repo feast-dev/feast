@@ -102,7 +102,33 @@ def _cleanup_multiprocess_dir():
 atexit.register(_cleanup_multiprocess_dir)
 
 # Now safe to import prometheus_client — it will detect the env var.
-from prometheus_client import Counter, Gauge, Histogram  # noqa: E402
+_prometheus_available = True
+try:
+    from prometheus_client import Counter, Gauge, Histogram  # noqa: E402
+except Exception:
+    _prometheus_available = False
+
+    class _NoOpMetric:
+        def labels(self, **kwargs):
+            return self
+
+        def inc(self, amount: float = 1):
+            return None
+
+        def observe(self, amount: float):
+            return None
+
+        def set(self, value: float):
+            return None
+
+    def Counter(*args, **kwargs):  # type: ignore
+        return _NoOpMetric()
+
+    def Gauge(*args, **kwargs):  # type: ignore
+        return _NoOpMetric()
+
+    def Histogram(*args, **kwargs):  # type: ignore
+        return _NoOpMetric()
 
 
 # ---------------------------------------------------------------------------
@@ -495,6 +521,12 @@ def start_metrics_server(
             per-worker monitoring instead.
     """
     global _config
+
+    if not _prometheus_available:
+        logger.warning(
+            "Prometheus metrics are unavailable because prometheus_client could not be imported."
+        )
+        return
 
     if metrics_config is not None:
         _config = metrics_config
