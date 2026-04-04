@@ -207,3 +207,236 @@ def test_catch_all_route(ui_app_with_registry):
     # The route will fail due to the scope issue with ui_dir
     with pytest.raises(Exception):  # Expecting NameError or FileNotFoundError
         client.get("/p/some/react/path")
+
+
+# ---------- Mode-aware projects-list.json tests ----------
+
+
+def _read_projects_list(temp_dir):
+    """Read the projects-list.json written by get_app via the mock (ui_dir = temp_dir)."""
+    projects_file = os.path.join(temp_dir, "projects-list.json")
+    with open(projects_file) as f:
+        return json.load(f)
+
+
+def test_projects_list_proto_mode(mock_feature_store):
+    """projects-list.json uses /registry paths and mode='proto' by default."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(data["mode"]).is_equal_to("proto")
+        assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to(
+            "/registry"
+        )
+
+
+def test_projects_list_rest_mode(mock_feature_store):
+    """projects-list.json uses /api/v1 paths and mode='rest' when REST mode is set."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                REGISTRY_TTL_SECS,
+                mode="rest",
+            )
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(data["mode"]).is_equal_to("rest")
+        assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to("/api/v1")
+
+
+def test_projects_list_rest_mode_with_root_path(mock_feature_store):
+    """REST mode respects root_path prefix in registryPath."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                REGISTRY_TTL_SECS,
+                root_path="/feast",
+                mode="rest",
+            )
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to(
+            "/feast/api/v1"
+        )
+
+
+# ---------- REST mode backward-compat: /registry and /health still work ----------
+
+
+def test_rest_mode_health_endpoint(mock_feature_store):
+    """Health endpoint works in REST mode."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                REGISTRY_TTL_SECS,
+                mode="rest",
+            )
+            client = TestClient(app)
+            response = client.get("/health")
+            assertpy.assert_that(response.status_code).is_equal_to(
+                EXPECTED_SUCCESS_STATUS
+            )
+
+
+def test_rest_mode_registry_endpoint_backward_compat(mock_feature_store):
+    """/registry proto blob endpoint is still available in REST mode."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"proto_blob"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                REGISTRY_TTL_SECS,
+                mode="rest",
+            )
+            client = TestClient(app)
+            response = client.get("/registry")
+            assertpy.assert_that(response.status_code).is_equal_to(
+                EXPECTED_SUCCESS_STATUS
+            )
+            assertpy.assert_that(response.headers["content-type"]).is_equal_to(
+                "application/octet-stream"
+            )
+
+
+# ---------- rest-external proxy tests ----------
+
+
+def test_rest_external_mode_health_endpoint(mock_feature_store):
+    """Health endpoint works in rest-external mode."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                REGISTRY_TTL_SECS,
+                mode="rest-external",
+                rest_api_url="http://fake-registry:6570/api/v1",
+            )
+            client = TestClient(app)
+            response = client.get("/health")
+            assertpy.assert_that(response.status_code).is_equal_to(
+                EXPECTED_SUCCESS_STATUS
+            )
+
+
+def test_rest_external_mode_proxy_unreachable(mock_feature_store):
+    """rest-external returns 502 when external API is unreachable."""
+    from unittest.mock import AsyncMock
+
+    import httpx
+
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    mock_httpx_client = AsyncMock()
+    mock_httpx_client.request.side_effect = httpx.ConnectError("Connection refused")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with (
+            _setup_importlib_mocks(temp_dir),
+            patch("httpx.AsyncClient", return_value=mock_httpx_client),
+        ):
+            app = get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                REGISTRY_TTL_SECS,
+                mode="rest-external",
+                rest_api_url="http://fake-registry:6570/api/v1",
+            )
+            client = TestClient(app)
+            response = client.get("/api/v1/projects")
+            assertpy.assert_that(response.status_code).is_equal_to(502)
+
+
+def test_rest_external_mode_projects_list(mock_feature_store):
+    """projects-list.json mode is 'rest-external' with /api/v1 paths."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                REGISTRY_TTL_SECS,
+                mode="rest-external",
+                rest_api_url="http://fake:6570/api/v1",
+            )
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(data["mode"]).is_equal_to("rest-external")
+        assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to("/api/v1")
