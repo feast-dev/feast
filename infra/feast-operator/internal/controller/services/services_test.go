@@ -202,6 +202,64 @@ var _ = Describe("Registry Service", func() {
 		})
 	})
 
+	Describe("PodAnnotations Configuration", func() {
+		It("should apply podAnnotations to deployment pod template", func() {
+			featureStore.Spec.Services.PodAnnotations = map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+				"sidecar.istio.io/inject":                        "true",
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Annotations).To(Equal(map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+				"sidecar.istio.io/inject":                        "true",
+			}))
+		})
+
+		It("should have no pod template annotations when podAnnotations is not set", func() {
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Annotations).To(BeNil())
+		})
+
+		It("should remove pod template annotations when podAnnotations is removed", func() {
+			featureStore.Spec.Services.PodAnnotations = map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Annotations).To(HaveKey("instrumentation.opentelemetry.io/inject-python"))
+
+			featureStore.Spec.Services.PodAnnotations = nil
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Annotations).To(BeNil())
+		})
+	})
+
 	Describe("NodeSelector Configuration", func() {
 		It("should apply NodeSelector to pod spec when configured", func() {
 			// Set NodeSelector for registry service
