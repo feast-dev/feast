@@ -38,11 +38,15 @@ import {
   ProjectListContext,
   ProjectsListContextInterface,
 } from "./contexts/ProjectListContext";
+import DataModeContext from "./contexts/DataModeContext";
+import type { DataMode, DataModeConfig, FetchOptions } from "./contexts/DataModeContext";
 
 interface FeastUIConfigs {
   tabsRegistry?: FeastTabsRegistryInterface;
   featureFlags?: FeatureFlags;
   projectListPromise?: Promise<any>;
+  mode?: DataMode;
+  fetchOptions?: FetchOptions;
 }
 
 const defaultProjectListPromise = (basename: string) => {
@@ -95,10 +99,16 @@ const FeastUISansProvidersInner = ({
 }) => {
   const { colorMode } = useTheme();
 
+  const dataModeConfig: DataModeConfig = {
+    mode: feastUIConfigs?.mode || "proto",
+    fetchOptions: feastUIConfigs?.fetchOptions,
+  };
+
   return (
     <EuiProvider colorMode={colorMode}>
       <EuiErrorBoundary>
-        <TabsRegistryContext.Provider
+        <DataModeContext.Provider value={dataModeConfig}>
+          <TabsRegistryContext.Provider
           value={{
             RegularFeatureViewCustomTabs: [
               {
@@ -183,7 +193,8 @@ const FeastUISansProvidersInner = ({
               </Routes>
             </ProjectListContext.Provider>
           </FeatureFlagsContext.Provider>
-        </TabsRegistryContext.Provider>
+          </TabsRegistryContext.Provider>
+        </DataModeContext.Provider>
       </EuiErrorBoundary>
     </EuiProvider>
   );
