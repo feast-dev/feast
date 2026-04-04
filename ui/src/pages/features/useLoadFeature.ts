@@ -1,27 +1,36 @@
-import { useContext } from "react";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
-import useLoadRegistry from "../../queries/useLoadRegistry";
+import { useParams } from "react-router-dom";
+import useResourceQuery, {
+  featureDetailPath,
+} from "../../queries/useResourceQuery";
 
 const useLoadFeature = (featureViewName: string, featureName: string) => {
-  const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
+  const { projectName } = useParams();
 
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.objects.featureViews?.find((fv) => {
-          return fv?.spec?.name === featureViewName;
-        });
+  const fvQuery = useResourceQuery<any>({
+    resourceType: `feature:${featureViewName}:${featureName}`,
+    project: projectName,
+    protoSelect: (d) =>
+      d.objects.featureViews?.find(
+        (fv: any) => fv?.spec?.name === featureViewName,
+      ),
+    restPath: featureDetailPath(
+      featureViewName,
+      featureName,
+      projectName || "",
+    ),
+    restSelect: (d) => d,
+    enabled: !!featureViewName && !!featureName,
+  });
 
   const featureData =
-    data === undefined
+    fvQuery.data === undefined
       ? undefined
-      : data?.spec?.features?.find((f) => {
-          return f.name === featureName;
-        });
+      : fvQuery.data?.spec?.features?.find(
+          (f: any) => f.name === featureName,
+        ) || fvQuery.data;
 
   return {
-    ...registryQuery,
+    ...fvQuery,
     featureData,
   };
 };

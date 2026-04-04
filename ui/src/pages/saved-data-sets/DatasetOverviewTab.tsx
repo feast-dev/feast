@@ -69,7 +69,7 @@ const EntityOverviewTab = () => {
                 <EuiHorizontalRule margin="xs" />
                 <DatasetJoinKeysTable
                   joinKeys={
-                    data?.spec?.joinKeys!.map((joinKey) => {
+                    data?.spec?.joinKeys!.map((joinKey: any) => {
                       return { name: joinKey };
                     })!
                   }

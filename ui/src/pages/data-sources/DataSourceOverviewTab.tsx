@@ -86,7 +86,7 @@ const DataSourceOverviewTab = () => {
                       <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                       <RequestDataSourceSchemaTable
                         fields={
-                          data?.requestDataOptions?.schema!.map((obj) => {
+                          data?.requestDataOptions?.schema!.map((obj: any) => {
                             return {
                               fieldName: obj.name!,
                               valueType: obj.valueType!,
@@ -109,7 +109,7 @@ const DataSourceOverviewTab = () => {
                 <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                 {consumingFeatureViews && consumingFeatureViews.length > 0 ? (
                   <FeatureViewEdgesList
-                    fvNames={consumingFeatureViews.map((f) => {
+                    fvNames={consumingFeatureViews.map((f: any) => {
                       return f.target.name;
                     })}
                   />

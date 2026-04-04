@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 
 import {
@@ -13,7 +13,6 @@ import {
 
 import { FeatureServiceIcon } from "../../graphics/FeatureServiceIcon";
 
-import useLoadRegistry from "../../queries/useLoadRegistry";
 import FeatureServiceListingTable from "./FeatureServiceListingTable";
 import {
   useSearchQuery,
@@ -22,27 +21,24 @@ import {
   tagTokenGroupsType,
 } from "../../hooks/useSearchInputWithTags";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
 import FeatureServiceIndexEmptyState from "./FeatureServiceIndexEmptyState";
 import TagSearch from "../../components/TagSearch";
 import ExportButton from "../../components/ExportButton";
 import { useFeatureServiceTagsAggregation } from "../../hooks/useTagsAggregation";
 import { feast } from "../../protos";
+import useResourceQuery, {
+  featureServiceListPath,
+} from "../../queries/useResourceQuery";
 
 const useLoadFeatureServices = () => {
-  const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams();
-  const registryQuery = useLoadRegistry(registryUrl, projectName);
-
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.objects.featureServices;
-
-  return {
-    ...registryQuery,
-    data,
-  };
+  return useResourceQuery<any[]>({
+    resourceType: "feature-services-list",
+    project: projectName,
+    protoSelect: (d) => d.objects.featureServices,
+    restPath: featureServiceListPath(projectName),
+    restSelect: (d) => d.featureServices,
+  });
 };
 
 const shouldIncludeFSsGivenTokenGroups = (

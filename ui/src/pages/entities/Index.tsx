@@ -1,31 +1,27 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 
 import { EuiPageTemplate, EuiLoadingSpinner } from "@elastic/eui";
 
 import { EntityIcon } from "../../graphics/EntityIcon";
 
-import useLoadRegistry from "../../queries/useLoadRegistry";
 import EntitiesListingTable from "./EntitiesListingTable";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
 import EntityIndexEmptyState from "./EntityIndexEmptyState";
 import ExportButton from "../../components/ExportButton";
+import useResourceQuery, {
+  entityListPath,
+} from "../../queries/useResourceQuery";
 
 const useLoadEntities = () => {
-  const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams();
-  const registryQuery = useLoadRegistry(registryUrl, projectName);
-
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.objects.entities;
-
-  return {
-    ...registryQuery,
-    data,
-  };
+  return useResourceQuery<any[]>({
+    resourceType: "entities-list",
+    project: projectName,
+    protoSelect: (d) => d.objects.entities,
+    restPath: entityListPath(projectName),
+    restSelect: (d) => d.entities,
+  });
 };
 
 const Index = () => {
