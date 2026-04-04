@@ -2516,6 +2516,12 @@ spec:
                             type: object
                         type: object
                     type: object
+                  podAnnotations:
+                    additionalProperties:
+                      type: string
+                    description: PodAnnotations are annotations to be applied to the
+                      Deployment's PodTemplate metadata.
+                    type: object
                   podDisruptionBudgets:
                     description: PodDisruptionBudgets configures a PodDisruptionBudget
                       for the FeatureStore deployment.
@@ -8242,6 +8248,12 @@ spec:
                                     type: integer
                                 type: object
                             type: object
+                        type: object
+                      podAnnotations:
+                        additionalProperties:
+                          type: string
+                        description: PodAnnotations are annotations to be applied
+                          to the Deployment's PodTemplate metadata.
                         type: object
                       podDisruptionBudgets:
                         description: PodDisruptionBudgets configures a PodDisruptionBudget

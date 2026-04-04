@@ -369,6 +369,13 @@ func (in *FeatureStoreServices) DeepCopyInto(out *FeatureStoreServices) {
 		*out = new(corev1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PodAnnotations != nil {
+		in, out := &in.PodAnnotations, &out.PodAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.RunFeastApplyOnInit != nil {
 		in, out := &in.RunFeastApplyOnInit, &out.RunFeastApplyOnInit
 		*out = new(bool)
