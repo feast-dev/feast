@@ -3153,8 +3153,15 @@ class FeatureStore:
         root_path: str = "",
         tls_key_path: str = "",
         tls_cert_path: str = "",
+        mode: str = "proto",
+        rest_api_url: str = "",
     ) -> None:
-        """Start the UI server locally"""
+        """Start the UI server locally
+
+        Args:
+            mode: Data serving mode - 'proto' (default), 'rest', or 'rest-external'.
+            rest_api_url: Base URL for external REST API (required for 'rest-external' mode).
+        """
         if flags_helper.is_test():
             warnings.warn(
                 "The Feast UI is an experimental feature. "
@@ -3171,6 +3178,8 @@ class FeatureStore:
             root_path=root_path,
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
+            mode=mode,
+            rest_api_url=rest_api_url,
         )
 
     def serve_registry(
