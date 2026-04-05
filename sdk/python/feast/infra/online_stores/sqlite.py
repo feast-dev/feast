@@ -716,9 +716,7 @@ def _initialize_conn(
     return db
 
 
-def _table_id(
-    project: str, table: FeatureView, enable_versioning: bool = False
-) -> str:
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
     return compute_table_id(project, table, enable_versioning)
 
 
