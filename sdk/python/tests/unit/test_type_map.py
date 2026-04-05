@@ -1700,6 +1700,35 @@ class TestDecimalTypes:
 
         assert feast_value_type_to_pandas_type(ValueType.DECIMAL) == "object"
 
+    def test_decimal_pyarrow_type(self):
+        """feast_value_type_to_pa returns pyarrow.string() for DECIMAL scalar/list/set."""
+        import pyarrow
+
+        from feast.type_map import feast_value_type_to_pa
+
+        assert feast_value_type_to_pa(ValueType.DECIMAL) == pyarrow.string()
+        assert feast_value_type_to_pa(ValueType.DECIMAL_LIST) == pyarrow.list_(
+            pyarrow.string()
+        )
+        assert feast_value_type_to_pa(ValueType.DECIMAL_SET) == pyarrow.list_(
+            pyarrow.string()
+        )
+
+    def test_decimal_snowflake_udf(self):
+        """_convert_value_name_to_snowflake_udf maps DECIMAL types to varchar UDFs."""
+        from feast.type_map import _convert_value_name_to_snowflake_udf
+
+        project = "myproject"
+        assert _convert_value_name_to_snowflake_udf("DECIMAL", project) == (
+            f"FEAST_{project.upper()}_SNOWFLAKE_VARCHAR_TO_STRING_PROTO"
+        )
+        assert _convert_value_name_to_snowflake_udf("DECIMAL_LIST", project) == (
+            f"FEAST_{project.upper()}_SNOWFLAKE_ARRAY_VARCHAR_TO_LIST_STRING_PROTO"
+        )
+        assert _convert_value_name_to_snowflake_udf("DECIMAL_SET", project) == (
+            f"FEAST_{project.upper()}_SNOWFLAKE_ARRAY_VARCHAR_TO_LIST_STRING_PROTO"
+        )
+
 
 class TestNestedCollectionTypes:
     """Tests for nested collection type proto conversion (VALUE_LIST, VALUE_SET)."""

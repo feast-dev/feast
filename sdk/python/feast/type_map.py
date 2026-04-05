@@ -1569,6 +1569,9 @@ def _convert_value_name_to_snowflake_udf(value_name: str, project_name: str) -> 
         "TIME_UUID_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
         "UUID_SET": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
         "TIME_UUID_SET": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "DECIMAL": f"feast_{project_name}_snowflake_varchar_to_string_proto",
+        "DECIMAL_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "DECIMAL_SET": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
     }
     return name_map[value_name].upper()
 
@@ -1830,6 +1833,9 @@ def feast_value_type_to_pa(
         ValueType.TIME_UUID_LIST: pyarrow.list_(pyarrow.string()),
         ValueType.UUID_SET: pyarrow.list_(pyarrow.string()),
         ValueType.TIME_UUID_SET: pyarrow.list_(pyarrow.string()),
+        ValueType.DECIMAL: pyarrow.string(),
+        ValueType.DECIMAL_LIST: pyarrow.list_(pyarrow.string()),
+        ValueType.DECIMAL_SET: pyarrow.list_(pyarrow.string()),
     }
     return type_map[feast_type]
 
