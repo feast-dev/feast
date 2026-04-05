@@ -327,7 +327,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             versioning = config.registry.enable_online_feature_view_versioning
             for table in tables_to_delete:
                 if versioning:
-                    _drop_all_version_tables(cur, project, table)
+                    _drop_all_version_tables(cur, project, table, schema_name)
                 else:
                     table_name = _table_id(project, table)
                     cur.execute(_drop_table_and_index(table_name))
@@ -387,12 +387,13 @@ class PostgreSQLOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         project = config.project
+        schema_name = config.online_store.db_schema or config.online_store.user
         versioning = config.registry.enable_online_feature_view_versioning
         try:
             with self._get_conn(config) as conn, conn.cursor() as cur:
                 for table in tables:
                     if versioning:
-                        _drop_all_version_tables(cur, project, table)
+                        _drop_all_version_tables(cur, project, table, schema_name)
                     else:
                         table_name = _table_id(project, table)
                         cur.execute(_drop_table_and_index(table_name))
@@ -844,14 +845,19 @@ def _drop_table_and_index(table_name):
     )
 
 
-def _drop_all_version_tables(cur, project: str, table: FeatureView) -> None:
+def _drop_all_version_tables(cur, project: str, table: FeatureView, schema_name: Optional[str] = None) -> None:
     """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
     base = f"{project}_{table.name}"
-    cur.execute(
-        sql.SQL(
-            "SELECT tablename FROM pg_tables WHERE tablename = %s OR tablename LIKE %s"
-        ),
-        (base, f"{base}_v%"),
-    )
+    if schema_name:
+        cur.execute(
+            "SELECT tablename FROM pg_tables "
+            "WHERE schemaname = %s AND (tablename = %s OR tablename ~ %s)",
+            (schema_name, base, f"^{base}_v[0-9]+$"),
+        )
+    else:
+        cur.execute(
+            "SELECT tablename FROM pg_tables WHERE tablename = %s OR tablename ~ %s",
+            (base, f"^{base}_v[0-9]+$"),
+        )
     for (name,) in cur.fetchall():
         cur.execute(_drop_table_and_index(name))

@@ -319,8 +319,8 @@ def _drop_all_version_tables(cur: Cursor, project: str, table: FeatureView) -> N
     base = f"{project}_{table.name}"
     cur.execute(
         "SELECT table_name FROM information_schema.tables "
-        "WHERE table_schema = DATABASE() AND (table_name = %s OR table_name LIKE %s)",
-        (base, f"{base}_v%"),
+        "WHERE table_schema = DATABASE() AND (table_name = %s OR table_name REGEXP %s)",
+        (base, f"^{base}_v[0-9]+$"),
     )
     for (name,) in cur.fetchall():
         cur.execute(f"DROP INDEX IF EXISTS {name}_ek ON {name};")
