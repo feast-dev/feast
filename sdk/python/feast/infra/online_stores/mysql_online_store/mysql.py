@@ -314,9 +314,7 @@ def _drop_table_and_index(cur: Cursor, table_name: str) -> None:
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
-def _drop_all_version_tables(
-    cur: Cursor, project: str, table: FeatureView
-) -> None:
+def _drop_all_version_tables(cur: Cursor, project: str, table: FeatureView) -> None:
     """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
     base = f"{project}_{table.name}"
     cur.execute(
@@ -329,7 +327,5 @@ def _drop_all_version_tables(
         cur.execute(f"DROP TABLE IF EXISTS {name}")
 
 
-def _table_id(
-    project: str, table: FeatureView, enable_versioning: bool = False
-) -> str:
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
     return compute_table_id(project, table, enable_versioning)

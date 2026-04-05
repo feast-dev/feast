@@ -72,9 +72,7 @@ def _to_naive_utc(ts: datetime) -> datetime:
         return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
 
 
-def compute_table_id(
-    project: str, table: Any, enable_versioning: bool = False
-) -> str:
+def compute_table_id(project: str, table: Any, enable_versioning: bool = False) -> str:
     """Build the online-store table name, appending a version suffix when versioning is enabled."""
     name = table.name
     if enable_versioning:
