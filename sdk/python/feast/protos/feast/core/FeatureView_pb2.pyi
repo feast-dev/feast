@@ -16,265 +16,234 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-from collections import abc as _abc
-from feast.core import DataSource_pb2 as _DataSource_pb2
-from feast.core import Feature_pb2 as _Feature_pb2
-from feast.core import Transformation_pb2 as _Transformation_pb2
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import duration_pb2 as _duration_pb2
-from google.protobuf import message as _message
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from google.protobuf.internal import containers as _containers
-import builtins as _builtins
+import builtins
+import collections.abc
+import feast.core.DataSource_pb2
+import feast.core.Feature_pb2
+import feast.core.Transformation_pb2
+import google.protobuf.descriptor
+import google.protobuf.duration_pb2
+import google.protobuf.internal.containers
+import google.protobuf.message
+import google.protobuf.timestamp_pb2
 import sys
-import typing as _typing
 
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias as _TypeAlias
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
 else:
-    from typing_extensions import TypeAlias as _TypeAlias
+    import typing_extensions
 
-DESCRIPTOR: _descriptor.FileDescriptor
+DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@_typing.final
-class FeatureView(_message.Message):
-    DESCRIPTOR: _descriptor.Descriptor
+class FeatureView(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    SPEC_FIELD_NUMBER: _builtins.int
-    META_FIELD_NUMBER: _builtins.int
-    @_builtins.property
-    def spec(self) -> Global___FeatureViewSpec:
+    SPEC_FIELD_NUMBER: builtins.int
+    META_FIELD_NUMBER: builtins.int
+    @property
+    def spec(self) -> global___FeatureViewSpec:
         """User-specified specifications of this feature view."""
-
-    @_builtins.property
-    def meta(self) -> Global___FeatureViewMeta:
+    @property
+    def meta(self) -> global___FeatureViewMeta:
         """System-populated metadata for this feature view."""
-
     def __init__(
         self,
         *,
-        spec: Global___FeatureViewSpec | None = ...,
-        meta: Global___FeatureViewMeta | None = ...,
+        spec: global___FeatureViewSpec | None = ...,
+        meta: global___FeatureViewMeta | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
 
-Global___FeatureView: _TypeAlias = FeatureView  # noqa: Y015
+global___FeatureView = FeatureView
 
-@_typing.final
-class FeatureViewSpec(_message.Message):
+class FeatureViewSpec(google.protobuf.message.Message):
     """Next available id: 19
     TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
     """
 
-    DESCRIPTOR: _descriptor.Descriptor
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    @_typing.final
-    class TagsEntry(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
+    class TagsEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: _builtins.int
-        VALUE_FIELD_NUMBER: _builtins.int
-        key: _builtins.str
-        value: _builtins.str
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        value: builtins.str
         def __init__(
             self,
             *,
-            key: _builtins.str = ...,
-            value: _builtins.str = ...,
+            key: builtins.str = ...,
+            value: builtins.str = ...,
         ) -> None: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
-    NAME_FIELD_NUMBER: _builtins.int
-    PROJECT_FIELD_NUMBER: _builtins.int
-    ENTITIES_FIELD_NUMBER: _builtins.int
-    FEATURES_FIELD_NUMBER: _builtins.int
-    TAGS_FIELD_NUMBER: _builtins.int
-    TTL_FIELD_NUMBER: _builtins.int
-    BATCH_SOURCE_FIELD_NUMBER: _builtins.int
-    ONLINE_FIELD_NUMBER: _builtins.int
-    STREAM_SOURCE_FIELD_NUMBER: _builtins.int
-    DESCRIPTION_FIELD_NUMBER: _builtins.int
-    OWNER_FIELD_NUMBER: _builtins.int
-    ENTITY_COLUMNS_FIELD_NUMBER: _builtins.int
-    OFFLINE_FIELD_NUMBER: _builtins.int
-    SOURCE_VIEWS_FIELD_NUMBER: _builtins.int
-    FEATURE_TRANSFORMATION_FIELD_NUMBER: _builtins.int
-    MODE_FIELD_NUMBER: _builtins.int
-    ENABLE_VALIDATION_FIELD_NUMBER: _builtins.int
-    VERSION_FIELD_NUMBER: _builtins.int
-    name: _builtins.str
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    ENTITIES_FIELD_NUMBER: builtins.int
+    FEATURES_FIELD_NUMBER: builtins.int
+    TAGS_FIELD_NUMBER: builtins.int
+    TTL_FIELD_NUMBER: builtins.int
+    BATCH_SOURCE_FIELD_NUMBER: builtins.int
+    ONLINE_FIELD_NUMBER: builtins.int
+    STREAM_SOURCE_FIELD_NUMBER: builtins.int
+    DESCRIPTION_FIELD_NUMBER: builtins.int
+    OWNER_FIELD_NUMBER: builtins.int
+    ENTITY_COLUMNS_FIELD_NUMBER: builtins.int
+    OFFLINE_FIELD_NUMBER: builtins.int
+    SOURCE_VIEWS_FIELD_NUMBER: builtins.int
+    FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
+    MODE_FIELD_NUMBER: builtins.int
+    ENABLE_VALIDATION_FIELD_NUMBER: builtins.int
+    VERSION_FIELD_NUMBER: builtins.int
+    name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
-    project: _builtins.str
+    project: builtins.str
     """Name of Feast project that this feature view belongs to."""
-    online: _builtins.bool
-    """Whether these features should be served online or not
-    This is also used to determine whether the features should be written to the online store
-    """
-    description: _builtins.str
-    """Description of the feature view."""
-    owner: _builtins.str
-    """Owner of the feature view."""
-    offline: _builtins.bool
-    """Whether these features should be written to the offline store"""
-    mode: _builtins.str
-    """The transformation mode (e.g., "python", "pandas", "spark", "sql", "ray")"""
-    enable_validation: _builtins.bool
-    """Whether schema validation is enabled during materialization"""
-    version: _builtins.str
-    """User-specified version pin (e.g. "latest", "v2", "version2")"""
-    @_builtins.property
-    def entities(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+    @property
+    def entities(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
         """List of names of entities associated with this feature view."""
-
-    @_builtins.property
-    def features(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]:
+    @property
+    def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each feature defined as part of this feature view."""
-
-    @_builtins.property
-    def tags(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
+    @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
-
-    @_builtins.property
-    def ttl(self) -> _duration_pb2.Duration:
+    @property
+    def ttl(self) -> google.protobuf.duration_pb2.Duration:
         """Features in this feature view can only be retrieved from online serving
         younger than ttl. Ttl is measured as the duration of time between
         the feature's event timestamp and when the feature is retrieved
         Feature values outside ttl will be returned as unset values and indicated to end user
         """
-
-    @_builtins.property
-    def batch_source(self) -> _DataSource_pb2.DataSource:
+    @property
+    def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Batch/Offline DataSource where this view can retrieve offline feature data.
         Optional: if not set, the feature view has no associated batch data source (e.g. purely derived views).
         """
-
-    @_builtins.property
-    def stream_source(self) -> _DataSource_pb2.DataSource:
+    online: builtins.bool
+    """Whether these features should be served online or not
+    This is also used to determine whether the features should be written to the online store
+    """
+    @property
+    def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Streaming DataSource from where this view can consume "online" feature data.
         Optional: only required for streaming feature views.
         """
-
-    @_builtins.property
-    def entity_columns(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]:
+    description: builtins.str
+    """Description of the feature view."""
+    owner: builtins.str
+    """Owner of the feature view."""
+    @property
+    def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each entity defined as part of this feature view."""
-
-    @_builtins.property
-    def source_views(self) -> _containers.RepeatedCompositeFieldContainer[Global___FeatureViewSpec]: ...
-    @_builtins.property
-    def feature_transformation(self) -> _Transformation_pb2.FeatureTransformationV2:
+    offline: builtins.bool
+    """Whether these features should be written to the offline store"""
+    @property
+    def source_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureViewSpec]: ...
+    @property
+    def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
         """Feature transformation for batch feature views"""
-
+    mode: builtins.str
+    """The transformation mode (e.g., "python", "pandas", "spark", "sql", "ray")"""
+    enable_validation: builtins.bool
+    """Whether schema validation is enabled during materialization"""
+    version: builtins.str
+    """User-specified version pin (e.g. "latest", "v2", "version2")"""
     def __init__(
         self,
         *,
-        name: _builtins.str = ...,
-        project: _builtins.str = ...,
-        entities: _abc.Iterable[_builtins.str] | None = ...,
-        features: _abc.Iterable[_Feature_pb2.FeatureSpecV2] | None = ...,
-        tags: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
-        ttl: _duration_pb2.Duration | None = ...,
-        batch_source: _DataSource_pb2.DataSource | None = ...,
-        online: _builtins.bool = ...,
-        stream_source: _DataSource_pb2.DataSource | None = ...,
-        description: _builtins.str = ...,
-        owner: _builtins.str = ...,
-        entity_columns: _abc.Iterable[_Feature_pb2.FeatureSpecV2] | None = ...,
-        offline: _builtins.bool = ...,
-        source_views: _abc.Iterable[Global___FeatureViewSpec] | None = ...,
-        feature_transformation: _Transformation_pb2.FeatureTransformationV2 | None = ...,
-        mode: _builtins.str = ...,
-        enable_validation: _builtins.bool = ...,
-        version: _builtins.str = ...,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        entities: collections.abc.Iterable[builtins.str] | None = ...,
+        features: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
+        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        ttl: google.protobuf.duration_pb2.Duration | None = ...,
+        batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
+        online: builtins.bool = ...,
+        stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
+        description: builtins.str = ...,
+        owner: builtins.str = ...,
+        entity_columns: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
+        offline: builtins.bool = ...,
+        source_views: collections.abc.Iterable[global___FeatureViewSpec] | None = ...,
+        feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
+        mode: builtins.str = ...,
+        enable_validation: builtins.bool = ...,
+        version: builtins.str = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["batch_source", b"batch_source", "description", b"description", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "version", b"version"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "version", b"version"]) -> None: ...
 
-Global___FeatureViewSpec: _TypeAlias = FeatureViewSpec  # noqa: Y015
+global___FeatureViewSpec = FeatureViewSpec
 
-@_typing.final
-class FeatureViewMeta(_message.Message):
-    DESCRIPTOR: _descriptor.Descriptor
+class FeatureViewMeta(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    CREATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
-    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
-    MATERIALIZATION_INTERVALS_FIELD_NUMBER: _builtins.int
-    CURRENT_VERSION_NUMBER_FIELD_NUMBER: _builtins.int
-    VERSION_ID_FIELD_NUMBER: _builtins.int
-    current_version_number: _builtins.int
-    """The current version number of this feature view in the version history."""
-    version_id: _builtins.str
-    """Auto-generated UUID identifying this specific version."""
-    @_builtins.property
-    def created_timestamp(self) -> _timestamp_pb2.Timestamp:
+    CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
+    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
+    MATERIALIZATION_INTERVALS_FIELD_NUMBER: builtins.int
+    CURRENT_VERSION_NUMBER_FIELD_NUMBER: builtins.int
+    VERSION_ID_FIELD_NUMBER: builtins.int
+    @property
+    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is created"""
-
-    @_builtins.property
-    def last_updated_timestamp(self) -> _timestamp_pb2.Timestamp:
+    @property
+    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is last updated"""
-
-    @_builtins.property
-    def materialization_intervals(self) -> _containers.RepeatedCompositeFieldContainer[Global___MaterializationInterval]:
+    @property
+    def materialization_intervals(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___MaterializationInterval]:
         """List of pairs (start_time, end_time) for which this feature view has been materialized."""
-
+    current_version_number: builtins.int
+    """The current version number of this feature view in the version history."""
+    version_id: builtins.str
+    """Auto-generated UUID identifying this specific version."""
     def __init__(
         self,
         *,
-        created_timestamp: _timestamp_pb2.Timestamp | None = ...,
-        last_updated_timestamp: _timestamp_pb2.Timestamp | None = ...,
-        materialization_intervals: _abc.Iterable[Global___MaterializationInterval] | None = ...,
-        current_version_number: _builtins.int = ...,
-        version_id: _builtins.str = ...,
+        created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        materialization_intervals: collections.abc.Iterable[global___MaterializationInterval] | None = ...,
+        current_version_number: builtins.int = ...,
+        version_id: builtins.str = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "materialization_intervals", b"materialization_intervals", "version_id", b"version_id"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "materialization_intervals", b"materialization_intervals", "version_id", b"version_id"]) -> None: ...
 
-Global___FeatureViewMeta: _TypeAlias = FeatureViewMeta  # noqa: Y015
+global___FeatureViewMeta = FeatureViewMeta
 
-@_typing.final
-class MaterializationInterval(_message.Message):
-    DESCRIPTOR: _descriptor.Descriptor
+class MaterializationInterval(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    START_TIME_FIELD_NUMBER: _builtins.int
-    END_TIME_FIELD_NUMBER: _builtins.int
-    @_builtins.property
-    def start_time(self) -> _timestamp_pb2.Timestamp: ...
-    @_builtins.property
-    def end_time(self) -> _timestamp_pb2.Timestamp: ...
+    START_TIME_FIELD_NUMBER: builtins.int
+    END_TIME_FIELD_NUMBER: builtins.int
+    @property
+    def start_time(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    @property
+    def end_time(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
-        start_time: _timestamp_pb2.Timestamp | None = ...,
-        end_time: _timestamp_pb2.Timestamp | None = ...,
+        start_time: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        end_time: google.protobuf.timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["end_time", b"end_time", "start_time", b"start_time"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["end_time", b"end_time", "start_time", b"start_time"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["end_time", b"end_time", "start_time", b"start_time"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["end_time", b"end_time", "start_time", b"start_time"]) -> None: ...
 
-Global___MaterializationInterval: _TypeAlias = MaterializationInterval  # noqa: Y015
+global___MaterializationInterval = MaterializationInterval
 
-@_typing.final
-class FeatureViewList(_message.Message):
-    DESCRIPTOR: _descriptor.Descriptor
+class FeatureViewList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    FEATUREVIEWS_FIELD_NUMBER: _builtins.int
-    @_builtins.property
-    def featureviews(self) -> _containers.RepeatedCompositeFieldContainer[Global___FeatureView]: ...
+    FEATUREVIEWS_FIELD_NUMBER: builtins.int
+    @property
+    def featureviews(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureView]: ...
     def __init__(
         self,
         *,
-        featureviews: _abc.Iterable[Global___FeatureView] | None = ...,
+        featureviews: collections.abc.Iterable[global___FeatureView] | None = ...,
     ) -> None: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["featureviews", b"featureviews"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["featureviews", b"featureviews"]) -> None: ...
 
-Global___FeatureViewList: _TypeAlias = FeatureViewList  # noqa: Y015
+global___FeatureViewList = FeatureViewList

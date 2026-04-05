@@ -1620,7 +1620,11 @@ class TestDecimalTypes:
         """List of decimal.Decimal objects -> proto -> list of decimal.Decimal roundtrip."""
         import decimal
 
-        vals = [decimal.Decimal("10.5"), decimal.Decimal("20.75"), decimal.Decimal("30.125")]
+        vals = [
+            decimal.Decimal("10.5"),
+            decimal.Decimal("20.75"),
+            decimal.Decimal("30.125"),
+        ]
         protos = python_values_to_proto_values([vals], ValueType.DECIMAL_LIST)
         result = feast_value_type_to_python_type(protos[0])
         assert all(isinstance(r, decimal.Decimal) for r in result)
@@ -1663,8 +1667,14 @@ class TestDecimalTypes:
         from feast.type_map import _convert_value_type_str_to_value_type
 
         assert _convert_value_type_str_to_value_type("DECIMAL") == ValueType.DECIMAL
-        assert _convert_value_type_str_to_value_type("DECIMAL_LIST") == ValueType.DECIMAL_LIST
-        assert _convert_value_type_str_to_value_type("DECIMAL_SET") == ValueType.DECIMAL_SET
+        assert (
+            _convert_value_type_str_to_value_type("DECIMAL_LIST")
+            == ValueType.DECIMAL_LIST
+        )
+        assert (
+            _convert_value_type_str_to_value_type("DECIMAL_SET")
+            == ValueType.DECIMAL_SET
+        )
 
     def test_decimal_proto_field_name_mapping(self):
         """PROTO_VALUE_TO_VALUE_TYPE_MAP and VALUE_TYPE_TO_PROTO_VALUE_MAP include DECIMAL."""
@@ -1674,10 +1684,14 @@ class TestDecimalTypes:
         )
 
         assert PROTO_VALUE_TO_VALUE_TYPE_MAP["decimal_val"] == ValueType.DECIMAL
-        assert PROTO_VALUE_TO_VALUE_TYPE_MAP["decimal_list_val"] == ValueType.DECIMAL_LIST
+        assert (
+            PROTO_VALUE_TO_VALUE_TYPE_MAP["decimal_list_val"] == ValueType.DECIMAL_LIST
+        )
         assert PROTO_VALUE_TO_VALUE_TYPE_MAP["decimal_set_val"] == ValueType.DECIMAL_SET
         assert VALUE_TYPE_TO_PROTO_VALUE_MAP[ValueType.DECIMAL] == "decimal_val"
-        assert VALUE_TYPE_TO_PROTO_VALUE_MAP[ValueType.DECIMAL_LIST] == "decimal_list_val"
+        assert (
+            VALUE_TYPE_TO_PROTO_VALUE_MAP[ValueType.DECIMAL_LIST] == "decimal_list_val"
+        )
         assert VALUE_TYPE_TO_PROTO_VALUE_MAP[ValueType.DECIMAL_SET] == "decimal_set_val"
 
     def test_decimal_pandas_type(self):
@@ -1685,6 +1699,7 @@ class TestDecimalTypes:
         from feast.type_map import feast_value_type_to_pandas_type
 
         assert feast_value_type_to_pandas_type(ValueType.DECIMAL) == "object"
+
 
 class TestNestedCollectionTypes:
     """Tests for nested collection type proto conversion (VALUE_LIST, VALUE_SET)."""
