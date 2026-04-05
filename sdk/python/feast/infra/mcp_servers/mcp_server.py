@@ -26,6 +26,10 @@ except ImportError:
     FastApiMCP = None
 
 
+class McpTransportNotSupportedError(RuntimeError):
+    pass
+
+
 def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastApiMCP"]:
     """Add MCP support to the FastAPI app if enabled in configuration."""
     if not MCP_AVAILABLE:
@@ -40,8 +44,29 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
         )
 
-        # Mount the MCP server to the FastAPI app
-        mcp.mount()
+        transport = getattr(config, "mcp_transport", "sse")
+        if transport == "http":
+            mount_http = getattr(mcp, "mount_http", None)
+            if mount_http is None:
+                raise McpTransportNotSupportedError(
+                    "mcp_transport=http requires fastapi_mcp with FastApiMCP.mount_http(). "
+                    "Upgrade fastapi_mcp (or install feast[mcp]) to a newer version."
+                )
+            mount_http()
+        elif transport == "sse":
+            mount_sse = getattr(mcp, "mount_sse", None)
+            if mount_sse is not None:
+                mount_sse()
+            else:
+                logger.warning(
+                    "transport sse not supported, fallback to the deprecated mount()."
+                )
+                mcp.mount()
+        else:
+            # Defensive guard for programmatic callers.
+            raise McpTransportNotSupportedError(
+                f"Unsupported mcp_transport={transport!r}. Expected 'sse' or 'http'."
+            )
 
         logger.info(
             "MCP support has been enabled for the Feast feature server at /mcp endpoint"
@@ -53,6 +78,8 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
 
         return mcp
 
+    except McpTransportNotSupportedError:
+        raise
     except Exception as e:
-        logger.error(f"Failed to initialize MCP integration: {e}")
+        logger.error(f"Failed to initialize MCP integration: {e}", exc_info=True)
         return None
