@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
@@ -70,14 +71,14 @@ func main() {
 		log.Error().Stack().Err(err).Msg("Failed to get current directory")
 	}
 
-	flag.StringVar(&serverType, "type", serverType, "Specify the server type (http or grpc)")
+	flag.StringVar(&serverType, "type", serverType, "Specify the server type (http, https or grpc)")
 	flag.StringVar(&repoPath, "chdir", repoPath, "Repository path where feature store yaml file is stored")
 
 	flag.StringVar(&host, "host", host, "Specify a host for the server")
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
 	flag.IntVar(&metricsPort, "metrics-port", metricsPort, "Specify a port for the metrics server")
 	flag.StringVar(&certFile, "tls-cert-file", "", "Path to the TLS certificate file")
-	flag.StringVar(&keyFile, "tls-key-file", "", "Path to the TLS key file"	)
+	flag.StringVar(&keyFile, "tls-key-file", "", "Path to the TLS key file")
 	flag.Parse()
 
 	// Initialize tracer
@@ -244,13 +245,16 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 	}
 	ser := server.NewHttpServer(fs, loggingService)
 	log.Info().Msgf("Starting a HTTP server on host %s, port %d", host, port)
+
 	// Start metrics server
-	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", metricsPort)}
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	metricsServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", metricsPort),
+		Handler: mux, 
+	}
 	go func() {
 		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		metricsServer.Handler = mux
 		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error().Err(err).Msg("Failed to start metrics server")
 		}
@@ -258,6 +262,7 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stop)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -273,7 +278,9 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 				log.Error().Err(err).Msg("Error when stopping the HTTP server")
 			}
 			log.Info().Msg("Stopping metrics server...")
-			if err := metricsServer.Shutdown(context.Background()); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := metricsServer.Shutdown(ctx); err != nil {
 				log.Error().Err(err).Msg("Error stopping metrics server")
 			}
 			if loggingService != nil {
@@ -293,95 +300,6 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 	close(serverExited)
 	wg.Wait()
 	return err
-}
-
-// StartHttpsServer starts HTTP server with TLS. Requires TLS_CERT_FILE and TLS_KEY_FILE env vars.
-func StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, certFile string, keyFile string, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	if certFile == "" || keyFile == "" {
-		return fmt.Errorf("TLS_CERT_FILE and TLS_KEY_FILE must be set")
-	}
-
-	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
-	if err != nil {
-		return err
-	}
-
-	// Try to obtain an http.Handler from the concrete server if possible.
-	ser := server.NewHttpServer(fs, loggingService)
-
-	// Start metrics server (same as HTTP)
-	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", metricsPort)}
-	go func() {
-		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		metricsServer.Handler = mux
-		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error().Err(err).Msg("Failed to start metrics server")
-		}
-	}()
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	serverExited := make(chan struct{})
-	go func() {
-		defer wg.Done()
-		select {
-		case <-stop:
-			log.Info().Msg("Stopping the HTTPS server...")
-			// Try to stop underlying server if it exposes Stop()
-			if stopper, ok := interface{}(ser).(interface{ Stop() error }); ok {
-				if err := stopper.Stop(); err != nil {
-					log.Error().Err(err).Msg("Error when stopping the HTTPS server")
-				}
-			}
-			if err := metricsServer.Shutdown(context.Background()); err != nil {
-				log.Error().Err(err).Msg("Error stopping metrics server")
-			}
-			if loggingService != nil {
-				loggingService.Stop()
-			}
-			log.Info().Msg("HTTPS server terminated")
-		case <-serverExited:
-			metricsServer.Shutdown(context.Background())
-			if loggingService != nil {
-				loggingService.Stop()
-			}
-		}
-	}()
-
-	// If the concrete server exposes a Handler, use it with a tls-enabled http.Server.
-	if hProvider, ok := interface{}(ser).(interface{ Handler() http.Handler }); ok {
-		handler := hProvider.Handler()
-		srv := &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: handler}
-		go func() {
-			log.Info().Msgf("Starting HTTPS server on host %s, port %d", host, port)
-			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
-				log.Error().Err(err).Msg("HTTPS server failed")
-			}
-		}()
-		close(serverExited)
-		wg.Wait()
-		return nil
-	}
-
-	// If concrete server supports ServeTLS(host,port,cert,key), call it.
-	if tlsServ, ok := interface{}(ser).(interface {
-		ServeTLS(string, int, string, string) error
-	}); ok {
-		err := tlsServ.ServeTLS(host, port, certFile, keyFile)
-		close(serverExited)
-		wg.Wait()
-		return err
-	}
-
-	// Fallback: cannot enable TLS for this server implementation.
-	close(serverExited)
-	wg.Wait()
-	return fmt.Errorf("HTTPS not supported by underlying HTTP server implementation")
 }
 
 func OTELTracingEnabled() bool {
@@ -418,4 +336,75 @@ func newTracerProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, err
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(r),
 	), nil
+}
+
+
+
+// StartHttpsServer starts HTTP server with TLS. Requires TLS_CERT_FILE and TLS_KEY_FILE env vars.
+func StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, certFile string, keyFile string, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	if certFile == "" || keyFile == "" {
+		return fmt.Errorf("TLS_CERT_FILE and TLS_KEY_FILE must be set")
+	}
+
+	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
+	if err != nil {
+		return err
+	}
+	ser := server.NewHttpServer(fs, loggingService)
+	log.Info().Msgf("Starting a HTTPS server on host %s, port %d", host, port)
+
+	// Start metrics server
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	metricsServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", metricsPort),
+		Handler: mux, 
+	}
+	go func() {
+		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Failed to start metrics server")
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stop)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	serverExited := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		select {
+		case <-stop:
+			// Received SIGINT/SIGTERM. Perform graceful shutdown.
+			log.Info().Msg("Stopping the HTTP server...")
+			err := ser.Stop()
+			if err != nil {
+				log.Error().Err(err).Msg("Error when stopping the HTTP server")
+			}
+			log.Info().Msg("Stopping metrics server...")
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := metricsServer.Shutdown(ctx); err != nil {
+				log.Error().Err(err).Msg("Error stopping metrics server")
+			}
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+			log.Info().Msg("HTTP server terminated")
+		case <-serverExited:
+			// Server exited (e.g. startup error), ensure metrics server is stopped
+			metricsServer.Shutdown(context.Background())
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+		}
+	}()
+
+	err = ser.ServeTLS(host, port, certFile, keyFile)
+	close(serverExited)
+	wg.Wait()
+	return err
 }

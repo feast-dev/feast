@@ -396,6 +396,20 @@ func (s *httpServer) Serve(host string, port int) error {
 	return err
 }
 
+func (s *httpServer) ServeTLS(host string, port int, certFile string, keyFile string) error {
+	mux := http.NewServeMux()
+	mux.Handle("/get-online-features", metricsMiddleware(recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures))))
+	mux.Handle("/health", metricsMiddleware(http.HandlerFunc(healthCheckHandler)))
+	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 15 * time.Second}
+	err := s.server.ListenAndServeTLS(certFile, keyFile)
+	// Don't return the error if it's caused by graceful shutdown using Stop()
+	if err == http.ErrServerClosed {
+		return nil
+	}
+	log.Fatal().Stack().Err(err).Msg("Failed to start HTTPS server")
+	return err
+}
+
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Healthy")
