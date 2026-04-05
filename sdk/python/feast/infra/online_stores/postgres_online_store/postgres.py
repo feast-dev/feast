@@ -845,7 +845,9 @@ def _drop_table_and_index(table_name):
     )
 
 
-def _drop_all_version_tables(cur, project: str, table: FeatureView, schema_name: Optional[str] = None) -> None:
+def _drop_all_version_tables(
+    cur, project: str, table: FeatureView, schema_name: Optional[str] = None
+) -> None:
     """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
     base = f"{project}_{table.name}"
     if schema_name:
