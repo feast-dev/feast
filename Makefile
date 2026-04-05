@@ -475,7 +475,7 @@ test-python-universal-cassandra: ## Run Python Cassandra integration tests
 	PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
 	sdk/python/tests/universal/offline_store/test_feature_logging.py \
-		--ignore=sdk/python/tests/integration/offline_store/test_validation.py \
+		--ignore=sdk/python/tests/universal/offline_store/test_dqm_validation.py \
 		-k "not test_snowflake and \
 			not test_spark_materialization_consistency and \
 			not test_universal_materialization"
