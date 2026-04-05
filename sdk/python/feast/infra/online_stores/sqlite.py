@@ -42,6 +42,7 @@ from feast.infra.key_encoding_utils import (
     serialize_entity_key,
     serialize_f32,
 )
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
@@ -715,17 +716,10 @@ def _initialize_conn(
     return db
 
 
-def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
-    name = table.name
-    if enable_versioning:
-        # Prefer version_tag from the projection (set by version-qualified refs like @v2)
-        # over current_version_number (the FV's active version in metadata).
-        version = getattr(table.projection, "version_tag", None)
-        if version is None:
-            version = getattr(table, "current_version_number", None)
-        if version is not None and version > 0:
-            name = f"{table.name}_v{version}"
-    return f"{project}_{name}"
+def _table_id(
+    project: str, table: FeatureView, enable_versioning: bool = False
+) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 class SqliteTable(InfraObject):

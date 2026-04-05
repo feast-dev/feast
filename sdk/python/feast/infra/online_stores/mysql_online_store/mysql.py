@@ -10,6 +10,7 @@ from pymysql.cursors import Cursor
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -285,7 +286,10 @@ class MySQLOnlineStore(OnlineStore):
                 )
 
         for table in tables_to_delete:
-            _drop_table_and_index(cur, project, table, versioning)
+            if versioning:
+                _drop_all_version_tables(cur, project, table)
+            else:
+                _drop_table_and_index(cur, _table_id(project, table))
 
     def teardown(
         self,
@@ -299,23 +303,33 @@ class MySQLOnlineStore(OnlineStore):
         versioning = config.registry.enable_online_feature_view_versioning
 
         for table in tables:
-            _drop_table_and_index(cur, project, table, versioning)
+            if versioning:
+                _drop_all_version_tables(cur, project, table)
+            else:
+                _drop_table_and_index(cur, _table_id(project, table))
 
 
-def _drop_table_and_index(
-    cur: Cursor, project: str, table: FeatureView, enable_versioning: bool = False
-) -> None:
-    table_name = _table_id(project, table, enable_versioning)
+def _drop_table_and_index(cur: Cursor, table_name: str) -> None:
     cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
-def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
-    name = table.name
-    if enable_versioning:
-        version = getattr(table.projection, "version_tag", None)
-        if version is None:
-            version = getattr(table, "current_version_number", None)
-        if version is not None and version > 0:
-            name = f"{table.name}_v{version}"
-    return f"{project}_{name}"
+def _drop_all_version_tables(
+    cur: Cursor, project: str, table: FeatureView
+) -> None:
+    """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
+    base = f"{project}_{table.name}"
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = DATABASE() AND (table_name = %s OR table_name LIKE %s)",
+        (base, f"{base}_v%"),
+    )
+    for (name,) in cur.fetchall():
+        cur.execute(f"DROP INDEX IF EXISTS {name}_ek ON {name};")
+        cur.execute(f"DROP TABLE IF EXISTS {name}")
+
+
+def _table_id(
+    project: str, table: FeatureView, enable_versioning: bool = False
+) -> str:
+    return compute_table_id(project, table, enable_versioning)

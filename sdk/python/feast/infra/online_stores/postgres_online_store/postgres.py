@@ -22,7 +22,7 @@ from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from feast import Entity, FeatureView, ValueType
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
-from feast.infra.online_stores.helpers import _to_naive_utc
+from feast.infra.online_stores.helpers import _to_naive_utc, compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.infra.utils.postgres.connection_utils import (
@@ -326,8 +326,11 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             versioning = config.registry.enable_online_feature_view_versioning
             for table in tables_to_delete:
-                table_name = _table_id(project, table, versioning)
-                cur.execute(_drop_table_and_index(table_name))
+                if versioning:
+                    _drop_all_version_tables(cur, project, table)
+                else:
+                    table_name = _table_id(project, table)
+                    cur.execute(_drop_table_and_index(table_name))
 
             for table in tables_to_keep:
                 table_name = _table_id(project, table, versioning)
@@ -388,8 +391,11 @@ class PostgreSQLOnlineStore(OnlineStore):
         try:
             with self._get_conn(config) as conn, conn.cursor() as cur:
                 for table in tables:
-                    table_name = _table_id(project, table, versioning)
-                    cur.execute(_drop_table_and_index(table_name))
+                    if versioning:
+                        _drop_all_version_tables(cur, project, table)
+                    else:
+                        table_name = _table_id(project, table)
+                        cur.execute(_drop_table_and_index(table_name))
                 conn.commit()
         except Exception:
             logging.exception("Teardown failed")
@@ -822,15 +828,10 @@ class PostgreSQLOnlineStore(OnlineStore):
         return result
 
 
-def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
-    name = table.name
-    if enable_versioning:
-        version = getattr(table.projection, "version_tag", None)
-        if version is None:
-            version = getattr(table, "current_version_number", None)
-        if version is not None and version > 0:
-            name = f"{table.name}_v{version}"
-    return f"{project}_{name}"
+def _table_id(
+    project: str, table: FeatureView, enable_versioning: bool = False
+) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 def _drop_table_and_index(table_name):
@@ -843,3 +844,16 @@ def _drop_table_and_index(table_name):
         sql.Identifier(table_name),
         sql.Identifier(f"{table_name}_ek"),
     )
+
+
+def _drop_all_version_tables(cur, project: str, table: FeatureView) -> None:
+    """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
+    base = f"{project}_{table.name}"
+    cur.execute(
+        sql.SQL(
+            "SELECT tablename FROM pg_tables WHERE tablename = %s OR tablename LIKE %s"
+        ),
+        (base, f"{base}_v%"),
+    )
+    for (name,) in cur.fetchall():
+        cur.execute(_drop_table_and_index(name))
