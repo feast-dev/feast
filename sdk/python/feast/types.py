@@ -27,6 +27,7 @@ PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
     "IMAGE_BYTES": "IMAGE_BYTES",
     "UUID": "UUID",
     "TIME_UUID": "TIME_UUID",
+    "DECIMAL": "DECIMAL",
     "STRING": "STRING",
     "INT32": "INT32",
     "INT64": "INT64",
@@ -91,6 +92,7 @@ class PrimitiveFeastType(Enum):
     JSON = 12
     UUID = 13
     TIME_UUID = 14
+    DECIMAL = 15
 
     def to_value_type(self) -> ValueType:
         """
@@ -127,6 +129,7 @@ Map = PrimitiveFeastType.MAP
 Json = PrimitiveFeastType.JSON
 Uuid = PrimitiveFeastType.UUID
 TimeUuid = PrimitiveFeastType.TIME_UUID
+Decimal = PrimitiveFeastType.DECIMAL
 
 SUPPORTED_BASE_TYPES = [
     Invalid,
@@ -144,6 +147,7 @@ SUPPORTED_BASE_TYPES = [
     Json,
     Uuid,
     TimeUuid,
+    Decimal,
 ]
 
 PRIMITIVE_FEAST_TYPES_TO_STRING = {
@@ -162,6 +166,7 @@ PRIMITIVE_FEAST_TYPES_TO_STRING = {
     "JSON": "Json",
     "UUID": "Uuid",
     "TIME_UUID": "TimeUuid",
+    "DECIMAL": "Decimal",
 }
 
 
@@ -338,6 +343,9 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.TIME_UUID_LIST: Array(TimeUuid),
     ValueType.UUID_SET: Set(Uuid),
     ValueType.TIME_UUID_SET: Set(TimeUuid),
+    ValueType.DECIMAL: Decimal,
+    ValueType.DECIMAL_LIST: Array(Decimal),
+    ValueType.DECIMAL_SET: Set(Decimal),
 }
 
 FEAST_TYPES_TO_PYARROW_TYPES = {
@@ -353,6 +361,7 @@ FEAST_TYPES_TO_PYARROW_TYPES = {
     Json: pyarrow.large_string(),
     Uuid: pyarrow.string(),
     TimeUuid: pyarrow.string(),
+    Decimal: pyarrow.string(),
 }
 
 FEAST_VECTOR_TYPES: List[Union[ValueType, PrimitiveFeastType, ComplexFeastType]] = [
