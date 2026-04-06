@@ -26,6 +26,7 @@ Feast supports the following data types:
 | `UnixTimestamp` | `datetime` | Unix timestamp (nullable) |
 | `Uuid` | `uuid.UUID` | UUID (any version) |
 | `TimeUuid` | `uuid.UUID` | Time-based UUID (version 1) |
+| `Decimal` | `decimal.Decimal` | Arbitrary-precision decimal number |
 
 ### Domain-Specific Primitive Types
 
@@ -56,6 +57,7 @@ All primitive types have corresponding array (list) types:
 | `Array(UnixTimestamp)` | `List[datetime]` | List of timestamps |
 | `Array(Uuid)` | `List[uuid.UUID]` | List of UUIDs |
 | `Array(TimeUuid)` | `List[uuid.UUID]` | List of time-based UUIDs |
+| `Array(Decimal)` | `List[decimal.Decimal]` | List of arbitrary-precision decimals |
 
 ### Set Types
 
@@ -73,6 +75,7 @@ All primitive types (except `Map` and `Json`) have corresponding set types for s
 | `Set(UnixTimestamp)` | `Set[datetime]` | Set of unique timestamps |
 | `Set(Uuid)` | `Set[uuid.UUID]` | Set of unique UUIDs |
 | `Set(TimeUuid)` | `Set[uuid.UUID]` | Set of unique time-based UUIDs |
+| `Set(Decimal)` | `Set[decimal.Decimal]` | Set of unique arbitrary-precision decimals |
 
 **Note:** Set types automatically remove duplicate values. When converting from lists or other iterables to sets, duplicates are eliminated.
 
@@ -194,7 +197,7 @@ from datetime import timedelta
 from feast import Entity, FeatureView, Field, FileSource
 from feast.types import (
     Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp,
-    Uuid, TimeUuid, Array, Set, Map, Json, Struct
+    Uuid, TimeUuid, Decimal, Array, Set, Map, Json, Struct
 )
 
 # Define a data source
@@ -226,6 +229,7 @@ user_features = FeatureView(
         Field(name="last_login", dtype=UnixTimestamp),
         Field(name="session_id", dtype=Uuid),
         Field(name="event_id", dtype=TimeUuid),
+        Field(name="price", dtype=Decimal),
 
         # Array types
         Field(name="daily_steps", dtype=Array(Int32)),
@@ -238,6 +242,7 @@ user_features = FeatureView(
         Field(name="login_timestamps", dtype=Array(UnixTimestamp)),
         Field(name="related_session_ids", dtype=Array(Uuid)),
         Field(name="event_chain", dtype=Array(TimeUuid)),
+        Field(name="historical_prices", dtype=Array(Decimal)),
 
         # Set types (unique values only — see backend caveats above)
         Field(name="visited_pages", dtype=Set(String)),
@@ -246,6 +251,7 @@ user_features = FeatureView(
         Field(name="preferred_languages", dtype=Set(String)),
         Field(name="unique_device_ids", dtype=Set(Uuid)),
         Field(name="unique_event_ids", dtype=Set(TimeUuid)),
+        Field(name="unique_prices", dtype=Set(Decimal)),
 
         # Map types
         Field(name="user_preferences", dtype=Map),
@@ -313,9 +319,44 @@ related_sessions = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
 unique_devices = {uuid.uuid4(), uuid.uuid4()}
 ```
 
-### Nested Collection Type Usage Examples
+### Decimal Type Usage Examples
 
-Nested collections allow storing multi-dimensional data with unlimited depth:
+The `Decimal` type stores arbitrary-precision decimal numbers using Python's `decimal.Decimal`.
+Values are stored as strings in the proto to preserve full precision — no floating-point rounding occurs.
+
+```python
+import decimal
+
+# Scalar decimal — e.g., a financial price
+price = decimal.Decimal("19.99")
+
+# High-precision value — all digits preserved
+tax_rate = decimal.Decimal("0.08750000000000000000")
+
+# Decimal values are returned as decimal.Decimal objects from get_online_features()
+response = store.get_online_features(
+    features=["product_features:price"],
+    entity_rows=[{"product_id": 42}],
+)
+result = response.to_dict()
+# result["price"][0] is a decimal.Decimal object
+
+# Decimal lists — e.g., a history of prices
+historical_prices = [
+    decimal.Decimal("18.50"),
+    decimal.Decimal("19.00"),
+    decimal.Decimal("19.99"),
+]
+
+# Decimal sets — unique price points seen
+unique_prices = {decimal.Decimal("9.99"), decimal.Decimal("19.99"), decimal.Decimal("29.99")}
+```
+
+{% hint style="warning" %}
+`Decimal` is **not** inferred from any backend schema. You must declare it explicitly in your feature view schema. The pandas dtype for `Decimal` columns is `object` (holding `decimal.Decimal` instances), not a numeric dtype.
+{% endhint %}
+
+### Nested Collection Type Usage Examples
 
 ```python
 # List of lists — e.g., weekly score history per user
@@ -420,7 +461,7 @@ Each of these columns must be associated with a Feast type, which requires conve
 * `source_datatype_to_feast_value_type` calls the appropriate method in `type_map.py`. For example, if a `SnowflakeSource` is being examined, `snowflake_python_type_to_feast_value_type` from `type_map.py` will be called.
 
 {% hint style="info" %}
-**Types that cannot be inferred:** `Set`, `Json`, `Struct`, `PdfBytes`, and `ImageBytes` types are never inferred from backend schemas. If you use these types, you must declare them explicitly in your feature view schema.
+**Types that cannot be inferred:** `Set`, `Json`, `Struct`, `Decimal`, `PdfBytes`, and `ImageBytes` types are never inferred from backend schemas. If you use these types, you must declare them explicitly in your feature view schema.
 {% endhint %}
 
 ### Materialization

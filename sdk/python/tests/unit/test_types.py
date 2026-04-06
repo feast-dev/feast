@@ -5,6 +5,7 @@ from feast.field import Field
 from feast.types import (
     Array,
     Bool,
+    Decimal,
     Float32,
     Float64,
     Int32,
@@ -192,6 +193,23 @@ def test_uuid_set_feast_type():
     set_time_uuid = Set(TimeUuid)
     assert set_time_uuid.to_value_type() == ValueType.TIME_UUID_SET
     assert from_value_type(set_time_uuid.to_value_type()) == set_time_uuid
+
+
+def test_decimal_feast_type():
+    assert Decimal.to_value_type() == ValueType.DECIMAL
+    assert from_value_type(ValueType.DECIMAL) == Decimal
+
+
+def test_decimal_array_feast_type():
+    array_decimal = Array(Decimal)
+    assert array_decimal.to_value_type() == ValueType.DECIMAL_LIST
+    assert from_value_type(array_decimal.to_value_type()) == array_decimal
+
+
+def test_decimal_set_feast_type():
+    set_decimal = Set(Decimal)
+    assert set_decimal.to_value_type() == ValueType.DECIMAL_SET
+    assert from_value_type(set_decimal.to_value_type()) == set_decimal
 
 
 def test_feast_type_str_roundtrip():
