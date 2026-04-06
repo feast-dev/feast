@@ -62,14 +62,17 @@ spec:
                       OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                       https://auth0.
                     properties:
+                      issuerUrl:
+                        description: The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
+                        pattern: ^https://\S+$
+                        type: string
                       secretKeyName:
                         description: The key within the Secret that contains the OIDC
                           configuration as a YAML-encoded value.
                         type: string
                       secretRef:
-                        description: |-
-                          LocalObjectReference contains enough information to let you locate the
-                          referenced object inside the same namespace.
+                        description: Reference to a Secret containing OIDC properties
+                          (auth_discovery_url, client_id, client_secret, etc.).
                         properties:
                           name:
                             default: ""
@@ -81,16 +84,14 @@ spec:
                         type: object
                         x-kubernetes-map-type: atomic
                       tokenEnvVar:
-                        description: The name of the environment variable that client
-                          pods will use to read a pre-existing OIDC token.
+                        description: The name of the environment variable that Feast
+                          SDK client pods (e.g.
                         type: string
                       verifySSL:
                         description: |-
                           Whether to verify SSL certificates when communicating with the OIDC provider.
                           Defaults to true.
                         type: boolean
-                    required:
-                    - secretRef
                     type: object
                 type: object
                 x-kubernetes-validations:
@@ -5770,14 +5771,17 @@ spec:
                           OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                           https://auth0.
                         properties:
+                          issuerUrl:
+                            description: The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
+                            pattern: ^https://\S+$
+                            type: string
                           secretKeyName:
                             description: The key within the Secret that contains the
                               OIDC configuration as a YAML-encoded value.
                             type: string
                           secretRef:
-                            description: |-
-                              LocalObjectReference contains enough information to let you locate the
-                              referenced object inside the same namespace.
+                            description: Reference to a Secret containing OIDC properties
+                              (auth_discovery_url, client_id, client_secret, etc.).
                             properties:
                               name:
                                 default: ""
@@ -5790,15 +5794,13 @@ spec:
                             x-kubernetes-map-type: atomic
                           tokenEnvVar:
                             description: The name of the environment variable that
-                              client pods will use to read a pre-existing OIDC token.
+                              Feast SDK client pods (e.g.
                             type: string
                           verifySSL:
                             description: |-
                               Whether to verify SSL certificates when communicating with the OIDC provider.
                               Defaults to true.
                             type: boolean
-                        required:
-                        - secretRef
                         type: object
                     type: object
                     x-kubernetes-validations:

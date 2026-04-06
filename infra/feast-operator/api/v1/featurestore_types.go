@@ -708,7 +708,16 @@ type KubernetesAuthz struct {
 // OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
 // https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
 type OidcAuthz struct {
-	SecretRef corev1.LocalObjectReference `json:"secretRef"`
+	// The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
+	// The operator derives the OIDC discovery endpoint by appending /.well-known/openid-configuration.
+	// When set, no Secret is required for basic OIDC authentication.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^https://\S+$`
+	IssuerUrl string `json:"issuerUrl,omitempty"`
+	// Reference to a Secret containing OIDC properties (auth_discovery_url, client_id, client_secret, etc.).
+	// When both issuerUrl and a Secret with auth_discovery_url are provided, issuerUrl takes precedence.
+	// +optional
+	SecretRef *corev1.LocalObjectReference `json:"secretRef,omitempty"`
 	// The key within the Secret that contains the OIDC configuration as a YAML-encoded value.
 	// When set, only this key is read and its YAML value is expected to contain the OIDC properties
 	// (e.g. client_id, auth_discovery_url). This allows sharing a single Secret across services.

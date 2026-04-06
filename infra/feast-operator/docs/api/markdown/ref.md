@@ -542,12 +542,17 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ |  |
+| `issuerUrl` _string_ | The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
+The operator derives the OIDC discovery endpoint by appending /.well-known/openid-configuration.
+When set, no Secret is required for basic OIDC authentication. |
+| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing OIDC properties (auth_discovery_url, client_id, client_secret, etc.).
+When both issuerUrl and a Secret with auth_discovery_url are provided, issuerUrl takes precedence. |
 | `secretKeyName` _string_ | The key within the Secret that contains the OIDC configuration as a YAML-encoded value.
 When set, only this key is read and its YAML value is expected to contain the OIDC properties
 (e.g. client_id, auth_discovery_url). This allows sharing a single Secret across services.
 When unset, each top-level key in the Secret is treated as a separate OIDC property. |
-| `tokenEnvVar` _string_ | The name of the environment variable that client pods will use to read a pre-existing OIDC token.
+| `tokenEnvVar` _string_ | The name of the environment variable that Feast SDK client pods (e.g. workbenches, application pods)
+will read a pre-existing OIDC token from.
 When set, the client feature_store.yaml will include token_env_var with this value.
 When unset, the client config is bare `type: oidc` which falls back to FEAST_OIDC_TOKEN or the pod's SA token. |
 | `verifySSL` _boolean_ | Whether to verify SSL certificates when communicating with the OIDC provider.

@@ -77,7 +77,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{}, withEnvFrom())
 				resource.Spec.AuthzConfig = &feastdevv1.AuthzConfig{OidcAuthz: &feastdevv1.OidcAuthz{
-					SecretRef: corev1.LocalObjectReference{
+					SecretRef: &corev1.LocalObjectReference{
 						Name: oidcSecretName,
 					},
 				}}
@@ -134,7 +134,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
 			expectedAuthzConfig := &feastdevv1.AuthzConfig{
 				OidcAuthz: &feastdevv1.OidcAuthz{
-					SecretRef: corev1.LocalObjectReference{
+					SecretRef: &corev1.LocalObjectReference{
 						Name: oidcSecretName,
 					},
 				},
@@ -476,7 +476,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 			Expect(cond.Reason).To(Equal(feastdevv1.FailedReason))
 			Expect(cond.Type).To(Equal(feastdevv1.ReadyType))
-			Expect(cond.Message).To(ContainSubstring("missing OIDC"))
+			Expect(cond.Message).To(ContainSubstring("OIDC discovery URL"))
 		})
 	})
 })

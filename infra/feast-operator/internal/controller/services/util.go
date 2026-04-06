@@ -407,9 +407,6 @@ func SetIsOpenShift(cfg *rest.Config) {
 	}
 }
 
-func missingOidcSecretProperty(property OidcPropertyType) error {
-	return fmt.Errorf(OidcMissingSecretError, property)
-}
 
 // getEnvVar returns the position of the EnvVar found by name
 func getEnvVar(envName string, env []corev1.EnvVar) int {

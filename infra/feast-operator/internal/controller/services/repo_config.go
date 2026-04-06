@@ -19,12 +19,15 @@ package services
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"gopkg.in/yaml.v3"
 )
+
+const oidcIssuerUrlEnvVar = "OIDC_ISSUER_URL"
 
 // GetServiceFeatureStoreYamlBase64 returns a base64 encoded feature_store.yaml config for the feast service
 func (feast *FeastServices) GetServiceFeatureStoreYamlBase64() (string, error) {
@@ -104,27 +107,30 @@ func getBaseServiceRepoConfig(
 	appliedSpec := featureStore.Status.Applied
 	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
 		repoConfig.AuthzConfig = AuthzConfig{Type: OidcAuthType}
-
-		propertiesMap, authSecretErr := secretExtractionFunc("", appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, appliedSpec.AuthzConfig.OidcAuthz.SecretKeyName)
-		if authSecretErr != nil {
-			return repoConfig, authSecretErr
-		}
-
+		oidcAuthz := appliedSpec.AuthzConfig.OidcAuthz
 		oidcParameters := map[string]interface{}{}
-		for _, oidcProperty := range OidcServerProperties {
-			if val, exists := propertiesMap[string(oidcProperty)]; exists {
-				oidcParameters[string(oidcProperty)] = val
-			} else {
-				return repoConfig, missingOidcSecretProperty(oidcProperty)
+
+		var secretProperties map[string]interface{}
+		if oidcAuthz.SecretRef != nil {
+			secretProperties, err = secretExtractionFunc("", oidcAuthz.SecretRef.Name, oidcAuthz.SecretKeyName)
+			if err != nil {
+				return repoConfig, err
+			}
+			for _, prop := range OidcOptionalSecretProperties {
+				if val, exists := secretProperties[string(prop)]; exists {
+					oidcParameters[string(prop)] = val
+				}
 			}
 		}
-		for _, oidcProperty := range OidcOptionalSecretProperties {
-			if val, exists := propertiesMap[string(oidcProperty)]; exists {
-				oidcParameters[string(oidcProperty)] = val
-			}
+
+		discoveryUrl, err := resolveAuthDiscoveryUrl(oidcAuthz, secretProperties)
+		if err != nil {
+			return repoConfig, err
 		}
-		if appliedSpec.AuthzConfig.OidcAuthz.VerifySSL != nil {
-			oidcParameters[string(OidcVerifySsl)] = *appliedSpec.AuthzConfig.OidcAuthz.VerifySSL
+		oidcParameters[string(OidcAuthDiscoveryUrl)] = discoveryUrl
+
+		if oidcAuthz.VerifySSL != nil {
+			oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
 		}
 		repoConfig.AuthzConfig.OidcParameters = oidcParameters
 	} else {
@@ -132,6 +138,31 @@ func getBaseServiceRepoConfig(
 	}
 
 	return repoConfig, nil
+}
+
+// resolveAuthDiscoveryUrl determines the OIDC discovery URL from the first available source.
+// Priority: CR issuerUrl > Secret auth_discovery_url > OIDC_ISSUER_URL env var.
+func resolveAuthDiscoveryUrl(oidcAuthz *feastdevv1.OidcAuthz, secretProperties map[string]interface{}) (string, error) {
+	if oidcAuthz.IssuerUrl != "" {
+		return issuerToDiscoveryUrl(oidcAuthz.IssuerUrl), nil
+	}
+
+	if val, ok := secretProperties[string(OidcAuthDiscoveryUrl)]; ok {
+		if s, ok := val.(string); ok && s != "" {
+			return s, nil
+		}
+	}
+
+	if envIssuer := os.Getenv(oidcIssuerUrlEnvVar); envIssuer != "" {
+		return issuerToDiscoveryUrl(envIssuer), nil
+	}
+
+	return "", fmt.Errorf("no OIDC discovery URL configured: set issuerUrl on the OidcAuthz CR, "+
+		"include auth_discovery_url in the referenced Secret, or ensure the %s environment variable is set on the operator pod", oidcIssuerUrlEnvVar)
+}
+
+func issuerToDiscoveryUrl(issuerUrl string) string {
+	return strings.TrimRight(issuerUrl, "/") + "/.well-known/openid-configuration"
 }
 
 func setRepoConfigRegistry(services *feastdevv1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
