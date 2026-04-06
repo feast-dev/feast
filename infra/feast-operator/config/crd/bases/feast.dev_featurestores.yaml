@@ -62,6 +62,21 @@ spec:
                       OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                       https://auth0.
                     properties:
+                      caCertConfigMap:
+                        description: Reference to a ConfigMap containing the CA certificate
+                          for the OIDC provider.
+                        properties:
+                          key:
+                            description: |-
+                              Key within the ConfigMap that holds the CA certificate in PEM format.
+                              Defaults to "ca-bundle.crt" if omitted.
+                            type: string
+                          name:
+                            description: Name of the ConfigMap containing the CA certificate.
+                            type: string
+                        required:
+                        - name
+                        type: object
                       issuerUrl:
                         description: The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
                         pattern: ^https://\S+$
@@ -5771,6 +5786,22 @@ spec:
                           OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                           https://auth0.
                         properties:
+                          caCertConfigMap:
+                            description: Reference to a ConfigMap containing the CA
+                              certificate for the OIDC provider.
+                            properties:
+                              key:
+                                description: |-
+                                  Key within the ConfigMap that holds the CA certificate in PEM format.
+                                  Defaults to "ca-bundle.crt" if omitted.
+                                type: string
+                              name:
+                                description: Name of the ConfigMap containing the
+                                  CA certificate.
+                                type: string
+                            required:
+                            - name
+                            type: object
                           issuerUrl:
                             description: The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
                             pattern: ^https://\S+$

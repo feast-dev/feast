@@ -557,6 +557,25 @@ When set, the client feature_store.yaml will include token_env_var with this val
 When unset, the client config is bare `type: oidc` which falls back to FEAST_OIDC_TOKEN or the pod's SA token. |
 | `verifySSL` _boolean_ | Whether to verify SSL certificates when communicating with the OIDC provider.
 Defaults to true. Set to false for self-signed certificates (common in internal OpenShift clusters). |
+| `caCertConfigMap` _[OidcCACertConfigMap](#oidccacertconfigmap)_ | Reference to a ConfigMap containing the CA certificate for the OIDC provider.
+Used when the OIDC provider uses self-signed or custom CA certificates and verifySSL is true.
+On RHOAI/ODH clusters, the operator auto-detects the platform CA bundle; this field is not required. |
+
+
+#### OidcCACertConfigMap
+
+
+
+OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS verification.
+
+_Appears in:_
+- [OidcAuthz](#oidcauthz)
+
+| Field | Description |
+| --- | --- |
+| `name` _string_ | Name of the ConfigMap containing the CA certificate. |
+| `key` _string_ | Key within the ConfigMap that holds the CA certificate in PEM format.
+Defaults to "ca-bundle.crt" if omitted. |
 
 
 #### OnlineStore

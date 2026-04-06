@@ -50,6 +50,11 @@ const (
 
 	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
 	caBundleName       = "odh-trusted-ca-bundle"
+	odhCaBundleKey     = "odh-ca-bundle.crt"
+	tlsPathOdhCABundle = "/etc/pki/tls/custom-certs/odh-ca-bundle.crt"
+	tlsPathOidcCA      = "/etc/pki/tls/oidc-ca/ca.crt"
+	oidcCaVolumeName   = "oidc-ca-cert"
+	defaultCACertKey   = "ca-bundle.crt"
 
 	DefaultOfflineStorageRequest        = "20Gi"
 	DefaultOnlineStorageRequest         = "5Gi"
@@ -93,6 +98,7 @@ const (
 	OidcPassword         OidcPropertyType = "password"
 	OidcTokenEnvVar      OidcPropertyType = "token_env_var"
 	OidcVerifySsl        OidcPropertyType = "verify_ssl"
+	OidcCaCertPath       OidcPropertyType = "ca_cert_path"
 
 	OidcMissingSecretError string = "missing OIDC secret: %s"
 )

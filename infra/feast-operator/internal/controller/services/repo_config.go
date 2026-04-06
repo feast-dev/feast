@@ -132,6 +132,9 @@ func getBaseServiceRepoConfig(
 		if oidcAuthz.VerifySSL != nil {
 			oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
 		}
+		if caCertPath := resolveOidcCACertPath(oidcAuthz); caCertPath != "" {
+			oidcParameters[string(OidcCaCertPath)] = caCertPath
+		}
 		repoConfig.AuthzConfig.OidcParameters = oidcParameters
 	} else {
 		repoConfig.AuthzConfig = clientRepoConfig.AuthzConfig
@@ -163,6 +166,18 @@ func resolveAuthDiscoveryUrl(oidcAuthz *feastdevv1.OidcAuthz, secretProperties m
 
 func issuerToDiscoveryUrl(issuerUrl string) string {
 	return strings.TrimRight(issuerUrl, "/") + "/.well-known/openid-configuration"
+}
+
+// resolveOidcCACertPath determines the CA cert file path for OIDC provider TLS verification.
+// When CRD caCertConfigMap is set, returns the explicit mount path.
+// Otherwise returns the ODH auto-detected path (the SDK checks os.path.exists at runtime).
+func resolveOidcCACertPath(oidcAuthz *feastdevv1.OidcAuthz) string {
+	if oidcAuthz.CACertConfigMap != nil {
+		return tlsPathOidcCA
+	}
+	// ODH/RHOAI: odh-ca-bundle.crt is mounted by mountCustomCABundle() when the ConfigMap exists.
+	// On non-ODH clusters the file won't exist and the SDK falls back to system CA.
+	return tlsPathOdhCABundle
 }
 
 func setRepoConfigRegistry(services *feastdevv1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {

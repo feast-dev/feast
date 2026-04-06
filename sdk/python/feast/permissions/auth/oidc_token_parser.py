@@ -38,6 +38,7 @@ class OidcTokenParser(TokenParser):
         self.oidc_discovery_service = OIDCDiscoveryService(
             self._auth_config.auth_discovery_url,
             verify_ssl=self._auth_config.verify_ssl,
+            ca_cert_path=self._auth_config.ca_cert_path,
         )
         self._k8s_auth_api = None
 
@@ -99,6 +100,10 @@ class OidcTokenParser(TokenParser):
         if not self._auth_config.verify_ssl:
             ssl_ctx.check_hostname = False
             ssl_ctx.verify_mode = ssl.CERT_NONE
+        elif self._auth_config.ca_cert_path and os.path.exists(
+            self._auth_config.ca_cert_path
+        ):
+            ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
         jwks_client = PyJWKClient(
             self.oidc_discovery_service.get_jwks_url(),
             headers=optional_custom_headers,

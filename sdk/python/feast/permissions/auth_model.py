@@ -38,6 +38,7 @@ class OidcAuthConfig(AuthConfig):
     auth_discovery_url: str
     client_id: Optional[str] = None
     verify_ssl: bool = True
+    ca_cert_path: str = ""
 
 
 class OidcClientAuthConfig(OidcAuthConfig):

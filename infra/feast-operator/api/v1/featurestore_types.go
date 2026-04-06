@@ -734,6 +734,21 @@ type OidcAuthz struct {
 	// Defaults to true. Set to false for self-signed certificates (common in internal OpenShift clusters).
 	// +optional
 	VerifySSL *bool `json:"verifySSL,omitempty"`
+	// Reference to a ConfigMap containing the CA certificate for the OIDC provider.
+	// Used when the OIDC provider uses self-signed or custom CA certificates and verifySSL is true.
+	// On RHOAI/ODH clusters, the operator auto-detects the platform CA bundle; this field is not required.
+	// +optional
+	CACertConfigMap *OidcCACertConfigMap `json:"caCertConfigMap,omitempty"`
+}
+
+// OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS verification.
+type OidcCACertConfigMap struct {
+	// Name of the ConfigMap containing the CA certificate.
+	Name string `json:"name"`
+	// Key within the ConfigMap that holds the CA certificate in PEM format.
+	// Defaults to "ca-bundle.crt" if omitted.
+	// +optional
+	Key string `json:"key,omitempty"`
 }
 
 // TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.

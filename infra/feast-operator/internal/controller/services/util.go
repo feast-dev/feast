@@ -407,7 +407,6 @@ func SetIsOpenShift(cfg *rest.Config) {
 	}
 }
 
-
 // getEnvVar returns the position of the EnvVar found by name
 func getEnvVar(envName string, env []corev1.EnvVar) int {
 	for pos, v := range env {
