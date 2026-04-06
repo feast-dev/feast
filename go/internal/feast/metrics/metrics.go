@@ -30,7 +30,6 @@ var (
 	TimeHistogramType = reflect.TypeOf((*TimeHistogram)(nil)).Elem()
 )
 
-
 func RegisterTimeHistogram(name, help, namespace string, labelNames []string, tag reflect.StructTag) (func(prometheus.Labels) interface{}, prometheus.Collector, error) {
 	f, collector, err := prometheusvanilla.BuildHistogram(name, help, namespace, labelNames, tag)
 	if err != nil {

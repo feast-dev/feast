@@ -251,7 +251,7 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 	mux.Handle("/metrics", promhttp.Handler())
 	metricsServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", metricsPort),
-		Handler: mux, 
+		Handler: mux,
 	}
 	go func() {
 		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
@@ -338,8 +338,6 @@ func newTracerProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, err
 	), nil
 }
 
-
-
 // StartHttpsServer starts HTTP server with TLS. Requires TLS_CERT_FILE and TLS_KEY_FILE env vars.
 func StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, certFile string, keyFile string, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
 	if certFile == "" || keyFile == "" {
@@ -358,7 +356,7 @@ func StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort
 	mux.Handle("/metrics", promhttp.Handler())
 	metricsServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", metricsPort),
-		Handler: mux, 
+		Handler: mux,
 	}
 	go func() {
 		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
