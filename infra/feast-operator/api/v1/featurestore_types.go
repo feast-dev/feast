@@ -708,45 +708,32 @@ type KubernetesAuthz struct {
 // OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
 // https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
 type OidcAuthz struct {
-	// The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
-	// The operator derives the OIDC discovery endpoint by appending /.well-known/openid-configuration.
-	// When set, no Secret is required for basic OIDC authentication.
+	// OIDC issuer URL. The operator appends /.well-known/openid-configuration to derive the discovery endpoint.
 	// +optional
 	// +kubebuilder:validation:Pattern=`^https://\S+$`
 	IssuerUrl string `json:"issuerUrl,omitempty"`
-	// Reference to a Secret containing OIDC properties (auth_discovery_url, client_id, client_secret, etc.).
-	// When both issuerUrl and a Secret with auth_discovery_url are provided, issuerUrl takes precedence.
+	// Secret with OIDC properties (auth_discovery_url, client_id, client_secret). issuerUrl takes precedence.
 	// +optional
 	SecretRef *corev1.LocalObjectReference `json:"secretRef,omitempty"`
-	// The key within the Secret that contains the OIDC configuration as a YAML-encoded value.
-	// When set, only this key is read and its YAML value is expected to contain the OIDC properties
-	// (e.g. client_id, auth_discovery_url). This allows sharing a single Secret across services.
-	// When unset, each top-level key in the Secret is treated as a separate OIDC property.
+	// Key in the Secret containing all OIDC properties as a YAML value. If unset, each key is a property.
 	// +optional
 	SecretKeyName string `json:"secretKeyName,omitempty"`
-	// The name of the environment variable that Feast SDK client pods (e.g. workbenches, application pods)
-	// will read a pre-existing OIDC token from.
-	// When set, the client feature_store.yaml will include token_env_var with this value.
-	// When unset, the client config is bare `type: oidc` which falls back to FEAST_OIDC_TOKEN or the pod's SA token.
+	// Env var name for client pods to read an OIDC token from. Sets token_env_var in client config.
 	// +optional
 	TokenEnvVar *string `json:"tokenEnvVar,omitempty"`
-	// Whether to verify SSL certificates when communicating with the OIDC provider.
-	// Defaults to true. Set to false for self-signed certificates (common in internal OpenShift clusters).
+	// Verify SSL certificates for the OIDC provider. Defaults to true.
 	// +optional
 	VerifySSL *bool `json:"verifySSL,omitempty"`
-	// Reference to a ConfigMap containing the CA certificate for the OIDC provider.
-	// Used when the OIDC provider uses self-signed or custom CA certificates and verifySSL is true.
-	// On RHOAI/ODH clusters, the operator auto-detects the platform CA bundle; this field is not required.
+	// ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH.
 	// +optional
 	CACertConfigMap *OidcCACertConfigMap `json:"caCertConfigMap,omitempty"`
 }
 
-// OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS verification.
+// OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS.
 type OidcCACertConfigMap struct {
-	// Name of the ConfigMap containing the CA certificate.
+	// ConfigMap name.
 	Name string `json:"name"`
-	// Key within the ConfigMap that holds the CA certificate in PEM format.
-	// Defaults to "ca-bundle.crt" if omitted.
+	// Key in the ConfigMap holding the PEM certificate. Defaults to "ca-bundle.crt".
 	// +optional
 	Key string `json:"key,omitempty"`
 }

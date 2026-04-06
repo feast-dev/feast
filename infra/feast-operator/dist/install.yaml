@@ -71,31 +71,31 @@ spec:
                       https://auth0.
                     properties:
                       caCertConfigMap:
-                        description: Reference to a ConfigMap containing the CA certificate
-                          for the OIDC provider.
+                        description: ConfigMap with the CA certificate for self-signed
+                          OIDC providers. Auto-detected on RHOAI/ODH.
                         properties:
                           key:
-                            description: |-
-                              Key within the ConfigMap that holds the CA certificate in PEM format.
-                              Defaults to "ca-bundle.crt" if omitted.
+                            description: Key in the ConfigMap holding the PEM certificate.
+                              Defaults to "ca-bundle.crt".
                             type: string
                           name:
-                            description: Name of the ConfigMap containing the CA certificate.
+                            description: ConfigMap name.
                             type: string
                         required:
                         - name
                         type: object
                       issuerUrl:
-                        description: The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
+                        description: OIDC issuer URL. The operator appends /.well-known/openid-configuration
+                          to derive the discovery endpoint.
                         pattern: ^https://\S+$
                         type: string
                       secretKeyName:
-                        description: The key within the Secret that contains the OIDC
-                          configuration as a YAML-encoded value.
+                        description: Key in the Secret containing all OIDC properties
+                          as a YAML value. If unset, each key is a property.
                         type: string
                       secretRef:
-                        description: Reference to a Secret containing OIDC properties
-                          (auth_discovery_url, client_id, client_secret, etc.).
+                        description: Secret with OIDC properties (auth_discovery_url,
+                          client_id, client_secret). issuerUrl takes precedence.
                         properties:
                           name:
                             default: ""
@@ -107,12 +107,11 @@ spec:
                         type: object
                         x-kubernetes-map-type: atomic
                       tokenEnvVar:
-                        description: The name of the environment variable that Feast
-                          SDK client pods (e.g.
+                        description: Env var name for client pods to read an OIDC
+                          token from. Sets token_env_var in client config.
                         type: string
                       verifySSL:
-                        description: |-
-                          Whether to verify SSL certificates when communicating with the OIDC provider.
+                        description: Verify SSL certificates for the OIDC provider.
                           Defaults to true.
                         type: boolean
                     type: object
@@ -5795,32 +5794,31 @@ spec:
                           https://auth0.
                         properties:
                           caCertConfigMap:
-                            description: Reference to a ConfigMap containing the CA
-                              certificate for the OIDC provider.
+                            description: ConfigMap with the CA certificate for self-signed
+                              OIDC providers. Auto-detected on RHOAI/ODH.
                             properties:
                               key:
-                                description: |-
-                                  Key within the ConfigMap that holds the CA certificate in PEM format.
-                                  Defaults to "ca-bundle.crt" if omitted.
+                                description: Key in the ConfigMap holding the PEM
+                                  certificate. Defaults to "ca-bundle.crt".
                                 type: string
                               name:
-                                description: Name of the ConfigMap containing the
-                                  CA certificate.
+                                description: ConfigMap name.
                                 type: string
                             required:
                             - name
                             type: object
                           issuerUrl:
-                            description: The OIDC issuer URL (e.g. "https://keycloak.example.com/realms/myrealm").
+                            description: OIDC issuer URL. The operator appends /.well-known/openid-configuration
+                              to derive the discovery endpoint.
                             pattern: ^https://\S+$
                             type: string
                           secretKeyName:
-                            description: The key within the Secret that contains the
-                              OIDC configuration as a YAML-encoded value.
+                            description: Key in the Secret containing all OIDC properties
+                              as a YAML value. If unset, each key is a property.
                             type: string
                           secretRef:
-                            description: Reference to a Secret containing OIDC properties
-                              (auth_discovery_url, client_id, client_secret, etc.).
+                            description: Secret with OIDC properties (auth_discovery_url,
+                              client_id, client_secret). issuerUrl takes precedence.
                             properties:
                               name:
                                 default: ""
@@ -5832,12 +5830,11 @@ spec:
                             type: object
                             x-kubernetes-map-type: atomic
                           tokenEnvVar:
-                            description: The name of the environment variable that
-                              Feast SDK client pods (e.g.
+                            description: Env var name for client pods to read an OIDC
+                              token from. Sets token_env_var in client config.
                             type: string
                           verifySSL:
-                            description: |-
-                              Whether to verify SSL certificates when communicating with the OIDC provider.
+                            description: Verify SSL certificates for the OIDC provider.
                               Defaults to true.
                             type: boolean
                         type: object
