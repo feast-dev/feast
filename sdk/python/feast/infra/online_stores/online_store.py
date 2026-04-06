@@ -255,9 +255,16 @@ class OnlineStore(ABC):
 
     def _check_versioned_read_support(self, grouped_refs):
         """Raise an error if versioned reads are attempted on unsupported stores."""
+        try:
+            from feast.infra.online_stores.faiss_online_store import FaissOnlineStore
+        except ImportError:
+            FaissOnlineStore = None
         from feast.infra.online_stores.sqlite import SqliteOnlineStore
 
-        if isinstance(self, SqliteOnlineStore):
+        supported = [SqliteOnlineStore]
+        if FaissOnlineStore is not None:
+            supported.append(FaissOnlineStore)
+        if isinstance(self, tuple(supported)):
             return
         for table, _ in grouped_refs:
             version_tag = getattr(table.projection, "version_tag", None)
