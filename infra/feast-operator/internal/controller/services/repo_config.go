@@ -97,7 +97,7 @@ func getBaseServiceRepoConfig(
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 
 	repoConfig := defaultRepoConfig(featureStore)
-	clientRepoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc, nil)
+	clientRepoConfig, err := getClientRepoConfig(featureStore, nil)
 	if err != nil {
 		return repoConfig, err
 	}
@@ -340,8 +340,8 @@ func setRepoConfigBatchEngine(
 	return nil
 }
 
-func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) ([]byte, error) {
-	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, secretExtractionFunc, feast)
+func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
+	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, feast)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -350,14 +350,10 @@ func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(
 
 func getClientRepoConfig(
 	featureStore *feastdevv1.FeatureStore,
-	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
 	feast *FeastServices) (RepoConfig, error) {
 	status := featureStore.Status
 	appliedServices := status.Applied.Services
-	clientRepoConfig, err := getRepoConfig(featureStore)
-	if err != nil {
-		return clientRepoConfig, err
-	}
+	clientRepoConfig := getRepoConfig(featureStore)
 	if len(status.ServiceHostnames.OfflineStore) > 0 {
 		clientRepoConfig.OfflineStore = OfflineStoreConfig{
 			Type: OfflineRemoteConfigType,
@@ -398,7 +394,7 @@ func getClientRepoConfig(
 	return clientRepoConfig, nil
 }
 
-func getRepoConfig(featureStore *feastdevv1.FeatureStore) (RepoConfig, error) {
+func getRepoConfig(featureStore *feastdevv1.FeatureStore) RepoConfig {
 	status := featureStore.Status
 	repoConfig := initRepoConfig(status.Applied.FeastProject)
 	if status.Applied.AuthzConfig != nil {
@@ -419,7 +415,7 @@ func getRepoConfig(featureStore *feastdevv1.FeatureStore) (RepoConfig, error) {
 			}
 		}
 	}
-	return repoConfig, nil
+	return repoConfig
 }
 
 func getActualPath(filePath string, pvcConfig *feastdevv1.PvcConfig) string {

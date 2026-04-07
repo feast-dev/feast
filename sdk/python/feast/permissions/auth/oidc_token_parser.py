@@ -211,7 +211,8 @@ class OidcTokenParser(TokenParser):
         token_review = client.V1TokenReview(
             spec=client.V1TokenReviewSpec(token=access_token)
         )
-        response = self._k8s_auth_api.create_token_review(token_review)
+        auth_api: client.AuthenticationV1Api = self._k8s_auth_api
+        response = auth_api.create_token_review(token_review)
 
         if not response.status.authenticated:
             raise AuthenticationError(
