@@ -73,10 +73,12 @@ class OidcAuthClientManager(AuthenticationClientManager):
                 "auth_discovery_url is required for IDP token fetch "
                 "(client_credentials or ROPG flow)."
             )
-        token_endpoint = OIDCDiscoveryService(
+        discovery = OIDCDiscoveryService(
             self.auth_config.auth_discovery_url,
             verify_ssl=self.auth_config.verify_ssl,
-        ).get_token_url()
+            ca_cert_path=self.auth_config.ca_cert_path,
+        )
+        token_endpoint = discovery.get_token_url()
 
         if self.auth_config.client_secret and not (
             self.auth_config.username and self.auth_config.password
@@ -100,7 +102,7 @@ class OidcAuthClientManager(AuthenticationClientManager):
             token_endpoint,
             data=token_request_body,
             headers=headers,
-            verify=self.auth_config.verify_ssl,
+            verify=discovery._get_verify(),
         )
 
         if token_response.status_code == 200:
