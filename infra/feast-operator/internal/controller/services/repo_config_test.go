@@ -370,7 +370,6 @@ var _ = Describe("Repo Config", func() {
 		Expect(err).NotTo(HaveOccurred())
 		_, err = getClientRepoConfig(featureStore, secretExtractionFunc, nil)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("missing OIDC secret"))
 	})
 })
 

@@ -354,7 +354,7 @@ func getClientRepoConfig(
 	feast *FeastServices) (RepoConfig, error) {
 	status := featureStore.Status
 	appliedServices := status.Applied.Services
-	clientRepoConfig, err := getRepoConfig(featureStore, secretExtractionFunc)
+	clientRepoConfig, err := getRepoConfig(featureStore)
 	if err != nil {
 		return clientRepoConfig, err
 	}
@@ -398,9 +398,7 @@ func getClientRepoConfig(
 	return clientRepoConfig, nil
 }
 
-func getRepoConfig(
-	featureStore *feastdevv1.FeatureStore,
-	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+func getRepoConfig(featureStore *feastdevv1.FeatureStore) (RepoConfig, error) {
 	status := featureStore.Status
 	repoConfig := initRepoConfig(status.Applied.FeastProject)
 	if status.Applied.AuthzConfig != nil {
