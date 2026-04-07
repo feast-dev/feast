@@ -93,6 +93,16 @@ class OidcTokenParser(TokenParser):
             return expected_type()
         return node
 
+    @staticmethod
+    def _is_ssl_error(exc: BaseException) -> bool:
+        """Walk the exception chain looking for SSL-related errors."""
+        current: Optional[BaseException] = exc
+        while current is not None:
+            if isinstance(current, ssl.SSLError):
+                return True
+            current = current.__cause__ or current.__context__
+        return False
+
     def _decode_token(self, access_token: str) -> dict:
         """Fetch the JWKS signing key and decode + verify the JWT."""
         optional_custom_headers = {"User-agent": "custom-user-agent"}
@@ -164,6 +174,12 @@ class OidcTokenParser(TokenParser):
             await self._validate_token(access_token)
             logger.debug("Token successfully validated.")
         except Exception as e:
+            if self._is_ssl_error(e):
+                logger.error(
+                    "OIDC provider SSL certificate verification failed. "
+                    "If using a self-signed certificate, set verify_ssl: false "
+                    "or provide a CA certificate via ca_cert_path."
+                )
             logger.error(f"Token validation failed: {e}")
             raise AuthenticationError(f"Invalid token: {e}")
 
@@ -188,7 +204,13 @@ class OidcTokenParser(TokenParser):
                 roles=roles,
                 groups=groups,
             )
-        except jwt.exceptions.PyJWTError:
+        except jwt.exceptions.PyJWTError as e:
+            if self._is_ssl_error(e):
+                logger.error(
+                    "OIDC JWKS endpoint SSL certificate verification failed. "
+                    "If using a self-signed certificate, set verify_ssl: false "
+                    "or provide a CA certificate via ca_cert_path."
+                )
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
 
