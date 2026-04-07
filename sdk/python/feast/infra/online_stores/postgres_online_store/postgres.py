@@ -22,7 +22,7 @@ from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from feast import Entity, FeatureView, ValueType
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
-from feast.infra.online_stores.helpers import _to_naive_utc
+from feast.infra.online_stores.helpers import _to_naive_utc, compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.infra.utils.postgres.connection_utils import (
@@ -152,7 +152,15 @@ class PostgreSQLOnlineStore(OnlineStore):
                 event_ts = EXCLUDED.event_ts,
                 created_ts = EXCLUDED.created_ts;
         """
-        ).format(sql.Identifier(_table_id(config.project, table)))
+        ).format(
+            sql.Identifier(
+                _table_id(
+                    config.project,
+                    table,
+                    config.registry.enable_online_feature_view_versioning,
+                )
+            )
+        )
 
         # Push data into the online store
         with self._get_conn(config) as conn, conn.cursor() as cur:
@@ -214,7 +222,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 FROM {} WHERE entity_key = ANY(%s) AND feature_name = ANY(%s);
                 """
             ).format(
-                sql.Identifier(_table_id(config.project, table)),
+                sql.Identifier(
+                    _table_id(
+                        config.project,
+                        table,
+                        config.registry.enable_online_feature_view_versioning,
+                    )
+                ),
             )
             params = (keys, requested_features)
         else:
@@ -224,7 +238,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 FROM {} WHERE entity_key = ANY(%s);
                 """
             ).format(
-                sql.Identifier(_table_id(config.project, table)),
+                sql.Identifier(
+                    _table_id(
+                        config.project,
+                        table,
+                        config.registry.enable_online_feature_view_versioning,
+                    )
+                ),
             )
             params = (keys, [])
         return query, params
@@ -304,12 +324,16 @@ class PostgreSQLOnlineStore(OnlineStore):
                     ),
                 )
 
+            versioning = config.registry.enable_online_feature_view_versioning
             for table in tables_to_delete:
-                table_name = _table_id(project, table)
-                cur.execute(_drop_table_and_index(table_name))
+                if versioning:
+                    _drop_all_version_tables(cur, project, table, schema_name)
+                else:
+                    table_name = _table_id(project, table)
+                    cur.execute(_drop_table_and_index(table_name))
 
             for table in tables_to_keep:
-                table_name = _table_id(project, table)
+                table_name = _table_id(project, table, versioning)
                 if config.online_store.vector_enabled:
                     vector_value_type = "vector"
                 else:
@@ -363,11 +387,16 @@ class PostgreSQLOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         project = config.project
+        schema_name = config.online_store.db_schema or config.online_store.user
+        versioning = config.registry.enable_online_feature_view_versioning
         try:
             with self._get_conn(config) as conn, conn.cursor() as cur:
                 for table in tables:
-                    table_name = _table_id(project, table)
-                    cur.execute(_drop_table_and_index(table_name))
+                    if versioning:
+                        _drop_all_version_tables(cur, project, table, schema_name)
+                    else:
+                        table_name = _table_id(project, table)
+                        cur.execute(_drop_table_and_index(table_name))
                 conn.commit()
         except Exception:
             logging.exception("Teardown failed")
@@ -432,7 +461,9 @@ class PostgreSQLOnlineStore(OnlineStore):
             ]
         ] = []
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
-            table_name = _table_id(project, table)
+            table_name = _table_id(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
 
             # Search query template to find the top k items that are closest to the given embedding
             # SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
@@ -533,7 +564,11 @@ class PostgreSQLOnlineStore(OnlineStore):
             and feature.name in requested_features
         ]
 
-        table_name = _table_id(config.project, table)
+        table_name = _table_id(
+            config.project,
+            table,
+            config.registry.enable_online_feature_view_versioning,
+        )
 
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
             query = None
@@ -794,8 +829,8 @@ class PostgreSQLOnlineStore(OnlineStore):
         return result
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 def _drop_table_and_index(table_name):
@@ -808,3 +843,23 @@ def _drop_table_and_index(table_name):
         sql.Identifier(table_name),
         sql.Identifier(f"{table_name}_ek"),
     )
+
+
+def _drop_all_version_tables(
+    cur, project: str, table: FeatureView, schema_name: Optional[str] = None
+) -> None:
+    """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
+    base = f"{project}_{table.name}"
+    if schema_name:
+        cur.execute(
+            "SELECT tablename FROM pg_tables "
+            "WHERE schemaname = %s AND (tablename = %s OR tablename ~ %s)",
+            (schema_name, base, f"^{base}_v[0-9]+$"),
+        )
+    else:
+        cur.execute(
+            "SELECT tablename FROM pg_tables WHERE tablename = %s OR tablename ~ %s",
+            (base, f"^{base}_v[0-9]+$"),
+        )
+    for (name,) in cur.fetchall():
+        cur.execute(_drop_table_and_index(name))

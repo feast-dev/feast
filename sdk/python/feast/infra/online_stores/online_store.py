@@ -257,7 +257,25 @@ class OnlineStore(ABC):
         """Raise an error if versioned reads are attempted on unsupported stores."""
         from feast.infra.online_stores.sqlite import SqliteOnlineStore
 
-        if isinstance(self, SqliteOnlineStore):
+        supported_types: list[type] = [SqliteOnlineStore]
+        try:
+            from feast.infra.online_stores.mysql_online_store.mysql import (
+                MySQLOnlineStore,
+            )
+
+            supported_types.append(MySQLOnlineStore)
+        except ImportError:
+            pass
+        try:
+            from feast.infra.online_stores.postgres_online_store.postgres import (
+                PostgreSQLOnlineStore,
+            )
+
+            supported_types.append(PostgreSQLOnlineStore)
+        except ImportError:
+            pass
+
+        if isinstance(self, tuple(supported_types)):
             return
         for table, _ in grouped_refs:
             version_tag = getattr(table.projection, "version_tag", None)
