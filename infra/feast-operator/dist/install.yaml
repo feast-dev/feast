@@ -70,10 +70,32 @@ spec:
                       OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                       https://auth0.
                     properties:
+                      caCertConfigMap:
+                        description: ConfigMap with the CA certificate for self-signed
+                          OIDC providers. Auto-detected on RHOAI/ODH.
+                        properties:
+                          key:
+                            description: Key in the ConfigMap holding the PEM certificate.
+                              Defaults to "ca-bundle.crt".
+                            type: string
+                          name:
+                            description: ConfigMap name.
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      issuerUrl:
+                        description: OIDC issuer URL. The operator appends /.well-known/openid-configuration
+                          to derive the discovery endpoint.
+                        pattern: ^https://\S+$
+                        type: string
+                      secretKeyName:
+                        description: Key in the Secret containing all OIDC properties
+                          as a YAML value. If unset, each key is a property.
+                        type: string
                       secretRef:
-                        description: |-
-                          LocalObjectReference contains enough information to let you locate the
-                          referenced object inside the same namespace.
+                        description: Secret with OIDC properties (auth_discovery_url,
+                          client_id, client_secret). issuerUrl takes precedence.
                         properties:
                           name:
                             default: ""
@@ -84,8 +106,14 @@ spec:
                             type: string
                         type: object
                         x-kubernetes-map-type: atomic
-                    required:
-                    - secretRef
+                      tokenEnvVar:
+                        description: Env var name for client pods to read an OIDC
+                          token from. Sets token_env_var in client config.
+                        type: string
+                      verifySSL:
+                        description: Verify SSL certificates for the OIDC provider.
+                          Defaults to true.
+                        type: boolean
                     type: object
                 type: object
                 x-kubernetes-validations:
@@ -5771,10 +5799,32 @@ spec:
                           OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
                           https://auth0.
                         properties:
+                          caCertConfigMap:
+                            description: ConfigMap with the CA certificate for self-signed
+                              OIDC providers. Auto-detected on RHOAI/ODH.
+                            properties:
+                              key:
+                                description: Key in the ConfigMap holding the PEM
+                                  certificate. Defaults to "ca-bundle.crt".
+                                type: string
+                              name:
+                                description: ConfigMap name.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          issuerUrl:
+                            description: OIDC issuer URL. The operator appends /.well-known/openid-configuration
+                              to derive the discovery endpoint.
+                            pattern: ^https://\S+$
+                            type: string
+                          secretKeyName:
+                            description: Key in the Secret containing all OIDC properties
+                              as a YAML value. If unset, each key is a property.
+                            type: string
                           secretRef:
-                            description: |-
-                              LocalObjectReference contains enough information to let you locate the
-                              referenced object inside the same namespace.
+                            description: Secret with OIDC properties (auth_discovery_url,
+                              client_id, client_secret). issuerUrl takes precedence.
                             properties:
                               name:
                                 default: ""
@@ -5785,8 +5835,14 @@ spec:
                                 type: string
                             type: object
                             x-kubernetes-map-type: atomic
-                        required:
-                        - secretRef
+                          tokenEnvVar:
+                            description: Env var name for client pods to read an OIDC
+                              token from. Sets token_env_var in client config.
+                            type: string
+                          verifySSL:
+                            description: Verify SSL certificates for the OIDC provider.
+                              Defaults to true.
+                            type: boolean
                         type: object
                     type: object
                     x-kubernetes-validations:
@@ -20598,6 +20654,8 @@ spec:
           value: quay.io/feastdev/feature-server:0.61.0
         - name: RELATED_IMAGE_CRON_JOB
           value: quay.io/openshift/origin-cli:4.17
+        - name: OIDC_ISSUER_URL
+          value: ""
         image: quay.io/feastdev/feast-operator:0.61.0
         livenessProbe:
           httpGet:

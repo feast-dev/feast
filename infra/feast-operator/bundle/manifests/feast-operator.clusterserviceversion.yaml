@@ -50,7 +50,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-03-10T20:00:10Z"
+    createdAt: "2026-04-07T13:49:25Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.61.0
@@ -176,6 +176,17 @@ spec:
           - patch
           - update
         - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - watch
+        - apiGroups:
           - policy
           resources:
           - poddisruptionbudgets
@@ -259,6 +270,7 @@ spec:
                   value: quay.io/feastdev/feature-server:0.61.0
                 - name: RELATED_IMAGE_CRON_JOB
                   value: quay.io/openshift/origin-cli:4.17
+                - name: OIDC_ISSUER_URL
                 image: quay.io/feastdev/feast-operator:0.61.0
                 livenessProbe:
                   httpGet:

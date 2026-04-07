@@ -545,7 +545,27 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ |  |
+| `issuerUrl` _string_ | OIDC issuer URL. The operator appends /.well-known/openid-configuration to derive the discovery endpoint. |
+| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Secret with OIDC properties (auth_discovery_url, client_id, client_secret). issuerUrl takes precedence. |
+| `secretKeyName` _string_ | Key in the Secret containing all OIDC properties as a YAML value. If unset, each key is a property. |
+| `tokenEnvVar` _string_ | Env var name for client pods to read an OIDC token from. Sets token_env_var in client config. |
+| `verifySSL` _boolean_ | Verify SSL certificates for the OIDC provider. Defaults to true. |
+| `caCertConfigMap` _[OidcCACertConfigMap](#oidccacertconfigmap)_ | ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH. |
+
+
+#### OidcCACertConfigMap
+
+
+
+OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS.
+
+_Appears in:_
+- [OidcAuthz](#oidcauthz)
+
+| Field | Description |
+| --- | --- |
+| `name` _string_ | ConfigMap name. |
+| `key` _string_ | Key in the ConfigMap holding the PEM certificate. Defaults to "ca-bundle.crt". |
 
 
 #### OnlineStore
