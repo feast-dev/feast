@@ -46,7 +46,7 @@ var _ = Describe("Repo Config", func() {
 				Path: EphemeralPath + "/" + DefaultOnlineStorePath,
 			}
 
-			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig))
@@ -74,7 +74,7 @@ var _ = Describe("Repo Config", func() {
 				Path:         testPath,
 			}
 
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig))
@@ -96,7 +96,7 @@ var _ = Describe("Repo Config", func() {
 			Expect(appliedServices.OnlineStore).NotTo(BeNil())
 			Expect(appliedServices.Registry.Local).NotTo(BeNil())
 
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore).To(Equal(defaultOfflineStoreConfig))
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
@@ -115,7 +115,7 @@ var _ = Describe("Repo Config", func() {
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig))
@@ -163,7 +163,7 @@ var _ = Describe("Repo Config", func() {
 				Path: "/data/online.db",
 			}
 
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
@@ -188,7 +188,7 @@ var _ = Describe("Repo Config", func() {
 				Type: "dask",
 			}
 
-			repoConfig, err = getServiceRepoConfig(featureStore, mockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, mockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
@@ -211,7 +211,7 @@ var _ = Describe("Repo Config", func() {
 				string(OidcClientSecret):     "client-secret",
 				string(OidcUsername):         "username",
 				string(OidcPassword):         "password"})
-			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(5))
@@ -234,7 +234,7 @@ var _ = Describe("Repo Config", func() {
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(1))
@@ -250,7 +250,7 @@ var _ = Describe("Repo Config", func() {
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
-			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.OidcParameters[string(OidcAuthDiscoveryUrl)]).To(Equal("https://keycloak.example.com/realms/cr-wins/.well-known/openid-configuration"))
 
@@ -295,7 +295,7 @@ var _ = Describe("Repo Config", func() {
 			featureStore.Spec.Services.OfflineStore.Persistence.FilePersistence = nil
 			featureStore.Spec.Services.OnlineStore.Persistence.FilePersistence = nil
 			featureStore.Spec.Services.Registry.Local.Persistence.FilePersistence = nil
-			repoConfig, err = getServiceRepoConfig(featureStore, mockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+			repoConfig, err = getServiceRepoConfig(featureStore, mockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			newMap := CopyMap(parameterMap)
 			port := parameterMap["port"].(int)
@@ -327,7 +327,7 @@ var _ = Describe("Repo Config", func() {
 		}
 		ApplyDefaultsToStatus(featureStore)
 
-		_, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap)
+		_, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("no OIDC discovery URL configured"))
 
@@ -346,7 +346,7 @@ var _ = Describe("Repo Config", func() {
 			string(OidcClientSecret): "client-secret",
 			string(OidcUsername):     "username",
 			string(OidcPassword):     "password"})
-		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap)
+		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("no OIDC discovery URL configured"))
 
@@ -365,7 +365,7 @@ var _ = Describe("Repo Config", func() {
 			string(OidcClientId):         "client-id",
 			string(OidcUsername):         "username",
 			string(OidcPassword):         "password"})
-		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap)
+		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
 		Expect(err).NotTo(HaveOccurred())
 		getClientRepoConfig(featureStore, nil)
 	})

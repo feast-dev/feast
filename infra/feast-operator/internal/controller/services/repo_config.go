@@ -47,14 +47,16 @@ func (feast *FeastServices) getServiceFeatureStoreYaml() ([]byte, error) {
 }
 
 func (feast *FeastServices) getServiceRepoConfig() (RepoConfig, error) {
-	return getServiceRepoConfig(feast.Handler.FeatureStore, feast.extractConfigFromSecret, feast.extractConfigFromConfigMap)
+	odhCaBundleExists := feast.GetCustomCertificatesBundle().IsDefined
+	return getServiceRepoConfig(feast.Handler.FeatureStore, feast.extractConfigFromSecret, feast.extractConfigFromConfigMap, odhCaBundleExists)
 }
 
 func getServiceRepoConfig(
 	featureStore *feastdevv1.FeatureStore,
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
-	configMapExtractionFunc func(configMapRef string, configMapKey string) (map[string]interface{}, error)) (RepoConfig, error) {
-	repoConfig, err := getBaseServiceRepoConfig(featureStore, secretExtractionFunc)
+	configMapExtractionFunc func(configMapRef string, configMapKey string) (map[string]interface{}, error),
+	odhCaBundleExists bool) (RepoConfig, error) {
+	repoConfig, err := getBaseServiceRepoConfig(featureStore, secretExtractionFunc, odhCaBundleExists)
 	if err != nil {
 		return repoConfig, err
 	}
@@ -94,7 +96,8 @@ func getServiceRepoConfig(
 
 func getBaseServiceRepoConfig(
 	featureStore *feastdevv1.FeatureStore,
-	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
+	odhCaBundleExists bool) (RepoConfig, error) {
 
 	repoConfig := defaultRepoConfig(featureStore)
 	clientRepoConfig := getClientRepoConfig(featureStore, nil)
@@ -130,7 +133,7 @@ func getBaseServiceRepoConfig(
 		if oidcAuthz.VerifySSL != nil {
 			oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
 		}
-		if caCertPath := resolveOidcCACertPath(oidcAuthz); caCertPath != "" {
+		if caCertPath := resolveOidcCACertPath(oidcAuthz, odhCaBundleExists); caCertPath != "" {
 			oidcParameters[string(OidcCaCertPath)] = caCertPath
 		}
 		repoConfig.AuthzConfig.OidcParameters = oidcParameters
@@ -167,11 +170,13 @@ func issuerToDiscoveryUrl(issuerUrl string) string {
 }
 
 // resolveOidcCACertPath determines the CA cert file path for OIDC provider TLS verification.
-// Returns the explicit mount path only when CRD caCertConfigMap is set.
-// On ODH/RHOAI clusters, users should set caCertConfigMap pointing to odh-trusted-ca-bundle.
-func resolveOidcCACertPath(oidcAuthz *feastdevv1.OidcAuthz) string {
+// Priority: explicit CRD caCertConfigMap > ODH auto-detected bundle > empty (system CA fallback).
+func resolveOidcCACertPath(oidcAuthz *feastdevv1.OidcAuthz, odhCaBundleExists bool) string {
 	if oidcAuthz.CACertConfigMap != nil {
 		return tlsPathOidcCA
+	}
+	if odhCaBundleExists {
+		return tlsPathOdhCABundle
 	}
 	return ""
 }
