@@ -49,6 +49,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -76,6 +77,8 @@ jobs:
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -126,6 +129,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -172,6 +176,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Git credentials
