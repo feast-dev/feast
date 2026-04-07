@@ -5,6 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: feast-operator
     app.kubernetes.io/managed-by: kustomize
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
   name: featurestore-viewer-role
 rules:
 - apiGroups:

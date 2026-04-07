@@ -2544,6 +2544,12 @@ spec:
                             type: object
                         type: object
                     type: object
+                  podAnnotations:
+                    additionalProperties:
+                      type: string
+                    description: PodAnnotations are annotations to be applied to the
+                      Deployment's PodTemplate metadata.
+                    type: object
                   podDisruptionBudgets:
                     description: PodDisruptionBudgets configures a PodDisruptionBudget
                       for the FeatureStore deployment.
@@ -8298,6 +8304,12 @@ spec:
                                     type: integer
                                 type: object
                             type: object
+                        type: object
+                      podAnnotations:
+                        additionalProperties:
+                          type: string
+                        description: PodAnnotations are annotations to be applied
+                          to the Deployment's PodTemplate metadata.
                         type: object
                       podDisruptionBudgets:
                         description: PodDisruptionBudgets configures a PodDisruptionBudget
@@ -20306,6 +20318,8 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: feast-operator
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
   name: feast-operator-featurestore-editor-role
 rules:
 - apiGroups:
@@ -20333,6 +20347,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: feast-operator
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
   name: feast-operator-featurestore-viewer-role
 rules:
 - apiGroups:

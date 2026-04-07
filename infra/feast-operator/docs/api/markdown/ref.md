@@ -239,6 +239,9 @@ _Appears in:_
 | `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `podAnnotations` _object (keys:string, values:string)_ | PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
+This enables annotation-driven integrations like OpenTelemetry auto-instrumentation,
+Istio sidecar injection, Vault agent injection, etc. |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
 | `runFeastApplyOnInit` _boolean_ | Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true. |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |

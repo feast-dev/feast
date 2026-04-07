@@ -308,6 +308,11 @@ type FeatureStoreServices struct {
 	UI                 *ServerConfigs             `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+	// PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
+	// This enables annotation-driven integrations like OpenTelemetry auto-instrumentation,
+	// Istio sidecar injection, Vault agent injection, etc.
+	// +optional
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
 	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
