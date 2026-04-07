@@ -224,8 +224,7 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OnlineStore).To(Equal(defaultOnlineStoreConfig(featureStore)))
 			Expect(repoConfig.Registry).To(Equal(defaultRegistryConfig(featureStore)))
 
-			repoConfig, err = getClientRepoConfig(featureStore, nil)
-			Expect(err).NotTo(HaveOccurred())
+			repoConfig = getClientRepoConfig(featureStore, nil)
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
 
 			By("Having oidc authorization with issuerUrl only (no Secret)")
@@ -368,8 +367,7 @@ var _ = Describe("Repo Config", func() {
 			string(OidcPassword):         "password"})
 		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap)
 		Expect(err).NotTo(HaveOccurred())
-		_, err = getClientRepoConfig(featureStore, nil)
-		Expect(err).NotTo(HaveOccurred())
+		getClientRepoConfig(featureStore, nil)
 	})
 })
 
@@ -545,8 +543,7 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 			}
 
 			// Test with nil feast parameter (no custom CA bundle)
-			repoConfig, err := getClientRepoConfig(featureStore, nil)
-			Expect(err).NotTo(HaveOccurred())
+			repoConfig := getClientRepoConfig(featureStore, nil)
 
 			// Verify individual service certificate paths are used
 			Expect(repoConfig.OfflineStore.Cert).To(Equal("/tls/offline/tls.crt"))
@@ -615,8 +612,7 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 			}
 
 			// Test with nil feast parameter (no custom CA bundle available)
-			repoConfig, err := getClientRepoConfig(featureStore, nil)
-			Expect(err).NotTo(HaveOccurred())
+			repoConfig := getClientRepoConfig(featureStore, nil)
 			Expect(repoConfig.OfflineStore.Cert).To(Equal("/tls/offline/tls.crt"))
 		})
 	})

@@ -97,10 +97,7 @@ func getBaseServiceRepoConfig(
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 
 	repoConfig := defaultRepoConfig(featureStore)
-	clientRepoConfig, err := getClientRepoConfig(featureStore, nil)
-	if err != nil {
-		return repoConfig, err
-	}
+	clientRepoConfig := getClientRepoConfig(featureStore, nil)
 	if isRemoteRegistry(featureStore) {
 		repoConfig.Registry = clientRepoConfig.Registry
 	}
@@ -112,6 +109,7 @@ func getBaseServiceRepoConfig(
 
 		var secretProperties map[string]interface{}
 		if oidcAuthz.SecretRef != nil {
+			var err error
 			secretProperties, err = secretExtractionFunc("", oidcAuthz.SecretRef.Name, oidcAuthz.SecretKeyName)
 			if err != nil {
 				return repoConfig, err
@@ -169,15 +167,13 @@ func issuerToDiscoveryUrl(issuerUrl string) string {
 }
 
 // resolveOidcCACertPath determines the CA cert file path for OIDC provider TLS verification.
-// When CRD caCertConfigMap is set, returns the explicit mount path.
-// Otherwise returns the ODH auto-detected path (the SDK checks os.path.exists at runtime).
+// Returns the explicit mount path only when CRD caCertConfigMap is set.
+// On ODH/RHOAI clusters, users should set caCertConfigMap pointing to odh-trusted-ca-bundle.
 func resolveOidcCACertPath(oidcAuthz *feastdevv1.OidcAuthz) string {
 	if oidcAuthz.CACertConfigMap != nil {
 		return tlsPathOidcCA
 	}
-	// ODH/RHOAI: odh-ca-bundle.crt is mounted by mountCustomCABundle() when the ConfigMap exists.
-	// On non-ODH clusters the file won't exist and the SDK falls back to system CA.
-	return tlsPathOdhCABundle
+	return ""
 }
 
 func setRepoConfigRegistry(services *feastdevv1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
@@ -341,16 +337,13 @@ func setRepoConfigBatchEngine(
 }
 
 func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
-	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, feast)
-	if err != nil {
-		return []byte{}, err
-	}
+	clientRepo := getClientRepoConfig(feast.Handler.FeatureStore, feast)
 	return yaml.Marshal(clientRepo)
 }
 
 func getClientRepoConfig(
 	featureStore *feastdevv1.FeatureStore,
-	feast *FeastServices) (RepoConfig, error) {
+	feast *FeastServices) RepoConfig {
 	status := featureStore.Status
 	appliedServices := status.Applied.Services
 	clientRepoConfig := getRepoConfig(featureStore)
@@ -391,7 +384,7 @@ func getClientRepoConfig(
 		}
 	}
 
-	return clientRepoConfig, nil
+	return clientRepoConfig
 }
 
 func getRepoConfig(featureStore *feastdevv1.FeatureStore) RepoConfig {
