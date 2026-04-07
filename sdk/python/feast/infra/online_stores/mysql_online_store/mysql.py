@@ -310,7 +310,6 @@ class MySQLOnlineStore(OnlineStore):
 
 
 def _drop_table_and_index(cur: Cursor, table_name: str) -> None:
-    cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
@@ -323,8 +322,7 @@ def _drop_all_version_tables(cur: Cursor, project: str, table: FeatureView) -> N
         (base, f"^{base}_v[0-9]+$"),
     )
     for (name,) in cur.fetchall():
-        cur.execute(f"DROP INDEX IF EXISTS {name}_ek ON {name};")
-        cur.execute(f"DROP TABLE IF EXISTS {name}")
+        _drop_table_and_index(cur, name)
 
 
 def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
