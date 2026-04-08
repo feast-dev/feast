@@ -83,7 +83,7 @@ class MySQLOnlineStore(OnlineStore):
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=3,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 ).hex()
                 timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
@@ -112,7 +112,7 @@ class MySQLOnlineStore(OnlineStore):
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=2,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 ).hex()
                 timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
@@ -228,7 +228,7 @@ class MySQLOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
                 entity_key,
-                entity_key_serialization_version=3,
+                entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
 
             cur.execute(
