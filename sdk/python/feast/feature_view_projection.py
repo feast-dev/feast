@@ -47,9 +47,13 @@ class FeatureViewProjection:
     date_partition_column: Optional[str] = None
     created_timestamp_column: Optional[str] = None
     batch_source: Optional[DataSource] = None
+    version_tag: Optional[int] = None
 
     def name_to_use(self):
-        return self.name_alias or self.name
+        base = self.name_alias or self.name
+        if self.version_tag is not None:
+            return f"{base}@v{self.version_tag}"
+        return base
 
     def to_proto(self) -> FeatureViewProjectionProto:
         batch_source = None
@@ -69,6 +73,9 @@ class FeatureViewProjection:
         )
         for feature in self.features:
             feature_reference_proto.feature_columns.append(feature.to_proto())
+
+        if self.version_tag is not None:
+            feature_reference_proto.version_tag = self.version_tag
 
         return feature_reference_proto
 
@@ -92,6 +99,9 @@ class FeatureViewProjection:
         )
         for feature_column in proto.feature_columns:
             feature_view_projection.features.append(Field.from_proto(feature_column))
+
+        if proto.HasField("version_tag"):
+            feature_view_projection.version_tag = proto.version_tag
 
         return feature_view_projection
 

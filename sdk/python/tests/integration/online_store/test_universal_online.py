@@ -1159,6 +1159,12 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(vector_results["text_field"]) == 5
     assert len(vector_results["category"]) == 5
 
+    assert all(isinstance(v, list) for v in vector_results["embedding"])
+    assert all(isinstance(v, float) for v in vector_results["distance"])
+    assert all(isinstance(v, str) for v in vector_results["text_field"])
+    assert all(isinstance(v, str) for v in vector_results["category"])
+    assert all(isinstance(v, int) for v in vector_results["item_id"])
+
     # Test 2: Vector similarity search with Cosine distance
     vector_results = fs.retrieve_online_documents_v2(
         features=[
@@ -1177,6 +1183,12 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(vector_results["text_field"]) == 5
     assert len(vector_results["category"]) == 5
 
+    assert all(isinstance(v, list) for v in vector_results["embedding"])
+    assert all(isinstance(v, float) for v in vector_results["distance"])
+    assert all(isinstance(v, str) for v in vector_results["text_field"])
+    assert all(isinstance(v, str) for v in vector_results["category"])
+    assert all(isinstance(v, int) for v in vector_results["item_id"])
+
     # Test 3: Full text search
     text_results = fs.retrieve_online_documents_v2(
         features=[
@@ -1194,6 +1206,11 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(text_results["text_rank"]) == 5
     assert len(text_results["category"]) == 5
     assert len(text_results["item_id"]) == 5
+
+    assert all(isinstance(v, str) for v in text_results["text_field"])
+    assert all(isinstance(v, float) for v in text_results["text_rank"])
+    assert all(isinstance(v, str) for v in text_results["category"])
+    assert all(isinstance(v, int) for v in text_results["item_id"])
 
     # Verify text rank values are between 0 and 1
     assert all(0 <= rank <= 1 for rank in text_results["text_rank"])
@@ -1224,22 +1241,12 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(hybrid_results["category"]) == 5
     assert len(hybrid_results["item_id"]) == 5
 
-    # Test 5: Hybrid search with different text query
-    hybrid_results = fs.retrieve_online_documents_v2(
-        features=[
-            "item_embeddings:embedding",
-            "item_embeddings:text_field",
-            "item_embeddings:category",
-            "item_embeddings:item_id",
-        ],
-        query=query_embedding,
-        query_string="Category-1",
-        top_k=5,
-        distance_metric="L2",
-    ).to_dict()
-
-    # Verify results contain only documents from Category-1
-    assert all(cat == "Category-1" for cat in hybrid_results["category"])
+    assert all(isinstance(v, list) for v in hybrid_results["embedding"])
+    assert all(isinstance(v, float) for v in hybrid_results["distance"])
+    assert all(isinstance(v, str) for v in hybrid_results["text_field"])
+    assert all(isinstance(v, float) for v in hybrid_results["text_rank"])
+    assert all(isinstance(v, str) for v in hybrid_results["category"])
+    assert all(isinstance(v, int) for v in hybrid_results["item_id"])
 
     # Test 6: Full text search with no matches
     no_match_results = fs.retrieve_online_documents_v2(

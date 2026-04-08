@@ -315,6 +315,11 @@ func (in *FeatureStoreServices) DeepCopyInto(out *FeatureStoreServices) {
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.RunFeastApplyOnInit != nil {
+		in, out := &in.RunFeastApplyOnInit, &out.RunFeastApplyOnInit
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Volumes != nil {
 		in, out := &in.Volumes, &out.Volumes
 		*out = make([]v1.Volume, len(*in))

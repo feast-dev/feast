@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: 'postgres:16-alpine'
+          image: 'quay.io/feastdev-ci/feast-test-images:postgres-17-alpine'
           ports:
             - containerPort: 5432
           envFrom:

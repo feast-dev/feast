@@ -37,7 +37,12 @@ class FeastRestClient:
         return requests.get(url, params=params, verify=False)
 
 
-def _wait_for_http_ready(route_url: str, timeout: int = 180, interval: int = 5) -> None:
+def _wait_for_http_ready(
+    route_url: str,
+    timeout: int = 300,
+    interval: int = 5,
+    initial_delay: int = 30,
+) -> None:
     """
     Poll the HTTP endpoint until it returns a non-502 response.
 
@@ -46,9 +51,15 @@ def _wait_for_http_ready(route_url: str, timeout: int = 180, interval: int = 5) 
     start before the Feast server is ready, causing all requests to return 502.
     """
     health_url = f"{route_url}/api/v1/projects"
-    deadline = time.time() + timeout
     last_status = None
 
+    if initial_delay > 0:
+        print(
+            f"\n Waiting {initial_delay}s for backend to start after apply/dataset creation..."
+        )
+        time.sleep(initial_delay)
+
+    deadline = time.time() + timeout
     print(
         f"\n Waiting for HTTP endpoint to become ready (timeout={timeout}s): {health_url}"
     )

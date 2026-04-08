@@ -160,6 +160,25 @@ Feature names must be unique within a [feature view](feature-view.md#feature-vie
 
 Each field can have additional metadata associated with it, specified as key-value [tags](https://rtd.feast.dev/en/master/feast.html#feast.field.Field).
 
+## \[Alpha\] Versioning
+
+Feature views support automatic version tracking. Every time `feast apply` detects a schema or UDF change, a versioned snapshot is saved to the registry. This enables auditing what changed, reverting to a prior version, querying specific versions via `@v<N>` syntax, and staging new versions without promoting them.
+
+Version history tracking is **always active** with no configuration needed. The `version` parameter is fully optional — omitting it preserves existing behavior.
+
+```python
+# Pin to a specific version (reverts the active definition to v2's snapshot)
+driver_stats = FeatureView(
+    name="driver_stats",
+    entities=[driver],
+    schema=[...],
+    source=my_source,
+    version="v2",
+)
+```
+
+For full details on version pinning, version-qualified reads, staged publishing (`--no-promote`), online store support, and known limitations, see the **[\[Alpha\] Feature View Versioning](../../reference/alpha-feature-view-versioning.md)** reference page.
+
 ## Schema Validation
 
 Feature views support an optional `enable_validation` parameter that enables schema validation during materialization and historical feature retrieval. When enabled, Feast verifies that:

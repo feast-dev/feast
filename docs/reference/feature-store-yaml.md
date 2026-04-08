@@ -40,7 +40,7 @@ feature_server:
     enabled: true             # Enable Prometheus metrics server on port 8000
     resource: true            # CPU / memory gauges
     request: true             # endpoint latency histograms & request counters
-    online_features: true     # online feature retrieval counters
+    online_features: true     # online feature retrieval counters + store read & ODFV transform timing
     push: true                # push request counters
     materialization: true     # materialization counters & duration histograms
     freshness: true           # per-feature-view freshness gauges

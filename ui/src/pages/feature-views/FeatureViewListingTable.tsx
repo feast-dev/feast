@@ -49,6 +49,13 @@ const FeatureViewListingTable = ({
         return features.length;
       },
     },
+    {
+      name: "Version",
+      render: (item: genericFVType) => {
+        const ver = (item.object as any)?.meta?.currentVersionNumber;
+        return ver != null && ver > 0 ? `v${ver}` : "—";
+      },
+    },
   ];
 
   // Add Project column when viewing all projects

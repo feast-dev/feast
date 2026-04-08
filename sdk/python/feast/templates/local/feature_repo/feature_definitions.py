@@ -72,6 +72,7 @@ driver_stats_fv = FeatureView(
     # feature view
     tags={"team": "driver_performance"},
     enable_validation=True,
+    version="latest",
 )
 
 # Define a request data source which encodes features / information only
@@ -140,6 +141,7 @@ driver_stats_fresh_fv = FeatureView(
     online=True,
     source=driver_stats_push_source,  # Changed from above
     tags={"team": "driver_performance"},
+    version="latest",
 )
 
 

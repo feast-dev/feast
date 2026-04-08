@@ -52,6 +52,11 @@ const (
 
 	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
 	caBundleName       = "odh-trusted-ca-bundle"
+	odhCaBundleKey     = "odh-ca-bundle.crt"
+	tlsPathOdhCABundle = "/etc/pki/tls/custom-certs/odh-ca-bundle.crt"
+	tlsPathOidcCA      = "/etc/pki/tls/oidc-ca/ca.crt"
+	oidcCaVolumeName   = "oidc-ca-cert"
+	defaultCACertKey   = "ca-bundle.crt"
 
 	DefaultOfflineStorageRequest        = "20Gi"
 	DefaultOnlineStorageRequest         = "5Gi"
@@ -93,6 +98,9 @@ const (
 	OidcClientSecret     OidcPropertyType = "client_secret"
 	OidcUsername         OidcPropertyType = "username"
 	OidcPassword         OidcPropertyType = "password"
+	OidcTokenEnvVar      OidcPropertyType = "token_env_var"
+	OidcVerifySsl        OidcPropertyType = "verify_ssl"
+	OidcCaCertPath       OidcPropertyType = "ca_cert_path"
 
 	OidcMissingSecretError string = "missing OIDC secret: %s"
 )
@@ -215,9 +223,7 @@ var (
 		},
 	}
 
-	OidcServerProperties = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
-	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
-	OidcProperties       = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl, OidcClientSecret, OidcUsername, OidcPassword}
+	OidcOptionalSecretProperties = []OidcPropertyType{OidcAuthDiscoveryUrl, OidcClientId, OidcClientSecret, OidcUsername, OidcPassword}
 )
 
 // Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.

@@ -161,6 +161,14 @@ class BigQueryOfflineStore(OfflineStore):
             project=project_id,
             location=config.offline_store.location,
         )
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            date_partition_column=data_source.date_partition_column,
+            quote_fields=False,
+            cast_style="timestamp_func",
+        )
         query = f"""
             SELECT
                 {field_string}
@@ -169,7 +177,7 @@ class BigQueryOfflineStore(OfflineStore):
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
-                WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
+                WHERE {timestamp_filter}
             )
             WHERE _feast_row = 1
             """
@@ -216,6 +224,7 @@ class BigQueryOfflineStore(OfflineStore):
             start_date,
             end_date,
             timestamp_field,
+            date_partition_column=data_source.date_partition_column,
             quote_fields=False,
             cast_style="timestamp_func",
         )
@@ -928,6 +937,12 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
         WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
         {% if featureview.ttl == 0 %}{% else %}
         AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
+        {% endif %}
+        {% if featureview.date_partition_column %}
+        AND {{ featureview.date_partition_column | backticks }} <= '{{ featureview.max_event_timestamp[:10] }}'
+        {% if featureview.min_event_timestamp %}
+        AND {{ featureview.date_partition_column | backticks }} >= '{{ featureview.min_event_timestamp[:10] }}'
+        {% endif %}
         {% endif %}
     ),
 

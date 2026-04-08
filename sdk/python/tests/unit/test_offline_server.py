@@ -1,6 +1,7 @@
 import os
 import tempfile
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import assertpy
 import pandas as pd
@@ -345,3 +346,28 @@ def _test_pull_all_from_table_or_query(temp_dir, fs: FeatureStore):
         start_date=start_date,
         end_date=end_date,
     ).to_df()
+
+
+def test_get_feature_view_by_name_propagates_transient_errors():
+    """Transient registry errors must not be swallowed and misreported as
+    FeatureViewNotFoundException."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        store = default_store(str(temp_dir))
+        location = "grpc+tcp://localhost:0"
+
+        _init_auth_manager(store=store)
+        server = OfflineServer(store=store, location=location)
+
+        transient_error = ConnectionError("registry temporarily unavailable")
+
+        with patch.object(
+            server.store.registry,
+            "get_feature_view",
+            side_effect=transient_error,
+        ):
+            with pytest.raises(ConnectionError, match="registry temporarily"):
+                server.get_feature_view_by_name(
+                    fv_name="driver_hourly_stats",
+                    name_alias=None,
+                    project=PROJECT_NAME,
+                )

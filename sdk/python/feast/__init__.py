@@ -5,14 +5,20 @@ from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
     AthenaSource,
 )
+from feast.infra.offline_stores.contrib.oracle_offline_store.oracle_source import (
+    OracleSource,
+)
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
 from .aggregation import Aggregation
 from .batch_feature_view import BatchFeatureView
+from .chunker import BaseChunker, ChunkingConfig, TextChunker
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
 from .dataframe import DataFrameEngine, FeastDataFrame
+from .doc_embedder import DocEmbedder, LogicalLayerFn
+from .embedder import BaseEmbedder, EmbeddingConfig, MultiModalEmbedder
 from .entity import Entity
 from .feature import Feature
 from .feature_service import FeatureService
@@ -56,6 +62,15 @@ __all__ = [
     "PushSource",
     "RequestSource",
     "AthenaSource",
+    "OracleSource",
     "Project",
     "FeastVectorStore",
+    "DocEmbedder",
+    "LogicalLayerFn",
+    "BaseChunker",
+    "TextChunker",
+    "ChunkingConfig",
+    "BaseEmbedder",
+    "MultiModalEmbedder",
+    "EmbeddingConfig",
 ]

@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 
 import jwt
 import requests
@@ -10,6 +11,8 @@ from feast.permissions.oidc_service import OIDCDiscoveryService
 
 logger = logging.getLogger(__name__)
 
+SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
 
 class OidcAuthClientManager(AuthenticationClientManager):
     def __init__(self, auth_config: OidcClientAuthConfig):
@@ -17,24 +20,66 @@ class OidcAuthClientManager(AuthenticationClientManager):
 
     def get_token(self):
         intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
-        # If intra server communication call
         if intra_communication_base64:
             payload = {
-                "preferred_username": f"{intra_communication_base64}",  # Subject claim
+                "preferred_username": f"{intra_communication_base64}",
             }
-
             return jwt.encode(payload, "")
 
-        # Fetch the token endpoint from the discovery URL
-        token_endpoint = OIDCDiscoveryService(
-            self.auth_config.auth_discovery_url
-        ).get_token_url()
-
-        # 1) pre-issued JWT supplied in config
-        if getattr(self.auth_config, "token", None):
+        if self.auth_config.token:
             return self.auth_config.token
+        elif self.auth_config.token_env_var:
+            env_token = os.getenv(self.auth_config.token_env_var)
+            if env_token:
+                return env_token
+            else:
+                raise PermissionError(
+                    f"token_env_var='{self.auth_config.token_env_var}' is configured "
+                    f"but the environment variable is not set or is empty."
+                )
+        elif self.auth_config.client_secret:
+            return self._fetch_token_from_idp()
+        else:
+            env_token = os.getenv("FEAST_OIDC_TOKEN")
+            if env_token:
+                return env_token
 
-        # 2) client_credentials
+            sa_token = self._read_sa_token()
+            if sa_token:
+                return sa_token
+
+            raise PermissionError(
+                "No OIDC token source configured. Provide one of: "
+                "'token', 'token_env_var', 'client_secret' (with "
+                "'auth_discovery_url' and 'client_id'), set the "
+                "FEAST_OIDC_TOKEN environment variable, or run inside "
+                "a Kubernetes pod with a mounted service account token."
+            )
+
+    @staticmethod
+    def _read_sa_token() -> Optional[str]:
+        """Read the Kubernetes service account token from the standard mount path."""
+        if os.path.isfile(SA_TOKEN_PATH):
+            with open(SA_TOKEN_PATH) as f:
+                token = f.read().strip()
+            if token:
+                return token
+        return None
+
+    def _fetch_token_from_idp(self) -> str:
+        """Obtain an access token via client_credentials or ROPG flow."""
+        if self.auth_config.auth_discovery_url is None:
+            raise ValueError(
+                "auth_discovery_url is required for IDP token fetch "
+                "(client_credentials or ROPG flow)."
+            )
+        discovery = OIDCDiscoveryService(
+            self.auth_config.auth_discovery_url,
+            verify_ssl=self.auth_config.verify_ssl,
+            ca_cert_path=self.auth_config.ca_cert_path,
+        )
+        token_endpoint = discovery.get_token_url()
+
         if self.auth_config.client_secret and not (
             self.auth_config.username and self.auth_config.password
         ):
@@ -43,7 +88,6 @@ class OidcAuthClientManager(AuthenticationClientManager):
                 "client_id": self.auth_config.client_id,
                 "client_secret": self.auth_config.client_secret,
             }
-        # 3) ROPG (username + password + client_secret)
         else:
             token_request_body = {
                 "grant_type": "password",
@@ -52,11 +96,15 @@ class OidcAuthClientManager(AuthenticationClientManager):
                 "username": self.auth_config.username,
                 "password": self.auth_config.password,
             }
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
         token_response = requests.post(
-            token_endpoint, data=token_request_body, headers=headers
+            token_endpoint,
+            data=token_request_body,
+            headers=headers,
+            verify=discovery._get_verify(),
         )
+
         if token_response.status_code == 200:
             access_token = token_response.json()["access_token"]
             if not access_token:

@@ -166,7 +166,7 @@ func buildPostgresConnString(config map[string]interface{}) string {
 	if sslMode, ok := config["sslmode"].(string); ok && sslMode != "" {
 		query.Set("sslmode", sslMode)
 	} else {
-		query.Set("sslmode", "disable")
+		query.Set("sslmode", "require")
 	}
 
 	if v, ok := config["sslcert_path"].(string); ok && v != "" {

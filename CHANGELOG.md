@@ -1,5 +1,54 @@
 # Changelog
 
+# [0.62.0](https://github.com/feast-dev/feast/compare/v0.61.0...v0.62.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* Added missing jackc/pgx/v5 entries ([94ad0e7](https://github.com/feast-dev/feast/commit/94ad0e7a545fcc2f87cbee5fa71588e3ff65be97))
+* Fix missing error handling for resource_counts endpoint ([d9706ce](https://github.com/feast-dev/feast/commit/d9706ce5e892625a868be1d4fd01e94acb9dfc48))
+* fix path feature_definitions.py ([7d7df68](https://github.com/feast-dev/feast/commit/7d7df68d0029b1dd5760b2a448c134041cfae962))
+* Fix regstry Rest API tests intermittent failure ([d53a339](https://github.com/feast-dev/feast/commit/d53a33986dab6bae8b6e5bee3383ce682d558a1b))
+* Fixed intermittent failures in get_historical_features ([c335ec7](https://github.com/feast-dev/feast/commit/c335ec7444110eeaae845c44581b1ba2ba083e30))
+* Fixed the intermittent FeatureViewNotFoundException ([661ecc7](https://github.com/feast-dev/feast/commit/661ecc79562f730b5dd9abfe14eb35fb135a7c97))
+* Handle existing RBAC role gracefully in namespace registry ([b46a62b](https://github.com/feast-dev/feast/commit/b46a62bc7cacce0240eadcdac4ee3b3df6639236))
+* Ignore ipynb files during apply ([#6151](https://github.com/feast-dev/feast/issues/6151)) ([4ea123d](https://github.com/feast-dev/feast/commit/4ea123d61b0d3fa895d144ed4ddaf277df5fb0be))
+* Mount TLS volumes for init container ([080a9b5](https://github.com/feast-dev/feast/commit/080a9b568cfaf8c3f3ee1937a8ee0923fa07b2ab))
+* **postgres:** Use end_date in synthetic entity_df for non-entity retrieval ([#6110](https://github.com/feast-dev/feast/issues/6110)) ([088a802](https://github.com/feast-dev/feast/commit/088a8023992ff84a86555e6132d85a1dc6c0a1ee)), closes [#6066](https://github.com/feast-dev/feast/issues/6066)
+* SSL/TLS mode by default for postgres connection ([4844488](https://github.com/feast-dev/feast/commit/4844488533db0e9e500d209a7b48872bbf61d791))
+* Sync v0.61-branch so v0.61.0 tag is reachable from master ([af66878](https://github.com/feast-dev/feast/commit/af66878b526f7741ea61d44fa23b9822edc5b158))
+
+
+### Features
+
+* Add Claude Code agent skills for Feast ([#6081](https://github.com/feast-dev/feast/issues/6081)) ([1e5b60f](https://github.com/feast-dev/feast/commit/1e5b60f84ee32e3a39c9d10c8534da47cd4712f2)), closes [#5976](https://github.com/feast-dev/feast/issues/5976) [#6007](https://github.com/feast-dev/feast/issues/6007)
+* Add decimal to supported feature types ([#6029](https://github.com/feast-dev/feast/issues/6029)) ([#6226](https://github.com/feast-dev/feast/issues/6226)) ([cff6fbf](https://github.com/feast-dev/feast/commit/cff6fbf8ee0b9db7e4412f93dfae476079b02199))
+* Add feast apply init container to automate registry population on pod start ([#6106](https://github.com/feast-dev/feast/issues/6106)) ([6b31a43](https://github.com/feast-dev/feast/commit/6b31a434f2671501e8a054b201965480cd27a545))
+* Add feature view versioning support to PostgreSQL and MySQL online stores ([#6193](https://github.com/feast-dev/feast/issues/6193)) ([940e0f0](https://github.com/feast-dev/feast/commit/940e0f0b1b4194e79f9d0fcd28eea153ae7a37fe)), closes [#6168](https://github.com/feast-dev/feast/issues/6168) [#6169](https://github.com/feast-dev/feast/issues/6169) [#2728](https://github.com/feast-dev/feast/issues/2728)
+* Add metadata statistics to registry api ([ef1d4fc](https://github.com/feast-dev/feast/commit/ef1d4fca99724f0ac02a07d1dddba167017d73ba))
+* Add Oracle DB as Offline store in python sdk & operator ([#6017](https://github.com/feast-dev/feast/issues/6017)) ([9d35368](https://github.com/feast-dev/feast/commit/9d353682f684907441756473cbf17234ee97ba55))
+* Add RBAC aggregation labels to FeatureStore ClusterRoles ([daf77c6](https://github.com/feast-dev/feast/commit/daf77c66388ab06ded2d79eac2ec8e4fcc7346bb))
+* Add ServiceMonitor auto-generation for Prometheus discovery ([#6126](https://github.com/feast-dev/feast/issues/6126)) ([56e6d21](https://github.com/feast-dev/feast/commit/56e6d213d11de4c31e1c9f4a3375ee66d9812b92))
+* Add typed_features field to grpc write request (([#6117](https://github.com/feast-dev/feast/issues/6117)) ([#6118](https://github.com/feast-dev/feast/issues/6118)) ([eeaa6db](https://github.com/feast-dev/feast/commit/eeaa6db71a26ef339ac0e8eff59f9ee9ebbf2c51)), closes [#6116](https://github.com/feast-dev/feast/issues/6116)
+* Add UUID and TIME_UUID as feature types ([#5885](https://github.com/feast-dev/feast/issues/5885)) ([#5951](https://github.com/feast-dev/feast/issues/5951)) ([5d6e311](https://github.com/feast-dev/feast/commit/5d6e311bda3f179fcfefdc063b0ea819ef6bc3f1))
+* Add version indicators to lineage graph nodes ([#6187](https://github.com/feast-dev/feast/issues/6187)) ([73805d3](https://github.com/feast-dev/feast/commit/73805d3a5c864c8612bd4f2c757b5562a7078e38))
+* Add version tracking to FeatureView ([#6101](https://github.com/feast-dev/feast/issues/6101)) ([ed4a4f2](https://github.com/feast-dev/feast/commit/ed4a4f293c55e2486f6e991469d3e76bc63b7490))
+* Added Agent skills for AI Agents ([#6007](https://github.com/feast-dev/feast/issues/6007)) ([99008c8](https://github.com/feast-dev/feast/commit/99008c80a73265d9fc06503f8363878f6dfb157f))
+* Added odfv transformations metrics ([8b5a526](https://github.com/feast-dev/feast/commit/8b5a526236707d016dcfeccc939e49c559a1fd02))
+* Created DocEmbedder class ([#5973](https://github.com/feast-dev/feast/issues/5973)) ([0719c06](https://github.com/feast-dev/feast/commit/0719c068b463283da80653c129e85dc97d74220c))
+* Extended OIDC support to extract groups & namespaces and token injection with multiple methods ([#6089](https://github.com/feast-dev/feast/issues/6089)) ([7c04026](https://github.com/feast-dev/feast/commit/7c04026abcff0212ae819c1654d4ef81d1db9058))
+* Replace ORJSONResponse with Pydantic response models for faster JSON serialization ([65cf03c](https://github.com/feast-dev/feast/commit/65cf03c879a1f84a716f2ca32ab2fcce5d1360d9))
+* Support distinct count aggregation [[#6116](https://github.com/feast-dev/feast/issues/6116)] ([3639570](https://github.com/feast-dev/feast/commit/3639570c92137d51fdb16eb858749e09168035a4))
+* Support HTTP in MCP ([#6109](https://github.com/feast-dev/feast/issues/6109)) ([e72b983](https://github.com/feast-dev/feast/commit/e72b9839998fd3e9f75695e755c083f4170ead15))
+* Support nested collection types (Array/Set of Array/Set) ([#5947](https://github.com/feast-dev/feast/issues/5947)) ([#6132](https://github.com/feast-dev/feast/issues/6132)) ([ab61642](https://github.com/feast-dev/feast/commit/ab61642a5f4344835a335695206f4d65e252fe25))
+* Support podAnnotations on Deployment pod template ([1b3cdc1](https://github.com/feast-dev/feast/commit/1b3cdc12a89a5dc99b881f14ac0e4b5266fa6075))
+* Utilize date partition column in BigQuery ([#6076](https://github.com/feast-dev/feast/issues/6076)) ([4ea9b32](https://github.com/feast-dev/feast/commit/4ea9b32d0dbf0a12c45e21d7190262ab61aa6bdc))
+
+
+### Performance Improvements
+
+* Online feature response construction in a single pass over read rows ([113fb04](https://github.com/feast-dev/feast/commit/113fb040cfab127a5b3b8d231385f5e78521dfc5))
+
 # [0.61.0](https://github.com/feast-dev/feast/compare/v0.60.0...v0.61.0) (2026-03-10)
 
 

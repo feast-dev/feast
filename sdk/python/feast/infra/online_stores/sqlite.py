@@ -42,6 +42,7 @@ from feast.infra.key_encoding_utils import (
     serialize_entity_key,
     serialize_f32,
 )
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
@@ -174,7 +175,11 @@ class SqliteOnlineStore(OnlineStore):
                 if created_ts is not None:
                     created_ts = to_naive_utc(created_ts)
 
-                table_name = _table_id(project, table)
+                table_name = _table_id(
+                    project,
+                    table,
+                    config.registry.enable_online_feature_view_versioning,
+                )
                 for feature_name, val in values.items():
                     if config.online_store.vector_enabled:
                         if (
@@ -254,7 +259,7 @@ class SqliteOnlineStore(OnlineStore):
         # Fetch all entities in one go
         cur.execute(
             f"SELECT entity_key, feature_name, value, event_ts "
-            f"FROM {_table_id(config.project, table)} "
+            f"FROM {_table_id(config.project, table, config.registry.enable_online_feature_view_versioning)} "
             f"WHERE entity_key IN ({','.join('?' * len(entity_keys))}) "
             f"ORDER BY entity_key",
             serialized_entity_keys,
@@ -294,16 +299,19 @@ class SqliteOnlineStore(OnlineStore):
         conn = self._get_conn(config)
         project = config.project
 
+        versioning = config.registry.enable_online_feature_view_versioning
         for table in tables_to_keep:
             conn.execute(
-                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table, versioning)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
             )
             conn.execute(
-                f"CREATE INDEX IF NOT EXISTS {_table_id(project, table)}_ek ON {_table_id(project, table)} (entity_key);"
+                f"CREATE INDEX IF NOT EXISTS {_table_id(project, table, versioning)}_ek ON {_table_id(project, table, versioning)} (entity_key);"
             )
 
         for table in tables_to_delete:
-            conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
+            conn.execute(
+                f"DROP TABLE IF EXISTS {_table_id(project, table, versioning)}"
+            )
 
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
@@ -313,7 +321,11 @@ class SqliteOnlineStore(OnlineStore):
         infra_objects: List[InfraObject] = [
             SqliteTable(
                 path=self._get_db_path(config),
-                name=_table_id(project, FeatureView.from_proto(view)),
+                name=_table_id(
+                    project,
+                    FeatureView.from_proto(view),
+                    config.registry.enable_online_feature_view_versioning,
+                ),
             )
             for view in [
                 *desired_registry_proto.feature_views,
@@ -375,7 +387,9 @@ class SqliteOnlineStore(OnlineStore):
 
         # Convert the embedding to a binary format instead of using SerializeToString()
         query_embedding_bin = serialize_f32(embedding, vector_field_length)
-        table_name = _table_id(project, table)
+        table_name = _table_id(
+            project, table, config.registry.enable_online_feature_view_versioning
+        )
         vector_field = _get_vector_field(table)
 
         cur.execute(
@@ -464,6 +478,7 @@ class SqliteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -499,7 +514,9 @@ class SqliteOnlineStore(OnlineStore):
             _get_feature_view_vector_field_metadata(table), "vector_length", 512
         )
 
-        table_name = _table_id(config.project, table)
+        table_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         vector_field = _get_vector_field(table)
 
         if online_store.vector_enabled:
@@ -699,8 +716,8 @@ def _initialize_conn(
     return db
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 class SqliteTable(InfraObject):

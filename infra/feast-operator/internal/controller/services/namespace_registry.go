@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -163,42 +164,51 @@ func (feast *FeastServices) createNamespaceRegistryRoleBinding(targetNamespace s
 
 // setNamespaceRegistryRoleBinding sets the RoleBinding for namespace registry access
 func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBinding) error {
-	// Create a Role that allows reading the ConfigMap
+	roleName := NamespaceRegistryConfigMapName + "-reader"
+
+	desiredRules := []rbacv1.PolicyRule{
+		{
+			APIGroups:     []string{""},
+			Resources:     []string{"configmaps"},
+			ResourceNames: []string{NamespaceRegistryConfigMapName},
+			Verbs:         []string{"get", "list"},
+		},
+	}
+
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      NamespaceRegistryConfigMapName + "-reader",
+			Name:      roleName,
 			Namespace: rb.Namespace,
 		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"configmaps"},
-				ResourceNames: []string{NamespaceRegistryConfigMapName},
-				Verbs:         []string{"get", "list"},
-			},
-		},
+	}
+	role.Rules = desiredRules
+
+	// Attempt to create; tolerate AlreadyExists so concurrent reconcilers don't fail.
+	if err := feast.Handler.Client.Create(feast.Handler.Context, role); err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create namespace registry Role: %w", err)
 	}
 
-	// Create or update the Role
-	if _, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, role, controllerutil.MutateFn(func() error {
-		role.Rules = []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"configmaps"},
-				ResourceNames: []string{NamespaceRegistryConfigMapName},
-				Verbs:         []string{"get", "list"},
-			},
+	// Re-fetch the authoritative copy to compare rules and obtain the latest resourceVersion.
+	existingRole := &rbacv1.Role{}
+	if err := feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
+		Name:      roleName,
+		Namespace: rb.Namespace,
+	}, existingRole); err != nil {
+		return fmt.Errorf("failed to get namespace registry Role: %w", err)
+	}
+
+	if !reflect.DeepEqual(existingRole.Rules, desiredRules) {
+		existingRole.Rules = desiredRules
+		// On conflict the reconciler will re-queue automatically.
+		if err := feast.Handler.Client.Update(feast.Handler.Context, existingRole); err != nil {
+			return fmt.Errorf("failed to update namespace registry Role: %w", err)
 		}
-		return nil
-	})); err != nil {
-		return err
 	}
 
-	// Set the RoleBinding
 	rb.RoleRef = rbacv1.RoleRef{
 		APIGroup: "rbac.authorization.k8s.io",
 		Kind:     "Role",
-		Name:     role.Name,
+		Name:     roleName,
 	}
 
 	rb.Subjects = []rbacv1.Subject{

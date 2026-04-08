@@ -1,3 +1,4 @@
+import logging
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
@@ -21,6 +22,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.type_map import feast_value_type_to_pa
 from feast.utils import _get_requested_feature_views_to_features_dict, to_naive_utc
+from feast.value_type import ValueType
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
@@ -241,6 +243,37 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
     return offline_store_class()
 
 
+_PA_BASIC_TYPES = {
+    "int32": pa.int32(),
+    "int64": pa.int64(),
+    "double": pa.float64(),
+    "float": pa.float32(),
+    "string": pa.string(),
+    "binary": pa.binary(),
+    "bool": pa.bool_(),
+    "large_string": pa.large_string(),
+    "null": pa.null(),
+}
+
+
+def _parse_pa_type_str(pa_type_str: str) -> pa.DataType:
+    """Parse a PyArrow type string to preserve inner element types for nested lists."""
+    pa_type_str = pa_type_str.strip()
+    if pa_type_str.startswith("list<item: ") and pa_type_str.endswith(">"):
+        inner = pa_type_str[len("list<item: ") : -1]
+        return pa.list_(_parse_pa_type_str(inner))
+    if pa_type_str in _PA_BASIC_TYPES:
+        return _PA_BASIC_TYPES[pa_type_str]
+    if pa_type_str.startswith("timestamp"):
+        return pa.timestamp("us")
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "Unrecognized PyArrow type string '%s', falling back to pa.string()",
+        pa_type_str,
+    )
+    return pa.string()
+
+
 def get_pyarrow_schema_from_batch_source(
     config: RepoConfig, batch_source: DataSource, timestamp_unit: str = "us"
 ) -> Tuple[pa.Schema, List[str]]:
@@ -250,15 +283,12 @@ def get_pyarrow_schema_from_batch_source(
     pa_schema = []
     column_names = []
     for column_name, column_type in column_names_and_types:
-        pa_schema.append(
-            (
-                column_name,
-                feast_value_type_to_pa(
-                    batch_source.source_datatype_to_feast_value_type()(column_type),
-                    timestamp_unit=timestamp_unit,
-                ),
-            )
-        )
+        value_type = batch_source.source_datatype_to_feast_value_type()(column_type)
+        if value_type in (ValueType.VALUE_LIST, ValueType.VALUE_SET):
+            pa_type = _parse_pa_type_str(column_type)
+        else:
+            pa_type = feast_value_type_to_pa(value_type, timestamp_unit=timestamp_unit)
+        pa_schema.append((column_name, pa_type))
         column_names.append(column_name)
 
     return pa.schema(pa_schema), column_names

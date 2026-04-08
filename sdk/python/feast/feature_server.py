@@ -38,10 +38,10 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from google.protobuf.json_format import MessageToDict
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 import feast
 from feast import metrics as feast_metrics
@@ -99,16 +99,44 @@ class GetOnlineFeaturesRequest(BaseModel):
     feature_service: Optional[str] = None
     features: List[str] = []
     full_feature_names: bool = False
+    include_feature_view_version_metadata: bool = False
 
 
 class GetOnlineDocumentsRequest(BaseModel):
     feature_service: Optional[str] = None
     features: List[str] = []
     full_feature_names: bool = False
+    include_feature_view_version_metadata: bool = False
     top_k: Optional[int] = None
     query: Optional[List[float]] = None
     query_string: Optional[str] = None
     api_version: Optional[int] = 1
+
+
+class FeatureVectorResponse(BaseModel):
+    values: List[Any] = []
+    statuses: List[str] = []
+    event_timestamps: List[str] = []
+
+
+class OnlineFeaturesMetadataResponse(BaseModel):
+    feature_names: List[str] = []
+
+    @field_validator("feature_names", mode="before")
+    @classmethod
+    def _unwrap_feature_list(cls, v: Any) -> Any:
+        """Accept both the proto_json-patched flat list and the raw
+        protobuf ``{"val": [...]}`` dict produced by ``MessageToDict``
+        when the monkey-patch is absent or ineffective."""
+        if isinstance(v, dict) and "val" in v:
+            return v["val"]
+        return v
+
+
+class OnlineFeaturesResponse(BaseModel):
+    metadata: Optional[OnlineFeaturesMetadataResponse] = None
+    results: List[FeatureVectorResponse] = []
+    status: Optional[bool] = None
 
 
 class ChatMessage(BaseModel):
@@ -136,7 +164,7 @@ def _resolve_feature_counts(
         feat_count = sum(len(p.features) for p in projections)
     elif isinstance(features, list):
         feat_count = len(features)
-        fv_names = {ref.split(":")[0] for ref in features if ":" in ref}
+        fv_names = {ref.split(":")[0].split("@")[0] for ref in features if ":" in ref}
         fv_count = len(fv_names)
     else:
         feat_count = 0
@@ -338,8 +366,9 @@ def get_app(
     @app.post(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
     )
-    async def get_online_features(request: GetOnlineFeaturesRequest) -> ORJSONResponse:
+    async def get_online_features(request: GetOnlineFeaturesRequest) -> Any:
         with feast_metrics.track_request_latency(
             "/get-online-features",
         ) as metrics_ctx:
@@ -355,6 +384,7 @@ def get_app(
                 features=features,
                 entity_rows=request.entities,
                 full_feature_names=request.full_feature_names,
+                include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
 
             if store._get_provider().async_supported.online.read:
@@ -370,15 +400,16 @@ def get_app(
                 preserving_proto_field_name=True,
                 float_precision=18,
             )
-            return ORJSONResponse(content=response_dict)
+            return response_dict
 
     @app.post(
         "/retrieve-online-documents",
         dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
     )
     async def retrieve_online_documents(
         request: GetOnlineDocumentsRequest,
-    ) -> ORJSONResponse:
+    ) -> Any:
         with feast_metrics.track_request_latency("/retrieve-online-documents"):
             logger.warning(
                 "This endpoint is in alpha and will be moved to /get-online-features when stable."
@@ -386,12 +417,17 @@ def get_app(
             features = await _get_features(request, store)
 
             read_params = dict(
-                features=features, query=request.query, top_k=request.top_k
+                features=features,
+                query=request.query,
+                top_k=request.top_k,
             )
             if request.api_version == 2 and request.query_string is not None:
                 read_params["query_string"] = request.query_string
 
             if request.api_version == 2:
+                read_params["include_feature_view_version_metadata"] = (
+                    request.include_feature_view_version_metadata
+                )
                 response = await run_in_threadpool(
                     lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
                 )
@@ -406,7 +442,7 @@ def get_app(
                 preserving_proto_field_name=True,
                 float_precision=18,
             )
-            return ORJSONResponse(content=response_dict)
+            return response_dict
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
@@ -696,6 +732,7 @@ def get_app(
 
 def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
     """Add MCP support to the FastAPI app if enabled in configuration."""
+    mcp_transport_not_supported_error = None
     try:
         # Check if MCP is enabled in feature server config
         if (
@@ -704,7 +741,16 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
             and store.config.feature_server.type == "mcp"
             and getattr(store.config.feature_server, "mcp_enabled", False)
         ):
-            from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
+            try:
+                from feast.infra.mcp_servers.mcp_server import (
+                    McpTransportNotSupportedError,
+                    add_mcp_support_to_app,
+                )
+
+                mcp_transport_not_supported_error = McpTransportNotSupportedError
+            except ImportError as e:
+                logger.error(f"Error checking/adding MCP support: {e}")
+                return
 
             mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
 
@@ -715,6 +761,10 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
         else:
             logger.debug("MCP support is not enabled in feature server configuration")
     except Exception as e:
+        if mcp_transport_not_supported_error and isinstance(
+            e, mcp_transport_not_supported_error
+        ):
+            raise
         logger.error(f"Error checking/adding MCP support: {e}")
         # Don't fail the entire server if MCP fails to initialize
 

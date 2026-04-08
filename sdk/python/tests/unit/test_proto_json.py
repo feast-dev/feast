@@ -103,6 +103,33 @@ def test_feature_list(proto_json_patch):
     )
 
 
+def test_nested_collection_json_roundtrip(proto_json_patch):
+    """Nested collection values (list of lists) should survive JSON roundtrip."""
+    from feast.protos.feast.types.Value_pb2 import Value
+
+    # Build a Value with list_val containing [[1,2],[3,4,5]]
+    value_proto = Value()
+    inner1 = value_proto.list_val.val.add()
+    inner1.int64_list_val.val.extend([1, 2])
+    inner2 = value_proto.list_val.val.add()
+    inner2.int64_list_val.val.extend([3, 4, 5])
+
+    # Serialize to JSON
+    value_json = MessageToDict(value_proto)
+    assert isinstance(value_json, list)
+    assert len(value_json) == 2
+    assert value_json[0] == [1, 2]
+    assert value_json[1] == [3, 4, 5]
+
+    # Deserialize back from JSON
+    feature_vector_str = '{"values": [[[1, 2], [3, 4, 5]]]}'
+    feature_vector_proto = FeatureVector()
+    Parse(feature_vector_str, feature_vector_proto)
+    assert len(feature_vector_proto.values) == 1
+    assert feature_vector_proto.values[0].WhichOneof("val") == "list_val"
+    assert len(feature_vector_proto.values[0].list_val.val) == 2
+
+
 @pytest.fixture(scope="module")
 def proto_json_patch():
     proto_json.patch()

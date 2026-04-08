@@ -5,7 +5,7 @@ import warnings
 from abc import abstractmethod
 from datetime import timedelta
 from threading import Lock
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
@@ -423,6 +423,13 @@ class CachingRegistry(BaseRegistry):
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_projects(self.cached_registry_proto, tags)
         return self._list_projects(tags)
+
+    def list_feature_view_versions(
+        self, name: str, project: str
+    ) -> List[Dict[str, Any]]:
+        raise NotImplementedError(
+            "list_feature_view_versions is not implemented for this registry"
+        )
 
     def refresh(self, project: Optional[str] = None):
         try:

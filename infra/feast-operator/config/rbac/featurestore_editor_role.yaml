@@ -5,6 +5,8 @@ metadata:
   labels:
     app.kubernetes.io/name: feast-operator
     app.kubernetes.io/managed-by: kustomize
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
   name: featurestore-editor-role
 rules:
 - apiGroups:

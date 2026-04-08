@@ -22,7 +22,7 @@ from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from feast import Entity, FeatureView, ValueType
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
-from feast.infra.online_stores.helpers import _to_naive_utc
+from feast.infra.online_stores.helpers import _to_naive_utc, compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.infra.utils.postgres.connection_utils import (
@@ -152,7 +152,15 @@ class PostgreSQLOnlineStore(OnlineStore):
                 event_ts = EXCLUDED.event_ts,
                 created_ts = EXCLUDED.created_ts;
         """
-        ).format(sql.Identifier(_table_id(config.project, table)))
+        ).format(
+            sql.Identifier(
+                _table_id(
+                    config.project,
+                    table,
+                    config.registry.enable_online_feature_view_versioning,
+                )
+            )
+        )
 
         # Push data into the online store
         with self._get_conn(config) as conn, conn.cursor() as cur:
@@ -214,7 +222,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 FROM {} WHERE entity_key = ANY(%s) AND feature_name = ANY(%s);
                 """
             ).format(
-                sql.Identifier(_table_id(config.project, table)),
+                sql.Identifier(
+                    _table_id(
+                        config.project,
+                        table,
+                        config.registry.enable_online_feature_view_versioning,
+                    )
+                ),
             )
             params = (keys, requested_features)
         else:
@@ -224,7 +238,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 FROM {} WHERE entity_key = ANY(%s);
                 """
             ).format(
-                sql.Identifier(_table_id(config.project, table)),
+                sql.Identifier(
+                    _table_id(
+                        config.project,
+                        table,
+                        config.registry.enable_online_feature_view_versioning,
+                    )
+                ),
             )
             params = (keys, [])
         return query, params
@@ -304,12 +324,16 @@ class PostgreSQLOnlineStore(OnlineStore):
                     ),
                 )
 
+            versioning = config.registry.enable_online_feature_view_versioning
             for table in tables_to_delete:
-                table_name = _table_id(project, table)
-                cur.execute(_drop_table_and_index(table_name))
+                if versioning:
+                    _drop_all_version_tables(cur, project, table, schema_name)
+                else:
+                    table_name = _table_id(project, table)
+                    cur.execute(_drop_table_and_index(table_name))
 
             for table in tables_to_keep:
-                table_name = _table_id(project, table)
+                table_name = _table_id(project, table, versioning)
                 if config.online_store.vector_enabled:
                     vector_value_type = "vector"
                 else:
@@ -363,11 +387,16 @@ class PostgreSQLOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         project = config.project
+        schema_name = config.online_store.db_schema or config.online_store.user
+        versioning = config.registry.enable_online_feature_view_versioning
         try:
             with self._get_conn(config) as conn, conn.cursor() as cur:
                 for table in tables:
-                    table_name = _table_id(project, table)
-                    cur.execute(_drop_table_and_index(table_name))
+                    if versioning:
+                        _drop_all_version_tables(cur, project, table, schema_name)
+                    else:
+                        table_name = _table_id(project, table)
+                        cur.execute(_drop_table_and_index(table_name))
                 conn.commit()
         except Exception:
             logging.exception("Teardown failed")
@@ -432,7 +461,9 @@ class PostgreSQLOnlineStore(OnlineStore):
             ]
         ] = []
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
-            table_name = _table_id(project, table)
+            table_name = _table_id(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
 
             # Search query template to find the top k items that are closest to the given embedding
             # SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
@@ -488,6 +519,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -532,7 +564,11 @@ class PostgreSQLOnlineStore(OnlineStore):
             and feature.name in requested_features
         ]
 
-        table_name = _table_id(config.project, table)
+        table_name = _table_id(
+            config.project,
+            table,
+            config.registry.enable_online_feature_view_versioning,
+        )
 
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
             query = None
@@ -543,50 +579,114 @@ class PostgreSQLOnlineStore(OnlineStore):
                 tsquery_str = " & ".join(query_string.split())
                 query = sql.SQL(
                     """
+                    WITH vector_candidates AS (
+                        SELECT entity_key,
+                            MIN(vector_value {distance_metric_sql} %s::vector) as distance
+                        FROM {table_name}
+                        WHERE vector_value IS NOT NULL
+                        GROUP BY entity_key
+                        ORDER BY distance
+                        LIMIT {top_k}
+                    ),
+                    text_candidates AS (
+                        SELECT entity_key,
+                            MAX(ts_rank(to_tsvector('english', value_text), to_tsquery('english', %s))) as text_rank
+                        FROM {table_name}
+                        WHERE feature_name = ANY(%s)
+                            AND to_tsvector('english', value_text) @@ to_tsquery('english', %s)
+                        GROUP BY entity_key
+                        ORDER BY text_rank DESC
+                        LIMIT {top_k}
+                    ),
+                    all_candidates AS (
+                        SELECT entity_key FROM vector_candidates
+                        UNION
+                        SELECT entity_key FROM text_candidates
+                    ),
+                    scored AS (
+                        SELECT
+                            ac.entity_key,
+                            COALESCE(vc.distance,
+                                (SELECT MIN(t.vector_value {distance_metric_sql} %s::vector)
+                                 FROM {table_name} t
+                                 WHERE t.entity_key = ac.entity_key AND t.vector_value IS NOT NULL)
+                            ) as distance,
+                            COALESCE(tc.text_rank,
+                                COALESCE(
+                                    (SELECT MAX(ts_rank(to_tsvector('english', ft.value_text), to_tsquery('english', %s)))
+                                     FROM {table_name} ft
+                                     WHERE ft.entity_key = ac.entity_key AND ft.feature_name = ANY(%s) AND ft.value_text IS NOT NULL),
+                                    0
+                                )
+                            ) as text_rank
+                        FROM all_candidates ac
+                        LEFT JOIN vector_candidates vc ON ac.entity_key = vc.entity_key
+                        LEFT JOIN text_candidates tc ON ac.entity_key = tc.entity_key
+                        ORDER BY text_rank DESC, distance
+                        LIMIT {top_k}
+                    )
                     SELECT
-                        entity_key,
-                        feature_name,
-                        value,
-                        vector_value,
-                        vector_value {distance_metric_sql} %s::vector as distance,
-                        ts_rank(to_tsvector('english', value_text), to_tsquery('english', %s)) as text_rank,
-                        event_ts,
-                        created_ts
-                    FROM {table_name}
-                    WHERE feature_name = ANY(%s) AND to_tsvector('english', value_text) @@ to_tsquery('english', %s)
-                    ORDER BY distance
-                    LIMIT {top_k}
+                        t1.entity_key,
+                        t1.feature_name,
+                        t1.value,
+                        t1.vector_value,
+                        s.distance,
+                        s.text_rank,
+                        t1.event_ts,
+                        t1.created_ts
+                    FROM {table_name} t1
+                    INNER JOIN scored s ON t1.entity_key = s.entity_key
+                    WHERE t1.feature_name = ANY(%s)
+                    ORDER BY s.text_rank DESC, s.distance
                     """
                 ).format(
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
                     top_k=sql.Literal(top_k),
                 )
-                params = (embedding, tsquery_str, string_fields, tsquery_str)
-
+                params = (
+                    embedding,
+                    tsquery_str,
+                    string_fields,
+                    tsquery_str,
+                    embedding,
+                    tsquery_str,
+                    string_fields,
+                    requested_features,
+                )
             elif embedding is not None:
                 # Case 2: Vector Search Only
                 query = sql.SQL(
                     """
+                    WITH vector_matches AS (
+                        SELECT entity_key,
+                            MIN(vector_value {distance_metric_sql} %s::vector) as distance
+                        FROM {table_name}
+                        WHERE vector_value IS NOT NULL
+                        GROUP BY entity_key
+                        ORDER BY distance
+                        LIMIT {top_k}
+                    )
                     SELECT
-                        entity_key,
-                        feature_name,
-                        value,
-                        vector_value,
-                        vector_value {distance_metric_sql} %s::vector as distance,
-                        NULL as text_rank, -- Keep consistent columns
-                        event_ts,
-                        created_ts
-                    FROM {table_name}
-                    ORDER BY distance
-                    LIMIT {top_k}
+                        t1.entity_key,
+                        t1.feature_name,
+                        t1.value,
+                        t1.vector_value,
+                        t2.distance,
+                        NULL as text_rank,
+                        t1.event_ts,
+                        t1.created_ts
+                    FROM {table_name} t1
+                    INNER JOIN vector_matches t2 ON t1.entity_key = t2.entity_key
+                    WHERE t1.feature_name = ANY(%s)
+                    ORDER BY t2.distance
                     """
                 ).format(
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
                     top_k=sql.Literal(top_k),
                 )
-                params = (embedding,)
+                params = (embedding, requested_features)
 
             elif query_string is not None and string_fields:
                 # Case 3: Text Search Only
@@ -686,9 +786,10 @@ class PostgreSQLOnlineStore(OnlineStore):
             sorted_entities = sorted(
                 entities_dict.values(),
                 key=lambda x: (
-                    x["vector_distance"] if embedding is not None else x["text_rank"]
+                    (-x["text_rank"], x["vector_distance"])
+                    if query_string is not None
+                    else (x["vector_distance"],)
                 ),
-                reverse=(embedding is None),
             )[:top_k]
 
             result: List[
@@ -728,8 +829,8 @@ class PostgreSQLOnlineStore(OnlineStore):
         return result
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 def _drop_table_and_index(table_name):
@@ -742,3 +843,23 @@ def _drop_table_and_index(table_name):
         sql.Identifier(table_name),
         sql.Identifier(f"{table_name}_ek"),
     )
+
+
+def _drop_all_version_tables(
+    cur, project: str, table: FeatureView, schema_name: Optional[str] = None
+) -> None:
+    """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
+    base = f"{project}_{table.name}"
+    if schema_name:
+        cur.execute(
+            "SELECT tablename FROM pg_tables "
+            "WHERE schemaname = %s AND (tablename = %s OR tablename ~ %s)",
+            (schema_name, base, f"^{base}_v[0-9]+$"),
+        )
+    else:
+        cur.execute(
+            "SELECT tablename FROM pg_tables WHERE tablename = %s OR tablename ~ %s",
+            (base, f"^{base}_v[0-9]+$"),
+        )
+    for (name,) in cur.fetchall():
+        cur.execute(_drop_table_and_index(name))

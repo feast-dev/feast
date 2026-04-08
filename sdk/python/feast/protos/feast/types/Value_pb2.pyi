@@ -16,44 +16,46 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.internal.enum_type_wrapper
-import google.protobuf.message
+
+from collections import abc as _abc
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+import builtins as _builtins
 import sys
-import typing
+import typing as _typing
 
 if sys.version_info >= (3, 10):
-    import typing as typing_extensions
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
 class _Null:
-    ValueType = typing.NewType("ValueType", builtins.int)
-    V: typing_extensions.TypeAlias = ValueType
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
 
-class _NullEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_Null.ValueType], builtins.type):  # noqa: F821
-    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+class _NullEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Null.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
     NULL: _Null.ValueType  # 0
 
 class Null(_Null, metaclass=_NullEnumTypeWrapper): ...
 
 NULL: Null.ValueType  # 0
-global___Null = Null
+Global___Null: _TypeAlias = Null  # noqa: Y015
 
-class ValueType(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class ValueType(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
     class _Enum:
-        ValueType = typing.NewType("ValueType", builtins.int)
-        V: typing_extensions.TypeAlias = ValueType
+        ValueType = _typing.NewType("ValueType", _builtins.int)
+        V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _EnumEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[ValueType._Enum.ValueType], builtins.type):  # noqa: F821
-        DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    class _EnumEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[ValueType._Enum.ValueType], _builtins.type):
+        DESCRIPTOR: _descriptor.EnumDescriptor
         INVALID: ValueType._Enum.ValueType  # 0
         BYTES: ValueType._Enum.ValueType  # 1
         STRING: ValueType._Enum.ValueType  # 2
@@ -86,6 +88,17 @@ class ValueType(google.protobuf.message.Message):
         JSON_LIST: ValueType._Enum.ValueType  # 33
         STRUCT: ValueType._Enum.ValueType  # 34
         STRUCT_LIST: ValueType._Enum.ValueType  # 35
+        UUID: ValueType._Enum.ValueType  # 36
+        TIME_UUID: ValueType._Enum.ValueType  # 37
+        UUID_LIST: ValueType._Enum.ValueType  # 38
+        TIME_UUID_LIST: ValueType._Enum.ValueType  # 39
+        UUID_SET: ValueType._Enum.ValueType  # 40
+        TIME_UUID_SET: ValueType._Enum.ValueType  # 41
+        VALUE_LIST: ValueType._Enum.ValueType  # 42
+        VALUE_SET: ValueType._Enum.ValueType  # 43
+        DECIMAL: ValueType._Enum.ValueType  # 44
+        DECIMAL_LIST: ValueType._Enum.ValueType  # 45
+        DECIMAL_SET: ValueType._Enum.ValueType  # 46
 
     class Enum(_Enum, metaclass=_EnumEnumTypeWrapper): ...
     INVALID: ValueType.Enum.ValueType  # 0
@@ -120,412 +133,506 @@ class ValueType(google.protobuf.message.Message):
     JSON_LIST: ValueType.Enum.ValueType  # 33
     STRUCT: ValueType.Enum.ValueType  # 34
     STRUCT_LIST: ValueType.Enum.ValueType  # 35
+    UUID: ValueType.Enum.ValueType  # 36
+    TIME_UUID: ValueType.Enum.ValueType  # 37
+    UUID_LIST: ValueType.Enum.ValueType  # 38
+    TIME_UUID_LIST: ValueType.Enum.ValueType  # 39
+    UUID_SET: ValueType.Enum.ValueType  # 40
+    TIME_UUID_SET: ValueType.Enum.ValueType  # 41
+    VALUE_LIST: ValueType.Enum.ValueType  # 42
+    VALUE_SET: ValueType.Enum.ValueType  # 43
+    DECIMAL: ValueType.Enum.ValueType  # 44
+    DECIMAL_LIST: ValueType.Enum.ValueType  # 45
+    DECIMAL_SET: ValueType.Enum.ValueType  # 46
 
     def __init__(
         self,
     ) -> None: ...
 
-global___ValueType = ValueType
+Global___ValueType: _TypeAlias = ValueType  # noqa: Y015
 
-class Value(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class Value(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    BYTES_VAL_FIELD_NUMBER: builtins.int
-    STRING_VAL_FIELD_NUMBER: builtins.int
-    INT32_VAL_FIELD_NUMBER: builtins.int
-    INT64_VAL_FIELD_NUMBER: builtins.int
-    DOUBLE_VAL_FIELD_NUMBER: builtins.int
-    FLOAT_VAL_FIELD_NUMBER: builtins.int
-    BOOL_VAL_FIELD_NUMBER: builtins.int
-    UNIX_TIMESTAMP_VAL_FIELD_NUMBER: builtins.int
-    BYTES_LIST_VAL_FIELD_NUMBER: builtins.int
-    STRING_LIST_VAL_FIELD_NUMBER: builtins.int
-    INT32_LIST_VAL_FIELD_NUMBER: builtins.int
-    INT64_LIST_VAL_FIELD_NUMBER: builtins.int
-    DOUBLE_LIST_VAL_FIELD_NUMBER: builtins.int
-    FLOAT_LIST_VAL_FIELD_NUMBER: builtins.int
-    BOOL_LIST_VAL_FIELD_NUMBER: builtins.int
-    UNIX_TIMESTAMP_LIST_VAL_FIELD_NUMBER: builtins.int
-    NULL_VAL_FIELD_NUMBER: builtins.int
-    MAP_VAL_FIELD_NUMBER: builtins.int
-    MAP_LIST_VAL_FIELD_NUMBER: builtins.int
-    BYTES_SET_VAL_FIELD_NUMBER: builtins.int
-    STRING_SET_VAL_FIELD_NUMBER: builtins.int
-    INT32_SET_VAL_FIELD_NUMBER: builtins.int
-    INT64_SET_VAL_FIELD_NUMBER: builtins.int
-    DOUBLE_SET_VAL_FIELD_NUMBER: builtins.int
-    FLOAT_SET_VAL_FIELD_NUMBER: builtins.int
-    BOOL_SET_VAL_FIELD_NUMBER: builtins.int
-    UNIX_TIMESTAMP_SET_VAL_FIELD_NUMBER: builtins.int
-    JSON_VAL_FIELD_NUMBER: builtins.int
-    JSON_LIST_VAL_FIELD_NUMBER: builtins.int
-    STRUCT_VAL_FIELD_NUMBER: builtins.int
-    STRUCT_LIST_VAL_FIELD_NUMBER: builtins.int
-    bytes_val: builtins.bytes
-    string_val: builtins.str
-    int32_val: builtins.int
-    int64_val: builtins.int
-    double_val: builtins.float
-    float_val: builtins.float
-    bool_val: builtins.bool
-    unix_timestamp_val: builtins.int
-    @property
-    def bytes_list_val(self) -> global___BytesList: ...
-    @property
-    def string_list_val(self) -> global___StringList: ...
-    @property
-    def int32_list_val(self) -> global___Int32List: ...
-    @property
-    def int64_list_val(self) -> global___Int64List: ...
-    @property
-    def double_list_val(self) -> global___DoubleList: ...
-    @property
-    def float_list_val(self) -> global___FloatList: ...
-    @property
-    def bool_list_val(self) -> global___BoolList: ...
-    @property
-    def unix_timestamp_list_val(self) -> global___Int64List: ...
-    null_val: global___Null.ValueType
-    @property
-    def map_val(self) -> global___Map: ...
-    @property
-    def map_list_val(self) -> global___MapList: ...
-    @property
-    def bytes_set_val(self) -> global___BytesSet: ...
-    @property
-    def string_set_val(self) -> global___StringSet: ...
-    @property
-    def int32_set_val(self) -> global___Int32Set: ...
-    @property
-    def int64_set_val(self) -> global___Int64Set: ...
-    @property
-    def double_set_val(self) -> global___DoubleSet: ...
-    @property
-    def float_set_val(self) -> global___FloatSet: ...
-    @property
-    def bool_set_val(self) -> global___BoolSet: ...
-    @property
-    def unix_timestamp_set_val(self) -> global___Int64Set: ...
-    json_val: builtins.str
-    @property
-    def json_list_val(self) -> global___StringList: ...
-    @property
-    def struct_val(self) -> global___Map: ...
-    @property
-    def struct_list_val(self) -> global___MapList: ...
-    def __init__(
-        self,
-        *,
-        bytes_val: builtins.bytes = ...,
-        string_val: builtins.str = ...,
-        int32_val: builtins.int = ...,
-        int64_val: builtins.int = ...,
-        double_val: builtins.float = ...,
-        float_val: builtins.float = ...,
-        bool_val: builtins.bool = ...,
-        unix_timestamp_val: builtins.int = ...,
-        bytes_list_val: global___BytesList | None = ...,
-        string_list_val: global___StringList | None = ...,
-        int32_list_val: global___Int32List | None = ...,
-        int64_list_val: global___Int64List | None = ...,
-        double_list_val: global___DoubleList | None = ...,
-        float_list_val: global___FloatList | None = ...,
-        bool_list_val: global___BoolList | None = ...,
-        unix_timestamp_list_val: global___Int64List | None = ...,
-        null_val: global___Null.ValueType = ...,
-        map_val: global___Map | None = ...,
-        map_list_val: global___MapList | None = ...,
-        bytes_set_val: global___BytesSet | None = ...,
-        string_set_val: global___StringSet | None = ...,
-        int32_set_val: global___Int32Set | None = ...,
-        int64_set_val: global___Int64Set | None = ...,
-        double_set_val: global___DoubleSet | None = ...,
-        float_set_val: global___FloatSet | None = ...,
-        bool_set_val: global___BoolSet | None = ...,
-        unix_timestamp_set_val: global___Int64Set | None = ...,
-        json_val: builtins.str = ...,
-        json_list_val: global___StringList | None = ...,
-        struct_val: global___Map | None = ...,
-        struct_list_val: global___MapList | None = ...,
-    ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "val", b"val"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["val", b"val"]) -> typing_extensions.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val", "map_val", "map_list_val", "bytes_set_val", "string_set_val", "int32_set_val", "int64_set_val", "double_set_val", "float_set_val", "bool_set_val", "unix_timestamp_set_val", "json_val", "json_list_val", "struct_val", "struct_list_val"] | None: ...
-
-global___Value = Value
-
-class BytesList(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.bytes]: ...
+    BYTES_VAL_FIELD_NUMBER: _builtins.int
+    STRING_VAL_FIELD_NUMBER: _builtins.int
+    INT32_VAL_FIELD_NUMBER: _builtins.int
+    INT64_VAL_FIELD_NUMBER: _builtins.int
+    DOUBLE_VAL_FIELD_NUMBER: _builtins.int
+    FLOAT_VAL_FIELD_NUMBER: _builtins.int
+    BOOL_VAL_FIELD_NUMBER: _builtins.int
+    UNIX_TIMESTAMP_VAL_FIELD_NUMBER: _builtins.int
+    BYTES_LIST_VAL_FIELD_NUMBER: _builtins.int
+    STRING_LIST_VAL_FIELD_NUMBER: _builtins.int
+    INT32_LIST_VAL_FIELD_NUMBER: _builtins.int
+    INT64_LIST_VAL_FIELD_NUMBER: _builtins.int
+    DOUBLE_LIST_VAL_FIELD_NUMBER: _builtins.int
+    FLOAT_LIST_VAL_FIELD_NUMBER: _builtins.int
+    BOOL_LIST_VAL_FIELD_NUMBER: _builtins.int
+    UNIX_TIMESTAMP_LIST_VAL_FIELD_NUMBER: _builtins.int
+    NULL_VAL_FIELD_NUMBER: _builtins.int
+    MAP_VAL_FIELD_NUMBER: _builtins.int
+    MAP_LIST_VAL_FIELD_NUMBER: _builtins.int
+    BYTES_SET_VAL_FIELD_NUMBER: _builtins.int
+    STRING_SET_VAL_FIELD_NUMBER: _builtins.int
+    INT32_SET_VAL_FIELD_NUMBER: _builtins.int
+    INT64_SET_VAL_FIELD_NUMBER: _builtins.int
+    DOUBLE_SET_VAL_FIELD_NUMBER: _builtins.int
+    FLOAT_SET_VAL_FIELD_NUMBER: _builtins.int
+    BOOL_SET_VAL_FIELD_NUMBER: _builtins.int
+    UNIX_TIMESTAMP_SET_VAL_FIELD_NUMBER: _builtins.int
+    JSON_VAL_FIELD_NUMBER: _builtins.int
+    JSON_LIST_VAL_FIELD_NUMBER: _builtins.int
+    STRUCT_VAL_FIELD_NUMBER: _builtins.int
+    STRUCT_LIST_VAL_FIELD_NUMBER: _builtins.int
+    UUID_VAL_FIELD_NUMBER: _builtins.int
+    TIME_UUID_VAL_FIELD_NUMBER: _builtins.int
+    UUID_LIST_VAL_FIELD_NUMBER: _builtins.int
+    TIME_UUID_LIST_VAL_FIELD_NUMBER: _builtins.int
+    UUID_SET_VAL_FIELD_NUMBER: _builtins.int
+    TIME_UUID_SET_VAL_FIELD_NUMBER: _builtins.int
+    LIST_VAL_FIELD_NUMBER: _builtins.int
+    SET_VAL_FIELD_NUMBER: _builtins.int
+    DECIMAL_VAL_FIELD_NUMBER: _builtins.int
+    DECIMAL_LIST_VAL_FIELD_NUMBER: _builtins.int
+    DECIMAL_SET_VAL_FIELD_NUMBER: _builtins.int
+    bytes_val: _builtins.bytes
+    string_val: _builtins.str
+    int32_val: _builtins.int
+    int64_val: _builtins.int
+    double_val: _builtins.float
+    float_val: _builtins.float
+    bool_val: _builtins.bool
+    unix_timestamp_val: _builtins.int
+    null_val: Global___Null.ValueType
+    json_val: _builtins.str
+    uuid_val: _builtins.str
+    time_uuid_val: _builtins.str
+    decimal_val: _builtins.str
+    @_builtins.property
+    def bytes_list_val(self) -> Global___BytesList: ...
+    @_builtins.property
+    def string_list_val(self) -> Global___StringList: ...
+    @_builtins.property
+    def int32_list_val(self) -> Global___Int32List: ...
+    @_builtins.property
+    def int64_list_val(self) -> Global___Int64List: ...
+    @_builtins.property
+    def double_list_val(self) -> Global___DoubleList: ...
+    @_builtins.property
+    def float_list_val(self) -> Global___FloatList: ...
+    @_builtins.property
+    def bool_list_val(self) -> Global___BoolList: ...
+    @_builtins.property
+    def unix_timestamp_list_val(self) -> Global___Int64List: ...
+    @_builtins.property
+    def map_val(self) -> Global___Map: ...
+    @_builtins.property
+    def map_list_val(self) -> Global___MapList: ...
+    @_builtins.property
+    def bytes_set_val(self) -> Global___BytesSet: ...
+    @_builtins.property
+    def string_set_val(self) -> Global___StringSet: ...
+    @_builtins.property
+    def int32_set_val(self) -> Global___Int32Set: ...
+    @_builtins.property
+    def int64_set_val(self) -> Global___Int64Set: ...
+    @_builtins.property
+    def double_set_val(self) -> Global___DoubleSet: ...
+    @_builtins.property
+    def float_set_val(self) -> Global___FloatSet: ...
+    @_builtins.property
+    def bool_set_val(self) -> Global___BoolSet: ...
+    @_builtins.property
+    def unix_timestamp_set_val(self) -> Global___Int64Set: ...
+    @_builtins.property
+    def json_list_val(self) -> Global___StringList: ...
+    @_builtins.property
+    def struct_val(self) -> Global___Map: ...
+    @_builtins.property
+    def struct_list_val(self) -> Global___MapList: ...
+    @_builtins.property
+    def uuid_list_val(self) -> Global___StringList: ...
+    @_builtins.property
+    def time_uuid_list_val(self) -> Global___StringList: ...
+    @_builtins.property
+    def uuid_set_val(self) -> Global___StringSet: ...
+    @_builtins.property
+    def time_uuid_set_val(self) -> Global___StringSet: ...
+    @_builtins.property
+    def list_val(self) -> Global___RepeatedValue: ...
+    @_builtins.property
+    def set_val(self) -> Global___RepeatedValue: ...
+    @_builtins.property
+    def decimal_list_val(self) -> Global___StringList: ...
+    @_builtins.property
+    def decimal_set_val(self) -> Global___StringSet: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.bytes] | None = ...,
+        bytes_val: _builtins.bytes = ...,
+        string_val: _builtins.str = ...,
+        int32_val: _builtins.int = ...,
+        int64_val: _builtins.int = ...,
+        double_val: _builtins.float = ...,
+        float_val: _builtins.float = ...,
+        bool_val: _builtins.bool = ...,
+        unix_timestamp_val: _builtins.int = ...,
+        bytes_list_val: Global___BytesList | None = ...,
+        string_list_val: Global___StringList | None = ...,
+        int32_list_val: Global___Int32List | None = ...,
+        int64_list_val: Global___Int64List | None = ...,
+        double_list_val: Global___DoubleList | None = ...,
+        float_list_val: Global___FloatList | None = ...,
+        bool_list_val: Global___BoolList | None = ...,
+        unix_timestamp_list_val: Global___Int64List | None = ...,
+        null_val: Global___Null.ValueType = ...,
+        map_val: Global___Map | None = ...,
+        map_list_val: Global___MapList | None = ...,
+        bytes_set_val: Global___BytesSet | None = ...,
+        string_set_val: Global___StringSet | None = ...,
+        int32_set_val: Global___Int32Set | None = ...,
+        int64_set_val: Global___Int64Set | None = ...,
+        double_set_val: Global___DoubleSet | None = ...,
+        float_set_val: Global___FloatSet | None = ...,
+        bool_set_val: Global___BoolSet | None = ...,
+        unix_timestamp_set_val: Global___Int64Set | None = ...,
+        json_val: _builtins.str = ...,
+        json_list_val: Global___StringList | None = ...,
+        struct_val: Global___Map | None = ...,
+        struct_list_val: Global___MapList | None = ...,
+        uuid_val: _builtins.str = ...,
+        time_uuid_val: _builtins.str = ...,
+        uuid_list_val: Global___StringList | None = ...,
+        time_uuid_list_val: Global___StringList | None = ...,
+        uuid_set_val: Global___StringSet | None = ...,
+        time_uuid_set_val: Global___StringSet | None = ...,
+        list_val: Global___RepeatedValue | None = ...,
+        set_val: Global___RepeatedValue | None = ...,
+        decimal_val: _builtins.str = ...,
+        decimal_list_val: Global___StringList | None = ...,
+        decimal_set_val: Global___StringSet | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_val: _TypeAlias = _typing.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val", "map_val", "map_list_val", "bytes_set_val", "string_set_val", "int32_set_val", "int64_set_val", "double_set_val", "float_set_val", "bool_set_val", "unix_timestamp_set_val", "json_val", "json_list_val", "struct_val", "struct_list_val", "uuid_val", "time_uuid_val", "uuid_list_val", "time_uuid_list_val", "uuid_set_val", "time_uuid_set_val", "list_val", "set_val", "decimal_val", "decimal_list_val", "decimal_set_val"]  # noqa: Y015
+    _WhichOneofArgType_val: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_val) -> _WhichOneofReturnType_val | None: ...
 
-global___BytesList = BytesList
+Global___Value: _TypeAlias = Value  # noqa: Y015
 
-class StringList(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class BytesList(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.bytes]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.str] | None = ...,
+        val: _abc.Iterable[_builtins.bytes] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___StringList = StringList
+Global___BytesList: _TypeAlias = BytesList  # noqa: Y015
 
-class Int32List(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class StringList(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.int]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.int] | None = ...,
+        val: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Int32List = Int32List
+Global___StringList: _TypeAlias = StringList  # noqa: Y015
 
-class Int64List(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class Int32List(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.int]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.int] | None = ...,
+        val: _abc.Iterable[_builtins.int] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Int64List = Int64List
+Global___Int32List: _TypeAlias = Int32List  # noqa: Y015
 
-class DoubleList(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class Int64List(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.float] | None = ...,
+        val: _abc.Iterable[_builtins.int] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___DoubleList = DoubleList
+Global___Int64List: _TypeAlias = Int64List  # noqa: Y015
 
-class FloatList(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class DoubleList(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.float]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.float] | None = ...,
+        val: _abc.Iterable[_builtins.float] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___FloatList = FloatList
+Global___DoubleList: _TypeAlias = DoubleList  # noqa: Y015
 
-class BoolList(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class FloatList(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.bool]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.float]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.bool] | None = ...,
+        val: _abc.Iterable[_builtins.float] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___BoolList = BoolList
+Global___FloatList: _TypeAlias = FloatList  # noqa: Y015
 
-class BytesSet(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class BoolList(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.bytes]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.bool]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.bytes] | None = ...,
+        val: _abc.Iterable[_builtins.bool] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___BytesSet = BytesSet
+Global___BoolList: _TypeAlias = BoolList  # noqa: Y015
 
-class StringSet(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class BytesSet(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.bytes]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.str] | None = ...,
+        val: _abc.Iterable[_builtins.bytes] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___StringSet = StringSet
+Global___BytesSet: _TypeAlias = BytesSet  # noqa: Y015
 
-class Int32Set(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class StringSet(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.int]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.int] | None = ...,
+        val: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Int32Set = Int32Set
+Global___StringSet: _TypeAlias = StringSet  # noqa: Y015
 
-class Int64Set(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class Int32Set(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.int]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.int] | None = ...,
+        val: _abc.Iterable[_builtins.int] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Int64Set = Int64Set
+Global___Int32Set: _TypeAlias = Int32Set  # noqa: Y015
 
-class DoubleSet(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class Int64Set(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.float] | None = ...,
+        val: _abc.Iterable[_builtins.int] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___DoubleSet = DoubleSet
+Global___Int64Set: _TypeAlias = Int64Set  # noqa: Y015
 
-class FloatSet(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class DoubleSet(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.float]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.float] | None = ...,
+        val: _abc.Iterable[_builtins.float] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___FloatSet = FloatSet
+Global___DoubleSet: _TypeAlias = DoubleSet  # noqa: Y015
 
-class BoolSet(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class FloatSet(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.bool]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.float]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[builtins.bool] | None = ...,
+        val: _abc.Iterable[_builtins.float] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___BoolSet = BoolSet
+Global___FloatSet: _TypeAlias = FloatSet  # noqa: Y015
 
-class Map(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class BoolSet(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class ValEntry(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedScalarFieldContainer[_builtins.bool]: ...
+    def __init__(
+        self,
+        *,
+        val: _abc.Iterable[_builtins.bool] | None = ...,
+    ) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-        KEY_FIELD_NUMBER: builtins.int
-        VALUE_FIELD_NUMBER: builtins.int
-        key: builtins.str
-        @property
-        def value(self) -> global___Value: ...
+Global___BoolSet: _TypeAlias = BoolSet  # noqa: Y015
+
+@_typing.final
+class Map(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    @_typing.final
+    class ValEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        @_builtins.property
+        def value(self) -> Global___Value: ...
         def __init__(
             self,
             *,
-            key: builtins.str = ...,
-            value: global___Value | None = ...,
+            key: _builtins.str = ...,
+            value: Global___Value | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _HasFieldArgType: _TypeAlias = _typing.Literal["value", b"value"]  # noqa: Y015
+        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, global___Value]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.MessageMap[_builtins.str, Global___Value]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Mapping[builtins.str, global___Value] | None = ...,
+        val: _abc.Mapping[_builtins.str, Global___Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Map = Map
+Global___Map: _TypeAlias = Map  # noqa: Y015
 
-class MapList(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class MapList(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Map]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedCompositeFieldContainer[Global___Map]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[global___Map] | None = ...,
+        val: _abc.Iterable[Global___Map] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___MapList = MapList
+Global___MapList: _TypeAlias = MapList  # noqa: Y015
 
-class RepeatedValue(google.protobuf.message.Message):
+@_typing.final
+class RepeatedValue(_message.Message):
     """This is to avoid an issue of being unable to specify `repeated value` in oneofs or maps
     In JSON "val" field can be omitted
     """
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VAL_FIELD_NUMBER: builtins.int
-    @property
-    def val(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Value]: ...
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedCompositeFieldContainer[Global___Value]: ...
     def __init__(
         self,
         *,
-        val: collections.abc.Iterable[global___Value] | None = ...,
+        val: _abc.Iterable[Global___Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___RepeatedValue = RepeatedValue
+Global___RepeatedValue: _TypeAlias = RepeatedValue  # noqa: Y015

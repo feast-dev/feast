@@ -370,6 +370,9 @@ entity_df = pd.DataFrame.from_dict(
         # entity's join key -> entity values
         "driver_id": [1001, 1002, 1003],
         # "event_timestamp" (reserved key) -> timestamps
+        # Each timestamp acts as the upper bound for the point-in-time join:
+        # Feast retrieves the latest feature values at or before this time,
+        # preventing data leakage from future events.
         "event_timestamp": [
             datetime(2021, 4, 12, 10, 59, 42),
             datetime(2021, 4, 12, 8, 12, 10),
@@ -498,7 +501,7 @@ print(training_df.head())
 {% endtabs %}
 ### Step 6: Ingest batch features into your online store
 
-We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in [feature_repo/feature_repo/feature_definitions.py](feature_repo/feature_repo/feature_definitions.py)).
+We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in `feature_definitions.py`).
 
 {% tabs %}
 {% tab title="Bash (with timestamp)" %}

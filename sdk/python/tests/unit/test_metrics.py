@@ -20,17 +20,23 @@ import pytest
 from feast.metrics import (
     feature_freshness_seconds,
     materialization_duration_seconds,
-    materialization_total,
+    materialization_result_total,
     online_features_entity_count,
     online_features_request_count,
+    online_store_read_duration_seconds,
     push_request_count,
     request_count,
     request_latency,
     track_materialization,
     track_online_features_entities,
+    track_online_store_read,
     track_push,
     track_request_latency,
+    track_transformation,
+    track_write_transformation,
+    transformation_duration_seconds,
     update_feature_freshness,
+    write_transformation_duration_seconds,
 )
 
 
@@ -201,12 +207,12 @@ class TestMetricsOptIn:
 
     def test_track_materialization_noop_when_disabled(self):
         self._all_off()
-        before = materialization_total.labels(
+        before = materialization_result_total.labels(
             feature_view="fv_disabled", status="success"
         )._value.get()
         track_materialization("fv_disabled", success=True, duration_seconds=1.0)
         assert (
-            materialization_total.labels(
+            materialization_result_total.labels(
                 feature_view="fv_disabled", status="success"
             )._value.get()
             == before
@@ -267,12 +273,12 @@ class TestGranularCategoryControl:
         assert online_features_request_count._value.get() == before_of
 
         # materialization should still record
-        before_mat = materialization_total.labels(
+        before_mat = materialization_result_total.labels(
             feature_view="fv_gran", status="success"
         )._value.get()
         track_materialization("fv_gran", success=True, duration_seconds=1.0)
         assert (
-            materialization_total.labels(
+            materialization_result_total.labels(
                 feature_view="fv_gran", status="success"
             )._value.get()
             == before_mat + 1
@@ -298,7 +304,7 @@ class TestGranularCategoryControl:
         before_push = push_request_count.labels(
             push_source="x", mode="offline"
         )._value.get()
-        before_mat = materialization_total.labels(
+        before_mat = materialization_result_total.labels(
             feature_view="fv_res", status="success"
         )._value.get()
 
@@ -315,7 +321,7 @@ class TestGranularCategoryControl:
             == before_push
         )
         assert (
-            materialization_total.labels(
+            materialization_result_total.labels(
                 feature_view="fv_res", status="success"
             )._value.get()
             == before_mat
@@ -445,24 +451,24 @@ class TestTrackPush:
 
 class TestTrackMaterialization:
     def test_success_counter(self):
-        before = materialization_total.labels(
+        before = materialization_result_total.labels(
             feature_view="fv1", status="success"
         )._value.get()
         track_materialization("fv1", success=True, duration_seconds=1.5)
         assert (
-            materialization_total.labels(
+            materialization_result_total.labels(
                 feature_view="fv1", status="success"
             )._value.get()
             == before + 1
         )
 
     def test_failure_counter(self):
-        before = materialization_total.labels(
+        before = materialization_result_total.labels(
             feature_view="fv2", status="failure"
         )._value.get()
         track_materialization("fv2", success=False, duration_seconds=0.5)
         assert (
-            materialization_total.labels(
+            materialization_result_total.labels(
                 feature_view="fv2", status="failure"
             )._value.get()
             == before + 1
@@ -824,3 +830,173 @@ class TestCleanupMultiprocessDir:
             m._prometheus_mp_dir = original_dir
             m._owns_mp_dir = original_owns
             m._owner_pid = original_pid
+
+
+class TestTrackOnlineStoreRead:
+    """Tests for the online store read duration metric."""
+
+    def test_records_duration(self):
+        before_sum = online_store_read_duration_seconds._sum.get()
+
+        track_online_store_read(0.123)
+
+        assert online_store_read_duration_seconds._sum.get() >= before_sum + 0.123
+
+    def test_noop_when_online_features_disabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(enabled=True, online_features=False)
+
+        before_sum = online_store_read_duration_seconds._sum.get()
+
+        track_online_store_read(0.5)
+
+        assert online_store_read_duration_seconds._sum.get() == before_sum
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+        )
+
+
+class TestTrackTransformation:
+    """Tests for the ODFV transformation duration metric."""
+
+    def test_records_python_mode(self):
+        labels = ("my_odfv", "python")
+        before = transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_transformation("my_odfv", "python", 0.042)
+
+        sample = transformation_duration_seconds._metrics[labels]
+        assert sample._sum.get() >= before_sum + 0.042
+
+    def test_records_pandas_mode(self):
+        labels = ("my_odfv", "pandas")
+        before = transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_transformation("my_odfv", "pandas", 0.15)
+
+        sample = transformation_duration_seconds._metrics[labels]
+        assert sample._sum.get() >= before_sum + 0.15
+
+    def test_noop_when_online_features_disabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(enabled=True, online_features=False)
+
+        labels = ("disabled_odfv", "python")
+        before = transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_transformation("disabled_odfv", "python", 1.0)
+
+        sample = transformation_duration_seconds._metrics.get(labels, None)
+        after_sum = sample._sum.get() if sample else 0.0
+        assert after_sum == before_sum
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+        )
+
+    def test_multiple_odfvs_tracked_independently(self):
+        labels_a = ("odfv_a", "python")
+        labels_b = ("odfv_b", "pandas")
+        before_a = transformation_duration_seconds._metrics.get(labels_a, None)
+        before_a_sum = before_a._sum.get() if before_a else 0.0
+        before_b = transformation_duration_seconds._metrics.get(labels_b, None)
+        before_b_sum = before_b._sum.get() if before_b else 0.0
+
+        track_transformation("odfv_a", "python", 0.01)
+        track_transformation("odfv_b", "pandas", 0.05)
+
+        sample_a = transformation_duration_seconds._metrics[labels_a]
+        sample_b = transformation_duration_seconds._metrics[labels_b]
+        assert sample_a._sum.get() >= before_a_sum + 0.01
+        assert sample_b._sum.get() >= before_b_sum + 0.05
+
+
+class TestTrackWriteTransformation:
+    """Tests for the write-path ODFV transformation duration metric."""
+
+    def test_records_python_mode(self):
+        labels = ("write_odfv", "python")
+        before = write_transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_write_transformation("write_odfv", "python", 0.033)
+
+        sample = write_transformation_duration_seconds._metrics[labels]
+        assert sample._sum.get() >= before_sum + 0.033
+
+    def test_records_pandas_mode(self):
+        labels = ("write_odfv", "pandas")
+        before = write_transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_write_transformation("write_odfv", "pandas", 0.12)
+
+        sample = write_transformation_duration_seconds._metrics[labels]
+        assert sample._sum.get() >= before_sum + 0.12
+
+    def test_noop_when_online_features_disabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(enabled=True, online_features=False)
+
+        labels = ("disabled_write_odfv", "python")
+        before = write_transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_write_transformation("disabled_write_odfv", "python", 1.0)
+
+        sample = write_transformation_duration_seconds._metrics.get(labels, None)
+        after_sum = sample._sum.get() if sample else 0.0
+        assert after_sum == before_sum
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+        )
+
+    def test_separate_from_read_transform_metric(self):
+        """Write and read transform metrics are independent histograms."""
+        read_labels = ("shared_odfv", "python")
+        write_labels = ("shared_odfv", "python")
+
+        read_before = transformation_duration_seconds._metrics.get(read_labels, None)
+        read_before_sum = read_before._sum.get() if read_before else 0.0
+        write_before = write_transformation_duration_seconds._metrics.get(
+            write_labels, None
+        )
+        write_before_sum = write_before._sum.get() if write_before else 0.0
+
+        track_transformation("shared_odfv", "python", 0.01)
+        track_write_transformation("shared_odfv", "python", 0.05)
+
+        read_after = transformation_duration_seconds._metrics[read_labels]
+        write_after = write_transformation_duration_seconds._metrics[write_labels]
+
+        read_delta = read_after._sum.get() - read_before_sum
+        write_delta = write_after._sum.get() - write_before_sum
+
+        assert abs(read_delta - 0.01) < 0.001
+        assert abs(write_delta - 0.05) < 0.001

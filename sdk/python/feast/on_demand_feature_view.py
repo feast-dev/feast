@@ -1,5 +1,6 @@
 import copy
 import functools
+import uuid
 import warnings
 from types import FunctionType
 from typing import Any, List, Optional, Union, cast
@@ -35,6 +36,7 @@ from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.utils import _utc_now
 from feast.value_type import ValueType
+from feast.version_utils import normalize_version_string
 
 warnings.simplefilter("once", DeprecationWarning)
 OnDemandSourceType = Union[FeatureView, FeatureViewProjection, RequestSource]
@@ -131,6 +133,8 @@ class OnDemandFeatureView(BaseFeatureView):
             maintainer.
     """
 
+    _TRACK_METRICS_TAG = "feast:track_metrics"
+
     name: str
     entities: Optional[List[str]]
     features: List[Field]
@@ -143,6 +147,7 @@ class OnDemandFeatureView(BaseFeatureView):
     owner: str
     write_to_online_store: bool
     singleton: bool
+    track_metrics: bool
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     aggregations: List[Aggregation]
@@ -163,7 +168,9 @@ class OnDemandFeatureView(BaseFeatureView):
         owner: str = "",
         write_to_online_store: bool = False,
         singleton: bool = False,
+        track_metrics: bool = False,
         aggregations: Optional[List[Aggregation]] = None,
+        version: str = "latest",
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -189,6 +196,11 @@ class OnDemandFeatureView(BaseFeatureView):
             the online store for faster retrieval.
             singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
                 (only applicable when mode="python").
+            track_metrics (optional): Whether to emit Prometheus timing metrics
+                (``feast_feature_server_transformation_duration_seconds``) for
+                this ODFV.  Defaults to ``False``.  Set to ``True`` to opt in
+                to per-ODFV transformation duration tracking when the server
+                is started with metrics enabled.
             aggregations (optional): List of aggregations to apply before transformation.
         """
         super().__init__(
@@ -199,6 +211,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=owner,
         )
 
+        self.version = version
         schema = schema or []
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.sources = sources
@@ -255,6 +268,7 @@ class OnDemandFeatureView(BaseFeatureView):
             raise ValueError(
                 ODFVErrorMessages.singleton_mode_requires_python(self.mode)
             )
+        self.track_metrics = track_metrics
         self.aggregations = aggregations or []
 
     def _add_source_to_collections(self, odfv_source: OnDemandSourceType) -> None:
@@ -318,6 +332,8 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton,
+            version=self.version,
+            track_metrics=self.track_metrics,
         )
         fv.entities = self.entities
         fv.features = self.features
@@ -325,6 +341,49 @@ class OnDemandFeatureView(BaseFeatureView):
         fv.entity_columns = copy.copy(self.entity_columns)
 
         return fv
+
+    def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
+        """Check for OnDemandFeatureView schema/UDF changes."""
+        if super()._schema_or_udf_changed(other):
+            return True
+
+        if not isinstance(other, OnDemandFeatureView):
+            return True
+
+        # UDF/transformation changes
+        # Handle None cases for feature_transformation
+        if (
+            self.feature_transformation is None
+            and other.feature_transformation is not None
+        ):
+            return True
+        if (
+            self.feature_transformation is not None
+            and other.feature_transformation is None
+        ):
+            return True
+        if (
+            self.feature_transformation is not None
+            and other.feature_transformation is not None
+            and self.feature_transformation != other.feature_transformation
+        ):
+            return True
+        if self.mode != other.mode:
+            return True
+        if (
+            self.source_feature_view_projections
+            != other.source_feature_view_projections
+        ):
+            return True
+        if self.source_request_sources != other.source_request_sources:
+            return True
+        if sorted(self.entity_columns) != sorted(other.entity_columns):
+            return True
+        if self.aggregations != other.aggregations:
+            return True
+
+        # Skip configuration: write_to_online_store, singleton
+        return False
 
     def __eq__(self, other):
         if not isinstance(other, OnDemandFeatureView):
@@ -345,7 +404,10 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.write_to_online_store != other.write_to_online_store
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.singleton != other.singleton
+            or self.track_metrics != other.track_metrics
             or self.aggregations != other.aggregations
+            or normalize_version_string(self.version)
+            != normalize_version_string(other.version)
         ):
             return False
 
@@ -456,6 +518,8 @@ class OnDemandFeatureView(BaseFeatureView):
             meta.created_timestamp.FromDatetime(self.created_timestamp)
         if self.last_updated_timestamp:
             meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+        if self.current_version_number is not None:
+            meta.current_version_number = self.current_version_number
         sources = {}
         for source_name, fv_projection in self.source_feature_view_projections.items():
             sources[source_name] = OnDemandSource(
@@ -471,6 +535,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
         feature_transformation = transformation_to_proto(self.feature_transformation)
 
+        tags = dict(self.tags) if self.tags else {}
+        if self.track_metrics:
+            tags[self._TRACK_METRICS_TAG] = "true"
+        else:
+            tags.pop(self._TRACK_METRICS_TAG, None)
+
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             entities=self.entities or None,
@@ -482,11 +552,12 @@ class OnDemandFeatureView(BaseFeatureView):
             feature_transformation=feature_transformation,
             mode=self.mode,
             description=self.description,
-            tags=self.tags,
+            tags=tags,
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton or False,
             aggregations=self.aggregations,
+            version=self.version,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
@@ -519,6 +590,13 @@ class OnDemandFeatureView(BaseFeatureView):
             on_demand_feature_view_proto
         )
 
+        # Extract track_metrics from proto tags and strip the internal key
+        # so it doesn't leak into user-facing self.tags.
+        proto_tags = dict(on_demand_feature_view_proto.spec.tags)
+        track_metrics = (
+            proto_tags.pop(cls._TRACK_METRICS_TAG, "false").lower() == "true"
+        )
+
         # Create the OnDemandFeatureView object
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
@@ -527,10 +605,11 @@ class OnDemandFeatureView(BaseFeatureView):
             feature_transformation=transformation,
             mode=on_demand_feature_view_proto.spec.mode or "pandas",
             description=on_demand_feature_view_proto.spec.description,
-            tags=dict(on_demand_feature_view_proto.spec.tags),
+            tags=proto_tags,
             owner=on_demand_feature_view_proto.spec.owner,
             write_to_online_store=optional_fields["write_to_online_store"],
             singleton=optional_fields["singleton"],
+            track_metrics=track_metrics,
             aggregations=optional_fields["aggregations"],
         )
 
@@ -543,6 +622,17 @@ class OnDemandFeatureView(BaseFeatureView):
         on_demand_feature_view_obj.projection = FeatureViewProjection.from_definition(
             on_demand_feature_view_obj
         )
+
+        # Restore version fields.
+        spec_version = on_demand_feature_view_proto.spec.version
+        on_demand_feature_view_obj.version = spec_version or "latest"
+        cvn = on_demand_feature_view_proto.meta.current_version_number
+        if cvn > 0:
+            on_demand_feature_view_obj.current_version_number = cvn
+        elif cvn == 0 and spec_version and spec_version.lower() != "latest":
+            on_demand_feature_view_obj.current_version_number = 0
+        else:
+            on_demand_feature_view_obj.current_version_number = None
 
         # Set timestamps if present
         cls._set_timestamps_from_proto(
@@ -1073,6 +1163,9 @@ class OnDemandFeatureView(BaseFeatureView):
             # Special binary types
             ValueType.PDF_BYTES: [pdf_sample],
             ValueType.IMAGE_BYTES: [image_sample],
+            # UUID types
+            ValueType.UUID: [uuid.uuid4()],
+            ValueType.TIME_UUID: [uuid.uuid1()],
             # List types
             ValueType.BYTES_LIST: [[b"hello world"]],
             ValueType.STRING_LIST: [["hello world"]],
@@ -1082,6 +1175,19 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.FLOAT_LIST: [[1.0]],
             ValueType.BOOL_LIST: [[True]],
             ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
+            ValueType.UUID_LIST: [[uuid.uuid4(), uuid.uuid4()]],
+            ValueType.TIME_UUID_LIST: [[uuid.uuid1(), uuid.uuid1()]],
+            # Set types
+            ValueType.BYTES_SET: [{b"hello world", b"foo bar"}],
+            ValueType.STRING_SET: [{"hello world", "foo bar"}],
+            ValueType.INT32_SET: [{1, 2}],
+            ValueType.INT64_SET: [{1, 2}],
+            ValueType.DOUBLE_SET: [{1.0, 2.0}],
+            ValueType.FLOAT_SET: [{1.0, 2.0}],
+            ValueType.BOOL_SET: [{True, False}],
+            ValueType.UNIX_TIMESTAMP_SET: [{_utc_now()}],
+            ValueType.UUID_SET: [{uuid.uuid4(), uuid.uuid4()}],
+            ValueType.TIME_UUID_SET: [{uuid.uuid1(), uuid.uuid1()}],
         }
 
     @staticmethod
@@ -1118,7 +1224,9 @@ def on_demand_feature_view(
     owner: str = "",
     write_to_online_store: bool = False,
     singleton: bool = False,
+    track_metrics: bool = False,
     explode: bool = False,
+    version: str = "latest",
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -1140,6 +1248,8 @@ def on_demand_feature_view(
             the online store for faster retrieval.
         singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
             (only applicable when mode="python").
+        track_metrics (optional): Whether to emit Prometheus timing metrics for this ODFV.
+            Defaults to False. Set to True to opt in when the server is started with metrics.
         explode (optional): A boolean that indicates whether the transformation explodes the input data into multiple rows.
     """
 
@@ -1164,8 +1274,10 @@ def on_demand_feature_view(
             write_to_online_store=write_to_online_store,
             entities=entities,
             singleton=singleton,
+            track_metrics=track_metrics,
             udf=user_function,
             udf_string=udf_string,
+            version=version,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function

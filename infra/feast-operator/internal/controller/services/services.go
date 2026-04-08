@@ -101,6 +101,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployCronJob(); err != nil {
 		return err
 	}
+	if err := feast.createOrDeleteServiceMonitor(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -449,7 +452,8 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 		Strategy: feast.getDeploymentStrategy(),
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: deploy.GetLabels(),
+				Labels:      deploy.GetLabels(),
+				Annotations: cr.Status.Applied.Services.PodAnnotations,
 			},
 			Spec: corev1.PodSpec{
 				ServiceAccountName: feast.initFeastSA().Name,
@@ -773,6 +777,35 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 				"echo $" + TmpFeatureStoreYamlEnvVar + " | base64 -d \u003e " + featureRepoDir + "/feature_store.yaml;\necho \"Feast repo creation complete\";\n",
 		}
 		podSpec.InitContainers = append(podSpec.InitContainers, container)
+
+		if applied.Services.RunFeastApplyOnInit != nil && *applied.Services.RunFeastApplyOnInit {
+			applyContainer := corev1.Container{
+				Name:       "feast-apply",
+				Image:      getFeatureServerImage(),
+				Command:    []string{"feast", "apply"},
+				WorkingDir: featureRepoDir,
+			}
+			// feast apply needs DB/store connectivity, so inherit env, envFrom
+			// and volume mounts from all server container configs.
+			seen := map[string]bool{}
+			for _, feastType := range []FeastServiceType{RegistryFeastType, OnlineFeastType, OfflineFeastType} {
+				if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
+					if serverConfigs.OptionalCtrConfigs.Env != nil {
+						applyContainer.Env = envOverride(applyContainer.Env, *serverConfigs.OptionalCtrConfigs.Env)
+					}
+					if serverConfigs.OptionalCtrConfigs.EnvFrom != nil {
+						applyContainer.EnvFrom = append(applyContainer.EnvFrom, *serverConfigs.OptionalCtrConfigs.EnvFrom...)
+					}
+					for _, vm := range feast.getVolumeMounts(feastType) {
+						if !seen[vm.MountPath] {
+							applyContainer.VolumeMounts = append(applyContainer.VolumeMounts, vm)
+							seen[vm.MountPath] = true
+						}
+					}
+				}
+			}
+			podSpec.InitContainers = append(podSpec.InitContainers, applyContainer)
+		}
 	}
 }
 
@@ -1182,9 +1215,6 @@ func (feast *FeastServices) getRemoteRegistryFeastHandler() (*FeastServices, err
 			}
 			return nil, err
 		}
-		if feast.Handler.FeatureStore.Status.Applied.FeastProject != remoteFeastObj.Status.Applied.FeastProject {
-			return nil, errors.New("FeatureStore '" + remoteFeastObj.Name + "' is using a different feast project than '" + feast.Handler.FeatureStore.Status.Applied.FeastProject + "'. Project names must match.")
-		}
 		return &FeastServices{
 			Handler: handler.FeastHandler{
 				Client:       feast.Handler.Client,
@@ -1342,13 +1372,11 @@ func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *f
 				},
 			},
 		})
-		if feastType == OfflineFeastType {
-			for i := range podSpec.InitContainers {
-				podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
-					Name:      volName,
-					MountPath: pvcConfig.MountPath,
-				})
-			}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      volName,
+				MountPath: pvcConfig.MountPath,
+			})
 		}
 		for i := range podSpec.Containers {
 			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{

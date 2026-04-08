@@ -14,6 +14,7 @@ feature_server:
     type: mcp
     enabled: true
     mcp_enabled: true  # Enable MCP support - defaults to false
+    mcp_transport: http
     mcp_server_name: "feast-feature-store"
     mcp_server_version: "1.0.0"
     feature_logging:

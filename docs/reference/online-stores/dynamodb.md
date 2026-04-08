@@ -69,7 +69,7 @@ Feast requires the following permissions in order to execute commands for Dynamo
 
 | **Command**             | Permissions                                                                         | Resources                                         |
 | ----------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------- |
-| **Apply**               | <p>dynamodb:CreateTable</p><p>dynamodb:DescribeTable</p><p>dynamodb:DeleteTable</p> | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
+| **Apply**               | <p>dynamodb:CreateTable</p><p>dynamodb:DescribeTable</p><p>dynamodb:DeleteTable</p><p>dynamodb:TagResource</p> | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
 | **Materialize**         | dynamodb.BatchWriteItem                                                             | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
 | **Get Online Features** | dynamodb.BatchGetItem                                                               | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
 
@@ -83,6 +83,7 @@ The following inline policy can be used to grant Feast the necessary permissions
                 "dynamodb:CreateTable",
                 "dynamodb:DescribeTable",
                 "dynamodb:DeleteTable",
+                "dynamodb:TagResource",
                 "dynamodb:BatchWriteItem",
                 "dynamodb:BatchGetItem"
             ],

@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import trino
+import trino.auth
 from trino.dbapi import Cursor
 from trino.exceptions import TrinoQueryError
 
@@ -37,7 +38,7 @@ class Trino:
         http_scheme: str,
         verify: bool,
         extra_credential: Optional[str],
-        auth: Optional[trino.Authentication],
+        auth: Optional[trino.auth.Authentication],
     ):
         self.host = host
         self.port = port
@@ -106,7 +107,9 @@ class Query(object):
             self.execution_time = end_time - start_time
             self.status = QueryStatus.COMPLETED
 
-            return Results(data=rows, columns=self._cursor._query.columns)
+            query = self._cursor._query
+            assert query is not None, "Cursor query should not be None after execute"
+            return Results(data=rows, columns=query.columns)
         except TrinoQueryError as error:
             self.status = QueryStatus.ERROR
             raise error

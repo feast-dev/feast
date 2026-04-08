@@ -615,6 +615,71 @@ class TestNonEntityRetrieval:
                             assert "start_date" not in str(e)
                             assert "end_date" not in str(e)
 
+    def test_non_entity_entity_df_uses_end_date(self):
+        """Test that the synthetic entity_df uses end_date, not start_date.
+
+        Regression test: the old code used pd.date_range(start=start_date, ...)[:1]
+        which put start_date in the entity_df. Since PIT joins use
+        MAX(entity_timestamp) as the upper bound, start_date made end_date
+        unreachable. The fix uses [end_date] directly.
+        """
+        test_repo_config = RepoConfig(
+            project="test_project",
+            registry="test_registry",
+            provider="local",
+            offline_store=_mock_offline_store_config(),
+        )
+
+        feature_view = _mock_feature_view("test_fv", ttl=timedelta(days=1))
+        start_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        mock_get_entity_schema = MagicMock(
+            return_value={"event_timestamp": "timestamp"}
+        )
+
+        with (
+            patch.multiple(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
+                _get_conn=MagicMock(),
+                _upload_entity_df=MagicMock(),
+                _get_entity_schema=mock_get_entity_schema,
+                _get_entity_df_event_timestamp_range=MagicMock(
+                    return_value=(start_date, end_date)
+                ),
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
+                return_value=[],
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df",
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                return_value=[],
+            ),
+        ):
+            PostgreSQLOfflineStore.get_historical_features(
+                config=test_repo_config,
+                feature_views=[feature_view],
+                feature_refs=["test_fv:feature1"],
+                entity_df=None,
+                registry=MagicMock(),
+                project="test_project",
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+        # _get_entity_schema is called with the synthetic entity_df
+        df = mock_get_entity_schema.call_args[0][0]
+        assert len(df) == 1
+        ts = df["event_timestamp"].iloc[0]
+        # The entity_df must use end_date, not start_date
+        assert ts == end_date, (
+            f"entity_df timestamp should be end_date ({end_date}), got {ts}"
+        )
+
     def test_non_entity_mode_with_end_date_only(self):
         """Test non-entity retrieval calculates start_date from TTL"""
         test_repo_config = RepoConfig(

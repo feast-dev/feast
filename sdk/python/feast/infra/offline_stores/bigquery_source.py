@@ -34,6 +34,7 @@ class BigQuerySource(DataSource):
         table: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
+        date_partition_column: Optional[str] = None,
         query: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
@@ -52,6 +53,7 @@ class BigQuerySource(DataSource):
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
+            date_partition_column (optional): Timestamp column used for partitioning.
             query (optional): The query to be executed to obtain the features. Exactly one of 'table'
                 and 'query' must be specified.
             description (optional): A human-readable description.
@@ -78,6 +80,7 @@ class BigQuerySource(DataSource):
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
@@ -117,6 +120,7 @@ class BigQuerySource(DataSource):
             table=data_source.bigquery_options.table,
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
+            date_partition_column=data_source.date_partition_column,
             query=data_source.bigquery_options.query,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -134,6 +138,7 @@ class BigQuerySource(DataSource):
             owner=self.owner,
             timestamp_field=self.timestamp_field,
             created_timestamp_column=self.created_timestamp_column,
+            date_partition_column=self.date_partition_column,
         )
 
         return data_source_proto

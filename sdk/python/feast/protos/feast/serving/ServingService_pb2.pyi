@@ -253,6 +253,7 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
     ENTITIES_FIELD_NUMBER: builtins.int
     FULL_FEATURE_NAMES_FIELD_NUMBER: builtins.int
     REQUEST_CONTEXT_FIELD_NUMBER: builtins.int
+    INCLUDE_FEATURE_VIEW_VERSION_METADATA_FIELD_NUMBER: builtins.int
     feature_service: builtins.str
     @property
     def features(self) -> global___FeatureList: ...
@@ -268,6 +269,8 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
         A map of variable name -> list of values
         """
+    include_feature_view_version_metadata: builtins.bool
+    """Whether to include feature view version metadata in the response"""
     def __init__(
         self,
         *,
@@ -276,9 +279,10 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         entities: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
         full_feature_names: builtins.bool = ...,
         request_context: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
+        include_feature_view_version_metadata: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["feature_service", b"feature_service", "features", b"features", "kind", b"kind"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities", "feature_service", b"feature_service", "features", b"features", "full_feature_names", b"full_feature_names", "kind", b"kind", "request_context", b"request_context"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities", "feature_service", b"feature_service", "features", b"features", "full_feature_names", b"full_feature_names", "include_feature_view_version_metadata", b"include_feature_view_version_metadata", "kind", b"kind", "request_context", b"request_context"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["feature_service", "features"] | None: ...
 
 global___GetOnlineFeaturesRequest = GetOnlineFeaturesRequest
@@ -330,18 +334,43 @@ class GetOnlineFeaturesResponse(google.protobuf.message.Message):
 
 global___GetOnlineFeaturesResponse = GetOnlineFeaturesResponse
 
+class FeatureViewMetadata(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    VERSION_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    """Feature view name (e.g., "driver_stats")"""
+    version: builtins.int
+    """Version number (e.g., 2)"""
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        version: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "version", b"version"]) -> None: ...
+
+global___FeatureViewMetadata = FeatureViewMetadata
+
 class GetOnlineFeaturesResponseMetadata(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     FEATURE_NAMES_FIELD_NUMBER: builtins.int
+    FEATURE_VIEW_METADATA_FIELD_NUMBER: builtins.int
     @property
-    def feature_names(self) -> global___FeatureList: ...
+    def feature_names(self) -> global___FeatureList:
+        """Clean feature names without @v2 syntax"""
+    @property
+    def feature_view_metadata(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureViewMetadata]:
+        """Only populated when requested"""
     def __init__(
         self,
         *,
         feature_names: global___FeatureList | None = ...,
+        feature_view_metadata: collections.abc.Iterable[global___FeatureViewMetadata] | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["feature_names", b"feature_names"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_names", b"feature_names"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["feature_names", b"feature_names", "feature_view_metadata", b"feature_view_metadata"]) -> None: ...
 
 global___GetOnlineFeaturesResponseMetadata = GetOnlineFeaturesResponseMetadata

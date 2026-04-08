@@ -86,6 +86,12 @@ def get_ir_metadata_for_aggregation(
             ),
         )
 
+    elif agg_type == "count_distinct":
+        raise ValueError(
+            "count_distinct does not support tiling. "
+            "Use enable_tiling=False or choose an algebraic aggregation (sum, count, min, max)."
+        )
+
     else:
         # Unknown aggregation: treat as algebraic
         return ([], IRMetadata(type="algebraic"))

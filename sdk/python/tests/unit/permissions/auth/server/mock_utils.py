@@ -32,14 +32,14 @@ def mock_oidc(request, monkeypatch, client_id):
     }
     monkeypatch.setattr(
         "feast.permissions.client.oidc_authentication_client_manager.requests.get",
-        lambda url: discovery_response,
+        lambda url, verify=True: discovery_response,
     )
     token_response = Mock(spec=Response)
     token_response.status_code = 200
     token_response.json.return_value = {"access_token": "my-token"}
     monkeypatch.setattr(
         "feast.permissions.client.oidc_authentication_client_manager.requests.post",
-        lambda url, data, headers: token_response,
+        lambda url, data, headers, verify=True: token_response,
     )
 
     monkeypatch.setattr(

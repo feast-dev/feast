@@ -185,7 +185,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(2))
 			Expect(services.GetRegistryContainer(*deploy)).NotTo(BeNil())
 			Expect(services.GetOnlineContainer(*deploy)).NotTo(BeNil())

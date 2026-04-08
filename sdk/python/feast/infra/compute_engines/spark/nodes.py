@@ -371,8 +371,11 @@ class SparkAggregationNode(DAGNode):
         """Execute standard Spark aggregation (existing logic)."""
         agg_exprs = []
         for agg in self.aggregations:
-            func = getattr(F, agg.function)
-            expr = func(agg.column).alias(agg.resolved_name(agg.time_window))
+            if agg.function == "count_distinct":
+                func_expr = F.countDistinct(agg.column)
+            else:
+                func_expr = getattr(F, agg.function)(agg.column)
+            expr = func_expr.alias(agg.resolved_name(agg.time_window))
             agg_exprs.append(expr)
 
         if any(agg.time_window for agg in self.aggregations):

@@ -314,6 +314,7 @@ def apply_diff_to_registry(
     registry_diff: RegistryDiff,
     project: str,
     commit: bool = True,
+    no_promote: bool = False,
 ):
     """
     Applies the given diff to the given Feast project in the registry.
@@ -323,6 +324,9 @@ def apply_diff_to_registry(
         registry_diff: The diff to apply.
         project: Feast project to be updated.
         commit: Whether the change should be persisted immediately
+        no_promote: If True, save new feature view version snapshots without
+            promoting them to the active definition. New versions are accessible
+            only via explicit @v<N> reads.
     """
     for feast_object_diff in registry_diff.feast_object_diffs:
         # There is no need to delete the object on an update, since applying the new object
@@ -404,6 +408,7 @@ def apply_diff_to_registry(
                     cast(BaseFeatureView, feast_object_diff.new_feast_object),
                     project,
                     commit=False,
+                    no_promote=no_promote,
                 )
             elif feast_object_diff.feast_object_type == FeastObjectType.PERMISSION:
                 registry.apply_permission(

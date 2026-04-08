@@ -8,8 +8,10 @@ Feast's type system is built on top of [protobuf](https://github.com/protocolbuf
 Feast supports the following categories of data types:
 
 - **Primitive types**: numerical values (`Int32`, `Int64`, `Float32`, `Float64`), `String`, `Bytes`, `Bool`, and `UnixTimestamp`.
-- **Array types**: ordered lists of any primitive type, e.g. `Array(Int64)`, `Array(String)`.
-- **Set types**: unordered collections of unique values for any primitive type, e.g. `Set(String)`, `Set(Int64)`.
+- **Domain-specific primitives**: `PdfBytes` (PDF binary data for RAG/document pipelines) and `ImageBytes` (image binary data for multimodal pipelines). These are semantic aliases over `Bytes` and must be explicitly declared in schema — no backend infers them.
+- **UUID types**: `Uuid` and `TimeUuid` for universally unique identifiers. Stored as strings at the proto level but deserialized to `uuid.UUID` objects in Python.
+- **Array types**: ordered lists of any primitive type, e.g. `Array(Int64)`, `Array(String)`, `Array(Uuid)`.
+- **Set types**: unordered collections of unique values for any primitive type, e.g. `Set(String)`, `Set(Int64)`. Set types are not inferred by any backend and must be explicitly declared. They are best suited for online serving use cases.
 - **Map types**: dictionary-like structures with string keys and values that can be any supported Feast type (including nested maps), e.g. `Map`, `Array(Map)`.
 - **JSON type**: opaque JSON data stored as a string at the proto level but semantically distinct from `String` — backends use native JSON types (`jsonb`, `VARIANT`, etc.), e.g. `Json`, `Array(Json)`.
 - **Struct type**: schema-aware structured type with named, typed fields. Unlike `Map` (which is schema-free), a `Struct` declares its field names and their types, enabling schema validation, e.g. `Struct({"name": String, "age": Int32})`.

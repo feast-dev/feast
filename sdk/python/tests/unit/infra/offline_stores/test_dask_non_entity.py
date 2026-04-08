@@ -311,7 +311,7 @@ class TestNonEntityRetrieval:
         # Latest value should be 0.3 (from 2023-01-07)
         assert 0.3 in driver1_data["conv_rate"].values
 
-    @patch("feast.infra.offline_stores.dask.datetime")
+    @patch("feast.utils.datetime")
     def test_no_dates_provided_defaults_to_current_time_and_filters_data(
         self, mock_datetime, monkeypatch
     ):

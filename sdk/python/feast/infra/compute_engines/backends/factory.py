@@ -24,9 +24,10 @@ class BackendFactory:
     @staticmethod
     def infer_from_entity_df(entity_df) -> Optional[DataFrameBackend]:
         if (
-            not entity_df
-            or isinstance(entity_df, pyarrow.Table)
+            entity_df is None
             or isinstance(entity_df, pd.DataFrame)
+            or isinstance(entity_df, pyarrow.Table)
+            or (isinstance(entity_df, str) and not entity_df)
         ):
             return PandasBackend()
 

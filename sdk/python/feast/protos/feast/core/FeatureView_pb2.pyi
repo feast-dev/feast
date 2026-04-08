@@ -58,7 +58,7 @@ class FeatureView(google.protobuf.message.Message):
 global___FeatureView = FeatureView
 
 class FeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 18
+    """Next available id: 19
     TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
     """
 
@@ -96,6 +96,7 @@ class FeatureViewSpec(google.protobuf.message.Message):
     FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
     MODE_FIELD_NUMBER: builtins.int
     ENABLE_VALIDATION_FIELD_NUMBER: builtins.int
+    VERSION_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -118,14 +119,18 @@ class FeatureViewSpec(google.protobuf.message.Message):
         """
     @property
     def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
-        """Batch/Offline DataSource where this view can retrieve offline feature data."""
+        """Batch/Offline DataSource where this view can retrieve offline feature data.
+        Optional: if not set, the feature view has no associated batch data source (e.g. purely derived views).
+        """
     online: builtins.bool
     """Whether these features should be served online or not
     This is also used to determine whether the features should be written to the online store
     """
     @property
     def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
-        """Streaming DataSource from where this view can consume "online" feature data."""
+        """Streaming DataSource from where this view can consume "online" feature data.
+        Optional: only required for streaming feature views.
+        """
     description: builtins.str
     """Description of the feature view."""
     owner: builtins.str
@@ -144,6 +149,8 @@ class FeatureViewSpec(google.protobuf.message.Message):
     """The transformation mode (e.g., "python", "pandas", "spark", "sql", "ray")"""
     enable_validation: builtins.bool
     """Whether schema validation is enabled during materialization"""
+    version: builtins.str
+    """User-specified version pin (e.g. "latest", "v2", "version2")"""
     def __init__(
         self,
         *,
@@ -164,9 +171,10 @@ class FeatureViewSpec(google.protobuf.message.Message):
         feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
         mode: builtins.str = ...,
         enable_validation: builtins.bool = ...,
+        version: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "version", b"version"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 
@@ -176,6 +184,8 @@ class FeatureViewMeta(google.protobuf.message.Message):
     CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     MATERIALIZATION_INTERVALS_FIELD_NUMBER: builtins.int
+    CURRENT_VERSION_NUMBER_FIELD_NUMBER: builtins.int
+    VERSION_ID_FIELD_NUMBER: builtins.int
     @property
     def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is created"""
@@ -185,15 +195,21 @@ class FeatureViewMeta(google.protobuf.message.Message):
     @property
     def materialization_intervals(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___MaterializationInterval]:
         """List of pairs (start_time, end_time) for which this feature view has been materialized."""
+    current_version_number: builtins.int
+    """The current version number of this feature view in the version history."""
+    version_id: builtins.str
+    """Auto-generated UUID identifying this specific version."""
     def __init__(
         self,
         *,
         created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         materialization_intervals: collections.abc.Iterable[global___MaterializationInterval] | None = ...,
+        current_version_number: builtins.int = ...,
+        version_id: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "materialization_intervals", b"materialization_intervals"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "materialization_intervals", b"materialization_intervals", "version_id", b"version_id"]) -> None: ...
 
 global___FeatureViewMeta = FeatureViewMeta
 
