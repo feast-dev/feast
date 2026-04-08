@@ -70,6 +70,7 @@
   * [Multi-Team Feature Store Setup](how-to-guides/federated-feature-store.md)
 * [Running Feast in production (e.g. on Kubernetes)](how-to-guides/running-feast-in-production.md)
 * [Feast on Kubernetes](how-to-guides/feast-on-kubernetes.md)
+* [Feast Production Deployment Topologies](how-to-guides/production-deployment-topologies.md)
 * [Online Server Performance Tuning](how-to-guides/online-server-performance-tuning.md)
 * [Customizing Feast](how-to-guides/customizing-feast/README.md)
   * [Adding a custom batch materialization engine](how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md)
