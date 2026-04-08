@@ -23,6 +23,7 @@ import ExportButton from "../../components/ExportButton";
 import DataSourceFormModal, {
   DataSourceFormData,
 } from "../../components/DataSourceFormModal";
+import { useUIVersion } from "../../contexts/UIVersionContext";
 import useResourceQuery, {
   dataSourceListPath,
 } from "../../queries/useResourceQuery";
@@ -55,6 +56,7 @@ const filterFn = (data: feast.core.IDataSource[], searchTokens: string[]) => {
 
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadDatasources();
+  const { isV2 } = useUIVersion();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -80,14 +82,18 @@ const Index = () => {
         iconType={DataSourceIcon}
         pageTitle="Data Sources"
         rightSideItems={[
-          <EuiButton
-            fill
-            iconType="plus"
-            onClick={() => setIsModalOpen(true)}
-            key="create"
-          >
-            Create Data Source
-          </EuiButton>,
+          ...(isV2
+            ? [
+                <EuiButton
+                  fill
+                  iconType="plus"
+                  onClick={() => setIsModalOpen(true)}
+                  key="create"
+                >
+                  Create Data Source
+                </EuiButton>,
+              ]
+            : []),
           <ExportButton
             data={filterResult ?? []}
             fileName="data_sources"

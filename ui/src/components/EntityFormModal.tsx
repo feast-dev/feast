@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { EuiFormRow, EuiFieldText, EuiSpacer } from "@elastic/eui";
+import {
+  EuiSpacer,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiFieldText,
+  EuiButtonEmpty,
+  EuiButtonIcon,
+  EuiText,
+  EuiHorizontalRule,
+  EuiCallOut,
+} from "@elastic/eui";
 import { feast } from "../protos";
 import FormModal from "./forms/FormModal";
 import TagsEditor, { TagEntry } from "./forms/TagsEditor";
@@ -9,7 +19,7 @@ import ValueTypeSelect from "./forms/ValueTypeSelect";
 interface EntityFormData {
   name: string;
   description: string;
-  joinKey: string;
+  joinKeys: string[];
   valueType: string;
   tags: TagEntry[];
 }
@@ -24,7 +34,7 @@ interface EntityFormModalProps {
 const EMPTY_FORM: EntityFormData = {
   name: "",
   description: "",
-  joinKey: "",
+  joinKeys: [""],
   valueType: String(feast.types.ValueType.Enum.STRING),
   tags: [],
 };
@@ -57,8 +67,19 @@ const EntityFormModal: React.FC<EntityFormModalProps> = ({
         "Must start with a letter or underscore, and contain only letters, numbers, and underscores.";
     }
 
-    if (!formData.joinKey.trim()) {
-      newErrors.joinKey = "Join key is required.";
+    const nonEmptyKeys = formData.joinKeys.filter((k) => k.trim());
+    if (nonEmptyKeys.length === 0) {
+      newErrors.joinKeys = "At least one join key is required.";
+    } else {
+      if (new Set(nonEmptyKeys).size !== nonEmptyKeys.length) {
+        newErrors.joinKeys = "Join keys must be unique.";
+      }
+      const invalidKey = nonEmptyKeys.find(
+        (k) => !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k),
+      );
+      if (invalidKey) {
+        newErrors.joinKeys = `Invalid join key "${invalidKey}". Use only letters, numbers, and underscores.`;
+      }
     }
 
     const tagKeys = formData.tags.map((t) => t.key).filter((k) => k.trim());
@@ -75,6 +96,7 @@ const EntityFormModal: React.FC<EntityFormModalProps> = ({
     if (validate()) {
       const cleanedData = {
         ...formData,
+        joinKeys: formData.joinKeys.filter((k) => k.trim()),
         tags: formData.tags.filter((t) => t.key.trim()),
       };
       onSubmit(cleanedData);
@@ -93,6 +115,24 @@ const EntityFormModal: React.FC<EntityFormModalProps> = ({
         return next;
       });
     }
+  };
+
+  const addJoinKey = () => {
+    updateField("joinKeys", [...formData.joinKeys, ""]);
+  };
+
+  const removeJoinKey = (index: number) => {
+    if (formData.joinKeys.length <= 1) return;
+    updateField(
+      "joinKeys",
+      formData.joinKeys.filter((_, i) => i !== index),
+    );
+  };
+
+  const updateJoinKey = (index: number, value: string) => {
+    const updated = [...formData.joinKeys];
+    updated[index] = value;
+    updateField("joinKeys", updated);
   };
 
   return (
@@ -114,19 +154,71 @@ const EntityFormModal: React.FC<EntityFormModalProps> = ({
         descriptionPlaceholder="Describe what this entity represents..."
       />
 
-      <EuiFormRow
-        label="Join Key"
-        isInvalid={!!errors.joinKey}
-        error={errors.joinKey}
-        helpText="Column name used to join this entity in data sources."
-      >
-        <EuiFieldText
-          value={formData.joinKey}
-          onChange={(e) => updateField("joinKey", e.target.value)}
-          isInvalid={!!errors.joinKey}
-          placeholder="e.g. customer_id"
-        />
-      </EuiFormRow>
+      <EuiSpacer size="m" />
+      <EuiHorizontalRule margin="s" />
+
+      <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
+        <EuiFlexItem grow={false}>
+          <EuiText size="s">
+            <h4>Join Keys</h4>
+          </EuiText>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiButtonEmpty
+            size="s"
+            iconType="plus"
+            onClick={addJoinKey}
+            flush="right"
+          >
+            Add join key
+          </EuiButtonEmpty>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+
+      <EuiText size="xs" color="subdued">
+        Column name(s) used to join this entity in data sources.
+      </EuiText>
+
+      {errors.joinKeys && (
+        <>
+          <EuiSpacer size="s" />
+          <EuiCallOut title={errors.joinKeys} color="danger" size="s" />
+        </>
+      )}
+
+      {formData.joinKeys.map((key, index) => (
+        <EuiFlexGroup
+          key={index}
+          gutterSize="s"
+          alignItems="center"
+          style={{ marginTop: 4 }}
+        >
+          <EuiFlexItem>
+            <EuiFieldText
+              value={key}
+              onChange={(e) => updateJoinKey(index, e.target.value)}
+              placeholder={
+                index === 0
+                  ? "e.g. customer_id"
+                  : "e.g. timestamp_field"
+              }
+              compressed
+              isInvalid={!!errors.joinKeys && !key.trim()}
+            />
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiButtonIcon
+              iconType="trash"
+              color="danger"
+              aria-label="Remove join key"
+              onClick={() => removeJoinKey(index)}
+              disabled={formData.joinKeys.length <= 1}
+            />
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      ))}
+
+      <EuiSpacer size="m" />
 
       <ValueTypeSelect
         value={formData.valueType}

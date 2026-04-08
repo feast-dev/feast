@@ -29,6 +29,7 @@ import BatchSourcePropertiesView from "../data-sources/BatchSourcePropertiesView
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
 import { feast } from "../../protos";
 import { toDate } from "../../utils/timestamp";
+import { useUIVersion } from "../../contexts/UIVersionContext";
 
 const whereFSconsumesThisFv = (fvName: string) => {
   return (r: EntityRelation) => {
@@ -113,6 +114,7 @@ const RegularFeatureViewOverviewTab = ({
     : [];
   const numOfFs = fsNames.length;
 
+  const { isV2 } = useUIVersion();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -138,17 +140,21 @@ const RegularFeatureViewOverviewTab = ({
           <EuiSpacer size="m" />
         </>
       )}
-      <EuiFlexGroup justifyContent="flexEnd">
-        <EuiFlexItem grow={false}>
-          <EuiButtonEmpty
-            iconType="pencil"
-            onClick={() => setIsEditModalOpen(true)}
-          >
-            Edit Feature View
-          </EuiButtonEmpty>
-        </EuiFlexItem>
-      </EuiFlexGroup>
-      <EuiSpacer size="s" />
+      {isV2 && (
+        <>
+          <EuiFlexGroup justifyContent="flexEnd">
+            <EuiFlexItem grow={false}>
+              <EuiButtonEmpty
+                iconType="pencil"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                Edit Feature View
+              </EuiButtonEmpty>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          <EuiSpacer size="s" />
+        </>
+      )}
       <EuiFlexGroup>
         <EuiFlexItem>
           <EuiStat title={`${numOfFs}`} description="Consuming Services" />

@@ -31,16 +31,19 @@ import { toDate } from "../../utils/timestamp";
 import FeatureViewEdgesList from "./FeatureViewEdgesList";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
+import { useUIVersion } from "../../contexts/UIVersionContext";
 
 const buildEditFormData = (entity: feast.core.IEntity): EntityFormData => {
   const tags = entity.spec?.tags
     ? Object.entries(entity.spec.tags).map(([key, value]) => ({ key, value }))
     : [];
 
+  const joinKeys = entity.spec?.joinKey ? [entity.spec.joinKey] : [""];
+
   return {
     name: entity.spec?.name || "",
     description: entity.spec?.description || "",
-    joinKey: entity.spec?.joinKey || "",
+    joinKeys,
     valueType: String(entity.spec?.valueType ?? 0),
     tags,
   };
@@ -59,6 +62,7 @@ const EntityOverviewTab = () => {
   const fvEdgesSuccess = fvEdges.isSuccess;
   const fvEdgesData = fvEdges.data;
 
+  const { isV2 } = useUIVersion();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -94,17 +98,21 @@ const EntityOverviewTab = () => {
               <EuiSpacer size="m" />
             </>
           )}
-          <EuiFlexGroup justifyContent="flexEnd">
-            <EuiFlexItem grow={false}>
-              <EuiButtonEmpty
-                iconType="pencil"
-                onClick={() => setIsEditModalOpen(true)}
-              >
-                Edit Entity
-              </EuiButtonEmpty>
-            </EuiFlexItem>
-          </EuiFlexGroup>
-          <EuiSpacer size="s" />
+          {isV2 && (
+            <>
+              <EuiFlexGroup justifyContent="flexEnd">
+                <EuiFlexItem grow={false}>
+                  <EuiButtonEmpty
+                    iconType="pencil"
+                    onClick={() => setIsEditModalOpen(true)}
+                  >
+                    Edit Entity
+                  </EuiButtonEmpty>
+                </EuiFlexItem>
+              </EuiFlexGroup>
+              <EuiSpacer size="s" />
+            </>
+          )}
           <EuiFlexGroup>
             <EuiFlexItem>
               <EuiPanel hasBorder={true}>
