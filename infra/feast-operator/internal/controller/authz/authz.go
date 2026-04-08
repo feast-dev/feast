@@ -18,6 +18,7 @@ import (
 // Deploy the feast authorization
 func (authz *FeastAuthorization) Deploy() error {
 	if authz.isKubernetesAuth() {
+		authz.cleanupOidcRbac()
 		return authz.deployKubernetesAuth()
 	}
 
@@ -27,12 +28,14 @@ func (authz *FeastAuthorization) Deploy() error {
 	apimeta.RemoveStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, feastKubernetesAuthConditions[metav1.ConditionTrue].Type)
 
 	if authz.isOidcAuth() {
-		if err := authz.createFeastClusterRole(); err != nil {
+		if err := authz.createOidcClusterRole(); err != nil {
 			return err
 		}
-		if err := authz.createFeastClusterRoleBinding(); err != nil {
+		if err := authz.createOidcClusterRoleBinding(); err != nil {
 			return err
 		}
+	} else {
+		authz.cleanupOidcRbac()
 	}
 
 	return nil
@@ -325,6 +328,77 @@ func (authz *FeastAuthorization) setAuthRole(role *rbacv1.Role) error {
 	role.Rules = []rbacv1.PolicyRule{}
 
 	return controllerutil.SetControllerReference(authz.Handler.FeatureStore, role, authz.Handler.Scheme)
+}
+
+func (authz *FeastAuthorization) createOidcClusterRole() error {
+	logger := log.FromContext(authz.Handler.Context)
+	clusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: authz.getOidcClusterRoleName()},
+	}
+	clusterRole.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"))
+	if op, err := controllerutil.CreateOrUpdate(authz.Handler.Context, authz.Handler.Client, clusterRole, controllerutil.MutateFn(func() error {
+		clusterRole.Labels = authz.getLabels()
+		clusterRole.Rules = []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"authentication.k8s.io"},
+				Resources: []string{"tokenreviews"},
+				Verbs:     []string{"create"},
+			},
+		}
+		return nil
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "ClusterRole", clusterRole.Name, "operation", op)
+	}
+	return nil
+}
+
+func (authz *FeastAuthorization) createOidcClusterRoleBinding() error {
+	logger := log.FromContext(authz.Handler.Context)
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: authz.getOidcClusterRoleBindingName()},
+	}
+	crb.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"))
+	if op, err := controllerutil.CreateOrUpdate(authz.Handler.Context, authz.Handler.Client, crb, controllerutil.MutateFn(func() error {
+		crb.Labels = authz.getLabels()
+		crb.Subjects = []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      authz.getFeastServiceAccountName(),
+				Namespace: authz.Handler.FeatureStore.Namespace,
+			},
+		}
+		crb.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     authz.getOidcClusterRoleName(),
+		}
+		return nil
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "ClusterRoleBinding", crb.Name, "operation", op)
+	}
+	return nil
+}
+
+func (authz *FeastAuthorization) cleanupOidcRbac() {
+	cr := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: authz.getOidcClusterRoleName()}}
+	cr.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"))
+	_ = authz.Handler.Client.Delete(authz.Handler.Context, cr)
+
+	crb := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: authz.getOidcClusterRoleBindingName()}}
+	crb.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"))
+	_ = authz.Handler.Client.Delete(authz.Handler.Context, crb)
+}
+
+func (authz *FeastAuthorization) getOidcClusterRoleName() string {
+	return "feast-oidc-token-review"
+}
+
+func (authz *FeastAuthorization) getOidcClusterRoleBindingName() string {
+	return services.GetFeastName(authz.Handler.FeatureStore) + "-oidc-token-review"
 }
 
 func (authz *FeastAuthorization) getLabels() map[string]string {
