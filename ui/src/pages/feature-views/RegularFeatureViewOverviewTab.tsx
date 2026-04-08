@@ -1,5 +1,7 @@
 import {
   EuiBadge,
+  EuiButtonEmpty,
+  EuiCallOut,
   EuiFlexGroup,
   EuiFlexItem,
   EuiHorizontalRule,
@@ -10,10 +12,13 @@ import {
   EuiTitle,
   EuiToolTip,
 } from "@elastic/eui";
-import React from "react";
+import React, { useState } from "react";
 
 import { useNavigate, useParams } from "react-router-dom";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
+import FeatureViewFormModal, {
+  FeatureViewFormData,
+} from "../../components/FeatureViewFormModal";
 import PermissionsDisplay from "../../components/PermissionsDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
 import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
@@ -42,6 +47,55 @@ interface RegularFeatureViewOverviewTabProps {
   permissions?: any[];
 }
 
+const buildEditFormData = (
+  fv: feast.core.IFeatureView,
+): FeatureViewFormData => {
+  const tags = fv.spec?.tags
+    ? Object.entries(fv.spec.tags).map(([key, value]) => ({ key, value }))
+    : [];
+
+  const features = (fv.spec?.features || []).map((f) => ({
+    name: f.name || "",
+    valueType: String(f.valueType ?? 0),
+    description: f.description || "",
+  }));
+
+  let ttlValue = 0;
+  let ttlUnit = "seconds";
+  if (fv.spec?.ttl?.seconds) {
+    const secs =
+      typeof fv.spec.ttl.seconds === "number"
+        ? fv.spec.ttl.seconds
+        : (fv.spec.ttl.seconds as any).toNumber?.() ?? 0;
+    if (secs > 0 && secs % 86400 === 0) {
+      ttlValue = secs / 86400;
+      ttlUnit = "days";
+    } else if (secs > 0 && secs % 3600 === 0) {
+      ttlValue = secs / 3600;
+      ttlUnit = "hours";
+    } else if (secs > 0 && secs % 60 === 0) {
+      ttlValue = secs / 60;
+      ttlUnit = "minutes";
+    } else {
+      ttlValue = secs;
+      ttlUnit = "seconds";
+    }
+  }
+
+  return {
+    name: fv.spec?.name || "",
+    description: fv.spec?.description || "",
+    owner: fv.spec?.owner || "",
+    entities: fv.spec?.entities || [],
+    features,
+    batchSource: fv.spec?.batchSource?.name || "",
+    ttlValue,
+    ttlUnit,
+    online: fv.spec?.online ?? true,
+    tags,
+  };
+};
+
 const RegularFeatureViewOverviewTab = ({
   data,
   permissions,
@@ -63,6 +117,18 @@ const RegularFeatureViewOverviewTab = ({
     : [];
   const numOfFs = fsNames.length;
 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleEditSubmit = (formData: FeatureViewFormData) => {
+    console.log("Feature view edit payload:", formData);
+    setIsEditModalOpen(false);
+    setSuccessMessage(
+      `Changes to "${formData.name}" are ready to apply. Backend integration coming soon.`,
+    );
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
   const fvUsage = usageData?.feature_usage?.[fvName];
   const runCount = fvUsage?.run_count ?? 0;
   const lastUsed = fvUsage?.last_used ?? null;
@@ -71,6 +137,28 @@ const RegularFeatureViewOverviewTab = ({
 
   return (
     <React.Fragment>
+      {successMessage && (
+        <>
+          <EuiCallOut
+            title={successMessage}
+            color="success"
+            iconType="check"
+            size="s"
+          />
+          <EuiSpacer size="m" />
+        </>
+      )}
+      <EuiFlexGroup justifyContent="flexEnd">
+        <EuiFlexItem grow={false}>
+          <EuiButtonEmpty
+            iconType="pencil"
+            onClick={() => setIsEditModalOpen(true)}
+          >
+            Edit Feature View
+          </EuiButtonEmpty>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      <EuiSpacer size="s" />
       <EuiFlexGroup>
         <EuiFlexItem>
           <EuiStat title={`${numOfFs}`} description="Consuming Services" />
@@ -236,6 +324,15 @@ const RegularFeatureViewOverviewTab = ({
           })}
         </React.Fragment>
       </EuiPanel>
+
+      {isEditModalOpen && data && (
+        <FeatureViewFormModal
+          onClose={() => setIsEditModalOpen(false)}
+          onSubmit={handleEditSubmit}
+          initialData={buildEditFormData(data)}
+          isEdit
+        />
+      )}
     </React.Fragment>
   );
 };
