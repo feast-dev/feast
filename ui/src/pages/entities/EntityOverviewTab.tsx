@@ -3,6 +3,8 @@ import {
   EuiHorizontalRule,
   EuiLoadingSpinner,
   EuiTitle,
+  EuiButtonEmpty,
+  EuiCallOut,
 } from "@elastic/eui";
 import {
   EuiPanel,
@@ -13,9 +15,12 @@ import {
   EuiDescriptionListTitle,
   EuiDescriptionListDescription,
 } from "@elastic/eui";
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useParams } from "react-router-dom";
 import PermissionsDisplay from "../../components/PermissionsDisplay";
+import EntityFormModal, {
+  EntityFormData,
+} from "../../components/EntityFormModal";
 import TagsDisplay from "../../components/TagsDisplay";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
@@ -26,6 +31,20 @@ import { toDate } from "../../utils/timestamp";
 import FeatureViewEdgesList from "./FeatureViewEdgesList";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
+
+const buildEditFormData = (entity: feast.core.IEntity): EntityFormData => {
+  const tags = entity.spec?.tags
+    ? Object.entries(entity.spec.tags).map(([key, value]) => ({ key, value }))
+    : [];
+
+  return {
+    name: entity.spec?.name || "",
+    description: entity.spec?.description || "",
+    joinKey: entity.spec?.joinKey || "",
+    valueType: String(entity.spec?.valueType ?? 0),
+    tags,
+  };
+};
 
 const EntityOverviewTab = () => {
   let { entityName, projectName } = useParams();
@@ -40,6 +59,19 @@ const EntityOverviewTab = () => {
   const fvEdgesSuccess = fvEdges.isSuccess;
   const fvEdgesData = fvEdges.data;
 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleEditSubmit = (formData: EntityFormData) => {
+    // TODO: Wire to REST API when backend write endpoints are available
+    console.log("Entity edit payload:", formData);
+    setIsEditModalOpen(false);
+    setSuccessMessage(
+      `Changes to "${formData.name}" are ready to apply. Backend integration coming soon.`,
+    );
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
   return (
     <React.Fragment>
       {isLoading && (
@@ -51,6 +83,28 @@ const EntityOverviewTab = () => {
       {isError && <p>Error loading entity: {entityName}</p>}
       {isSuccess && data && (
         <React.Fragment>
+          {successMessage && (
+            <>
+              <EuiCallOut
+                title={successMessage}
+                color="success"
+                iconType="check"
+                size="s"
+              />
+              <EuiSpacer size="m" />
+            </>
+          )}
+          <EuiFlexGroup justifyContent="flexEnd">
+            <EuiFlexItem grow={false}>
+              <EuiButtonEmpty
+                iconType="pencil"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                Edit Entity
+              </EuiButtonEmpty>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          <EuiSpacer size="s" />
           <EuiFlexGroup>
             <EuiFlexItem>
               <EuiPanel hasBorder={true}>
@@ -161,6 +215,15 @@ const EntityOverviewTab = () => {
             </EuiFlexItem>
           </EuiFlexGroup>
         </React.Fragment>
+      )}
+
+      {isEditModalOpen && data && (
+        <EntityFormModal
+          onClose={() => setIsEditModalOpen(false)}
+          onSubmit={handleEditSubmit}
+          initialData={buildEditFormData(data)}
+          isEdit
+        />
       )}
     </React.Fragment>
   );

@@ -4,6 +4,8 @@ import {
   EuiLoadingSpinner,
   EuiText,
   EuiTitle,
+  EuiButtonEmpty,
+  EuiCallOut,
 } from "@elastic/eui";
 import {
   EuiPanel,
@@ -13,9 +15,12 @@ import {
   EuiDescriptionListDescription,
   EuiSpacer,
 } from "@elastic/eui";
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useParams } from "react-router-dom";
 import PermissionsDisplay from "../../components/PermissionsDisplay";
+import DataSourceFormModal, {
+  DataSourceFormData,
+} from "../../components/DataSourceFormModal";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import { feast } from "../../protos";
@@ -26,6 +31,35 @@ import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import RequestDataSourceSchemaTable from "./RequestDataSourceSchemaTable";
 import useLoadDataSource from "./useLoadDataSource";
 
+const buildEditFormData = (ds: feast.core.IDataSource): DataSourceFormData => {
+  const tags = ds.tags
+    ? Object.entries(ds.tags).map(([key, value]) => ({ key, value }))
+    : [];
+
+  return {
+    name: ds.name || "",
+    description: ds.description || "",
+    owner: ds.owner || "",
+    sourceType: String(ds.type ?? 0),
+    timestampField: ds.timestampField || "",
+    createdTimestampColumn: ds.createdTimestampColumn || "",
+    tags,
+    fileUri: ds.fileOptions?.uri || "",
+    bigqueryTable: ds.bigqueryOptions?.table || "",
+    bigqueryQuery: ds.bigqueryOptions?.query || "",
+    snowflakeTable: ds.snowflakeOptions?.table || "",
+    snowflakeDatabase: ds.snowflakeOptions?.database || "",
+    snowflakeSchema: ds.snowflakeOptions?.schema || "",
+    redshiftTable: ds.redshiftOptions?.table || "",
+    redshiftDatabase: ds.redshiftOptions?.database || "",
+    redshiftSchema: ds.redshiftOptions?.schema || "",
+    kafkaBootstrapServers: ds.kafkaOptions?.kafkaBootstrapServers || "",
+    kafkaTopic: ds.kafkaOptions?.topic || "",
+    sparkTable: ds.sparkOptions?.table || "",
+    sparkPath: ds.sparkOptions?.path || "",
+  };
+};
+
 const DataSourceOverviewTab = () => {
   let { dataSourceName, projectName } = useParams();
   const registryUrl = useContext(RegistryPathContext);
@@ -35,6 +69,18 @@ const DataSourceOverviewTab = () => {
   const { isLoading, isSuccess, isError, data, consumingFeatureViews } =
     useLoadDataSource(dsName);
   const isEmpty = data === undefined;
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleEditSubmit = (formData: DataSourceFormData) => {
+    console.log("Data source edit payload:", formData);
+    setIsEditModalOpen(false);
+    setSuccessMessage(
+      `Changes to "${formData.name}" are ready to apply. Backend integration coming soon.`,
+    );
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
 
   return (
     <React.Fragment>
@@ -47,6 +93,28 @@ const DataSourceOverviewTab = () => {
       {isError && <p>Error loading data source: {dataSourceName}</p>}
       {isSuccess && data && (
         <React.Fragment>
+          {successMessage && (
+            <>
+              <EuiCallOut
+                title={successMessage}
+                color="success"
+                iconType="check"
+                size="s"
+              />
+              <EuiSpacer size="m" />
+            </>
+          )}
+          <EuiFlexGroup justifyContent="flexEnd">
+            <EuiFlexItem grow={false}>
+              <EuiButtonEmpty
+                iconType="pencil"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                Edit Data Source
+              </EuiButtonEmpty>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          <EuiSpacer size="s" />
           <EuiFlexGroup>
             <EuiFlexItem>
               <EuiFlexGroup>
@@ -140,6 +208,15 @@ const DataSourceOverviewTab = () => {
             </EuiFlexItem>
           </EuiFlexGroup>
         </React.Fragment>
+      )}
+
+      {isEditModalOpen && data && (
+        <DataSourceFormModal
+          onClose={() => setIsEditModalOpen(false)}
+          onSubmit={handleEditSubmit}
+          initialData={buildEditFormData(data)}
+          isEdit
+        />
       )}
     </React.Fragment>
   );

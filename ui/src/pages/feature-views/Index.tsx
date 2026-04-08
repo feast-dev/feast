@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import {
@@ -9,6 +9,8 @@ import {
   EuiFieldSearch,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiButton,
+  EuiCallOut,
 } from "@elastic/eui";
 
 import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
@@ -25,6 +27,9 @@ import FeatureViewIndexEmptyState from "./FeatureViewIndexEmptyState";
 import { useFeatureViewTagsAggregation } from "../../hooks/useTagsAggregation";
 import TagSearch from "../../components/TagSearch";
 import ExportButton from "../../components/ExportButton";
+import FeatureViewFormModal, {
+  FeatureViewFormData,
+} from "../../components/FeatureViewFormModal";
 import useResourceQuery, {
   featureViewListPath,
   restFeatureViewsToMergedList,
@@ -89,6 +94,8 @@ const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadFeatureViews();
   const tagAggregationQuery = useFeatureViewTagsAggregation();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useDocumentTitle(`Feature Views | Feast`);
 
@@ -110,6 +117,15 @@ const Index = () => {
     ? filterFn(data, { tagTokenGroups, searchTokens })
     : data;
 
+  const handleCreateSubmit = (formData: FeatureViewFormData) => {
+    console.log("Feature view create payload:", formData);
+    setIsModalOpen(false);
+    setSuccessMessage(
+      `Feature view "${formData.name}" is ready to be created. Backend integration coming soon.`,
+    );
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
   return (
     <EuiPageTemplate panelled>
       <EuiPageTemplate.Header
@@ -117,14 +133,34 @@ const Index = () => {
         iconType={FeatureViewIcon}
         pageTitle="Feature Views"
         rightSideItems={[
+          <EuiButton
+            fill
+            iconType="plus"
+            onClick={() => setIsModalOpen(true)}
+            key="create"
+          >
+            Create Feature View
+          </EuiButton>,
           <ExportButton
             data={filterResult ?? []}
             fileName="feature_views"
             formats={["json"]}
+            key="export"
           />,
         ]}
       />
       <EuiPageTemplate.Section>
+        {successMessage && (
+          <>
+            <EuiCallOut
+              title={successMessage}
+              color="success"
+              iconType="check"
+              size="s"
+            />
+            <EuiSpacer size="m" />
+          </>
+        )}
         {isLoading && (
           <p>
             <EuiLoadingSpinner size="m" /> Loading
@@ -167,6 +203,13 @@ const Index = () => {
           </React.Fragment>
         )}
       </EuiPageTemplate.Section>
+
+      {isModalOpen && (
+        <FeatureViewFormModal
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleCreateSubmit}
+        />
+      )}
     </EuiPageTemplate>
   );
 };
