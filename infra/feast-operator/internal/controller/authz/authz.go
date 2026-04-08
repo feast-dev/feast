@@ -331,6 +331,7 @@ func (authz *FeastAuthorization) getLabels() map[string]string {
 	return map[string]string{
 		services.NameLabelKey:        authz.Handler.FeatureStore.Name,
 		services.ServiceTypeLabelKey: string(services.AuthzFeastType),
+		services.ManagedByLabelKey:   services.ManagedByLabelValue,
 	}
 }
 

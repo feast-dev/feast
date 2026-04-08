@@ -179,6 +179,7 @@ func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBindi
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      roleName,
 			Namespace: rb.Namespace,
+			Labels:    feast.getLabels(),
 		},
 	}
 	role.Rules = desiredRules
@@ -205,6 +206,7 @@ func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBindi
 		}
 	}
 
+	rb.Labels = feast.getLabels()
 	rb.RoleRef = rbacv1.RoleRef{
 		APIGroup: "rbac.authorization.k8s.io",
 		Kind:     "Role",

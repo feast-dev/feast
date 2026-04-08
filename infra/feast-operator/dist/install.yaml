@@ -20864,6 +20864,8 @@ spec:
         command:
         - /manager
         env:
+        - name: GOMEMLIMIT
+          value: 230MiB
         - name: RELATED_IMAGE_FEATURE_SERVER
           value: quay.io/feastdev/feature-server:0.62.0
         - name: RELATED_IMAGE_CRON_JOB
