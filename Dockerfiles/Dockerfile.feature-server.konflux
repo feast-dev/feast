@@ -1,6 +1,6 @@
-FROM registry.access.redhat.com/ubi9/python-311@sha256:9d3578927c6168e364f963b642fb15d5c4b1224a31c11da2ae970f05708724ae
+# Stage 1: Build with full Python 312 image (includes compilers and dev tools)
+FROM registry.access.redhat.com/ubi9/python-312:1 AS builder
 
-# OS Packages needs to be installed as root
 USER 0
 
 # Upgrade base packages for consistency across all arches
@@ -19,8 +19,28 @@ RUN if [ "$(uname -m)" = "ppc64le" ]; then \
         echo "Non-Power architecture detected; skipping Power prebuild"; \
     fi
 
+# pkg_resources was removed in setuptools>=78; pin to a version that still includes it
+RUN pip install 'setuptools<78'
+
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
+
+# Stage 2: Minimal runtime image (no compilers or dev headers)
+FROM registry.access.redhat.com/ubi9/python-312-minimal:1
+
+USER 0
+
+# Runtime shared libraries required by compiled Python extensions:
+#   libicu  - pyarrow (Arrow C++ depends on ICU)
+#   libpq   - psycopg[c] (PostgreSQL C adapter)
+RUN microdnf install -y libicu libpq && microdnf clean all
+
+# Copy installed Python packages and entry-point scripts from builder
+COPY --from=builder /opt/app-root/lib /opt/app-root/lib
+COPY --from=builder /opt/app-root/lib64 /opt/app-root/lib64
+COPY --from=builder /opt/app-root/bin /opt/app-root/bin
+ENV PATH="/opt/app-root/bin:${PATH}" \
+    PYTHONPATH="/opt/app-root/lib64/python3.12/site-packages"
 
 # modify permissions to support running with a random uid
 RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json
@@ -35,4 +55,3 @@ LABEL com.redhat.component="odh-feature-server" \
       io.openshift.expose-services="" \
       io.k8s.display-name="odh-feature-server" \
       io.k8s.description="odh-feature-server"
-

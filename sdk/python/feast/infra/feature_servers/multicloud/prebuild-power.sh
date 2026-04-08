@@ -3,7 +3,7 @@ set -Eeuo pipefail
 trap 'echo "[prebuild-power] failed at line $LINENO"; exit 1' ERR
 shopt -s dotglob nullglob
 
-PYTHON_VERSION=3.11
+PYTHON_VERSION=3.12
 WORKDIR=$(pwd)
 CMAKE_VERSION=3.30.5
 CMAKE_REQUIRED_VERSION=3.30.5
@@ -14,7 +14,9 @@ dnf install -y make cmake ninja-build libomp-devel \
 
 export CC=gcc
 export CXX=g++
-export CXXFLAGS="-std=c++17"
+export CXXFLAGS="-std=c++17 -mcmodel=medium -ffunction-sections"
+export CFLAGS="-mcmodel=medium -ffunction-sections"
+export LDFLAGS="-Wl,--stub-group-size=0x00002000 -Wl,--gc-sections"
 
 # Ensure CXXFLAGS and LINKFLAGS are initialized
 : "${CMAKE_ARGS:=""}"
@@ -23,7 +25,7 @@ export CXXFLAGS="-std=c++17"
 : "${LINKFLAGS:=""}"
 
 # Installing Python build dependencies
-python${PYTHON_VERSION} -m pip install build wheel setuptools ninja pybind11 numpy==2.3.3 setuptools_scm Cython
+python${PYTHON_VERSION} -m pip install build wheel 'setuptools<78' ninja pybind11 numpy==2.3.3 setuptools_scm Cython
 
 # Directory to collect built wheels
 mkdir -p /wheelhouse
