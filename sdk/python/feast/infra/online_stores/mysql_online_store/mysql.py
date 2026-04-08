@@ -44,6 +44,10 @@ class MySQLOnlineStore(OnlineStore):
 
     _conn: Optional[Connection] = None
 
+    @property
+    def supports_versioned_online_reads(self) -> bool:
+        return True
+
     def _get_conn(self, config: RepoConfig) -> Connection:
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)

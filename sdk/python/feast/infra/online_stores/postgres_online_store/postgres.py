@@ -56,6 +56,10 @@ class PostgreSQLOnlineStore(OnlineStore):
     _conn_async: Optional[AsyncConnection] = None
     _conn_pool_async: Optional[AsyncConnectionPool] = None
 
+    @property
+    def supports_versioned_online_reads(self) -> bool:
+        return True
+
     @contextlib.contextmanager
     def _get_conn(
         self, config: RepoConfig, autocommit: bool = False
