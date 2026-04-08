@@ -1116,7 +1116,8 @@ class SnowflakeRegistry(BaseRegistry):
                 FROM
                     {self.registry_path}."{fv_table_str}"
                 WHERE
-                    {fv_column_name}_name = '{feature_view.name}'
+                    project_id = '{project}'
+                    AND {fv_column_name}_name = '{feature_view.name}'
                 LIMIT 1
             """
             df = execute_snowflake_statement(conn, query).fetch_pandas_all()
@@ -1322,7 +1323,7 @@ class SnowflakeRegistry(BaseRegistry):
                     query = f"""
                         DELETE FROM {self.registry_path}."{table}"
                         WHERE
-                            project_id = '{project}'
+                            project_id = '{name}'
                     """
                     execute_snowflake_statement(conn, query)
             return
