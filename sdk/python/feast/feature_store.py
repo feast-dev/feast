@@ -105,6 +105,25 @@ from feast.version_utils import parse_version
 _track_materialization = None  # Lazy-loaded on first materialization call
 _track_materialization_loaded = False
 
+_mlflow_log_fn = None  # Lazy-loaded on first feature retrieval
+_mlflow_log_fn_loaded = False
+
+
+def _get_mlflow_log_fn():
+    """Lazy-import mlflow logger only when MLflow integration is configured."""
+    global _mlflow_log_fn, _mlflow_log_fn_loaded
+    if not _mlflow_log_fn_loaded:
+        _mlflow_log_fn_loaded = True
+        try:
+            from feast.mlflow_integration.logger import (
+                log_feature_retrieval_to_mlflow,
+            )
+
+            _mlflow_log_fn = log_feature_retrieval_to_mlflow
+        except Exception:
+            _mlflow_log_fn = None
+    return _mlflow_log_fn
+
 
 def _get_track_materialization():
     """Lazy-import feast.metrics only when materialization tracking is needed.
@@ -193,6 +212,54 @@ class FeatureStore:
 
         # Initialize feature service cache for performance optimization
         self._feature_service_cache = {}
+
+        # Configure MLflow tracking URI globally from config
+        self._init_mlflow_tracking()
+
+    def _init_mlflow_tracking(self):
+        """Configure MLflow globally from feature_store.yaml.
+
+        Sets the tracking URI and experiment name so the user never needs
+        to call mlflow.set_tracking_uri() or mlflow.set_experiment() in
+        their scripts.  The experiment is named after the Feast project.
+
+        When no tracking_uri is specified, defaults to http://127.0.0.1:5000
+        (a local MLflow tracking server). This ensures that train.py,
+        predict.py, feast ui, and the MLflow UI all share the same backend.
+        """
+        try:
+            mlflow_cfg = self.config.mlflow
+            if mlflow_cfg is None or not mlflow_cfg.enabled:
+                return
+
+            import mlflow
+
+            tracking_uri = mlflow_cfg.tracking_uri or "http://127.0.0.1:5000"
+            mlflow.set_tracking_uri(tracking_uri)
+            mlflow.set_experiment(self.config.project)
+        except ImportError:
+            pass
+        except Exception as e:
+            warnings.warn(f"Failed to configure MLflow tracking: {e}")
+
+    def _resolve_feature_service_name(
+        self, feature_refs: List[str]
+    ) -> Optional[str]:
+        """Try to find a feature service that covers the given feature refs."""
+        try:
+            ref_set = set(feature_refs)
+            for fs in self.registry.list_feature_services(
+                self.project, allow_cache=True
+            ):
+                fs_refs = set()
+                for proj in fs.feature_view_projections:
+                    for feat in proj.features:
+                        fs_refs.add(f"{proj.name}:{feat.name}")
+                if ref_set == fs_refs or ref_set.issubset(fs_refs):
+                    return fs.name
+        except Exception:
+            pass
+        return None
 
     def _init_openlineage_emitter(self) -> Optional[Any]:
         """Initialize OpenLineage emitter if configured and enabled."""
@@ -1483,6 +1550,8 @@ class FeatureStore:
         if end_date is not None:
             kwargs["end_date"] = end_date
 
+        _retrieval_start = time.monotonic()
+
         job = provider.get_historical_features(
             self.config,
             feature_views,
@@ -1493,6 +1562,31 @@ class FeatureStore:
             full_feature_names,
             **kwargs,
         )
+
+        # Auto-log to MLflow if configured
+        if (
+            self.config.mlflow is not None
+            and self.config.mlflow.enabled
+            and self.config.mlflow.auto_log
+        ):
+            _log_fn = _get_mlflow_log_fn()
+            if _log_fn is not None:
+                _duration = time.monotonic() - _retrieval_start
+                _entity_count = (
+                    len(entity_df) if isinstance(entity_df, pd.DataFrame) else 0
+                )
+                _fs = features if isinstance(features, FeatureService) else None
+                _fs_name = features.name if isinstance(features, FeatureService) else self._resolve_feature_service_name(_feature_refs)
+                _log_fn(
+                    feature_refs=_feature_refs,
+                    entity_count=_entity_count,
+                    duration_seconds=_duration,
+                    retrieval_type="historical",
+                    feature_service=_fs,
+                    feature_service_name=_fs_name,
+                    project=self.project,
+                    tracking_uri=self.config.mlflow.tracking_uri,
+                )
 
         return job
 
@@ -2621,6 +2715,8 @@ class FeatureStore:
         """
         provider = self._get_provider()
 
+        _retrieval_start = time.monotonic()
+
         response = provider.get_online_features(
             config=self.config,
             features=features,
@@ -2630,6 +2726,36 @@ class FeatureStore:
             full_feature_names=full_feature_names,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
+
+        # Auto-log to MLflow if configured
+        if (
+            self.config.mlflow is not None
+            and self.config.mlflow.enabled
+            and self.config.mlflow.auto_log
+        ):
+            _log_fn = _get_mlflow_log_fn()
+            if _log_fn is not None:
+                _duration = time.monotonic() - _retrieval_start
+                _feature_refs = utils._get_features(
+                    self.registry, self.project, features, allow_cache=True
+                )
+                _entity_count = (
+                    len(entity_rows)
+                    if isinstance(entity_rows, list)
+                    else 0
+                )
+                _fs = features if isinstance(features, FeatureService) else None
+                _fs_name = features.name if isinstance(features, FeatureService) else self._resolve_feature_service_name(_feature_refs)
+                _log_fn(
+                    feature_refs=_feature_refs,
+                    entity_count=_entity_count,
+                    duration_seconds=_duration,
+                    retrieval_type="online",
+                    feature_service=_fs,
+                    feature_service_name=_fs_name,
+                    project=self.project,
+                    tracking_uri=self.config.mlflow.tracking_uri,
+                )
 
         return response
 
@@ -2781,10 +2907,7 @@ class FeatureStore:
             online_features_response=online_features_response,
             data=requested_features_data,
         )
-        feature_types = {
-            f.name: f.dtype.to_value_type() for f in requested_feature_view.features
-        }
-        return OnlineResponse(online_features_response, feature_types=feature_types)
+        return OnlineResponse(online_features_response)
 
     def retrieve_online_documents_v2(
         self,
@@ -3074,8 +3197,7 @@ class FeatureStore:
             online_features_response.metadata.feature_names.val.extend(
                 features_to_request
             )
-            feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
-            return OnlineResponse(online_features_response, feature_types=feature_types)
+            return OnlineResponse(online_features_response)
 
         table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
@@ -3098,8 +3220,7 @@ class FeatureStore:
             data=entity_key_dict,
         )
 
-        feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
-        return OnlineResponse(online_features_response, feature_types=feature_types)
+        return OnlineResponse(online_features_response)
 
     def serve(
         self,

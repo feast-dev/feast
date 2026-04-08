@@ -1,0 +1,52 @@
+"""
+MLflow integration for Feast Feature Store.
+
+This module provides seamless integration between Feast and MLflow for
+automatic experiment tracking of feature retrieval operations. When enabled
+in feature_store.yaml, feature metadata is logged automatically to MLflow
+during get_historical_features and get_online_features calls.
+
+Usage:
+    Configure MLflow in your feature_store.yaml:
+
+        project: my_project
+        # ... other config ...
+
+        mlflow:
+            enabled: true
+            tracking_uri: http://localhost:5000
+            auto_log: true
+
+    Then use Feast normally - feature retrieval metadata is logged automatically
+    to any active MLflow run.
+
+    For advanced use cases, the module also provides:
+    - resolve_feature_service_from_model_uri: Map an MLflow model to its Feast
+      feature service.
+    - get_entity_df_from_mlflow_run: Reproduce training by pulling entity data
+      from a previous MLflow run's artifacts.
+"""
+
+from feast.mlflow_integration.config import MlflowConfig
+from feast.mlflow_integration.entity_df_builder import (
+    FeastMlflowEntityDfError,
+    get_entity_df_from_mlflow_run,
+)
+from feast.mlflow_integration.logger import (
+    log_feature_retrieval_to_mlflow,
+    log_training_dataset_to_mlflow,
+)
+from feast.mlflow_integration.model_resolver import (
+    FeastMlflowModelResolutionError,
+    resolve_feature_service_from_model_uri,
+)
+
+__all__ = [
+    "MlflowConfig",
+    "log_feature_retrieval_to_mlflow",
+    "log_training_dataset_to_mlflow",
+    "resolve_feature_service_from_model_uri",
+    "FeastMlflowModelResolutionError",
+    "get_entity_df_from_mlflow_run",
+    "FeastMlflowEntityDfError",
+]

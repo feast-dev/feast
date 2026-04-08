@@ -345,6 +345,9 @@ class RepoConfig(FeastBaseModel):
     openlineage_config: Optional[OpenLineageConfig] = Field(None, alias="openlineage")
     """ Configuration for OpenLineage data lineage integration (optional). """
 
+    mlflow_config: Optional[Any] = Field(None, alias="mlflow")
+    """ MlflowConfig: Configuration for MLflow experiment tracking integration (optional). """
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 
@@ -384,6 +387,11 @@ class RepoConfig(FeastBaseModel):
         self._openlineage: Optional[OpenLineageConfig] = None
         if "openlineage" in data:
             self.openlineage_config = data["openlineage"]
+
+        # Initialize MLflow configuration
+        self._mlflow = None
+        if "mlflow" in data:
+            self.mlflow_config = data["mlflow"]
 
         if self.entity_key_serialization_version < 3:
             warnings.warn(
@@ -484,6 +492,18 @@ class RepoConfig(FeastBaseModel):
             elif self.openlineage_config:
                 self._openlineage = self.openlineage_config
         return self._openlineage
+
+    @property
+    def mlflow(self):
+        """Get the MLflow configuration."""
+        if not self._mlflow:
+            if isinstance(self.mlflow_config, Dict):
+                from feast.mlflow_integration.config import MlflowConfig
+
+                self._mlflow = MlflowConfig(**self.mlflow_config)
+            elif self.mlflow_config:
+                self._mlflow = self.mlflow_config
+        return self._mlflow
 
     @model_validator(mode="before")
     def _validate_auth_config(cls, values: Any) -> Any:
