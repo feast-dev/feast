@@ -636,14 +636,28 @@ class SnowflakeRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_all_feature_views(
+            feature_views = proto_registry_utils.list_all_feature_views(
                 self.cached_registry_proto, project, tags
             )
+            if updated_since is not None:
+                cutoff = (
+                    updated_since.astimezone(timezone.utc).replace(tzinfo=None)
+                    if updated_since.tzinfo
+                    else updated_since
+                )
+                feature_views = [
+                    fv
+                    for fv in feature_views
+                    if fv.last_updated_timestamp is not None
+                    and fv.last_updated_timestamp >= cutoff
+                ]
+            return feature_views
 
-        return (
+        feature_views = (
             cast(
                 list[BaseFeatureView],
                 self.list_feature_views(project, allow_cache, tags),
@@ -657,6 +671,21 @@ class SnowflakeRegistry(BaseRegistry):
                 self.list_on_demand_feature_views(project, allow_cache, tags),
             )
         )
+
+        if updated_since is not None:
+            cutoff = (
+                updated_since.astimezone(timezone.utc).replace(tzinfo=None)
+                if updated_since.tzinfo
+                else updated_since
+            )
+            feature_views = [
+                fv
+                for fv in feature_views
+                if fv.last_updated_timestamp is not None
+                and fv.last_updated_timestamp >= cutoff
+            ]
+
+        return feature_views
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         infra_object = self._get_object(

@@ -3,7 +3,7 @@ import logging
 import threading
 import warnings
 from abc import abstractmethod
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Dict, List, Optional
 
@@ -121,7 +121,10 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         pass
 
@@ -130,13 +133,29 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_all_feature_views(
+            feature_views = proto_registry_utils.list_all_feature_views(
                 self.cached_registry_proto, project, tags
             )
-        return self._list_all_feature_views(project, tags)
+            if updated_since is not None:
+                # last_updated_timestamp from proto is offset-naive UTC; normalise for comparison
+                cutoff = (
+                    updated_since.astimezone(timezone.utc).replace(tzinfo=None)
+                    if updated_since.tzinfo
+                    else updated_since
+                )
+                feature_views = [
+                    fv
+                    for fv in feature_views
+                    if fv.last_updated_timestamp is not None
+                    and fv.last_updated_timestamp >= cutoff
+                ]
+        else:
+            feature_views = self._list_all_feature_views(project, tags, updated_since)
+        return feature_views
 
     @abstractmethod
     def _get_feature_view(self, name: str, project: str) -> FeatureView:

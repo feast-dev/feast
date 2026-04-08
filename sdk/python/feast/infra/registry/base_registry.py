@@ -484,6 +484,7 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         """
         Retrieve a list of feature views of all types from the registry
@@ -492,6 +493,7 @@ class BaseRegistry(ABC):
             allow_cache: Allow returning feature views from the cached registry
             project: Filter feature views based on project name
             tags: Filter by tags
+            updated_since: Only return feature views updated at or after this timestamp
 
         Returns:
             List of feature views
