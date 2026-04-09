@@ -14,7 +14,7 @@ spec:
     {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
-        {{- if .Values.metrics.enabled }}
+        {{- if $.Values.metrics.enabled }}
         instrumentation.opentelemetry.io/inject-python: "true"
         {{- end }}
     {{- end }}
