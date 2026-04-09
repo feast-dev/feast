@@ -178,9 +178,23 @@ func main() {
 		Cache: newCacheOptions(),
 		Client: client.Options{
 			Cache: &client.CacheOptions{
+				// Bypass the label-filtered informer cache for all reads so that
+				// pre-existing resources without the managed-by label are still
+				// visible to the reconciler. The ByObject cache filter above still
+				// restricts the watch to managed-by-labeled objects, limiting
+				// memory usage while avoiding upgrade deadlocks.
 				DisableFor: []client.Object{
 					&corev1.ConfigMap{},
 					&corev1.Secret{},
+					&appsv1.Deployment{},
+					&corev1.Service{},
+					&corev1.ServiceAccount{},
+					&corev1.PersistentVolumeClaim{},
+					&rbacv1.RoleBinding{},
+					&rbacv1.Role{},
+					&batchv1.CronJob{},
+					&autoscalingv2.HorizontalPodAutoscaler{},
+					&policyv1.PodDisruptionBudget{},
 				},
 			},
 		},

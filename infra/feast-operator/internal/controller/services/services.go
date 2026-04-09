@@ -384,10 +384,13 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType
 	}
 
 	// PVCs are immutable, so we only create... we don't update an existing one.
+	// Treat AlreadyExists as success: a pre-existing PVC without the managed-by label
+	// won't appear in the filtered cache (Client.Get returns NotFound), but Create
+	// will hit AlreadyExists on the API server — both cases mean the PVC is present.
 	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKeyFromObject(pvc), pvc)
 	if err != nil && apierrors.IsNotFound(err) {
 		err = feast.Handler.Client.Create(feast.Handler.Context, pvc)
-		if err != nil {
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 		logger.Info("Successfully created", "PersistentVolumeClaim", pvc.Name)
@@ -1001,10 +1004,10 @@ func (feast *FeastServices) applyAffinity(podSpec *corev1.PodSpec) {
 				Weight: 100,
 				PodAffinityTerm: corev1.PodAffinityTerm{
 					TopologyKey:   "kubernetes.io/hostname",
-				LabelSelector: metav1.SetAsLabelSelector(feast.getSelectorLabels()),
-			},
-		}},
-	},
+					LabelSelector: metav1.SetAsLabelSelector(feast.getSelectorLabels()),
+				},
+			}},
+		},
 	}
 }
 
