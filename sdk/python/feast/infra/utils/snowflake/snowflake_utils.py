@@ -123,6 +123,8 @@ def assert_snowflake_feature_names(feature_view: FeatureView) -> None:
 
 
 def execute_snowflake_statement(conn: SnowflakeConnection, query) -> SnowflakeCursor:
+    if not query.strip():
+        return conn.cursor()
     cursor = conn.cursor().execute(query)
     if cursor is None:
         raise SnowflakeQueryUnknownError(query)

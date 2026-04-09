@@ -1,11 +1,15 @@
 import tempfile
 from typing import Optional
+from unittest.mock import MagicMock
 
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from feast.infra.utils.snowflake.snowflake_utils import parse_private_key_path
+from feast.infra.utils.snowflake.snowflake_utils import (
+    execute_snowflake_statement,
+    parse_private_key_path,
+)
 
 PRIVATE_KEY_PASSPHRASE = "test"
 
@@ -69,3 +73,48 @@ def test_parse_private_key_path_key_path_encrypted(encrypted_private_key):
             f.name,
             None,
         )
+
+
+class TestExecuteSnowflakeStatement:
+    def test_empty_query_returns_cursor_without_executing(self):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+
+        result = execute_snowflake_statement(mock_conn, "")
+
+        assert result is mock_cursor
+        mock_conn.cursor.assert_called_once()
+        mock_cursor.execute.assert_not_called()
+
+    def test_whitespace_only_query_returns_cursor_without_executing(self):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+
+        result = execute_snowflake_statement(mock_conn, "   \t\n  ")
+
+        assert result is mock_cursor
+        mock_conn.cursor.assert_called_once()
+        mock_cursor.execute.assert_not_called()
+
+    def test_valid_query_executes_and_returns_cursor(self):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_executed_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.execute.return_value = mock_executed_cursor
+
+        result = execute_snowflake_statement(mock_conn, "SELECT 1")
+
+        assert result is mock_executed_cursor
+        mock_cursor.execute.assert_called_once_with("SELECT 1")
+
+    def test_valid_query_raises_on_none_cursor(self):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.execute.return_value = None
+
+        with pytest.raises(Exception, match="Snowflake query failed"):
+            execute_snowflake_statement(mock_conn, "SELECT 1")
