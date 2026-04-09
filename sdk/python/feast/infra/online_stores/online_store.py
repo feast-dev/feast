@@ -265,7 +265,6 @@ class OnlineStore(ABC):
 
         if config is None:
             return
-
         for table, _ in grouped_refs:
             version_tag = getattr(table.projection, "version_tag", None)
             if version_tag is None:

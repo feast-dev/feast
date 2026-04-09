@@ -39,8 +39,6 @@ from feast.field import Field
 from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
-    deserialize_f32,
-    deserialize_val,
     serialize_entity_key,
     serialize_f32,
 )
