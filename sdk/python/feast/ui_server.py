@@ -116,7 +116,7 @@ def get_app(
         )
 
     @app.get("/api/mlflow-runs")
-    def get_mlflow_runs():
+    def get_mlflow_runs(max_results: int = 50):
         """Return MLflow runs linked to this Feast project via auto-logging."""
         mlflow_cfg = getattr(store.config, "mlflow", None)
         if not mlflow_cfg or not mlflow_cfg.enabled:
@@ -125,26 +125,30 @@ def get_app(
         try:
             import mlflow
 
-            if mlflow_cfg.tracking_uri:
-                mlflow.set_tracking_uri(mlflow_cfg.tracking_uri)
+            tracking_uri = mlflow_cfg.tracking_uri or "http://127.0.0.1:5000"
+            client = mlflow.MlflowClient(tracking_uri=tracking_uri)
 
-            client = mlflow.MlflowClient()
-            experiments = client.search_experiments()
-            experiment_ids = [e.experiment_id for e in experiments]
+            project_name = store.config.project
+            experiment = client.get_experiment_by_name(project_name)
+            if experiment is None:
+                return {"runs": [], "mlflow_uri": tracking_uri}
+            experiment_ids = [experiment.experiment_id]
 
-            if not experiment_ids:
-                return {"runs": [], "mlflow_uri": mlflow_cfg.tracking_uri}
+            filter_str = (
+                f"tags.`feast.project` = '{project_name}' "
+                f"AND tags.`feast.retrieval_type` != ''"
+            )
 
+            max_results = min(max(max_results, 1), 200)
             runs = client.search_runs(
                 experiment_ids=experiment_ids,
-                filter_string="tags.`feast.retrieval_type` != ''",
-                max_results=50,
+                filter_string=filter_str,
+                max_results=max_results,
                 order_by=["start_time DESC"],
             )
 
             result = []
-            tracking_uri = mlflow_cfg.tracking_uri or ""
-            mlflow_ui_base = tracking_uri if tracking_uri else "http://127.0.0.1:5000"
+            mlflow_ui_base = tracking_uri
             for run in runs:
                 run_tags = run.data.tags
                 run_params = run.data.params
@@ -154,18 +158,14 @@ def get_app(
                         "run_name": run.info.run_name,
                         "status": run.info.status,
                         "start_time": run.info.start_time,
-                        "feature_service": run_tags.get(
-                            "feast.feature_service"
+                        "feature_service": run_tags.get("feast.feature_service"),
+                        "feature_views": run_tags.get("feast.feature_views", "").split(
+                            ","
                         ),
-                        "feature_views": run_tags.get(
-                            "feast.feature_views", ""
-                        ).split(","),
-                        "feature_refs": run_params.get(
-                            "feast.feature_refs", ""
-                        ).split(","),
-                        "retrieval_type": run_tags.get(
-                            "feast.retrieval_type"
+                        "feature_refs": run_params.get("feast.feature_refs", "").split(
+                            ","
                         ),
+                        "retrieval_type": run_tags.get("feast.retrieval_type"),
                         "entity_count": run_params.get("feast.entity_count"),
                         "mlflow_url": (
                             f"{mlflow_ui_base}/#/experiments/"
@@ -181,8 +181,12 @@ def get_app(
                 "mlflow_uri": None,
                 "error": "mlflow is not installed",
             }
-        except Exception as e:
-            return {"runs": [], "mlflow_uri": None, "error": str(e)}
+        except Exception:
+            return {
+                "runs": [],
+                "mlflow_uri": None,
+                "error": "Failed to fetch MLflow runs",
+            }
 
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])

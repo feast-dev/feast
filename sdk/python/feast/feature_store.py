@@ -14,6 +14,7 @@
 import asyncio
 import copy
 import itertools
+import logging
 import os
 import time
 import warnings
@@ -109,18 +110,25 @@ _mlflow_log_fn = None  # Lazy-loaded on first feature retrieval
 _mlflow_log_fn_loaded = False
 
 
+_logger = logging.getLogger(__name__)
+
+
 def _get_mlflow_log_fn():
     """Lazy-import mlflow logger only when MLflow integration is configured."""
     global _mlflow_log_fn, _mlflow_log_fn_loaded
     if not _mlflow_log_fn_loaded:
-        _mlflow_log_fn_loaded = True
         try:
             from feast.mlflow_integration.logger import (
                 log_feature_retrieval_to_mlflow,
             )
 
             _mlflow_log_fn = log_feature_retrieval_to_mlflow
-        except Exception:
+            _mlflow_log_fn_loaded = True
+        except ImportError:
+            _mlflow_log_fn_loaded = True
+            _mlflow_log_fn = None
+        except Exception as e:
+            _logger.warning("MLflow auto-log import failed (will retry): %s", e)
             _mlflow_log_fn = None
     return _mlflow_log_fn
 
@@ -213,19 +221,20 @@ class FeatureStore:
         # Initialize feature service cache for performance optimization
         self._feature_service_cache = {}
 
+        # Cache for _resolve_feature_service_name lookups
+        self._fs_name_cache: Dict[frozenset, Optional[str]] = {}
+
         # Configure MLflow tracking URI globally from config
         self._init_mlflow_tracking()
 
     def _init_mlflow_tracking(self):
         """Configure MLflow globally from feature_store.yaml.
 
-        Sets the tracking URI and experiment name so the user never needs
-        to call mlflow.set_tracking_uri() or mlflow.set_experiment() in
-        their scripts.  The experiment is named after the Feast project.
+        Sets the tracking URI and experiment name.
+        The experiment is named after the Feast project.
 
         When no tracking_uri is specified, defaults to http://127.0.0.1:5000
-        (a local MLflow tracking server). This ensures that train.py,
-        predict.py, feast ui, and the MLflow UI all share the same backend.
+        (a local MLflow tracking server).
         """
         try:
             mlflow_cfg = self.config.mlflow
@@ -242,24 +251,92 @@ class FeatureStore:
         except Exception as e:
             warnings.warn(f"Failed to configure MLflow tracking: {e}")
 
-    def _resolve_feature_service_name(
-        self, feature_refs: List[str]
-    ) -> Optional[str]:
-        """Try to find a feature service that covers the given feature refs."""
+    def _resolve_feature_service_name(self, feature_refs: List[str]) -> Optional[str]:
+        """Find the best-matching feature service for the given feature refs.
+
+        Resolution: exact match wins immediately; otherwise the smallest
+        superset (fewest extra features) is returned.  Results are cached
+        per FeatureStore instance for O(1) repeated lookups.
+        """
         try:
-            ref_set = set(feature_refs)
+            ref_key = frozenset(feature_refs)
+            if ref_key in self._fs_name_cache:
+                return self._fs_name_cache[ref_key]
+
+            best_match = None
+            best_extra = float("inf")
+
             for fs in self.registry.list_feature_services(
                 self.project, allow_cache=True
             ):
-                fs_refs = set()
-                for proj in fs.feature_view_projections:
-                    for feat in proj.features:
-                        fs_refs.add(f"{proj.name}:{feat.name}")
-                if ref_set == fs_refs or ref_set.issubset(fs_refs):
+                fs_refs = frozenset(
+                    f"{p.name}:{f.name}"
+                    for p in fs.feature_view_projections
+                    for f in p.features
+                )
+                if ref_key == fs_refs:
+                    self._fs_name_cache[ref_key] = fs.name
                     return fs.name
-        except Exception:
-            pass
-        return None
+                if ref_key.issubset(fs_refs):
+                    extra = len(fs_refs) - len(ref_key)
+                    if extra < best_extra:
+                        best_match = fs.name
+                        best_extra = extra
+
+            self._fs_name_cache[ref_key] = best_match
+            return best_match
+        except Exception as e:
+            _logger.debug("Failed to resolve feature service name: %s", e)
+            return None
+
+    def _auto_log_entity_df_info(self, entity_df, start_date=None, end_date=None):
+        """Log entity_df info to MLflow for reproducibility.
+
+        Handles three entity_df types:
+        - pd.DataFrame: saves metadata + full parquet artifact (if under 100k rows)
+        - str (SQL query): logs the query as a param
+        - None (range-based): logs start_date/end_date
+        """
+        try:
+            import mlflow
+
+            if mlflow.active_run() is None:
+                return
+            tracking_uri = self.config.mlflow.tracking_uri or "http://127.0.0.1:5000"
+            client = mlflow.MlflowClient(tracking_uri=tracking_uri)
+            run_id = mlflow.active_run().info.run_id
+
+            if isinstance(entity_df, str):
+                query = entity_df if len(entity_df) <= 490 else entity_df[:487] + "..."
+                client.log_param(run_id, "feast.entity_df_query", query)
+                client.set_tag(run_id, "feast.entity_df_type", "sql")
+
+            elif isinstance(entity_df, pd.DataFrame):
+                client.set_tag(run_id, "feast.entity_df_type", "dataframe")
+                client.log_param(run_id, "feast.entity_df_rows", str(len(entity_df)))
+                cols = ",".join(entity_df.columns)
+                if len(cols) > 490:
+                    cols = cols[:487] + "..."
+                client.log_param(run_id, "feast.entity_df_columns", cols)
+
+                max_rows = 100_000
+                if len(entity_df) <= max_rows:
+                    import tempfile
+
+                    with tempfile.TemporaryDirectory() as tmp_dir:
+                        path = os.path.join(tmp_dir, "entity_df.parquet")
+                        entity_df.to_parquet(path, index=False)
+                        mlflow.log_artifact(path)
+
+            elif entity_df is None and (start_date or end_date):
+                client.set_tag(run_id, "feast.entity_df_type", "range")
+                if start_date:
+                    client.log_param(run_id, "feast.start_date", str(start_date))
+                if end_date:
+                    client.log_param(run_id, "feast.end_date", str(end_date))
+
+        except Exception as e:
+            _logger.debug("Failed to log entity_df info to MLflow: %s", e)
 
     def _init_openlineage_emitter(self) -> Optional[Any]:
         """Initialize OpenLineage emitter if configured and enabled."""
@@ -1572,11 +1649,18 @@ class FeatureStore:
             _log_fn = _get_mlflow_log_fn()
             if _log_fn is not None:
                 _duration = time.monotonic() - _retrieval_start
-                _entity_count = (
-                    len(entity_df) if isinstance(entity_df, pd.DataFrame) else 0
-                )
+                if isinstance(entity_df, pd.DataFrame):
+                    _entity_count = len(entity_df)
+                elif isinstance(entity_df, str):
+                    _entity_count = -1
+                else:
+                    _entity_count = 0
                 _fs = features if isinstance(features, FeatureService) else None
-                _fs_name = features.name if isinstance(features, FeatureService) else self._resolve_feature_service_name(_feature_refs)
+                _fs_name = (
+                    features.name
+                    if isinstance(features, FeatureService)
+                    else self._resolve_feature_service_name(_feature_refs)
+                )
                 _log_fn(
                     feature_refs=_feature_refs,
                     entity_count=_entity_count,
@@ -1587,6 +1671,11 @@ class FeatureStore:
                     project=self.project,
                     tracking_uri=self.config.mlflow.tracking_uri,
                 )
+
+                if self.config.mlflow.auto_log_entity_df:
+                    self._auto_log_entity_df_info(
+                        entity_df, start_date=start_date, end_date=end_date
+                    )
 
         return job
 
@@ -2739,13 +2828,21 @@ class FeatureStore:
                 _feature_refs = utils._get_features(
                     self.registry, self.project, features, allow_cache=True
                 )
-                _entity_count = (
-                    len(entity_rows)
-                    if isinstance(entity_rows, list)
-                    else 0
-                )
+                if isinstance(entity_rows, list):
+                    _entity_count = len(entity_rows)
+                elif isinstance(entity_rows, Mapping):
+                    try:
+                        _entity_count = len(next(iter(entity_rows.values())))
+                    except Exception:
+                        _entity_count = 0
+                else:
+                    _entity_count = 0
                 _fs = features if isinstance(features, FeatureService) else None
-                _fs_name = features.name if isinstance(features, FeatureService) else self._resolve_feature_service_name(_feature_refs)
+                _fs_name = (
+                    features.name
+                    if isinstance(features, FeatureService)
+                    else self._resolve_feature_service_name(_feature_refs)
+                )
                 _log_fn(
                     feature_refs=_feature_refs,
                     entity_count=_entity_count,
@@ -2756,7 +2853,6 @@ class FeatureStore:
                     project=self.project,
                     tracking_uri=self.config.mlflow.tracking_uri,
                 )
-
         return response
 
     async def get_online_features_async(

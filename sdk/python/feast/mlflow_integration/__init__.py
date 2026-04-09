@@ -1,9 +1,8 @@
 """
 MLflow integration for Feast Feature Store.
 
-This module provides seamless integration between Feast and MLflow for
-automatic experiment tracking of feature retrieval operations. When enabled
-in feature_store.yaml, feature metadata is logged automatically to MLflow
+This module provides seamless integration between Feast and MLflow. When enabled
+in feature_store.yaml, feature metadata is logged to MLflow
 during get_historical_features and get_online_features calls.
 
 Usage:
@@ -16,9 +15,6 @@ Usage:
             enabled: true
             tracking_uri: http://localhost:5000
             auto_log: true
-
-    Then use Feast normally - feature retrieval metadata is logged automatically
-    to any active MLflow run.
 
     For advanced use cases, the module also provides:
     - resolve_feature_service_from_model_uri: Map an MLflow model to its Feast

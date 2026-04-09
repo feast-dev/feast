@@ -24,20 +24,9 @@ def resolve_feature_service_from_model_uri(
     """Resolve the Feast feature service name for a given MLflow model URI.
 
     Resolution order:
-      1. Model tag ``feast.feature_service`` (explicit override).
-      2. Naming convention: ``{model_name}_v{version}``.
-
-    Args:
-        model_uri: MLflow model URI, e.g. ``models:/fraud-model/Production``
-            or ``models:/fraud-model/1``.
-        store: Optional FeatureStore instance.  When provided the resolved
-            feature service is validated against the registry, and if the
-            model has an artifact ``required_features.json`` the feature
-            list is checked for consistency.
-
-    Returns:
-        Feature service name string.
-
+      1. Model version tag ``feast.feature_service`` (explicit override).
+      2. Training run tag ``feast.feature_service`` (set by auto-log).
+      3. Naming convention: ``{model_name}_v{version}``.
     Raises:
         FeastMlflowModelResolutionError: If mlflow is not installed, URI is
             invalid, or validation against the store fails.
@@ -75,12 +64,24 @@ def resolve_feature_service_from_model_uri(
     if "feast.feature_service" in tags:
         fs_name = tags["feast.feature_service"]
     else:
-        fs_name = f"{model_name}_v{mv.version}"
+        fs_name = _resolve_from_run_tags(client, mv)
+        if fs_name is None:
+            fs_name = f"{model_name}_v{mv.version}"
 
     if store is not None:
         _validate_feature_service(store, fs_name, client, mv)
 
     return fs_name
+
+
+def _resolve_from_run_tags(client, model_version) -> Optional[str]:
+    """Check the training run's tags for feast.feature_service."""
+    try:
+        run = client.get_run(model_version.run_id)
+        return run.data.tags.get("feast.feature_service")
+    except Exception as e:
+        _logger.debug("Could not read run tags for model version: %s", e)
+        return None
 
 
 def _validate_feature_service(store, fs_name, client, model_version):
@@ -91,6 +92,9 @@ def _validate_feature_service(store, fs_name, client, model_version):
         raise FeastMlflowModelResolutionError(
             f"Feature service '{fs_name}' not found in the Feast registry."
         )
+
+    if not _has_artifact(client, model_version.run_id, "required_features.json"):
+        return
 
     try:
         local_path = client.download_artifacts(
@@ -116,6 +120,14 @@ def _validate_feature_service(store, fs_name, client, model_version):
             )
     except FeastMlflowModelResolutionError:
         raise
+    except Exception as e:
+        _logger.debug("Could not validate required_features.json: %s", e)
+
+
+def _has_artifact(client, run_id: str, artifact_name: str) -> bool:
+    """Check if an artifact exists without triggering a download error."""
+    try:
+        artifacts = client.list_artifacts(run_id)
+        return any(a.path == artifact_name for a in artifacts)
     except Exception:
-        # No artifact or download failed — skip validation silently
-        pass
+        return False

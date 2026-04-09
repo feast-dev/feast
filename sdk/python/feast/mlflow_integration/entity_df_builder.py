@@ -18,18 +18,22 @@ def get_entity_df_from_mlflow_run(
     run_id: str,
     tracking_uri: Optional[str] = None,
     timestamp_column: str = "event_timestamp",
+    max_rows: Optional[int] = None,
 ) -> pd.DataFrame:
-    """Build an entity DataFrame from an MLflow run's artifacts or params.
+    """Build an entity DataFrame from an MLflow run's artifacts.
 
     Convention: the run should have an artifact named ``entity_df.parquet``
-    (or ``entity_df.csv``).  Alternatively, a run param
-    ``feast.entity_df_path`` pointing to a local/remote file path.
+    (or ``entity_df.csv``), saved automatically when
+    ``auto_log_entity_df: true`` is set in ``feature_store.yaml``.
 
     Args:
         run_id: The MLflow run ID.
         tracking_uri: Optional MLflow tracking URI.
         timestamp_column: Expected name of the timestamp column in the
             entity DataFrame.
+        max_rows: Optional limit on number of rows to load.  When set,
+            only the first ``max_rows`` rows are returned (useful for
+            large artifacts to avoid OOM).
 
     Returns:
         A ``pd.DataFrame`` suitable for passing to
@@ -47,50 +51,33 @@ def get_entity_df_from_mlflow_run(
             "mlflow is not installed. Install with: pip install feast[mlflow]"
         )
 
-    if tracking_uri:
-        mlflow.set_tracking_uri(tracking_uri)
-
-    client = mlflow.MlflowClient()
+    client = mlflow.MlflowClient(tracking_uri=tracking_uri)
 
     try:
-        run = client.get_run(run_id)
+        client.get_run(run_id)
     except MlflowException as e:
         raise FeastMlflowEntityDfError(f"Run '{run_id}' not found: {e}")
 
     # Strategy 1: artifact entity_df.parquet
     df = _try_artifact(client, run_id, "entity_df.parquet", "parquet")
     if df is not None:
+        if max_rows is not None:
+            df = df.head(max_rows)
         _validate_timestamp_col(df, timestamp_column)
         return df
 
     # Strategy 2: artifact entity_df.csv
     df = _try_artifact(client, run_id, "entity_df.csv", "csv")
     if df is not None:
+        if max_rows is not None:
+            df = df.head(max_rows)
         _validate_timestamp_col(df, timestamp_column)
         return df
 
-    # Strategy 3: run param feast.entity_df_path
-    params = run.data.params
-    path = params.get("feast.entity_df_path")
-    if path:
-        try:
-            if path.endswith(".parquet"):
-                df = pd.read_parquet(path)
-            else:
-                df = pd.read_csv(path)
-            _validate_timestamp_col(df, timestamp_column)
-            return df
-        except FeastMlflowEntityDfError:
-            raise
-        except Exception as e:
-            raise FeastMlflowEntityDfError(
-                f"Could not load entity df from param path '{path}': {e}"
-            )
-
     raise FeastMlflowEntityDfError(
         f"No entity data found for run '{run_id}'. "
-        f"Expected artifact 'entity_df.parquet' or 'entity_df.csv', "
-        f"or param 'feast.entity_df_path'."
+        f"Expected artifact 'entity_df.parquet' or 'entity_df.csv'. "
+        f"Ensure auto_log_entity_df is enabled in feature_store.yaml."
     )
 
 
@@ -101,7 +88,10 @@ def _try_artifact(client, run_id: str, artifact_name: str, fmt: str):
         if fmt == "parquet":
             return pd.read_parquet(local_path)
         return pd.read_csv(local_path)
-    except Exception:
+    except Exception as e:
+        _logger.debug(
+            "Artifact '%s' not found for run '%s': %s", artifact_name, run_id, e
+        )
         return None
 
 

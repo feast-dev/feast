@@ -43,41 +43,23 @@ def log_feature_retrieval_to_mlflow(
     This function is a no-op when:
     - mlflow is not installed
     - no MLflow run is currently active
-
-    Args:
-        feature_refs: List of feature references (e.g. ["fv:feat1", "fv:feat2"]).
-        entity_count: Number of entity rows in the request.
-        duration_seconds: Wall-clock time for the retrieval in seconds.
-        retrieval_type: Either "historical" or "online".
-        feature_service: Optional FeatureService object used for the retrieval.
-        feature_service_name: Optional feature service name (resolved from refs).
-        project: Optional Feast project name.
-        tracking_uri: Optional MLflow tracking URI override.
-
-    Returns:
-        True if metadata was logged successfully, False otherwise.
     """
     mlflow = _get_mlflow()
     if mlflow is None:
         return False
-
-    if tracking_uri:
-        mlflow.set_tracking_uri(tracking_uri)
 
     active_run = mlflow.active_run()
     if active_run is None:
         return False
 
     try:
-        client = mlflow.MlflowClient()
+        client = mlflow.MlflowClient(tracking_uri=tracking_uri)
         run_id = active_run.info.run_id
 
-        # Tags (immutable metadata about the run's Feast context)
         if project:
             client.set_tag(run_id, "feast.project", project)
         client.set_tag(run_id, "feast.retrieval_type", retrieval_type)
 
-        # Resolve feature service name
         fs_name = None
         if feature_service is not None:
             fs_name = feature_service.name
@@ -86,13 +68,13 @@ def log_feature_retrieval_to_mlflow(
         if fs_name:
             client.set_tag(run_id, "feast.feature_service", fs_name)
 
-        # Extract unique feature view names from refs
         fv_names = sorted({ref.split(":")[0] for ref in feature_refs if ":" in ref})
         if fv_names:
-            client.set_tag(run_id, "feast.feature_views", ",".join(fv_names))
+            fv_str = ",".join(fv_names)
+            if len(fv_str) > 4990:
+                fv_str = fv_str[:4987] + "..."
+            client.set_tag(run_id, "feast.feature_views", fv_str)
 
-        # Params (input configuration for this retrieval)
-        # MLflow params have a 500-char limit; truncate feature refs
         refs_str = ",".join(feature_refs)
         if len(refs_str) > 490:
             refs_str = refs_str[:487] + "..."
@@ -100,9 +82,8 @@ def log_feature_retrieval_to_mlflow(
         client.log_param(run_id, "feast.entity_count", str(entity_count))
         client.log_param(run_id, "feast.feature_count", str(len(feature_refs)))
 
-        # Metrics (measured values)
         client.log_metric(
-            run_id, "feast.retrieval_duration_sec", round(duration_seconds, 4)
+            run_id, "feast.job_submission_sec", round(duration_seconds, 4)
         )
 
         return True
@@ -119,16 +100,7 @@ def log_training_dataset_to_mlflow(
     """Log a training DataFrame as an MLflow dataset input on the active run.
 
     This enables dataset versioning: each MLflow run records exactly which
-    training data was used, bridging the gap that Feast does not
-    version-control datasets on its own.
-
-    Args:
-        df: The training DataFrame (output of get_historical_features().to_df()).
-        dataset_name: Name for the dataset in MLflow.
-        source: Optional source description (e.g. feature service name).
-
-    Returns:
-        True if the dataset was logged, False otherwise.
+    training data was used.
     """
     mlflow = _get_mlflow()
     if mlflow is None:
