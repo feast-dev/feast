@@ -23,7 +23,9 @@ from feast.infra.offline_stores.ibis import (
     write_logged_features_ibis,
 )
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
-from feast.infra.offline_stores.offline_utils import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.offline_stores.offline_utils import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+)
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import make_tzaware, to_naive_utc
@@ -122,7 +124,6 @@ def _build_entity_df_from_sources(
     end_date: datetime,
     data_source_reader: Callable[[DataSource, str], Table],
 ) -> pd.DataFrame:
-    
     entity_dfs: List[pd.DataFrame] = []
 
     for fv in feature_views:
