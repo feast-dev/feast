@@ -37,6 +37,14 @@ import (
 
 var tracer trace.Tracer
 
+var newSignalStopChannel = func() (chan os.Signal, func()) {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	return stop, func() {
+		signal.Stop(stop)
+	}
+}
+
 type ServerStarter interface {
 	StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
 	StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
@@ -260,9 +268,8 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 		}
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(stop)
+	stop, stopCleanup := newSignalStopChannel()
+	defer stopCleanup()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -365,9 +372,8 @@ func StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort
 		}
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(stop)
+	stop, stopCleanup := newSignalStopChannel()
+	defer stopCleanup()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
