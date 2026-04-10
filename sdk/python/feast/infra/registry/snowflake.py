@@ -164,8 +164,8 @@ class SnowflakeRegistry(BaseRegistry):
         self.project = project
 
     def _sync_feast_metadata_to_projects_table(self):
-        feast_metadata_projects: set = []
-        projects_set: set = []
+        feast_metadata_projects: set = set()
+        projects_set: set = set()
 
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = (
