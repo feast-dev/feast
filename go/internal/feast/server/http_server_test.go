@@ -76,5 +76,3 @@ func TestMarshalInt64JSON(t *testing.T) {
 	assert.Equal(t, expectedJSON, string(jsonData), "JSON output does not match expected")
 	assert.IsType(t, &array.Int64{}, arrowArray, "arrowArray is not of type *array.Int64")
 }
-
-

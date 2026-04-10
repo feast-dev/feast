@@ -2,13 +2,13 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
 	"strconv"
 	"time"
-	"crypto/tls"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/model"
@@ -402,22 +402,22 @@ func (s *httpServer) ServeTLS(host string, port int, certFile string, keyFile st
 	mux.Handle("/get-online-features", metricsMiddleware(recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures))))
 	mux.Handle("/health", metricsMiddleware(http.HandlerFunc(healthCheckHandler)))
 	s.server = &http.Server{
-		Addr: fmt.Sprintf("%s:%d", host, port), 
-		Handler: mux, 
-		ReadTimeout: 5 * time.Second, 
-		WriteTimeout: 10 * time.Second, 
-		IdleTimeout: 15 * time.Second,
+		Addr:         fmt.Sprintf("%s:%d", host, port),
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
 		TLSConfig: &tls.Config{
-            MinVersion: tls.VersionTLS12,
-            // For production, use proper certificates
-            // Prefer server's cipher suites
-            PreferServerCipherSuites: true,
-            CurvePreferences: []tls.CurveID{
-                tls.CurveP256,
+			MinVersion: tls.VersionTLS12,
+			// For production, use proper certificates
+			// Prefer server's cipher suites
+			PreferServerCipherSuites: true,
+			CurvePreferences: []tls.CurveID{
+				tls.CurveP256,
 				tls.X25519MLKEM768,
 				tls.SecP256r1MLKEM768,
-            },
-        },
+			},
+		},
 	}
 	err := s.server.ListenAndServeTLS(certFile, keyFile)
 	// Don't return the error if it's caused by graceful shutdown using Stop()

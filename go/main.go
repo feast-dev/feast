@@ -345,10 +345,10 @@ func newTracerProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, err
 	), nil
 }
 
-// StartHttpsServer starts HTTP server with TLS. Requires TLS_CERT_FILE and TLS_KEY_FILE env vars.
+// StartHttpsServer starts HTTP server with TLS. Requires --tls-cert-file and --tls-key-file flags
 func StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, certFile string, keyFile string, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
 	if certFile == "" || keyFile == "" {
-		return fmt.Errorf("TLS_CERT_FILE and TLS_KEY_FILE must be set")
+		return fmt.Errorf("--tls-cert-file and --tls-key-file must be provided")
 	}
 
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
