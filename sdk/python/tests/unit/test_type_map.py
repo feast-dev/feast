@@ -1553,3 +1553,295 @@ class TestUuidTypes:
         """PostgreSQL uuid type maps to ValueType.UUID."""
         assert pg_type_to_feast_value_type("uuid") == ValueType.UUID
         assert pg_type_to_feast_value_type("uuid[]") == ValueType.UUID_LIST
+
+
+class TestDecimalTypes:
+    """Test cases for DECIMAL, DECIMAL_LIST, and DECIMAL_SET value types."""
+
+    def test_decimal_string_roundtrip(self):
+        """Decimal string -> proto -> decimal.Decimal object roundtrip."""
+        import decimal
+
+        val = decimal.Decimal("3.14159265358979323846")
+        protos = python_values_to_proto_values([str(val)], ValueType.DECIMAL)
+        assert protos[0].decimal_val == str(val)
+
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, decimal.Decimal)
+        assert result == val
+
+    def test_decimal_object_serialization(self):
+        """decimal.Decimal object -> proto serialization (str conversion automatic)."""
+        import decimal
+
+        val = decimal.Decimal("99.99")
+        protos = python_values_to_proto_values([val], ValueType.DECIMAL)
+        assert protos[0].decimal_val == "99.99"
+
+    def test_decimal_preserves_precision(self):
+        """High-precision decimal values survive the proto round-trip without loss."""
+        import decimal
+
+        high_prec = decimal.Decimal("1.23456789012345678901234567890")
+        protos = python_values_to_proto_values([high_prec], ValueType.DECIMAL)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == high_prec
+
+    def test_decimal_negative_value(self):
+        """Negative decimal values round-trip correctly."""
+        import decimal
+
+        val = decimal.Decimal("-9876.543210")
+        protos = python_values_to_proto_values([val], ValueType.DECIMAL)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == val
+
+    def test_decimal_zero(self):
+        """Zero decimal value round-trips correctly."""
+        import decimal
+
+        val = decimal.Decimal("0")
+        protos = python_values_to_proto_values([val], ValueType.DECIMAL)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == val
+
+    def test_decimal_list_roundtrip(self):
+        """DECIMAL_LIST string list -> proto -> list of decimal.Decimal roundtrip."""
+        import decimal
+
+        vals = [decimal.Decimal("1.1"), decimal.Decimal("2.2"), decimal.Decimal("3.3")]
+        val_strs = [str(v) for v in vals]
+        protos = python_values_to_proto_values([val_strs], ValueType.DECIMAL_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert all(isinstance(r, decimal.Decimal) for r in result)
+        assert result == vals
+
+    def test_decimal_object_list_roundtrip(self):
+        """List of decimal.Decimal objects -> proto -> list of decimal.Decimal roundtrip."""
+        import decimal
+
+        vals = [
+            decimal.Decimal("10.5"),
+            decimal.Decimal("20.75"),
+            decimal.Decimal("30.125"),
+        ]
+        protos = python_values_to_proto_values([vals], ValueType.DECIMAL_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert all(isinstance(r, decimal.Decimal) for r in result)
+        assert result == vals
+
+    def test_decimal_set_roundtrip(self):
+        """DECIMAL_SET -> proto -> set of decimal.Decimal roundtrip."""
+        import decimal
+
+        vals = {decimal.Decimal("1.1"), decimal.Decimal("2.2"), decimal.Decimal("3.3")}
+        protos = python_values_to_proto_values([vals], ValueType.DECIMAL_SET)
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, set)
+        assert all(isinstance(r, decimal.Decimal) for r in result)
+        assert result == vals
+
+    def test_decimal_set_deduplication(self):
+        """Duplicate decimal values in a set are deduplicated."""
+        import decimal
+
+        vals = {decimal.Decimal("5.0"), decimal.Decimal("5.0"), decimal.Decimal("6.0")}
+        protos = python_values_to_proto_values([vals], ValueType.DECIMAL_SET)
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, set)
+        assert len(result) == 2
+
+    def test_decimal_type_inference(self):
+        """python_type_to_feast_value_type infers DECIMAL from decimal.Decimal values."""
+        import decimal
+
+        from feast.type_map import python_type_to_feast_value_type
+
+        assert (
+            python_type_to_feast_value_type("price", decimal.Decimal("1.5"))
+            == ValueType.DECIMAL
+        )
+
+    def test_decimal_value_type_string_conversion(self):
+        """_convert_value_type_str_to_value_type handles DECIMAL strings."""
+        from feast.type_map import _convert_value_type_str_to_value_type
+
+        assert _convert_value_type_str_to_value_type("DECIMAL") == ValueType.DECIMAL
+        assert (
+            _convert_value_type_str_to_value_type("DECIMAL_LIST")
+            == ValueType.DECIMAL_LIST
+        )
+        assert (
+            _convert_value_type_str_to_value_type("DECIMAL_SET")
+            == ValueType.DECIMAL_SET
+        )
+
+    def test_decimal_proto_field_name_mapping(self):
+        """PROTO_VALUE_TO_VALUE_TYPE_MAP and VALUE_TYPE_TO_PROTO_VALUE_MAP include DECIMAL."""
+        from feast.type_map import (
+            PROTO_VALUE_TO_VALUE_TYPE_MAP,
+            VALUE_TYPE_TO_PROTO_VALUE_MAP,
+        )
+
+        assert PROTO_VALUE_TO_VALUE_TYPE_MAP["decimal_val"] == ValueType.DECIMAL
+        assert (
+            PROTO_VALUE_TO_VALUE_TYPE_MAP["decimal_list_val"] == ValueType.DECIMAL_LIST
+        )
+        assert PROTO_VALUE_TO_VALUE_TYPE_MAP["decimal_set_val"] == ValueType.DECIMAL_SET
+        assert VALUE_TYPE_TO_PROTO_VALUE_MAP[ValueType.DECIMAL] == "decimal_val"
+        assert (
+            VALUE_TYPE_TO_PROTO_VALUE_MAP[ValueType.DECIMAL_LIST] == "decimal_list_val"
+        )
+        assert VALUE_TYPE_TO_PROTO_VALUE_MAP[ValueType.DECIMAL_SET] == "decimal_set_val"
+
+    def test_decimal_pandas_type(self):
+        """feast_value_type_to_pandas_type returns 'object' for DECIMAL."""
+        from feast.type_map import feast_value_type_to_pandas_type
+
+        assert feast_value_type_to_pandas_type(ValueType.DECIMAL) == "object"
+
+    def test_decimal_pyarrow_type(self):
+        """feast_value_type_to_pa returns pyarrow.string() for DECIMAL scalar/list/set."""
+        import pyarrow
+
+        from feast.type_map import feast_value_type_to_pa
+
+        assert feast_value_type_to_pa(ValueType.DECIMAL) == pyarrow.string()
+        assert feast_value_type_to_pa(ValueType.DECIMAL_LIST) == pyarrow.list_(
+            pyarrow.string()
+        )
+        assert feast_value_type_to_pa(ValueType.DECIMAL_SET) == pyarrow.list_(
+            pyarrow.string()
+        )
+
+    def test_decimal_snowflake_udf(self):
+        """_convert_value_name_to_snowflake_udf maps DECIMAL types to varchar UDFs."""
+        from feast.type_map import _convert_value_name_to_snowflake_udf
+
+        project = "myproject"
+        assert _convert_value_name_to_snowflake_udf("DECIMAL", project) == (
+            f"FEAST_{project.upper()}_SNOWFLAKE_VARCHAR_TO_STRING_PROTO"
+        )
+        assert _convert_value_name_to_snowflake_udf("DECIMAL_LIST", project) == (
+            f"FEAST_{project.upper()}_SNOWFLAKE_ARRAY_VARCHAR_TO_LIST_STRING_PROTO"
+        )
+        assert _convert_value_name_to_snowflake_udf("DECIMAL_SET", project) == (
+            f"FEAST_{project.upper()}_SNOWFLAKE_ARRAY_VARCHAR_TO_LIST_STRING_PROTO"
+        )
+
+
+class TestNestedCollectionTypes:
+    """Tests for nested collection type proto conversion (VALUE_LIST, VALUE_SET)."""
+
+    def test_value_list_proto_roundtrip(self):
+        """Test python_values_to_proto_values and feast_value_type_to_python_type for VALUE_LIST."""
+        values = [[[1, 2, 3], [4, 5]]]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_LIST)
+        assert len(protos) == 1
+        assert protos[0].WhichOneof("val") == "list_val"
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_value_set_proto_roundtrip(self):
+        """Test VALUE_SET proto conversion."""
+        values = [[["a", "b"], ["c"]]]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_SET)
+        assert len(protos) == 1
+        assert protos[0].WhichOneof("val") == "set_val"
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_nested_collection_null_handling(self):
+        """Test that None values are handled correctly."""
+        values = [None]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_LIST)
+        assert len(protos) == 1
+        assert protos[0].WhichOneof("val") is None
+
+    def test_convert_value_type_str_nested(self):
+        """Test _convert_value_type_str_to_value_type for nested types."""
+        assert (
+            _convert_value_type_str_to_value_type("VALUE_LIST") == ValueType.VALUE_LIST
+        )
+        assert _convert_value_type_str_to_value_type("VALUE_SET") == ValueType.VALUE_SET
+
+    def test_nested_collection_empty_inner_list(self):
+        """Test that empty inner collections are handled gracefully."""
+        values = [[[], [1, 2]]]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, list)
+        assert len(result) == 2
+        # Empty inner list should round-trip as None (empty ProtoValue)
+        assert result[0] is None
+        assert result[1] == [1, 2]
+
+    def test_nested_collection_inner_none(self):
+        """Test that None inner elements are handled."""
+        values = [[[1, 2], None, [3]]]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert len(result) == 3
+        assert result[0] == [1, 2]
+        assert result[1] is None
+        assert result[2] == [3]
+
+    def test_value_list_no_dedup(self):
+        """Test that VALUE_LIST does NOT deduplicate (Array semantics)."""
+        values = [[[1, 1, 2], [3, 3]]]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == [1, 1, 2]
+        assert result[1] == [3, 3]
+
+    def test_value_list_proto_roundtrip_values(self):
+        """Test that VALUE_LIST roundtrip preserves actual inner values."""
+        values = [[[1, 2, 3], [4, 5]]]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == [1, 2, 3]
+        assert result[1] == [4, 5]
+
+    def test_value_set_proto_roundtrip_values(self):
+        """Test that VALUE_SET roundtrip preserves actual inner values."""
+        values = [[["a", "b"], ["c"]]]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_SET)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result[0] == ["a", "b"]
+        assert result[1] == ["c"]
+
+    def test_multi_value_batch_nested(self):
+        """Test multiple nested collection values in a single batch."""
+        values = [[[1, 2], [3]], [[4], [5, 6]]]
+        protos = python_values_to_proto_values(values, ValueType.VALUE_LIST)
+        assert len(protos) == 2
+        r0 = feast_value_type_to_python_type(protos[0])
+        r1 = feast_value_type_to_python_type(protos[1])
+        assert r0 == [[1, 2], [3]]
+        assert r1 == [[4], [5, 6]]
+
+    def test_feast_value_type_to_pa_nested(self):
+        """Test feast_value_type_to_pa for nested collection types."""
+        for vt in (
+            ValueType.VALUE_LIST,
+            ValueType.VALUE_SET,
+        ):
+            pa_type = feast_value_type_to_pa(vt)
+            assert pa_type == pyarrow.list_(pyarrow.list_(pyarrow.string()))
+
+    def test_pa_to_feast_value_type_nested(self):
+        """Test pa_to_feast_value_type recognizes nested list PyArrow types."""
+        assert (
+            pa_to_feast_value_type("list<item: list<item: int64>>")
+            == ValueType.VALUE_LIST
+        )
+        assert (
+            pa_to_feast_value_type("list<item: list<item: string>>")
+            == ValueType.VALUE_LIST
+        )
+        assert (
+            pa_to_feast_value_type("list<item: list<item: double>>")
+            == ValueType.VALUE_LIST
+        )
