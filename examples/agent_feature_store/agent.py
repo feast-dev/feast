@@ -5,15 +5,22 @@ The LLM decides which tools to call, when to call them, and what to do
 with the results.  Feast acts as both the **context provider** (read) and
 the **memory store** (write).
 
-The agent has four Feast-backed tools:
+All Feast interactions use the **Model Context Protocol (MCP)**: the agent
+connects to the Feast MCP server, discovers available tools dynamically,
+and invokes them through the standard protocol -- exactly how production
+frameworks like LangChain, LlamaIndex, and CrewAI integrate with MCP
+tool servers.
 
-  READ tools:
+The agent has three Feast-backed read tools:
+
     - lookup_customer:        Retrieve customer profile features.
     - search_knowledge_base:  Retrieve support articles.
     - recall_memory:          Read past interaction context for this customer.
 
-  WRITE tool:
-    - save_memory:            Persist notes about this interaction back to Feast.
+Memory is automatically saved after every agent turn (framework-style
+checkpointing), not as an explicit LLM tool call.  This mirrors how
+production frameworks like LangGraph, CrewAI, and AutoGen handle
+persistence -- as infrastructure, not an LLM decision.
 
 Memory is entity-keyed (per customer), TTL-managed, versioned, and governed
 by the same RBAC as every other feature -- unlike an ad-hoc Redis cache or
@@ -28,21 +35,66 @@ Usage:
     python agent.py
 """
 
+import asyncio
+import json
 import os
 import sys
 from typing import Any
 
 import requests
 
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
 FEAST_SERVER = os.getenv("FEAST_SERVER_URL", "http://localhost:6566")
+FEAST_MCP_URL = os.getenv("FEAST_MCP_URL", f"{FEAST_SERVER}/mcp")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 MAX_TOOL_ROUNDS = 5
 
+# Module-level MCP session (initialised in main)
+_mcp_session: ClientSession | None = None
+# Maps Feast MCP tool names discovered at startup
+_feast_tools: dict[str, str] = {}
+
+
+async def _call_feast_tool(tool_name: str, arguments: dict) -> dict:
+    """Call a Feast MCP tool and parse the JSON response."""
+    assert _mcp_session is not None, "MCP session not initialised"
+    mcp_tool = _feast_tools.get(tool_name)
+    if not mcp_tool:
+        raise ValueError(
+            f"Feast MCP tool '{tool_name}' not found. "
+            f"Available: {list(_feast_tools.keys())}"
+        )
+    result = await _mcp_session.call_tool(mcp_tool, arguments)
+    text = result.content[0].text if result.content else "{}"
+    return json.loads(text)
+
+
+async def _discover_feast_tools() -> dict[str, str]:
+    """List MCP tools and build a lookup mapping logical names to MCP names."""
+    assert _mcp_session is not None
+    tools_result = await _mcp_session.list_tools()
+    tool_map: dict[str, str] = {}
+    for tool in tools_result.tools:
+        name = tool.name
+        if "get_online_features" in name:
+            tool_map["get_online_features"] = name
+        elif "retrieve_online_documents" in name:
+            tool_map["retrieve_online_documents"] = name
+        elif "write_to_online_store" in name:
+            tool_map["write_to_online_store"] = name
+    return tool_map
+
+
 # ---------------------------------------------------------------------------
-# Tools: each wraps a Feast REST call
+# Tools: each wraps a Feast MCP call
 # ---------------------------------------------------------------------------
+# These tool specs are domain-specific wrappers for the customer-support demo.
+# With a framework (LangChain, LlamaIndex), you can skip these entirely --
+# the LLM calls Feast's generic MCP tools (get_online_features, etc.) directly.
 
 TOOLS_SPEC = [
     {
@@ -111,88 +163,57 @@ TOOLS_SPEC = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "save_memory",
-            "description": (
-                "Save a note about this interaction to the memory store so "
-                "future conversations can reference it. Use this after resolving "
-                "a question to record what was discussed and any commitments made."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "customer_id": {
-                        "type": "string",
-                        "description": "The customer ID",
-                    },
-                    "topic": {
-                        "type": "string",
-                        "description": "Brief label for the topic discussed, e.g. 'SSO setup'",
-                    },
-                    "resolution": {
-                        "type": "string",
-                        "description": "How the issue was resolved or what was communicated",
-                    },
-                    "open_issue": {
-                        "type": "string",
-                        "description": "Any unresolved follow-up, or empty string if fully resolved",
-                    },
-                    "preferences": {
-                        "type": "string",
-                        "description": "Any stated customer preferences to remember",
-                    },
-                },
-                "required": ["customer_id", "topic", "resolution"],
-            },
-        },
-    },
 ]
 
 
-def tool_lookup_customer(customer_id: str) -> dict[str, Any]:
-    """Fetch customer profile features from Feast."""
-    payload = {
-        "features": [
-            "customer_profile:name",
-            "customer_profile:email",
-            "customer_profile:plan_tier",
-            "customer_profile:account_age_days",
-            "customer_profile:total_spend",
-            "customer_profile:open_tickets",
-            "customer_profile:satisfaction_score",
-        ],
-        "entities": {"customer_id": [customer_id]},
-    }
-    resp = requests.post(f"{FEAST_SERVER}/get-online-features", json=payload)
-    resp.raise_for_status()
-    data = resp.json()
+def _parse_online_features(data: dict) -> dict[str, Any]:
+    """Parse the response from get-online-features into a flat dict."""
     results = data.get("results", [])
     feature_names = data.get("metadata", {}).get("feature_names", [])
-
-    features = {}
+    features: dict[str, Any] = {}
     for i, name in enumerate(feature_names):
         values = results[i].get("values", [])
-        features[name] = values[0] if values else None
+        val = values[0] if values else None
+        if val is not None:
+            features[name] = val
     return features
 
 
-def tool_search_knowledge_base(query: str) -> list[dict[str, Any]]:
-    """Search knowledge-base articles from Feast using keyword similarity."""
-    payload = {
-        "features": [
-            "knowledge_base:title",
-            "knowledge_base:content",
-            "knowledge_base:category",
-        ],
-        "query_string": query,
-        "top_k": 3,
-        "api_version": 2,
-    }
-    resp = requests.post(f"{FEAST_SERVER}/retrieve-online-documents", json=payload)
-    resp.raise_for_status()
-    data = resp.json()
+async def tool_lookup_customer(customer_id: str) -> dict[str, Any]:
+    """Fetch customer profile features from Feast via MCP."""
+    data = await _call_feast_tool(
+        "get_online_features",
+        {
+            "features": [
+                "customer_profile:name",
+                "customer_profile:email",
+                "customer_profile:plan_tier",
+                "customer_profile:account_age_days",
+                "customer_profile:total_spend",
+                "customer_profile:open_tickets",
+                "customer_profile:satisfaction_score",
+            ],
+            "entities": {"customer_id": [customer_id]},
+        },
+    )
+    return _parse_online_features(data)
+
+
+async def tool_search_knowledge_base(query: str) -> list[dict[str, Any]]:
+    """Search knowledge-base articles from Feast via MCP."""
+    data = await _call_feast_tool(
+        "retrieve_online_documents",
+        {
+            "features": [
+                "knowledge_base:title",
+                "knowledge_base:content",
+                "knowledge_base:category",
+            ],
+            "query_string": query,
+            "top_k": 3,
+            "api_version": 2,
+        },
+    )
     results = data.get("results", [])
     feature_names = data.get("metadata", {}).get("feature_names", [])
 
@@ -207,77 +228,72 @@ def tool_search_knowledge_base(query: str) -> list[dict[str, Any]]:
     return docs
 
 
-def tool_recall_memory(customer_id: str) -> dict[str, Any]:
-    """Read the agent's memory for a customer from Feast."""
-    payload = {
-        "features": [
-            "agent_memory:last_topic",
-            "agent_memory:last_resolution",
-            "agent_memory:interaction_count",
-            "agent_memory:preferences",
-            "agent_memory:open_issue",
-        ],
-        "entities": {"customer_id": [customer_id]},
-    }
-    resp = requests.post(f"{FEAST_SERVER}/get-online-features", json=payload)
-    resp.raise_for_status()
-    data = resp.json()
-    results = data.get("results", [])
-    feature_names = data.get("metadata", {}).get("feature_names", [])
-
-    memory = {}
-    for i, name in enumerate(feature_names):
-        values = results[i].get("values", [])
-        memory[name] = values[0] if values else None
-
+async def tool_recall_memory(customer_id: str) -> dict[str, Any]:
+    """Read the agent's memory for a customer from Feast via MCP."""
+    data = await _call_feast_tool(
+        "get_online_features",
+        {
+            "features": [
+                "agent_memory:last_topic",
+                "agent_memory:last_resolution",
+                "agent_memory:interaction_count",
+                "agent_memory:preferences",
+                "agent_memory:open_issue",
+            ],
+            "entities": {"customer_id": [customer_id]},
+        },
+    )
+    memory = _parse_online_features(data)
     has_memory = any(v is not None for k, v in memory.items() if k != "customer_id")
     if not has_memory:
         return {"status": "no_previous_interactions", "customer_id": customer_id}
     return memory
 
 
-def tool_save_memory(
+async def tool_save_memory(
     customer_id: str,
     topic: str,
     resolution: str,
     open_issue: str = "",
     preferences: str = "",
 ) -> dict[str, str]:
-    """Write interaction memory back to Feast via the REST API."""
+    """Write interaction memory back to Feast via MCP."""
     from datetime import datetime, timezone
 
-    existing = tool_recall_memory(customer_id)
-    prev_count = existing.get("interaction_count") or 0
+    existing = await tool_recall_memory(customer_id)
+    prev_count = existing.get("interaction_count", 0)
+    prev_preferences = existing.get("preferences", "")
+    prev_open_issue = existing.get("open_issue", "")
 
     now = datetime.now(timezone.utc).isoformat()
-    payload = {
-        "feature_view_name": "agent_memory",
-        "df": {
-            "customer_id": [customer_id],
-            "last_topic": [topic],
-            "last_resolution": [resolution],
-            "interaction_count": [prev_count + 1],
-            "preferences": [preferences],
-            "open_issue": [open_issue],
-            "event_timestamp": [now],
+    await _call_feast_tool(
+        "write_to_online_store",
+        {
+            "feature_view_name": "agent_memory",
+            "df": {
+                "customer_id": [customer_id],
+                "last_topic": [topic],
+                "last_resolution": [resolution],
+                "interaction_count": [prev_count + 1],
+                "preferences": [preferences or prev_preferences],
+                "open_issue": [open_issue or prev_open_issue],
+                "event_timestamp": [now],
+            },
+            "allow_registry_cache": True,
         },
-        "allow_registry_cache": True,
-    }
-    resp = requests.post(f"{FEAST_SERVER}/write-to-online-store", json=payload)
-    resp.raise_for_status()
+    )
     return {"status": "saved", "customer_id": customer_id, "topic": topic}
 
 
-TOOL_REGISTRY = {
-    "lookup_customer": lambda args: tool_lookup_customer(args["customer_id"]),
-    "search_knowledge_base": lambda args: tool_search_knowledge_base(args["query"]),
-    "recall_memory": lambda args: tool_recall_memory(args["customer_id"]),
-    "save_memory": lambda args: tool_save_memory(
-        customer_id=args["customer_id"],
-        topic=args["topic"],
-        resolution=args["resolution"],
-        open_issue=args.get("open_issue", ""),
-        preferences=args.get("preferences", ""),
+TOOL_REGISTRY: dict[str, Any] = {
+    "lookup_customer": lambda args: tool_lookup_customer(
+        args.get("customer_id") or next(iter(args.values()))
+    ),
+    "search_knowledge_base": lambda args: tool_search_knowledge_base(
+        args.get("query") or args.get("search_query") or next(iter(args.values()))
+    ),
+    "recall_memory": lambda args: tool_recall_memory(
+        args.get("customer_id") or next(iter(args.values()))
     ),
 }
 
@@ -286,20 +302,25 @@ TOOL_REGISTRY = {
 # Agent loop
 # ---------------------------------------------------------------------------
 
+# Demo-specific prompt: replace with your own domain instructions and tool
+# names when adapting this example to a different use case.
 SYSTEM_PROMPT = """\
-You are a customer-support agent. Follow these steps EXACTLY:
+You are a customer-support agent. You MUST follow these steps in order:
 
-Step 1: Call recall_memory and lookup_customer in your FIRST round (call both at once).
-Step 2: If needed, call search_knowledge_base.
-Step 3: Write your answer to the customer. Personalise it using their name and plan tier.
-Step 4: Call save_memory with a short topic and resolution.
+1. ALWAYS call BOTH recall_memory AND lookup_customer in your first round.
+   Call them together in the same round. You MUST call lookup_customer even if
+   recall_memory returns no history -- you need the customer's name and plan.
+2. If the question is about a product feature (SSO, API, invoices, passwords,
+   upgrades, etc.), also call search_knowledge_base with a short keyword.
+3. Once you have the tool results, write a helpful, personalised answer.
+   Use the customer's name and plan tier. Enterprise customers get full access;
+   starter/pro customers may need to upgrade for certain features.
 
-IMPORTANT:
+Memory is saved automatically -- do NOT try to save it yourself.
+
+Rules:
 - Never call the same tool twice with the same arguments.
-- Call at most 2-3 tools per round.
-- After you have the tool results, WRITE your answer. Do not call more tools.
-- Tailor your answer to the customer's plan: enterprise customers get full access,
-  pro/starter customers may need to upgrade for certain features.
+- After you have tool results, WRITE your answer immediately. Do not call more tools.
 """
 
 
@@ -334,42 +355,48 @@ def _call_llm(messages: list, use_tools: bool = True) -> dict:
     return resp.json()["choices"][0]
 
 
-def run_agent(customer_id: str, user_message: str) -> str:
+async def run_agent(customer_id: str, user_message: str) -> str:
     """
     Agentic loop: the LLM decides which tools to call (if any), executes
     them, feeds results back, and repeats until it produces a final answer.
-    Memory is saved as a fallback only if the LLM didn't call save_memory.
+    Memory is auto-saved after every turn -- framework-style checkpointing,
+    not an LLM decision.
     """
     if not OPENAI_API_KEY:
-        return _run_agent_demo_mode(customer_id, user_message)
+        response = await _run_agent_demo_mode(customer_id, user_message)
+    else:
+        response = await _run_agent_llm(customer_id, user_message)
 
-    response, memory_saved = _run_agent_llm(customer_id, user_message)
-
-    if not memory_saved:
-        _ensure_memory_saved(customer_id, user_message, response)
-
+    await _auto_save_memory(customer_id, user_message, response)
     return response
 
 
-def _ensure_memory_saved(customer_id: str, user_message: str, response: str) -> None:
-    """Fallback: save memory only when the LLM didn't call save_memory itself."""
+async def _auto_save_memory(customer_id: str, user_message: str, response: str) -> None:
+    """
+    Framework-style memory checkpoint: automatically persist interaction
+    context after every agent turn.
+
+    Production agent frameworks (LangGraph checkpointers, CrewAI memory,
+    AutoGen teachable agents) all treat memory as infrastructure -- the
+    framework saves state after each step, rather than relying on the LLM
+    to decide when to persist.  This ensures consistent, reliable memory
+    regardless of LLM behaviour.
+    """
     topic = _extract_topic(user_message)
     resolution = response[:120] if response else "Answered query"
     try:
-        tool_save_memory(
+        await tool_save_memory(
             customer_id=customer_id,
             topic=topic,
             resolution=resolution,
         )
-        print(f'  [Auto] Memory saved: topic="{topic}"')
+        print(f'  [Checkpoint] Memory saved: topic="{topic}"')
     except Exception as e:
-        print(f"  [Auto] Failed to save memory: {e}")
+        print(f"  [Checkpoint] Failed to save memory: {e}")
 
 
-def _run_agent_llm(customer_id: str, user_message: str) -> tuple[str, bool]:
-    """Core LLM agent loop. Returns (response_text, memory_was_saved)."""
-    import json
-
+async def _run_agent_llm(customer_id: str, user_message: str) -> str:
+    """Core LLM agent loop. Returns the response text."""
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {
@@ -380,7 +407,6 @@ def _run_agent_llm(customer_id: str, user_message: str) -> tuple[str, bool]:
 
     seen_calls: set[str] = set()
     collected_context: dict[str, Any] = {}
-    memory_saved = False
 
     for round_num in range(1, MAX_TOOL_ROUNDS + 1):
         choice = _call_llm(messages)
@@ -391,13 +417,13 @@ def _run_agent_llm(customer_id: str, user_message: str) -> tuple[str, bool]:
         if choice["finish_reason"] == "stop":
             if content:
                 print(f"  ✓ Agent finished after {round_num} round(s)")
-                return content, memory_saved
+                return content
             break  # empty stop -- fall through to forced response
 
         tool_calls = assistant_msg.get("tool_calls", [])
         if not tool_calls:
             if content:
-                return content, memory_saved
+                return content
             break
 
         tool_names = [tc["function"]["name"] for tc in tool_calls]
@@ -428,11 +454,9 @@ def _run_agent_llm(customer_id: str, user_message: str) -> tuple[str, bool]:
 
             handler = TOOL_REGISTRY.get(fn_name)
             if handler:
-                result = handler(fn_args)
+                result = await handler(fn_args)
                 result_str = json.dumps(result, default=str)
                 collected_context[fn_name] = result
-                if fn_name == "save_memory":
-                    memory_saved = True
             else:
                 result_str = json.dumps({"error": f"Unknown tool: {fn_name}"})
 
@@ -455,12 +479,10 @@ def _run_agent_llm(customer_id: str, user_message: str) -> tuple[str, bool]:
     choice = _call_llm(messages, use_tools=False)
     content = choice["message"].get("content") or ""
     if content:
-        return content, memory_saved
+        return content
 
     # Last resort: build a response from collected tool results
-    return _fallback_response(
-        collected_context, customer_id, user_message
-    ), memory_saved
+    return _fallback_response(collected_context, customer_id, user_message)
 
 
 def _fallback_response(context: dict, customer_id: str, user_message: str) -> str:
@@ -485,7 +507,7 @@ def _fallback_response(context: dict, customer_id: str, user_message: str) -> st
     return " ".join(parts)
 
 
-def _run_agent_demo_mode(customer_id: str, user_message: str) -> str:
+async def _run_agent_demo_mode(customer_id: str, user_message: str) -> str:
     """
     Demo mode: simulates the agentic tool-calling flow and generates a
     personalised response that shows how Feast context shapes the answer.
@@ -494,7 +516,7 @@ def _run_agent_demo_mode(customer_id: str, user_message: str) -> str:
 
     # ── Round 1: recall memory ──────────────────────────────────────────
     print(f"  Round 1 | recall_memory(customer_id={customer_id})")
-    memory = tool_recall_memory(customer_id)
+    memory = await tool_recall_memory(customer_id)
     has_memory = memory.get("status") != "no_previous_interactions"
     if has_memory:
         print(f"          -> Previous topic: {memory.get('last_topic')}")
@@ -505,7 +527,7 @@ def _run_agent_demo_mode(customer_id: str, user_message: str) -> str:
 
     # ── Round 1: lookup customer ────────────────────────────────────────
     print(f"\n  Round 1 | lookup_customer(customer_id={customer_id})")
-    profile = tool_lookup_customer(customer_id)
+    profile = await tool_lookup_customer(customer_id)
     name = profile.get("name", "Customer")
     plan = profile.get("plan_tier", "unknown")
     spend = profile.get("total_spend", 0)
@@ -534,7 +556,7 @@ def _run_agent_demo_mode(customer_id: str, user_message: str) -> str:
     kb_article = None
     if needs_kb:
         print(f'\n  Round 1 | search_knowledge_base(query="{user_message[:50]}...")')
-        docs = tool_search_knowledge_base(user_message)
+        docs = await tool_search_knowledge_base(user_message)
         if docs:
             kb_article = _pick_best_article(user_message, docs)
             print(f'          -> Best match: "{kb_article.get("title")}"')
@@ -549,19 +571,6 @@ def _run_agent_demo_mode(customer_id: str, user_message: str) -> str:
         kb_article=kb_article,
         user_message=user_message,
     )
-
-    # ── Round 2: save memory ────────────────────────────────────────────
-    topic = _extract_topic(user_message)
-    resolution = f"Answered based on {plan} plan context"
-    if kb_article:
-        resolution += f" and KB article '{kb_article.get('title')}'"
-    print(f'\n  Round 2 | save_memory(customer_id={customer_id}, topic="{topic}")')
-    tool_save_memory(
-        customer_id=customer_id,
-        topic=topic,
-        resolution=resolution,
-    )
-    print("          -> Memory saved for future conversations")
 
     return response
 
@@ -737,18 +746,20 @@ DEMO_QUERIES = [
 ]
 
 
-def main():
+async def main():
+    global _mcp_session, _feast_tools
+
     print("=" * 65)
-    print("  Feast-Powered AI Agent Demo: Context + Memory")
+    print("  Feast-Powered AI Agent Demo: Context + Memory via MCP")
     print("=" * 65)
     print()
     print("  This demo shows two key capabilities:")
     print("  1. ROLE-BASED RESPONSES: Same question, different answer per plan tier")
     print("  2. PERSISTENT MEMORY:    Agent recalls prior conversations via Feast")
     print()
-    print(
-        "  Tools: recall_memory | lookup_customer | search_knowledge_base | save_memory"
-    )
+    print("  Tools: recall_memory | lookup_customer | search_knowledge_base")
+    print("  Memory: auto-saved after each turn (framework-style checkpoint)")
+    print(f"  Protocol: MCP ({FEAST_MCP_URL})")
     print()
 
     try:
@@ -762,34 +773,44 @@ def main():
         )
         sys.exit(1)
 
-    if not OPENAI_API_KEY:
-        print("OPENAI_API_KEY not set -- running in demo mode (simulated reasoning)\n")
-    else:
-        print(f"Using LLM: {LLM_MODEL} via {OPENAI_BASE_URL}\n")
+    async with streamablehttp_client(FEAST_MCP_URL) as (read_stream, write_stream, _):
+        async with ClientSession(read_stream, write_stream) as session:
+            _mcp_session = session
+            await session.initialize()
 
-    scene_labels = [
-        "Scene 1: Enterprise customer (C1001) asks about SSO",
-        "Scene 2: Starter customer (C1003) asks the SAME SSO question",
-        "Scene 3: Pro customer (C1002) asks about invoices",
-        "Scene 4: C1001 returns -- does the agent remember Scene 1?",
-    ]
+            _feast_tools = await _discover_feast_tools()
+            print(f"MCP tools discovered: {', '.join(_feast_tools.values())}")
 
-    for i, (customer_id, query) in enumerate(DEMO_QUERIES):
-        label = scene_labels[i] if i < len(scene_labels) else ""
-        print(f"\n{'=' * 65}")
-        print(f"  {label}")
-        print(f'  Customer: {customer_id}  |  Query: "{query}"')
-        print(f"{'=' * 65}")
+            if not OPENAI_API_KEY:
+                print(
+                    "OPENAI_API_KEY not set -- running in demo mode (simulated reasoning)\n"
+                )
+            else:
+                print(f"Using LLM: {LLM_MODEL} via {OPENAI_BASE_URL}\n")
 
-        response = run_agent(customer_id, query)
+            scene_labels = [
+                "Scene 1: Enterprise customer (C1001) asks about SSO",
+                "Scene 2: Starter customer (C1003) asks the SAME SSO question",
+                "Scene 3: Pro customer (C1002) asks about invoices",
+                "Scene 4: C1001 returns -- does the agent remember Scene 1?",
+            ]
 
-        print(f"\n  {'─' * 61}")
-        print("  Agent Response:")
-        print(f"  {'─' * 61}")
-        for line in response.split("\n"):
-            print(f"  {line}")
-        print()
+            for i, (customer_id, query) in enumerate(DEMO_QUERIES):
+                label = scene_labels[i] if i < len(scene_labels) else ""
+                print(f"\n{'=' * 65}")
+                print(f"  {label}")
+                print(f'  Customer: {customer_id}  |  Query: "{query}"')
+                print(f"{'=' * 65}")
+
+                response = await run_agent(customer_id, query)
+
+                print(f"\n  {'─' * 61}")
+                print("  Agent Response:")
+                print(f"  {'─' * 61}")
+                for line in response.split("\n"):
+                    print(f"  {line}")
+                print()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

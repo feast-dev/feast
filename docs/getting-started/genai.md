@@ -98,7 +98,7 @@ Feast can serve as both the **context provider** and **persistent memory layer**
 3. **Persistent memory**: Store and recall per-entity interaction history (last topic, resolution, preferences) using `write_to_online_store`
 4. **Governed access**: All reads and writes are subject to the same RBAC, TTL, and audit policies as any other feature
 
-With MCP enabled, agents built with any framework (LangChain, CrewAI, AutoGen, or custom) can discover and call Feast tools dynamically. See the [Feast-Powered AI Agent example](../../examples/agent_feature_store/) and the blog post [Building AI Agents with Feast](https://feast.dev/blog/feast-agents-mcp/) for a complete walkthrough.
+With MCP enabled, agents built with any framework (LangChain, LlamaIndex, CrewAI, AutoGen, or custom) can discover and call Feast tools dynamically. See the [Feast-Powered AI Agent example](../../examples/agent_feature_store/) and the blog post [Building AI Agents with Feast](https://feast.dev/blog/feast-agents-mcp/) for a complete walkthrough.
 
 ### Scaling with Spark Integration
 

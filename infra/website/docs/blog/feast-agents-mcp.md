@@ -1,7 +1,7 @@
 ---
 title: "Building AI Agents with Feast: Feature Stores as Context and Memory"
 description: "How Feast's MCP integration turns your feature store into a governed context and memory layer for AI agents, bridging the gap between experimental agents and production-ready systems."
-date: 2026-04-09
+date: 2026-04-11
 authors: ["Nikhil Kathole"]
 ---
 
@@ -51,13 +51,13 @@ feature_server:
   mcp_server_version: "1.0.0"
 ```
 
-Once enabled, any MCP-compatible agent -- whether built with LangChain, CrewAI, AutoGen, or a custom framework -- can connect to `http://your-feast-server/mcp` and discover available tools like `get-online-features` for entity-based retrieval, `retrieve-online-documents` for vector similarity search, and `write-to-online-store` for persisting agent state.
+Once enabled, any MCP-compatible agent -- whether built with LangChain, LlamaIndex, CrewAI, AutoGen, or a custom framework -- can connect to `http://your-feast-server/mcp` and discover available tools like `get-online-features` for entity-based retrieval, `retrieve-online-documents` for vector similarity search, and `write-to-online-store` for persisting agent state.
 
 ## A Concrete Example: Customer-Support Agent with Memory
 
 To make this tangible, let's walk through a customer-support agent that uses Feast for structured feature retrieval, document search, and persistent memory.
 
-> **Note on the implementation:** This example builds the agent loop from scratch using the OpenAI tool-calling API -- no framework required. We chose this approach to keep dependencies minimal and make every Feast interaction visible. In production, you would typically use a framework like LangChain/LangGraph, CrewAI, or AutoGen. Because Feast exposes a standard MCP endpoint, any of these frameworks can auto-discover the tools with zero custom code (see [Connecting Your Agent Framework](#connecting-your-agent-framework) below).
+> **Note on the implementation:** This example builds the agent loop from scratch using the OpenAI tool-calling API and the MCP Python SDK -- no framework required. All Feast interactions use the MCP protocol: the agent connects to Feast's MCP endpoint, discovers available tools via `session.list_tools()`, and invokes them via `session.call_tool()`. We chose this approach to keep dependencies minimal and make every Feast interaction visible. In production, you would typically use a framework like LangChain/LangGraph, LlamaIndex, CrewAI, or AutoGen. Because Feast exposes a standard MCP endpoint, any of these frameworks can auto-discover the tools with zero custom code (see [Connecting Your Agent Framework](#connecting-your-agent-framework) below).
 
 ### The Setup
 
@@ -121,36 +121,54 @@ agent_memory = FeatureView(
 )
 ```
 
-This is the key insight: Feast is not just providing context to the agent -- it is also **storing the agent's memory**. The `agent_memory` feature view is entity-keyed by customer ID, TTL-managed (30-day expiration), schema-typed, and governed by the same RBAC as every other feature. The agent reads prior interactions via `recall_memory` and writes new ones via `save_memory`, using the same online store infrastructure.
+This is the key insight: Feast is not just providing context to the agent -- it is also **storing the agent's memory**. The `agent_memory` feature view is entity-keyed by customer ID, TTL-managed (30-day expiration), schema-typed, and governed by the same RBAC as every other feature. The agent reads prior interactions via `recall_memory`, and memory is automatically checkpointed after each turn using the same online store infrastructure.
 
 ### The Agent Loop
 
-The agent uses OpenAI's tool-calling API. Each round, the LLM sees the conversation history plus the available tools, and decides what to do:
+The agent connects to Feast's MCP endpoint, discovers tools dynamically, and uses the MCP protocol for all Feast interactions. Each round, the LLM sees the conversation history plus the available read tools, and decides what to do. Memory is saved automatically after the turn -- framework-style, not as an LLM decision:
 
 ```python
-for round in range(MAX_ROUNDS):
-    response = call_llm(messages, tools=[
-        lookup_customer, search_knowledge_base,
-        recall_memory, save_memory,
-    ])
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 
-    if response.finish_reason == "stop":
-        return response.content
+async with streamablehttp_client("http://localhost:6566/mcp") as (r, w, _):
+    async with ClientSession(r, w) as session:
+        await session.initialize()
+        tools = await session.list_tools()  # discover Feast tools
 
-    for tool_call in response.tool_calls:
-        result = execute_tool(tool_call)  # reads/writes Feast
-        messages.append(tool_result(result))
+        for round in range(MAX_ROUNDS):
+            response = call_llm(messages, tools=[...])
+
+            if response.finish_reason == "stop":
+                break
+
+            for tool_call in response.tool_calls:
+                result = await session.call_tool(name, args)  # MCP
+                messages.append(tool_result(result))
+
+        # Framework-style checkpoint: auto-save via MCP
+        await session.call_tool("write_to_online_store", {...})
 ```
 
 A typical multi-turn flow looks like:
 
 1. **Round 1**: Agent calls `recall_memory("C1001")` -- checks for prior interactions. Calls `lookup_customer("C1001")` -- gets profile data. Calls `search_knowledge_base("SSO setup")` -- finds the relevant article.
-2. **Round 2**: Has enough context. Generates a personalised response. Calls `save_memory("C1001", topic="SSO setup", resolution="Walked through SSO config steps")`.
-3. **Round 3**: Done -- returns the answer.
+2. **Round 2**: Has enough context. Generates a personalised response and returns it.
+3. **Checkpoint**: The framework auto-saves `topic="SSO setup"` and a resolution summary to Feast.
 
 When C1001 comes back later and says *"I'm following up on my SSO question"*, the agent calls `recall_memory` and immediately knows what was discussed -- no re-explanation needed.
 
 For a simpler question like *"What's my current plan?"*, the agent only calls `lookup_customer` -- skipping the knowledge base entirely. The LLM makes these routing decisions based on the question, not hardcoded logic.
+
+### Memory as Infrastructure
+
+Production agent frameworks treat persistence as infrastructure, not an LLM decision:
+
+- **LangGraph** uses checkpointers (`MemorySaver`, `PostgresSaver`) that auto-save state after every graph step, keyed by `thread_id`.
+- **CrewAI** enables `memory=True` for automatic short-term, long-term, and entity memory.
+- **AutoGen** uses post-conversation hooks to extract and store learnings.
+
+This demo follows the same pattern. The LLM has three read tools for reasoning; memory is checkpointed by the framework after each turn via Feast's `write-to-online-store` endpoint. This ensures consistent, reliable memory regardless of LLM behaviour -- no risk of the model forgetting to save or writing inconsistent state. Feast is a natural fit for this checkpoint layer because it provides entity-keyed storage, TTL-managed expiration, schema enforcement, RBAC governance, and offline queryability -- all out of the box.
 
 <div class="content-image">
   <img src="/images/blog/feast-mcp-agent-workflow.png" alt="Feast MCP Agent Workflow — agent loop with context retrieval, vector search, and memory persistence through Feast" loading="lazy">
@@ -229,12 +247,25 @@ Since Feast exposes a standard MCP endpoint, integration is framework-agnostic:
 **LangChain / LangGraph:**
 ```python
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
 
 async with MultiServerMCPClient(
     {"feast": {"url": "http://feast-server:6566/mcp", "transport": "streamable_http"}}
 ) as client:
     tools = client.get_tools()
-    # Use tools in your LangGraph agent
+    agent = create_react_agent(llm, tools)
+    result = await agent.ainvoke({"messages": "How do I set up SSO?"})
+```
+
+**LlamaIndex:**
+```python
+from llama_index.tools.mcp import aget_tools_from_mcp_url
+from llama_index.core.agent.function_calling import FunctionCallingAgent
+from llama_index.llms.openai import OpenAI
+
+tools = await aget_tools_from_mcp_url("http://feast-server:6566/mcp")
+agent = FunctionCallingAgent.from_tools(tools, llm=OpenAI(model="gpt-4o-mini"))
+response = await agent.achat("How do I set up SSO?")
 ```
 
 **Claude Desktop / Cursor:**
@@ -258,6 +289,26 @@ features = requests.post("http://feast-server:6566/get-online-features", json={
     "entities": {"customer_id": ["C1001"]},
 }).json()
 ```
+
+The Feast-specific integration is just connecting to the MCP endpoint and getting the tools. Once you have them, building the agent follows each framework's standard patterns -- the tool-calling loop, message threading, and state persistence are handled natively. Feast's MCP endpoint means zero custom wiring.
+
+### Customizing for Your Use Case
+
+This demo's system prompt, tool names, and feature views are all specific to the customer-support scenario. Here's what changes when you build your own agent:
+
+| What | This demo | Your agent |
+|---|---|---|
+| **Feature views** | `customer_profile`, `knowledge_base`, `agent_memory` | Define your own in `features.py` (e.g., `product_catalog`, `order_history`, `fraud_signals`) |
+| **System prompt** | "Call recall_memory and lookup_customer first..." | Write instructions specific to your domain and workflow |
+| **Tool wrappers** | `lookup_customer`, `search_knowledge_base`, `recall_memory` | Optional -- see below |
+
+**Do you need custom tool wrappers?** It depends on how you build your agent:
+
+- **With a framework (LangChain, LlamaIndex, etc.):** No. The framework discovers Feast's generic MCP tools (`get_online_features`, `retrieve_online_documents`, `write_to_online_store`) automatically. The LLM calls them directly with your feature view names and entities. No wrapper code needed.
+
+- **With a raw loop (like this demo):** Optional but recommended. This demo wraps `get_online_features` into `lookup_customer` and `recall_memory` to give the LLM friendlier, domain-specific tool names. You'd create similar wrappers for your use case (e.g., `check_inventory`, `get_order_status`). The wrappers are thin -- they just call the Feast MCP tool with the right feature names and entities.
+
+**What stays the same** regardless of use case: Feast's MCP server, the online/offline store infrastructure, RBAC, TTL management, and the auto-save memory pattern. You define feature views, `feast apply`, start the server, and connect -- the same three generic MCP tools serve any domain.
 
 ## Try It Yourself
 
