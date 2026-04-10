@@ -274,6 +274,12 @@ class OnlineStore(ABC):
             supported_types.append(PostgreSQLOnlineStore)
         except ImportError:
             pass
+        try:
+            from feast.infra.online_stores.faiss_online_store import FaissOnlineStore
+
+            supported_types.append(FaissOnlineStore)
+        except ImportError:
+            pass
 
         if isinstance(self, tuple(supported_types)):
             return
