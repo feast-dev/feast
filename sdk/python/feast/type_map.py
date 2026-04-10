@@ -929,16 +929,35 @@ def _convert_scalar_values_to_proto(
         return [ProtoValue()] * len(values)
 
     if feast_value_type == ValueType.UNIX_TIMESTAMP:
-        int_timestamps = _python_datetime_to_int_timestamp(values)
-        return [ProtoValue(unix_timestamp_val=ts) for ts in int_timestamps]  # type: ignore
+        out = []
+        for value in values:
+            if isinstance(value, np.ndarray) or (
+                hasattr(value, "__len__") and not isinstance(value, (str, bytes))
+            ):
+                # Array-like value in a scalar UNIX_TIMESTAMP column: treat as null.
+                out.append(ProtoValue())
+            elif value is None:
+                out.append(ProtoValue())
+            else:
+                (ts,) = _python_datetime_to_int_timestamp([value])
+                out.append(ProtoValue(unix_timestamp_val=ts))  # type: ignore
+        return out
 
     field_name, func, valid_scalar_types = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[
         feast_value_type
     ]
 
-    # Validate scalar types
-    if valid_scalar_types:
-        if (sample == 0 or sample == 0.0) and feast_value_type != ValueType.BOOL:
+    # Validate scalar types — skip for array-like samples (they will be treated
+    # as null or raw values in the conversion loop below).
+    if valid_scalar_types and not (
+        isinstance(sample, np.ndarray)
+        or (hasattr(sample, "__len__") and not isinstance(sample, (str, bytes)))
+    ):
+        try:
+            is_zero = sample == 0 or sample == 0.0
+        except (ValueError, TypeError):
+            is_zero = False
+        if is_zero and feast_value_type != ValueType.BOOL:
             # Numpy converts 0 to int, but column type may be float
             allowed_types = {np.int64, int, np.float64, float, decimal.Decimal}
             assert type(sample) in allowed_types, (
@@ -951,20 +970,39 @@ def _convert_scalar_values_to_proto(
 
     # Handle BOOL specially due to np.bool_ conversion requirement
     if feast_value_type == ValueType.BOOL:
-        return [
-            ProtoValue(
-                **{field_name: func(bool(value) if type(value) is np.bool_ else value)}
-            )  # type: ignore
-            if not pd.isnull(value)
-            else ProtoValue()
-            for value in values
-        ]
+        out = []
+        for value in values:
+            if isinstance(value, np.ndarray) or (
+                hasattr(value, "__len__") and not isinstance(value, (str, bytes))
+            ):
+                # Array-like value in a scalar BOOL column: treat as null.
+                out.append(ProtoValue())
+            elif not pd.isnull(value):
+                out.append(
+                    ProtoValue(
+                        **{
+                            field_name: func(
+                                bool(value) if type(value) is np.bool_ else value
+                            )
+                        }
+                    )  # type: ignore
+                )
+            else:
+                out.append(ProtoValue())
+        return out
 
     # Generic scalar conversion
     out = []
     for value in values:
         if isinstance(value, ProtoValue):
             out.append(value)
+        elif isinstance(value, np.ndarray) or (
+            hasattr(value, "__len__") and not isinstance(value, (str, bytes))
+        ):
+            # Array-like value in a scalar column: always treat as null.
+            # pd.isnull() is vectorised and would return an ndarray here,
+            # making `not pd.isnull(value)` raise ValueError.
+            out.append(ProtoValue())
         elif not pd.isnull(value):
             out.append(ProtoValue(**{field_name: func(value)}))
         else:
