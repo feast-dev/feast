@@ -43,6 +43,7 @@ from feast.infra.online_stores.sqlite import SqliteTable
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
+from feast.infra.registry.snowflake import SnowflakeRegistry, SnowflakeRegistryConfig
 from feast.infra.registry.sql import SqlRegistry, SqlRegistryConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.permissions.action import AuthzedAction
@@ -285,6 +286,39 @@ def sqlite_registry():
 
 
 @pytest.fixture(scope="function")
+def snowflake_registry():
+    account = os.getenv("SNOWFLAKE_CI_DEPLOYMENT", "")
+    if not account:
+        pytest.skip("SNOWFLAKE_CI_DEPLOYMENT not set")
+
+    config_kwargs = dict(
+        registry_type="snowflake.registry",
+        account=account,
+        user=os.getenv("SNOWFLAKE_CI_USER", ""),
+        role=os.getenv("SNOWFLAKE_CI_ROLE", ""),
+        warehouse=os.getenv("SNOWFLAKE_CI_WAREHOUSE", ""),
+        database=os.getenv("SNOWFLAKE_CI_DATABASE", "FEAST"),
+        schema=os.getenv("SNOWFLAKE_CI_SCHEMA", "REGISTRY_TEST"),
+        cache_ttl_seconds=2,
+        purge_feast_metadata=False,
+    )
+
+    private_key = os.getenv("SNOWFLAKE_CI_PRIVATE_KEY_PATH", "")
+    if private_key:
+        config_kwargs["private_key"] = private_key
+        passphrase = os.getenv("SNOWFLAKE_CI_PRIVATE_KEY_PASSPHRASE", "")
+        if passphrase:
+            config_kwargs["private_key_passphrase"] = passphrase
+    else:
+        config_kwargs["password"] = os.getenv("SNOWFLAKE_CI_PASSWORD", "")
+
+    registry_config = SnowflakeRegistryConfig(**config_kwargs)
+    registry = SnowflakeRegistry(registry_config, "project", None)
+    yield registry
+    registry.teardown()
+
+
+@pytest.fixture(scope="function")
 def hdfs_registry():
     HADOOP_NAMENODE_IMAGE = "bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8"
     HADOOP_DATANODE_IMAGE = "bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8"
@@ -412,6 +446,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
                 lazy_fixture("hdfs_registry"),
                 marks=pytest.mark.xdist_group(name="hdfs_registry"),
             ),
+            lazy_fixture("snowflake_registry"),
         ]
     )
 else:
