@@ -353,8 +353,14 @@ def get_app(
 
         await store.initialize()
         async_refresh()
+
+        mcp_sm = getattr(app.state, "mcp_session_manager", None)
         try:
-            yield
+            if mcp_sm:
+                async with mcp_sm.run():
+                    yield
+            else:
+                yield
         finally:
             stop_refresh()
             if offline_batcher is not None:

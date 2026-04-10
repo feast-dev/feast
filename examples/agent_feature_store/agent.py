@@ -167,15 +167,12 @@ TOOLS_SPEC = [
 
 
 def _parse_online_features(data: dict) -> dict[str, Any]:
-    """Parse the response from get-online-features into a flat dict."""
-    results = data.get("results", [])
-    feature_names = data.get("metadata", {}).get("feature_names", [])
-    features: dict[str, Any] = {}
-    for i, name in enumerate(feature_names):
-        values = results[i].get("values", [])
-        val = values[0] if values else None
+    """Parse the MCP to_dict() response into a flat dict of first-row values."""
+    features = {}
+    for key, values in data.items():
+        val = values[0] if isinstance(values, list) and values else values
         if val is not None:
-            features[name] = val
+            features[key] = val
     return features
 
 
@@ -214,15 +211,14 @@ async def tool_search_knowledge_base(query: str) -> list[dict[str, Any]]:
             "api_version": 2,
         },
     )
-    results = data.get("results", [])
-    feature_names = data.get("metadata", {}).get("feature_names", [])
-
-    num_docs = len(results[0]["values"]) if results else 0
+    first_col = next(iter(data.values()), [])
+    num_docs = len(first_col) if isinstance(first_col, list) else 0
     docs = []
     for doc_idx in range(num_docs):
         doc = {}
-        for feat_idx, name in enumerate(feature_names):
-            doc[name] = results[feat_idx]["values"][doc_idx]
+        for key, values in data.items():
+            if isinstance(values, list) and doc_idx < len(values):
+                doc[key] = values[doc_idx]
         if doc.get("title"):
             docs.append(doc)
     return docs
