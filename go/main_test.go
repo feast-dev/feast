@@ -150,7 +150,7 @@ func TestStartHttpsServerHealthEndpoint(t *testing.T) {
 func TestStartHttpsServerTLSFilesRequired(t *testing.T) {
 	err := StartHttpsServer(&feast.FeatureStore{}, "127.0.0.1", 0, 0, "", "", nil, nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "TLS_CERT_FILE and TLS_KEY_FILE must be set")
+	assert.Contains(t, err.Error(), "--tls-cert-file and --tls-key-file must be provided")
 }
 
 func getFreePort(t *testing.T) int {
