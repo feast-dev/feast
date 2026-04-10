@@ -186,3 +186,88 @@ def test_apply_object_does_not_overwrite_sibling_project(registry):
         f"feast#6208: UPDATE WHERE clause references {project_a!r} — unintended cross-project write.\n"
         f"Query: {update_query}"
     )
+
+
+class TestSyncFeastMetadataToProjectsTable:
+    def _make_registry(self):
+        """Create a SnowflakeRegistry with mocked __init__."""
+        with patch.object(SnowflakeRegistry, "__init__", lambda self: None):
+            registry = SnowflakeRegistry()
+            registry.registry_config = MagicMock()
+            registry.registry_path = "test_db.test_schema"
+            registry.purge_feast_metadata = False
+            return registry
+
+    @patch(
+        "feast.infra.registry.snowflake.GetSnowflakeConnection",
+    )
+    @patch("feast.infra.registry.snowflake.execute_snowflake_statement")
+    def test_sync_with_feast_metadata_projects(self, mock_execute, mock_get_conn):
+        registry = self._make_registry()
+
+        metadata_df = pd.DataFrame({"PROJECT_ID": ["project_a", "project_b"]})
+        projects_df = pd.DataFrame({"PROJECT_ID": ["project_a"]})
+
+        mock_cursor = MagicMock()
+        mock_cursor.fetch_pandas_all.side_effect = [metadata_df, projects_df]
+        mock_execute.return_value = mock_cursor
+
+        mock_conn = MagicMock()
+        mock_get_conn.return_value.__enter__ = MagicMock(return_value=mock_conn)
+        mock_get_conn.return_value.__exit__ = MagicMock(return_value=False)
+
+        with patch.object(registry, "apply_project") as mock_apply:
+            registry._sync_feast_metadata_to_projects_table()
+
+            mock_apply.assert_called_once()
+            applied_project = mock_apply.call_args[0][0]
+            assert applied_project.name == "project_b"
+
+    @patch(
+        "feast.infra.registry.snowflake.GetSnowflakeConnection",
+    )
+    @patch("feast.infra.registry.snowflake.execute_snowflake_statement")
+    def test_sync_with_no_feast_metadata(self, mock_execute, mock_get_conn):
+        registry = self._make_registry()
+
+        empty_df = pd.DataFrame({"PROJECT_ID": []})
+        mock_cursor = MagicMock()
+        mock_cursor.fetch_pandas_all.return_value = empty_df
+        mock_execute.return_value = mock_cursor
+
+        mock_conn = MagicMock()
+        mock_get_conn.return_value.__enter__ = MagicMock(return_value=mock_conn)
+        mock_get_conn.return_value.__exit__ = MagicMock(return_value=False)
+
+        with patch.object(registry, "apply_project") as mock_apply:
+            registry._sync_feast_metadata_to_projects_table()
+
+            mock_apply.assert_not_called()
+
+    @patch(
+        "feast.infra.registry.snowflake.GetSnowflakeConnection",
+    )
+    @patch("feast.infra.registry.snowflake.execute_snowflake_statement")
+    def test_sync_deduplicates_project_ids(self, mock_execute, mock_get_conn):
+        """Sets should deduplicate project IDs; lists would not."""
+        registry = self._make_registry()
+
+        metadata_df = pd.DataFrame(
+            {"PROJECT_ID": ["project_a", "project_a", "project_b"]}
+        )
+        projects_df = pd.DataFrame({"PROJECT_ID": []})
+
+        mock_cursor = MagicMock()
+        mock_cursor.fetch_pandas_all.side_effect = [metadata_df, projects_df]
+        mock_execute.return_value = mock_cursor
+
+        mock_conn = MagicMock()
+        mock_get_conn.return_value.__enter__ = MagicMock(return_value=mock_conn)
+        mock_get_conn.return_value.__exit__ = MagicMock(return_value=False)
+
+        with patch.object(registry, "apply_project") as mock_apply:
+            registry._sync_feast_metadata_to_projects_table()
+
+            assert mock_apply.call_count == 2
+            applied_names = {call[0][0].name for call in mock_apply.call_args_list}
+            assert applied_names == {"project_a", "project_b"}
