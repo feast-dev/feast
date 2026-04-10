@@ -279,6 +279,7 @@ test-python-universal-spark: ## Run Python Spark integration tests
 			not test_push_features_to_offline_store.py and \
 			not gcs_registry and \
 			not s3_registry and \
+			not snowflake_registry and \
 			not test_universal_types and \
 			not test_snowflake" \
  	 sdk/python/tests
@@ -313,6 +314,7 @@ test-python-universal-trino: ## Run Python Trino integration tests
 			not test_push_features_to_offline_store.py and \
 			not gcs_registry and \
 			not s3_registry and \
+			not snowflake_registry and \
 			not test_universal_types and \
             not test_snowflake" \
  	 sdk/python/tests
@@ -328,6 +330,7 @@ test-python-universal-mssql: ## Run Python MSSQL integration tests
  	python -m pytest -n 8 --integration \
  	 	-k "not gcs_registry and \
 			not s3_registry and \
+			not snowflake_registry and \
 			not test_lambda_materialization and \
 			not test_snowflake and \
 			not test_historical_features_persisting and \
@@ -361,6 +364,7 @@ test-python-universal-athena: ## Run Python Athena integration tests
 		    not test_historical_retrieval_fails_on_validation and \
 			not gcs_registry and \
 			not s3_registry and \
+			not snowflake_registry and \
 			not test_snowflake" \
 	sdk/python/tests
 
@@ -381,6 +385,7 @@ test-python-universal-postgres-offline: ## Run Python Postgres integration tests
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
 				not test_snowflake and \
  				not test_spark" \
  			sdk/python/tests
@@ -402,6 +407,7 @@ test-python-universal-postgres-offline: ## Run Python Postgres integration tests
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
 				not test_snowflake and \
  				not test_spark" \
  			sdk/python/tests
@@ -424,6 +430,7 @@ test-python-universal-postgres-online: ## Run Python Postgres integration tests
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
  				not test_universal_types and \
 				not test_snowflake" \
  			sdk/python/tests
@@ -443,6 +450,7 @@ test-python-universal-postgres-online: ## Run Python Postgres integration tests
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
  				not test_universal_types and \
  				not test_validation and \
  				not test_spark_materialization_consistency and \
@@ -465,6 +473,7 @@ test-python-universal-mysql-online: ## Run Python MySQL integration tests
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
  				not test_universal_types and \
 				not test_snowflake" \
  			sdk/python/tests
@@ -495,6 +504,7 @@ test-python-universal-hazelcast: ## Run Python Hazelcast integration tests
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
  				not test_universal_types and \
 				not test_snowflake" \
  			sdk/python/tests
@@ -513,6 +523,7 @@ test-python-universal-cassandra-no-cloud-providers: ## Run Python Cassandra inte
 	  not test_nullable_online_store				  and \
 	  not gcs_registry 								  and \
 	  not s3_registry								  and \
+	  not snowflake_registry						  and \
 	  not test_snowflake" \
 	sdk/python/tests
 
@@ -531,6 +542,7 @@ test-python-universal-elasticsearch-online: ## Run Python Elasticsearch online s
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
  				not test_universal_types and \
 				not test_snowflake" \
  			sdk/python/tests
@@ -550,6 +562,7 @@ test-python-universal-mongodb-online: ## Run Python MongoDB online store integra
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
  				not test_universal_types and \
 				not test_snowflake" \
  			sdk/python/tests
@@ -570,6 +583,7 @@ test-python-universal-singlestore-online: ## Run Python Singlestore online store
 			-k "not test_universal_cli and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
 				not test_snowflake" \
 			sdk/python/tests
 
@@ -604,6 +618,7 @@ test-python-universal-couchbase-offline: ## Run Python Couchbase offline store i
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
 				not test_snowflake and \
 				not test_universal_types" \
 			sdk/python/tests
@@ -623,6 +638,7 @@ test-python-universal-couchbase-online:	## Run Python Couchbase online store int
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not snowflake_registry and \
 				not test_universal_types and \
 				not test_snowflake" \
 		sdk/python/tests
