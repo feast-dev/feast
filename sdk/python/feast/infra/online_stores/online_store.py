@@ -274,6 +274,18 @@ class OnlineStore(ABC):
             supported_types.append(PostgreSQLOnlineStore)
         except ImportError:
             pass
+        try:
+            from feast.infra.online_stores.redis import RedisOnlineStore
+
+            supported_types.append(RedisOnlineStore)
+        except ImportError:
+            pass
+        try:
+            from feast.infra.online_stores.dynamodb import DynamoDBOnlineStore
+
+            supported_types.append(DynamoDBOnlineStore)
+        except ImportError:
+            pass
 
         if isinstance(self, tuple(supported_types)):
             return

@@ -1154,8 +1154,15 @@ def _initialize_dynamodb_resource(
 def _get_table_name(
     online_config: DynamoDBOnlineStoreConfig, config: RepoConfig, table: FeatureView
 ) -> str:
+    table_name = table.name
+    if config.registry.enable_online_feature_view_versioning:
+        version = getattr(table.projection, "version_tag", None)
+        if version is None:
+            version = getattr(table, "current_version_number", None)
+        if version is not None and version > 0:
+            table_name = f"{table.name}_v{version}"
     return online_config.table_name_template.format(
-        project=config.project, table_name=table.name
+        project=config.project, table_name=table_name
     )
 
 
