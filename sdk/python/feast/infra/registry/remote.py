@@ -217,7 +217,11 @@ class RemoteRegistry(BaseRegistry):
         ]
 
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         if isinstance(feature_view, StreamFeatureView):
             arg_name = "stream_feature_view"

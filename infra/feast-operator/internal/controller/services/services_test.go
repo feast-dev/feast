@@ -27,11 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
-
-func ptr[T any](v T) *T {
-	return &v
-}
 
 func (feast *FeastServices) refreshFeatureStore(ctx context.Context, key types.NamespacedName) {
 	fs := &feastdevv1.FeatureStore{}
@@ -54,8 +51,8 @@ var _ = Describe("Registry Service", func() {
 	)
 
 	var setFeatureStoreServerConfig = func(grpcEnabled, restEnabled bool) {
-		featureStore.Spec.Services.Registry.Local.Server.GRPC = ptr(grpcEnabled)
-		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr(restEnabled)
+		featureStore.Spec.Services.Registry.Local.Server.GRPC = ptr.To(grpcEnabled)
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(restEnabled)
 		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
 		Expect(feast.ApplyDefaults()).To(Succeed())
 		applySpecToStatus(featureStore)
@@ -83,12 +80,12 @@ var _ = Describe("Registry Service", func() {
 								ServerConfigs: feastdevv1.ServerConfigs{
 									ContainerConfigs: feastdevv1.ContainerConfigs{
 										DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-											Image: ptr("test-image"),
+											Image: ptr.To("test-image"),
 										},
 									},
 								},
-								GRPC:    ptr(true),
-								RestAPI: ptr(false),
+								GRPC:    ptr.To(true),
+								RestAPI: ptr.To(false),
 							},
 						},
 					},
@@ -205,6 +202,64 @@ var _ = Describe("Registry Service", func() {
 		})
 	})
 
+	Describe("PodAnnotations Configuration", func() {
+		It("should apply podAnnotations to deployment pod template", func() {
+			featureStore.Spec.Services.PodAnnotations = map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+				"sidecar.istio.io/inject":                        "true",
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Annotations).To(Equal(map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+				"sidecar.istio.io/inject":                        "true",
+			}))
+		})
+
+		It("should have no pod template annotations when podAnnotations is not set", func() {
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Annotations).To(BeNil())
+		})
+
+		It("should remove pod template annotations when podAnnotations is removed", func() {
+			featureStore.Spec.Services.PodAnnotations = map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Annotations).To(HaveKey("instrumentation.opentelemetry.io/inject-python"))
+
+			featureStore.Spec.Services.PodAnnotations = nil
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Annotations).To(BeNil())
+		})
+	})
+
 	Describe("NodeSelector Configuration", func() {
 		It("should apply NodeSelector to pod spec when configured", func() {
 			// Set NodeSelector for registry service
@@ -248,7 +303,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 							NodeSelector: &onlineNodeSelector,
@@ -284,7 +339,7 @@ var _ = Describe("Registry Service", func() {
 			featureStore.Spec.Services.UI = &feastdevv1.ServerConfigs{
 				ContainerConfigs: feastdevv1.ContainerConfigs{
 					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-						Image: ptr("test-image"),
+						Image: ptr.To("test-image"),
 					},
 					OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 						NodeSelector: &uiNodeSelector,
@@ -332,7 +387,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 							NodeSelector: &onlineNodeSelector,
@@ -349,7 +404,7 @@ var _ = Describe("Registry Service", func() {
 			featureStore.Spec.Services.UI = &feastdevv1.ServerConfigs{
 				ContainerConfigs: feastdevv1.ContainerConfigs{
 					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-						Image: ptr("test-image"),
+						Image: ptr.To("test-image"),
 					},
 					OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
 						NodeSelector: &uiNodeSelector,
@@ -377,7 +432,7 @@ var _ = Describe("Registry Service", func() {
 
 		It("should enable metrics on the online service when configured", func() {
 			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
-				Server: &feastdevv1.ServerConfigs{Metrics: ptr(true)},
+				Server: &feastdevv1.ServerConfigs{Metrics: ptr.To(true)},
 			}
 
 			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
@@ -451,7 +506,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 					},
 					WorkerConfigs: &feastdevv1.WorkerConfigs{
@@ -503,7 +558,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 					},
 					WorkerConfigs: &feastdevv1.WorkerConfigs{
@@ -545,7 +600,7 @@ var _ = Describe("Registry Service", func() {
 				Server: &feastdevv1.ServerConfigs{
 					ContainerConfigs: feastdevv1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr("test-image"),
+							Image: ptr.To("test-image"),
 						},
 					},
 					// WorkerConfigs is not set (nil)
@@ -574,5 +629,121 @@ var _ = Describe("Registry Service", func() {
 			Expect(onlineContainer.Command).NotTo(ContainElement("--keep-alive-timeout"))
 			Expect(onlineContainer.Command).NotTo(ContainElement("--registry_ttl_sec"))
 		})
+	})
+})
+
+var _ = Describe("Pod Container Failure Messages", func() {
+	It("should detect init container in CrashLoopBackOff", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "feast-init",
+						State: corev1.ContainerState{
+							Terminated: &corev1.ContainerStateTerminated{ExitCode: 0},
+						},
+					},
+					{
+						Name: "feast-apply",
+						State: corev1.ContainerState{
+							Waiting: &corev1.ContainerStateWaiting{
+								Reason:  "CrashLoopBackOff",
+								Message: "back-off 5m0s restarting failed container",
+							},
+						},
+					},
+				},
+			},
+		}
+		msg := initContainerFailureMessage(pod)
+		Expect(msg).To(ContainSubstring("feast-apply"))
+		Expect(msg).To(ContainSubstring("CrashLoopBackOff"))
+		Expect(msg).To(ContainSubstring("back-off 5m0s"))
+	})
+
+	It("should detect init container terminated with non-zero exit code", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "feast-apply",
+						State: corev1.ContainerState{
+							Terminated: &corev1.ContainerStateTerminated{
+								ExitCode: 1,
+								Message:  "feast apply failed",
+							},
+						},
+					},
+				},
+			},
+		}
+		msg := initContainerFailureMessage(pod)
+		Expect(msg).To(ContainSubstring("feast-apply"))
+		Expect(msg).To(ContainSubstring("exit code 1"))
+		Expect(msg).To(ContainSubstring("feast apply failed"))
+	})
+
+	It("should return empty for init containers still initializing", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "feast-init",
+						State: corev1.ContainerState{
+							Waiting: &corev1.ContainerStateWaiting{
+								Reason: "PodInitializing",
+							},
+						},
+					},
+				},
+			},
+		}
+		Expect(initContainerFailureMessage(pod)).To(BeEmpty())
+	})
+
+	It("should detect regular container failure", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "registry",
+						State: corev1.ContainerState{
+							Waiting: &corev1.ContainerStateWaiting{
+								Reason:  "ImagePullBackOff",
+								Message: "image not found",
+							},
+						},
+					},
+				},
+			},
+		}
+		msg := containerFailureMessage(pod)
+		Expect(msg).To(ContainSubstring("registry"))
+		Expect(msg).To(ContainSubstring("ImagePullBackOff"))
+	})
+
+	It("should return empty for healthy pods", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "feast-init",
+						State: corev1.ContainerState{
+							Terminated: &corev1.ContainerStateTerminated{ExitCode: 0},
+						},
+					},
+				},
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "registry",
+						State: corev1.ContainerState{
+							Running: &corev1.ContainerStateRunning{},
+						},
+					},
+				},
+			},
+		}
+		Expect(initContainerFailureMessage(pod)).To(BeEmpty())
+		Expect(containerFailureMessage(pod)).To(BeEmpty())
 	})
 })

@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -210,8 +211,10 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("feast init"))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Name).To(Equal("feast-apply"))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Command).To(Equal([]string{"feast", "apply"}))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			deploy.Spec.Replicas = int32Ptr(3)
@@ -263,8 +266,8 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(3)))
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("git -c http.sslVerify=false clone"))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("git checkout " + ref))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring(featureRepoPath))
@@ -294,7 +297,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("feast init -t spark"))
 		})
 
@@ -737,6 +740,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Name).To(Equal("feast-apply"))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Env).To(ContainElements(
+				corev1.EnvVar{Name: testEnvVarName, Value: testEnvVarValue},
+			))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].EnvFrom).NotTo(BeEmpty())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			registryContainer := services.GetRegistryContainer(*deploy)
 			Expect(registryContainer.Env).To(HaveLen(1))
@@ -1145,7 +1154,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 
 			// check client config
 			cm := &corev1.ConfigMap{}
@@ -1223,6 +1232,127 @@ var _ = Describe("FeatureStore Controller", func() {
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.ReadyType)
 			Expect(cond).NotTo(BeNil())
 			Expect(cond.Message).To(Equal("Error: Remote feast registry of referenced FeatureStore '" + referencedRegistry.Name + "' is not ready"))
+		})
+
+		It("should allow cross-project registry references with different feastProject names", func() {
+			By("Reconciling the primary local registry FeatureStore")
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			primaryStore := &feastdevv1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, primaryStore)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(primaryStore.Status.Applied.FeastProject).To(Equal(feastProject))
+
+			By("Creating a second FeatureStore with a DIFFERENT feastProject name referencing the first")
+			crossProjectName := "cross-project-ref"
+			crossProjectFeastName := "different_project"
+			crossProjectResource := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      crossProjectName,
+					Namespace: primaryStore.Namespace,
+				},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: crossProjectFeastName,
+					Services: &feastdevv1.FeatureStoreServices{
+						OnlineStore: &feastdevv1.OnlineStore{
+							Server: &feastdevv1.ServerConfigs{},
+						},
+						Registry: &feastdevv1.Registry{
+							Remote: &feastdevv1.RemoteRegistryConfig{
+								FeastRef: &feastdevv1.FeatureStoreRef{
+									Name: primaryStore.Name,
+								},
+							},
+						},
+					},
+				},
+			}
+			crossProjectResource.SetGroupVersionKind(feastdevv1.GroupVersion.WithKind("FeatureStore"))
+			crossProjectNsName := client.ObjectKeyFromObject(crossProjectResource)
+			err = k8sClient.Create(ctx, crossProjectResource)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Reconciling the cross-project FeatureStore — should succeed without error")
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: crossProjectNsName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, crossProjectNsName, crossProjectResource)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying the cross-project FeatureStore is ready and uses its own project name")
+			Expect(crossProjectResource.Status.Applied.FeastProject).To(Equal(crossProjectFeastName))
+			Expect(crossProjectResource.Status.ServiceHostnames.Registry).To(Equal(primaryStore.Status.ServiceHostnames.Registry))
+			Expect(apimeta.IsStatusConditionTrue(crossProjectResource.Status.Conditions, feastdevv1.OnlineStoreReadyType)).To(BeTrue())
+
+			By("Verifying the cross-project client ConfigMap uses the correct project name and shared registry")
+			crossFeast := services.FeastServices{
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: crossProjectResource,
+				},
+			}
+			crossCm := &corev1.ConfigMap{}
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      crossFeast.GetFeastServiceName(services.ClientFeastType),
+				Namespace: crossProjectResource.Namespace,
+			}, crossCm)
+			Expect(err).NotTo(HaveOccurred())
+			crossRepoConfig := &services.RepoConfig{}
+			err = yaml.Unmarshal([]byte(crossCm.Data[services.FeatureStoreYamlCmKey]), crossRepoConfig)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(crossRepoConfig.Project).To(Equal(crossProjectFeastName))
+			Expect(crossRepoConfig.Registry.Path).To(ContainSubstring(primaryStore.Name))
+
+			By("Verifying the primary store client ConfigMap still uses its own project name")
+			primaryFeast := services.FeastServices{
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: primaryStore,
+				},
+			}
+			primaryCm := &corev1.ConfigMap{}
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      primaryFeast.GetFeastServiceName(services.ClientFeastType),
+				Namespace: primaryStore.Namespace,
+			}, primaryCm)
+			Expect(err).NotTo(HaveOccurred())
+			primaryRepoConfig := &services.RepoConfig{}
+			err = yaml.Unmarshal([]byte(primaryCm.Data[services.FeatureStoreYamlCmKey]), primaryRepoConfig)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(primaryRepoConfig.Project).To(Equal(feastProject))
+
+			By("Verifying both stores share the same registry path")
+			Expect(crossRepoConfig.Registry.Path).To(Equal(primaryRepoConfig.Registry.Path))
+
+			By("Verifying the namespace registry ConfigMap lists both client configs")
+			registryCm := &corev1.ConfigMap{}
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      services.NamespaceRegistryConfigMapName,
+				Namespace: services.DefaultKubernetesNamespace,
+			}, registryCm)
+			Expect(err).NotTo(HaveOccurred())
+			var registryData services.NamespaceRegistryData
+			err = json.Unmarshal([]byte(registryCm.Data[services.NamespaceRegistryDataKey]), &registryData)
+			Expect(err).NotTo(HaveOccurred())
+			ns := primaryStore.Namespace
+			Expect(registryData.Namespaces[ns]).To(ContainElement(primaryFeast.GetFeastServiceName(services.ClientFeastType)))
+			Expect(registryData.Namespaces[ns]).To(ContainElement(crossFeast.GetFeastServiceName(services.ClientFeastType)))
+
+			By("Cleaning up the cross-project FeatureStore")
+			Expect(k8sClient.Delete(ctx, crossProjectResource)).To(Succeed())
 		})
 
 		It("should correctly set container command args for grpc/rest modes", func() {

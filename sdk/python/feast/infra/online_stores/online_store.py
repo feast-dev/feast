@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from feast import Entity, utils
 from feast.batch_feature_view import BatchFeatureView
+from feast.errors import VersionedOnlineReadNotSupported
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
@@ -30,6 +31,7 @@ from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
+from feast.value_type import ValueType
 
 
 class OnlineStore(ABC):
@@ -154,6 +156,7 @@ class OnlineStore(ABC):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         if isinstance(entity_rows, list):
             columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
@@ -184,6 +187,21 @@ class OnlineStore(ABC):
             full_feature_names=full_feature_names,
             native_entity_values=True,
         )
+
+        # Check for versioned reads on unsupported stores
+        self._check_versioned_read_support(grouped_refs)
+        _track_read = False
+        try:
+            from feast.metrics import _config as _metrics_config
+
+            _track_read = _metrics_config.online_features
+        except Exception:
+            pass
+
+        if _track_read:
+            import time as _time
+
+            _read_start = _time.monotonic()
 
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
@@ -203,20 +221,23 @@ class OnlineStore(ABC):
                 requested_features=requested_features,
             )
 
-            feature_data = utils._convert_rows_to_protobuf(
-                requested_features, read_rows
-            )
-
-            # Populate the result_rows with the Features from the OnlineStore inplace.
             utils._populate_response_from_feature_data(
-                feature_data,
+                requested_features,
+                read_rows,
                 idxs,
                 online_features_response,
                 full_feature_names,
-                requested_features,
                 table,
                 output_len,
+                include_feature_view_version_metadata,
             )
+
+        if _track_read:
+            from feast.metrics import track_online_store_read
+
+            track_online_store_read(_time.monotonic() - _read_start)
+
+        feature_types = self._build_feature_types(grouped_refs)
 
         if requested_on_demand_feature_views:
             utils._augment_response_with_on_demand_transforms(
@@ -224,12 +245,44 @@ class OnlineStore(ABC):
                 feature_refs,
                 requested_on_demand_feature_views,
                 full_feature_names,
+                feature_types=feature_types,
             )
 
         utils._drop_unneeded_columns(
             online_features_response, requested_result_row_names
         )
-        return OnlineResponse(online_features_response)
+        return OnlineResponse(online_features_response, feature_types=feature_types)
+
+    def _check_versioned_read_support(self, grouped_refs):
+        """Raise an error if versioned reads are attempted on unsupported stores."""
+        from feast.infra.online_stores.sqlite import SqliteOnlineStore
+
+        supported_types: list[type] = [SqliteOnlineStore]
+        try:
+            from feast.infra.online_stores.mysql_online_store.mysql import (
+                MySQLOnlineStore,
+            )
+
+            supported_types.append(MySQLOnlineStore)
+        except ImportError:
+            pass
+        try:
+            from feast.infra.online_stores.postgres_online_store.postgres import (
+                PostgreSQLOnlineStore,
+            )
+
+            supported_types.append(PostgreSQLOnlineStore)
+        except ImportError:
+            pass
+
+        if isinstance(self, tuple(supported_types)):
+            return
+        for table, _ in grouped_refs:
+            version_tag = getattr(table.projection, "version_tag", None)
+            if version_tag is not None:
+                raise VersionedOnlineReadNotSupported(
+                    self.__class__.__name__, version_tag
+                )
 
     async def get_online_features_async(
         self,
@@ -242,6 +295,7 @@ class OnlineStore(ABC):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         if isinstance(entity_rows, list):
             columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
@@ -272,6 +326,9 @@ class OnlineStore(ABC):
             full_feature_names=full_feature_names,
             native_entity_values=True,
         )
+
+        # Check for versioned reads on unsupported stores
+        self._check_versioned_read_support(grouped_refs)
 
         async def query_table(table, requested_features):
             # Get the correct set of entity values with the correct join keys.
@@ -293,6 +350,19 @@ class OnlineStore(ABC):
 
             return idxs, read_rows, output_len
 
+        _track_read = False
+        try:
+            from feast.metrics import _config as _metrics_config
+
+            _track_read = _metrics_config.online_features
+        except Exception:
+            pass
+
+        if _track_read:
+            import time as _time
+
+            _read_start = _time.monotonic()
+
         all_responses = await asyncio.gather(
             *[
                 query_table(table, requested_features)
@@ -303,20 +373,23 @@ class OnlineStore(ABC):
         for (idxs, read_rows, output_len), (table, requested_features) in zip(
             all_responses, grouped_refs
         ):
-            feature_data = utils._convert_rows_to_protobuf(
-                requested_features, read_rows
-            )
-
-            # Populate the result_rows with the Features from the OnlineStore inplace.
             utils._populate_response_from_feature_data(
-                feature_data,
+                requested_features,
+                read_rows,
                 idxs,
                 online_features_response,
                 full_feature_names,
-                requested_features,
                 table,
                 output_len,
+                include_feature_view_version_metadata,
             )
+
+        if _track_read:
+            from feast.metrics import track_online_store_read
+
+            track_online_store_read(_time.monotonic() - _read_start)
+
+        feature_types = self._build_feature_types(grouped_refs)
 
         if requested_on_demand_feature_views:
             utils._augment_response_with_on_demand_transforms(
@@ -324,12 +397,32 @@ class OnlineStore(ABC):
                 feature_refs,
                 requested_on_demand_feature_views,
                 full_feature_names,
+                feature_types=feature_types,
             )
 
         utils._drop_unneeded_columns(
             online_features_response, requested_result_row_names
         )
-        return OnlineResponse(online_features_response)
+        return OnlineResponse(online_features_response, feature_types=feature_types)
+
+    @staticmethod
+    def _build_feature_types(
+        grouped_refs: List,
+    ) -> Dict[str, ValueType]:
+        """Build a mapping of feature names to ValueType from grouped feature view refs.
+
+        Includes both bare names and prefixed names (feature_view__feature) so that
+        lookups succeed regardless of the full_feature_names setting.
+        """
+        feature_types: Dict[str, ValueType] = {}
+        for table, requested_features in grouped_refs:
+            table_name = table.projection.name_to_use()
+            for field in table.features:
+                if field.name in requested_features:
+                    vtype = field.dtype.to_value_type()
+                    feature_types[field.name] = vtype
+                    feature_types[f"{table_name}__{field.name}"] = vtype
+        return feature_types
 
     @abstractmethod
     def update(
@@ -436,6 +529,7 @@ class OnlineStore(ABC):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],

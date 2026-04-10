@@ -4,7 +4,7 @@ import os
 import typing
 import warnings
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import (
     Any,
@@ -45,7 +45,7 @@ from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
-from feast.types import ComplexFeastType, PrimitiveFeastType, from_feast_to_pyarrow_type
+from feast.types import ComplexFeastType, PrimitiveFeastType
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -60,6 +60,55 @@ APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
 
 
+def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
+    """Parse 'fv_name@version:feature' into (fv_name, version_number, feature_name).
+
+    If no @version is present, version_number is None (meaning 'latest').
+    Examples:
+        'driver_stats:trips' -> ('driver_stats', None, 'trips')
+        'driver_stats@v2:trips' -> ('driver_stats', 2, 'trips')
+        'driver_stats@latest:trips' -> ('driver_stats', None, 'trips')
+    """
+    import re
+
+    colon_idx = ref.find(":")
+    if colon_idx < 0:
+        raise ValueError(
+            f"Invalid feature reference '{ref}'. Expected format: '<feature_view>:<feature>' "
+            f"or '<feature_view>@<version>:<feature>'"
+        )
+
+    fv_part = ref[:colon_idx]
+    feature_name = ref[colon_idx + 1 :]
+
+    at_idx = fv_part.find("@")
+    if at_idx < 0:
+        return (fv_part, None, feature_name)
+
+    fv_name = fv_part[:at_idx]
+    version_str = fv_part[at_idx + 1 :]
+
+    if not version_str or version_str.lower() == "latest":
+        return (fv_name, None, feature_name)
+
+    # Parse version number from formats like "v2", "V2"
+    match = re.match(r"^[vV](\d+)$", version_str)
+    if not match:
+        # Not a recognized version format — treat entire fv_part as the name
+        return (fv_part, None, feature_name)
+
+    return (fv_name, int(match.group(1)), feature_name)
+
+
+def _strip_version_from_ref(ref: str) -> str:
+    """Strip @version from a feature reference, returning 'fv_name:feature'.
+
+    Used to produce clean refs for output column naming.
+    """
+    fv_name, _, feature_name = _parse_feature_ref(ref)
+    return f"{fv_name}:{feature_name}"
+
+
 def get_user_agent():
     return USER_AGENT
 
@@ -70,6 +119,37 @@ def make_tzaware(t: datetime) -> datetime:
         return t.replace(tzinfo=timezone.utc)
     else:
         return t
+
+
+def compute_non_entity_date_range(
+    feature_views: List["FeatureView"],
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    default_window_days: int = 30,
+) -> Tuple[datetime, datetime]:
+    if end_date is None:
+        end_date = datetime.now(tz=timezone.utc)
+    else:
+        end_date = make_tzaware(end_date)
+
+    if start_date is None:
+        max_ttl_seconds = max(
+            (
+                int(fv.ttl.total_seconds())
+                for fv in feature_views
+                if fv.ttl and isinstance(fv.ttl, timedelta)
+            ),
+            default=0,
+        )
+        start_date = end_date - timedelta(
+            seconds=max_ttl_seconds
+            if max_ttl_seconds > 0
+            else default_window_days * 86400
+        )
+    else:
+        start_date = make_tzaware(start_date)
+
+    return start_date, end_date
 
 
 def make_df_tzaware(t: pd.DataFrame) -> pd.DataFrame:
@@ -118,9 +198,12 @@ def _get_requested_feature_views_to_features_dict(
     )
 
     for ref in feature_refs:
-        ref_parts = ref.split(":")
-        feature_view_from_ref = ref_parts[0]
-        feature_from_ref = ref_parts[1]
+        fv_name, version_num, feature_from_ref = _parse_feature_ref(ref)
+        # Build the key that matches projection.name_to_use()
+        if version_num is not None:
+            feature_view_from_ref = f"{fv_name}@v{version_num}"
+        else:
+            feature_view_from_ref = fv_name
 
         found = False
         for fv in feature_views:
@@ -152,6 +235,11 @@ def _get_column_names(
         and reverse-mapped created timestamp column that will be passed into
         the query to the offline store.
     """
+    if feature_view.batch_source is None:
+        raise ValueError(
+            f"Feature view '{feature_view.name}' has no batch_source and cannot be used for offline retrieval."
+        )
+
     # if we have mapped fields, use the original field names in the call to the offline store
     timestamp_field = feature_view.batch_source.timestamp_field
 
@@ -265,6 +353,58 @@ def _coerce_datetime(ts):
         return ts
 
 
+def _columns_to_proto_values(
+    table: pyarrow.RecordBatch,
+    columns: List[Tuple[str, ValueType]],
+    allow_missing: bool = False,
+) -> Dict[str, List[ValueProto]]:
+    """Convert table columns to proto values dict.
+
+    Args:
+        table: PyArrow RecordBatch containing the data.
+        columns: List of (column_name, value_type) tuples to convert.
+        allow_missing: If True, skip columns not found in table. If False, raise ValueError.
+
+    Returns:
+        Dict mapping column names to lists of ValueProto.
+    """
+    result: Dict[str, List[ValueProto]] = {}
+    for column, value_type in columns:
+        if column in table.column_names:
+            result[column] = python_values_to_proto_values(
+                table.column(column).to_numpy(zero_copy_only=False), value_type
+            )
+        elif not allow_missing:
+            raise ValueError(f"Column {column} not found in table")
+    return result
+
+
+def _build_entity_keys(
+    num_rows: int,
+    join_keys: Dict[str, ValueType],
+    proto_values: Dict[str, List[ValueProto]],
+) -> List[EntityKeyProto]:
+    """Build entity key protos for each row.
+
+    Args:
+        num_rows: Number of rows to generate entity keys for.
+        join_keys: Dict mapping join key names to their value types.
+        proto_values: Dict mapping column names to lists of ValueProto values.
+
+    Returns:
+        List of EntityKeyProto, one per row.
+    """
+    return [
+        EntityKeyProto(
+            join_keys=list(join_keys.keys()),
+            entity_values=[
+                proto_values[k][idx] for k in join_keys if k in proto_values
+            ],
+        )
+        for idx in range(num_rows)
+    ]
+
+
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
     feature_view: Union["FeatureView", "BaseFeatureView", "OnDemandFeatureView"],
@@ -290,25 +430,21 @@ def _convert_arrow_fv_to_proto(
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
+    if feature_view.batch_source is None:
+        raise ValueError(
+            f"Feature view '{feature_view.name}' has no batch_source and cannot be converted to proto."
+        )
+
     # TODO: This will break if the feature view has aggregations or transformations
     columns = [
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
     ] + list(join_keys.items())
 
-    proto_values_by_column = {
-        column: python_values_to_proto_values(
-            table.column(column).to_numpy(zero_copy_only=False), value_type
-        )
-        for column, value_type in columns
-    }
+    proto_values_by_column = _columns_to_proto_values(
+        table, columns, allow_missing=False
+    )
 
-    entity_keys = [
-        EntityKeyProto(
-            join_keys=join_keys,
-            entity_values=[proto_values_by_column[k][idx] for k in join_keys],
-        )
-        for idx in range(table.num_rows)
-    ]
+    entity_keys = _build_entity_keys(table.num_rows, join_keys, proto_values_by_column)
 
     # Serialize the features per row
     feature_dict = {
@@ -356,62 +492,36 @@ def _convert_arrow_odfv_to_proto(
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
     ] + list(join_keys.items())
 
-    proto_values_by_column = {
-        column: python_values_to_proto_values(
-            table.column(column).to_numpy(zero_copy_only=False), value_type
-        )
-        for column, value_type in columns
-        if column in table.column_names
-    }
+    # Convert columns that exist in the table
+    proto_values_by_column = _columns_to_proto_values(
+        table, columns, allow_missing=True
+    )
 
-    # Ensure join keys are included in proto_values_by_column, but check if they exist first
+    # Ensure join keys are included, creating null values if missing from table
     for join_key, value_type in join_keys.items():
         if join_key not in proto_values_by_column:
-            # Check if the join key exists in the table before trying to access it
             if join_key in table.column_names:
                 proto_values_by_column[join_key] = python_values_to_proto_values(
                     table.column(join_key).to_numpy(zero_copy_only=False), value_type
                 )
             else:
-                # Create null/default values if the join key isn't in the table
-                null_column = [None] * table.num_rows
+                # Create null proto values directly (no need to build a PyArrow array)
                 proto_values_by_column[join_key] = python_values_to_proto_values(
-                    null_column, value_type
+                    [None] * table.num_rows, value_type
                 )
 
-    # Adding On Demand Features
+    # Cache column names set to avoid recreating list in loop
+    column_names = {c[0] for c in columns}
+
+    # Adding On Demand Features that are missing from proto_values
     for feature in feature_view.features:
-        if (
-            feature.name in [c[0] for c in columns]
-            and feature.name not in proto_values_by_column
-        ):
-            # initializing the column as null
-            null_column = pyarrow.array(
-                [None] * table.num_rows,
-                type=from_feast_to_pyarrow_type(feature.dtype),
-            )
-            updated_table = pyarrow.RecordBatch.from_arrays(
-                table.columns + [null_column],
-                schema=table.schema.append(
-                    pyarrow.field(feature.name, null_column.type)  # type: ignore[attr-defined]
-                ),
-            )
+        if feature.name in column_names and feature.name not in proto_values_by_column:
+            # Create null proto values directly (more efficient than building PyArrow array)
             proto_values_by_column[feature.name] = python_values_to_proto_values(
-                updated_table.column(feature.name).to_numpy(zero_copy_only=False),
-                feature.dtype.to_value_type(),
+                [None] * table.num_rows, feature.dtype.to_value_type()
             )
 
-    entity_keys = [
-        EntityKeyProto(
-            join_keys=join_keys,
-            entity_values=[
-                proto_values_by_column[k][idx]
-                for k in join_keys
-                if k in proto_values_by_column
-            ],
-        )
-        for idx in range(table.num_rows)
-    ]
+    entity_keys = _build_entity_keys(table.num_rows, join_keys, proto_values_by_column)
 
     # Serialize the features per row
     feature_dict = {
@@ -420,7 +530,7 @@ def _convert_arrow_odfv_to_proto(
         if feature.name in proto_values_by_column
     }
     if feature_view.write_to_online_store:
-        table_columns = [col.name for col in table.schema]
+        table_columns = {col.name for col in table.schema}
         for feature in feature_view.schema:
             if feature.name not in feature_dict and feature.name in table_columns:
                 feature_dict[feature.name] = proto_values_by_column[feature.name]
@@ -428,11 +538,10 @@ def _convert_arrow_odfv_to_proto(
     features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]
 
     # We need to artificially add event_timestamps and created_timestamps
-    event_timestamps = []
-    timestamp_values = pd.to_datetime([_utc_now() for i in range(table.num_rows)])
-
-    for val in timestamp_values:
-        event_timestamps.append(_coerce_datetime(val))
+    now = _utc_now()
+    event_timestamps = [
+        _coerce_datetime(pd.Timestamp(now)) for _ in range(table.num_rows)
+    ]
 
     # setting them equivalent
     created_timestamps = event_timestamps
@@ -467,7 +576,7 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
             ref for ref, occurrences in Counter(feature_refs).items() if occurrences > 1
         ]
     else:
-        feature_names = [ref.split(":")[1] for ref in feature_refs]
+        feature_names = [_parse_feature_ref(ref)[2] for ref in feature_refs]
         collided_feature_names = [
             ref
             for ref, occurrences in Counter(feature_names).items()
@@ -514,7 +623,12 @@ def _group_feature_refs(
     on_demand_view_features = defaultdict(set)
 
     for ref in features:
-        view_name, feat_name = ref.split(":")
+        fv_name, version_num, feat_name = _parse_feature_ref(ref)
+        # Build the key that matches projection.name_to_use()
+        if version_num is not None:
+            view_name = f"{fv_name}@v{version_num}"
+        else:
+            view_name = fv_name
         if view_name in view_index:
             if hasattr(view_index[view_name], "write_to_online_store"):
                 tmp_feat_name = [
@@ -549,30 +663,6 @@ def _group_feature_refs(
     for view_name, feature_names in on_demand_view_features.items():
         odfvs_result.append((on_demand_view_index[view_name], list(feature_names)))
     return fvs_result, odfvs_result
-
-
-def construct_response_feature_vector(
-    values_vector: Iterable[Any],
-    statuses_vector: Iterable[Any],
-    timestamp_vector: Iterable[Any],
-    mapping_indexes: Iterable[List[int]],
-    output_len: int,
-) -> GetOnlineFeaturesResponse.FeatureVector:
-    values_output: Iterable[Any] = [None] * output_len
-    statuses_output: Iterable[Any] = [None] * output_len
-    timestamp_output: Iterable[Any] = [None] * output_len
-
-    for i, destinations in enumerate(mapping_indexes):
-        for idx in destinations:
-            values_output[idx] = values_vector[i]  # type: ignore[index]
-            statuses_output[idx] = statuses_vector[i]  # type: ignore[index]
-            timestamp_output[idx] = timestamp_vector[i]  # type: ignore[index]
-
-    return GetOnlineFeaturesResponse.FeatureVector(
-        values=values_output,
-        statuses=statuses_output,
-        event_timestamps=timestamp_output,
-    )
 
 
 def _apply_aggregations_to_response(
@@ -636,6 +726,7 @@ def _augment_response_with_on_demand_transforms(
     feature_refs: List[str],
     requested_on_demand_feature_views: List["OnDemandFeatureView"],
     full_feature_names: bool,
+    feature_types: Optional[Dict[str, "ValueType"]] = None,
 ):
     """Computes on demand feature values and adds them to the result rows.
 
@@ -658,7 +749,7 @@ def _augment_response_with_on_demand_transforms(
 
     odfv_feature_refs = defaultdict(list)
     for feature_ref in feature_refs:
-        view_name, feature_name = feature_ref.split(":")
+        view_name, _, feature_name = _parse_feature_ref(feature_ref)
         if view_name in requested_odfv_feature_names:
             odfv_feature_refs[view_name].append(
                 f"{requested_odfv_map[view_name].projection.name_to_use()}__{feature_name}"
@@ -666,15 +757,33 @@ def _augment_response_with_on_demand_transforms(
                 else feature_name
             )
 
-    initial_response = OnlineResponse(online_features_response)
+    initial_response = OnlineResponse(
+        online_features_response, feature_types=feature_types
+    )
     initial_response_arrow: Optional[pyarrow.Table] = None
     initial_response_dict: Optional[Dict[str, List[Any]]] = None
+
+    def _is_metrics_active():
+        try:
+            from feast.metrics import _config
+
+            return _config.online_features
+        except Exception:
+            return False
+
+    _metrics_active = _is_metrics_active()
 
     # Apply on demand transformations and augment the result rows
     odfv_result_names = set()
     for odfv_name, _feature_refs in odfv_feature_refs.items():
         odfv = requested_odfv_map[odfv_name]
         if not odfv.write_to_online_store:
+            _should_track = _metrics_active and getattr(odfv, "track_metrics", False)
+            if _should_track:
+                import time as _time
+
+                _transform_start = _time.monotonic()
+
             # Apply aggregations if configured.
             if odfv.aggregations:
                 if odfv.mode == "python":
@@ -695,11 +804,12 @@ def _augment_response_with_on_demand_transforms(
                         odfv.entities,
                         odfv.mode,
                     )
+                continue
 
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
             # TODO: Fix to make it work for having both aggregation and transformation
             #  ticket: https://github.com/feast-dev/feast/issues/5689
-            elif odfv.mode == "python":
+            if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
@@ -714,6 +824,13 @@ def _augment_response_with_on_demand_transforms(
             else:
                 raise Exception(
                     f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
+                )
+
+            if _should_track:
+                from feast.metrics import track_transformation
+
+                track_transformation(
+                    odfv_name, odfv.mode, _time.monotonic() - _transform_start
                 )
 
             transformed_features = (
@@ -775,13 +892,20 @@ def _get_entity_maps(
 ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
     # TODO(felixwang9817): Support entities that have different types for different feature views.
     entities = registry.list_entities(project, allow_cache=True)
+
+    entity_by_name: Dict[str, "Entity"] = {entity.name: entity for entity in entities}
+
     entity_name_to_join_key_map: Dict[str, str] = {}
     entity_type_map: Dict[str, ValueType] = {}
     for entity in entities:
         entity_name_to_join_key_map[entity.name] = entity.join_key
     for feature_view in feature_views:
         for entity_name in feature_view.entities:
-            entity = registry.get_entity(entity_name, project, allow_cache=True)
+            entity = entity_by_name.get(entity_name)
+            if entity is None:
+                from feast.errors import EntityNotFoundException
+
+                raise EntityNotFoundException(entity_name, project=project)
             # User directly uses join_key as the entity reference in the entity_rows for the
             # entity mapping case.
             entity_name = feature_view.projection.join_key_map.get(
@@ -984,98 +1108,6 @@ def ensure_request_data_values_exist(
         raise RequestDataNotFoundInEntityRowsException(feature_names=missing_features)
 
 
-def _populate_response_from_feature_data(
-    feature_data: Iterable[
-        Tuple[
-            Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[ValueProto]
-        ]
-    ],
-    indexes: Iterable[List[int]],
-    online_features_response: GetOnlineFeaturesResponse,
-    full_feature_names: bool,
-    requested_features: Iterable[str],
-    table: "FeatureView",
-    output_len: int,
-):
-    """Populate the GetOnlineFeaturesResponse with feature data.
-
-    This method assumes that `_read_from_online_store` returns data for each
-    combination of Entities in `entity_rows` in the same order as they
-    are provided.
-
-    Args:
-        feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
-        indexes: A list of indexes which should be the same length as `feature_data`. Each list
-            of indexes corresponds to a set of result rows in `online_features_response`.
-        online_features_response: The object to populate.
-        full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
-            changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
-            "customer_fv__daily_transactions").
-        requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
-            data in `feature_data`.
-        table: The FeatureView that `feature_data` was retrieved from.
-        output_len: The number of result rows in `online_features_response`.
-    """
-    # Add the feature names to the response.
-    table_name = table.projection.name_to_use()
-    requested_feature_refs = [
-        f"{table_name}__{feature_name}" if full_feature_names else feature_name
-        for feature_name in requested_features
-    ]
-    online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
-
-    # Process each feature vector in a single pass
-    for timestamp_vector, statuses_vector, values_vector in feature_data:
-        response_vector = construct_response_feature_vector(
-            values_vector, statuses_vector, timestamp_vector, indexes, output_len
-        )
-        online_features_response.results.append(response_vector)
-
-
-def _populate_response_from_feature_data_v2(
-    feature_data: Iterable[
-        Tuple[
-            Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[ValueProto]
-        ]
-    ],
-    indexes: Iterable[List[int]],
-    online_features_response: GetOnlineFeaturesResponse,
-    requested_features: Iterable[str],
-    output_len: int,
-):
-    """Populate the GetOnlineFeaturesResponse with feature data.
-
-    This method assumes that `_read_from_online_store` returns data for each
-    combination of Entities in `entity_rows` in the same order as they
-    are provided.
-
-    Args:
-        feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
-        indexes: A list of indexes which should be the same length as `feature_data`. Each list
-            of indexes corresponds to a set of result rows in `online_features_response`.
-        online_features_response: The object to populate.
-        full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
-            changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
-            "customer_fv__daily_transactions").
-        requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
-            data in `feature_data`.
-        output_len: The number of result rows in `online_features_response`.
-    """
-    # Add the feature names to the response.
-    requested_feature_refs = [(feature_name) for feature_name in requested_features]
-    online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
-
-    timestamps, statuses, values = zip(*feature_data)
-
-    # Populate the result with data fetched from the OnlineStore
-    # which is guaranteed to be aligned with `requested_features`.
-    for timestamp_vector, statuses_vector, values_vector in feature_data:
-        response_vector = construct_response_feature_vector(
-            values_vector, statuses_vector, timestamp_vector, indexes, output_len
-        )
-        online_features_response.results.append(response_vector)
-
-
 def _convert_entity_key_to_proto_to_dict(
     entity_key_vals: List[EntityKeyProto],
 ) -> Dict[str, List[ValueProto]]:
@@ -1172,16 +1204,47 @@ def _get_feature_views_to_use(
 
     if isinstance(features, FeatureService):
         feature_views = [
-            (projection.name, projection)
+            (projection.name, None, projection)
             for projection in features.feature_view_projections
         ]
     else:
         assert features is not None
-        feature_views = [(feature.split(":")[0], None) for feature in features]  # type: ignore[misc]
+        # Parse version-qualified refs: 'fv@v2:feat' -> ('fv', 2, None)
+        parsed = []
+        seen = set()
+        for feature in features:
+            fv_name, version_num, _ = _parse_feature_ref(feature)
+            key = (fv_name, version_num)
+            if key not in seen:
+                seen.add(key)
+                parsed.append((fv_name, version_num, None))
+        feature_views = parsed  # type: ignore[assignment]
 
     fvs_to_use, od_fvs_to_use = [], []
-    for name, projection in feature_views:
-        fv = registry.get_any_feature_view(name, project, allow_cache)
+    for name, version_num, projection in feature_views:
+        if version_num is not None:
+            if not getattr(registry, "enable_online_versioning", False):
+                raise ValueError(
+                    f"Version-qualified ref '{name}@v{version_num}' not supported: "
+                    f"online versioning is disabled. Set 'enable_online_feature_view_versioning: true' "
+                    f"under 'registry' in feature_store.yaml."
+                )
+            # Version-qualified reference: look up the specific version snapshot
+            try:
+                fv = registry.get_feature_view_by_version(
+                    name, project, version_num, allow_cache
+                )
+            except NotImplementedError:
+                # Fall back for v0 on registries that don't implement versioned lookup
+                if version_num == 0:
+                    fv = registry.get_any_feature_view(name, project, allow_cache)
+                else:
+                    raise
+            # Set version_tag on the projection so name_to_use() returns versioned key
+            if hasattr(fv, "projection") and fv.projection is not None:
+                fv.projection.version_tag = version_num
+        else:
+            fv = registry.get_any_feature_view(name, project, allow_cache)
 
         if isinstance(fv, OnDemandFeatureView):
             od_fvs_to_use.append(
@@ -1213,9 +1276,11 @@ def _get_feature_views_to_use(
             ):
                 fv.entities = []  # type: ignore[attr-defined]
                 fv.entity_columns = []  # type: ignore[attr-defined]
-            fvs_to_use.append(
-                fv.with_projection(copy.copy(projection)) if projection else fv
-            )
+            if projection:
+                fv = fv.with_projection(copy.copy(projection))
+                if version_num is not None:
+                    fv.projection.version_tag = version_num
+            fvs_to_use.append(fv)
 
     return (fvs_to_use, od_fvs_to_use)
 
@@ -1257,13 +1322,20 @@ def _get_online_request_context(
         requested_on_demand_feature_views,
     )
 
-    requested_result_row_names = {
-        feat_ref.replace(":", "__") for feat_ref in _feature_refs
-    }
-    if not full_feature_names:
-        requested_result_row_names = {
-            name.rpartition("__")[-1] for name in requested_result_row_names
-        }
+    # Build expected result names, including version tag when present so
+    # multi-version queries (e.g. fv@v1:feat, fv@v2:feat) match the response.
+    requested_result_row_names = set()
+    for feat_ref in _feature_refs:
+        fv_name, version_num, feature_name = _parse_feature_ref(feat_ref)
+        if full_feature_names:
+            if version_num is not None:
+                requested_result_row_names.add(
+                    f"{fv_name}@v{version_num}__{feature_name}"
+                )
+            else:
+                requested_result_row_names.add(f"{fv_name}__{feature_name}")
+        else:
+            requested_result_row_names.add(feature_name)
 
     feature_views = list(view for view, _ in grouped_refs)
 
@@ -1409,36 +1481,99 @@ def _get_entity_key_protos(
     return entity_key_protos
 
 
-def _convert_rows_to_protobuf(
+def _populate_response_from_feature_data(
     requested_features: List[str],
     read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
-) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[ValueProto]]]:
-    # Pre-calculate the length to avoid repeated calculations
-    n_rows = len(read_rows)
+    indexes: Iterable[List[int]],
+    online_features_response: GetOnlineFeaturesResponse,
+    full_feature_names: bool,
+    table: "FeatureView",
+    output_len: int,
+    include_feature_view_version_metadata: bool = False,
+):
+    """Populate the GetOnlineFeaturesResponse from raw online_read rows.
 
-    # Create single instances of commonly used values
+    Converts raw rows from the OnlineStore into protobuf FeatureVectors and
+    appends them to the response. This method assumes that ``online_read``
+    returns data for each unique entity in the same order as ``indexes``.
+
+    Args:
+        requested_features: The names of the features to extract from
+            each row. Determines the order of FeatureVectors in the response.
+        read_rows: Raw output from ``OnlineStore.online_read`` — a list of
+            ``(event_timestamp, feature_dict)`` tuples, one per unique entity.
+            ``feature_dict`` may be ``None`` when the entity is not found.
+        indexes: A tuple of lists that maps each unique entity (by position
+            in ``read_rows``) to one or more output positions in the response.
+            Used to fan-out deduplicated reads back to the original request rows.
+        online_features_response: The protobuf response object to populate.
+        full_feature_names: If True, feature names are prefixed with the
+            feature view name (e.g. ``"driver_fv__trips_today"``).
+        table: The FeatureView that ``read_rows`` was retrieved from.
+        output_len: Total number of result rows in the response.
+        include_feature_view_version_metadata: If True, version metadata
+            for the feature view is added to the response.
+    """
+    n_features = len(requested_features)
+
+    table_name = table.projection.name_to_use()
+    clean_table_name = table.projection.name_alias or table.projection.name
+    feature_refs = [
+        f"{table_name}__{fn}" if full_feature_names else fn for fn in requested_features
+    ]
+    online_features_response.metadata.feature_names.val.extend(feature_refs)
+
+    if include_feature_view_version_metadata:
+        existing_names = [
+            fvm.name for fvm in online_features_response.metadata.feature_view_metadata
+        ]
+        if clean_table_name not in existing_names:
+            fv_metadata = online_features_response.metadata.feature_view_metadata.add()
+            fv_metadata.name = clean_table_name
+            fv_metadata.version = getattr(table, "current_version_number", 0) or 0
+
     null_value = ValueProto()
-    null_status = FieldStatus.NOT_FOUND
-    null_timestamp = Timestamp()
-    present_status = FieldStatus.PRESENT
+    null_ts = Timestamp()
+    PRESENT = FieldStatus.PRESENT
+    NOT_FOUND = FieldStatus.NOT_FOUND
 
-    requested_features_vectors = []
-    for feature_name in requested_features:
-        ts_vector = [null_timestamp] * n_rows
-        status_vector = [null_status] * n_rows
-        value_vector = [null_value] * n_rows
-        for idx, read_row in enumerate(read_rows):
-            row_ts_proto = Timestamp()
-            row_ts, feature_data = read_row
-            # TODO (Ly): reuse whatever timestamp if row_ts is None?
-            if row_ts is not None:
-                row_ts_proto.FromDatetime(row_ts)
-            ts_vector[idx] = row_ts_proto
-            if (feature_data is not None) and (feature_name in feature_data):
-                status_vector[idx] = present_status
-                value_vector[idx] = feature_data[feature_name]
-        requested_features_vectors.append((ts_vector, status_vector, value_vector))
-    return requested_features_vectors
+    row_ts_protos = []
+    for row_ts, _ in read_rows:
+        ts = Timestamp()
+        if row_ts is not None:
+            ts.FromDatetime(row_ts)
+        row_ts_protos.append(ts)
+
+    ts_template = [null_ts] * output_len
+    indexes_tuple = tuple(indexes)
+    for row_idx, destinations in enumerate(indexes_tuple):
+        ts = row_ts_protos[row_idx]
+        for out_idx in destinations:
+            ts_template[out_idx] = ts
+
+    feat_values = [[null_value] * output_len for _ in range(n_features)]
+    feat_statuses = [[NOT_FOUND] * output_len for _ in range(n_features)]
+
+    feat_idx_map = {name: i for i, name in enumerate(requested_features)}
+    for row_idx, destinations in enumerate(indexes_tuple):
+        _, feature_data = read_rows[row_idx]
+        if feature_data is None:
+            continue
+        for feat_name, feat_val in feature_data.items():
+            f_idx = feat_idx_map.get(feat_name)
+            if f_idx is not None:
+                for out_idx in destinations:
+                    feat_values[f_idx][out_idx] = feat_val
+                    feat_statuses[f_idx][out_idx] = PRESENT
+
+    for f_idx in range(n_features):
+        online_features_response.results.append(
+            GetOnlineFeaturesResponse.FeatureVector(
+                values=feat_values[f_idx],
+                statuses=feat_statuses[f_idx],
+                event_timestamps=list(ts_template),
+            )
+        )
 
 
 def has_all_tags(

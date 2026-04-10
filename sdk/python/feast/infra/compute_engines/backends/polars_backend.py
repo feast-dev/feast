@@ -7,6 +7,8 @@ from feast.infra.compute_engines.backends.base import DataFrameBackend
 
 
 class PolarsBackend(DataFrameBackend):
+    _POLARS_FUNC_MAP = {"nunique": "n_unique"}
+
     def columns(self, df: pl.DataFrame) -> list[str]:
         return df.columns
 
@@ -21,7 +23,7 @@ class PolarsBackend(DataFrameBackend):
 
     def groupby_agg(self, df: pl.DataFrame, group_keys, agg_ops) -> pl.DataFrame:
         agg_exprs = [
-            getattr(pl.col(col), func)().alias(alias)
+            getattr(pl.col(col), self._POLARS_FUNC_MAP.get(func, func))().alias(alias)
             for alias, (func, col) in agg_ops.items()
         ]
         return df.groupby(group_keys).agg(agg_exprs)

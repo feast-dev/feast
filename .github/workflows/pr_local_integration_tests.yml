@@ -8,6 +8,10 @@ on:
       - synchronize
       - labeled
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   integration-test-python-local:
     if:
@@ -55,7 +59,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.9
+          go-version: 1.24.12
       - name: Operator Data Source types test
         run: make -C infra/feast-operator test-datasources
       - name: Minimize uv cache

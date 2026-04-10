@@ -311,6 +311,152 @@ requests.post(
     data=json.dumps(materialize_data))
 ```
 
+## Prometheus Metrics
+
+The Python feature server can expose Prometheus-compatible metrics on a dedicated
+HTTP endpoint (default port `8000`). Metrics are **opt-in** and carry zero overhead
+when disabled.
+
+### Enabling metrics
+
+**Option 1 — CLI flag** (useful for one-off runs):
+
+```bash
+feast serve --metrics
+```
+
+**Option 2 — `feature_store.yaml`** (recommended for production):
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+```
+
+Either option is sufficient. When both are set, metrics are enabled.
+
+### Per-category control
+
+By default, enabling metrics turns on **all** categories. You can selectively
+disable individual categories within the same `metrics` block:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    resource: true          # CPU / memory gauges
+    request: false          # disable endpoint latency & request counters
+    online_features: true   # online feature retrieval counters
+    push: true              # push request counters
+    materialization: true   # materialization counters & duration
+    freshness: true         # feature freshness gauges
+```
+
+Any category set to `false` will emit no metrics and start no background
+threads (e.g., setting `freshness: false` prevents the registry polling
+thread from starting). All categories default to `true`.
+
+### Available metrics
+
+| Metric | Type | Labels | Category | Description |
+|--------|------|--------|----------|-------------|
+| `feast_feature_server_cpu_usage` | Gauge | — | `resource` | Process CPU usage % |
+| `feast_feature_server_memory_usage` | Gauge | — | `resource` | Process memory usage % |
+| `feast_feature_server_request_total` | Counter | `endpoint`, `status` | `request` | Total requests per endpoint |
+| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support |
+| `feast_online_features_request_total` | Counter | — | `online_features` | Total online feature retrieval requests |
+| `feast_online_features_entity_count` | Histogram | — | `online_features` | Entity rows per online feature request |
+| `feast_feature_server_online_store_read_duration_seconds` | Histogram | — | `online_features` | Online store read phase duration (sync and async) |
+| `feast_feature_server_transformation_duration_seconds` | Histogram | `odfv_name`, `mode` | `online_features` | ODFV read-path transformation duration (requires `track_metrics=True` on the ODFV) |
+| `feast_feature_server_write_transformation_duration_seconds` | Histogram | `odfv_name`, `mode` | `online_features` | ODFV write-path transformation duration (requires `track_metrics=True` on the ODFV) |
+| `feast_push_request_total` | Counter | `push_source`, `mode` | `push` | Push requests by source and mode |
+| `feast_materialization_result_total` | Counter | `feature_view`, `status` | `materialization` | Materialization runs (success/failure) |
+| `feast_materialization_duration_seconds` | Histogram | `feature_view` | `materialization` | Materialization duration per feature view |
+| `feast_feature_freshness_seconds` | Gauge | `feature_view`, `project` | `freshness` | Seconds since last materialization |
+
+### Per-ODFV transformation metrics
+
+The `transformation_duration_seconds` and `write_transformation_duration_seconds`
+metrics are gated behind **two** conditions — both must be true for any
+instrumentation to run:
+
+1. **Server-level**: the `online_features` category must be enabled in the
+   metrics configuration.
+2. **ODFV-level**: the `OnDemandFeatureView` must have `track_metrics=True`.
+
+This defaults to `False`, so no ODFV incurs timing overhead unless explicitly
+opted in:
+
+```python
+from feast.on_demand_feature_view import on_demand_feature_view
+
+@on_demand_feature_view(
+    sources=[my_feature_view, my_request_source],
+    schema=[Field(name="output", dtype=Float64)],
+    track_metrics=True,   # opt in to transformation timing
+)
+def my_transform(inputs: pd.DataFrame) -> pd.DataFrame:
+    ...
+```
+
+The `odfv_name` label lets you filter or group by individual ODFV,
+and the `mode` label (`python`, `pandas`, `substrait`) lets you compare
+transformation engines.
+
+### Scraping with Prometheus
+
+```yaml
+scrape_configs:
+  - job_name: feast
+    static_configs:
+      - targets: ["localhost:8000"]
+```
+
+### Kubernetes / Feast Operator
+
+Set `metrics: true` in your FeatureStore CR:
+
+```yaml
+spec:
+  services:
+    onlineStore:
+      server:
+        metrics: true
+```
+
+The operator automatically exposes port 8000 and creates the corresponding
+Service port so Prometheus can discover it.
+
+### Multi-worker and multi-replica (HPA) support
+
+Feast uses Prometheus **multiprocess mode** so that metrics are correct
+regardless of the number of Gunicorn workers or Kubernetes replicas.
+
+**How it works:**
+
+* Each Gunicorn worker writes metric values to shared files in a
+  temporary directory (`PROMETHEUS_MULTIPROCESS_DIR`).  Feast creates
+  this directory automatically; you can override it by setting the
+  environment variable yourself.
+* The metrics HTTP server on port 8000 aggregates all workers'
+  metric files using `MultiProcessCollector`, so a single scrape
+  returns accurate totals.
+* Gunicorn hooks clean up dead-worker files automatically
+  (`child_exit` → `mark_process_dead`).
+* CPU and memory gauges use `multiprocess_mode=liveall` — Prometheus
+  shows per-worker values distinguished by a `pid` label.
+* Feature freshness gauges use `multiprocess_mode=max` — Prometheus
+  shows the worst-case staleness (all workers compute the same value).
+* Counters and histograms (request counts, latency, materialization)
+  are automatically summed across workers.
+
+**Multiple replicas (HPA):** Each pod runs its own metrics endpoint.
+Prometheus adds an `instance` label per pod, so there is no
+duplication.  Use `sum(rate(...))` or `histogram_quantile(...)` across
+instances as usual.
+
 ## Starting the feature server in TLS(SSL) mode
 
 Enabling TLS mode ensures that data between the Feast client and server is transmitted securely. For an ideal production environment, it is recommended to start the feature server in TLS mode.

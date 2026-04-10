@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
@@ -59,7 +59,12 @@ from feast.type_map import (
     feast_value_type_to_pandas_type,
     pa_to_feast_value_type,
 )
-from feast.utils import _get_column_names, make_df_tzaware, make_tzaware
+from feast.utils import (
+    _get_column_names,
+    compute_non_entity_date_range,
+    make_df_tzaware,
+    make_tzaware,
+)
 
 logger = logging.getLogger(__name__)
 # Remote storage URI schemes supported by the Ray offline store
@@ -1203,37 +1208,6 @@ class RayRetrievalJob(RetrievalJob):
             return pa.Table.from_pandas(df).schema
 
 
-def _compute_non_entity_dates_ray(
-    feature_views: List[FeatureView],
-    start_date_opt: Optional[datetime],
-    end_date_opt: Optional[datetime],
-) -> Tuple[datetime, datetime]:
-    # Why: derive bounded time window when no entity_df is provided using explicit dates or max TTL fallback
-    end_date = (
-        make_tzaware(end_date_opt) if end_date_opt else make_tzaware(datetime.utcnow())
-    )
-    if start_date_opt is None:
-        max_ttl_seconds = 0
-        for fv in feature_views:
-            if getattr(fv, "ttl", None):
-                try:
-                    ttl_val = fv.ttl
-                    if isinstance(ttl_val, timedelta):
-                        max_ttl_seconds = max(
-                            max_ttl_seconds, int(ttl_val.total_seconds())
-                        )
-                except Exception:
-                    pass
-        start_date = (
-            end_date - timedelta(seconds=max_ttl_seconds)
-            if max_ttl_seconds > 0
-            else end_date - timedelta(days=30)
-        )
-    else:
-        start_date = make_tzaware(start_date_opt)
-    return start_date, end_date
-
-
 def _make_filter_range(timestamp_field: str, start_date: datetime, end_date: datetime):
     # Why: factory function for time-range filtering in Ray map_batches
     def _filter_range(batch: pd.DataFrame) -> pd.Series:
@@ -2067,8 +2041,10 @@ class RayOfflineStore(OfflineStore):
             # Non-entity mode: derive entity set from feature sources within a bounded time window
             # Preserves distinct (entity_keys, event_timestamp) combinations for proper PIT joins
             # This handles cases where multiple transactions per entity ID exist
-            start_date, end_date = _compute_non_entity_dates_ray(
-                feature_views, kwargs.get("start_date"), kwargs.get("end_date")
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
             )
             per_view_entity_ds: List[Dataset] = []
             all_join_keys: List[str] = []
@@ -2168,7 +2144,7 @@ class RayOfflineStore(OfflineStore):
 
             # Build reverse field mapping to get actual source column names
             reverse_field_mapping = {}
-            if fv.batch_source.field_mapping:
+            if fv.batch_source is not None and fv.batch_source.field_mapping:
                 reverse_field_mapping = {
                     v: k for k, v in fv.batch_source.field_mapping.items()
                 }

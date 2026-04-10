@@ -1,5 +1,9 @@
 default_stages: [commit]
 
+# Generated protobuf files should not be linted or formatted.
+# They are produced by `make compile-protos-python` and must be excluded globally.
+exclude: '^sdk/python/feast/protos/'
+
 repos:
   - repo: local
     hooks:
@@ -10,6 +14,7 @@ repos:
         stages: [commit]
         language: system
         types: [python]
+        exclude: '_pb2\.py$'
         entry: bash -c 'uv run ruff check --fix "$@" && uv run ruff format "$@"' --
         pass_filenames: true
 
@@ -20,6 +25,7 @@ repos:
         stages: [commit]
         language: system
         types: [python]
+        exclude: '_pb2\.py$'
         entry: bash -c 'uv run ruff check "$@" && uv run ruff format --check "$@"' --
         pass_filenames: true
 
@@ -29,5 +35,25 @@ repos:
         stages: [commit]
         language: system
         files: ^infra/templates/|\.jinja2$|^docs/roadmap\.md$
-        entry: make build-templates
+        entry: uv run make build-templates
         pass_filenames: false
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+            .*\.lock|
+            .*requirements.*\.txt|
+            .*\.svg|
+            .*\.html
+          )$
+
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.18.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ["@commitlint/config-conventional"]

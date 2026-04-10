@@ -15,6 +15,7 @@ import asyncio
 import copy
 import itertools
 import os
+import time
 import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -58,6 +59,7 @@ from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_
 from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
+    ConflictingFeatureViewNames,
     DataFrameSerializationError,
     DataSourceRepeatNamesException,
     FeatureViewNotFoundException,
@@ -98,6 +100,30 @@ from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
+from feast.version_utils import parse_version
+
+_track_materialization = None  # Lazy-loaded on first materialization call
+_track_materialization_loaded = False
+
+
+def _get_track_materialization():
+    """Lazy-import feast.metrics only when materialization tracking is needed.
+
+    Avoids importing the metrics module (and its prometheus_client /
+    psutil dependencies plus temp-dir creation) for every FeatureStore
+    usage such as ``feast apply`` or simple SDK reads.
+    """
+    global _track_materialization, _track_materialization_loaded
+    if not _track_materialization_loaded:
+        _track_materialization_loaded = True
+        try:
+            from feast.metrics import track_materialization
+
+            _track_materialization = track_materialization
+        except Exception:  # pragma: no cover
+            _track_materialization = None
+    return _track_materialization
+
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -543,6 +569,18 @@ class FeatureStore:
             feature_view.entities = []
         return feature_view
 
+    def list_feature_view_versions(self, name: str) -> List[Dict[str, Any]]:
+        """
+        List version history for a feature view.
+
+        Args:
+            name: Name of feature view.
+
+        Returns:
+            List of version records.
+        """
+        return self.registry.list_feature_view_versions(name, self.project)
+
     def get_stream_feature_view(
         self, name: str, allow_registry_cache: bool = False
     ) -> StreamFeatureView:
@@ -677,11 +715,21 @@ class FeatureStore:
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in views_to_update], self.config
+            [
+                view.batch_source
+                for view in views_to_update
+                if view.batch_source is not None
+            ],
+            self.config,
         )
 
         update_data_sources_with_inferred_event_timestamp_col(
-            [view.batch_source for view in sfvs_to_update], self.config
+            [
+                view.batch_source
+                for view in sfvs_to_update
+                if view.batch_source is not None
+            ],
+            self.config,
         )
 
         # New feature views may reference previously applied entities.
@@ -725,9 +773,39 @@ class FeatureStore:
         for feature_service in feature_services_to_update:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
+    def _validate_materialize_version(
+        self,
+        version: Optional[str],
+        feature_views: Optional[List[str]],
+    ) -> Optional[int]:
+        """Validate and parse the version parameter for materialize calls.
+
+        Returns the parsed version number, or None if no version was specified.
+        """
+        if version is None:
+            return None
+
+        if not feature_views or len(feature_views) != 1:
+            raise ValueError(
+                "--version requires --views with exactly one feature view."
+            )
+
+        if not self.config.registry.enable_online_feature_view_versioning:
+            raise ValueError(
+                "Version-aware materialization requires "
+                "'enable_online_feature_view_versioning: true' under 'registry' "
+                "in feature_store.yaml."
+            )
+
+        is_latest, version_number = parse_version(version)
+        if is_latest:
+            return None
+        return version_number
+
     def _get_feature_views_to_materialize(
         self,
         feature_views: Optional[List[str]],
+        version: Optional[int] = None,
     ) -> List[Union[FeatureView, OnDemandFeatureView]]:
         """
         Returns the list of feature views that should be materialized.
@@ -736,6 +814,8 @@ class FeatureStore:
 
         Args:
             feature_views: List of names of feature views to materialize.
+            version: If set, load this specific version number from the registry
+                instead of the active definition. Requires exactly one feature view name.
 
         Raises:
             FeatureViewNotFoundException: One of the specified feature views could not be found.
@@ -767,15 +847,25 @@ class FeatureStore:
         else:
             for name in feature_views:
                 feature_view: Union[FeatureView, OnDemandFeatureView]
-                try:
-                    feature_view = self._get_feature_view(name, hide_dummy_entity=False)
-                except FeatureViewNotFoundException:
+                if version is not None:
+                    feature_view = cast(
+                        Union[FeatureView, OnDemandFeatureView],
+                        self.registry.get_feature_view_by_version(
+                            name, self.project, version
+                        ),
+                    )
+                else:
                     try:
-                        feature_view = self._get_stream_feature_view(
+                        feature_view = self._get_feature_view(
                             name, hide_dummy_entity=False
                         )
                     except FeatureViewNotFoundException:
-                        feature_view = self.get_on_demand_feature_view(name)
+                        try:
+                            feature_view = self._get_stream_feature_view(
+                                name, hide_dummy_entity=False
+                            )
+                        except FeatureViewNotFoundException:
+                            feature_view = self.get_on_demand_feature_view(name)
 
                 if hasattr(feature_view, "online") and not feature_view.online:
                     raise ValueError(
@@ -885,6 +975,7 @@ class FeatureStore:
         infra_diff: InfraDiff,
         new_infra: Infra,
         progress_ctx: Optional["ApplyProgressContext"] = None,
+        no_promote: bool = False,
     ):
         """Applies the given diffs to the metadata store and infrastructure.
 
@@ -908,7 +999,11 @@ class FeatureStore:
 
             # Registry phase
             apply_diff_to_registry(
-                self.registry, registry_diff, self.project, commit=False
+                self.registry,
+                registry_diff,
+                self.project,
+                commit=False,
+                no_promote=no_promote,
             )
 
             if progress_ctx:
@@ -959,6 +1054,7 @@ class FeatureStore:
         objects_to_delete: Optional[List[FeastObject]] = None,
         partial: bool = True,
         skip_feature_view_validation: bool = False,
+        no_promote: bool = False,
     ):
         """Register objects to metadata store and update related infrastructure.
 
@@ -1101,9 +1197,12 @@ class FeatureStore:
         for ds in data_sources_to_update:
             self.registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
-            self.registry.apply_feature_view(view, project=self.project, commit=False)
+            self.registry.apply_feature_view(
+                view, project=self.project, commit=False, no_promote=no_promote
+            )
         for ent in entities_to_update:
             self.registry.apply_entity(ent, project=self.project, commit=False)
+
         for feature_service in services_to_update:
             self.registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
@@ -1348,6 +1447,19 @@ class FeatureStore:
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
 
+        # ODFV source FV dependencies (e.g. driver_stats:conv_rate) are resolved
+        # by _group_feature_refs and included in `fvs`, but not in _feature_refs.
+        # Offline stores use feature_refs to map which features to fetch from each
+        # FV, so we must include these implicit dependency refs.
+        _feature_refs_for_provider = list(_feature_refs)
+        existing_refs = set(_feature_refs)
+        for view, feats in fvs:
+            for feat in feats:
+                ref = f"{view.projection.name_to_use()}:{feat}"
+                if ref not in existing_refs:
+                    _feature_refs_for_provider.append(ref)
+                    existing_refs.add(ref)
+
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
             if self.config.coerce_tz_aware:
@@ -1374,7 +1486,7 @@ class FeatureStore:
         job = provider.get_historical_features(
             self.config,
             feature_views,
-            _feature_refs,
+            _feature_refs_for_provider,
             entity_df,
             self.registry,
             self.project,
@@ -1598,6 +1710,7 @@ class FeatureStore:
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
         full_feature_names: bool = False,
+        version: Optional[str] = None,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1614,6 +1727,8 @@ class FeatureStore:
                 materialization for the specified feature views.
             full_feature_names (bool): If True, feature names will be prefixed with the corresponding
                 feature view name.
+            version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
+                with exactly one entry and enable_online_feature_view_versioning to be enabled.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -1629,8 +1744,9 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
-            feature_views
+            feature_views, version=parsed_version
         )
         _print_materialization_log(
             None,
@@ -1704,15 +1820,29 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date) or _utc_now()
 
-                provider.materialize_single_feature_view(
-                    config=self.config,
-                    feature_view=feature_view,
-                    start_date=start_date,
-                    end_date=end_date,
-                    registry=self.registry,
-                    project=self.project,
-                    tqdm_builder=tqdm_builder,
-                )
+                fv_start = time.monotonic()
+                fv_success = True
+                try:
+                    provider.materialize_single_feature_view(
+                        config=self.config,
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        registry=self.registry,
+                        project=self.project,
+                        tqdm_builder=tqdm_builder,
+                    )
+                except Exception:
+                    fv_success = False
+                    raise
+                finally:
+                    _tracker = _get_track_materialization()
+                    if _tracker is not None:
+                        _tracker(
+                            feature_view.name,
+                            fv_success,
+                            time.monotonic() - fv_start,
+                        )
                 if not isinstance(feature_view, OnDemandFeatureView):
                     self.registry.apply_materialization(
                         feature_view,
@@ -1737,6 +1867,7 @@ class FeatureStore:
         feature_views: Optional[List[str]] = None,
         disable_event_timestamp: bool = False,
         full_feature_names: bool = False,
+        version: Optional[str] = None,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -1753,6 +1884,8 @@ class FeatureStore:
             disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
             full_feature_names (bool): If True, feature names will be prefixed with the corresponding
                 feature view name.
+            version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
+                with exactly one entry and enable_online_feature_view_versioning to be enabled.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -1772,8 +1905,9 @@ class FeatureStore:
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
             )
 
+        parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
-            feature_views
+            feature_views, version=parsed_version
         )
         _print_materialization_log(
             start_date,
@@ -1813,16 +1947,30 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date)
 
-                provider.materialize_single_feature_view(
-                    config=self.config,
-                    feature_view=feature_view,
-                    start_date=start_date,
-                    end_date=end_date,
-                    registry=self.registry,
-                    project=self.project,
-                    tqdm_builder=tqdm_builder,
-                    disable_event_timestamp=disable_event_timestamp,
-                )
+                fv_start = time.monotonic()
+                fv_success = True
+                try:
+                    provider.materialize_single_feature_view(
+                        config=self.config,
+                        feature_view=feature_view,
+                        start_date=start_date,
+                        end_date=end_date,
+                        registry=self.registry,
+                        project=self.project,
+                        tqdm_builder=tqdm_builder,
+                        disable_event_timestamp=disable_event_timestamp,
+                    )
+                except Exception:
+                    fv_success = False
+                    raise
+                finally:
+                    _tracker = _get_track_materialization()
+                    if _tracker is not None:
+                        _tracker(
+                            feature_view.name,
+                            fv_success,
+                            time.monotonic() - fv_start,
+                        )
 
                 self.registry.apply_materialization(
                     feature_view,
@@ -2034,76 +2182,104 @@ class FeatureStore:
         Raises:
             Exception: For unsupported OnDemandFeatureView modes
         """
-        if feature_view.mode == "python" and isinstance(
-            feature_view.feature_transformation, PythonTransformation
-        ):
-            input_dict = (
-                df.to_dict(orient="records")[0]
-                if feature_view.singleton
-                else df.to_dict(orient="list")
+        _should_track = False
+        try:
+            from feast.metrics import _config as _metrics_config
+
+            _should_track = _metrics_config.online_features and getattr(
+                feature_view, "track_metrics", False
             )
+        except Exception:
+            pass
 
-            if feature_view.singleton:
-                transformed_rows = []
+        if _should_track:
+            import time as _time
 
-                for i, row in df.iterrows():
-                    output = feature_view.feature_transformation.udf(row.to_dict())
-                    if i == 0:
-                        transformed_rows = output
+            _t0 = _time.monotonic()
+
+        try:
+            if feature_view.mode == "python" and isinstance(
+                feature_view.feature_transformation, PythonTransformation
+            ):
+                input_dict = (
+                    df.to_dict(orient="records")[0]
+                    if feature_view.singleton
+                    else df.to_dict(orient="list")
+                )
+
+                if feature_view.singleton:
+                    transformed_rows = []
+
+                    for i, row in df.iterrows():
+                        output = feature_view.feature_transformation.udf(row.to_dict())
+                        if i == 0:
+                            transformed_rows = output
+                        else:
+                            for k in output:
+                                if isinstance(output[k], list):
+                                    transformed_rows[k].extend(output[k])
+                                else:
+                                    transformed_rows[k].append(output[k])
+
+                    transformed_data = pd.DataFrame(transformed_rows)
+                else:
+                    transformed_data = feature_view.feature_transformation.udf(
+                        input_dict
+                    )
+
+                if feature_view.write_to_online_store:
+                    entities = [
+                        self.get_entity(entity)
+                        for entity in (feature_view.entities or [])
+                    ]
+                    join_keys = [entity.join_key for entity in entities if entity]
+                    join_keys = [k for k in join_keys if k in input_dict.keys()]
+                    transformed_df = (
+                        pd.DataFrame(transformed_data)
+                        if not isinstance(transformed_data, pd.DataFrame)
+                        else transformed_data
+                    )
+                    input_df = pd.DataFrame(
+                        [input_dict] if feature_view.singleton else input_dict
+                    )
+                    if input_df.shape[0] == transformed_df.shape[0]:
+                        for k in input_dict:
+                            if k not in transformed_data:
+                                transformed_data[k] = input_dict[k]
+                        transformed_df = pd.DataFrame(transformed_data)
                     else:
-                        for k in output:
-                            if isinstance(output[k], list):
-                                transformed_rows[k].extend(output[k])
-                            else:
-                                transformed_rows[k].append(output[k])
-
-                transformed_data = pd.DataFrame(transformed_rows)
-            else:
-                transformed_data = feature_view.feature_transformation.udf(input_dict)
-
-            if feature_view.write_to_online_store:
-                entities = [
-                    self.get_entity(entity) for entity in (feature_view.entities or [])
-                ]
-                join_keys = [entity.join_key for entity in entities if entity]
-                join_keys = [k for k in join_keys if k in input_dict.keys()]
-                transformed_df = (
-                    pd.DataFrame(transformed_data)
-                    if not isinstance(transformed_data, pd.DataFrame)
-                    else transformed_data
-                )
-                input_df = pd.DataFrame(
-                    [input_dict] if feature_view.singleton else input_dict
-                )
-                if input_df.shape[0] == transformed_df.shape[0]:
+                        transformed_df = pd.merge(
+                            transformed_df,
+                            input_df,
+                            how="left",
+                            on=join_keys,
+                        )
+                else:
+                    # overwrite any transformed features and update the dictionary
                     for k in input_dict:
                         if k not in transformed_data:
                             transformed_data[k] = input_dict[k]
-                    transformed_df = pd.DataFrame(transformed_data)
-                else:
-                    transformed_df = pd.merge(
-                        transformed_df,
-                        input_df,
-                        how="left",
-                        on=join_keys,
-                    )
+
+                return pd.DataFrame(transformed_data)
+
+            elif feature_view.mode == "pandas" and isinstance(
+                feature_view.feature_transformation, PandasTransformation
+            ):
+                transformed_df = feature_view.feature_transformation.udf(df)
+                for col in df.columns:
+                    transformed_df[col] = df[col]
+                return transformed_df
             else:
-                # overwrite any transformed features and update the dictionary
-                for k in input_dict:
-                    if k not in transformed_data:
-                        transformed_data[k] = input_dict[k]
+                raise Exception("Unsupported OnDemandFeatureView mode")
+        finally:
+            if _should_track:
+                from feast.metrics import track_write_transformation
 
-            return pd.DataFrame(transformed_data)
-
-        elif feature_view.mode == "pandas" and isinstance(
-            feature_view.feature_transformation, PandasTransformation
-        ):
-            transformed_df = feature_view.feature_transformation.udf(df)
-            for col in df.columns:
-                transformed_df[col] = df[col]
-            return transformed_df
-        else:
-            raise Exception("Unsupported OnDemandFeatureView mode")
+                track_write_transformation(
+                    feature_view.name,
+                    feature_view.mode,
+                    _time.monotonic() - _t0,
+                )
 
     def _validate_vector_features(self, feature_view, df: pd.DataFrame) -> None:
         """
@@ -2363,6 +2539,8 @@ class FeatureStore:
 
         provider = self._get_provider()
         # Get columns of the batch source and the input dataframe.
+        if feature_view.batch_source is None:
+            raise ValueError(f"Feature view '{feature_view.name}' has no batch_source.")
         column_names_and_types = (
             provider.get_table_column_names_and_types_from_data_source(
                 self.config, feature_view.batch_source
@@ -2398,6 +2576,7 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -2449,6 +2628,7 @@ class FeatureStore:
             registry=self.registry,
             project=self.project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
         return response
@@ -2461,6 +2641,7 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         [Alpha] Retrieves the latest online feature data asynchronously.
@@ -2497,6 +2678,7 @@ class FeatureStore:
             registry=self.registry,
             project=self.project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
     def retrieve_online_documents(
@@ -2532,13 +2714,15 @@ class FeatureStore:
         )
         feature_view_set = set()
         for _feature in features:
-            feature_view_name = _feature.split(":")[0]
-            feature_view = self.get_feature_view(feature_view_name)
+            fv_name, _, _ = utils._parse_feature_ref(_feature)
+            feature_view = self.get_feature_view(fv_name)
             feature_view_set.add(feature_view.name)
         if len(feature_view_set) > 1:
             raise ValueError("Document retrieval only supports a single feature view.")
         requested_features = [
-            f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
+            utils._parse_feature_ref(f)[2]
+            for f in features
+            if isinstance(f, str) and ":" in f
         ]
         requested_feature_view_name = list(feature_view_set)[0]
         for feature_view in available_feature_views:
@@ -2597,7 +2781,10 @@ class FeatureStore:
             online_features_response=online_features_response,
             data=requested_features_data,
         )
-        return OnlineResponse(online_features_response)
+        feature_types = {
+            f.name: f.dtype.to_value_type() for f in requested_feature_view.features
+        }
+        return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def retrieve_online_documents_v2(
         self,
@@ -2612,6 +2799,7 @@ class FeatureStore:
         text_weight: float = 0.5,
         image_weight: float = 0.5,
         combine_strategy: str = "weighted_sum",
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -2733,18 +2921,20 @@ class FeatureStore:
         )
         feature_view_set = set()
         for feature in features:
-            feature_view_name = feature.split(":")[0]
-            if feature_view_name in [fv.name for fv in available_odfv_views]:
+            fv_name, _, _ = utils._parse_feature_ref(feature)
+            if fv_name in [fv.name for fv in available_odfv_views]:
                 feature_view: Union[OnDemandFeatureView, FeatureView] = (
-                    self.get_on_demand_feature_view(feature_view_name)
+                    self.get_on_demand_feature_view(fv_name)
                 )
             else:
-                feature_view = self.get_feature_view(feature_view_name)
+                feature_view = self.get_feature_view(fv_name)
             feature_view_set.add(feature_view.name)
         if len(feature_view_set) > 1:
             raise ValueError("Document retrieval only supports a single feature view.")
         requested_features = [
-            f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
+            utils._parse_feature_ref(f)[2]
+            for f in features
+            if isinstance(f, str) and ":" in f
         ]
         if len(available_feature_views) == 0:
             available_feature_views.extend(available_odfv_views)  # type: ignore[arg-type]
@@ -2764,6 +2954,7 @@ class FeatureStore:
             top_k,
             distance_metric,
             query_string,
+            include_feature_view_version_metadata,
         )
 
     def _retrieve_from_online_store(
@@ -2828,6 +3019,7 @@ class FeatureStore:
         top_k: int,
         distance_metric: Optional[str],
         query_string: Optional[str],
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Search and return document features from the online document store.
@@ -2844,6 +3036,7 @@ class FeatureStore:
             top_k=top_k,
             distance_metric=distance_metric,
             query_string=query_string,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
         entity_key_dict: Dict[str, List[ValueProto]] = {}
@@ -2881,26 +3074,23 @@ class FeatureStore:
             online_features_response.metadata.feature_names.val.extend(
                 features_to_request
             )
-            return OnlineResponse(online_features_response)
+            feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
+            return OnlineResponse(online_features_response, feature_types=feature_types)
 
         table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
         )
 
-        feature_data = utils._convert_rows_to_protobuf(
-            requested_features=features_to_request,
-            read_rows=list(zip(datevals, list_of_feature_dicts)),
-        )
-
         online_features_response = GetOnlineFeaturesResponse(results=[])
         utils._populate_response_from_feature_data(
-            feature_data=feature_data,
+            requested_features=features_to_request,
+            read_rows=list(zip(datevals, list_of_feature_dicts)),
             indexes=idxs,
             online_features_response=online_features_response,
             full_feature_names=False,
-            requested_features=features_to_request,
             table=table,
             output_len=output_len,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
         utils._populate_result_rows_from_columnar(
@@ -2908,7 +3098,8 @@ class FeatureStore:
             data=entity_key_dict,
         )
 
-        return OnlineResponse(online_features_response)
+        feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
+        return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def serve(
         self,
@@ -3255,18 +3446,25 @@ def _print_materialization_log(
 
 
 def _validate_feature_views(feature_views: List[BaseFeatureView]):
-    """Verify feature views have case-insensitively unique names"""
-    fv_names = set()
+    """Verify feature views have case-insensitively unique names across all types.
+
+    This validates that no two feature views (of any type: FeatureView,
+    StreamFeatureView, OnDemandFeatureView) share the same case-insensitive name.
+    This is critical because get_online_features uses get_any_feature_view which
+    resolves names in a fixed order, potentially returning the wrong feature view.
+    """
+    fv_by_name: Dict[str, BaseFeatureView] = {}
     for fv in feature_views:
         case_insensitive_fv_name = fv.name.lower()
-        if case_insensitive_fv_name in fv_names:
-            raise ValueError(
-                f"More than one feature view with name {case_insensitive_fv_name} found. "
-                f"Please ensure that all feature view names are case-insensitively unique. "
-                f"It may be necessary to ignore certain files in your feature repository by using a .feastignore file."
+        if case_insensitive_fv_name in fv_by_name:
+            existing_fv = fv_by_name[case_insensitive_fv_name]
+            raise ConflictingFeatureViewNames(
+                fv.name,
+                existing_type=type(existing_fv).__name__,
+                new_type=type(fv).__name__,
             )
         else:
-            fv_names.add(case_insensitive_fv_name)
+            fv_by_name[case_insensitive_fv_name] = fv
 
 
 def _validate_data_sources(data_sources: List[DataSource]):

@@ -10,6 +10,10 @@ Kubernetes is a common target environment for running Feast in production. You c
 2. Run scheduled and ad-hoc jobs (e.g. materialization jobs) as Kubernetes Jobs.
 3. Operate Feast components using Kubernetes-native primitives.
 
+{% hint style="info" %}
+**Planning a production deployment?** See the [Feast Production Deployment Topologies](./production-deployment-topologies.md) guide for architecture diagrams, sample FeatureStore CRs, RBAC policies, infrastructure recommendations, and scaling best practices across Minimal, Standard, and Enterprise topologies.
+{% endhint %}
+
 ## Feast Operator
 
 To deploy Feast components on Kubernetes, use the included [feast-operator](../../infra/feast-operator).
@@ -64,8 +68,52 @@ spec:
 
 > _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
 
-{% hint style="success" %}
-Important note: Scaling a Feature Store Deployment should only be done if the configured data store(s) will support it.
+## Upgrading the Operator
 
-Please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md).
+### OLM-managed installations
+
+If the operator was installed via OLM, upgrades are handled
+automatically. No manual steps are required — OLM recreates the operator Deployment
+during the upgrade process.
+
+### kubectl-managed installations
+
+For most upgrades, re-running the install command is sufficient:
+
+```sh
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+```
+
+#### One-time step: upgrading from versions before 0.61.0
+
+Version 0.61.0 updated the operator Deployment's `spec.selector` to include the
+`app.kubernetes.io/name: feast-operator` label, fixing a bug where the metrics service
+could accidentally target pods from other operators in shared namespaces.
+
+Because Kubernetes treats `spec.selector` as an immutable field, upgrading directly from
+a pre-0.61.0 version with `kubectl apply` will fail with:
+
+```
+The Deployment "feast-operator-controller-manager" is invalid: spec.selector: Invalid value: ... field is immutable
+```
+
+To resolve this, delete the existing operator Deployment before applying the new manifest:
+
+```sh
+kubectl delete deployment feast-operator-controller-manager -n feast-operator-system --ignore-not-found=true
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+```
+
+This is only required once. Existing FeatureStore CRs and their managed workloads (feature
+servers, registry, etc.) are not affected — the new operator pod will reconcile them
+automatically on startup. Future upgrades from 0.61.0 onward will not require this step.
+
+{% hint style="success" %}
+**Scaling & High Availability:** The Feast Operator supports horizontal scaling via static replicas, HPA autoscaling, or external autoscalers like [KEDA](https://keda.sh). Scaling requires DB-backed persistence for all enabled services.
+
+When scaling is enabled, the operator auto-injects soft pod anti-affinity and zone topology spread constraints for resilience. You can also configure a PodDisruptionBudget to protect against voluntary disruptions.
+
+See the [Horizontal Scaling with the Feast Operator](./scaling-feast.md#horizontal-scaling-with-the-feast-operator) guide for configuration details, including [HA options](./scaling-feast.md#high-availability), or check the general recommendations on [how to scale Feast](./scaling-feast.md).
 {% endhint %}
+
+> _Sample scaling CRs are available at [`v1_featurestore_scaling_static.yaml`](../../infra/feast-operator/config/samples/v1_featurestore_scaling_static.yaml) and [`v1_featurestore_scaling_hpa.yaml`](../../infra/feast-operator/config/samples/v1_featurestore_scaling_hpa.yaml)._

@@ -2,6 +2,10 @@ name: linter
 
 on: [push, pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-python:
     runs-on: [ubuntu-latest]
@@ -22,11 +26,13 @@ jobs:
       - name: Install dependencies
         run: |
           make install-python-dependencies-ci
+      - name: Run pre-commit checks
+        uses: pre-commit/action@v3.0.1
       - name: Cache MyPy
         uses: actions/cache@v4
         with:
           path: sdk/python/.mypy_cache
-          key: mypy-${{ runner.os }}-py${{ env.PYTHON }}-${{ hashFiles('pyproject.toml', 'setup.py', 'sdk/python/pyproject.toml', 'sdk/python/requirements/*.txt') }}
+          key: mypy-${{ runner.os }}-py${{ env.PYTHON }}-${{ hashFiles('pyproject.toml', 'sdk/python/pyproject.toml', 'sdk/python/requirements/*.txt') }}
           restore-keys: |
             mypy-${{ runner.os }}-py${{ env.PYTHON }}-
             mypy-${{ runner.os }}-

@@ -138,8 +138,8 @@ class TestRemoteOnlineStoreRetrieveDocuments:
         call_args = mock_get_remote_online_documents.call_args
         assert call_args[1]["config"] == config
 
-        # Parse the request body to verify it's correct
-        req_body = json.loads(call_args[1]["req_body"])
+        # Verify the request body dict is correct
+        req_body = call_args[1]["req_body"]
         assert req_body["features"] == ["test_feature_view:feature1"]
         assert req_body["query"] == [0.1, 0.2, 0.3]
         assert req_body["top_k"] == 2
@@ -189,8 +189,8 @@ class TestRemoteOnlineStoreRetrieveDocuments:
         call_args = mock_get_remote_online_documents.call_args
         assert call_args[1]["config"] == config
 
-        # Parse the request body to verify it's correct
-        req_body = json.loads(call_args[1]["req_body"])
+        # Verify the request body dict is correct
+        req_body = call_args[1]["req_body"]
         assert req_body["features"] == ["test_feature_view:feature1"]
         assert req_body["query"] == [0.1, 0.2, 0.3]
         assert req_body["top_k"] == 2
@@ -302,14 +302,13 @@ class TestRemoteOnlineStoreRetrieveDocuments:
             distance_metric="cosine",
         )
 
-        parsed_result = json.loads(result)
-        assert parsed_result["features"] == [
+        assert result["features"] == [
             "test_feature_view:feature1",
             "test_feature_view:feature2",
         ]
-        assert parsed_result["query"] == [0.1, 0.2, 0.3]
-        assert parsed_result["top_k"] == 5
-        assert parsed_result["distance_metric"] == "cosine"
+        assert result["query"] == [0.1, 0.2, 0.3]
+        assert result["top_k"] == 5
+        assert result["distance_metric"] == "cosine"
 
     def test_construct_online_documents_v2_api_json_request(
         self, remote_store, feature_view
@@ -325,13 +324,12 @@ class TestRemoteOnlineStoreRetrieveDocuments:
             api_version=2,
         )
 
-        parsed_result = json.loads(result)
-        assert parsed_result["features"] == ["test_feature_view:feature1"]
-        assert parsed_result["query"] == [0.1, 0.2]
-        assert parsed_result["top_k"] == 3
-        assert parsed_result["distance_metric"] == "L2"
-        assert parsed_result["query_string"] == "test query"
-        assert parsed_result["api_version"] == 2
+        assert result["features"] == ["test_feature_view:feature1"]
+        assert result["query"] == [0.1, 0.2]
+        assert result["top_k"] == 3
+        assert result["distance_metric"] == "L2"
+        assert result["query_string"] == "test query"
+        assert result["api_version"] == 2
 
     def test_extract_requested_feature_value(self, remote_store):
         """Test _extract_requested_feature_value helper method."""

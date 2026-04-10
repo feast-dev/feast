@@ -34,7 +34,7 @@ func TestBuildPostgresConnStringDefaults(t *testing.T) {
 	}
 	connStr := buildPostgresConnString(config)
 	assert.Contains(t, connStr, "localhost:5432")
-	assert.Contains(t, connStr, "sslmode=disable")
+	assert.Contains(t, connStr, "sslmode=require")
 }
 
 func TestBuildPostgresConnStringWithSSL(t *testing.T) {

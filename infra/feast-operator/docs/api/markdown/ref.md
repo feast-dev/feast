@@ -28,6 +28,24 @@ _Appears in:_
 | `oidc` _[OidcAuthz](#oidcauthz)_ |  |
 
 
+#### AutoscalingConfig
+
+
+
+AutoscalingConfig defines HPA settings for the FeatureStore deployment.
+
+_Appears in:_
+- [ScalingConfig](#scalingconfig)
+
+| Field | Description |
+| --- | --- |
+| `minReplicas` _integer_ | MinReplicas is the lower limit for the number of replicas. Defaults to 1. |
+| `maxReplicas` _integer_ | MaxReplicas is the upper limit for the number of replicas. Required. |
+| `metrics` _[MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metricspec-v2-autoscaling) array_ | Metrics contains the specifications for which to use to calculate the desired replica count.
+If not set, defaults to 80% CPU utilization. |
+| `behavior` _[HorizontalPodAutoscalerBehavior](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerbehavior-v2-autoscaling)_ | Behavior configures the scaling behavior of the target. |
+
+
 #### BatchEngineConfig
 
 
@@ -132,7 +150,6 @@ time for any reason.  Missed jobs executions will be counted as failed ones. |
 | `concurrencyPolicy` _[ConcurrencyPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#concurrencypolicy-v1-batch)_ | Specifies how to treat concurrent executions of a Job.
 Valid values are:
 
-
 - "Allow" (default): allows CronJobs to run concurrently;
 - "Forbid": forbids concurrent runs, skipping next run if previous run hasn't finished yet;
 - "Replace": cancels currently running job and replaces it with a new one |
@@ -221,8 +238,23 @@ _Appears in:_
 | `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `podAnnotations` _object (keys:string, values:string)_ | PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
+This enables annotation-driven integrations like OpenTelemetry auto-instrumentation,
+Istio sidecar injection, Vault agent injection, etc. |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
+| `runFeastApplyOnInit` _boolean_ | Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true. |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
+| `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
+For static replicas, use spec.replicas instead. |
+| `podDisruptionBudgets` _[PDBConfig](#pdbconfig)_ | PodDisruptionBudgets configures a PodDisruptionBudget for the FeatureStore deployment.
+Only created when scaling is enabled (replicas > 1 or autoscaling). |
+| `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | TopologySpreadConstraints defines how pods are spread across topology domains.
+When scaling is enabled and this is not set, the operator auto-injects a soft
+zone-spread constraint (whenUnsatisfiable: ScheduleAnyway).
+Set to an empty array to disable auto-injection. |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
+When scaling is enabled and this is not set, the operator auto-injects a soft
+pod anti-affinity rule to prefer spreading pods across nodes. |
 
 
 #### FeatureStoreSpec
@@ -243,6 +275,8 @@ _Appears in:_
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
 | `batchEngine` _[BatchEngineConfig](#batchengineconfig)_ |  |
+| `replicas` _integer_ | Replicas is the desired number of pod replicas. Used by the scale sub-resource.
+Mutually exclusive with services.scaling.autoscaling. |
 
 
 #### FeatureStoreStatus
@@ -263,6 +297,9 @@ _Appears in:_
 | `feastVersion` _string_ |  |
 | `phase` _string_ |  |
 | `serviceHostnames` _[ServiceHostnames](#servicehostnames)_ |  |
+| `replicas` _integer_ | Replicas is the current number of ready pod replicas (used by the scale sub-resource). |
+| `selector` _string_ | Selector is the label selector for pods managed by the FeatureStore deployment (used by the scale sub-resource). |
+| `scalingStatus` _[ScalingStatus](#scalingstatus)_ | ScalingStatus reports the current scaling state of the FeatureStore deployment. |
 
 
 #### GitCloneOptions
@@ -324,7 +361,6 @@ represented by the jobs's .status.failed field, is incremented and it is
 checked against the backoffLimit. This field cannot be used in combination
 with restartPolicy=OnFailure.
 
-
 This field is beta-level. It can be used when the `JobPodFailurePolicy`
 feature gate is enabled (enabled by default). |
 | `backoffLimit` _integer_ | Specifies the number of retries before marking this job failed. |
@@ -356,11 +392,9 @@ the Job becomes eligible to be deleted immediately after it finishes. |
 | `completionMode` _[CompletionMode](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#completionmode-v1-batch)_ | completionMode specifies how Pod completions are tracked. It can be
 `NonIndexed` (default) or `Indexed`.
 
-
 `NonIndexed` means that the Job is considered complete when there have
 been .spec.completions successfully completed Pods. Each Pod completion is
 homologous to each other.
-
 
 `Indexed` means that the Pods of a
 Job get an associated completion index from 0 to (.spec.completions - 1),
@@ -372,7 +406,6 @@ When value is `Indexed`, .spec.completions must be specified and
 In addition, The Pod name takes the form
 `$(job-name)-$(index)-$(random-string)`,
 the Pod hostname takes the form `$(job-name)-$(index)`.
-
 
 More completion modes can be added in the future.
 If the Job controller observes a mode that it doesn't recognize, which
@@ -391,7 +424,6 @@ Possible values are:
   when they are terminating (has a metadata.deletionTimestamp) or failed.
 - Failed means to wait until a previously created Pod is fully terminated (has phase
   Failed or Succeeded) before creating a replacement Pod.
-
 
 When using podFailurePolicy, Failed is the the only allowed value.
 TerminatingOrFailed and Failed are allowed values when podFailurePolicy is not in use.
@@ -507,7 +539,27 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ |  |
+| `issuerUrl` _string_ | OIDC issuer URL. The operator appends /.well-known/openid-configuration to derive the discovery endpoint. |
+| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Secret with OIDC properties (auth_discovery_url, client_id, client_secret). issuerUrl takes precedence. |
+| `secretKeyName` _string_ | Key in the Secret containing all OIDC properties as a YAML value. If unset, each key is a property. |
+| `tokenEnvVar` _string_ | Env var name for client pods to read an OIDC token from. Sets token_env_var in client config. |
+| `verifySSL` _boolean_ | Verify SSL certificates for the OIDC provider. Defaults to true. |
+| `caCertConfigMap` _[OidcCACertConfigMap](#oidccacertconfigmap)_ | ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH. |
+
+
+#### OidcCACertConfigMap
+
+
+
+OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS.
+
+_Appears in:_
+- [OidcAuthz](#oidcauthz)
+
+| Field | Description |
+| --- | --- |
+| `name` _string_ | ConfigMap name. |
+| `key` _string_ | Key in the ConfigMap holding the PEM certificate. Defaults to "ca-bundle.crt". |
 
 
 #### OnlineStore
@@ -590,6 +642,24 @@ _Appears in:_
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `nodeSelector` _map[string]string_ |  |
+
+
+#### PDBConfig
+
+
+
+PDBConfig configures a PodDisruptionBudget for the FeatureStore deployment.
+Exactly one of minAvailable or maxUnavailable must be set.
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `minAvailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#intorstring-intstr-util)_ | MinAvailable specifies the minimum number/percentage of pods that must remain available.
+Mutually exclusive with maxUnavailable. |
+| `maxUnavailable` _[IntOrString](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#intorstring-intstr-util)_ | MaxUnavailable specifies the maximum number/percentage of pods that can be unavailable.
+Mutually exclusive with minAvailable. |
 
 
 #### PvcConfig
@@ -745,6 +815,36 @@ _Appears in:_
 | `hostname` _string_ | Host address of the remote registry service - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80` |
 | `feastRef` _[FeatureStoreRef](#featurestoreref)_ | Reference to an existing `FeatureStore` CR in the same k8s cluster. |
 | `tls` _[TlsRemoteRegistryConfigs](#tlsremoteregistryconfigs)_ |  |
+
+
+#### ScalingConfig
+
+
+
+ScalingConfig configures horizontal scaling for the FeatureStore deployment.
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `autoscaling` _[AutoscalingConfig](#autoscalingconfig)_ | Autoscaling configures a HorizontalPodAutoscaler for the FeatureStore deployment.
+Mutually exclusive with spec.replicas. |
+
+
+#### ScalingStatus
+
+
+
+ScalingStatus reports the observed scaling state.
+
+_Appears in:_
+- [FeatureStoreStatus](#featurestorestatus)
+
+| Field | Description |
+| --- | --- |
+| `currentReplicas` _integer_ | CurrentReplicas is the current number of pod replicas. |
+| `desiredReplicas` _integer_ | DesiredReplicas is the desired number of pod replicas. |
 
 
 #### SecretKeyNames

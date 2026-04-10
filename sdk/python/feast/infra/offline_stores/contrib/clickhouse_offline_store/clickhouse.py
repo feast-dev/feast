@@ -31,6 +31,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 from feast.infra.utils.clickhouse.connection_utils import get_client
 from feast.saved_dataset import SavedDatasetStorage
+from feast.utils import compute_non_entity_date_range
 
 
 class ClickhouseOfflineStoreConfig(ClickhouseConfig):
@@ -43,14 +44,24 @@ class ClickhouseOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, ClickhouseOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, ClickhouseSource)
+
+        # Handle non-entity retrieval mode
+        if entity_df is None:
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
+            entity_df = pd.DataFrame({"event_timestamp": [end_date]})
 
         entity_schema = _get_entity_schema(entity_df, config)
 

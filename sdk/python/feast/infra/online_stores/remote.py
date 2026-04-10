@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
@@ -36,6 +37,17 @@ from feast.utils import _get_feature_view_vector_field_metadata
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
+
+
+def _json_safe(val: Any) -> Any:
+    """Convert uuid.UUID objects and sets to JSON-serializable form."""
+    if isinstance(val, uuid_module.UUID):
+        return str(val)
+    if isinstance(val, set):
+        return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
+    if isinstance(val, list):
+        return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
+    return val
 
 
 class RemoteOnlineStoreConfig(FeastConfigBaseModel):
@@ -70,6 +82,56 @@ class RemoteOnlineStore(OnlineStore):
     remote online store implementation wrapper to communicate with feast online server.
     """
 
+    @staticmethod
+    def _proto_value_to_transport_value(proto_value: ValueProto) -> Any:
+        """
+        Convert a proto Value to a JSON-serializable Python value suitable for
+        HTTP transport.  Unlike ``feast_value_type_to_python_type``, this keeps
+        ``json_val`` as a raw string so the receiving server can reconstruct a
+        DataFrame whose column types match the original (string for JSON, dict
+        for Map/Struct).  Parsing JSON strings into dicts would cause PyArrow to
+        infer a struct column on the server, which can crash with complex nested
+        types (lists inside dicts).
+        """
+        val_attr = proto_value.WhichOneof("val")
+        if val_attr is None:
+            return None
+
+        # Keep JSON values as raw strings for correct DataFrame reconstruction.
+        # Parsing them into dicts causes PyArrow to infer struct columns on the
+        # server whose nested lists round-trip as numpy arrays, breaking
+        # json.dumps during proto conversion.
+        if val_attr == "json_val":
+            return getattr(proto_value, val_attr)
+        if val_attr == "json_list_val":
+            return list(getattr(proto_value, val_attr).val)
+
+        # Nested collection types use feast_value_type_to_python_type
+        # which handles recursive conversion of RepeatedValue protos.
+        if val_attr in ("list_val", "set_val"):
+            return feast_value_type_to_python_type(proto_value)
+
+        # Map/Struct types are converted to Python dicts by
+        # feast_value_type_to_python_type.  Serialise them to JSON strings
+        # so the server-side DataFrame gets VARCHAR columns instead of
+        # PyArrow struct columns that can crash with complex nested types.
+        if val_attr in ("map_val", "struct_val"):
+            return json.dumps(feast_value_type_to_python_type(proto_value))
+        if val_attr in ("map_list_val", "struct_list_val"):
+            return [json.dumps(v) for v in feast_value_type_to_python_type(proto_value)]
+
+        # UUID types are stored as strings in proto — return them directly
+        # to avoid feast_value_type_to_python_type converting to uuid.UUID
+        # objects which are not JSON-serializable.
+        if val_attr in ("uuid_val", "time_uuid_val"):
+            return getattr(proto_value, val_attr)
+        if val_attr in ("uuid_list_val", "time_uuid_list_val"):
+            return list(getattr(proto_value, val_attr).val)
+        if val_attr in ("uuid_set_val", "time_uuid_set_val"):
+            return list(getattr(proto_value, val_attr).val)
+
+        return feast_value_type_to_python_type(proto_value)
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -93,14 +155,14 @@ class RemoteOnlineStore(OnlineStore):
             for join_key, entity_value_proto in zip(
                 entity_key_proto.join_keys, entity_key_proto.entity_values
             ):
-                columnar_data[join_key].append(
-                    feast_value_type_to_python_type(entity_value_proto)
-                )
+                val = feast_value_type_to_python_type(entity_value_proto)
+                columnar_data[join_key].append(_json_safe(val))
 
-            # Populate feature values
+            # Populate feature values – use transport-safe conversion that
+            # preserves JSON strings instead of parsing them into dicts.
             for feature_name, feature_value_proto in feature_values_proto.items():
                 columnar_data[feature_name].append(
-                    feast_value_type_to_python_type(feature_value_proto)
+                    self._proto_value_to_transport_value(feature_value_proto)
                 )
 
             # Populate timestamps
@@ -147,6 +209,12 @@ class RemoteOnlineStore(OnlineStore):
             logger.debug("Able to retrieve the online features from feature server.")
             response_json = json.loads(response.text)
             event_ts = self._get_event_ts(response_json)
+            # Build feature name -> ValueType mapping so we can reconstruct
+            # complex types (nested collections, sets, etc.) that cannot be
+            # inferred from raw JSON values alone.
+            feature_type_map: Dict[str, ValueType] = {
+                f.name: f.dtype.to_value_type() for f in table.features
+            }
             # Iterating over results and converting the API results in column format to row format.
             result_tuples: List[
                 Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
@@ -166,13 +234,16 @@ class RemoteOnlineStore(OnlineStore):
                             ]
                             == "PRESENT"
                         ):
+                            feature_value_type = feature_type_map.get(
+                                feature_name, ValueType.UNKNOWN
+                            )
                             message = python_values_to_proto_values(
                                 [
                                     response_json["results"][index]["values"][
                                         feature_value_index
                                     ]
                                 ],
-                                ValueType.UNKNOWN,
+                                feature_value_type,
                             )
                             feature_values_dict[feature_name] = message[0]
                         else:
@@ -265,6 +336,7 @@ class RemoteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -418,7 +490,7 @@ class RemoteOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         table: FeatureView,
         requested_features: Optional[List[str]] = None,
-    ) -> str:
+    ) -> dict:
         api_requested_features = []
         if requested_features is not None:
             for requested_feature in requested_features:
@@ -432,13 +504,10 @@ class RemoteOnlineStore(OnlineStore):
                 getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))
             )
 
-        req_body = json.dumps(
-            {
-                "features": api_requested_features,
-                "entities": {entity_key: entity_values},
-            }
-        )
-        return req_body
+        return {
+            "features": api_requested_features,
+            "entities": {entity_key: entity_values},
+        }
 
     def _construct_online_documents_api_json_request(
         self,
@@ -447,21 +516,18 @@ class RemoteOnlineStore(OnlineStore):
         embedding: Optional[List[float]] = None,
         top_k: Optional[int] = None,
         distance_metric: Optional[str] = "L2",
-    ) -> str:
+    ) -> dict:
         api_requested_features = []
         if requested_features is not None:
             for requested_feature in requested_features:
                 api_requested_features.append(f"{table.name}:{requested_feature}")
 
-        req_body = json.dumps(
-            {
-                "features": api_requested_features,
-                "query": embedding,
-                "top_k": top_k,
-                "distance_metric": distance_metric,
-            }
-        )
-        return req_body
+        return {
+            "features": api_requested_features,
+            "query": embedding,
+            "top_k": top_k,
+            "distance_metric": distance_metric,
+        }
 
     def _construct_online_documents_v2_api_json_request(
         self,
@@ -472,23 +538,20 @@ class RemoteOnlineStore(OnlineStore):
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
         api_version: Optional[int] = 2,
-    ) -> str:
+    ) -> dict:
         api_requested_features = []
         if requested_features is not None:
             for requested_feature in requested_features:
                 api_requested_features.append(f"{table.name}:{requested_feature}")
 
-        req_body = json.dumps(
-            {
-                "features": api_requested_features,
-                "query": embedding,
-                "top_k": top_k,
-                "distance_metric": distance_metric,
-                "query_string": query_string,
-                "api_version": api_version,
-            }
-        )
-        return req_body
+        return {
+            "features": api_requested_features,
+            "query": embedding,
+            "top_k": top_k,
+            "distance_metric": distance_metric,
+            "query_string": query_string,
+            "api_version": api_version,
+        }
 
     def _get_event_ts(self, response_json) -> datetime:
         event_ts = ""
@@ -574,33 +637,33 @@ class RemoteOnlineStore(OnlineStore):
 
 @rest_error_handling_decorator
 def get_remote_online_features(
-    session: requests.Session, config: RepoConfig, req_body: str
+    session: requests.Session, config: RepoConfig, req_body: dict
 ) -> requests.Response:
     if config.online_store.cert:
         return session.post(
             f"{config.online_store.path}/get-online-features",
-            data=req_body,
+            json=req_body,
             verify=config.online_store.cert,
         )
     else:
         return session.post(
-            f"{config.online_store.path}/get-online-features", data=req_body
+            f"{config.online_store.path}/get-online-features", json=req_body
         )
 
 
 @rest_error_handling_decorator
 def get_remote_online_documents(
-    session: requests.Session, config: RepoConfig, req_body: str
+    session: requests.Session, config: RepoConfig, req_body: dict
 ) -> requests.Response:
     if config.online_store.cert:
         return session.post(
             f"{config.online_store.path}/retrieve-online-documents",
-            data=req_body,
+            json=req_body,
             verify=config.online_store.cert,
         )
     else:
         return session.post(
-            f"{config.online_store.path}/retrieve-online-documents", data=req_body
+            f"{config.online_store.path}/retrieve-online-documents", json=req_body
         )
 
 

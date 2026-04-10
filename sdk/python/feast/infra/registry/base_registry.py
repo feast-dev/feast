@@ -24,6 +24,10 @@ from google.protobuf.message import Message
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
+from feast.errors import (
+    ConflictingFeatureViewNames,
+    FeatureViewNotFoundException,
+)
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
@@ -251,7 +255,11 @@ class BaseRegistry(ABC):
     # Feature view operations
     @abstractmethod
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         """
         Registers a single feature view with Feast
@@ -260,8 +268,66 @@ class BaseRegistry(ABC):
             feature_view: Feature view that will be registered
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
+            no_promote: If True, save a new version snapshot without promoting
+                it to the active definition. The new version is accessible only
+                via explicit @v<N> reads.
         """
         raise NotImplementedError
+
+    def _ensure_feature_view_name_is_unique(
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        allow_cache: bool = False,
+    ):
+        """
+        Validates that no feature view name conflict exists across feature view types.
+        Raises ConflictingFeatureViewNames if a different type already uses the name.
+
+        This is a defense-in-depth check for direct apply_feature_view() calls.
+        The primary validation happens in _validate_all_feature_views() during feast plan/apply.
+        """
+        name = feature_view.name
+        new_type = type(feature_view).__name__
+
+        def _check_conflict(getter, not_found_exc, existing_type: str):
+            try:
+                getter(name, project, allow_cache=allow_cache)
+                raise ConflictingFeatureViewNames(name, existing_type, new_type)
+            except not_found_exc:
+                pass
+
+        # Check StreamFeatureView before FeatureView since StreamFeatureView is a subclass
+        # Note: All getters raise FeatureViewNotFoundException (not type-specific exceptions)
+        if isinstance(feature_view, StreamFeatureView):
+            _check_conflict(
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+            )
+            _check_conflict(
+                self.get_on_demand_feature_view,
+                FeatureViewNotFoundException,
+                "OnDemandFeatureView",
+            )
+        elif isinstance(feature_view, FeatureView):
+            _check_conflict(
+                self.get_stream_feature_view,
+                FeatureViewNotFoundException,
+                "StreamFeatureView",
+            )
+            _check_conflict(
+                self.get_on_demand_feature_view,
+                FeatureViewNotFoundException,
+                "OnDemandFeatureView",
+            )
+        elif isinstance(feature_view, OnDemandFeatureView):
+            _check_conflict(
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+            )
+            _check_conflict(
+                self.get_stream_feature_view,
+                FeatureViewNotFoundException,
+                "StreamFeatureView",
+            )
 
     @abstractmethod
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
@@ -431,6 +497,46 @@ class BaseRegistry(ABC):
             List of feature views
         """
         raise NotImplementedError
+
+    def list_feature_view_versions(
+        self, name: str, project: str
+    ) -> List[Dict[str, Any]]:
+        """
+        List version history for a feature view.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+
+        Returns:
+            List of version records with version, version_number, feature_view_type,
+            created_timestamp, and version_id.
+        """
+        raise NotImplementedError(
+            "list_feature_view_versions is not implemented for this registry"
+        )
+
+    def get_feature_view_by_version(
+        self, name: str, project: str, version_number: int, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        """
+        Retrieve a feature view snapshot for a specific version number.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            version_number: The version number to retrieve
+            allow_cache: Whether to allow returning from a cached registry
+
+        Returns:
+            The feature view snapshot at the specified version.
+
+        Raises:
+            FeatureViewVersionNotFound: if the version doesn't exist.
+        """
+        raise NotImplementedError(
+            "get_feature_view_by_version is not implemented for this registry"
+        )
 
     @abstractmethod
     def apply_materialization(

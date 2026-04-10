@@ -1,10 +1,10 @@
-FROM registry.access.redhat.com/ubi9/python-311:1
+FROM registry.access.redhat.com/ubi9/python-312-minimal:1
 ARG RELEASE
 
 ENV IBIS_VERSION="9.5.0"
 
 USER 0
-RUN yum install -y ninja-build llvm-devel cmake llvm-toolset ncurses-devel rust cargo
+RUN microdnf install -y ninja-build llvm-devel cmake llvm-toolset ncurses-devel rust cargo npm git && microdnf clean all
 RUN if [[ -z "$RELEASE" ]] ; then npm install -g yarn yalc && rm -rf .npm ; fi
 USER 1001
 

@@ -16,19 +16,16 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.types import Float32, Int32, String
 from feast.utils import _utc_now
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     RemoteOfflineOidcAuthStoreDataSourceCreator,
     RemoteOfflineStoreDataSourceCreator,
     RemoteOfflineTlsStoreDataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.snowflake import (
-    SnowflakeDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.entities import (
+from tests.universal.feature_repos.universal.entities import (
     customer,
     driver,
     location,
@@ -279,7 +276,7 @@ def test_historical_features_with_entities_from_query(
         raise pytest.skip("Offline source is not sql-based")
 
     data_source_creator = environment.data_source_creator
-    if isinstance(data_source_creator, SnowflakeDataSourceCreator):
+    if type(data_source_creator).__name__ == "SnowflakeDataSourceCreator":
         entity_df_query = f"""
         SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp"
         FROM "{orders_table}"
@@ -730,4 +727,215 @@ def test_historical_features_field_mapping(
         expected_df,
         actual_df,
         sort_by=["driver_id"],
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores(only=["file"])
+def test_historical_features_non_entity_retrieval(environment):
+    """Test get_historical_features with entity_df=None using start_date/end_date.
+
+    This exercises the non-entity retrieval path where a synthetic entity_df is
+    generated internally. Regression test for the bug where start_date was used
+    instead of end_date for min_event_timestamp in the synthetic entity_df.
+    """
+    store = environment.feature_store
+
+    now = datetime.now().replace(microsecond=0, second=0, minute=0)
+    two_days_ago = now - timedelta(days=2)
+    one_day_ago = now - timedelta(days=1)
+
+    driver_stats_df = pd.DataFrame(
+        data=[
+            {
+                "driver_id": 1001,
+                "avg_daily_trips": 10,
+                "event_timestamp": two_days_ago,
+                "created": two_days_ago,
+            },
+            {
+                "driver_id": 1001,
+                "avg_daily_trips": 20,
+                "event_timestamp": one_day_ago,
+                "created": one_day_ago,
+            },
+            {
+                "driver_id": 1001,
+                "avg_daily_trips": 30,
+                "event_timestamp": now,
+                "created": now,
+            },
+            {
+                "driver_id": 1002,
+                "avg_daily_trips": 100,
+                "event_timestamp": two_days_ago,
+                "created": two_days_ago,
+            },
+            {
+                "driver_id": 1002,
+                "avg_daily_trips": 200,
+                "event_timestamp": one_day_ago,
+                "created": one_day_ago,
+            },
+            {
+                "driver_id": 1002,
+                "avg_daily_trips": 300,
+                "event_timestamp": now,
+                "created": now,
+            },
+        ]
+    )
+
+    start_date = now - timedelta(days=3)
+    end_date = now + timedelta(hours=1)
+
+    driver_stats_data_source = environment.data_source_creator.create_data_source(
+        df=driver_stats_df,
+        destination_name=f"test_driver_stats_{int(time.time_ns())}_{random.randint(1000, 9999)}",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+
+    driver_entity = Entity(name="driver", join_keys=["driver_id"])
+    driver_fv = FeatureView(
+        name="driver_stats",
+        entities=[driver_entity],
+        schema=[Field(name="avg_daily_trips", dtype=Int32)],
+        source=driver_stats_data_source,
+    )
+
+    store.apply([driver_entity, driver_fv])
+
+    offline_job = store.get_historical_features(
+        entity_df=None,
+        features=["driver_stats:avg_daily_trips"],
+        full_feature_names=False,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    actual_df = offline_job.to_df()
+
+    assert not actual_df.empty, "Result should not be empty"
+    assert "avg_daily_trips" in actual_df.columns
+
+    actual_driver_ids = set(actual_df["driver_id"].tolist())
+    assert 1001 in actual_driver_ids, "driver 1001 should be in results"
+    assert 1002 in actual_driver_ids, "driver 1002 should be in results"
+
+    # Verify timestamps fall within the requested range.
+    # Strip tz info to avoid tz-naive vs tz-aware comparison issues.
+    ts_start = pd.Timestamp(start_date).tz_localize(None)
+    ts_end = pd.Timestamp(end_date).tz_localize(None)
+    for ts in actual_df["event_timestamp"]:
+        ts_val = pd.Timestamp(ts).tz_localize(None)
+        assert ts_val >= ts_start, f"Timestamp {ts_val} before start_date"
+        assert ts_val <= ts_end, f"Timestamp {ts_val} after end_date"
+
+    # The latest features must be present -- this is the critical regression check.
+    # With the old bug (using start_date instead of end_date), the synthetic entity_df
+    # had wrong max_event_timestamp causing the latest rows to be missed.
+    actual_trips = set(actual_df["avg_daily_trips"].tolist())
+    assert 30 in actual_trips, "Latest trip value 30 for driver 1001 should be present"
+    assert 300 in actual_trips, (
+        "Latest trip value 300 for driver 1002 should be present"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: f"full:{v}")
+def test_odfv_projection(environment, universal_data_sources, full_feature_names):
+    """
+    Test that requesting a subset of ODFV features only returns those features.
+
+    Regression test for issue #6099: OnDemandFeatureViews should honor output
+    projection in offline retrieval, matching the behavior of online retrieval.
+
+    Before the fix, offline retrieval would return ALL ODFV output features even
+    when only a subset was requested, while online retrieval correctly returned
+    only the requested features.
+    """
+    store = environment.feature_store
+
+    (entities, datasets, data_sources) = universal_data_sources
+
+    feature_views = construct_universal_feature_views(data_sources)
+
+    # Add request data needed for ODFV
+    entity_df_with_request_data = datasets.entity_df.copy(deep=True)
+    entity_df_with_request_data["val_to_add"] = [
+        i for i in range(len(entity_df_with_request_data))
+    ]
+
+    store.apply([driver(), *feature_views.values()])
+
+    # The conv_rate_plus_100 ODFV has 3 output features:
+    # - conv_rate_plus_100
+    # - conv_rate_plus_val_to_add
+    # - conv_rate_plus_100_rounded
+
+    # Test 1: Request only ONE ODFV feature
+    job = store.get_historical_features(
+        entity_df=entity_df_with_request_data,
+        features=[
+            "conv_rate_plus_100:conv_rate_plus_100",  # Request only this one
+        ],
+        full_feature_names=full_feature_names,
+    )
+
+    actual_df = job.to_df()
+
+    # Determine expected column names based on full_feature_names setting
+    expected_feature = (
+        "conv_rate_plus_100__conv_rate_plus_100"
+        if full_feature_names
+        else "conv_rate_plus_100"
+    )
+    unrequested_feature_1 = (
+        "conv_rate_plus_100__conv_rate_plus_val_to_add"
+        if full_feature_names
+        else "conv_rate_plus_val_to_add"
+    )
+    unrequested_feature_2 = (
+        "conv_rate_plus_100__conv_rate_plus_100_rounded"
+        if full_feature_names
+        else "conv_rate_plus_100_rounded"
+    )
+
+    # Verify the requested feature is present
+    assert expected_feature in actual_df.columns, (
+        f"Requested feature '{expected_feature}' should be in the result"
+    )
+
+    # Verify unrequested ODFV features are NOT present (this is the key fix)
+    assert unrequested_feature_1 not in actual_df.columns, (
+        f"Unrequested ODFV feature '{unrequested_feature_1}' should NOT be in the result. "
+        f"This indicates the bug from issue #6099 still exists."
+    )
+    assert unrequested_feature_2 not in actual_df.columns, (
+        f"Unrequested ODFV feature '{unrequested_feature_2}' should NOT be in the result. "
+        f"This indicates the bug from issue #6099 still exists."
+    )
+
+    # Test 2: Request TWO out of THREE ODFV features
+    job2 = store.get_historical_features(
+        entity_df=entity_df_with_request_data,
+        features=[
+            "conv_rate_plus_100:conv_rate_plus_100",
+            "conv_rate_plus_100:conv_rate_plus_val_to_add",
+            # Deliberately NOT requesting conv_rate_plus_100_rounded
+        ],
+        full_feature_names=full_feature_names,
+    )
+
+    actual_df2 = job2.to_df()
+
+    # Verify the two requested features are present
+    assert expected_feature in actual_df2.columns
+    assert unrequested_feature_1 in actual_df2.columns
+
+    # Verify the unrequested feature is NOT present
+    assert unrequested_feature_2 not in actual_df2.columns, (
+        f"Unrequested ODFV feature '{unrequested_feature_2}' should NOT be in the result"
     )

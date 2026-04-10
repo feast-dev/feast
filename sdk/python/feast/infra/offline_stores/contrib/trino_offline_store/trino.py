@@ -116,7 +116,7 @@ class AuthConfig(FeastConfigBaseModel):
 
         model_cls = CLASSES_BY_AUTH_TYPE[auth_type]["auth_model"]
         model = model_cls(**self.config)
-        return trino_auth_cls(**model.dict())
+        return trino_auth_cls(**model.model_dump())
 
 
 class TrinoOfflineStoreConfig(FeastConfigBaseModel):

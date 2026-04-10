@@ -2,11 +2,11 @@ FROM yarn-builder:latest
 
 # This section only necessary when building from local feast source ... e.g. ".[minimal]"
 ########################
-COPY --chown=default .git ${APP_ROOT}/src/.git
-COPY --chown=default setup.py pyproject.toml README.md Makefile ${APP_ROOT}/src/
-COPY --chown=default protos ${APP_ROOT}/src/protos
-COPY --chown=default ui ${APP_ROOT}/src/ui
-COPY --chown=default sdk/python ${APP_ROOT}/src/sdk/python
+COPY --chown=1001:0 .git ${APP_ROOT}/src/.git
+COPY --chown=1001:0 pyproject.toml README.md Makefile ${APP_ROOT}/src/
+COPY --chown=1001:0 protos ${APP_ROOT}/src/protos
+COPY --chown=1001:0 ui ${APP_ROOT}/src/ui
+COPY --chown=1001:0 sdk/python ${APP_ROOT}/src/sdk/python
 
 WORKDIR ${APP_ROOT}/src/ui
 ENV NPM_TOKEN=

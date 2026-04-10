@@ -21,6 +21,7 @@ import (
 )
 
 var isOpenShift = false
+var hasServiceMonitorCRD = false
 
 func IsRegistryServer(featureStore *feastdevv1.FeatureStore) bool {
 	return IsLocalRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Local.Server != nil
@@ -99,6 +100,9 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		applied.Services = &feastdevv1.FeatureStoreServices{}
 	}
 	services := applied.Services
+	if services.RunFeastApplyOnInit == nil {
+		services.RunFeastApplyOnInit = boolPtr(true)
+	}
 
 	if services.Registry != nil {
 		// if remote registry not set, proceed w/ local registry defaults
@@ -371,6 +375,12 @@ func IsOpenShift() bool {
 	return isOpenShift
 }
 
+// HasServiceMonitorCRD returns whether the monitoring.coreos.com API group
+// (Prometheus Operator) is available in the cluster.
+func HasServiceMonitorCRD() bool {
+	return hasServiceMonitorCRD
+}
+
 // SetIsOpenShift sets the global flag isOpenShift by the controller manager.
 // We don't need to keep fetching the API every reconciliation cycle that we need to know about the platform.
 func SetIsOpenShift(cfg *rest.Config) {
@@ -390,13 +400,11 @@ func SetIsOpenShift(cfg *rest.Config) {
 	for _, v := range apiList.Groups {
 		if v.Name == "route.openshift.io" {
 			isOpenShift = true
-			break
+		}
+		if v.Name == "monitoring.coreos.com" {
+			hasServiceMonitorCRD = true
 		}
 	}
-}
-
-func missingOidcSecretProperty(property OidcPropertyType) error {
-	return fmt.Errorf(OidcMissingSecretError, property)
 }
 
 // getEnvVar returns the position of the EnvVar found by name
@@ -491,6 +499,16 @@ func getVolumeMountByType(feastType FeastServiceType, featureStore *feastdevv1.F
 		}
 	}
 	return nil
+}
+
+// isScalingEnabled returns true when the user has configured horizontal scaling
+// with either static replicas > 1 or HPA autoscaling.
+func isScalingEnabled(featureStore *feastdevv1.FeatureStore) bool {
+	if featureStore.Status.Applied.Replicas != nil && *featureStore.Status.Applied.Replicas > 1 {
+		return true
+	}
+	services := featureStore.Status.Applied.Services
+	return services != nil && services.Scaling != nil && services.Scaling.Autoscaling != nil
 }
 
 func boolPtr(value bool) *bool {

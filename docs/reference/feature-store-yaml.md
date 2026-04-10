@@ -36,6 +36,14 @@ An example configuration:
 ```yaml
 feature_server:
   type: local
+  metrics: # Prometheus metrics configuration. Also achievable via `feast serve --metrics`.
+    enabled: true             # Enable Prometheus metrics server on port 8000
+    resource: true            # CPU / memory gauges
+    request: true             # endpoint latency histograms & request counters
+    online_features: true     # online feature retrieval counters + store read & ODFV transform timing
+    push: true                # push request counters
+    materialization: true     # materialization counters & duration histograms
+    freshness: true           # per-feature-view freshness gauges
   offline_push_batching_enabled: true # Enables batching of offline writes processed by /push. Online writes are unaffected.
   offline_push_batching_batch_size: 100 # Maximum number of buffered rows before writing to the offline store.
   offline_push_batching_batch_interval_seconds: 5 # Maximum time rows may remain buffered before a forced flush.

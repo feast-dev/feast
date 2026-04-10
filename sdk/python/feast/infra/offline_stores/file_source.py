@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlparse
@@ -23,6 +24,8 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.value_type import ValueType
+
+logger = logging.getLogger(__name__)
 
 
 @typechecked
@@ -151,8 +154,43 @@ class FileSource(DataSource):
         return data_source_proto
 
     def validate(self, config: RepoConfig):
-        # TODO: validate a FileSource
-        pass
+        """Validate that the file source exists and is readable.
+
+        Checks that the path resolves to an existing Parquet or Delta file
+        and that the declared timestamp column is present in the schema.
+        """
+        from feast.infra.offline_stores.file_source import FileSource
+
+        uri = self.path
+        repo_path = config.repo_path if hasattr(config, "repo_path") else None
+        resolved = FileSource.get_uri_for_file_path(repo_path, uri)
+
+        try:
+            filesystem, path = FileSystem.from_uri(resolved)
+            file_info = filesystem.get_file_info(path)
+            if file_info.type == pyarrow.fs.FileType.NotFound:
+                raise FileNotFoundError(f"FileSource path does not exist: {resolved}")
+        except Exception as e:
+            logger.warning("Could not validate FileSource path '%s': %s", resolved, e)
+            return
+
+        try:
+            if isinstance(self.file_options.file_format, DeltaFormat):
+                return
+            pq_dataset = ParquetDataset(path, filesystem=filesystem)
+            schema = pq_dataset.schema
+            if self.timestamp_field and self.timestamp_field not in schema.names:
+                logger.warning(
+                    "Timestamp field '%s' not found in FileSource schema at '%s'. "
+                    "Available columns: %s",
+                    self.timestamp_field,
+                    resolved,
+                    schema.names,
+                )
+        except Exception as e:
+            logger.warning(
+                "Could not read schema from FileSource '%s': %s", resolved, e
+            )
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:

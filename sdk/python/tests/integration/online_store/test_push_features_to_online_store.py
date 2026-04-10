@@ -2,10 +2,10 @@ import pandas as pd
 import pytest
 
 from feast.utils import _utc_now
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import location
+from tests.universal.feature_repos.universal.entities import location
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def test_push_features_and_read(store):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["dynamodb"])
+@pytest.mark.universal_online_stores(only=["dynamodb", "mongodb"])
 async def test_push_features_and_read_async(store):
     await store.push_async("location_stats_push_source", _ingest_df())
 

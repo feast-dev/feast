@@ -11,6 +11,7 @@ from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
+from feast.errors import ConflictingFeatureViewNames
 from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
@@ -24,7 +25,7 @@ from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RegistryConfig, RepoConfig
 from feast.stream_feature_view import stream_feature_view
 from feast.types import Array, Bytes, Float32, Int64, String, ValueType, from_value_type
-from tests.integration.feature_repos.universal.feature_views import TAGS
+from tests.universal.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.data_source_test_creator import prep_file_source
 
@@ -534,16 +535,10 @@ def test_apply_conflicting_feature_view_names(feature_store_with_local_registry)
         source=FileSource(path="customer_stats.parquet"),
         tags={},
     )
-    try:
+    with pytest.raises(ConflictingFeatureViewNames) as exc_info:
         feature_store_with_local_registry.apply([driver_stats, customer_stats])
-        error = None
-    except ValueError as e:
-        error = e
-    assert (
-        isinstance(error, ValueError)
-        and "Please ensure that all feature view names are case-insensitively unique"
-        in error.args[0]
-    )
+
+    assert "Feature view names must be case-insensitively unique" in str(exc_info.value)
 
     feature_store_with_local_registry.teardown()
 

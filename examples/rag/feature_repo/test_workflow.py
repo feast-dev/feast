@@ -33,20 +33,22 @@ def run_model(sentences, tokenizer, model):
     sentence_embeddings = F.normalize(sentence_embeddings, p=2, dim=1)
     return sentence_embeddings
 
+
 def run_demo():
     store = FeatureStore(repo_path=".")
     df = pd.read_parquet("./data/city_wikipedia_summaries_with_embeddings.parquet")
-    embedding_length = len(df['vector'][0])
-    print(f'embedding length = {embedding_length}')
+    embedding_length = len(df["vector"][0])
+    print(f"embedding length = {embedding_length}")
 
     store.apply([city_embeddings_feature_view, item])
-    fields = [
-        f.name for f in city_embeddings_feature_view.features
-    ] + city_embeddings_feature_view.entities + [city_embeddings_feature_view.batch_source.timestamp_field]
-    print('\ndata=')
+    fields = (
+        [f.name for f in city_embeddings_feature_view.features]
+        + city_embeddings_feature_view.entities
+        + [city_embeddings_feature_view.batch_source.timestamp_field]
+    )
+    print("\ndata=")
     print(df[fields].head().T)
     store.write_to_online_store("city_embeddings", df[fields][0:3])
-
 
     question = "the most populous city in the state of New York is New York"
     tokenizer = AutoTokenizer.from_pretrained(TOKENIZER)
@@ -69,6 +71,7 @@ def run_demo():
     print("features =")
     print(features.to_df())
     store.teardown()
+
 
 if __name__ == "__main__":
     run_demo()

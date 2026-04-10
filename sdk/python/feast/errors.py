@@ -128,6 +128,38 @@ class FeatureViewNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Feature view {name} does not exist")
 
 
+class FeatureViewVersionNotFound(FeastObjectNotFoundException):
+    def __init__(self, name, version, project=None):
+        if project:
+            super().__init__(
+                f"Version {version} of feature view {name} does not exist in project {project}"
+            )
+        else:
+            super().__init__(f"Version {version} of feature view {name} does not exist")
+
+
+class VersionedOnlineReadNotSupported(FeastError):
+    def __init__(self, store_name: str, version: int):
+        super().__init__(
+            f"Versioned feature reads (@v{version}) are not yet supported by {store_name}. "
+            f"Currently only SQLite, PostgreSQL, and MySQL support version-qualified feature references. "
+        )
+
+
+class FeatureViewPinConflict(FeastError):
+    def __init__(self, name, version):
+        super().__init__(
+            f"Cannot pin feature view '{name}' to {version} because the definition has also been modified. "
+            f"To pin to an older version, only change the 'version' parameter — do not modify other fields. "
+            f"To apply a new definition, use version='latest' or omit the version parameter."
+        )
+
+
+class ConcurrentVersionConflict(FeastError):
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
+
 class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:
@@ -411,10 +443,32 @@ class InvalidEntityType(FeastError):
 
 class ConflictingFeatureViewNames(FeastError):
     # TODO: print file location of conflicting feature views
-    def __init__(self, feature_view_name: str):
-        super().__init__(
-            f"The feature view name: {feature_view_name} refers to feature views of different types."
-        )
+    def __init__(
+        self,
+        feature_view_name: str,
+        existing_type: Optional[str] = None,
+        new_type: Optional[str] = None,
+    ):
+        if existing_type and new_type:
+            if existing_type == new_type:
+                # Same-type duplicate
+                super().__init__(
+                    f"Multiple {existing_type}s with name '{feature_view_name}' found. "
+                    f"Feature view names must be case-insensitively unique. "
+                    f"It may be necessary to ignore certain files in your feature "
+                    f"repository by using a .feastignore file."
+                )
+            else:
+                # Cross-type conflict
+                super().__init__(
+                    f"Feature view name '{feature_view_name}' is already used by a {existing_type}. "
+                    f"Cannot register a {new_type} with the same name. "
+                    f"Feature view names must be unique across FeatureView, StreamFeatureView, and OnDemandFeatureView."
+                )
+        else:
+            super().__init__(
+                f"The feature view name: {feature_view_name} refers to feature views of different types."
+            )
 
 
 class FeastInvalidInfraObjectType(FeastError):

@@ -372,14 +372,11 @@ class RedisOnlineStore(OnlineStore):
         redis_values: List[List[ByteString]],
         feature_view: str,
         requested_features: List[str],
-    ):
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        for values in redis_values:
-            features = self._get_features_for_entity(
-                values, feature_view, requested_features
-            )
-            result.append(features)
-        return result
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        return [
+            self._get_features_for_entity(values, feature_view, requested_features)
+            for values in redis_values
+        ]
 
     def online_read(
         self,
@@ -445,21 +442,21 @@ class RedisOnlineStore(OnlineStore):
         res_val = dict(zip(requested_features, values))
 
         res_ts = Timestamp()
-        ts_val = res_val.pop(f"_ts:{feature_view}")
+        ts_key = f"_ts:{feature_view}"
+        ts_val = res_val.pop(ts_key)
         if ts_val:
-            res_ts.ParseFromString(bytes(ts_val))
+            res_ts.ParseFromString(ts_val)
 
-        res = {}
+        res: Dict[str, ValueProto] = {}
         for feature_name, val_bin in res_val.items():
             val = ValueProto()
             if val_bin:
-                val.ParseFromString(bytes(val_bin))
+                val.ParseFromString(val_bin)
             res[feature_name] = val
 
         if not res:
             return None, None
-        else:
-            # reconstruct full timestamp including nanos
-            total_seconds = res_ts.seconds + res_ts.nanos / 1_000_000_000.0
-            timestamp = datetime.fromtimestamp(total_seconds, tz=timezone.utc)
-            return timestamp, res
+
+        total_seconds = res_ts.seconds + res_ts.nanos / 1_000_000_000.0
+        timestamp = datetime.fromtimestamp(total_seconds, tz=timezone.utc)
+        return timestamp, res

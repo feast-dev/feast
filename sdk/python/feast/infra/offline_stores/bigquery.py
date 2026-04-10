@@ -161,6 +161,14 @@ class BigQueryOfflineStore(OfflineStore):
             project=project_id,
             location=config.offline_store.location,
         )
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            date_partition_column=data_source.date_partition_column,
+            quote_fields=False,
+            cast_style="timestamp_func",
+        )
         query = f"""
             SELECT
                 {field_string}
@@ -169,7 +177,7 @@ class BigQueryOfflineStore(OfflineStore):
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
-                WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
+                WHERE {timestamp_filter}
             )
             WHERE _feast_row = 1
             """
@@ -216,6 +224,7 @@ class BigQueryOfflineStore(OfflineStore):
             start_date,
             end_date,
             timestamp_field,
+            date_partition_column=data_source.date_partition_column,
             quote_fields=False,
             cast_style="timestamp_func",
         )
@@ -416,7 +425,7 @@ class BigQueryOfflineStore(OfflineStore):
             )
 
         if table.schema != pa_schema:
-            table = table.cast(pa_schema)
+            table = offline_utils.cast_arrow_table_to_schema(table, pa_schema)
         project_id = (
             config.offline_store.billing_project_id or config.offline_store.project_id
         )
@@ -833,12 +842,17 @@ def arrow_schema_to_bq_schema(arrow_schema: pyarrow.Schema) -> List[SchemaField]
     bq_schema = []
 
     for field in arrow_schema:
-        if pyarrow.types.is_list(field.type):
+        if pyarrow.types.is_struct(field.type) or pyarrow.types.is_map(field.type):
+            detected_mode = "NULLABLE"
+            detected_type = "STRING"
+        elif pyarrow.types.is_list(field.type):
             detected_mode = "REPEATED"
-            detected_type = _ARROW_SCALAR_IDS_TO_BQ[field.type.value_type.id]
+            detected_type = _ARROW_SCALAR_IDS_TO_BQ.get(
+                field.type.value_type.id, "STRING"
+            )
         else:
             detected_mode = "NULLABLE"
-            detected_type = _ARROW_SCALAR_IDS_TO_BQ[field.type.id]
+            detected_type = _ARROW_SCALAR_IDS_TO_BQ.get(field.type.id, "STRING")
 
         bq_schema.append(
             SchemaField(name=field.name, field_type=detected_type, mode=detected_mode)
@@ -923,6 +937,12 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
         WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
         {% if featureview.ttl == 0 %}{% else %}
         AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
+        {% endif %}
+        {% if featureview.date_partition_column %}
+        AND {{ featureview.date_partition_column | backticks }} <= '{{ featureview.max_event_timestamp[:10] }}'
+        {% if featureview.min_event_timestamp %}
+        AND {{ featureview.date_partition_column | backticks }} >= '{{ featureview.min_event_timestamp[:10] }}'
+        {% endif %}
         {% endif %}
     ),
 
