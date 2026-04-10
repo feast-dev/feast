@@ -139,8 +139,9 @@ class SnowflakeRegistry(BaseRegistry):
         with GetSnowflakeConnection(self.registry_config) as conn:
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_creation.sql"
             with open(sql_function_file, "r") as file:
-                sql_file = file.read()
-                sql_cmds = sql_file.split(";")
+                sql_cmds = [
+                    cmd.strip() for cmd in file.read().split(";") if cmd.strip()
+                ]
                 for command in sql_cmds:
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
                     execute_snowflake_statement(conn, query)
@@ -224,9 +225,10 @@ class SnowflakeRegistry(BaseRegistry):
         with GetSnowflakeConnection(self.registry_config) as conn:
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_deletion.sql"
             with open(sql_function_file, "r") as file:
-                sqlFile = file.read()
-                sqlCommands = sqlFile.split(";")
-                for command in sqlCommands:
+                sql_cmds = [
+                    cmd.strip() for cmd in file.read().split(";") if cmd.strip()
+                ]
+                for command in sql_cmds:
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
                     execute_snowflake_statement(conn, query)
 

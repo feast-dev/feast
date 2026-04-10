@@ -76,27 +76,17 @@ def test_parse_private_key_path_key_path_encrypted(encrypted_private_key):
 
 
 class TestExecuteSnowflakeStatement:
-    def test_empty_query_returns_cursor_without_executing(self):
+    def test_empty_query_is_passed_through_to_execute(self):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
+        mock_executed_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.execute.return_value = mock_executed_cursor
 
         result = execute_snowflake_statement(mock_conn, "")
 
-        assert result is mock_cursor
-        mock_conn.cursor.assert_called_once()
-        mock_cursor.execute.assert_not_called()
-
-    def test_whitespace_only_query_returns_cursor_without_executing(self):
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-
-        result = execute_snowflake_statement(mock_conn, "   \t\n  ")
-
-        assert result is mock_cursor
-        mock_conn.cursor.assert_called_once()
-        mock_cursor.execute.assert_not_called()
+        assert result is mock_executed_cursor
+        mock_cursor.execute.assert_called_once_with("")
 
     def test_valid_query_executes_and_returns_cursor(self):
         mock_conn = MagicMock()
