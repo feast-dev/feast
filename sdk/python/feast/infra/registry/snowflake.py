@@ -147,13 +147,13 @@ class SnowflakeRegistry(BaseRegistry):
                     execute_snowflake_statement(conn, query)
 
         self.purge_feast_metadata = registry_config.purge_feast_metadata
-        self._sync_feast_metadata_to_projects_table()
-        if not self.purge_feast_metadata:
-            self._maybe_init_project_metadata(project)
+        self.project = project
 
-        self.cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = _utc_now()
+        # Initialize cache state before any method that may trigger
+        # _refresh_cached_registry_if_necessary (e.g. proto(), get_project()).
         self._refresh_lock = Lock()
+        self.cached_registry_proto = None
+        self.cached_registry_proto_created = None
         self.cached_registry_proto_ttl = timedelta(
             seconds=(
                 registry_config.cache_ttl_seconds
@@ -161,7 +161,13 @@ class SnowflakeRegistry(BaseRegistry):
                 else 0
             )
         )
-        self.project = project
+
+        self._sync_feast_metadata_to_projects_table()
+        if not self.purge_feast_metadata:
+            self._maybe_init_project_metadata(project)
+
+        self.cached_registry_proto = self.proto()
+        self.cached_registry_proto_created = _utc_now()
 
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: set = set()
@@ -1139,18 +1145,6 @@ class SnowflakeRegistry(BaseRegistry):
             project_name = project.name
             last_updated_timestamp = project.last_updated_timestamp
 
-            try:
-                cached_project = self.get_project(project_name, True)
-            except ProjectObjectNotFoundException:
-                cached_project = None
-
-            allow_cache = False
-
-            if cached_project is not None:
-                allow_cache = (
-                    last_updated_timestamp <= cached_project.last_updated_timestamp
-                )
-
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
 
@@ -1165,7 +1159,9 @@ class SnowflakeRegistry(BaseRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project_name, allow_cache)  # type: ignore
+                # Always bypass cache here: proto() builds the cache, so using
+                # allow_cache=True would cause infinite recursion via refresh().
+                objs: List[Any] = lister(project_name, False)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
@@ -1371,7 +1367,7 @@ class SnowflakeRegistry(BaseRegistry):
                 objects = []
                 for row in df.iterrows():
                     obj = Project.from_proto(
-                        ProjectProto.FromString(row[1]["project_proto"])
+                        ProjectProto.FromString(row[1]["PROJECT_PROTO"])
                     )
                     if has_all_tags(obj.tags, tags):
                         objects.append(obj)
