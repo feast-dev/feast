@@ -19,6 +19,7 @@ import pytest
 
 from feast.entity import Entity
 from feast.infra.registry.snowflake import SnowflakeRegistry, SnowflakeRegistryConfig
+from feast.infra.utils.snowflake.snowflake_utils import GetSnowflakeConnection
 
 
 @pytest.fixture
@@ -271,3 +272,59 @@ class TestSyncFeastMetadataToProjectsTable:
             assert mock_apply.call_count == 2
             applied_names = {call[0][0].name for call in mock_apply.call_args_list}
             assert applied_names == {"project_a", "project_b"}
+
+
+class _DictableConfig:
+    """A config object that supports dict() conversion and attribute access."""
+
+    def __init__(self, data):
+        self._data = data
+        for k, v in data.items():
+            setattr(self, k, v)
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def keys(self):
+        return self._data.keys()
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+
+class TestGetSnowflakeConnection:
+    @patch("feast.infra.utils.snowflake.snowflake_utils.parse_private_key_path")
+    @patch("feast.infra.utils.snowflake.snowflake_utils.snowflake.connector")
+    @patch("feast.infra.utils.snowflake.snowflake_utils._cache", {})
+    def test_private_key_kwargs_not_leaked_to_connect(
+        self, mock_connector, mock_parse_key
+    ):
+        """private_key_passphrase and private_key_content must not be passed to connect()."""
+        mock_parse_key.return_value = b"parsed_key_bytes"
+        mock_conn = MagicMock()
+        mock_connector.connect.return_value = mock_conn
+
+        config = _DictableConfig(
+            {
+                "type": "snowflake.registry",
+                "account": "test_account",
+                "user": "test_user",
+                "password": None,
+                "role": "test_role",
+                "warehouse": "test_wh",
+                "database": "test_db",
+                "schema_": "test_schema",
+                "config_path": "",
+                "private_key": "/path/to/key.p8",
+                "private_key_passphrase": "my_secret",  # pragma: allowlist secret
+                "private_key_content": None,
+            }
+        )
+
+        with GetSnowflakeConnection(config):
+            pass
+
+        connect_kwargs = mock_connector.connect.call_args[1]
+        assert "private_key_passphrase" not in connect_kwargs
+        assert "private_key_content" not in connect_kwargs
+        assert connect_kwargs["private_key"] == b"parsed_key_bytes"
