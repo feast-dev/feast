@@ -55,6 +55,7 @@
 * [Retrieval Augmented Generation (RAG) with Feast](tutorials/rag-with-docling.md)
 * [RAG Fine Tuning with Feast and Milvus](../examples/rag-retriever/README.md)
 * [MCP - AI Agent Example](../examples/mcp_feature_store/README.md)
+* [Feast-Powered AI Agent](../examples/agent_feature_store/README.md)
 
 ## How-to Guides
 
