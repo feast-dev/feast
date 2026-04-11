@@ -21,8 +21,8 @@ def yaml_loader(yml, load_single=False):
     # Return a single resource dict
     if load_single:
         if len(yaml_strings) > 1:
-            raise Exception(
-                f"More than one YAML file is being loaded when only a single file is supported: ${yaml_strings}"
+            raise ValueError(
+                f"More than one YAML file is being loaded when only a single file is supported: {yaml_strings}"
             )
         return _yaml_to_dict(yaml_strings[0])
 
@@ -56,7 +56,7 @@ def _get_yaml_contents(yml: str) -> str:
     elif isinstance(yml, str):
         yml_content = yml
     else:
-        raise Exception(
+        raise ValueError(
             f"Invalid YAML provided. Please provide either a file path or YAML string.\n"
             f"Provided YAML: {yml}"
         )
