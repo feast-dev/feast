@@ -32,7 +32,12 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig, utils
-from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
+from feast.infra.online_stores.helpers import (
+    _mmh3,
+    _redis_key,
+    _redis_key_prefix,
+    compute_versioned_name,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -53,13 +58,9 @@ logger = logging.getLogger(__name__)
 
 def _versioned_fv_name(table: FeatureView, config: RepoConfig) -> str:
     """Return the feature view name with version suffix when versioning is enabled."""
-    if config.registry.enable_online_feature_view_versioning:
-        version = getattr(table.projection, "version_tag", None)
-        if version is None:
-            version = getattr(table, "current_version_number", None)
-        if version is not None and version > 0:
-            return f"{table.name}_v{version}"
-    return table.name
+    return compute_versioned_name(
+        table, config.registry.enable_online_feature_view_versioning
+    )
 
 
 class RedisType(str, Enum):

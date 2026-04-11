@@ -24,7 +24,7 @@ from aiobotocore.config import AioConfig
 from pydantic import StrictBool, StrictStr
 
 from feast import Entity, FeatureView, utils
-from feast.infra.online_stores.helpers import compute_entity_id
+from feast.infra.online_stores.helpers import compute_entity_id, compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.supported_async_methods import SupportedAsyncMethods
 from feast.infra.utils.aws_utils import dynamo_write_items_async
@@ -1154,13 +1154,9 @@ def _initialize_dynamodb_resource(
 def _get_table_name(
     online_config: DynamoDBOnlineStoreConfig, config: RepoConfig, table: FeatureView
 ) -> str:
-    table_name = table.name
-    if config.registry.enable_online_feature_view_versioning:
-        version = getattr(table.projection, "version_tag", None)
-        if version is None:
-            version = getattr(table, "current_version_number", None)
-        if version is not None and version > 0:
-            table_name = f"{table.name}_v{version}"
+    table_name = compute_versioned_name(
+        table, config.registry.enable_online_feature_view_versioning
+    )
     return online_config.table_name_template.format(
         project=config.project, table_name=table_name
     )
