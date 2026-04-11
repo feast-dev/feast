@@ -14,7 +14,6 @@ Subpackages
    feast.embedded_go
    feast.infra
    feast.lineage
-   feast.loaders
    feast.permissions
    feast.protos
    feast.transformation
