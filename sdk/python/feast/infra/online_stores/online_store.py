@@ -275,6 +275,12 @@ class OnlineStore(ABC):
         except ImportError:
             pass
         try:
+            from feast.infra.online_stores.faiss_online_store import FaissOnlineStore
+
+            supported_types.append(FaissOnlineStore)
+        except ImportError:
+            pass
+        try:
             from feast.infra.online_stores.redis import RedisOnlineStore
 
             supported_types.append(RedisOnlineStore)
