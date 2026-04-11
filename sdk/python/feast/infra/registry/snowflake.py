@@ -373,7 +373,8 @@ class SnowflakeRegistry(BaseRegistry):
                             {proto_field_name} = TO_BINARY({proto}),
                             last_updated_timestamp = CURRENT_TIMESTAMP()
                         WHERE
-                            {id_field_name.lower()} = '{name}'
+                            project_id = '{project}'
+                            AND {id_field_name.lower()} = '{name}'
                 """
                 execute_snowflake_statement(conn, query)
 
