@@ -28,7 +28,7 @@ def registry():
         schema="PUBLIC",
         account="test_account",
         user="test_user",
-        password="test_password",
+        password="test_password",  # pragma: allowlist secret
     )
     mock_conn = MagicMock()
     mock_conn.__enter__ = MagicMock(return_value=MagicMock())
