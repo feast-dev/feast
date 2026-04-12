@@ -73,11 +73,7 @@ gcp = [
     "fsspec<=2024.9.0",
 ]
 ge = ["great_expectations>=0.15.41,<1"]
-go = [
-    "cffi>=1.15.0",
-    "mypy-protobuf>=3.1",
-    "grpcio-tools>=1.56.2,<=1.62.3",
-    ]
+go = ["cffi>=1.15.0"]
 grpcio = [
     "grpcio>=1.56.2,<=1.62.3",
     "grpcio-reflection>=1.56.2,<=1.62.3",
