@@ -48,16 +48,17 @@ var newSignalStopChannel = func() (chan os.Signal, func()) {
 type ServerStarter interface {
 	StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
 	StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
+	StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, certFile string, keyFile string) error
 }
 
 type RealServerStarter struct{}
 
 func (s *RealServerStarter) StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
+	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts, false, "", "")
 }
 
-func (s *RealServerStarter) StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, certFile string, keyFile string, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	return StartHttpsServer(fs, host, port, metricsPort, certFile, keyFile, writeLoggedFeaturesCallback, loggingOpts)
+func (s *RealServerStarter) StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, certFile string, keyFile string) error {
+	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts, true, certFile, keyFile)
 }
 
 func (s *RealServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
@@ -137,7 +138,7 @@ func main() {
 	} else if serverType == "grpc" {
 		err = server.StartGrpcServer(fs, host, port, metricsPort, nil, loggingOptions)
 	} else if serverType == "https" {
-		err = server.StartHttpsServer(fs, host, port, metricsPort, certFile, keyFile, nil, loggingOptions)
+		err = server.StartHttpsServer(fs, host, port, metricsPort, nil, loggingOptions, certFile, keyFile)
 	} else {
 		fmt.Println("Unknown server type. Please specify 'http' or 'grpc' or 'https'.")
 	}
@@ -246,7 +247,11 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 // StartHttpServerWithLogging starts HTTP server with enabled feature logging
 // Go does not allow direct assignment to package-level functions as a way to
 // mock them for tests
-func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, https_enable bool, certFile string, keyFile string) error {
+	if https_enable && (certFile == "" || keyFile == "") {
+		return fmt.Errorf("--tls-cert-file and --tls-key-file must be provided for HTTPS server.")
+	}
+
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
@@ -303,7 +308,11 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 		}
 	}()
 
-	err = ser.Serve(host, port)
+	if https_enable {
+		err = ser.ServeTLS(host, port, certFile, keyFile)
+	} else {
+		err = ser.Serve(host, port)
+	}
 	close(serverExited)
 	wg.Wait()
 	return err
@@ -343,72 +352,4 @@ func newTracerProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, err
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(r),
 	), nil
-}
-
-// StartHttpsServer starts HTTP server with TLS. Requires --tls-cert-file and --tls-key-file flags
-func StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, certFile string, keyFile string, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	if certFile == "" || keyFile == "" {
-		return fmt.Errorf("--tls-cert-file and --tls-key-file must be provided")
-	}
-
-	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
-	if err != nil {
-		return err
-	}
-	ser := server.NewHttpServer(fs, loggingService)
-	log.Info().Msgf("Starting a HTTPS server on host %s, port %d", host, port)
-
-	// Start metrics server
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-	metricsServer := &http.Server{
-		Addr:    fmt.Sprintf(":%d", metricsPort),
-		Handler: mux,
-	}
-	go func() {
-		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
-		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error().Err(err).Msg("Failed to start metrics server")
-		}
-	}()
-
-	stop, stopCleanup := newSignalStopChannel()
-	defer stopCleanup()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	serverExited := make(chan struct{})
-	go func() {
-		defer wg.Done()
-		select {
-		case <-stop:
-			// Received SIGINT/SIGTERM. Perform graceful shutdown.
-			log.Info().Msg("Stopping the HTTP server...")
-			err := ser.Stop()
-			if err != nil {
-				log.Error().Err(err).Msg("Error when stopping the HTTP server")
-			}
-			log.Info().Msg("Stopping metrics server...")
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := metricsServer.Shutdown(ctx); err != nil {
-				log.Error().Err(err).Msg("Error stopping metrics server")
-			}
-			if loggingService != nil {
-				loggingService.Stop()
-			}
-			log.Info().Msg("HTTP server terminated")
-		case <-serverExited:
-			// Server exited (e.g. startup error), ensure metrics server is stopped
-			metricsServer.Shutdown(context.Background())
-			if loggingService != nil {
-				loggingService.Stop()
-			}
-		}
-	}()
-
-	err = ser.ServeTLS(host, port, certFile, keyFile)
-	close(serverExited)
-	wg.Wait()
-	return err
 }

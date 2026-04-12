@@ -409,13 +409,10 @@ func (s *httpServer) ServeTLS(host string, port int, certFile string, keyFile st
 		IdleTimeout:  15 * time.Second,
 		TLSConfig: &tls.Config{
 			MinVersion: tls.VersionTLS12,
-			// For production, use proper certificates
-			// Prefer server's cipher suites
-			PreferServerCipherSuites: true,
 			CurvePreferences: []tls.CurveID{
 				tls.CurveP256,
 				tls.X25519MLKEM768,
-				tls.SecP256r1MLKEM768,
+				//tls.SecP256r1MLKEM768,  // Only available in Go 1.26
 			},
 		},
 	}

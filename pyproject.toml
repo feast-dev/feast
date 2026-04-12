@@ -76,12 +76,12 @@ ge = ["great_expectations>=0.15.41,<1"]
 go = [
     "cffi>=1.15.0",
     "mypy-protobuf>=3.1",
+    "grpcio-tools>=1.56.2,<=1.62.3",
     ]
 grpcio = [
     "grpcio>=1.56.2,<=1.62.3",
     "grpcio-reflection>=1.56.2,<=1.62.3",
     "grpcio-health-checking>=1.56.2,<=1.62.3",
-    "grpcio-tools>=1.56.2,<=1.62.3",
 ]
 hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]

@@ -101,7 +101,7 @@ func TestStartHttpsServerHealthEndpoint(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- StartHttpsServer(&feast.FeatureStore{}, host, port, metricsPort, certPath, keyPath, nil, &logging.LoggingOptions{})
+		errCh <- StartHttpServer(&feast.FeatureStore{}, host, port, metricsPort, nil, &logging.LoggingOptions{}, true, certPath, keyPath)
 	}()
 
 	httpsClient := &http.Client{
@@ -148,7 +148,7 @@ func TestStartHttpsServerHealthEndpoint(t *testing.T) {
 }
 
 func TestStartHttpsServerTLSFilesRequired(t *testing.T) {
-	err := StartHttpsServer(&feast.FeatureStore{}, "127.0.0.1", 0, 0, "", "", nil, nil)
+	err := StartHttpServer(&feast.FeatureStore{}, "127.0.0.1", 0, 0, nil, &logging.LoggingOptions{}, true, "", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--tls-cert-file and --tls-key-file must be provided")
 }
