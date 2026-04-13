@@ -25,14 +25,6 @@ Subpackages
 Submodules
 ----------
 
-feast.aggregation module
-------------------------
-
-.. automodule:: feast.aggregation
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.arrow\_error\_handler module
 ----------------------------------
 

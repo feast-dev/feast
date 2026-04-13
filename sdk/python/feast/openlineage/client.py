@@ -55,7 +55,8 @@ class FeastOpenLineageClient:
     from Feast operations like materialization, feature retrieval, and
     registry changes.
 
-    Example:
+    Example::
+
         from feast.openlineage import FeastOpenLineageClient, OpenLineageConfig
 
         config = OpenLineageConfig(
