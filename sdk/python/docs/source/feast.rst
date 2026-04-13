@@ -7,13 +7,16 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   feast.aggregation
    feast.api
    feast.cli
+   feast.dbt
    feast.diff
    feast.dqm
    feast.embedded_go
    feast.infra
    feast.lineage
+   feast.openlineage
    feast.permissions
    feast.protos
    feast.transformation
