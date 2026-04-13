@@ -247,8 +247,8 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 // StartHttpServerWithLogging starts HTTP server with enabled feature logging
 // Go does not allow direct assignment to package-level functions as a way to
 // mock them for tests
-func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, https_enable bool, certFile string, keyFile string) error {
-	if https_enable && (certFile == "" || keyFile == "") {
+func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, httpsEnable bool, certFile string, keyFile string) error {
+	if httpsEnable && (certFile == "" || keyFile == "") {
 		return fmt.Errorf("--tls-cert-file and --tls-key-file must be provided for HTTPS server.")
 	}
 
@@ -308,7 +308,7 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 		}
 	}()
 
-	if https_enable {
+	if httpsEnable {
 		err = ser.ServeTLS(host, port, certFile, keyFile)
 	} else {
 		err = ser.Serve(host, port)
