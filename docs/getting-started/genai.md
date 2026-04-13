@@ -89,6 +89,17 @@ Implement semantic search by:
 2. Converting search queries to embeddings
 3. Finding semantically similar documents using vector search
 
+### AI Agents with Context and Memory
+
+Feast can serve as both the **context provider** and **persistent memory layer** for AI agents. Unlike stateless RAG pipelines, agents make autonomous decisions about which tools to call and can write state back to the feature store:
+
+1. **Structured context**: Retrieve customer profiles, account data, and other entity-keyed features
+2. **Knowledge retrieval**: Search vector embeddings for relevant documents
+3. **Persistent memory**: Store and recall per-entity interaction history (last topic, resolution, preferences) using `write_to_online_store`
+4. **Governed access**: All reads and writes are subject to the same RBAC, TTL, and audit policies as any other feature
+
+With MCP enabled, agents built with any framework (LangChain, LlamaIndex, CrewAI, AutoGen, or custom) can discover and call Feast tools dynamically. See the [Feast-Powered AI Agent example](../../examples/agent_feature_store/) and the blog post [Building AI Agents with Feast](https://feast.dev/blog/feast-agents-mcp/) for a complete walkthrough.
+
 ### Scaling with Spark Integration
 
 Feast integrates with Apache Spark to enable large-scale processing of unstructured data for GenAI applications:
@@ -167,9 +178,11 @@ The MCP integration uses the `fastapi_mcp` library to automatically transform yo
 The fastapi_mcp integration automatically exposes your Feast feature server's FastAPI endpoints as MCP tools. This means AI assistants can:
 
 * **Call `/get-online-features`** to retrieve features from the feature store
+* **Call `/retrieve-online-documents`** to perform vector similarity search
+* **Call `/write-to-online-store`** to persist agent state (memory, notes, interaction history)
 * **Use `/health`** to check server status  
 
-For a complete example, see the [MCP Feature Store Example](../../examples/mcp_feature_store/).
+For a basic MCP example, see the [MCP Feature Store Example](../../examples/mcp_feature_store/). For a full agent with persistent memory, see the [Feast-Powered AI Agent Example](../../examples/agent_feature_store/).
 
 ## Learn More
 
@@ -181,6 +194,8 @@ For more detailed information and examples:
 * [Milvus Quickstart Example](https://github.com/feast-dev/feast/tree/master/examples/rag/milvus-quickstart.ipynb)
 * [Feast + Ray: Distributed Processing for RAG Applications](https://feast.dev/blog/feast-ray-distributed-processing/)
 * [MCP Feature Store Example](../../examples/mcp_feature_store/)
+* [Feast-Powered AI Agent Example (with Memory)](../../examples/agent_feature_store/)
+* [Blog: Building AI Agents with Feast](https://feast.dev/blog/feast-agents-mcp/)
 * [MCP Feature Server Reference](../reference/feature-servers/mcp-feature-server.md)
 * [Spark Data Source](../reference/data-sources/spark.md)
 * [Spark Offline Store](../reference/offline-stores/spark.md)
