@@ -142,7 +142,7 @@ class VersionedOnlineReadNotSupported(FeastError):
     def __init__(self, store_name: str, version: int):
         super().__init__(
             f"Versioned feature reads (@v{version}) are not yet supported by {store_name}. "
-            f"Currently only SQLite, PostgreSQL, MySQL, and FAISS support version-qualified feature references. "
+            f"Currently only SQLite, PostgreSQL, MySQL, FAISS, Redis, and DynamoDB support version-qualified feature references. "
         )
 
 
