@@ -214,6 +214,11 @@ class MaterializationConfig(BaseModel):
     """ bool: If true, feature retrieval jobs will only pull the latest feature values for each entity.
         If false, feature retrieval jobs will pull all feature values within the specified time range. """
 
+    online_write_batch_size: Optional[int] = Field(default=None, gt=0)
+    """ int: Number of rows to write to online store per batch during materialization.
+        If None (default), all rows are written in a single batch for backward compatibility.
+        Set to a positive integer (e.g., 10000) to enable batched writes. """
+
 
 class OpenLineageConfig(FeastBaseModel):
     """Configuration for OpenLineage integration.
