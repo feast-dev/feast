@@ -379,7 +379,7 @@ def update_feature_freshness(
     try:
         feature_views = store.list_feature_views(allow_cache=True)
         stream_feature_views = store.list_stream_feature_views(allow_cache=True)
-        all_views = list(feature_views) + list(stream_feature_views)
+        all_views = feature_views + stream_feature_views
         now = datetime.now(tz=timezone.utc)
         for fv in all_views:
             end_time = fv.most_recent_end_time
