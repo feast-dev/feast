@@ -493,9 +493,16 @@ class TestUpdateFeatureFreshness:
             minutes=5
         )
 
+        mock_sfv = MagicMock()
+        mock_sfv.name = "test_sfv"
+        mock_sfv.most_recent_end_time = datetime.now(tz=timezone.utc) - timedelta(
+            minutes=5
+        )
+
         mock_store = MagicMock()
         mock_store.project = "test_project"
         mock_store.list_feature_views.return_value = [mock_fv]
+        mock_store.list_stream_feature_views.return_value = [mock_sfv]
 
         update_feature_freshness(mock_store)
 
@@ -503,6 +510,11 @@ class TestUpdateFeatureFreshness:
             feature_view="test_fv", project="test_project"
         )._value.get()
         assert 280 < staleness < 320
+
+        sfv_staleness = feature_freshness_seconds.labels(
+            feature_view="test_sfv", project="test_project"
+        )._value.get()
+        assert 280 < sfv_staleness < 320
 
     def test_skips_unmaterialized_views(self):
         mock_fv = MagicMock()
@@ -512,6 +524,7 @@ class TestUpdateFeatureFreshness:
         mock_store = MagicMock()
         mock_store.project = "test_project"
         mock_store.list_feature_views.return_value = [mock_fv]
+        mock_store.list_stream_feature_views.return_value = []
 
         update_feature_freshness(mock_store)
 
@@ -525,6 +538,7 @@ class TestUpdateFeatureFreshness:
         mock_store = MagicMock()
         mock_store.project = "test_project"
         mock_store.list_feature_views.return_value = [mock_fv]
+        mock_store.list_stream_feature_views.return_value = []
 
         update_feature_freshness(mock_store)
 
