@@ -162,9 +162,7 @@ def _build_entity_df_from_sources(
             entity_dfs.append(distinct_entities)
 
     if not entity_dfs:
-        return pd.DataFrame(
-            {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL: [end_date]}
-        )
+        return pd.DataFrame({DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL: [end_date]})
 
     combined = pd.concat(entity_dfs, ignore_index=True)
 
