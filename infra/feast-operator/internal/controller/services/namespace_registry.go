@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -181,30 +180,17 @@ func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBindi
 			Namespace: rb.Namespace,
 		},
 	}
-	role.Rules = desiredRules
+	role.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("Role"))
 
-	// Attempt to create; tolerate AlreadyExists so concurrent reconcilers don't fail.
-	if err := feast.Handler.Client.Create(feast.Handler.Context, role); err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create namespace registry Role: %w", err)
+	if _, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, role, func() error {
+		role.Labels = feast.getLabels()
+		role.Rules = desiredRules
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to reconcile namespace registry Role: %w", err)
 	}
 
-	// Re-fetch the authoritative copy to compare rules and obtain the latest resourceVersion.
-	existingRole := &rbacv1.Role{}
-	if err := feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
-		Name:      roleName,
-		Namespace: rb.Namespace,
-	}, existingRole); err != nil {
-		return fmt.Errorf("failed to get namespace registry Role: %w", err)
-	}
-
-	if !reflect.DeepEqual(existingRole.Rules, desiredRules) {
-		existingRole.Rules = desiredRules
-		// On conflict the reconciler will re-queue automatically.
-		if err := feast.Handler.Client.Update(feast.Handler.Context, existingRole); err != nil {
-			return fmt.Errorf("failed to update namespace registry Role: %w", err)
-		}
-	}
-
+	rb.Labels = feast.getLabels()
 	rb.RoleRef = rbacv1.RoleRef{
 		APIGroup: "rbac.authorization.k8s.io",
 		Kind:     "Role",
