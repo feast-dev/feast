@@ -14,5 +14,4 @@ Module contents
 
 .. automodule:: feast.aggregation
    :members:
-   :undoc-members:
    :show-inheritance:

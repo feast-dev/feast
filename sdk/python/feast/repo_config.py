@@ -337,7 +337,7 @@ class RepoConfig(FeastBaseModel):
     """ MaterializationConfig: Configuration options for feature materialization behavior. """
 
     openlineage_config: Optional[OpenLineageConfig] = Field(None, alias="openlineage")
-    """ OpenLineageConfig: Configuration for OpenLineage data lineage integration (optional). """
+    """ Configuration for OpenLineage data lineage integration (optional). """
 
     def __init__(self, **data: Any):
         super().__init__(**data)
