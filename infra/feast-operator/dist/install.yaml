@@ -20686,12 +20686,12 @@ spec:
         command:
         - /manager
         env:
-        - name: GOMEMLIMIT
-          value: 230MiB
         - name: RELATED_IMAGE_FEATURE_SERVER
           value: quay.io/feastdev/feature-server:0.62.0
         - name: RELATED_IMAGE_CRON_JOB
           value: quay.io/openshift/origin-cli:4.17
+        - name: GOMEMLIMIT
+          value: 230MiB
         - name: OIDC_ISSUER_URL
           value: ""
         image: quay.io/feastdev/feast-operator:0.62.0
