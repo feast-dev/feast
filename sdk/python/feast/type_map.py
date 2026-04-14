@@ -909,6 +909,16 @@ def _convert_list_values_to_proto(
     ]
 
 
+def _is_array_like(value: Any) -> bool:
+    """Return True if *value* is array-like (numpy array or any sized,
+    non-string, non-bytes container).  Array-like values in a scalar
+    feature column cannot be mapped to a protobuf scalar field and are
+    therefore always treated as null."""
+    return isinstance(value, np.ndarray) or (
+        hasattr(value, "__len__") and not isinstance(value, (str, bytes))
+    )
+
+
 def _convert_scalar_values_to_proto(
     feast_value_type: ValueType,
     values: List[Any],
@@ -929,30 +939,29 @@ def _convert_scalar_values_to_proto(
         return [ProtoValue()] * len(values)
 
     if feast_value_type == ValueType.UNIX_TIMESTAMP:
-        out = []
-        for value in values:
-            if isinstance(value, np.ndarray) or (
-                hasattr(value, "__len__") and not isinstance(value, (str, bytes))
-            ):
-                # Array-like value in a scalar UNIX_TIMESTAMP column: treat as null.
-                out.append(ProtoValue())
-            elif value is None:
-                out.append(ProtoValue())
+        out: List[Any] = [None] * len(values)
+        clean_indices: List[int] = []
+        clean_values: List[Any] = []
+        for i, value in enumerate(values):
+            if _is_array_like(value) or value is None:
+                out[i] = ProtoValue()
             else:
-                (ts,) = _python_datetime_to_int_timestamp([value])
-                out.append(ProtoValue(unix_timestamp_val=ts))  # type: ignore
+                clean_indices.append(i)
+                clean_values.append(value)
+        if clean_values:
+            timestamps = _python_datetime_to_int_timestamp(clean_values)
+            for i, ts in zip(clean_indices, timestamps):
+                out[i] = ProtoValue(unix_timestamp_val=ts)  # type: ignore
         return out
 
     field_name, func, valid_scalar_types = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[
         feast_value_type
     ]
 
-    # Validate scalar types — skip for array-like samples (they will be treated
-    # as null or raw values in the conversion loop below).
-    if valid_scalar_types and not (
-        isinstance(sample, np.ndarray)
-        or (hasattr(sample, "__len__") and not isinstance(sample, (str, bytes)))
-    ):
+    # Validate scalar types.  The caller guarantees that *sample* is not
+    # array-like (array-like values are filtered out when picking the sample
+    # for scalar columns in python_values_to_proto_values).
+    if valid_scalar_types:
         try:
             is_zero = sample == 0 or sample == 0.0
         except (ValueError, TypeError):
@@ -972,9 +981,7 @@ def _convert_scalar_values_to_proto(
     if feast_value_type == ValueType.BOOL:
         out = []
         for value in values:
-            if isinstance(value, np.ndarray) or (
-                hasattr(value, "__len__") and not isinstance(value, (str, bytes))
-            ):
+            if _is_array_like(value):
                 # Array-like value in a scalar BOOL column: treat as null.
                 out.append(ProtoValue())
             elif not pd.isnull(value):
@@ -996,9 +1003,7 @@ def _convert_scalar_values_to_proto(
     for value in values:
         if isinstance(value, ProtoValue):
             out.append(value)
-        elif isinstance(value, np.ndarray) or (
-            hasattr(value, "__len__") and not isinstance(value, (str, bytes))
-        ):
+        elif _is_array_like(value):
             # Array-like value in a scalar column: always treat as null.
             # pd.isnull() is vectorised and would return an ndarray here,
             # making `not pd.isnull(value)` raise ValueError.
@@ -1145,12 +1150,18 @@ def _python_value_to_proto_value(
     if "set" in type_name_lower:
         return _python_set_to_proto_values(feast_value_type, values)
 
-    # Scalar types
+    # Scalar types — pick a sample that is not array-like so that the type
+    # validation in _convert_scalar_values_to_proto always receives a plain
+    # scalar (array-like values in a scalar column are treated as null).
     if (
         feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE
         or feast_value_type == ValueType.UNIX_TIMESTAMP
     ):
-        return _convert_scalar_values_to_proto(feast_value_type, values, sample)
+        scalar_sample = next(
+            (v for v in values if _non_empty_value(v) and not _is_array_like(v)),
+            None,
+        )
+        return _convert_scalar_values_to_proto(feast_value_type, values, scalar_sample)
 
     raise Exception(f"Unsupported data type: {feast_value_type}")
 
