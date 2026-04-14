@@ -198,6 +198,11 @@ online_features_entity_count = Histogram(
     "Number of entity rows per online feature request",
     buckets=(1, 5, 10, 25, 50, 100, 250, 500, 1000),
 )
+online_features_status_total = Counter(
+    "feast_online_features_status_total",
+    "Count of individual feature values by retrieval status per feature view",
+    ["feature_view", "status"],
+)
 
 # ---------------------------------------------------------------------------
 # Push / write metrics
@@ -332,6 +337,22 @@ def track_online_store_read(duration_seconds: float):
     if not _config.online_features:
         return
     online_store_read_duration_seconds.observe(duration_seconds)
+
+
+def track_feature_statuses(
+    feature_view_name: str, present_count: int, not_found_count: int
+):
+    """Record the number of PRESENT vs NOT_FOUND feature values for a feature view."""
+    if not _config.online_features:
+        return
+    if present_count > 0:
+        online_features_status_total.labels(
+            feature_view=feature_view_name, status="present"
+        ).inc(present_count)
+    if not_found_count > 0:
+        online_features_status_total.labels(
+            feature_view=feature_view_name, status="not_found"
+        ).inc(not_found_count)
 
 
 def track_transformation(odfv_name: str, mode: str, duration_seconds: float):
