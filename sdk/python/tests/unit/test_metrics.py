@@ -23,10 +23,12 @@ from feast.metrics import (
     materialization_result_total,
     online_features_entity_count,
     online_features_request_count,
+    online_features_status_total,
     online_store_read_duration_seconds,
     push_request_count,
     request_count,
     request_latency,
+    track_feature_statuses,
     track_materialization,
     track_online_features_entities,
     track_online_store_read,
@@ -433,6 +435,71 @@ class TestTrackOnlineFeaturesEntities:
         before_count = online_features_entity_count._sum.get()
         track_online_features_entities(42)
         assert online_features_entity_count._sum.get() >= before_count + 42
+
+
+class TestTrackFeatureStatuses:
+    def test_increments_present_and_not_found(self):
+        before_present = online_features_status_total.labels(
+            feature_view="fv_status", status="present"
+        )._value.get()
+        before_not_found = online_features_status_total.labels(
+            feature_view="fv_status", status="not_found"
+        )._value.get()
+
+        track_feature_statuses("fv_status", present_count=3, not_found_count=2)
+
+        assert (
+            online_features_status_total.labels(
+                feature_view="fv_status", status="present"
+            )._value.get()
+            == before_present + 3
+        )
+        assert (
+            online_features_status_total.labels(
+                feature_view="fv_status", status="not_found"
+            )._value.get()
+            == before_not_found + 2
+        )
+
+    @patch("feast.metrics.track_feature_statuses")
+    def test_populate_response_passes_correct_counts(self, mock_track):
+        """Integration: _populate_response_from_feature_data computes and
+        forwards the right present/not_found counts.
+
+        3 entities, 2 features each:
+          Entity 0 — both present (2 PRESENT)
+          Entity 1 — missing       (2 NOT_FOUND)
+          Entity 2 — partial       (1 PRESENT, 1 NOT_FOUND)
+        """
+        from feast.protos.feast.serving.ServingService_pb2 import (
+            GetOnlineFeaturesResponse,
+        )
+        from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+        from feast.utils import _populate_response_from_feature_data
+
+        now = datetime.now(tz=timezone.utc)
+        val = ValueProto(int64_val=1)
+        table = MagicMock()
+        table.name = "driver_fv"
+        table.projection.name_to_use.return_value = "driver_fv"
+        table.projection.name_alias = None
+        table.projection.name = "driver_fv"
+
+        _populate_response_from_feature_data(
+            requested_features=["feat_a", "feat_b"],
+            read_rows=[
+                (now, {"feat_a": val, "feat_b": val}),
+                (None, None),
+                (now, {"feat_a": val}),
+            ],
+            indexes=([0], [1], [2]),
+            online_features_response=GetOnlineFeaturesResponse(),
+            full_feature_names=False,
+            table=table,
+            output_len=3,
+        )
+
+        mock_track.assert_called_once_with("driver_fv", 3, 3)
 
 
 class TestTrackPush:
