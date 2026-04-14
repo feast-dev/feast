@@ -607,3 +607,72 @@ def test_compound_join_keys(
     assert result_df.loc[1, "app_opens"] == 55
     # user 2, tablet
     assert result_df.loc[2, "app_opens"] == 25
+
+
+@_requires_docker
+def test_entity_df_with_extra_columns(
+    repo_config: RepoConfig, sample_data: datetime, driver_fv: FeatureView
+) -> None:
+    """Extra columns in entity_df (e.g. labels) must not corrupt entity key serialization.
+
+    A real training entity_df carries label columns alongside the join key and
+    timestamp.  Before the fix, ``_run_single`` derived entity columns from ALL
+    non-timestamp DataFrame columns, so a label column like ``trip_success``
+    would be included in the serialized entity key.  The resulting key would
+    not match any document in MongoDB and every feature would silently come
+    back as ``None``.
+
+    This test pins that contract: extra columns must pass through unchanged and
+    must not affect feature retrieval correctness.
+    """
+    now = sample_data
+
+    # entity_df contains the join key, the PIT timestamp, AND a label column.
+    # Only ``driver_id`` is a join key; ``trip_success`` is the training label.
+    entity_df = pd.DataFrame(
+        {
+            "driver_id": [1, 1, 2],
+            "event_timestamp": [
+                now - timedelta(hours=1, minutes=30),  # driver 1 → conv_rate 0.5
+                now - timedelta(minutes=30),  # driver 1 → conv_rate 0.6
+                now - timedelta(hours=1),  # driver 2 → conv_rate 0.3
+            ],
+            "trip_success": [1, 0, 1],  # label column — must not enter entity key
+        }
+    )
+
+    job = MongoDBOfflineStoreOne.get_historical_features(
+        config=repo_config,
+        feature_views=[driver_fv],
+        feature_refs=["driver_stats:conv_rate", "driver_stats:acc_rate"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    result_df = job.to_df()
+    assert isinstance(result_df, pd.DataFrame)
+    assert len(result_df) == 3
+
+    # The label column must be preserved unchanged in the result.
+    assert "trip_success" in result_df.columns
+    assert sorted(result_df["trip_success"].tolist()) == [0, 1, 1]
+
+    # Features must be non-null — if the label were folded into the entity key
+    # every lookup would miss and return None here.
+    assert result_df["conv_rate"].notna().all(), (
+        "conv_rate is null for all rows — label column was likely included in "
+        "the entity key serialization, causing every MongoDB lookup to miss."
+    )
+
+    result_df = result_df.sort_values(["driver_id", "event_timestamp"]).reset_index(
+        drop=True
+    )
+
+    # Driver 1, 1.5 hours before now → feature row from 2 hours ago
+    assert result_df.loc[0, "conv_rate"] == pytest.approx(0.5)
+    # Driver 1, 30 minutes before now → feature row from 1 hour ago
+    assert result_df.loc[1, "conv_rate"] == pytest.approx(0.6)
+    # Driver 2, 1 hour before now → feature row from 2 hours ago
+    assert result_df.loc[2, "conv_rate"] == pytest.approx(0.3)
