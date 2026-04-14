@@ -404,10 +404,11 @@ class RepoConfig(FeastBaseModel):
                     # This may be a custom registry store, which does not need a 'registry_type'
                     self._registry = RegistryConfig(**self.registry_config)
             elif isinstance(self.registry_config, str):
-                # User passed in just a path to file registry
-                self._registry = get_registry_config_from_type("file")(
-                    path=self.registry_config
-                )
+                # Let Registry.__init__ auto-detect the correct store class
+                # from the URI scheme (e.g. gs:// -> GCSRegistryStore).
+                # Previously this hardcoded "file" type, which broke gs:// and
+                # s3:// paths because FileRegistryStore uses pathlib.Path.
+                self._registry = RegistryConfig(path=self.registry_config)
             elif self.registry_config:
                 self._registry = self.registry_config
         return self._registry
