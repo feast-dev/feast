@@ -217,3 +217,52 @@ def test_local_output_node():
     node.inputs[0].name = "source"
     result = node.execute(context)
     assert result.num_rows == 4
+
+
+def test_local_output_node_online_write_default_batch():
+    """Test that online_write_batch is called once when batch_size is None (default)."""
+    # Create a feature view with online=True
+    feature_view = MagicMock()
+    feature_view.online = True
+    feature_view.offline = False
+    feature_view.entity_columns = []
+
+    # Create context with default materialization config (batch_size=None)
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
+    )
+
+    node = LocalOutputNode("output", feature_view)
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    node.execute(context)
+
+    # Verify online_write_batch was called exactly once (all rows in single batch)
+    assert context.online_store.online_write_batch.call_count == 1
+
+
+def test_local_output_node_online_write_batched():
+    """Test that online_write_batch is called multiple times when batch_size is configured."""
+    # Create a feature view with online=True
+    feature_view = MagicMock()
+    feature_view.online = True
+    feature_view.offline = False
+    feature_view.entity_columns = []
+
+    # Create context with batch_size=2 (sample_df has 4 rows, so expect 2 batches)
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
+    )
+    context.repo_config.materialization_config = MaterializationConfig(
+        online_write_batch_size=2
+    )
+
+    node = LocalOutputNode("output", feature_view)
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    node.execute(context)
+
+    # Verify online_write_batch was called twice (4 rows / batch_size 2 = 2 batches)
+    assert context.online_store.online_write_batch.call_count == 2

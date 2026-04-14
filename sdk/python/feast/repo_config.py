@@ -217,7 +217,8 @@ class MaterializationConfig(BaseModel):
     online_write_batch_size: Optional[int] = Field(default=None, gt=0)
     """ int: Number of rows to write to online store per batch during materialization.
         If None (default), all rows are written in a single batch for backward compatibility.
-        Set to a positive integer (e.g., 10000) to enable batched writes. """
+        Set to a positive integer (e.g., 10000) to enable batched writes.
+        Supported compute engines: local, spark, ray. """
 
 
 class OpenLineageConfig(FeastBaseModel):
