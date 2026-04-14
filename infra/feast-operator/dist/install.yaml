@@ -11,7 +11,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.15.0
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: featurestores.feast.dev
 spec:
   group: feast.dev
@@ -121,8 +121,7 @@ spec:
                             value:
                               description: |-
                                 Variable references $(VAR_NAME) are expanded
-                                using the previously defined environment variables in the container and
-                                any
+                                using the previously defined environment variables in the container and...
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -221,7 +220,7 @@ spec:
                       envFrom:
                         items:
                           description: EnvFromSource represents the source of a set
-                            of ConfigMaps
+                            of ConfigMaps or Secrets
                           properties:
                             configMapRef:
                               description: The ConfigMap to select from
@@ -240,8 +239,8 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             prefix:
-                              description: An optional identifier to prepend to each
-                                key in the ConfigMap. Must be a C_IDENTIFIER.
+                              description: Optional text to prepend to the name of
+                                each environment variable. Must be a C_IDENTIFIER.
                               type: string
                             secretRef:
                               description: The Secret to select from
@@ -282,6 +281,10 @@ spec:
                                   description: |-
                                     Name must match the name of one entry in pod.spec.resourceClaims of
                                     the Pod where this field is used.
+                                  type: string
+                                request:
+                                  description: Request is the name chosen for a request
+                                    in the referenced claim.
                                   type: string
                               required:
                               - name
@@ -324,7 +327,7 @@ spec:
                       activeDeadlineSeconds:
                         description: |-
                           Specifies the duration in seconds relative to the startTime that the job
-                          may be continuously active before the system tr
+                          may be continuously active before the system...
                         format: int64
                         type: integer
                       backoffLimit:
@@ -500,8 +503,7 @@ spec:
                             value:
                               description: |-
                                 Variable references $(VAR_NAME) are expanded
-                                using the previously defined environment variables in the container and
-                                any
+                                using the previously defined environment variables in the container and...
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -600,7 +602,7 @@ spec:
                       envFrom:
                         items:
                           description: EnvFromSource represents the source of a set
-                            of ConfigMaps
+                            of ConfigMaps or Secrets
                           properties:
                             configMapRef:
                               description: The ConfigMap to select from
@@ -619,8 +621,8 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             prefix:
-                              description: An optional identifier to prepend to each
-                                key in the ConfigMap. Must be a C_IDENTIFIER.
+                              description: Optional text to prepend to the name of
+                                each environment variable. Must be a C_IDENTIFIER.
                               type: string
                             secretRef:
                               description: The Secret to select from
@@ -875,8 +877,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -976,7 +977,7 @@ spec:
                           envFrom:
                             items:
                               description: EnvFromSource represents the source of
-                                a set of ConfigMaps
+                                a set of ConfigMaps or Secrets
                               properties:
                                 configMapRef:
                                   description: The ConfigMap to select from
@@ -995,8 +996,8 @@ spec:
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 prefix:
-                                  description: An optional identifier to prepend to
-                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  description: Optional text to prepend to the name
+                                    of each environment variable. Must be a C_IDENTIFIER.
                                   type: string
                                 secretRef:
                                   description: The Secret to select from
@@ -1049,6 +1050,10 @@ spec:
                                       description: |-
                                         Name must match the name of one entry in pod.spec.resourceClaims of
                                         the Pod where this field is used.
+                                      type: string
+                                    request:
+                                      description: Request is the name chosen for
+                                        a request in the referenced claim.
                                       type: string
                                   required:
                                   - name
@@ -1330,8 +1335,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -1431,7 +1435,7 @@ spec:
                           envFrom:
                             items:
                               description: EnvFromSource represents the source of
-                                a set of ConfigMaps
+                                a set of ConfigMaps or Secrets
                               properties:
                                 configMapRef:
                                   description: The ConfigMap to select from
@@ -1450,8 +1454,8 @@ spec:
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 prefix:
-                                  description: An optional identifier to prepend to
-                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  description: Optional text to prepend to the name
+                                    of each environment variable. Must be a C_IDENTIFIER.
                                   type: string
                                 secretRef:
                                   description: The Secret to select from
@@ -1504,6 +1508,10 @@ spec:
                                       description: |-
                                         Name must match the name of one entry in pod.spec.resourceClaims of
                                         the Pod where this field is used.
+                                      type: string
+                                    request:
+                                      description: Request is the name chosen for
+                                        a request in the referenced claim.
                                       type: string
                                   required:
                                   - name
@@ -1789,8 +1797,7 @@ spec:
                                     value:
                                       description: |-
                                         Variable references $(VAR_NAME) are expanded
-                                        using the previously defined environment variables in the container and
-                                        any
+                                        using the previously defined environment variables in the container and...
                                       type: string
                                     valueFrom:
                                       description: Source for the environment variable's
@@ -1893,7 +1900,7 @@ spec:
                               envFrom:
                                 items:
                                   description: EnvFromSource represents the source
-                                    of a set of ConfigMaps
+                                    of a set of ConfigMaps or Secrets
                                   properties:
                                     configMapRef:
                                       description: The ConfigMap to select from
@@ -1912,8 +1919,9 @@ spec:
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     prefix:
-                                      description: An optional identifier to prepend
-                                        to each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                      description: Optional text to prepend to the
+                                        name of each environment variable. Must be
+                                        a C_IDENTIFIER.
                                       type: string
                                     secretRef:
                                       description: The Secret to select from
@@ -1970,6 +1978,10 @@ spec:
                                           description: |-
                                             Name must match the name of one entry in pod.spec.resourceClaims of
                                             the Pod where this field is used.
+                                          type: string
+                                        request:
+                                          description: Request is the name chosen
+                                            for a request in the referenced claim.
                                           type: string
                                       required:
                                       - name
@@ -2191,6 +2203,10 @@ spec:
                           Defaults to user specified in image metadata if unspecified.
                         format: int64
                         type: integer
+                      seLinuxChangePolicy:
+                        description: seLinuxChangePolicy defines how the container's
+                          SELinux label is applied to all volumes used by the Pod.
+                        type: string
                       seLinuxOptions:
                         description: The SELinux context to be applied to all containers.
                         properties:
@@ -2229,13 +2245,18 @@ spec:
                         type: object
                       supplementalGroups:
                         description: |-
-                          A list of groups applied to the first process run in each container, in addition
-                          to the container's primary GID, the fsG
+                          A list of groups applied to the first process run in each container, in
+                          addition to the container's primary GID and...
                         items:
                           format: int64
                           type: integer
                         type: array
                         x-kubernetes-list-type: atomic
+                      supplementalGroupsPolicy:
+                        description: |-
+                          Defines how supplemental groups of the first container processes are calculated.
+                          Valid values are "Merge" and "Strict".
+                        type: string
                       sysctls:
                         description: Sysctls hold a list of namespaced sysctls used
                           for the pod.
@@ -2292,8 +2313,7 @@ spec:
                             value:
                               description: |-
                                 Variable references $(VAR_NAME) are expanded
-                                using the previously defined environment variables in the container and
-                                any
+                                using the previously defined environment variables in the container and...
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -2392,7 +2412,7 @@ spec:
                       envFrom:
                         items:
                           description: EnvFromSource represents the source of a set
-                            of ConfigMaps
+                            of ConfigMaps or Secrets
                           properties:
                             configMapRef:
                               description: The ConfigMap to select from
@@ -2411,8 +2431,8 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             prefix:
-                              description: An optional identifier to prepend to each
-                                key in the ConfigMap. Must be a C_IDENTIFIER.
+                              description: Optional text to prepend to the name of
+                                each environment variable. Must be a C_IDENTIFIER.
                               type: string
                             secretRef:
                               description: The Secret to select from
@@ -2464,6 +2484,10 @@ spec:
                                   description: |-
                                     Name must match the name of one entry in pod.spec.resourceClaims of
                                     the Pod where this field is used.
+                                  type: string
+                                request:
+                                  description: Request is the name chosen for a request
+                                    in the referenced claim.
                                   type: string
                               required:
                               - name
@@ -2587,7 +2611,7 @@ spec:
                         awsElasticBlockStore:
                           description: |-
                             awsElasticBlockStore represents an AWS Disk resource that is attached to a
-                            kubelet's host machine and then exposed to th
+                            kubelet's host machine and then exposed to...
                           properties:
                             fsType:
                               description: fsType is the filesystem type of the volume
@@ -2629,6 +2653,7 @@ spec:
                                 blob storage
                               type: string
                             fsType:
+                              default: ext4
                               description: |-
                                 fsType is Filesystem type to mount.
                                 Must be a filesystem type supported by the host operating system.
@@ -2637,9 +2662,10 @@ spec:
                             kind:
                               description: 'kind expected values are Shared: multiple
                                 blob disks per storage account  Dedicated: single
-                                blob disk per storage accoun'
+                                blob disk per storage...'
                               type: string
                             readOnly:
+                              default: false
                               description: |-
                                 readOnly Defaults to false (read/write). ReadOnly here will force
                                 the ReadOnly setting in VolumeMounts.
@@ -2670,7 +2696,7 @@ spec:
                           type: object
                         cephfs:
                           description: cephFS represents a Ceph FS mount on the host
-                            that shares a pod's lifetime
+                            that shares a pod's lifetime.
                           properties:
                             monitors:
                               description: |-
@@ -2718,7 +2744,7 @@ spec:
                         cinder:
                           description: |-
                             cinder represents a cinder volume attached and mounted on kubelets host machine.
-                            More info: https://examples.k8s.
+                            Deprecated: Cinder is deprecated.
                           properties:
                             fsType:
                               description: |-
@@ -2764,7 +2790,7 @@ spec:
                             items:
                               description: |-
                                 items if unspecified, each key-value pair in the Data field of the referenced
-                                ConfigMap will be projected into the volum
+                                ConfigMap will be projected into the...
                               items:
                                 description: Maps a string key to a path within a
                                   volume.
@@ -2804,7 +2830,7 @@ spec:
                         csi:
                           description: csi (Container Storage Interface) represents
                             ephemeral storage that is handled by certain external
-                            CSI drivers (Beta fea
+                            CSI drivers.
                           properties:
                             driver:
                               description: driver is the name of the CSI driver that
@@ -2816,7 +2842,7 @@ spec:
                             nodePublishSecretRef:
                               description: |-
                                 nodePublishSecretRef is a reference to the secret object containing
-                                sensitive information to pass to the CSI driver to c
+                                sensitive information to pass to the CSI driver to...
                               properties:
                                 name:
                                   default: ""
@@ -2878,7 +2904,7 @@ spec:
                                   mode:
                                     description: |-
                                       Optional: mode bits used to set permissions on this file, must be an octal value
-                                      between 0000 and 0777 or a decimal valu
+                                      between 0000 and 0777 or a decimal...
                                     format: int32
                                     type: integer
                                   path:
@@ -3127,9 +3153,9 @@ spec:
                               type: array
                               x-kubernetes-list-type: atomic
                             wwids:
-                              description: "wwids Optional: FC volume world wide identifiers
-                                (wwids)\nEither wwids or combination of targetWWNs
-                                and lun must be set, "
+                              description: |-
+                                wwids Optional: FC volume world wide identifiers (wwids)
+                                Either wwids or combination of targetWWNs and lun must be set,...
                               items:
                                 type: string
                               type: array
@@ -3164,7 +3190,7 @@ spec:
                             secretRef:
                               description: |-
                                 secretRef is Optional: secretRef is reference to the secret object containing
-                                sensitive information to pass to the plugi
+                                sensitive information to pass to the...
                               properties:
                                 name:
                                   default: ""
@@ -3185,7 +3211,7 @@ spec:
                             datasetName:
                               description: |-
                                 datasetName is Name of the dataset stored as metadata -> name on the dataset for Flocker
-                                should be considered as depreca
+                                should be considered as...
                               type: string
                             datasetUUID:
                               description: datasetUUID is the UUID of the dataset.
@@ -3195,7 +3221,7 @@ spec:
                         gcePersistentDisk:
                           description: |-
                             gcePersistentDisk represents a GCE Disk resource that is attached to a
-                            kubelet's host machine and then exposed to the po
+                            kubelet's host machine and then exposed to the...
                           properties:
                             fsType:
                               description: fsType is filesystem type of the volume
@@ -3224,7 +3250,7 @@ spec:
                         gitRepo:
                           description: |-
                             gitRepo represents a git repository at a particular revision.
-                            DEPRECATED: GitRepo is deprecated.
+                            Deprecated: GitRepo is deprecated.
                           properties:
                             directory:
                               description: |-
@@ -3242,9 +3268,8 @@ spec:
                           - repository
                           type: object
                         glusterfs:
-                          description: |-
-                            glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime.
-                            More info: https://examples.k8s.
+                          description: glusterfs represents a Glusterfs mount on the
+                            host that shares a pod's lifetime.
                           properties:
                             endpoints:
                               description: |-
@@ -3284,6 +3309,22 @@ spec:
                           required:
                           - path
                           type: object
+                        image:
+                          description: image represents an OCI object (a container
+                            image or artifact) pulled and mounted on the kubelet's
+                            host machine.
+                          properties:
+                            pullPolicy:
+                              description: |-
+                                Policy for pulling OCI objects. Possible values are:
+                                Always: the kubelet always attempts to pull the reference.
+                              type: string
+                            reference:
+                              description: |-
+                                Required: Image or artifact reference to be used.
+                                Behaves in the same way as pod.spec.containers[*].image.
+                              type: string
+                          type: object
                         iscsi:
                           description: |-
                             iscsi represents an ISCSI Disk resource that is attached to a
@@ -3309,6 +3350,7 @@ spec:
                               description: iqn is the target iSCSI Qualified Name.
                               type: string
                             iscsiInterface:
+                              default: default
                               description: |-
                                 iscsiInterface is the interface Name that uses an iSCSI transport.
                                 Defaults to 'default' (tcp).
@@ -3399,7 +3441,7 @@ spec:
                         photonPersistentDisk:
                           description: photonPersistentDisk represents a PhotonController
                             persistent disk attached and mounted on kubelets host
-                            machine
+                            machine.
                           properties:
                             fsType:
                               description: |-
@@ -3416,7 +3458,7 @@ spec:
                           type: object
                         portworxVolume:
                           description: portworxVolume represents a portworx volume
-                            attached and mounted on kubelets host machine
+                            attached and mounted on kubelets host machine.
                           properties:
                             fsType:
                               description: |-
@@ -3446,10 +3488,13 @@ spec:
                               format: int32
                               type: integer
                             sources:
-                              description: sources is the list of volume projections
+                              description: |-
+                                sources is the list of volume projections. Each entry in this list
+                                handles one source.
                               items:
-                                description: Projection that may be projected along
-                                  with other supported volume types
+                                description: |-
+                                  Projection that may be projected along with other supported volume types.
+                                  Exactly one of these fields must be set.
                                 properties:
                                   clusterTrustBundle:
                                     description: ClusterTrustBundle allows a pod to
@@ -3529,7 +3574,7 @@ spec:
                                       items:
                                         description: |-
                                           items if unspecified, each key-value pair in the Data field of the referenced
-                                          ConfigMap will be projected into the volum
+                                          ConfigMap will be projected into the...
                                         items:
                                           description: Maps a string key to a path
                                             within a volume.
@@ -3600,7 +3645,7 @@ spec:
                                             mode:
                                               description: |-
                                                 Optional: mode bits used to set permissions on this file, must be an octal value
-                                                between 0000 and 0777 or a decimal valu
+                                                between 0000 and 0777 or a decimal...
                                               format: int32
                                               type: integer
                                             path:
@@ -3649,7 +3694,7 @@ spec:
                                       items:
                                         description: |-
                                           items if unspecified, each key-value pair in the Data field of the referenced
-                                          Secret will be projected into the volume a
+                                          Secret will be projected into the volume...
                                         items:
                                           description: Maps a string key to a path
                                             within a volume.
@@ -3715,7 +3760,7 @@ spec:
                           type: object
                         quobyte:
                           description: quobyte represents a Quobyte mount on the host
-                            that shares a pod's lifetime
+                            that shares a pod's lifetime.
                           properties:
                             group:
                               description: |-
@@ -3730,12 +3775,12 @@ spec:
                             registry:
                               description: |-
                                 registry represents a single or multiple Quobyte Registry services
-                                specified as a string as host:port pair (multiple ent
+                                specified as a string as host:port pair (multiple...
                               type: string
                             tenant:
                               description: |-
                                 tenant owning the given Quobyte volume in the Backend
-                                Used with dynamically provisioned Quobyte volumes, value is set by
+                                Used with dynamically provisioned Quobyte volumes, value is set...
                               type: string
                             user:
                               description: |-
@@ -3751,9 +3796,8 @@ spec:
                           - volume
                           type: object
                         rbd:
-                          description: |-
-                            rbd represents a Rados Block Device mount on the host that shares a pod's lifetime.
-                            More info: https://examples.k8s.
+                          description: rbd represents a Rados Block Device mount on
+                            the host that shares a pod's lifetime.
                           properties:
                             fsType:
                               description: fsType is the filesystem type of the volume
@@ -3765,6 +3809,7 @@ spec:
                                 More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it
                               type: string
                             keyring:
+                              default: /etc/ceph/keyring
                               description: |-
                                 keyring is the path to key ring for RBDUser.
                                 Default is /etc/ceph/keyring.
@@ -3779,6 +3824,7 @@ spec:
                               type: array
                               x-kubernetes-list-type: atomic
                             pool:
+                              default: rbd
                               description: |-
                                 pool is the rados pool name.
                                 Default is rbd.
@@ -3806,6 +3852,7 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             user:
+                              default: admin
                               description: |-
                                 user is the rados user name.
                                 Default is admin.
@@ -3820,6 +3867,7 @@ spec:
                             attached and mounted on Kubernetes nodes.
                           properties:
                             fsType:
+                              default: xfs
                               description: |-
                                 fsType is the filesystem type to mount.
                                 Must be a filesystem type supported by the host operating system.
@@ -3857,6 +3905,7 @@ spec:
                                 with Gateway, default false
                               type: boolean
                             storageMode:
+                              default: ThinProvisioned
                               description: storageMode indicates whether the storage
                                 for a volume should be ThickProvisioned or ThinProvisioned.
                               type: string
@@ -3891,7 +3940,7 @@ spec:
                             items:
                               description: |-
                                 items If unspecified, each key-value pair in the Data field of the referenced
-                                Secret will be projected into the volume a
+                                Secret will be projected into the volume...
                               items:
                                 description: Maps a string key to a path within a
                                   volume.
@@ -3966,7 +4015,7 @@ spec:
                           type: object
                         vsphereVolume:
                           description: vsphereVolume represents a vSphere volume attached
-                            and mounted on kubelets host machine
+                            and mounted on kubelets host machine.
                           properties:
                             fsType:
                               description: |-
@@ -4077,8 +4126,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -4178,7 +4226,7 @@ spec:
                           envFrom:
                             items:
                               description: EnvFromSource represents the source of
-                                a set of ConfigMaps
+                                a set of ConfigMaps or Secrets
                               properties:
                                 configMapRef:
                                   description: The ConfigMap to select from
@@ -4197,8 +4245,8 @@ spec:
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 prefix:
-                                  description: An optional identifier to prepend to
-                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  description: Optional text to prepend to the name
+                                    of each environment variable. Must be a C_IDENTIFIER.
                                   type: string
                                 secretRef:
                                   description: The Secret to select from
@@ -4241,6 +4289,10 @@ spec:
                                         Name must match the name of one entry in pod.spec.resourceClaims of
                                         the Pod where this field is used.
                                       type: string
+                                    request:
+                                      description: Request is the name chosen for
+                                        a request in the referenced claim.
+                                      type: string
                                   required:
                                   - name
                                   type: object
@@ -4282,7 +4334,7 @@ spec:
                           activeDeadlineSeconds:
                             description: |-
                               Specifies the duration in seconds relative to the startTime that the job
-                              may be continuously active before the system tr
+                              may be continuously active before the system...
                             format: int64
                             type: integer
                           backoffLimit:
@@ -4461,8 +4513,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -4562,7 +4613,7 @@ spec:
                           envFrom:
                             items:
                               description: EnvFromSource represents the source of
-                                a set of ConfigMaps
+                                a set of ConfigMaps or Secrets
                               properties:
                                 configMapRef:
                                   description: The ConfigMap to select from
@@ -4581,8 +4632,8 @@ spec:
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 prefix:
-                                  description: An optional identifier to prepend to
-                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  description: Optional text to prepend to the name
+                                    of each environment variable. Must be a C_IDENTIFIER.
                                   type: string
                                 secretRef:
                                   description: The Secret to select from
@@ -4841,8 +4892,7 @@ spec:
                                     value:
                                       description: |-
                                         Variable references $(VAR_NAME) are expanded
-                                        using the previously defined environment variables in the container and
-                                        any
+                                        using the previously defined environment variables in the container and...
                                       type: string
                                     valueFrom:
                                       description: Source for the environment variable's
@@ -4945,7 +4995,7 @@ spec:
                               envFrom:
                                 items:
                                   description: EnvFromSource represents the source
-                                    of a set of ConfigMaps
+                                    of a set of ConfigMaps or Secrets
                                   properties:
                                     configMapRef:
                                       description: The ConfigMap to select from
@@ -4964,8 +5014,9 @@ spec:
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     prefix:
-                                      description: An optional identifier to prepend
-                                        to each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                      description: Optional text to prepend to the
+                                        name of each environment variable. Must be
+                                        a C_IDENTIFIER.
                                       type: string
                                     secretRef:
                                       description: The Secret to select from
@@ -5018,6 +5069,10 @@ spec:
                                           description: |-
                                             Name must match the name of one entry in pod.spec.resourceClaims of
                                             the Pod where this field is used.
+                                          type: string
+                                        request:
+                                          description: Request is the name chosen
+                                            for a request in the referenced claim.
                                           type: string
                                       required:
                                       - name
@@ -5304,8 +5359,7 @@ spec:
                                     value:
                                       description: |-
                                         Variable references $(VAR_NAME) are expanded
-                                        using the previously defined environment variables in the container and
-                                        any
+                                        using the previously defined environment variables in the container and...
                                       type: string
                                     valueFrom:
                                       description: Source for the environment variable's
@@ -5408,7 +5462,7 @@ spec:
                               envFrom:
                                 items:
                                   description: EnvFromSource represents the source
-                                    of a set of ConfigMaps
+                                    of a set of ConfigMaps or Secrets
                                   properties:
                                     configMapRef:
                                       description: The ConfigMap to select from
@@ -5427,8 +5481,9 @@ spec:
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     prefix:
-                                      description: An optional identifier to prepend
-                                        to each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                      description: Optional text to prepend to the
+                                        name of each environment variable. Must be
+                                        a C_IDENTIFIER.
                                       type: string
                                     secretRef:
                                       description: The Secret to select from
@@ -5481,6 +5536,10 @@ spec:
                                           description: |-
                                             Name must match the name of one entry in pod.spec.resourceClaims of
                                             the Pod where this field is used.
+                                          type: string
+                                        request:
+                                          description: Request is the name chosen
+                                            for a request in the referenced claim.
                                           type: string
                                       required:
                                       - name
@@ -5775,8 +5834,7 @@ spec:
                                         value:
                                           description: |-
                                             Variable references $(VAR_NAME) are expanded
-                                            using the previously defined environment variables in the container and
-                                            any
+                                            using the previously defined environment variables in the container and...
                                           type: string
                                         valueFrom:
                                           description: Source for the environment
@@ -5881,7 +5939,7 @@ spec:
                                   envFrom:
                                     items:
                                       description: EnvFromSource represents the source
-                                        of a set of ConfigMaps
+                                        of a set of ConfigMaps or Secrets
                                       properties:
                                         configMapRef:
                                           description: The ConfigMap to select from
@@ -5900,9 +5958,9 @@ spec:
                                           type: object
                                           x-kubernetes-map-type: atomic
                                         prefix:
-                                          description: An optional identifier to prepend
-                                            to each key in the ConfigMap. Must be
-                                            a C_IDENTIFIER.
+                                          description: Optional text to prepend to
+                                            the name of each environment variable.
+                                            Must be a C_IDENTIFIER.
                                           type: string
                                         secretRef:
                                           description: The Secret to select from
@@ -5959,6 +6017,10 @@ spec:
                                               description: |-
                                                 Name must match the name of one entry in pod.spec.resourceClaims of
                                                 the Pod where this field is used.
+                                              type: string
+                                            request:
+                                              description: Request is the name chosen
+                                                for a request in the referenced claim.
                                               type: string
                                           required:
                                           - name
@@ -6187,6 +6249,11 @@ spec:
                               Defaults to user specified in image metadata if unspecified.
                             format: int64
                             type: integer
+                          seLinuxChangePolicy:
+                            description: seLinuxChangePolicy defines how the container's
+                              SELinux label is applied to all volumes used by the
+                              Pod.
+                            type: string
                           seLinuxOptions:
                             description: The SELinux context to be applied to all
                               containers.
@@ -6226,13 +6293,18 @@ spec:
                             type: object
                           supplementalGroups:
                             description: |-
-                              A list of groups applied to the first process run in each container, in addition
-                              to the container's primary GID, the fsG
+                              A list of groups applied to the first process run in each container, in
+                              addition to the container's primary GID and...
                             items:
                               format: int64
                               type: integer
                             type: array
                             x-kubernetes-list-type: atomic
+                          supplementalGroupsPolicy:
+                            description: |-
+                              Defines how supplemental groups of the first container processes are calculated.
+                              Valid values are "Merge" and "Strict".
+                            type: string
                           sysctls:
                             description: Sysctls hold a list of namespaced sysctls
                               used for the pod.
@@ -6290,8 +6362,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -6391,7 +6462,7 @@ spec:
                           envFrom:
                             items:
                               description: EnvFromSource represents the source of
-                                a set of ConfigMaps
+                                a set of ConfigMaps or Secrets
                               properties:
                                 configMapRef:
                                   description: The ConfigMap to select from
@@ -6410,8 +6481,8 @@ spec:
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 prefix:
-                                  description: An optional identifier to prepend to
-                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  description: Optional text to prepend to the name
+                                    of each environment variable. Must be a C_IDENTIFIER.
                                   type: string
                                 secretRef:
                                   description: The Secret to select from
@@ -6464,6 +6535,10 @@ spec:
                                       description: |-
                                         Name must match the name of one entry in pod.spec.resourceClaims of
                                         the Pod where this field is used.
+                                      type: string
+                                    request:
+                                      description: Request is the name chosen for
+                                        a request in the referenced claim.
                                       type: string
                                   required:
                                   - name
@@ -6587,7 +6662,7 @@ spec:
                             awsElasticBlockStore:
                               description: |-
                                 awsElasticBlockStore represents an AWS Disk resource that is attached to a
-                                kubelet's host machine and then exposed to th
+                                kubelet's host machine and then exposed to...
                               properties:
                                 fsType:
                                   description: fsType is the filesystem type of the
@@ -6629,6 +6704,7 @@ spec:
                                     the blob storage
                                   type: string
                                 fsType:
+                                  default: ext4
                                   description: |-
                                     fsType is Filesystem type to mount.
                                     Must be a filesystem type supported by the host operating system.
@@ -6637,9 +6713,10 @@ spec:
                                 kind:
                                   description: 'kind expected values are Shared: multiple
                                     blob disks per storage account  Dedicated: single
-                                    blob disk per storage accoun'
+                                    blob disk per storage...'
                                   type: string
                                 readOnly:
+                                  default: false
                                   description: |-
                                     readOnly Defaults to false (read/write). ReadOnly here will force
                                     the ReadOnly setting in VolumeMounts.
@@ -6670,7 +6747,7 @@ spec:
                               type: object
                             cephfs:
                               description: cephFS represents a Ceph FS mount on the
-                                host that shares a pod's lifetime
+                                host that shares a pod's lifetime.
                               properties:
                                 monitors:
                                   description: |-
@@ -6719,7 +6796,7 @@ spec:
                             cinder:
                               description: |-
                                 cinder represents a cinder volume attached and mounted on kubelets host machine.
-                                More info: https://examples.k8s.
+                                Deprecated: Cinder is deprecated.
                               properties:
                                 fsType:
                                   description: |-
@@ -6765,7 +6842,7 @@ spec:
                                 items:
                                   description: |-
                                     items if unspecified, each key-value pair in the Data field of the referenced
-                                    ConfigMap will be projected into the volum
+                                    ConfigMap will be projected into the...
                                   items:
                                     description: Maps a string key to a path within
                                       a volume.
@@ -6805,7 +6882,7 @@ spec:
                             csi:
                               description: csi (Container Storage Interface) represents
                                 ephemeral storage that is handled by certain external
-                                CSI drivers (Beta fea
+                                CSI drivers.
                               properties:
                                 driver:
                                   description: driver is the name of the CSI driver
@@ -6818,7 +6895,7 @@ spec:
                                 nodePublishSecretRef:
                                   description: |-
                                     nodePublishSecretRef is a reference to the secret object containing
-                                    sensitive information to pass to the CSI driver to c
+                                    sensitive information to pass to the CSI driver to...
                                   properties:
                                     name:
                                       default: ""
@@ -6882,7 +6959,7 @@ spec:
                                       mode:
                                         description: |-
                                           Optional: mode bits used to set permissions on this file, must be an octal value
-                                          between 0000 and 0777 or a decimal valu
+                                          between 0000 and 0777 or a decimal...
                                         format: int32
                                         type: integer
                                       path:
@@ -7134,9 +7211,9 @@ spec:
                                   type: array
                                   x-kubernetes-list-type: atomic
                                 wwids:
-                                  description: "wwids Optional: FC volume world wide
-                                    identifiers (wwids)\nEither wwids or combination
-                                    of targetWWNs and lun must be set, "
+                                  description: |-
+                                    wwids Optional: FC volume world wide identifiers (wwids)
+                                    Either wwids or combination of targetWWNs and lun must be set,...
                                   items:
                                     type: string
                                   type: array
@@ -7171,7 +7248,7 @@ spec:
                                 secretRef:
                                   description: |-
                                     secretRef is Optional: secretRef is reference to the secret object containing
-                                    sensitive information to pass to the plugi
+                                    sensitive information to pass to the...
                                   properties:
                                     name:
                                       default: ""
@@ -7192,7 +7269,7 @@ spec:
                                 datasetName:
                                   description: |-
                                     datasetName is Name of the dataset stored as metadata -> name on the dataset for Flocker
-                                    should be considered as depreca
+                                    should be considered as...
                                   type: string
                                 datasetUUID:
                                   description: datasetUUID is the UUID of the dataset.
@@ -7202,7 +7279,7 @@ spec:
                             gcePersistentDisk:
                               description: |-
                                 gcePersistentDisk represents a GCE Disk resource that is attached to a
-                                kubelet's host machine and then exposed to the po
+                                kubelet's host machine and then exposed to the...
                               properties:
                                 fsType:
                                   description: fsType is filesystem type of the volume
@@ -7231,7 +7308,7 @@ spec:
                             gitRepo:
                               description: |-
                                 gitRepo represents a git repository at a particular revision.
-                                DEPRECATED: GitRepo is deprecated.
+                                Deprecated: GitRepo is deprecated.
                               properties:
                                 directory:
                                   description: |-
@@ -7249,9 +7326,8 @@ spec:
                               - repository
                               type: object
                             glusterfs:
-                              description: |-
-                                glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime.
-                                More info: https://examples.k8s.
+                              description: glusterfs represents a Glusterfs mount
+                                on the host that shares a pod's lifetime.
                               properties:
                                 endpoints:
                                   description: |-
@@ -7291,6 +7367,22 @@ spec:
                               required:
                               - path
                               type: object
+                            image:
+                              description: image represents an OCI object (a container
+                                image or artifact) pulled and mounted on the kubelet's
+                                host machine.
+                              properties:
+                                pullPolicy:
+                                  description: |-
+                                    Policy for pulling OCI objects. Possible values are:
+                                    Always: the kubelet always attempts to pull the reference.
+                                  type: string
+                                reference:
+                                  description: |-
+                                    Required: Image or artifact reference to be used.
+                                    Behaves in the same way as pod.spec.containers[*].image.
+                                  type: string
+                              type: object
                             iscsi:
                               description: |-
                                 iscsi represents an ISCSI Disk resource that is attached to a
@@ -7316,6 +7408,7 @@ spec:
                                   description: iqn is the target iSCSI Qualified Name.
                                   type: string
                                 iscsiInterface:
+                                  default: default
                                   description: |-
                                     iscsiInterface is the interface Name that uses an iSCSI transport.
                                     Defaults to 'default' (tcp).
@@ -7407,7 +7500,7 @@ spec:
                             photonPersistentDisk:
                               description: photonPersistentDisk represents a PhotonController
                                 persistent disk attached and mounted on kubelets host
-                                machine
+                                machine.
                               properties:
                                 fsType:
                                   description: |-
@@ -7424,7 +7517,7 @@ spec:
                               type: object
                             portworxVolume:
                               description: portworxVolume represents a portworx volume
-                                attached and mounted on kubelets host machine
+                                attached and mounted on kubelets host machine.
                               properties:
                                 fsType:
                                   description: |-
@@ -7454,10 +7547,13 @@ spec:
                                   format: int32
                                   type: integer
                                 sources:
-                                  description: sources is the list of volume projections
+                                  description: |-
+                                    sources is the list of volume projections. Each entry in this list
+                                    handles one source.
                                   items:
-                                    description: Projection that may be projected
-                                      along with other supported volume types
+                                    description: |-
+                                      Projection that may be projected along with other supported volume types.
+                                      Exactly one of these fields must be set.
                                     properties:
                                       clusterTrustBundle:
                                         description: ClusterTrustBundle allows a pod
@@ -7538,7 +7634,7 @@ spec:
                                           items:
                                             description: |-
                                               items if unspecified, each key-value pair in the Data field of the referenced
-                                              ConfigMap will be projected into the volum
+                                              ConfigMap will be projected into the...
                                             items:
                                               description: Maps a string key to a
                                                 path within a volume.
@@ -7611,7 +7707,7 @@ spec:
                                                 mode:
                                                   description: |-
                                                     Optional: mode bits used to set permissions on this file, must be an octal value
-                                                    between 0000 and 0777 or a decimal valu
+                                                    between 0000 and 0777 or a decimal...
                                                   format: int32
                                                   type: integer
                                                 path:
@@ -7660,7 +7756,7 @@ spec:
                                           items:
                                             description: |-
                                               items if unspecified, each key-value pair in the Data field of the referenced
-                                              Secret will be projected into the volume a
+                                              Secret will be projected into the volume...
                                             items:
                                               description: Maps a string key to a
                                                 path within a volume.
@@ -7726,7 +7822,7 @@ spec:
                               type: object
                             quobyte:
                               description: quobyte represents a Quobyte mount on the
-                                host that shares a pod's lifetime
+                                host that shares a pod's lifetime.
                               properties:
                                 group:
                                   description: |-
@@ -7741,12 +7837,12 @@ spec:
                                 registry:
                                   description: |-
                                     registry represents a single or multiple Quobyte Registry services
-                                    specified as a string as host:port pair (multiple ent
+                                    specified as a string as host:port pair (multiple...
                                   type: string
                                 tenant:
                                   description: |-
                                     tenant owning the given Quobyte volume in the Backend
-                                    Used with dynamically provisioned Quobyte volumes, value is set by
+                                    Used with dynamically provisioned Quobyte volumes, value is set...
                                   type: string
                                 user:
                                   description: |-
@@ -7762,9 +7858,8 @@ spec:
                               - volume
                               type: object
                             rbd:
-                              description: |-
-                                rbd represents a Rados Block Device mount on the host that shares a pod's lifetime.
-                                More info: https://examples.k8s.
+                              description: rbd represents a Rados Block Device mount
+                                on the host that shares a pod's lifetime.
                               properties:
                                 fsType:
                                   description: fsType is the filesystem type of the
@@ -7776,6 +7871,7 @@ spec:
                                     More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it
                                   type: string
                                 keyring:
+                                  default: /etc/ceph/keyring
                                   description: |-
                                     keyring is the path to key ring for RBDUser.
                                     Default is /etc/ceph/keyring.
@@ -7790,6 +7886,7 @@ spec:
                                   type: array
                                   x-kubernetes-list-type: atomic
                                 pool:
+                                  default: rbd
                                   description: |-
                                     pool is the rados pool name.
                                     Default is rbd.
@@ -7817,6 +7914,7 @@ spec:
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 user:
+                                  default: admin
                                   description: |-
                                     user is the rados user name.
                                     Default is admin.
@@ -7831,6 +7929,7 @@ spec:
                                 volume attached and mounted on Kubernetes nodes.
                               properties:
                                 fsType:
+                                  default: xfs
                                   description: |-
                                     fsType is the filesystem type to mount.
                                     Must be a filesystem type supported by the host operating system.
@@ -7868,6 +7967,7 @@ spec:
                                     communication with Gateway, default false
                                   type: boolean
                                 storageMode:
+                                  default: ThinProvisioned
                                   description: storageMode indicates whether the storage
                                     for a volume should be ThickProvisioned or ThinProvisioned.
                                   type: string
@@ -7902,7 +8002,7 @@ spec:
                                 items:
                                   description: |-
                                     items If unspecified, each key-value pair in the Data field of the referenced
-                                    Secret will be projected into the volume a
+                                    Secret will be projected into the volume...
                                   items:
                                     description: Maps a string key to a path within
                                       a volume.
@@ -7977,7 +8077,7 @@ spec:
                               type: object
                             vsphereVolume:
                               description: vsphereVolume represents a vSphere volume
-                                attached and mounted on kubelets host machine
+                                attached and mounted on kubelets host machine.
                               properties:
                                 fsType:
                                   description: |-
@@ -8051,10 +8151,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
@@ -8201,29 +8298,6 @@ metadata:
   name: feast-operator-manager-role
 rules:
 - apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - batch
-  resources:
-  - cronjobs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - ""
   resources:
   - configmaps
@@ -8251,6 +8325,29 @@ rules:
   - pods/exec
   verbs:
   - create
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - feast.dev
   resources:
