@@ -1,5 +1,12 @@
 import { useQuery } from "react-query";
 
+export interface RegisteredModelInfo {
+  model_name: string;
+  version: string;
+  stage: string;
+  mlflow_url: string;
+}
+
 export interface MlflowRunData {
   run_id: string;
   run_name: string;
@@ -11,6 +18,7 @@ export interface MlflowRunData {
   retrieval_type: string | null;
   entity_count: string | null;
   mlflow_url: string;
+  registered_models: RegisteredModelInfo[];
 }
 
 interface MlflowRunsResponse {

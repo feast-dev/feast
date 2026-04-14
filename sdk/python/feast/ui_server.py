@@ -1,7 +1,8 @@
 import json
+import logging
 import threading
 from importlib import resources as importlib_resources
-from typing import Callable, Optional
+from typing import Callable, Dict, List, Optional
 
 import uvicorn
 from fastapi import FastAPI, Response, status
@@ -9,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 import feast
+
+_logger = logging.getLogger(__name__)
 
 
 def get_app(
@@ -147,6 +150,25 @@ def get_app(
                 order_by=["start_time DESC"],
             )
 
+            run_id_to_models: Dict[str, List[dict]] = {}
+            try:
+                for rm in client.search_registered_models():
+                    for mv in rm.latest_versions or []:
+                        if mv.run_id:
+                            run_id_to_models.setdefault(mv.run_id, []).append(
+                                {
+                                    "model_name": rm.name,
+                                    "version": mv.version,
+                                    "stage": mv.current_stage,
+                                    "mlflow_url": (
+                                        f"{tracking_uri}/#/models/"
+                                        f"{rm.name}/versions/{mv.version}"
+                                    ),
+                                }
+                            )
+            except Exception:
+                pass
+
             result = []
             mlflow_ui_base = tracking_uri
             for run in runs:
@@ -175,6 +197,9 @@ def get_app(
                             f"{mlflow_ui_base}/#/experiments/"
                             f"{run.info.experiment_id}/runs/{run.info.run_id}"
                         ),
+                        "registered_models": run_id_to_models.get(
+                            run.info.run_id, []
+                        ),
                     }
                 )
 
@@ -190,6 +215,72 @@ def get_app(
                 "runs": [],
                 "mlflow_uri": None,
                 "error": "Failed to fetch MLflow runs",
+            }
+
+    @app.get("/api/mlflow-feature-models")
+    def get_mlflow_feature_models():
+        """Return a mapping of feature_ref -> registered models that use it.
+
+        Walks the MLflow Model Registry, inspects the training run for each
+        model's latest version(s), reads the ``feast.feature_refs`` tag, and
+        inverts it into a reverse index so the UI can show which registered
+        models depend on a given feature.
+        """
+        mlflow_cfg = getattr(store.config, "mlflow", None)
+        if not mlflow_cfg or not mlflow_cfg.enabled:
+            return {"feature_models": {}}
+
+        try:
+            import mlflow
+
+            tracking_uri = mlflow_cfg.tracking_uri or "http://127.0.0.1:5000"
+            client = mlflow.MlflowClient(tracking_uri=tracking_uri)
+            project_name = store.config.project
+
+            feature_models: Dict[str, List[dict]] = {}
+
+            for rm in client.search_registered_models():
+                model_name = rm.name
+                latest_versions = rm.latest_versions or []
+                for mv in latest_versions:
+                    if not mv.run_id:
+                        continue
+                    try:
+                        run = client.get_run(mv.run_id)
+                    except Exception:
+                        continue
+
+                    tags = run.data.tags
+                    if tags.get("feast.project") != project_name:
+                        continue
+
+                    refs_raw = tags.get("feast.feature_refs", "")
+                    feature_refs = [r for r in refs_raw.split(",") if r]
+
+                    model_info = {
+                        "model_name": model_name,
+                        "version": mv.version,
+                        "stage": mv.current_stage,
+                        "mlflow_url": (
+                            f"{tracking_uri}/#/models/"
+                            f"{model_name}/versions/{mv.version}"
+                        ),
+                    }
+
+                    for ref in feature_refs:
+                        feature_models.setdefault(ref, []).append(model_info)
+
+            return {"feature_models": feature_models}
+        except ImportError:
+            return {
+                "feature_models": {},
+                "error": "mlflow is not installed",
+            }
+        except Exception as e:
+            _logger.debug("Failed to fetch MLflow feature-model mapping: %s", e)
+            return {
+                "feature_models": {},
+                "error": "Failed to fetch model data",
             }
 
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React

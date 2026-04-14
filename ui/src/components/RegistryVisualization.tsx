@@ -82,6 +82,8 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#cc0000"; // Red
     case FEAST_FCO_TYPES.mlflowRun:
       return "#0194e2"; // MLflow brand blue
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "#7b2d8e"; // Purple
     default:
       return "#666666"; // Gray
   }
@@ -99,6 +101,8 @@ const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#ffe6e6"; // Light red
     case FEAST_FCO_TYPES.mlflowRun:
       return "#e6f6fd"; // Light MLflow blue
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "#f3e6f9"; // Light purple
     default:
       return "#f0f0f0"; // Light gray
   }
@@ -116,6 +120,8 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
       return "◆"; // Diamond for data source
     case FEAST_FCO_TYPES.mlflowRun:
       return "⬡"; // Hexagon for MLflow run
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "⬢"; // Filled hexagon for registered model
     default:
       return "●"; // Default circle
   }
@@ -132,7 +138,11 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   const hasVersion = data.versionNumber != null && data.versionNumber > 1;
 
   const handleClick = () => {
-    if (data.type === FEAST_FCO_TYPES.mlflowRun && data.metadata?.mlflow_url) {
+    if (
+      (data.type === FEAST_FCO_TYPES.mlflowRun ||
+        data.type === FEAST_FCO_TYPES.mlflowModel) &&
+      data.metadata?.mlflow_url
+    ) {
       window.open(data.metadata.mlflow_url, "_blank", "noopener,noreferrer");
       return;
     }
@@ -194,7 +204,8 @@ const CustomNode = ({ data }: { data: NodeData }) => {
             zIndex: 5,
           }}
         >
-          {data.type === FEAST_FCO_TYPES.mlflowRun
+          {data.type === FEAST_FCO_TYPES.mlflowRun ||
+          data.type === FEAST_FCO_TYPES.mlflowModel
             ? "Open in MLflow ↗"
             : "View Details"}
         </div>
@@ -412,6 +423,7 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.featureView]: [],
     [FEAST_FCO_TYPES.featureService]: [],
     [FEAST_FCO_TYPES.mlflowRun]: [],
+    [FEAST_FCO_TYPES.mlflowModel]: [],
   };
 
   isolatedNodes.forEach((node) => {
@@ -469,6 +481,7 @@ const Legend = () => {
     { type: FEAST_FCO_TYPES.entity, label: "Entity" },
     { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
     { type: FEAST_FCO_TYPES.mlflowRun, label: "MLflow Run" },
+    { type: FEAST_FCO_TYPES.mlflowModel, label: "Registered Model" },
   ];
 
   const isDarkMode = colorMode === "dark";
@@ -805,6 +818,52 @@ const registryToFlow = (
           });
         }
       }
+
+      if (run.registered_models && run.registered_models.length > 0) {
+        run.registered_models.forEach((model) => {
+          const modelNodeId = `model-${model.model_name}-v${model.version}`;
+          const modelExists = nodes.some((n) => n.id === modelNodeId);
+          if (!modelExists) {
+            nodes.push({
+              id: modelNodeId,
+              type: "custom",
+              data: {
+                label: `${model.model_name} v${model.version}`,
+                type: FEAST_FCO_TYPES.mlflowModel,
+                metadata: {
+                  mlflow_url: model.mlflow_url,
+                  model_name: model.model_name,
+                  version: model.version,
+                  stage: model.stage,
+                },
+              },
+              position: { x: 0, y: 0 },
+            });
+          }
+
+          edges.push({
+            id: `edge-model-${run.run_id}-${model.model_name}-v${model.version}`,
+            source: `mlflow-${run.run_id}`,
+            sourceHandle: "source",
+            target: modelNodeId,
+            targetHandle: "target",
+            animated: true,
+            style: {
+              strokeWidth: 3,
+              stroke: "#7b2d8e",
+              strokeDasharray: "10 5",
+              animation: "dataflow 2s linear infinite",
+            },
+            type: "smoothstep",
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: "#7b2d8e",
+            },
+          });
+        });
+      }
     });
   }
 
@@ -823,6 +882,8 @@ const getNodePrefix = (type: FEAST_FCO_TYPES) => {
       return "ds";
     case FEAST_FCO_TYPES.mlflowRun:
       return "mlflow";
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "model";
     default:
       return "unknown";
   }

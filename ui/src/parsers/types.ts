@@ -4,6 +4,7 @@ enum FEAST_FCO_TYPES {
   featureView = "featureView",
   featureService = "featureService",
   mlflowRun = "mlflowRun",
+  mlflowModel = "mlflowModel",
 }
 
 export { FEAST_FCO_TYPES };
