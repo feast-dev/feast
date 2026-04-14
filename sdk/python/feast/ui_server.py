@@ -152,6 +152,11 @@ def get_app(
             for run in runs:
                 run_tags = run.data.tags
                 run_params = run.data.params
+                fv_raw = run_tags.get("feast.feature_views", "")
+                refs_raw = run_tags.get(
+                    "feast.feature_refs",
+                    run_params.get("feast.feature_refs", ""),
+                )
                 result.append(
                     {
                         "run_id": run.info.run_id,
@@ -159,14 +164,13 @@ def get_app(
                         "status": run.info.status,
                         "start_time": run.info.start_time,
                         "feature_service": run_tags.get("feast.feature_service"),
-                        "feature_views": run_tags.get("feast.feature_views", "").split(
-                            ","
-                        ),
-                        "feature_refs": run_params.get("feast.feature_refs", "").split(
-                            ","
-                        ),
+                        "feature_views": [v for v in fv_raw.split(",") if v],
+                        "feature_refs": [v for v in refs_raw.split(",") if v],
                         "retrieval_type": run_tags.get("feast.retrieval_type"),
-                        "entity_count": run_params.get("feast.entity_count"),
+                        "entity_count": run_tags.get(
+                            "feast.entity_count",
+                            run_params.get("feast.entity_count"),
+                        ),
                         "mlflow_url": (
                             f"{mlflow_ui_base}/#/experiments/"
                             f"{run.info.experiment_id}/runs/{run.info.run_id}"

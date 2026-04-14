@@ -1641,41 +1641,44 @@ class FeatureStore:
         )
 
         # Auto-log to MLflow if configured
-        if (
-            self.config.mlflow is not None
-            and self.config.mlflow.enabled
-            and self.config.mlflow.auto_log
-        ):
-            _log_fn = _get_mlflow_log_fn()
-            if _log_fn is not None:
-                _duration = time.monotonic() - _retrieval_start
-                if isinstance(entity_df, pd.DataFrame):
-                    _entity_count = len(entity_df)
-                elif isinstance(entity_df, str):
-                    _entity_count = -1
-                else:
-                    _entity_count = 0
-                _fs = features if isinstance(features, FeatureService) else None
-                _fs_name = (
-                    features.name
-                    if isinstance(features, FeatureService)
-                    else self._resolve_feature_service_name(_feature_refs)
-                )
-                _log_fn(
-                    feature_refs=_feature_refs,
-                    entity_count=_entity_count,
-                    duration_seconds=_duration,
-                    retrieval_type="historical",
-                    feature_service=_fs,
-                    feature_service_name=_fs_name,
-                    project=self.project,
-                    tracking_uri=self.config.mlflow.tracking_uri,
-                )
-
-                if self.config.mlflow.auto_log_entity_df:
-                    self._auto_log_entity_df_info(
-                        entity_df, start_date=start_date, end_date=end_date
+        try:
+            if (
+                self.config.mlflow is not None
+                and self.config.mlflow.enabled
+                and self.config.mlflow.auto_log
+            ):
+                _log_fn = _get_mlflow_log_fn()
+                if _log_fn is not None:
+                    _duration = time.monotonic() - _retrieval_start
+                    if isinstance(entity_df, pd.DataFrame):
+                        _entity_count = len(entity_df)
+                    elif isinstance(entity_df, str):
+                        _entity_count = -1
+                    else:
+                        _entity_count = 0
+                    _fs = features if isinstance(features, FeatureService) else None
+                    _fs_name = (
+                        features.name
+                        if isinstance(features, FeatureService)
+                        else self._resolve_feature_service_name(_feature_refs)
                     )
+                    _log_fn(
+                        feature_refs=_feature_refs,
+                        entity_count=_entity_count,
+                        duration_seconds=_duration,
+                        retrieval_type="historical",
+                        feature_service=_fs,
+                        feature_service_name=_fs_name,
+                        project=self.project,
+                        tracking_uri=self.config.mlflow.tracking_uri,
+                    )
+
+                    if self.config.mlflow.auto_log_entity_df:
+                        self._auto_log_entity_df_info(
+                            entity_df, start_date=start_date, end_date=end_date
+                        )
+        except Exception as e:
+            _logger.warning("MLflow auto-log failed for historical retrieval: %s", e)
 
         return job
 
@@ -2817,42 +2820,46 @@ class FeatureStore:
         )
 
         # Auto-log to MLflow if configured
-        if (
-            self.config.mlflow is not None
-            and self.config.mlflow.enabled
-            and self.config.mlflow.auto_log
-        ):
-            _log_fn = _get_mlflow_log_fn()
-            if _log_fn is not None:
-                _duration = time.monotonic() - _retrieval_start
-                _feature_refs = utils._get_features(
-                    self.registry, self.project, features, allow_cache=True
-                )
-                if isinstance(entity_rows, list):
-                    _entity_count = len(entity_rows)
-                elif isinstance(entity_rows, Mapping):
-                    try:
-                        _entity_count = len(next(iter(entity_rows.values())))
-                    except Exception:
+        try:
+            if (
+                self.config.mlflow is not None
+                and self.config.mlflow.enabled
+                and self.config.mlflow.auto_log
+            ):
+                _log_fn = _get_mlflow_log_fn()
+                if _log_fn is not None:
+                    _duration = time.monotonic() - _retrieval_start
+                    _feature_refs = utils._get_features(
+                        self.registry, self.project, features, allow_cache=True
+                    )
+                    if isinstance(entity_rows, list):
+                        _entity_count = len(entity_rows)
+                    elif isinstance(entity_rows, Mapping):
+                        try:
+                            _entity_count = len(next(iter(entity_rows.values())))
+                        except Exception:
+                            _entity_count = 0
+                    else:
                         _entity_count = 0
-                else:
-                    _entity_count = 0
-                _fs = features if isinstance(features, FeatureService) else None
-                _fs_name = (
-                    features.name
-                    if isinstance(features, FeatureService)
-                    else self._resolve_feature_service_name(_feature_refs)
-                )
-                _log_fn(
-                    feature_refs=_feature_refs,
-                    entity_count=_entity_count,
-                    duration_seconds=_duration,
-                    retrieval_type="online",
-                    feature_service=_fs,
-                    feature_service_name=_fs_name,
-                    project=self.project,
-                    tracking_uri=self.config.mlflow.tracking_uri,
-                )
+                    _fs = features if isinstance(features, FeatureService) else None
+                    _fs_name = (
+                        features.name
+                        if isinstance(features, FeatureService)
+                        else self._resolve_feature_service_name(_feature_refs)
+                    )
+                    _log_fn(
+                        feature_refs=_feature_refs,
+                        entity_count=_entity_count,
+                        duration_seconds=_duration,
+                        retrieval_type="online",
+                        feature_service=_fs,
+                        feature_service_name=_fs_name,
+                        project=self.project,
+                        tracking_uri=self.config.mlflow.tracking_uri,
+                    )
+        except Exception as e:
+            _logger.warning("MLflow auto-log failed for online retrieval: %s", e)
+
         return response
 
     async def get_online_features_async(

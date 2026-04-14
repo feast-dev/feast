@@ -497,12 +497,18 @@ class RepoConfig(FeastBaseModel):
     def mlflow(self):
         """Get the MLflow configuration."""
         if not self._mlflow:
-            if isinstance(self.mlflow_config, Dict):
+            if isinstance(self.mlflow_config, dict):
                 from feast.mlflow_integration.config import MlflowConfig
 
                 self._mlflow = MlflowConfig(**self.mlflow_config)
-            elif self.mlflow_config:
-                self._mlflow = self.mlflow_config
+            elif self.mlflow_config is not None:
+                warnings.warn(
+                    f"Invalid mlflow config type: {type(self.mlflow_config).__name__}. "
+                    "Expected a dict (e.g. mlflow: {{enabled: true}}). "
+                    "MLflow integration disabled.",
+                    stacklevel=2,
+                )
+                return None
         return self._mlflow
 
     @model_validator(mode="before")

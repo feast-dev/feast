@@ -76,11 +76,11 @@ def log_feature_retrieval_to_mlflow(
             client.set_tag(run_id, "feast.feature_views", fv_str)
 
         refs_str = ",".join(feature_refs)
-        if len(refs_str) > 490:
-            refs_str = refs_str[:487] + "..."
-        client.log_param(run_id, "feast.feature_refs", refs_str)
-        client.log_param(run_id, "feast.entity_count", str(entity_count))
-        client.log_param(run_id, "feast.feature_count", str(len(feature_refs)))
+        if len(refs_str) > 4990:
+            refs_str = refs_str[:4987] + "..."
+        client.set_tag(run_id, "feast.feature_refs", refs_str)
+        client.set_tag(run_id, "feast.entity_count", str(entity_count))
+        client.set_tag(run_id, "feast.feature_count", str(len(feature_refs)))
 
         client.log_metric(
             run_id, "feast.job_submission_sec", round(duration_seconds, 4)
