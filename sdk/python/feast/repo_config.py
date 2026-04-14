@@ -1,6 +1,8 @@
 import logging
 import os
 import warnings
+from datetime import timedelta
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -207,6 +209,17 @@ class RegistryConfig(FeastBaseModel):
         return path
 
 
+class ChunkFailureStrategy(str, Enum):
+    """Strategy for handling chunk failures during chunked materialization."""
+
+    STOP = "stop"
+    """ Stop materialization immediately on the first chunk failure (default). """
+
+    CONTINUE = "continue"
+    """ Log the failure and continue processing remaining chunks.
+        A summary warning is emitted at the end listing all failed chunks. """
+
+
 class MaterializationConfig(BaseModel):
     """Configuration options for feature materialization behavior."""
 
@@ -219,6 +232,30 @@ class MaterializationConfig(BaseModel):
         If None (default), all rows are written in a single batch for backward compatibility.
         Set to a positive integer (e.g., 10000) to enable batched writes.
         Supported compute engines: local, spark, ray. """
+
+    chunk_size: Optional[timedelta] = None
+    """ timedelta: If set, materialization is split into consecutive time-based chunks of this
+        size to reduce memory pressure when processing large volumes of data.  For example,
+        ``timedelta(hours=6)`` issues one ``materialize_single_feature_view`` call per 6-hour
+        window instead of materializing the entire range at once.  ``None`` (default) disables
+        chunking and preserves the existing single-pass behaviour.
+
+        Can be overridden at call-time via the ``chunk_size`` parameter of
+        ``FeatureStore.materialize()`` / ``FeatureStore.materialize_incremental()``, or via the
+        ``--chunk-hours`` / ``--chunk-minutes`` / ``--chunk-seconds`` CLI flags.
+
+        Example ``feature_store.yaml`` snippet::
+
+            materialization:
+              chunk_size: 21600  # 6 hours expressed as seconds
+    """
+
+    chunk_failure_strategy: ChunkFailureStrategy = ChunkFailureStrategy.STOP
+    """ ChunkFailureStrategy: Controls what happens when a chunk fails during chunked
+        materialization.  ``STOP`` (default) re-raises the exception immediately.  ``CONTINUE``
+        logs the failure and proceeds with the remaining chunks, emitting a summary warning
+        at the end.  Only meaningful when ``chunk_size`` is set.
+    """
 
 
 class OpenLineageConfig(FeastBaseModel):
