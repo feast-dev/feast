@@ -82,6 +82,7 @@ Notes:
 
 import json
 import warnings
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
     Any,
@@ -116,6 +117,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.offline_stores.offline_utils import (
+    get_expected_join_keys,
     infer_event_timestamp_from_entity_df,
 )
 from feast.infra.registry.base_registry import BaseRegistry
@@ -626,10 +628,10 @@ class MongoDBOfflineStoreOne(OfflineStore):
         event_timestamp_col = infer_event_timestamp_from_entity_df(entity_schema)
 
         # Map "feature_view:feature" refs → {fv_name: [feature, ...]}
-        fv_to_features: Dict[str, List[str]] = {}
+        fv_to_features: Dict[str, List[str]] = defaultdict(list)
         for ref in feature_refs:
             fv_name, feat_name = ref.split(":", 1)
-            fv_to_features.setdefault(fv_name, []).append(feat_name)
+            fv_to_features[fv_name].append(feat_name)
 
         fv_names = list(fv_to_features.keys())
         fv_by_name = {fv.name: fv for fv in feature_views}
@@ -653,7 +655,10 @@ class MongoDBOfflineStoreOne(OfflineStore):
                 entity_subset_df: Chunk of entity DataFrame to process
                 coll: MongoDB collection object (reused across chunks)
             """
-            # Prepare entity_df: ensure timestamps are UTC
+            # Copy is required: iloc yields a view, and we both normalise the
+            # timestamp column in-place and add a temporary _entity_id column.
+            # Modifying the view directly would corrupt working_df and raise
+            # SettingWithCopyWarning.
             result = entity_subset_df.copy()
             # Convert timestamp column to datetime if needed
             if not pd.api.types.is_datetime64_any_dtype(result[event_timestamp_col]):
@@ -665,17 +670,15 @@ class MongoDBOfflineStoreOne(OfflineStore):
                     result[event_timestamp_col], utc=True
                 )
 
-            # Get join keys (all columns except event_timestamp and internal columns)
-            entity_columns = [
-                c
-                for c in result.columns
-                if c != event_timestamp_col and not c.startswith("_")
-            ]
+            # Resolve join keys from the registry — the authoritative source.
+            # Do NOT derive from chunk columns: the entity_df may carry extra
+            # columns (labels, metadata) that must not enter the entity key.
+            join_keys = get_expected_join_keys(project, feature_views, registry)
 
             # Serialize entity keys to bytes (same format as online store)
             result["_entity_id"] = result.apply(
                 lambda row: _serialize_entity_key_from_row(
-                    row, entity_columns, entity_key_version
+                    row, join_keys, entity_key_version
                 ),
                 axis=1,
             )
@@ -778,6 +781,9 @@ class MongoDBOfflineStoreOne(OfflineStore):
 
         def _run() -> pyarrow.Table:
             # Add row index to preserve original ordering
+            # Copy is required: we write _row_idx into this DataFrame to
+            # restore original ordering after chunk results are concatenated,
+            # and must not mutate the caller's entity_df.
             working_df = entity_df.copy()
             working_df["_row_idx"] = range(len(working_df))
 
