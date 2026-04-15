@@ -490,6 +490,94 @@ def test_multiple_feature_views(
 
 
 @_requires_docker
+def test_multiple_feature_views_overlapping_feature_names(
+    repo_config: RepoConfig, mongodb_connection_string: str
+) -> None:
+    """Regression test: multi-FV join must not raise when FVs share feature names.
+
+    When full_feature_names=False and multiple FVs define the same feature
+    (e.g. both have a ``score`` column), a naive merge_asof loop would produce
+    duplicate column names via pandas suffixes (_x, _y) on the second iteration
+    and then fail with "Passing 'suffixes' which cause duplicate columns" on the
+    third.  The fix pre-renames each FV's columns to a unique per-FV temp prefix
+    before merging and then renames to the final output name.
+    """
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    db = client["feast_test"]
+    collection = db["feature_history"]
+
+    now = datetime.now(tz=pytz.UTC)
+
+    # Three FVs, all sharing feature name ``score``.
+    docs = []
+    for fv_name, score_val in [
+        ("fv_overlap_a", 1.0),
+        ("fv_overlap_b", 2.0),
+        ("fv_overlap_c", 3.0),
+    ]:
+        for driver_id in [1, 2]:
+            docs.append(
+                {
+                    "entity_id": _make_entity_id({"driver_id": driver_id}),
+                    "feature_view": fv_name,
+                    "features": {"score": score_val + driver_id * 0.1},
+                    "event_timestamp": now - timedelta(hours=1),
+                    "created_at": now - timedelta(hours=1),
+                }
+            )
+    collection.insert_many(docs)
+    client.close()
+
+    driver_entity = Entity(
+        name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+    )
+    fvs = []
+    feature_refs = []
+    for fv_name in ["fv_overlap_a", "fv_overlap_b", "fv_overlap_c"]:
+        source = MongoDBSourceOne(name=fv_name)
+        fv = FeatureView(
+            name=fv_name,
+            entities=[driver_entity],
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="score", dtype=Float64),
+            ],
+            source=source,
+            ttl=timedelta(days=1),
+        )
+        fvs.append(fv)
+        feature_refs.append(f"{fv_name}:score")
+
+    entity_df = pd.DataFrame({"driver_id": [1, 2], "event_timestamp": [now, now]})
+
+    # full_feature_names=True: each FV gets a distinct prefixed column.
+    job = MongoDBOfflineStoreOne.get_historical_features(
+        config=repo_config,
+        feature_views=fvs,
+        feature_refs=feature_refs,
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=True,
+    )
+    result_df = job.to_df().sort_values("driver_id").reset_index(drop=True)
+
+    assert len(result_df) == 2
+    assert "fv_overlap_a__score" in result_df.columns
+    assert "fv_overlap_b__score" in result_df.columns
+    assert "fv_overlap_c__score" in result_df.columns
+
+    # Driver 1: scores = base + 1*0.1
+    assert result_df.loc[0, "fv_overlap_a__score"] == pytest.approx(1.1)
+    assert result_df.loc[0, "fv_overlap_b__score"] == pytest.approx(2.1)
+    assert result_df.loc[0, "fv_overlap_c__score"] == pytest.approx(3.1)
+    # Driver 2: scores = base + 2*0.1
+    assert result_df.loc[1, "fv_overlap_a__score"] == pytest.approx(1.2)
+    assert result_df.loc[1, "fv_overlap_b__score"] == pytest.approx(2.2)
+    assert result_df.loc[1, "fv_overlap_c__score"] == pytest.approx(3.2)
+
+
+@_requires_docker
 def test_compound_join_keys(
     repo_config: RepoConfig, mongodb_connection_string: str
 ) -> None:

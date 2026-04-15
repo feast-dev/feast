@@ -750,6 +750,15 @@ class MongoDBOfflineStoreOne(OfflineStore):
                     columns={"event_timestamp": "_fv_ts"}
                 )
 
+                # So that merge_asof never does not cause column name collisions
+                # when FVs share the same feature names (full_feature_names=False),
+                # add fv name as prefix
+                fv_prefix = f"__fv_{fv_name}__"
+                temp_rename = {
+                    f: f"{fv_prefix}{f}" for f in features if f in fv_df_subset.columns
+                }
+                fv_df_subset = fv_df_subset.rename(columns=temp_rename)
+
                 result = pd.merge_asof(
                     result,
                     fv_df_subset,
@@ -759,20 +768,28 @@ class MongoDBOfflineStoreOne(OfflineStore):
                     direction="backward",
                 )
 
-                # Apply TTL
+                # Apply TTL using temp column names
                 if fv and fv.ttl:
                     cutoff = result[event_timestamp_col] - fv.ttl
                     stale_mask = result["_fv_ts"] < cutoff
                     for feat in features:
-                        if feat in result.columns:
-                            result.loc[stale_mask, feat] = None
+                        temp_col = f"{fv_prefix}{feat}"
+                        if temp_col in result.columns:
+                            result.loc[stale_mask, temp_col] = None
 
-                # Rename features if full_feature_names
+                # Rename from temp columns to final output names.
+                # If full_feature_names=False and two FVs share a feature name,
+                # the second FV's values overwrite the first — correct behaviour
+                # for un-prefixed retrieval (caller should use full_feature_names
+                # =True when FVs are intentionally named the same).
                 for feat in features:
-                    if feat in result.columns and full_feature_names:
-                        result = result.rename(columns={feat: f"{fv_name}__{feat}"})
-                    elif feat not in result.columns:
-                        col_name = f"{fv_name}__{feat}" if full_feature_names else feat
+                    temp_col = f"{fv_prefix}{feat}"
+                    col_name = f"{fv_name}__{feat}" if full_feature_names else feat
+                    if temp_col in result.columns:
+                        if col_name in result.columns:
+                            result = result.drop(columns=[col_name])
+                        result = result.rename(columns={temp_col: col_name})
+                    elif col_name not in result.columns:
                         result[col_name] = None
 
                 result = result.drop(columns=["_fv_ts"], errors="ignore")
