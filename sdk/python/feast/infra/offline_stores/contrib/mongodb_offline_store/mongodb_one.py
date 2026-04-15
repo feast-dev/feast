@@ -415,7 +415,17 @@ class MongoDBOfflineStoreOne(OfflineStore):
         collection = client[db_name][collection_name]
         # Check if an equivalent index already exists
         existing_indexes = collection.index_information()
-        target_key = [("entity_id", 1), ("feature_view", 1), ("event_timestamp", -1)]
+        # created_at is included so the full sort used by pull_latest_from_table_or_query
+        # {entity_id, event_timestamp DESC, created_at DESC} is satisfied entirely from
+        # the index (feature_view is bridged by the equality match).  This matters for
+        # data corrections: a corrected document shares the same event_timestamp as the
+        # original but has a later created_at, and must win the $first selection.
+        target_key = [
+            ("entity_id", 1),
+            ("feature_view", 1),
+            ("event_timestamp", -1),
+            ("created_at", -1),
+        ]
 
         for idx_info in existing_indexes.values():
             if idx_info.get("key") == target_key:
