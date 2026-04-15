@@ -140,7 +140,7 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: dict[str, FeatureViewProjection]
     source_request_sources: dict[str, RequestSource]
-    feature_transformation: Transformation
+    feature_transformation: Optional[Transformation]
     mode: str
     description: str
     tags: dict[str, str]
@@ -259,9 +259,12 @@ class OnDemandFeatureView(BaseFeatureView):
                 features.append(field)
 
         self.features = features
-        self.feature_transformation = (
-            feature_transformation or self.get_feature_transformation()
-        )
+        if feature_transformation is not None:
+            self.feature_transformation = feature_transformation
+        elif self.udf is not None:
+            self.feature_transformation = self.get_feature_transformation()
+        else:
+            self.feature_transformation = None
         self.write_to_online_store = write_to_online_store
         self.singleton = singleton
         if self.singleton and self.mode != "python":
@@ -578,11 +581,13 @@ class OnDemandFeatureView(BaseFeatureView):
             A OnDemandFeatureView object based on the on-demand feature view protobuf.
         """
         # Parse sources from proto
-        sources = cls._parse_sources_from_proto(on_demand_feature_view_proto)
+        sources = cls._parse_sources_from_proto(
+            on_demand_feature_view_proto, skip_udf=skip_udf
+        )
 
-        # Parse transformation from proto
+        # Parse transformation from proto (skip UDF deserialization if requested)
         transformation = cls._parse_transformation_from_proto(
-            on_demand_feature_view_proto
+            on_demand_feature_view_proto, skip_udf=skip_udf
         )
 
         # Parse optional fields with defaults
@@ -643,7 +648,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @classmethod
     def _parse_sources_from_proto(
-        cls, proto: OnDemandFeatureViewProto
+        cls, proto: OnDemandFeatureViewProto, skip_udf: bool = False
     ) -> List[OnDemandSourceType]:
         """Parse and convert sources from the protobuf representation."""
         sources: List[OnDemandSourceType] = []
@@ -652,7 +657,9 @@ class OnDemandFeatureView(BaseFeatureView):
 
             if source_type == "feature_view":
                 sources.append(
-                    FeatureView.from_proto(on_demand_source.feature_view).projection
+                    FeatureView.from_proto(
+                        on_demand_source.feature_view, skip_udf=skip_udf
+                    ).projection
                 )
             elif source_type == "feature_view_projection":
                 sources.append(
@@ -673,9 +680,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @classmethod
     def _parse_transformation_from_proto(
-        cls, proto: OnDemandFeatureViewProto
-    ) -> Transformation:
+        cls, proto: OnDemandFeatureViewProto, skip_udf: bool = False
+    ) -> Optional[Transformation]:
         """Parse and convert the transformation from the protobuf representation."""
+        if skip_udf:
+            return None
+
         feature_transformation = proto.spec.feature_transformation
         transformation_type = feature_transformation.WhichOneof("transformation")
         mode = proto.spec.mode
@@ -898,6 +908,7 @@ class OnDemandFeatureView(BaseFeatureView):
         pa_table, columns_to_cleanup = self._preprocess_arrow_table(pa_table)
 
         # Apply the transformation
+        assert self.feature_transformation is not None
         transformed_table = self.feature_transformation.transform_arrow(
             pa_table, self.features
         )
@@ -983,6 +994,7 @@ class OnDemandFeatureView(BaseFeatureView):
         )
 
         # Apply the appropriate transformation based on mode
+        assert self.feature_transformation is not None
         if self.singleton and self.mode == "python":
             output_dict = self.feature_transformation.transform_singleton(
                 preprocessed_dict
@@ -1024,6 +1036,7 @@ class OnDemandFeatureView(BaseFeatureView):
         return preprocessed_dict, columns_to_cleanup
 
     def infer_features(self) -> None:
+        assert self.feature_transformation is not None
         random_input = self._construct_random_input(singleton=self.singleton)
         inferred_features = self.feature_transformation.infer_features(
             random_input=random_input, singleton=self.singleton
