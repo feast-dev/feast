@@ -1825,7 +1825,7 @@ def test_milvus_retrieve_online_documents_v2_missing_entity_key() -> None:
     instead of crashing.
     """
     from datetime import timedelta
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
     from feast import Entity, FeatureView, Field, FileSource
     from feast.types import Array, Float32, Int64, String
@@ -1864,12 +1864,9 @@ def test_milvus_retrieve_online_documents_v2_missing_entity_key() -> None:
 
         online_store = store._provider._online_store
         fv_obj = store.get_feature_view("docs")
-        composite_key_name = "doc_id_pk"
-
         # Simulate a search hit that is missing the composite primary key.
         fake_hit = {
             "entity": {
-                # composite_key_name deliberately absent
                 "event_ts": int(_utc_now().timestamp() * 1e6),
                 "created_ts": int(_utc_now().timestamp() * 1e6),
                 "text": "hello",
