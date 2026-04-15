@@ -117,18 +117,16 @@ def _get_mlflow_log_fn():
     """Lazy-import mlflow logger only when MLflow integration is configured."""
     global _mlflow_log_fn, _mlflow_log_fn_loaded
     if not _mlflow_log_fn_loaded:
+        _mlflow_log_fn_loaded = True
         try:
             from feast.mlflow_integration.logger import (
                 log_feature_retrieval_to_mlflow,
             )
 
             _mlflow_log_fn = log_feature_retrieval_to_mlflow
-            _mlflow_log_fn_loaded = True
-        except ImportError:
-            _mlflow_log_fn_loaded = True
-            _mlflow_log_fn = None
         except Exception as e:
-            _logger.warning("MLflow auto-log import failed (will retry): %s", e)
+            if not isinstance(e, ImportError):
+                _logger.warning("MLflow auto-log import failed: %s", e)
             _mlflow_log_fn = None
     return _mlflow_log_fn
 
@@ -3011,8 +3009,7 @@ class FeatureStore:
             data=requested_features_data,
         )
         feature_types = {
-            f.name: f.dtype.to_value_type()
-            for f in requested_feature_view.features
+            f.name: f.dtype.to_value_type() for f in requested_feature_view.features
         }
         return OnlineResponse(online_features_response, feature_types=feature_types)
 
@@ -3304,12 +3301,8 @@ class FeatureStore:
             online_features_response.metadata.feature_names.val.extend(
                 features_to_request
             )
-            feature_types = {
-                f.name: f.dtype.to_value_type() for f in table.features
-            }
-            return OnlineResponse(
-                online_features_response, feature_types=feature_types
-            )
+            feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
+            return OnlineResponse(online_features_response, feature_types=feature_types)
 
         table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
@@ -3332,9 +3325,7 @@ class FeatureStore:
             data=entity_key_dict,
         )
 
-        feature_types = {
-            f.name: f.dtype.to_value_type() for f in table.features
-        }
+        feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
         return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def serve(

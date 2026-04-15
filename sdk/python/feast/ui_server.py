@@ -197,9 +197,7 @@ def get_app(
                             f"{mlflow_ui_base}/#/experiments/"
                             f"{run.info.experiment_id}/runs/{run.info.run_id}"
                         ),
-                        "registered_models": run_id_to_models.get(
-                            run.info.run_id, []
-                        ),
+                        "registered_models": run_id_to_models.get(run.info.run_id, []),
                     }
                 )
 

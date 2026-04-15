@@ -68,8 +68,7 @@ const FeatureListPage = () => {
       const featureRef = `${feature.featureView}:${feature.name}`;
       return {
         ...feature,
-        models:
-          featureModelsData?.feature_models?.[featureRef] || [],
+        models: featureModelsData?.feature_models?.[featureRef] || [],
         permissions: getEntityPermissions(
           selectedPermissionAction
             ? filterPermissionsByAction(
@@ -171,9 +170,7 @@ const FeatureListPage = () => {
               </div>
             }
           >
-            <EuiBadge color="hollow">
-              {models.length} models
-            </EuiBadge>
+            <EuiBadge color="hollow">{models.length} models</EuiBadge>
           </EuiToolTip>
         );
       },
