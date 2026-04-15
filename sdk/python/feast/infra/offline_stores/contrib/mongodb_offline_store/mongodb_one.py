@@ -386,6 +386,11 @@ def _serialize_entity_key_from_row(
     return serialize_entity_key(entity_key, entity_key_serialization_version)
 
 
+# Module-level cache of (connection_string, db_name, collection_name) tuples for which
+# indexes have already been created in this process.
+_indexes_ensured: set = set()
+
+
 class MongoDBOfflineStoreOne(OfflineStore):
     """Native MongoDB offline store using single-collection schema.
 
@@ -397,8 +402,6 @@ class MongoDBOfflineStoreOne(OfflineStore):
     - ``event_timestamp``: event time
     - ``created_at``: ingestion time
     """
-
-    _index_initialized: bool = False
 
     @staticmethod
     def _ensure_indexes(client: Any, db_name: str, collection_name: str) -> None:
@@ -422,9 +425,9 @@ class MongoDBOfflineStoreOne(OfflineStore):
             background=True,
         )
 
-    @classmethod
-    def _get_client_and_ensure_indexes(cls, config: RepoConfig) -> Any:
-        """Get a MongoClient and ensure indexes exist (once per process)."""
+    @staticmethod
+    def _get_client_and_ensure_indexes(config: RepoConfig) -> Any:
+        """Get a MongoClient and ensure indexes exist once per (connection, db, collection)."""
         if MongoClient is None:
             raise FeastExtrasDependencyImportError(
                 "mongodb", "pymongo is not installed."
@@ -433,13 +436,18 @@ class MongoDBOfflineStoreOne(OfflineStore):
             config.offline_store.connection_string, driver=DRIVER_METADATA
         )
 
-        if not cls._index_initialized:
-            cls._ensure_indexes(
+        cache_key = (
+            config.offline_store.connection_string,
+            config.offline_store.database,
+            config.offline_store.collection,
+        )
+        if cache_key not in _indexes_ensured:
+            MongoDBOfflineStoreOne._ensure_indexes(
                 client,
                 config.offline_store.database,
                 config.offline_store.collection,
             )
-            cls._index_initialized = True
+            _indexes_ensured.add(cache_key)
 
         return client
 
@@ -635,6 +643,7 @@ class MongoDBOfflineStoreOne(OfflineStore):
 
         fv_names = list(fv_to_features.keys())
         fv_by_name = {fv.name: fv for fv in feature_views}
+        join_keys = get_expected_join_keys(project, feature_views, registry)
 
         # Chunk size for entity_df processing (bounds memory usage)
         CHUNK_SIZE = 50_000
@@ -669,11 +678,6 @@ class MongoDBOfflineStoreOne(OfflineStore):
                 result[event_timestamp_col] = pd.to_datetime(
                     result[event_timestamp_col], utc=True
                 )
-
-            # Resolve join keys from the registry — the authoritative source.
-            # Do NOT derive from chunk columns: the entity_df may carry extra
-            # columns (labels, metadata) that must not enter the entity key.
-            join_keys = get_expected_join_keys(project, feature_views, registry)
 
             # Serialize entity keys to bytes (same format as online store)
             result["_entity_id"] = result.apply(
