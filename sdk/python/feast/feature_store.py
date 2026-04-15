@@ -2835,7 +2835,10 @@ class FeatureStore:
                     elif isinstance(entity_rows, Mapping):
                         try:
                             _first_col = next(iter(entity_rows.values()))
-                            _entity_count = len(list(_first_col))
+                            if isinstance(_first_col, RepeatedValue):
+                                _entity_count = len(_first_col.val)
+                            else:
+                                _entity_count = len(_first_col)
                         except Exception:
                             _entity_count = 0
                     else:

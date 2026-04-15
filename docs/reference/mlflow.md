@@ -1,16 +1,14 @@
 # MLflow Integration
 
-This module provides **native integration** between Feast and [MLflow](https://mlflow.org/), enabling automatic feature lineage tracking alongside your ML experiments. When enabled, every feature retrieval is logged to the active MLflow run with zero code changes.
+This module provides **native integration** between Feast and [MLflow](https://mlflow.org/), enabling automatic feature lineage tracking alongside your ML experiments. When enabled, every feature retrieval is logged to the active MLflow run.
 
 ## Overview
 
-When enabled, the integration **automatically** logs to the active MLflow run during:
+When enabled, the integration logs to the active MLflow run during:
 
 - **Historical feature retrieval** — `get_historical_features()` tags the run with feature refs, feature views, entity count, and retrieval duration
 - **Online feature retrieval** — `get_online_features()` tags the run with the same metadata
 - **Entity DataFrame archival** — optionally saves the training entity DataFrame as an MLflow artifact for full reproducibility
-
-**No code changes required** — just enable MLflow in your `feature_store.yaml`!
 
 The integration also provides utilities for:
 
@@ -81,9 +79,9 @@ When `auto_log_entity_df: true`, the entity DataFrame is saved as `entity_df.par
 
 ## Usage
 
-### Automatic logging (no code changes)
+### Automatic logging
 
-With the configuration above, feature metadata is logged automatically whenever there is an active MLflow run:
+With the configuration above, feature metadata is logged whenever there is an active MLflow run:
 
 ```python
 import mlflow
@@ -135,20 +133,3 @@ training_df = store.get_historical_features(
 ```
 
 This requires `auto_log_entity_df: true` to have been enabled when the original run was recorded.
-
-## Behavior notes
-
-- The integration is a **complete no-op** if `mlflow` is not installed or `enabled: false`
-- Logging only happens when there is an **active MLflow run** (`mlflow.active_run() is not None`)
-- All logging is wrapped in try/except — a failure in MLflow logging never breaks feature retrieval
-- Tag values longer than 5000 characters are automatically truncated
-
-## Module reference
-
-| Function | Description |
-|----------|-------------|
-| `log_feature_retrieval_to_mlflow()` | Log feature retrieval metadata to the active MLflow run |
-| `log_training_dataset_to_mlflow()` | Log a training DataFrame as an MLflow dataset input |
-| `resolve_feature_service_from_model_uri()` | Map an MLflow model URI to its Feast feature service |
-| `get_entity_df_from_mlflow_run()` | Rebuild the entity DataFrame from a past run's artifacts |
-| `MlflowConfig` | Pydantic config model for the `mlflow:` YAML block |
