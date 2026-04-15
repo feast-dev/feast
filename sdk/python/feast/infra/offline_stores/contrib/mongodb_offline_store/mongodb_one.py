@@ -107,7 +107,11 @@ except ImportError:
 from pydantic import StrictStr
 
 from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException, FeastExtrasDependencyImportError
+from feast.errors import (
+    DataSourceNoNameException,
+    FeastExtrasDependencyImportError,
+    SavedDatasetLocationAlreadyExists,
+)
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.contrib.mongodb_offline_store import DRIVER_METADATA
@@ -122,9 +126,13 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.SavedDataset_pb2 import (
+    SavedDatasetStorage as SavedDatasetStorageProto,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import mongodb_to_feast_value_type
 from feast.value_type import ValueType
 
@@ -286,6 +294,38 @@ class MongoDBSourceOne(DataSource):
         ]
 
 
+class SavedDatasetMongoDBStorageOne(SavedDatasetStorage):
+    """Persists a Feast SavedDataset as a flat collection in MongoDB (one-store schema)."""
+
+    _proto_attr_name = "custom_storage"
+
+    def __init__(self, database: str, collection: str):
+        self._database = database
+        self._collection = collection
+
+    @staticmethod
+    def from_proto(
+        storage_proto: SavedDatasetStorageProto,
+    ) -> "SavedDatasetMongoDBStorageOne":
+        config = json.loads(storage_proto.custom_storage.configuration)
+        return SavedDatasetMongoDBStorageOne(
+            database=config["database"],
+            collection=config["collection"],
+        )
+
+    def to_proto(self) -> SavedDatasetStorageProto:
+        return SavedDatasetStorageProto(
+            custom_storage=DataSourceProto.CustomSourceOptions(
+                configuration=json.dumps(
+                    {"database": self._database, "collection": self._collection}
+                ).encode()
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return MongoDBSourceOne(name=self._collection)
+
+
 def _infer_python_type_str(value: Any) -> Optional[str]:
     """Infer a Feast-compatible type string from a Python value."""
     if value is None:
@@ -329,11 +369,13 @@ class MongoDBOneRetrievalJob(RetrievalJob):
         self,
         query_fn: Callable[[], pyarrow.Table],
         full_feature_names: bool,
+        config: RepoConfig,
         on_demand_feature_views: Optional[List[Any]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
         self._query_fn = query_fn
         self._full_feature_names = full_feature_names
+        self._config = config
         self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
 
@@ -357,12 +399,40 @@ class MongoDBOneRetrievalJob(RetrievalJob):
 
     def persist(
         self,
-        storage: Any,
+        storage: SavedDatasetStorage,
         allow_overwrite: bool = False,
         timeout: Optional[int] = None,
     ) -> None:
-        # TODO: Implement persist for native store
-        raise NotImplementedError("persist() not yet implemented for native store")
+        if not isinstance(storage, SavedDatasetMongoDBStorageOne):
+            raise ValueError(
+                f"MongoDBOneRetrievalJob.persist expected SavedDatasetMongoDBStorageOne, "
+                f"got {type(storage).__name__!r}."
+            )
+        if MongoClient is None:
+            raise FeastExtrasDependencyImportError(
+                "mongodb", "pymongo is not installed."
+            )
+
+        db_name = storage._database or self._config.offline_store.database
+        coll_name = storage._collection
+        location = f"{db_name}.{coll_name}"
+
+        client: Any = MongoClient(
+            self._config.offline_store.connection_string,
+            driver=DRIVER_METADATA,
+            tz_aware=True,
+        )
+        try:
+            coll = client[db_name][coll_name]
+            if not allow_overwrite and coll.estimated_document_count() > 0:
+                raise SavedDatasetLocationAlreadyExists(location=location)
+            if allow_overwrite:
+                coll.drop()
+            records = self._to_arrow_internal().to_pylist()
+            if records:
+                coll.insert_many(records)
+        finally:
+            client.close()
 
 
 def _serialize_entity_key_from_row(
@@ -539,7 +609,9 @@ class MongoDBOfflineStoreOne(OfflineStore):
             finally:
                 client.close()
 
-        return MongoDBOneRetrievalJob(query_fn=_run, full_feature_names=False)
+        return MongoDBOneRetrievalJob(
+            query_fn=_run, full_feature_names=False, config=config
+        )
 
     @staticmethod
     def pull_all_from_table_or_query(
@@ -611,7 +683,9 @@ class MongoDBOfflineStoreOne(OfflineStore):
             finally:
                 client.close()
 
-        return MongoDBOneRetrievalJob(query_fn=_run, full_feature_names=False)
+        return MongoDBOneRetrievalJob(
+            query_fn=_run, full_feature_names=False, config=config
+        )
 
     @staticmethod
     def get_historical_features(
@@ -661,7 +735,7 @@ class MongoDBOfflineStoreOne(OfflineStore):
         # Lower-bound for event_timestamp queries. Only applicable when every FV
         # has a TTL; if any FV is unbounded we cannot prune history.
         max_ttl = (
-            max(fv.ttl for fv in feature_views)
+            max(fv.ttl for fv in feature_views if fv.ttl is not None)
             if all(fv.ttl for fv in feature_views)
             else None
         )
@@ -703,7 +777,7 @@ class MongoDBOfflineStoreOne(OfflineStore):
             # Serialize entity keys to bytes (same format as online store)
             result["_entity_id"] = result.apply(
                 lambda row: _serialize_entity_key_from_row(
-                    row, join_keys, entity_key_version
+                    row, list(join_keys), entity_key_version
                 ),
                 axis=1,
             )
@@ -866,4 +940,5 @@ class MongoDBOfflineStoreOne(OfflineStore):
         return MongoDBOneRetrievalJob(
             query_fn=_run,
             full_feature_names=full_feature_names,
+            config=config,
         )

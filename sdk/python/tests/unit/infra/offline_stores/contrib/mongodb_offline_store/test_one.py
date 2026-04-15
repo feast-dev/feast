@@ -31,11 +31,13 @@ from pymongo import MongoClient
 from testcontainers.mongodb import MongoDbContainer
 
 from feast import Entity, FeatureView, Field
+from feast.errors import SavedDatasetLocationAlreadyExists
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_one import (
     MongoDBOfflineStoreOne,
     MongoDBOfflineStoreOneConfig,
     MongoDBSourceOne,
+    SavedDatasetMongoDBStorageOne,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -766,3 +768,133 @@ def test_entity_df_with_extra_columns(
     assert result_df.loc[1, "conv_rate"] == pytest.approx(0.6)
     # Driver 2, 1 hour before now → feature row from 2 hours ago
     assert result_df.loc[2, "conv_rate"] == pytest.approx(0.3)
+
+
+# =============================================================================
+# persist() tests
+# =============================================================================
+
+
+@_requires_docker
+def test_persist_writes_flat_result(
+    repo_config: RepoConfig,
+    sample_data: datetime,
+    driver_fv: FeatureView,
+    mongodb_connection_string: str,
+) -> None:
+    """persist() writes the flat joined DataFrame to the named destination collection."""
+    now = sample_data
+    dest = "saved_ds_one_basic"
+
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    client["feast_test"][dest].drop()
+    client.close()
+
+    entity_df = pd.DataFrame(
+        {
+            "driver_id": [1, 2],
+            "event_timestamp": [now, now - timedelta(hours=2)],
+        }
+    )
+
+    job = MongoDBOfflineStoreOne.get_historical_features(
+        config=repo_config,
+        feature_views=[driver_fv],
+        feature_refs=["driver_stats:conv_rate", "driver_stats:acc_rate"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    job.persist(SavedDatasetMongoDBStorageOne(database="feast_test", collection=dest))
+
+    client = MongoClient(mongodb_connection_string)
+    try:
+        docs = list(client["feast_test"][dest].find({}, {"_id": 0}))
+    finally:
+        client.close()
+
+    assert len(docs) == 2
+    assert {"driver_id", "conv_rate", "acc_rate", "event_timestamp"}.issubset(
+        docs[0].keys()
+    )
+
+
+@_requires_docker
+def test_persist_raises_if_collection_exists(
+    repo_config: RepoConfig,
+    sample_data: datetime,
+    driver_fv: FeatureView,
+    mongodb_connection_string: str,
+) -> None:
+    """persist() raises SavedDatasetLocationAlreadyExists when the destination is non-empty."""
+    now = sample_data
+    dest = "saved_ds_one_no_overwrite"
+
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    client["feast_test"][dest].drop()
+    client["feast_test"][dest].insert_one({"placeholder": True})
+    client.close()
+
+    entity_df = pd.DataFrame({"driver_id": [1], "event_timestamp": [now]})
+
+    job = MongoDBOfflineStoreOne.get_historical_features(
+        config=repo_config,
+        feature_views=[driver_fv],
+        feature_refs=["driver_stats:conv_rate"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    with pytest.raises(SavedDatasetLocationAlreadyExists):
+        job.persist(
+            SavedDatasetMongoDBStorageOne(database="feast_test", collection=dest),
+            allow_overwrite=False,
+        )
+
+
+@_requires_docker
+def test_persist_allow_overwrite(
+    repo_config: RepoConfig,
+    sample_data: datetime,
+    driver_fv: FeatureView,
+    mongodb_connection_string: str,
+) -> None:
+    """persist(allow_overwrite=True) replaces any existing collection contents."""
+    now = sample_data
+    dest = "saved_ds_one_overwrite"
+
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    client["feast_test"][dest].drop()
+    client["feast_test"][dest].insert_many([{"stale": True}, {"stale": True}])
+    client.close()
+
+    entity_df = pd.DataFrame({"driver_id": [1], "event_timestamp": [now]})
+
+    job = MongoDBOfflineStoreOne.get_historical_features(
+        config=repo_config,
+        feature_views=[driver_fv],
+        feature_refs=["driver_stats:conv_rate", "driver_stats:acc_rate"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    job.persist(
+        SavedDatasetMongoDBStorageOne(database="feast_test", collection=dest),
+        allow_overwrite=True,
+    )
+
+    client = MongoClient(mongodb_connection_string)
+    try:
+        docs = list(client["feast_test"][dest].find({}, {"_id": 0}))
+    finally:
+        client.close()
+
+    assert len(docs) == 1
+    assert "stale" not in docs[0]
+    assert "driver_id" in docs[0]
