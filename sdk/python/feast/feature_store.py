@@ -2834,7 +2834,7 @@ class FeatureStore:
                         _entity_count = len(entity_rows)
                     elif isinstance(entity_rows, Mapping):
                         try:
-                            _entity_count = len(next(iter(entity_rows.values())))
+                            _entity_count = len(next(iter(entity_rows.values())))  # type: ignore[arg-type]
                         except Exception:
                             _entity_count = 0
                     else:
