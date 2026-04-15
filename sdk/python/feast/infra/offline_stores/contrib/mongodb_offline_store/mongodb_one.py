@@ -374,6 +374,8 @@ def _serialize_entity_key_from_row(
         entity_key.join_keys.append(key)
         value = row[key]
         val = ValueProto()
+        if isinstance(value, (int, float)) and hasattr(value, "item"):
+            value = value.item()  # Convert numpy scalar to Python native
         if isinstance(value, bool):
             val.bool_val = value
         elif isinstance(value, int):
