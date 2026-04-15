@@ -374,7 +374,9 @@ def _serialize_entity_key_from_row(
         entity_key.join_keys.append(key)
         value = row[key]
         val = ValueProto()
-        if isinstance(value, int):
+        if isinstance(value, bool):
+            val.bool_val = value
+        elif isinstance(value, int):
             val.int64_val = value
         elif isinstance(value, str):
             val.string_val = value

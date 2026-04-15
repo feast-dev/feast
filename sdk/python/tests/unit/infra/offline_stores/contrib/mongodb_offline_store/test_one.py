@@ -72,7 +72,9 @@ def _make_entity_id(join_keys: dict) -> bytes:
         entity_key.join_keys.append(key)
         val = ValueProto()
         value = join_keys[key]
-        if isinstance(value, int):
+        if isinstance(value, bool):
+            val.bool_val = value
+        elif isinstance(value, int):
             val.int64_val = value
         elif isinstance(value, str):
             val.string_val = value

@@ -176,20 +176,27 @@ class MongoDBOneDataSourceCreator(DataSourceCreator):
         self._entity_key_columns: Dict[str, list[str]] = {}
 
     def _serialize_entity_key(self, row: pd.Series, join_keys: list[str]) -> bytes:
-        """Serialize entity key columns to bytes."""
+        """Serialize entity key columns to bytes.
+
+        Join keys are sorted before serialization to match the order used by
+        _serialize_entity_key_from_row at query time.  Without sorting, compound
+        join keys written in a different order would produce different bytes and
+        cause all features to be returned as NULL.
+        """
         entity_key = EntityKeyProto()
-        for key in join_keys:
+        for key in sorted(join_keys):
             entity_key.join_keys.append(key)
             val = ValueProto()
             value = row[key]
-            if isinstance(value, int):
+            # bool must be checked before int: bool is a subclass of int in Python
+            if isinstance(value, bool):
+                val.bool_val = value
+            elif isinstance(value, int):
                 val.int64_val = value
             elif isinstance(value, str):
                 val.string_val = value
             elif isinstance(value, float):
                 val.double_val = value
-            elif isinstance(value, bool):
-                val.bool_val = value
             else:
                 val.string_val = str(value)
             entity_key.entity_values.append(val)
