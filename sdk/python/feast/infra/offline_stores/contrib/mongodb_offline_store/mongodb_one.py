@@ -646,6 +646,13 @@ class MongoDBOfflineStoreOne(OfflineStore):
         fv_names = list(fv_to_features.keys())
         fv_by_name = {fv.name: fv for fv in feature_views}
         join_keys = get_expected_join_keys(project, feature_views, registry)
+        # Lower-bound for event_timestamp queries. Only applicable when every FV
+        # has a TTL; if any FV is unbounded we cannot prune history.
+        max_ttl = (
+            max(fv.ttl for fv in feature_views)
+            if all(fv.ttl for fv in feature_views)
+            else None
+        )
 
         # Chunk size for entity_df processing (bounds memory usage)
         CHUNK_SIZE = 50_000
@@ -699,10 +706,13 @@ class MongoDBOfflineStoreOne(OfflineStore):
             for i in range(0, len(unique_entity_ids), MONGO_BATCH_SIZE):
                 batch_ids = unique_entity_ids[i : i + MONGO_BATCH_SIZE]
 
+                ts_filter: Dict[str, Any] = {"$lte": max_ts}
+                if max_ttl is not None:
+                    ts_filter["$gte"] = max_ts - max_ttl
                 query = {
                     "entity_id": {"$in": batch_ids},
                     "feature_view": {"$in": fv_names},
-                    "event_timestamp": {"$lte": max_ts},
+                    "event_timestamp": ts_filter,
                 }
                 docs = list(coll.find(query, {"_id": 0}))
                 all_feature_docs.extend(docs)
