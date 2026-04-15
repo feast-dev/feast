@@ -47,16 +47,24 @@ def map_in_arrow(
                 for entity in feature_view.entity_columns
             }
 
-            rows_to_write = _convert_arrow_to_proto(
-                table, feature_view, join_key_to_value_type
+            batch_size = repo_config.materialization_config.online_write_batch_size
+            # Single batch if None (backward compatible), otherwise use configured batch_size
+            sub_batches = (
+                [table]
+                if batch_size is None
+                else table.to_batches(max_chunksize=batch_size)
             )
+            for sub_batch in sub_batches:
+                rows_to_write = _convert_arrow_to_proto(
+                    sub_batch, feature_view, join_key_to_value_type
+                )
 
-            online_store.online_write_batch(
-                config=repo_config,
-                table=feature_view,
-                data=rows_to_write,
-                progress=lambda x: None,
-            )
+                online_store.online_write_batch(
+                    config=repo_config,
+                    table=feature_view,
+                    data=rows_to_write,
+                    progress=lambda x: None,
+                )
         if mode == "offline":
             offline_store.offline_write_batch(
                 config=repo_config,
@@ -95,15 +103,23 @@ def map_in_pandas(iterator, serialized_artifacts: SerializedArtifacts):
             for entity in feature_view.entity_columns
         }
 
-        rows_to_write = _convert_arrow_to_proto(
-            table, feature_view, join_key_to_value_type
+        batch_size = repo_config.materialization_config.online_write_batch_size
+        # Single batch if None (backward compatible), otherwise use configured batch_size
+        sub_batches = (
+            [table]
+            if batch_size is None
+            else table.to_batches(max_chunksize=batch_size)
         )
-        online_store.online_write_batch(
-            repo_config,
-            feature_view,
-            rows_to_write,
-            lambda x: None,
-        )
+        for sub_batch in sub_batches:
+            rows_to_write = _convert_arrow_to_proto(
+                sub_batch, feature_view, join_key_to_value_type
+            )
+            online_store.online_write_batch(
+                repo_config,
+                feature_view,
+                rows_to_write,
+                lambda x: None,
+            )
 
     yield pd.DataFrame(
         [pd.Series(range(1, 2))]

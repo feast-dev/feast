@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -393,6 +394,34 @@ func (s *httpServer) Serve(host string, port int) error {
 		return nil
 	}
 	log.Fatal().Stack().Err(err).Msg("Failed to start HTTP server")
+	return err
+}
+
+func (s *httpServer) ServeTLS(host string, port int, certFile string, keyFile string) error {
+	mux := http.NewServeMux()
+	mux.Handle("/get-online-features", metricsMiddleware(recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures))))
+	mux.Handle("/health", metricsMiddleware(http.HandlerFunc(healthCheckHandler)))
+	s.server = &http.Server{
+		Addr:         fmt.Sprintf("%s:%d", host, port),
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
+		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			CurvePreferences: []tls.CurveID{
+				tls.CurveP256,
+				tls.X25519MLKEM768,
+				//tls.SecP256r1MLKEM768,  // Only available in Go 1.26
+			},
+		},
+	}
+	err := s.server.ListenAndServeTLS(certFile, keyFile)
+	// Don't return the error if it's caused by graceful shutdown using Stop()
+	if err == http.ErrServerClosed {
+		return nil
+	}
+	log.Fatal().Stack().Err(err).Msg("Failed to start HTTPS server")
 	return err
 }
 
