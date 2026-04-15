@@ -11,6 +11,14 @@ resources:
 patches:
   # patch to remove default `system` namespace in ../../manager/manager.yaml
   - path: delete-namespace.yaml
+  # Remove app.kubernetes.io/name from the Deployment selector to avoid
+  # immutable spec.selector errors on upgrade. The label remains in the
+  # pod template so the metrics Service selector still targets only
+  # feast-operator pods.
+  - path: remove_selector_label_patch.yaml
+    target:
+      kind: Deployment
+      name: controller-manager
 
 configMapGenerator:
   - name:  feast-operator-parameters
