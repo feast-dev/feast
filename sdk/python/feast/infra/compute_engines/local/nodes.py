@@ -361,10 +361,11 @@ class LocalOutputNode(LocalNode):
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
-        context.node_outputs[self.name] = input_table
+        output = ArrowTableValue(data=input_table)
+        context.node_outputs[self.name] = output
 
         if input_table.num_rows == 0:
-            return input_table
+            return output
 
         if self.feature_view.online:
             online_store = context.online_store
@@ -403,4 +404,4 @@ class LocalOutputNode(LocalNode):
                 progress=lambda x: None,
             )
 
-        return input_table
+        return output
