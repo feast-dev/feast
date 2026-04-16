@@ -436,26 +436,56 @@ class MongoDBOneRetrievalJob(RetrievalJob):
 
 
 def _serialize_entity_key_from_row(
-    row: pd.Series, join_keys: List[str], entity_key_serialization_version: int
+    row: pd.Series,
+    join_keys: List[str],
+    entity_key_serialization_version: int,
+    join_key_types: Optional[Dict[str, "ValueType"]] = None,
 ) -> bytes:
-    """Serialize entity key from a DataFrame row."""
+    """Serialize entity key from a DataFrame row.
+
+    Args:
+        row: DataFrame row containing join key values.
+        join_keys: Names of the join key columns.
+        entity_key_serialization_version: Version of entity key serialization.
+        join_key_types: Declared ValueType per join key, derived from the
+            FeatureView's entity_columns.  When provided the correct proto field
+            is used (e.g. INT32 → int32_val).  Without this, Python ``int``
+            always maps to int64_val, which silently mismatches stored keys for
+            INT32 entities.
+    """
     entity_key = EntityKeyProto()
     for key in sorted(join_keys):
         entity_key.join_keys.append(key)
         value = row[key]
         val = ValueProto()
-        if isinstance(value, (int, float)) and hasattr(value, "item"):
-            value = value.item()  # Convert numpy scalar to Python native
-        if isinstance(value, bool):
-            val.bool_val = value
-        elif isinstance(value, int):
-            val.int64_val = value
-        elif isinstance(value, str):
-            val.string_val = value
-        elif isinstance(value, float):
-            val.double_val = value
+        if hasattr(value, "item"):
+            value = value.item()  # Convert numpy scalar to Python native (numpy 2.0+)
+        declared_type = join_key_types.get(key) if join_key_types else None
+        if declared_type is not None:
+            if declared_type == ValueType.INT32:
+                val.int32_val = int(value)
+            elif declared_type == ValueType.INT64:
+                val.int64_val = int(value)
+            elif declared_type == ValueType.STRING:
+                val.string_val = str(value)
+            elif declared_type == ValueType.BYTES:
+                val.bytes_val = bytes(value)
+            elif declared_type == ValueType.UNIX_TIMESTAMP:
+                val.unix_timestamp_val = int(value)
         else:
-            val.string_val = str(value)
+            # No declared type: infer from Python runtime type.
+            # Python int is always mapped to int64_val, so INT32 entities
+            # require join_key_types to serialise correctly.
+            if isinstance(value, bool):
+                val.bool_val = value
+            elif isinstance(value, int):
+                val.int64_val = value
+            elif isinstance(value, str):
+                val.string_val = value
+            elif isinstance(value, float):
+                val.double_val = value
+            else:
+                val.string_val = str(value)
         entity_key.entity_values.append(val)
     return serialize_entity_key(entity_key, entity_key_serialization_version)
 
@@ -729,16 +759,27 @@ class MongoDBOfflineStoreOne(OfflineStore):
             fv_name, feat_name = ref.split(":", 1)
             fv_to_features[fv_name].append(feat_name)
 
-        fv_names = list(fv_to_features.keys())
         fv_by_name = {fv.name: fv for fv in feature_views}
-        join_keys = get_expected_join_keys(project, feature_views, registry)
-        # Lower-bound for event_timestamp queries. Only applicable when every FV
-        # has a TTL; if any FV is unbounded we cannot prune history.
-        max_ttl = (
-            max(fv.ttl for fv in feature_views if fv.ttl is not None)
-            if all(fv.ttl for fv in feature_views)
-            else None
-        )
+        # Join keys resolved per FV. Using the union across all FVs would produce
+        # serialized bytes that never match stored documents when FVs have
+        # heterogeneous join keys (e.g. FV1 uses driver_id, FV2 uses customer_id).
+        fv_join_keys_by_name: Dict[str, List[str]] = {
+            fv.name: get_expected_join_keys(project, [fv], registry)
+            for fv in feature_views
+        }
+        # Declared ValueType per join key, derived directly from entity_columns on
+        # the FeatureView (no registry call needed).  Used by
+        # _serialize_entity_key_from_row to pick the correct proto field so that
+        # INT32 entities produce int32_val bytes instead of int64_val bytes.
+        fv_join_key_types_by_name: Dict[str, Dict[str, ValueType]] = {
+            fv.name: {
+                fv.projection.join_key_map.get(
+                    ec.name, ec.name
+                ): ec.dtype.to_value_type()
+                for ec in fv.entity_columns
+            }
+            for fv in feature_views
+        }
 
         # Chunk size for entity_df processing (bounds memory usage)
         CHUNK_SIZE = 50_000
@@ -774,75 +815,66 @@ class MongoDBOfflineStoreOne(OfflineStore):
                     result[event_timestamp_col], utc=True
                 )
 
-            # Serialize entity keys to bytes (same format as online store)
-            result["_entity_id"] = result.apply(
-                lambda row: _serialize_entity_key_from_row(
-                    row, list(join_keys), entity_key_version
-                ),
-                axis=1,
-            )
-
-            # Extract unique entity_ids and timestamp bounds for this chunk
-            unique_entity_ids = result["_entity_id"].unique().tolist()
             max_ts = result[event_timestamp_col].max()
 
-            # Fetch feature data in batches
-            all_feature_docs: List[Dict] = []
-
-            for i in range(0, len(unique_entity_ids), MONGO_BATCH_SIZE):
-                batch_ids = unique_entity_ids[i : i + MONGO_BATCH_SIZE]
-
-                ts_filter: Dict[str, Any] = {"$lte": max_ts}
-                if max_ttl is not None:
-                    ts_filter["$gte"] = max_ts - max_ttl
-                query = {
-                    "entity_id": {"$in": batch_ids},
-                    "feature_view": {"$in": fv_names},
-                    "event_timestamp": ts_filter,
-                }
-                docs = list(coll.find(query, {"_id": 0}))
-                all_feature_docs.extend(docs)
-
-            # Handle empty result
-            if not all_feature_docs:
-                for fv_name, features in fv_to_features.items():
-                    for feat in features:
-                        col_name = f"{fv_name}__{feat}" if full_feature_names else feat
-                        result[col_name] = None
-                return result.drop(columns=["_entity_id"])
-
-            # Convert to DataFrame and flatten features subdoc
-            feature_df = pd.DataFrame(all_feature_docs)
-            feature_df = feature_df.rename(columns={"entity_id": "_entity_id"})
-
-            if "features" in feature_df.columns:
-                features_expanded = pd.json_normalize(feature_df["features"])
-                feature_df = pd.concat(
-                    [feature_df.drop(columns=["features"]), features_expanded], axis=1
-                )
-
-            if feature_df["event_timestamp"].dt.tz is None:
-                feature_df["event_timestamp"] = pd.to_datetime(
-                    feature_df["event_timestamp"], utc=True
-                )
-
-            # Sort result for merge_asof
+            # Sort once; merge_asof requires a sorted left table.
             result = result.sort_values(event_timestamp_col).reset_index(drop=True)
 
-            # Perform PIT join for each feature view
+            # Perform PIT join per feature view. Each FV serializes entity IDs
+            # using only its own join keys so the bytes match what was stored.
             for fv_name, features in fv_to_features.items():
                 fv = fv_by_name.get(fv_name)
-                fv_df = feature_df[feature_df["feature_view"] == fv_name].copy()
+                fv_join_keys = fv_join_keys_by_name[fv_name]
+                fv_join_key_types = fv_join_key_types_by_name[fv_name]
 
-                if fv_df.empty:
+                result["_fv_entity_id"] = result.apply(
+                    lambda row: _serialize_entity_key_from_row(
+                        row, fv_join_keys, entity_key_version, fv_join_key_types
+                    ),
+                    axis=1,
+                )
+
+                unique_entity_ids = result["_fv_entity_id"].unique().tolist()
+
+                # Per-FV TTL as the query lower bound.
+                ts_filter: Dict[str, Any] = {"$lte": max_ts}
+                if fv and fv.ttl:
+                    ts_filter["$gte"] = max_ts - fv.ttl
+
+                fv_docs: List[Dict] = []
+                for i in range(0, len(unique_entity_ids), MONGO_BATCH_SIZE):
+                    batch_ids = unique_entity_ids[i : i + MONGO_BATCH_SIZE]
+                    query = {
+                        "entity_id": {"$in": batch_ids},
+                        "feature_view": fv_name,
+                        "event_timestamp": ts_filter,
+                    }
+                    fv_docs.extend(list(coll.find(query, {"_id": 0})))
+
+                if not fv_docs:
                     for feat in features:
                         col_name = f"{fv_name}__{feat}" if full_feature_names else feat
                         result[col_name] = None
+                    result = result.drop(columns=["_fv_entity_id"], errors="ignore")
                     continue
+
+                fv_df = pd.DataFrame(fv_docs)
+                fv_df = fv_df.rename(columns={"entity_id": "_fv_entity_id"})
+
+                if "features" in fv_df.columns:
+                    features_expanded = pd.json_normalize(fv_df["features"])
+                    fv_df = pd.concat(
+                        [fv_df.drop(columns=["features"]), features_expanded], axis=1
+                    )
+
+                if fv_df["event_timestamp"].dt.tz is None:
+                    fv_df["event_timestamp"] = pd.to_datetime(
+                        fv_df["event_timestamp"], utc=True
+                    )
 
                 fv_df = fv_df.sort_values("event_timestamp").reset_index(drop=True)
 
-                merge_cols = ["_entity_id", "event_timestamp"] + [
+                merge_cols = ["_fv_entity_id", "event_timestamp"] + [
                     f for f in features if f in fv_df.columns
                 ]
                 fv_df_subset = fv_df[
@@ -852,9 +884,7 @@ class MongoDBOfflineStoreOne(OfflineStore):
                     columns={"event_timestamp": "_fv_ts"}
                 )
 
-                # So that merge_asof never does not cause column name collisions
-                # when FVs share the same feature names (full_feature_names=False),
-                # add fv name as prefix
+                # Prefix feature columns to avoid collisions when FVs share names.
                 fv_prefix = f"__fv_{fv_name}__"
                 temp_rename = {
                     f: f"{fv_prefix}{f}" for f in features if f in fv_df_subset.columns
@@ -866,11 +896,11 @@ class MongoDBOfflineStoreOne(OfflineStore):
                     fv_df_subset,
                     left_on=event_timestamp_col,
                     right_on="_fv_ts",
-                    by="_entity_id",
+                    by="_fv_entity_id",
                     direction="backward",
                 )
 
-                # Apply TTL using temp column names
+                # Apply TTL
                 if fv and fv.ttl:
                     cutoff = result[event_timestamp_col] - fv.ttl
                     stale_mask = result["_fv_ts"] < cutoff
@@ -879,11 +909,6 @@ class MongoDBOfflineStoreOne(OfflineStore):
                         if temp_col in result.columns:
                             result.loc[stale_mask, temp_col] = None
 
-                # Rename from temp columns to final output names.
-                # If full_feature_names=False and two FVs share a feature name,
-                # the second FV's values overwrite the first — correct behaviour
-                # for un-prefixed retrieval (caller should use full_feature_names
-                # =True when FVs are intentionally named the same).
                 for feat in features:
                     temp_col = f"{fv_prefix}{feat}"
                     col_name = f"{fv_name}__{feat}" if full_feature_names else feat
@@ -894,9 +919,11 @@ class MongoDBOfflineStoreOne(OfflineStore):
                     elif col_name not in result.columns:
                         result[col_name] = None
 
-                result = result.drop(columns=["_fv_ts"], errors="ignore")
+                result = result.drop(
+                    columns=["_fv_entity_id", "_fv_ts"], errors="ignore"
+                )
 
-            return result.drop(columns=["_entity_id"], errors="ignore")
+            return result
 
         def _run() -> pyarrow.Table:
             # Add row index to preserve original ordering

@@ -18,7 +18,7 @@ when Docker is unavailable.
 """
 
 from datetime import datetime, timedelta
-from typing import Generator
+from typing import Dict, Generator, Optional
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -42,7 +42,7 @@ from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_one import
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from feast.types import Float64, Int64, String
+from feast.types import Float64, Int32, Int64, String
 from feast.value_type import ValueType
 
 # Check if Docker is available
@@ -67,21 +67,44 @@ _requires_docker = pytest.mark.skipif(
 ENTITY_KEY_VERSION = 3
 
 
-def _make_entity_id(join_keys: dict) -> bytes:
-    """Create serialized entity key from join key dict."""
+def _make_entity_id(
+    join_keys: dict,
+    value_types: Optional[Dict[str, ValueType]] = None,
+) -> bytes:
+    """Create serialized entity key from join key dict.
+
+    Args:
+        join_keys: Mapping of join key name → value.
+        value_types: Optional declared ValueType per key.  When provided the
+            correct proto field is used (e.g. INT32 → int32_val), matching what
+            _serialize_entity_key_from_row produces when the FeatureView declares
+            that type.  Omit to get the default int64_val/string_val inference.
+    """
     entity_key = EntityKeyProto()
     for key in sorted(join_keys.keys()):
         entity_key.join_keys.append(key)
         val = ValueProto()
         value = join_keys[key]
-        if isinstance(value, bool):
-            val.bool_val = value
-        elif isinstance(value, int):
-            val.int64_val = value
-        elif isinstance(value, str):
-            val.string_val = value
-        else:
+        declared_type = value_types.get(key) if value_types else None
+        if declared_type == ValueType.INT32:
+            val.int32_val = int(value)
+        elif declared_type == ValueType.INT64:
+            val.int64_val = int(value)
+        elif declared_type == ValueType.STRING:
             val.string_val = str(value)
+        elif declared_type == ValueType.BYTES:
+            val.bytes_val = bytes(value)
+        elif declared_type == ValueType.UNIX_TIMESTAMP:
+            val.unix_timestamp_val = int(value)
+        else:
+            if isinstance(value, bool):
+                val.bool_val = value
+            elif isinstance(value, int):
+                val.int64_val = value
+            elif isinstance(value, str):
+                val.string_val = value
+            else:
+                val.string_val = str(value)
         entity_key.entity_values.append(val)
     return serialize_entity_key(entity_key, ENTITY_KEY_VERSION)
 
@@ -898,3 +921,87 @@ def test_persist_allow_overwrite(
     assert len(docs) == 1
     assert "stale" not in docs[0]
     assert "driver_id" in docs[0]
+
+
+@_requires_docker
+def test_int32_entity_key(
+    repo_config: RepoConfig, mongodb_connection_string: str
+) -> None:
+    """INT32 entity keys must round-trip through the correct proto field.
+
+    Python ``int`` is indistinguishable from int32 vs int64 at the Python level.
+    Without the declared entity type, _serialize_entity_key_from_row always
+    writes int64_val (8 bytes), but a document written for an INT32 entity uses
+    int32_val (4 bytes) — different byte sequences, silent NULL return.
+
+    This test pins that _serialize_entity_key_from_row uses the FeatureView's
+    declared ValueType to pick int32_val, so the bytes match.
+    """
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    db = client["feast_test"]
+    collection = db["feature_history"]
+
+    now = datetime.now(tz=pytz.UTC)
+
+    int32_types = {"order_id": ValueType.INT32}
+    docs = [
+        {
+            "entity_id": _make_entity_id({"order_id": 1}, int32_types),
+            "feature_view": "order_features",
+            "features": {"amount": 100.0},
+            "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
+        },
+        {
+            "entity_id": _make_entity_id({"order_id": 2}, int32_types),
+            "feature_view": "order_features",
+            "features": {"amount": 200.0},
+            "event_timestamp": now - timedelta(hours=1),
+            "created_at": now - timedelta(hours=1),
+        },
+    ]
+    collection.insert_many(docs)
+    client.close()
+
+    source = MongoDBSourceOne(name="order_features")
+    order_entity = Entity(
+        name="order_id", join_keys=["order_id"], value_type=ValueType.INT32
+    )
+    fv = FeatureView(
+        name="order_features",
+        entities=[order_entity],
+        schema=[
+            Field(name="order_id", dtype=Int32),
+            Field(name="amount", dtype=Float64),
+        ],
+        source=source,
+        ttl=timedelta(days=1),
+    )
+
+    entity_df = pd.DataFrame(
+        {
+            "order_id": [1, 2],
+            "event_timestamp": [now, now],
+        }
+    )
+
+    job = MongoDBOfflineStoreOne.get_historical_features(
+        config=repo_config,
+        feature_views=[fv],
+        feature_refs=["order_features:amount"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    result_df = job.to_df().sort_values("order_id").reset_index(drop=True)
+    assert len(result_df) == 2
+    # Without the fix, amount would be None for both rows: int64_val bytes (8 bytes)
+    # do not match the int32_val bytes (4 bytes) stored in the collection.
+    assert result_df["amount"].notna().all(), (
+        "amount is null — INT32 entity key was serialized as INT64, producing "
+        "bytes that do not match the stored INT32 documents."
+    )
+    assert result_df.loc[0, "amount"] == pytest.approx(100.0)
+    assert result_df.loc[1, "amount"] == pytest.approx(200.0)
