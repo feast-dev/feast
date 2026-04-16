@@ -7,6 +7,7 @@ from feast.protos.feast.core import Entity_pb2 as feast_dot_core_dot_Entity__pb2
 from feast.protos.feast.core import FeatureService_pb2 as feast_dot_core_dot_FeatureService__pb2
 from feast.protos.feast.core import FeatureView_pb2 as feast_dot_core_dot_FeatureView__pb2
 from feast.protos.feast.core import InfraObject_pb2 as feast_dot_core_dot_InfraObject__pb2
+from feast.protos.feast.core import LabelView_pb2 as feast_dot_core_dot_LabelView__pb2
 from feast.protos.feast.core import OnDemandFeatureView_pb2 as feast_dot_core_dot_OnDemandFeatureView__pb2
 from feast.protos.feast.core import Permission_pb2 as feast_dot_core_dot_Permission__pb2
 from feast.protos.feast.core import Project_pb2 as feast_dot_core_dot_Project__pb2
@@ -116,6 +117,16 @@ class RegistryServerStub(object):
                 '/feast.registry.RegistryServer/ListOnDemandFeatureViews',
                 request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListOnDemandFeatureViewsRequest.SerializeToString,
                 response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListOnDemandFeatureViewsResponse.FromString,
+                )
+        self.GetLabelView = channel.unary_unary(
+                '/feast.registry.RegistryServer/GetLabelView',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetLabelViewRequest.SerializeToString,
+                response_deserializer=feast_dot_core_dot_LabelView__pb2.LabelView.FromString,
+                )
+        self.ListLabelViews = channel.unary_unary(
+                '/feast.registry.RegistryServer/ListLabelViews',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListLabelViewsRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListLabelViewsResponse.FromString,
                 )
         self.ApplyFeatureService = channel.unary_unary(
                 '/feast.registry.RegistryServer/ApplyFeatureService',
@@ -386,6 +397,19 @@ class RegistryServerServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ListOnDemandFeatureViews(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetLabelView(self, request, context):
+        """LabelView RPCs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListLabelViews(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -676,6 +700,16 @@ def add_RegistryServerServicer_to_server(servicer, server):
                     servicer.ListOnDemandFeatureViews,
                     request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListOnDemandFeatureViewsRequest.FromString,
                     response_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListOnDemandFeatureViewsResponse.SerializeToString,
+            ),
+            'GetLabelView': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetLabelView,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetLabelViewRequest.FromString,
+                    response_serializer=feast_dot_core_dot_LabelView__pb2.LabelView.SerializeToString,
+            ),
+            'ListLabelViews': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListLabelViews,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListLabelViewsRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListLabelViewsResponse.SerializeToString,
             ),
             'ApplyFeatureService': grpc.unary_unary_rpc_method_handler(
                     servicer.ApplyFeatureService,
@@ -1145,6 +1179,40 @@ class RegistryServer(object):
         return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/ListOnDemandFeatureViews',
             feast_dot_registry_dot_RegistryServer__pb2.ListOnDemandFeatureViewsRequest.SerializeToString,
             feast_dot_registry_dot_RegistryServer__pb2.ListOnDemandFeatureViewsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetLabelView(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/GetLabelView',
+            feast_dot_registry_dot_RegistryServer__pb2.GetLabelViewRequest.SerializeToString,
+            feast_dot_core_dot_LabelView__pb2.LabelView.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListLabelViews(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/ListLabelViews',
+            feast_dot_registry_dot_RegistryServer__pb2.ListLabelViewsRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.ListLabelViewsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
