@@ -742,6 +742,12 @@ class MongoDBOfflineStoreOne(OfflineStore):
                     "event_timestamp": {"$gte": start_utc, "$lte": end_utc},
                 }
             },
+            # entity_id is first in the sort so the compound index
+            # (entity_id, feature_view, event_timestamp DESC, created_at DESC)
+            # can back this stage entirely.  Documents of the same entity_id
+            # are then contiguous, so $first correctly picks the one with the
+            # highest event_timestamp (and highest created_at as a tiebreaker
+            # for data corrections written at the same event_timestamp).
             {"$sort": {"entity_id": 1, "event_timestamp": -1, "created_at": -1}},
             {
                 "$group": {
@@ -992,21 +998,35 @@ class MongoDBOfflineStoreOne(OfflineStore):
                 fv_df = fv_df.rename(columns={"entity_id": "_fv_entity_id"})
 
                 if "features" in fv_df.columns:
-                    features_expanded = pd.json_normalize(fv_df["features"])
-                    fv_df = pd.concat(
-                        [fv_df.drop(columns=["features"]), features_expanded], axis=1
-                    )
+                    # Extract only the feature columns that were requested for
+                    # this FV.  json_normalize would expand *every* key ever
+                    # present in any document (schema evolution means different
+                    # documents carry different keys), producing many sparse
+                    # columns and unnecessary memory pressure.
+                    for feat in features:
+                        fv_df[feat] = fv_df["features"].apply(
+                            lambda d, f=feat: d.get(f) if isinstance(d, dict) else None
+                        )
+                    fv_df = fv_df.drop(columns=["features"])
 
                 if fv_df["event_timestamp"].dt.tz is None:
                     fv_df["event_timestamp"] = pd.to_datetime(
                         fv_df["event_timestamp"], utc=True
                     )
 
+                # merge_asof requires the right-hand DataFrame to be sorted by
+                # its join key.  After the rename below, that key is _fv_ts;
+                # we sort on event_timestamp here (before the rename) so the
+                # physical order is correct when merge_asof consumes the frame.
                 fv_df = fv_df.sort_values("event_timestamp").reset_index(drop=True)
 
                 merge_cols = ["_fv_entity_id", "event_timestamp"] + [
                     f for f in features if f in fv_df.columns
                 ]
+                # .copy() is required: column selection on a DataFrame returns
+                # a view; calling rename() on that view raises
+                # SettingWithCopyWarning and can produce unexpected results.
+                # The copy ensures we own the data before mutating it.
                 fv_df_subset = fv_df[
                     [c for c in merge_cols if c in fv_df.columns]
                 ].copy()
