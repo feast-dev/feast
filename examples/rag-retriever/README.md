@@ -62,6 +62,59 @@ Navigate to the examples/rag-retriever directory. Here you will find the followi
 
 Open `rag_feast.ipynb` and follow the steps in the notebook to run the example.
 
+## Using DocEmbedder for Simplified Ingestion
+
+As an alternative to the manual data preparation steps in the notebook above, Feast provides the `DocEmbedder` class that automates the entire document-to-embeddings pipeline: chunking, embedding generation, FeatureView creation, and writing to the online store.
+
+### Install Dependencies
+
+```bash
+pip install feast[milvus,rag]
+```
+
+### Quick Start
+
+```python
+from feast import DocEmbedder
+from datasets import load_dataset
+
+# Load your dataset
+dataset = load_dataset("facebook/wiki_dpr", "psgs_w100.nq.exact", split="train[:1%]",
+                       with_index=False, trust_remote_code=True)
+df = dataset.select(range(100)).to_pandas()
+
+# DocEmbedder handles everything in one step
+embedder = DocEmbedder(
+    repo_path="feature_repo_docembedder/",
+    feature_view_name="text_feature_view",
+)
+
+result = embedder.embed_documents(
+    documents=df,
+    id_column="id",
+    source_column="text",
+    column_mapping=("text", "text_embedding"),
+)
+```
+
+### What DocEmbedder Does
+
+1. **Generates a FeatureView**: Automatically creates a Python file with Entity and FeatureView definitions compatible with `feast apply`
+2. **Applies the repo**: Registers the FeatureView in the Feast registry and deploys infrastructure (e.g., Milvus collection)
+3. **Chunks documents**: Splits text into smaller passages using `TextChunker` (configurable chunk size, overlap, etc.)
+4. **Generates embeddings**: Produces vector embeddings using `MultiModalEmbedder` (defaults to `all-MiniLM-L6-v2`)
+5. **Writes to online store**: Stores the processed data in your configured online store (e.g., Milvus)
+
+### Customization
+
+* **Custom Chunker**: Subclass `BaseChunker` for your own chunking strategy
+* **Custom Embedder**: Subclass `BaseEmbedder` to use a different embedding model
+* **Logical Layer Function**: Provide a `SchemaTransformFn` to control how the output maps to your FeatureView schema
+
+### Example Notebook
+
+See **`rag_feast_docembedder.ipynb`** for a complete end-to-end example that uses DocEmbedder with the Wiki DPR dataset and then queries the results using `FeastRAGRetriever`.
+
 ## FeastRagRetriver Low Level Design
 
 <img src="images/FeastRagRetriever.png" width="800" height="450" alt="Low level design for feast rag retriever">

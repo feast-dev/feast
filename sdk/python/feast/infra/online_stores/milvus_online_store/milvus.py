@@ -1,4 +1,5 @@
 import base64
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -41,6 +42,8 @@ from feast.utils import (
     _serialize_vector_to_float_list,
     to_naive_utc,
 )
+
+logger = logging.getLogger(__name__)
 
 PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.VARCHAR,
@@ -140,11 +143,13 @@ class MilvusOnlineStore(OnlineStore):
         if not self.client:
             if config.provider == "local" and config.online_store.path:
                 db_path = self._get_db_path(config)
-                print(f"Connecting to Milvus in local mode using {db_path}")
+                logger.info("Connecting to Milvus in local mode using %s", db_path)
                 self.client = MilvusClient(db_path)
             else:
-                print(
-                    f"Connecting to Milvus remotely at {config.online_store.host}:{config.online_store.port}"
+                logger.info(
+                    "Connecting to Milvus remotely at %s:%s",
+                    config.online_store.host,
+                    config.online_store.port,
                 )
                 self.client = MilvusClient(
                     uri=f"{config.online_store.host}:{config.online_store.port}",
@@ -339,7 +344,6 @@ class MilvusOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-        full_feature_names: bool = False,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
@@ -487,7 +491,7 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self.client = self._connect(config)
         for table in tables_to_keep:
-            self._collections = self._get_or_create_collection(config, table)
+            self._get_or_create_collection(config, table)
 
         for table in tables_to_delete:
             collection_name = _table_id(config.project, table)
@@ -498,7 +502,7 @@ class MilvusOnlineStore(OnlineStore):
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
     ) -> List[InfraObject]:
-        raise NotImplementedError
+        return []
 
     def teardown(
         self,
@@ -686,9 +690,8 @@ class MilvusOnlineStore(OnlineStore):
             for hit in hits:
                 res = {}
                 res_ts = None
-                entity_key_bytes = bytes.fromhex(
-                    hit.get("entity", {}).get(composite_key_name, None)
-                )
+                raw_key = hit.get("entity", {}).get(composite_key_name)
+                entity_key_bytes = bytes.fromhex(raw_key) if raw_key else None
                 entity_key_proto = (
                     deserialize_entity_key(entity_key_bytes)
                     if entity_key_bytes

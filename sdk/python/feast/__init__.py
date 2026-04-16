@@ -17,7 +17,7 @@ from .batch_feature_view import BatchFeatureView
 from .chunker import BaseChunker, ChunkingConfig, TextChunker
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
 from .dataframe import DataFrameEngine, FeastDataFrame
-from .doc_embedder import DocEmbedder, LogicalLayerFn
+from .doc_embedder import DocEmbedder, SchemaTransformFn
 from .embedder import BaseEmbedder, EmbeddingConfig, MultiModalEmbedder
 from .entity import Entity
 from .feature import Feature
@@ -66,7 +66,7 @@ __all__ = [
     "Project",
     "FeastVectorStore",
     "DocEmbedder",
-    "LogicalLayerFn",
+    "SchemaTransformFn",
     "BaseChunker",
     "TextChunker",
     "ChunkingConfig",
