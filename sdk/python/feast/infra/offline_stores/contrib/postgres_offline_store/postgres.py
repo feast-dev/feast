@@ -46,7 +46,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
-from feast.utils import make_tzaware
+from feast.utils import compute_non_entity_date_range
 
 from .postgres_source import PostgreSQLSource
 
@@ -134,12 +134,11 @@ class PostgreSQLOfflineStore(OfflineStore):
 
         # Handle non-entity retrieval mode
         if entity_df is None:
-            # Default to current time if end_date not provided
-            if end_date is None:
-                end_date = datetime.now(tz=timezone.utc)
-            else:
-                end_date = make_tzaware(end_date)
-            # Find the maximum TTL across all feature views to ensure we capture enough data
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=start_date,
+                end_date=end_date,
+            )
             max_ttl_seconds = max(
                 (
                     int(fv.ttl.total_seconds())
@@ -148,43 +147,25 @@ class PostgreSQLOfflineStore(OfflineStore):
                 ),
                 default=0,
             )
-
-            # Calculate start_date from TTL if not provided
-            if start_date is None:
-                if max_ttl_seconds > 0:
-                    # Start from (end_date - max_ttl) to ensure we capture all relevant features
-                    start_date = end_date - timedelta(seconds=max_ttl_seconds)
-                else:
-                    # If no TTL is set, default to 30 days before end_date
-                    start_date = end_date - timedelta(days=30)
-            else:
-                start_date = make_tzaware(start_date)
-
-            # Compute lookback_start_date for LOCF: pull feature data
-            # from (start_date - max_ttl) so window functions can
-            # forward-fill the last observation before start_date.
             lookback_start_date: Optional[datetime] = (
                 start_date - timedelta(seconds=max_ttl_seconds)
                 if max_ttl_seconds > 0
                 else start_date
             )
-
-            # Single row with end_date
-            entity_df = pd.DataFrame({"event_timestamp": [end_date]})
             skip_entity_upload = True
         else:
             lookback_start_date = None
             skip_entity_upload = False
 
-        entity_schema = _get_entity_schema(entity_df, config)
-
-        entity_df_event_timestamp_col = (
-            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
-        )
-
-        if skip_entity_upload and start_date is not None and end_date is not None:
+        if skip_entity_upload:
+            entity_schema: Dict[str, Any] = {"event_timestamp": "timestamp"}
+            entity_df_event_timestamp_col = "event_timestamp"
             entity_df_event_timestamp_range = (start_date, end_date)
         else:
+            entity_schema = _get_entity_schema(entity_df, config)
+            entity_df_event_timestamp_col = (
+                offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
+            )
             entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
                 entity_df,
                 entity_df_event_timestamp_col,
