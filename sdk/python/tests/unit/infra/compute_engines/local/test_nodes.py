@@ -216,7 +216,8 @@ def test_local_output_node():
     node.add_input(MagicMock())
     node.inputs[0].name = "source"
     result = node.execute(context)
-    assert result.num_rows == 4
+    assert isinstance(result, ArrowTableValue)
+    assert result.data.num_rows == 4
 
 
 def test_local_output_node_online_write_default_batch():
