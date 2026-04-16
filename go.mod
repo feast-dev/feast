@@ -15,7 +15,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.0
 	github.com/mattn/go-sqlite3 v1.14.23
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
