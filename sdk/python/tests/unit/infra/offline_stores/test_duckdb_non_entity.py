@@ -283,12 +283,13 @@ class TestNonEntityRetrieval:
         assert len(driver1_data) >= 1
         assert 0.3 in driver1_data["conv_rate"].values
 
-    @patch("feast.infra.offline_stores.duckdb.datetime")
+    @patch("feast.utils.datetime")
     def test_no_dates_provided_defaults_to_current_time_and_filters_data(
         self, mock_datetime, monkeypatch
     ):
         fixed_now = datetime(2023, 1, 7, 12, 0, 0, tzinfo=timezone.utc)
         mock_datetime.now.return_value = fixed_now
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
         src = pd.DataFrame(
             {

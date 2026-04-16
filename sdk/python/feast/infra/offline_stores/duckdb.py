@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Union
 
@@ -28,7 +28,7 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import make_tzaware, to_naive_utc
+from feast.utils import compute_non_entity_date_range, to_naive_utc
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
@@ -124,6 +124,14 @@ def _build_entity_df_from_sources(
     end_date: datetime,
     data_source_reader: Callable[[DataSource, str], Table],
 ) -> pd.DataFrame:
+    """Build a synthetic entity DataFrame from feature view sources for non-entity retrieval.
+
+    Reads each feature view's backing data source, extracts distinct entity key
+    combinations within [start_date, end_date], and returns a single DataFrame
+    with one row per unique entity combination and ``event_timestamp`` set to
+    ``end_date``.  When no entity columns exist across all feature views, a
+    minimal single-row DataFrame with only the timestamp column is returned.
+    """
     entity_dfs: List[pd.DataFrame] = []
 
     for fv in feature_views:
@@ -225,22 +233,11 @@ class DuckDBOfflineStore(OfflineStore):
         non_entity_mode = entity_df is None
 
         if non_entity_mode:
-            end_date = (
-                make_tzaware(end_date) if end_date else datetime.now(timezone.utc)
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=start_date,
+                end_date=end_date,
             )
-
-            if start_date is None:
-                max_ttl_seconds = 0
-                for fv in feature_views:
-                    if fv.ttl and isinstance(fv.ttl, timedelta):
-                        max_ttl_seconds = max(
-                            max_ttl_seconds, int(fv.ttl.total_seconds())
-                        )
-                if max_ttl_seconds > 0:
-                    start_date = end_date - timedelta(seconds=max_ttl_seconds)
-                else:
-                    start_date = end_date - timedelta(days=30)
-            start_date = make_tzaware(start_date)
 
             entity_df = _build_entity_df_from_sources(
                 config=config,

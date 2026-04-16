@@ -91,13 +91,16 @@ BIGTABLE_CONFIG = {
 
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]] = {
     "file": ("local", FileDataSourceCreator),
-    "duckdb": (
-        "local",
-        importlib.import_module(
-            "tests.universal.feature_repos.duckdb_repo_configuration"
-        ).DuckDBDataSourceCreator,
-    ),
 }
+
+try:
+    from tests.universal.feature_repos.duckdb_repo_configuration import (
+        DuckDBDataSourceCreator,
+    )
+
+    OFFLINE_STORE_TO_PROVIDER_CONFIG["duckdb"] = ("local", DuckDBDataSourceCreator)
+except ImportError:
+    pass
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", FileDataSourceCreator),
