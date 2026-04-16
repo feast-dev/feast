@@ -377,7 +377,10 @@ class DaskOfflineStore(OfflineStore):
                 df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
                 columns_to_extract.add(DUMMY_ENTITY_ID)
 
-            return df[list(columns_to_extract)].persist()
+            if feature_name_columns:
+                df = df[list(columns_to_extract)]
+
+            return df.persist()
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return DaskRetrievalJob(
@@ -483,9 +486,10 @@ class DaskOfflineStore(OfflineStore):
                 columns_to_extract.add(DUMMY_ENTITY_ID)
             # TODO: Decides if we want to field mapping for pull_latest_from_table_or_query
             # This is default for other offline store.
-            df = df[list(columns_to_extract)]
-            df.persist()
-            return df
+            if feature_name_columns:
+                df = df[list(columns_to_extract)]
+
+            return df.persist()
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return DaskRetrievalJob(
