@@ -17,6 +17,7 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -34,6 +35,7 @@ class RepoContents(NamedTuple):
     feature_views: List[FeatureView]
     on_demand_feature_views: List[OnDemandFeatureView]
     stream_feature_views: List[StreamFeatureView]
+    label_views: List[LabelView]
     entities: List[Entity]
     feature_services: List[FeatureService]
     permissions: List[Permission]
@@ -49,6 +51,7 @@ class RepoContents(NamedTuple):
         registry_proto.on_demand_feature_views.extend(
             [fv.to_proto() for fv in self.on_demand_feature_views]
         )
+        registry_proto.label_views.extend([lv.to_proto() for lv in self.label_views])
         registry_proto.feature_services.extend(
             [fs.to_proto() for fs in self.feature_services]
         )

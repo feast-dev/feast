@@ -15,6 +15,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -238,6 +239,39 @@ class CachingRegistry(BaseRegistry):
                 self.cached_registry_proto, project, tags
             )
         return self._list_stream_feature_views(project, tags)
+
+    @abstractmethod
+    def _get_label_view(self, name: str, project: str) -> LabelView:
+        pass
+
+    def get_label_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> LabelView:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_label_view(
+                self.cached_registry_proto, name, project
+            )
+        return self._get_label_view(name, project)
+
+    @abstractmethod
+    def _list_label_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[LabelView]:
+        pass
+
+    def list_label_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[LabelView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_label_views(
+                self.cached_registry_proto, project, tags
+            )
+        return self._list_label_views(project, tags)
 
     @abstractmethod
     def _get_feature_service(self, name: str, project: str) -> FeatureService:

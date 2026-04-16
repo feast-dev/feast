@@ -49,6 +49,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.caching_registry import CachingRegistry
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -60,6 +61,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 )
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
+from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -155,6 +157,18 @@ on_demand_feature_views = Table(
 )
 
 Index("idx_on_demand_feature_views_project_id", on_demand_feature_views.c.project_id)
+
+label_views = Table(
+    "label_views",
+    metadata,
+    Column("feature_view_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("user_metadata", LargeBinary, nullable=True),
+)
+
+Index("idx_label_views_project_id", label_views.c.project_id)
 
 feature_services = Table(
     "feature_services",
@@ -369,6 +383,7 @@ class SqlRegistry(CachingRegistry):
             validation_references,
             permissions,
             feature_view_version_history,
+            label_views,
         }:
             with self.write_engine.begin() as conn:
                 stmt = delete(t)
@@ -452,6 +467,18 @@ class SqlRegistry(CachingRegistry):
                 python_class=StreamFeatureView,
                 id_field_name="feature_view_name",
                 proto_field_name="feature_view_proto",
+                not_found_exception=None,
+            )
+
+        if not fv:
+            fv = self._get_object(
+                table=label_views,
+                name=name,
+                project=project,
+                proto_class=LabelViewProto,
+                python_class=LabelView,
+                id_field_name="feature_view_name",
+                proto_field_name="feature_view_proto",
                 not_found_exception=FeatureViewNotFoundException,
             )
         return fv
@@ -471,6 +498,10 @@ class SqlRegistry(CachingRegistry):
             + cast(
                 list[BaseFeatureView],
                 self._list_on_demand_feature_views(project=project, tags=tags),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_label_views(project=project, tags=tags),
             )
         )
 
@@ -567,6 +598,7 @@ class SqlRegistry(CachingRegistry):
                 feature_views,
                 on_demand_feature_views,
                 stream_feature_views,
+                label_views,
             }:
                 stmt = delete(table).where(
                     table.c.feature_view_name == name,
@@ -925,6 +957,39 @@ class SqlRegistry(CachingRegistry):
             tags=tags,
         )
 
+    def _get_label_view(self, name: str, project: str) -> LabelView:
+        return self._get_object(
+            table=label_views,
+            name=name,
+            project=project,
+            proto_class=LabelViewProto,
+            python_class=LabelView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=FeatureViewNotFoundException,
+        )
+
+    def _list_label_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[LabelView]:
+        return self._list_objects(
+            label_views,
+            project,
+            LabelViewProto,
+            LabelView,
+            "feature_view_proto",
+            tags=tags,
+        )
+
+    def delete_label_view(self, name: str, project: str, commit: bool = True):
+        self._delete_object(
+            label_views,
+            name,
+            project,
+            "feature_view_name",
+            FeatureViewNotFoundException,
+        )
+
     def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
         with self.read_engine.begin() as conn:
             stmt = select(feast_metadata).where(
@@ -974,7 +1039,7 @@ class SqlRegistry(CachingRegistry):
 
     def apply_materialization(
         self,
-        feature_view: Union[FeatureView, OnDemandFeatureView],
+        feature_view: Union[FeatureView, OnDemandFeatureView, LabelView],
         project: str,
         start_date: datetime,
         end_date: datetime,
@@ -983,7 +1048,7 @@ class SqlRegistry(CachingRegistry):
         table = self._infer_fv_table(feature_view)
         python_class, proto_class = self._infer_fv_classes(feature_view)
 
-        if python_class in {OnDemandFeatureView}:
+        if python_class in {OnDemandFeatureView, LabelView}:
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
@@ -1073,7 +1138,9 @@ class SqlRegistry(CachingRegistry):
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
     def _infer_fv_table(self, feature_view):
-        if isinstance(feature_view, StreamFeatureView):
+        if isinstance(feature_view, LabelView):
+            table = label_views
+        elif isinstance(feature_view, StreamFeatureView):
             table = stream_feature_views
         elif isinstance(feature_view, FeatureView):
             table = feature_views
@@ -1084,7 +1151,9 @@ class SqlRegistry(CachingRegistry):
         return table
 
     def _infer_fv_classes(self, feature_view):
-        if isinstance(feature_view, StreamFeatureView):
+        if isinstance(feature_view, LabelView):
+            python_class, proto_class = LabelView, LabelViewProto
+        elif isinstance(feature_view, StreamFeatureView):
             python_class, proto_class = StreamFeatureView, StreamFeatureViewProto
         elif isinstance(feature_view, FeatureView):
             python_class, proto_class = FeatureView, FeatureViewProto
@@ -1095,7 +1164,11 @@ class SqlRegistry(CachingRegistry):
         return python_class, proto_class
 
     def _infer_fv_type_string(self, feature_view) -> str:
-        if isinstance(feature_view, StreamFeatureView):
+        from feast.labeling.label_view import LabelView
+
+        if isinstance(feature_view, LabelView):
+            return "label_view"
+        elif isinstance(feature_view, StreamFeatureView):
             return "stream_feature_view"
         elif isinstance(feature_view, FeatureView):
             return "feature_view"
@@ -1105,7 +1178,14 @@ class SqlRegistry(CachingRegistry):
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
     def _proto_class_for_type(self, fv_type: str):
-        if fv_type == "stream_feature_view":
+        from feast.labeling.label_view import LabelView
+        from feast.protos.feast.core.LabelView_pb2 import (
+            LabelView as LabelViewProto,
+        )
+
+        if fv_type == "label_view":
+            return LabelViewProto, LabelView
+        elif fv_type == "stream_feature_view":
             return StreamFeatureViewProto, StreamFeatureView
         elif fv_type == "feature_view":
             return FeatureViewProto, FeatureView
@@ -1242,6 +1322,7 @@ class SqlRegistry(CachingRegistry):
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),
                 (self.list_permissions, r.permissions),
+                (self.list_label_views, r.label_views),
             ]:
                 objs: List[Any] = lister(project_name, allow_cache=False)  # type: ignore
                 if objs:
@@ -1654,6 +1735,7 @@ class SqlRegistry(CachingRegistry):
                     feature_views,
                     on_demand_feature_views,
                     stream_feature_views,
+                    label_views,
                     data_sources,
                     entities,
                     permissions,

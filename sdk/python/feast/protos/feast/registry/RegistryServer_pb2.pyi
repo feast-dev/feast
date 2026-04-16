@@ -9,6 +9,7 @@ from feast.core import Entity_pb2 as _Entity_pb2
 from feast.core import FeatureService_pb2 as _FeatureService_pb2
 from feast.core import FeatureView_pb2 as _FeatureView_pb2
 from feast.core import InfraObject_pb2 as _InfraObject_pb2
+from feast.core import LabelView_pb2 as _LabelView_pb2
 from feast.core import OnDemandFeatureView_pb2 as _OnDemandFeatureView_pb2
 from feast.core import Permission_pb2 as _Permission_pb2
 from feast.core import Project_pb2 as _Project_pb2
@@ -530,6 +531,7 @@ class ApplyFeatureViewRequest(_message.Message):
     FEATURE_VIEW_FIELD_NUMBER: _builtins.int
     ON_DEMAND_FEATURE_VIEW_FIELD_NUMBER: _builtins.int
     STREAM_FEATURE_VIEW_FIELD_NUMBER: _builtins.int
+    LABEL_VIEW_FIELD_NUMBER: _builtins.int
     PROJECT_FIELD_NUMBER: _builtins.int
     COMMIT_FIELD_NUMBER: _builtins.int
     project: _builtins.str
@@ -540,20 +542,23 @@ class ApplyFeatureViewRequest(_message.Message):
     def on_demand_feature_view(self) -> _OnDemandFeatureView_pb2.OnDemandFeatureView: ...
     @_builtins.property
     def stream_feature_view(self) -> _StreamFeatureView_pb2.StreamFeatureView: ...
+    @_builtins.property
+    def label_view(self) -> _LabelView_pb2.LabelView: ...
     def __init__(
         self,
         *,
         feature_view: _FeatureView_pb2.FeatureView | None = ...,
         on_demand_feature_view: _OnDemandFeatureView_pb2.OnDemandFeatureView | None = ...,
         stream_feature_view: _StreamFeatureView_pb2.StreamFeatureView | None = ...,
+        label_view: _LabelView_pb2.LabelView | None = ...,
         project: _builtins.str = ...,
         commit: _builtins.bool = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["base_feature_view", b"base_feature_view", "feature_view", b"feature_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["base_feature_view", b"base_feature_view", "feature_view", b"feature_view", "label_view", b"label_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["base_feature_view", b"base_feature_view", "commit", b"commit", "feature_view", b"feature_view", "on_demand_feature_view", b"on_demand_feature_view", "project", b"project", "stream_feature_view", b"stream_feature_view"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["base_feature_view", b"base_feature_view", "commit", b"commit", "feature_view", b"feature_view", "label_view", b"label_view", "on_demand_feature_view", b"on_demand_feature_view", "project", b"project", "stream_feature_view", b"stream_feature_view"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_base_feature_view: _TypeAlias = _typing.Literal["feature_view", "on_demand_feature_view", "stream_feature_view"]  # noqa: Y015
+    _WhichOneofReturnType_base_feature_view: _TypeAlias = _typing.Literal["feature_view", "on_demand_feature_view", "stream_feature_view", "label_view"]  # noqa: Y015
     _WhichOneofArgType_base_feature_view: _TypeAlias = _typing.Literal["base_feature_view", b"base_feature_view"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_base_feature_view) -> _WhichOneofReturnType_base_feature_view | None: ...
 
@@ -683,24 +688,28 @@ class AnyFeatureView(_message.Message):
     FEATURE_VIEW_FIELD_NUMBER: _builtins.int
     ON_DEMAND_FEATURE_VIEW_FIELD_NUMBER: _builtins.int
     STREAM_FEATURE_VIEW_FIELD_NUMBER: _builtins.int
+    LABEL_VIEW_FIELD_NUMBER: _builtins.int
     @_builtins.property
     def feature_view(self) -> _FeatureView_pb2.FeatureView: ...
     @_builtins.property
     def on_demand_feature_view(self) -> _OnDemandFeatureView_pb2.OnDemandFeatureView: ...
     @_builtins.property
     def stream_feature_view(self) -> _StreamFeatureView_pb2.StreamFeatureView: ...
+    @_builtins.property
+    def label_view(self) -> _LabelView_pb2.LabelView: ...
     def __init__(
         self,
         *,
         feature_view: _FeatureView_pb2.FeatureView | None = ...,
         on_demand_feature_view: _OnDemandFeatureView_pb2.OnDemandFeatureView | None = ...,
         stream_feature_view: _StreamFeatureView_pb2.StreamFeatureView | None = ...,
+        label_view: _LabelView_pb2.LabelView | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["any_feature_view", b"any_feature_view", "feature_view", b"feature_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["any_feature_view", b"any_feature_view", "feature_view", b"feature_view", "label_view", b"label_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["any_feature_view", b"any_feature_view", "feature_view", b"feature_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["any_feature_view", b"any_feature_view", "feature_view", b"feature_view", "label_view", b"label_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_any_feature_view: _TypeAlias = _typing.Literal["feature_view", "on_demand_feature_view", "stream_feature_view"]  # noqa: Y015
+    _WhichOneofReturnType_any_feature_view: _TypeAlias = _typing.Literal["feature_view", "on_demand_feature_view", "stream_feature_view", "label_view"]  # noqa: Y015
     _WhichOneofArgType_any_feature_view: _TypeAlias = _typing.Literal["any_feature_view", b"any_feature_view"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_any_feature_view) -> _WhichOneofReturnType_any_feature_view | None: ...
 
@@ -1025,6 +1034,103 @@ class ListOnDemandFeatureViewsResponse(_message.Message):
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
 Global___ListOnDemandFeatureViewsResponse: _TypeAlias = ListOnDemandFeatureViewsResponse  # noqa: Y015
+
+@_typing.final
+class GetLabelViewRequest(_message.Message):
+    """LabelViews"""
+
+    DESCRIPTOR: _descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: _builtins.int
+    PROJECT_FIELD_NUMBER: _builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
+    project: _builtins.str
+    allow_cache: _builtins.bool
+    def __init__(
+        self,
+        *,
+        name: _builtins.str = ...,
+        project: _builtins.str = ...,
+        allow_cache: _builtins.bool = ...,
+    ) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["allow_cache", b"allow_cache", "name", b"name", "project", b"project"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+
+Global___GetLabelViewRequest: _TypeAlias = GetLabelViewRequest  # noqa: Y015
+
+@_typing.final
+class ListLabelViewsRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    @_typing.final
+    class TagsEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        value: _builtins.str
+        def __init__(
+            self,
+            *,
+            key: _builtins.str = ...,
+            value: _builtins.str = ...,
+        ) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+
+    PROJECT_FIELD_NUMBER: _builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: _builtins.int
+    TAGS_FIELD_NUMBER: _builtins.int
+    PAGINATION_FIELD_NUMBER: _builtins.int
+    SORTING_FIELD_NUMBER: _builtins.int
+    project: _builtins.str
+    allow_cache: _builtins.bool
+    @_builtins.property
+    def tags(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]: ...
+    @_builtins.property
+    def pagination(self) -> Global___PaginationParams: ...
+    @_builtins.property
+    def sorting(self) -> Global___SortingParams: ...
+    def __init__(
+        self,
+        *,
+        project: _builtins.str = ...,
+        allow_cache: _builtins.bool = ...,
+        tags: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
+        pagination: Global___PaginationParams | None = ...,
+        sorting: Global___SortingParams | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["pagination", b"pagination", "sorting", b"sorting"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+
+Global___ListLabelViewsRequest: _TypeAlias = ListLabelViewsRequest  # noqa: Y015
+
+@_typing.final
+class ListLabelViewsResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    LABEL_VIEWS_FIELD_NUMBER: _builtins.int
+    PAGINATION_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def label_views(self) -> _containers.RepeatedCompositeFieldContainer[_LabelView_pb2.LabelView]: ...
+    @_builtins.property
+    def pagination(self) -> Global___PaginationMetadata: ...
+    def __init__(
+        self,
+        *,
+        label_views: _abc.Iterable[_LabelView_pb2.LabelView] | None = ...,
+        pagination: Global___PaginationMetadata | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["pagination", b"pagination"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["label_views", b"label_views", "pagination", b"pagination"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+
+Global___ListLabelViewsResponse: _TypeAlias = ListLabelViewsResponse  # noqa: Y015
 
 @_typing.final
 class ApplyFeatureServiceRequest(_message.Message):
