@@ -158,7 +158,10 @@ class FeatureBuilder(ABC):
         # we need to read ALL source columns, not just the output feature columns.
         # This is specifically for transformations that create new columns or need raw data.
         mode = getattr(getattr(view, "feature_transformation", None), "mode", None)
-        if mode == "ray" or getattr(mode, "value", None) == "ray":
+        if mode in ("ray", "pandas") or getattr(mode, "value", None) in (
+            "ray",
+            "pandas",
+        ):
             # Signal to read all columns by passing empty list for feature_cols
             # The transformation will produce the output columns defined in the schema
             feature_cols = []
