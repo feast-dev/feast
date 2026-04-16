@@ -81,6 +81,7 @@ from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
@@ -485,6 +486,43 @@ class FeatureStore:
         """
         return self._list_stream_feature_views(allow_cache, tags=tags)
 
+    def list_label_views(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[LabelView]:
+        """
+        Retrieves the list of label views from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning label views from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of label views.
+        """
+        return self.registry.list_label_views(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
+
+    def get_label_view(
+        self, name: str, allow_registry_cache: bool = False
+    ) -> LabelView:
+        """
+        Retrieves a label view by name.
+
+        Args:
+            name: Name of the label view.
+            allow_registry_cache: Whether to allow returning the label view from a cached registry.
+
+        Returns:
+            The specified label view.
+
+        Raises:
+            FeatureViewNotFoundException: The label view could not be found.
+        """
+        return self.registry.get_label_view(
+            name, self.project, allow_cache=allow_registry_cache
+        )
+
     def list_data_sources(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[DataSource]:
@@ -684,6 +722,7 @@ class FeatureStore:
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
         sfvs_to_update: List[StreamFeatureView],
+        lvs_to_update: Optional[List[LabelView]] = None,
     ):
         """Validates all feature views."""
         if len(odfvs_to_update) > 0 and not flags_helper.is_test():
@@ -697,6 +736,7 @@ class FeatureStore:
                 *views_to_update,
                 *odfvs_to_update,
                 *sfvs_to_update,
+                *(lvs_to_update or []),
             ]
         )
 
@@ -708,8 +748,11 @@ class FeatureStore:
         odfvs_to_update: List[OnDemandFeatureView],
         sfvs_to_update: List[StreamFeatureView],
         feature_services_to_update: List[FeatureService],
+        lvs_to_update: Optional[List[LabelView]] = None,
     ):
         """Makes inferences for entities, feature views, odfvs, and feature services."""
+        lvs_to_update = lvs_to_update or []
+
         update_data_sources_with_inferred_event_timestamp_col(
             data_sources_to_update, self.config
         )
@@ -729,6 +772,11 @@ class FeatureStore:
                 for view in sfvs_to_update
                 if view.batch_source is not None
             ],
+            self.config,
+        )
+
+        update_data_sources_with_inferred_event_timestamp_col(
+            [lv.batch_source for lv in lvs_to_update if lv.batch_source is not None],
             self.config,
         )
 
@@ -765,10 +813,14 @@ class FeatureStore:
         odfvs_to_write = [
             odfv for odfv in odfvs_to_update if odfv.write_to_online_store
         ]
-        # Update to include ODFVs with write to online store
         fvs_to_update_map = {
             view.name: view
-            for view in [*views_to_update, *sfvs_to_update, *odfvs_to_write]
+            for view in [
+                *views_to_update,
+                *sfvs_to_update,
+                *odfvs_to_write,
+                *lvs_to_update,
+            ]
         }
         for feature_service in feature_services_to_update:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
@@ -811,6 +863,8 @@ class FeatureStore:
         Returns the list of feature views that should be materialized.
 
         If no feature views are specified, all feature views will be returned.
+        LabelViews are excluded because they receive data via ``push()`` and
+        are not supported by the batch materialization providers.
 
         Args:
             feature_views: List of names of feature views to materialize.
@@ -865,7 +919,25 @@ class FeatureStore:
                                 name, hide_dummy_entity=False
                             )
                         except FeatureViewNotFoundException:
-                            feature_view = self.get_on_demand_feature_view(name)
+                            try:
+                                feature_view = self.get_on_demand_feature_view(name)
+                            except FeatureViewNotFoundException:
+                                try:
+                                    label_view = self.registry.get_label_view(
+                                        name, self.project
+                                    )
+                                    raise ValueError(
+                                        f"LabelView {label_view.name} cannot be materialized via "
+                                        f"materialize(). Use FeatureStore.push() to write labels."
+                                    )
+                                except FeatureViewNotFoundException:
+                                    raise
+
+                if isinstance(feature_view, LabelView):
+                    raise ValueError(
+                        f"LabelView {feature_view.name} cannot be materialized via "
+                        f"materialize(). Use FeatureStore.push() to write labels."
+                    )
 
                 if hasattr(feature_view, "online") and not feature_view.online:
                     raise ValueError(
@@ -927,6 +999,7 @@ class FeatureStore:
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
             ...     stream_feature_views=list(),
+            ...     label_views=list(),
             ...     entities=[driver],
             ...     feature_services=list(),
             ...     permissions=list())) # register entity and feature view
@@ -937,6 +1010,7 @@ class FeatureStore:
                 desired_repo_contents.feature_views,
                 desired_repo_contents.on_demand_feature_views,
                 desired_repo_contents.stream_feature_views,
+                desired_repo_contents.label_views,
             )
         _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
@@ -946,6 +1020,7 @@ class FeatureStore:
             desired_repo_contents.on_demand_feature_views,
             desired_repo_contents.stream_feature_views,
             desired_repo_contents.feature_services,
+            desired_repo_contents.label_views,
         )
 
         # Compute the desired difference between the current objects in the registry and
@@ -1046,6 +1121,7 @@ class FeatureStore:
             OnDemandFeatureView,
             BatchFeatureView,
             StreamFeatureView,
+            LabelView,
             FeatureService,
             ValidationReference,
             Permission,
@@ -1121,6 +1197,7 @@ class FeatureStore:
             )
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
+        lvs_to_update = [ob for ob in objects if isinstance(ob, LabelView)]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         odfvs_with_writes_to_update = [
             ob
@@ -1166,6 +1243,12 @@ class FeatureStore:
             else:
                 pass
 
+        for lv in lvs_to_update:
+            if lv.source is not None:
+                data_sources_set_to_update.add(lv.source)
+                if isinstance(lv.source, PushSource) and lv.source.batch_source:
+                    data_sources_set_to_update.add(lv.source.batch_source)
+
         for odfv in odfvs_to_update:
             for v in odfv.source_request_sources.values():
                 data_sources_set_to_update.add(v)
@@ -1181,6 +1264,7 @@ class FeatureStore:
                 views_to_update,
                 odfvs_to_update,
                 sfvs_to_update,
+                lvs_to_update,
             )
         self._make_inferences(
             data_sources_to_update,
@@ -1189,6 +1273,7 @@ class FeatureStore:
             odfvs_to_update,
             sfvs_to_update,
             services_to_update,
+            lvs_to_update,
         )
 
         # Add all objects to the registry and update the provider's infrastructure.
@@ -1196,7 +1281,9 @@ class FeatureStore:
             self.registry.apply_project(project, commit=False)
         for ds in data_sources_to_update:
             self.registry.apply_data_source(ds, project=self.project, commit=False)
-        for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
+        for view in itertools.chain(
+            views_to_update, odfvs_to_update, sfvs_to_update, lvs_to_update
+        ):
             self.registry.apply_feature_view(
                 view, project=self.project, commit=False, no_promote=no_promote
             )
@@ -1251,6 +1338,9 @@ class FeatureStore:
             permissions_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, Permission)
             ]
+            lvs_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, LabelView)
+            ]
 
             for data_source in data_sources_to_delete:
                 self.registry.delete_data_source(
@@ -1272,6 +1362,10 @@ class FeatureStore:
                 self.registry.delete_feature_view(
                     sfv.name, project=self.project, commit=False
                 )
+            for lv in lvs_to_delete:
+                self.registry.delete_feature_view(
+                    lv.name, project=self.project, commit=False
+                )
             for service in services_to_delete:
                 self.registry.delete_feature_service(
                     service.name, project=self.project, commit=False
@@ -1286,11 +1380,18 @@ class FeatureStore:
                 )
 
         tables_to_delete: List[FeatureView] = (
-            views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+            views_to_delete + sfvs_to_delete + lvs_to_delete  # type: ignore
+            if not partial
+            else []
         )
         tables_to_keep: List[
-            Union[FeatureView, StreamFeatureView, OnDemandFeatureView]
-        ] = views_to_update + sfvs_to_update + odfvs_with_writes_to_update  # type: ignore
+            Union[FeatureView, StreamFeatureView, OnDemandFeatureView, LabelView]
+        ] = (
+            views_to_update
+            + sfvs_to_update
+            + odfvs_with_writes_to_update
+            + lvs_to_update
+        )  # type: ignore
 
         self._get_provider().update_infra(
             project=self.project,
@@ -1328,14 +1429,13 @@ class FeatureStore:
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
-        tables: List[FeatureView] = []
-        feature_views = self.list_feature_views()
-
-        tables.extend(feature_views)
+        tables: List[BaseFeatureView] = []
+        tables.extend(self.list_feature_views())
+        tables.extend(self.list_label_views())
 
         entities = self.list_entities()
 
-        self._get_provider().teardown_infra(self.project, tables, entities)
+        self._get_provider().teardown_infra(self.project, tables, entities)  # type: ignore[arg-type]
         self.registry.teardown()
 
     def get_historical_features(
@@ -2040,13 +2140,15 @@ class FeatureStore:
 
     def _fvs_for_push_source_or_raise(
         self, push_source_name: str, allow_cache: bool
-    ) -> set[FeatureView]:
+    ) -> set[BaseFeatureView]:
         from feast.data_source import PushSource
 
-        all_fvs = self.list_feature_views(allow_cache=allow_cache)
+        all_fvs: list[Union[FeatureView, StreamFeatureView]] = list(
+            self.list_feature_views(allow_cache=allow_cache)
+        )
         all_fvs += self.list_stream_feature_views(allow_cache=allow_cache)
 
-        fvs_with_push_sources = {
+        fvs_with_push_sources: set[BaseFeatureView] = {
             fv
             for fv in all_fvs
             if (
@@ -2055,6 +2157,14 @@ class FeatureStore:
                 and fv.stream_source.name == push_source_name
             )
         }
+
+        for lv in self.list_label_views(allow_cache=allow_cache):
+            if (
+                lv.source is not None
+                and isinstance(lv.source, PushSource)
+                and lv.source.name == push_source_name
+            ):
+                fvs_with_push_sources.add(lv)
 
         if not fvs_with_push_sources:
             raise PushSourceNotFoundException(push_source_name)
@@ -2533,9 +2643,14 @@ class FeatureStore:
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         except FeatureViewNotFoundException:
-            feature_view = self.get_feature_view(
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
+            try:
+                feature_view = self.get_feature_view(
+                    feature_view_name, allow_registry_cache=allow_registry_cache
+                )
+            except FeatureViewNotFoundException:
+                feature_view = self.get_label_view(  # type: ignore[assignment]
+                    feature_view_name, allow_registry_cache=allow_registry_cache
+                )
 
         provider = self._get_provider()
         # Get columns of the batch source and the input dataframe.
