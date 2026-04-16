@@ -566,6 +566,136 @@ class MongoDBOfflineStoreOne(OfflineStore):
         return client
 
     @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        """Write a batch of feature observations into the feature_history collection.
+
+        This is the write counterpart to get_historical_features.  Each row in
+        *table* is stored as one document using the single-collection schema::
+
+            {
+                "entity_id":       <serialized entity key bytes>,
+                "feature_view":    <feature view name>,
+                "features":        {<feature_name>: <value>, ...},
+                "event_timestamp": <datetime>,
+                "created_at":      <datetime>,
+            }
+
+        Called by FeatureStore.write_to_offline_store() and the Arrow Flight
+        offline server.  Multiple writes for the same (entity, feature_view,
+        event_timestamp) are permitted — documents are appended, not replaced.
+        pull_latest_from_table_or_query resolves ties by picking the highest
+        created_at, so data corrections written with a later created_at will win.
+
+        Args:
+            config: Feast repo configuration.
+            feature_view: The feature view being written; must have a
+                MongoDBSourceOne batch source.
+            table: Arrow table whose columns are the join key columns, feature
+                columns, event_timestamp, and optionally created_at.
+            progress: Optional callback invoked with the number of rows written
+                after each batch insert.
+        """
+        if not isinstance(feature_view.batch_source, MongoDBSourceOne):
+            raise ValueError(
+                f"MongoDBOfflineStoreOne.offline_write_batch expected a MongoDBSourceOne "
+                f"batch source, got {type(feature_view.batch_source).__name__!r}."
+            )
+
+        entity_key_version = config.entity_key_serialization_version
+        db_name = config.offline_store.database
+        collection_name = config.offline_store.collection
+
+        # Join key names and declared types — same derivation as get_historical_features.
+        join_key_types: Dict[str, ValueType] = {
+            feature_view.projection.join_key_map.get(
+                ec.name, ec.name
+            ): ec.dtype.to_value_type()
+            for ec in feature_view.entity_columns
+        }
+        join_keys = list(join_key_types.keys())
+
+        timestamp_field = feature_view.batch_source.timestamp_field
+        created_ts_col: Optional[str] = (
+            feature_view.batch_source.created_timestamp_column or None
+        )
+
+        # Feature columns are everything that is not a join key or a timestamp.
+        reserved = set(join_keys) | {timestamp_field}
+        if created_ts_col:
+            reserved.add(created_ts_col)
+        feature_cols = [c for c in table.column_names if c not in reserved]
+
+        df = table.to_pandas()
+
+        # Ensure timestamp columns are tz-aware UTC.
+        for ts_col in [timestamp_field] + ([created_ts_col] if created_ts_col else []):
+            if ts_col in df.columns:
+                if not pd.api.types.is_datetime64_any_dtype(df[ts_col]):
+                    df[ts_col] = pd.to_datetime(df[ts_col], utc=True)
+                elif df[ts_col].dt.tz is None:
+                    df[ts_col] = df[ts_col].dt.tz_localize("UTC")
+
+        # Serialize entity keys using the declared types (avoids INT32 vs INT64 mismatch).
+        df["_entity_id"] = df.apply(
+            lambda row: _serialize_entity_key_from_row(
+                row, join_keys, entity_key_version, join_key_types
+            ),
+            axis=1,
+        )
+
+        now = datetime.now(tz=timezone.utc)
+
+        docs = []
+        for _, row in df.iterrows():
+            features: Dict[str, Any] = {}
+            for col in feature_cols:
+                val = row[col]
+                if pd.isna(val):
+                    continue
+                if hasattr(val, "item"):
+                    val = val.item()  # numpy scalar → Python native for BSON
+                features[col] = val
+
+            created_at = now
+            if created_ts_col and created_ts_col in df.columns:
+                ct = row[created_ts_col]
+                if not pd.isna(ct):
+                    created_at = (
+                        ct.to_pydatetime() if hasattr(ct, "to_pydatetime") else ct
+                    )
+
+            docs.append(
+                {
+                    "entity_id": row["_entity_id"],
+                    "feature_view": feature_view.name,
+                    "features": features,
+                    "event_timestamp": (
+                        row[timestamp_field].to_pydatetime()
+                        if hasattr(row[timestamp_field], "to_pydatetime")
+                        else row[timestamp_field]
+                    ),
+                    "created_at": created_at,
+                }
+            )
+
+        client = MongoDBOfflineStoreOne._get_client_and_ensure_indexes(config)
+        try:
+            coll = client[db_name][collection_name]
+            BATCH_SIZE = 10_000
+            for i in range(0, len(docs), BATCH_SIZE):
+                batch = docs[i : i + BATCH_SIZE]
+                coll.insert_many(batch, ordered=False)
+                if progress:
+                    progress(len(batch))
+        finally:
+            client.close()
+
+    @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,

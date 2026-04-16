@@ -22,6 +22,7 @@ from typing import Dict, Generator, Optional
 from unittest.mock import MagicMock
 
 import pandas as pd
+import pyarrow
 import pytest
 import pytz
 
@@ -1005,3 +1006,87 @@ def test_int32_entity_key(
     )
     assert result_df.loc[0, "amount"] == pytest.approx(100.0)
     assert result_df.loc[1, "amount"] == pytest.approx(200.0)
+
+
+@_requires_docker
+def test_offline_write_batch_round_trip(
+    repo_config: RepoConfig,
+    mongodb_connection_string: str,
+    driver_fv: FeatureView,
+) -> None:
+    """offline_write_batch writes documents that get_historical_features can read back.
+
+    This is the end-to-end write→read contract: data written via the standard
+    Feast write path (offline_write_batch) must be retrievable via the standard
+    Feast read path (get_historical_features).  It also verifies document structure
+    in the collection.
+    """
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    client["feast_test"]["feature_history"].drop()
+    client.close()
+
+    now = datetime.now(tz=pytz.UTC)
+
+    df = pd.DataFrame(
+        {
+            "driver_id": [1, 2],
+            "conv_rate": [0.8, 0.6],
+            "acc_rate": [0.9, 0.7],
+            "event_timestamp": [now - timedelta(hours=1), now - timedelta(hours=1)],
+            "created_at": [now, now],
+        }
+    )
+    table = pyarrow.Table.from_pandas(df)
+
+    MongoDBOfflineStoreOne.offline_write_batch(
+        config=repo_config,
+        feature_view=driver_fv,
+        table=table,
+        progress=None,
+    )
+
+    # Verify document structure in the collection.
+    client = MongoClient(mongodb_connection_string)
+    docs = list(
+        client["feast_test"]["feature_history"].find(
+            {"feature_view": "driver_stats"}, {"_id": 0}
+        )
+    )
+    client.close()
+
+    assert len(docs) == 2
+    doc = docs[0]
+    assert isinstance(doc["entity_id"], bytes), "entity_id must be serialized bytes"
+    assert doc["feature_view"] == "driver_stats"
+    assert set(doc["features"].keys()) == {"conv_rate", "acc_rate"}
+    assert "event_timestamp" in doc
+    assert "created_at" in doc
+
+    # Verify round-trip: get_historical_features must retrieve the written data.
+    entity_df = pd.DataFrame(
+        {
+            "driver_id": [1, 2],
+            "event_timestamp": [now, now],
+        }
+    )
+
+    job = MongoDBOfflineStoreOne.get_historical_features(
+        config=repo_config,
+        feature_views=[driver_fv],
+        feature_refs=["driver_stats:conv_rate", "driver_stats:acc_rate"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    result_df = job.to_df().sort_values("driver_id").reset_index(drop=True)
+    assert len(result_df) == 2
+    assert result_df["conv_rate"].notna().all(), (
+        "conv_rate is null — offline_write_batch and get_historical_features "
+        "are producing different entity_id bytes."
+    )
+    assert result_df.loc[0, "conv_rate"] == pytest.approx(0.8)
+    assert result_df.loc[0, "acc_rate"] == pytest.approx(0.9)
+    assert result_df.loc[1, "conv_rate"] == pytest.approx(0.6)
+    assert result_df.loc[1, "acc_rate"] == pytest.approx(0.7)
