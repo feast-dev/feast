@@ -1,5 +1,5 @@
 [tool.ruff]
-exclude = [".git","__pycache__","docs/conf.py","dist","feast/protos","feast/embedded_go/lib","feast/infra/utils/snowflake/snowpark/snowflake_udfs.py"]
+exclude = [".git","__pycache__","docs/conf.py","dist","feast/protos","feast/embedded_go/lib","feast/infra/utils/snowflake/snowpark/snowflake_udfs.py","**/node_modules"]
 
 [tool.ruff.lint]
 select = ["E","F","W","I"]

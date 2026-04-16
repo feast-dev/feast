@@ -9,6 +9,7 @@ import feast.core.Entity_pb2
 import feast.core.FeatureService_pb2
 import feast.core.FeatureView_pb2
 import feast.core.InfraObject_pb2
+import feast.core.LabelView_pb2
 import feast.core.OnDemandFeatureView_pb2
 import feast.core.Permission_pb2
 import feast.core.Project_pb2
@@ -477,6 +478,7 @@ class ApplyFeatureViewRequest(google.protobuf.message.Message):
     FEATURE_VIEW_FIELD_NUMBER: builtins.int
     ON_DEMAND_FEATURE_VIEW_FIELD_NUMBER: builtins.int
     STREAM_FEATURE_VIEW_FIELD_NUMBER: builtins.int
+    LABEL_VIEW_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
     COMMIT_FIELD_NUMBER: builtins.int
     @property
@@ -485,6 +487,8 @@ class ApplyFeatureViewRequest(google.protobuf.message.Message):
     def on_demand_feature_view(self) -> feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView: ...
     @property
     def stream_feature_view(self) -> feast.core.StreamFeatureView_pb2.StreamFeatureView: ...
+    @property
+    def label_view(self) -> feast.core.LabelView_pb2.LabelView: ...
     project: builtins.str
     commit: builtins.bool
     def __init__(
@@ -493,12 +497,13 @@ class ApplyFeatureViewRequest(google.protobuf.message.Message):
         feature_view: feast.core.FeatureView_pb2.FeatureView | None = ...,
         on_demand_feature_view: feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView | None = ...,
         stream_feature_view: feast.core.StreamFeatureView_pb2.StreamFeatureView | None = ...,
+        label_view: feast.core.LabelView_pb2.LabelView | None = ...,
         project: builtins.str = ...,
         commit: builtins.bool = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["base_feature_view", b"base_feature_view", "feature_view", b"feature_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["base_feature_view", b"base_feature_view", "commit", b"commit", "feature_view", b"feature_view", "on_demand_feature_view", b"on_demand_feature_view", "project", b"project", "stream_feature_view", b"stream_feature_view"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["base_feature_view", b"base_feature_view"]) -> typing_extensions.Literal["feature_view", "on_demand_feature_view", "stream_feature_view"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["base_feature_view", b"base_feature_view", "feature_view", b"feature_view", "label_view", b"label_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["base_feature_view", b"base_feature_view", "commit", b"commit", "feature_view", b"feature_view", "label_view", b"label_view", "on_demand_feature_view", b"on_demand_feature_view", "project", b"project", "stream_feature_view", b"stream_feature_view"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["base_feature_view", b"base_feature_view"]) -> typing_extensions.Literal["feature_view", "on_demand_feature_view", "stream_feature_view", "label_view"] | None: ...
 
 global___ApplyFeatureViewRequest = ApplyFeatureViewRequest
 
@@ -613,22 +618,26 @@ class AnyFeatureView(google.protobuf.message.Message):
     FEATURE_VIEW_FIELD_NUMBER: builtins.int
     ON_DEMAND_FEATURE_VIEW_FIELD_NUMBER: builtins.int
     STREAM_FEATURE_VIEW_FIELD_NUMBER: builtins.int
+    LABEL_VIEW_FIELD_NUMBER: builtins.int
     @property
     def feature_view(self) -> feast.core.FeatureView_pb2.FeatureView: ...
     @property
     def on_demand_feature_view(self) -> feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView: ...
     @property
     def stream_feature_view(self) -> feast.core.StreamFeatureView_pb2.StreamFeatureView: ...
+    @property
+    def label_view(self) -> feast.core.LabelView_pb2.LabelView: ...
     def __init__(
         self,
         *,
         feature_view: feast.core.FeatureView_pb2.FeatureView | None = ...,
         on_demand_feature_view: feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView | None = ...,
         stream_feature_view: feast.core.StreamFeatureView_pb2.StreamFeatureView | None = ...,
+        label_view: feast.core.LabelView_pb2.LabelView | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["any_feature_view", b"any_feature_view", "feature_view", b"feature_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["any_feature_view", b"any_feature_view", "feature_view", b"feature_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["any_feature_view", b"any_feature_view"]) -> typing_extensions.Literal["feature_view", "on_demand_feature_view", "stream_feature_view"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["any_feature_view", b"any_feature_view", "feature_view", b"feature_view", "label_view", b"label_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["any_feature_view", b"any_feature_view", "feature_view", b"feature_view", "label_view", b"label_view", "on_demand_feature_view", b"on_demand_feature_view", "stream_feature_view", b"stream_feature_view"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["any_feature_view", b"any_feature_view"]) -> typing_extensions.Literal["feature_view", "on_demand_feature_view", "stream_feature_view", "label_view"] | None: ...
 
 global___AnyFeatureView = AnyFeatureView
 
@@ -918,6 +927,93 @@ class ListOnDemandFeatureViewsResponse(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["on_demand_feature_views", b"on_demand_feature_views", "pagination", b"pagination"]) -> None: ...
 
 global___ListOnDemandFeatureViewsResponse = ListOnDemandFeatureViewsResponse
+
+class GetLabelViewRequest(google.protobuf.message.Message):
+    """LabelViews"""
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    project: builtins.str
+    allow_cache: builtins.bool
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        allow_cache: builtins.bool = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "name", b"name", "project", b"project"]) -> None: ...
+
+global___GetLabelViewRequest = GetLabelViewRequest
+
+class ListLabelViewsRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class TagsEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        value: builtins.str
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: builtins.str = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+    PROJECT_FIELD_NUMBER: builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: builtins.int
+    TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
+    project: builtins.str
+    allow_cache: builtins.bool
+    @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
+    def __init__(
+        self,
+        *,
+        project: builtins.str = ...,
+        allow_cache: builtins.bool = ...,
+        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
+
+global___ListLabelViewsRequest = ListLabelViewsRequest
+
+class ListLabelViewsResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    LABEL_VIEWS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    @property
+    def label_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.LabelView_pb2.LabelView]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
+    def __init__(
+        self,
+        *,
+        label_views: collections.abc.Iterable[feast.core.LabelView_pb2.LabelView] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["label_views", b"label_views", "pagination", b"pagination"]) -> None: ...
+
+global___ListLabelViewsResponse = ListLabelViewsResponse
 
 class ApplyFeatureServiceRequest(google.protobuf.message.Message):
     """FeatureServices"""
