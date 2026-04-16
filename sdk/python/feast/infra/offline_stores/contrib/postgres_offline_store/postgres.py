@@ -158,9 +158,13 @@ class PostgreSQLOfflineStore(OfflineStore):
             skip_entity_upload = False
 
         if skip_entity_upload:
+            assert start_date is not None and end_date is not None
             entity_schema: Dict[str, Any] = {"event_timestamp": "timestamp"}
             entity_df_event_timestamp_col = "event_timestamp"
-            entity_df_event_timestamp_range = (start_date, end_date)
+            entity_df_event_timestamp_range: Tuple[datetime, datetime] = (
+                start_date,
+                end_date,
+            )
         else:
             entity_schema = _get_entity_schema(entity_df, config)
             entity_df_event_timestamp_col = (
@@ -188,6 +192,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     "(SELECT NULL::timestamptz AS event_timestamp LIMIT 0)"
                 )
             elif use_cte:
+                assert isinstance(entity_df, str)
                 left_table_query_string = entity_df
             else:
                 left_table_query_string = table_name
