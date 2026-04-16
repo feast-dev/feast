@@ -54,10 +54,11 @@ def _report_failure(msg: str, exc: Exception) -> None:
     global _consecutive_failures, _last_warning_time
     _consecutive_failures += 1
     now = time.monotonic()
-    if _consecutive_failures == 1 or (now - _last_warning_time) >= _WARNING_INTERVAL_SECONDS:
-        _logger.warning(
-            "%s (failures=%d): %s", msg, _consecutive_failures, exc
-        )
+    if (
+        _consecutive_failures == 1
+        or (now - _last_warning_time) >= _WARNING_INTERVAL_SECONDS
+    ):
+        _logger.warning("%s (failures=%d): %s", msg, _consecutive_failures, exc)
         _last_warning_time = now
     else:
         _logger.debug("%s (failures=%d): %s", msg, _consecutive_failures, exc)

@@ -254,9 +254,7 @@ class FeatureStore:
     def _rebuild_fs_name_index(self) -> None:
         """Rebuild the {frozenset(refs) → service_name} index from the registry."""
         index: Dict[frozenset, str] = {}
-        for fs in self.registry.list_feature_services(
-            self.project, allow_cache=True
-        ):
+        for fs in self.registry.list_feature_services(self.project, allow_cache=True):
             fs_refs = frozenset(
                 f"{p.name}:{f.name}"
                 for p in fs.feature_view_projections
