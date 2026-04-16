@@ -13,8 +13,11 @@ Usage:
 
         mlflow:
             enabled: true
-            tracking_uri: http://localhost:5000
+            tracking_uri: https://mlflow.example.com  # or set MLFLOW_TRACKING_URI
             auto_log: true
+
+    When ``tracking_uri`` is omitted, the ``MLFLOW_TRACKING_URI`` environment
+    variable is used. If neither is set, MLflow falls back to its own default.
 
     For advanced use cases, the module also provides:
     - resolve_feature_service_from_model_uri: Map an MLflow model to its Feast

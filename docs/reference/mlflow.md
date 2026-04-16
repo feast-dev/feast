@@ -37,9 +37,10 @@ online_store:
 
 mlflow:
   enabled: true
-  tracking_uri: http://127.0.0.1:5000
+  tracking_uri: https://mlflow.example.com   # or set MLFLOW_TRACKING_URI env var
   auto_log: true
   auto_log_entity_df: true
+  entity_df_max_rows: 100000
 ```
 
 ### Configuration options
@@ -47,9 +48,10 @@ mlflow:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable or disable the MLflow integration |
-| `tracking_uri` | string | `http://127.0.0.1:5000` | MLflow tracking server URI |
+| `tracking_uri` | string | *(none)* | MLflow tracking server URI. When not set, the `MLFLOW_TRACKING_URI` environment variable is used. If neither is set, MLflow falls back to its own default (`./mlruns`). |
 | `auto_log` | bool | `true` | Automatically log feature metadata on every retrieval |
 | `auto_log_entity_df` | bool | `false` | Save the entity DataFrame as an MLflow artifact (`entity_df.parquet`) |
+| `entity_df_max_rows` | int | `100000` | Maximum entity DataFrame rows to save as an artifact. DataFrames exceeding this limit are skipped to avoid OOM and slow uploads. |
 
 ## What gets logged
 
@@ -75,7 +77,7 @@ When `auto_log: true`, each `get_historical_features` or `get_online_features` c
 
 ### Artifacts
 
-When `auto_log_entity_df: true`, the entity DataFrame is saved as `entity_df.parquet` in the run's artifacts, enabling exact reproduction of training data.
+When `auto_log_entity_df: true`, the entity DataFrame is saved as `entity_df.parquet` in the run's artifacts (if the row count is within `entity_df_max_rows`), enabling exact reproduction of training data.
 
 ## Usage
 
@@ -114,7 +116,8 @@ fs_name = resolve_feature_service_from_model_uri("models:/my_model/1")
 Resolution order:
 1. Model version tag `feast.feature_service` (explicit override)
 2. Training run tag `feast.feature_service` (set by auto-log)
-3. Naming convention: `{model_name}_v{version}`
+
+If neither tag is found, a `FeastMlflowModelResolutionError` is raised with guidance on how to set the tag.
 
 ### Reproduce training from a past run
 

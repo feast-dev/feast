@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, List, Optional
 
 import pandas as pd
+
+from feast.mlflow_integration.config import (
+    MLFLOW_TAG_TRUNCATION_LIMIT,
+    MLFLOW_TAG_TRUNCATION_SLICE,
+)
 
 if TYPE_CHECKING:
     from feast.feature_service import FeatureService
@@ -12,6 +18,10 @@ _logger = logging.getLogger(__name__)
 
 _mlflow = None
 _mlflow_checked = False
+
+_consecutive_failures = 0
+_last_warning_time = 0.0
+_WARNING_INTERVAL_SECONDS = 300
 
 
 def _get_mlflow():
@@ -26,6 +36,37 @@ def _get_mlflow():
         except ImportError:
             _mlflow = None
     return _mlflow
+
+
+def _truncate_for_tag(value: str) -> str:
+    """Truncate a string to fit within MLflow's tag size limit."""
+    if len(value) > MLFLOW_TAG_TRUNCATION_LIMIT:
+        return value[:MLFLOW_TAG_TRUNCATION_SLICE] + "..."
+    return value
+
+
+def _report_failure(msg: str, exc: Exception) -> None:
+    """Rate-limited warning for persistent MLflow logging failures.
+
+    Logs at warning level on the first failure, then only once per
+    _WARNING_INTERVAL_SECONDS to avoid flooding logs in production.
+    """
+    global _consecutive_failures, _last_warning_time
+    _consecutive_failures += 1
+    now = time.monotonic()
+    if _consecutive_failures == 1 or (now - _last_warning_time) >= _WARNING_INTERVAL_SECONDS:
+        _logger.warning(
+            "%s (failures=%d): %s", msg, _consecutive_failures, exc
+        )
+        _last_warning_time = now
+    else:
+        _logger.debug("%s (failures=%d): %s", msg, _consecutive_failures, exc)
+
+
+def _report_success() -> None:
+    """Reset failure counter on successful logging."""
+    global _consecutive_failures
+    _consecutive_failures = 0
 
 
 def log_feature_retrieval_to_mlflow(
@@ -70,14 +111,10 @@ def log_feature_retrieval_to_mlflow(
 
         fv_names = sorted({ref.split(":")[0] for ref in feature_refs if ":" in ref})
         if fv_names:
-            fv_str = ",".join(fv_names)
-            if len(fv_str) > 4990:
-                fv_str = fv_str[:4987] + "..."
+            fv_str = _truncate_for_tag(",".join(fv_names))
             client.set_tag(run_id, "feast.feature_views", fv_str)
 
-        refs_str = ",".join(feature_refs)
-        if len(refs_str) > 4990:
-            refs_str = refs_str[:4987] + "..."
+        refs_str = _truncate_for_tag(",".join(feature_refs))
         client.set_tag(run_id, "feast.feature_refs", refs_str)
         client.set_tag(run_id, "feast.entity_count", str(entity_count))
         client.set_tag(run_id, "feast.feature_count", str(len(feature_refs)))
@@ -86,9 +123,10 @@ def log_feature_retrieval_to_mlflow(
             run_id, "feast.job_submission_sec", round(duration_seconds, 4)
         )
 
+        _report_success()
         return True
     except Exception as e:
-        _logger.warning("Failed to log feature retrieval to MLflow: %s", e)
+        _report_failure("Failed to log feature retrieval to MLflow", e)
         return False
 
 
@@ -119,5 +157,5 @@ def log_training_dataset_to_mlflow(
         mlflow.log_input(dataset, context="training")
         return True
     except Exception as e:
-        _logger.warning("Failed to log training dataset to MLflow: %s", e)
+        _report_failure("Failed to log training dataset to MLflow", e)
         return False

@@ -5,6 +5,8 @@ import logging
 import re
 from typing import TYPE_CHECKING, Optional
 
+from feast.mlflow_integration.config import resolve_tracking_uri
+
 if TYPE_CHECKING:
     from feast import FeatureStore
 
@@ -20,16 +22,25 @@ class FeastMlflowModelResolutionError(Exception):
 def resolve_feature_service_from_model_uri(
     model_uri: str,
     store: Optional["FeatureStore"] = None,
+    tracking_uri: Optional[str] = None,
 ) -> str:
     """Resolve the Feast feature service name for a given MLflow model URI.
 
     Resolution order:
       1. Model version tag ``feast.feature_service`` (explicit override).
       2. Training run tag ``feast.feature_service`` (set by auto-log).
-      3. Naming convention: ``{model_name}_v{version}``.
+
+    Args:
+        model_uri: MLflow model URI in the form ``models:/<name>/<version_or_alias>``.
+        store: Optional FeatureStore instance for validating the resolved
+            feature service exists and its features match.
+        tracking_uri: Optional MLflow tracking URI. When not provided,
+            falls back to the MLFLOW_TRACKING_URI environment variable,
+            then to MLflow's built-in default.
+
     Raises:
         FeastMlflowModelResolutionError: If mlflow is not installed, URI is
-            invalid, or validation against the store fails.
+            invalid, resolution fails, or validation against the store fails.
     """
     try:
         import mlflow
@@ -48,7 +59,8 @@ def resolve_feature_service_from_model_uri(
         )
 
     model_name, version_or_alias = match.group(1), match.group(2)
-    client = mlflow.MlflowClient()
+    effective_uri = resolve_tracking_uri(tracking_uri)
+    client = mlflow.MlflowClient(tracking_uri=effective_uri)
 
     try:
         if version_or_alias.isdigit():
@@ -66,7 +78,12 @@ def resolve_feature_service_from_model_uri(
     else:
         fs_name = _resolve_from_run_tags(client, mv)
         if fs_name is None:
-            fs_name = f"{model_name}_v{mv.version}"
+            raise FeastMlflowModelResolutionError(
+                f"Could not determine feature service for model '{model_uri}'. "
+                f"No 'feast.feature_service' tag found on the model version or "
+                f"its training run. Set the tag explicitly on the model version "
+                f"or ensure auto_log was enabled during training."
+            )
 
     if store is not None:
         _validate_feature_service(store, fs_name, client, mv)

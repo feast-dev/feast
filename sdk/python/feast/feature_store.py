@@ -221,18 +221,17 @@ class FeatureStore:
 
         # Cache for _resolve_feature_service_name lookups
         self._fs_name_cache: Dict[frozenset, Optional[str]] = {}
+        self._fs_name_index: Dict[frozenset, str] = {}
+        self._fs_name_index_ts: float = 0.0
 
-        # Configure MLflow tracking URI globally from config
         self._init_mlflow_tracking()
 
     def _init_mlflow_tracking(self):
-        """Configure MLflow globally from feature_store.yaml.
+        """Configure the global MLflow tracking URI and experiment from feature_store.yaml.
 
-        Sets the tracking URI and experiment name.
-        The experiment is named after the Feast project.
-
-        When no tracking_uri is specified, defaults to http://127.0.0.1:5000
-        (a local MLflow tracking server).
+        This bridges Feast config with MLflow so that user calls like
+        ``mlflow.start_run()`` automatically target the correct tracking
+        server and experiment without any extra setup in training scripts.
         """
         try:
             mlflow_cfg = self.config.mlflow
@@ -241,44 +240,61 @@ class FeatureStore:
 
             import mlflow
 
-            tracking_uri = mlflow_cfg.tracking_uri or "http://127.0.0.1:5000"
-            mlflow.set_tracking_uri(tracking_uri)
+            tracking_uri = mlflow_cfg.get_tracking_uri()
+            if tracking_uri:
+                mlflow.set_tracking_uri(tracking_uri)
             mlflow.set_experiment(self.config.project)
         except ImportError:
             pass
         except Exception as e:
             warnings.warn(f"Failed to configure MLflow tracking: {e}")
 
+    _FS_NAME_INDEX_TTL_SECONDS = 300
+
+    def _rebuild_fs_name_index(self) -> None:
+        """Rebuild the {frozenset(refs) → service_name} index from the registry."""
+        index: Dict[frozenset, str] = {}
+        for fs in self.registry.list_feature_services(
+            self.project, allow_cache=True
+        ):
+            fs_refs = frozenset(
+                f"{p.name}:{f.name}"
+                for p in fs.feature_view_projections
+                for f in p.features
+            )
+            index[fs_refs] = fs.name
+        self._fs_name_index = index
+        self._fs_name_cache = {}
+        self._fs_name_index_ts = time.monotonic()
+
     def _resolve_feature_service_name(self, feature_refs: List[str]) -> Optional[str]:
         """Find the best-matching feature service for the given feature refs.
 
         Resolution: exact match wins immediately; otherwise the smallest
-        superset (fewest extra features) is returned.  Results are cached
-        per FeatureStore instance for O(1) repeated lookups.
+        superset (fewest extra features) is returned.  The full index is
+        rebuilt from the registry every _FS_NAME_INDEX_TTL_SECONDS and
+        per-query results are cached for O(1) repeated lookups.
         """
         try:
+            now = time.monotonic()
+            if (now - self._fs_name_index_ts) >= self._FS_NAME_INDEX_TTL_SECONDS:
+                self._rebuild_fs_name_index()
+
             ref_key = frozenset(feature_refs)
             if ref_key in self._fs_name_cache:
                 return self._fs_name_cache[ref_key]
 
+            if ref_key in self._fs_name_index:
+                self._fs_name_cache[ref_key] = self._fs_name_index[ref_key]
+                return self._fs_name_index[ref_key]
+
             best_match = None
             best_extra = float("inf")
-
-            for fs in self.registry.list_feature_services(
-                self.project, allow_cache=True
-            ):
-                fs_refs = frozenset(
-                    f"{p.name}:{f.name}"
-                    for p in fs.feature_view_projections
-                    for f in p.features
-                )
-                if ref_key == fs_refs:
-                    self._fs_name_cache[ref_key] = fs.name
-                    return fs.name
+            for fs_refs, fs_name in self._fs_name_index.items():
                 if ref_key.issubset(fs_refs):
                     extra = len(fs_refs) - len(ref_key)
                     if extra < best_extra:
-                        best_match = fs.name
+                        best_match = fs_name
                         best_extra = extra
 
             self._fs_name_cache[ref_key] = best_match
@@ -291,21 +307,30 @@ class FeatureStore:
         """Log entity_df info to MLflow for reproducibility.
 
         Handles three entity_df types:
-        - pd.DataFrame: saves metadata + full parquet artifact (if under 100k rows)
+        - pd.DataFrame: saves metadata + full parquet artifact (within configured limit)
         - str (SQL query): logs the query as a param
         - None (range-based): logs start_date/end_date
         """
         try:
             import mlflow
 
+            from feast.mlflow_integration.config import (
+                MLFLOW_PARAM_TRUNCATION_LIMIT,
+                MLFLOW_PARAM_TRUNCATION_SLICE,
+            )
+
             if mlflow.active_run() is None:
                 return
-            tracking_uri = self.config.mlflow.tracking_uri or "http://127.0.0.1:5000"
+            mlflow_cfg = self.config.mlflow
+            tracking_uri = mlflow_cfg.get_tracking_uri()
             client = mlflow.MlflowClient(tracking_uri=tracking_uri)
             run_id = mlflow.active_run().info.run_id
 
             if isinstance(entity_df, str):
-                query = entity_df if len(entity_df) <= 490 else entity_df[:487] + "..."
+                if len(entity_df) > MLFLOW_PARAM_TRUNCATION_LIMIT:
+                    query = entity_df[:MLFLOW_PARAM_TRUNCATION_SLICE] + "..."
+                else:
+                    query = entity_df
                 client.log_param(run_id, "feast.entity_df_query", query)
                 client.set_tag(run_id, "feast.entity_df_type", "sql")
 
@@ -313,11 +338,11 @@ class FeatureStore:
                 client.set_tag(run_id, "feast.entity_df_type", "dataframe")
                 client.log_param(run_id, "feast.entity_df_rows", str(len(entity_df)))
                 cols = ",".join(entity_df.columns)
-                if len(cols) > 490:
-                    cols = cols[:487] + "..."
+                if len(cols) > MLFLOW_PARAM_TRUNCATION_LIMIT:
+                    cols = cols[:MLFLOW_PARAM_TRUNCATION_SLICE] + "..."
                 client.log_param(run_id, "feast.entity_df_columns", cols)
 
-                max_rows = 100_000
+                max_rows = mlflow_cfg.entity_df_max_rows
                 if len(entity_df) <= max_rows:
                     import tempfile
 
@@ -1668,7 +1693,7 @@ class FeatureStore:
                         feature_service=_fs,
                         feature_service_name=_fs_name,
                         project=self.project,
-                        tracking_uri=self.config.mlflow.tracking_uri,
+                        tracking_uri=self.config.mlflow.get_tracking_uri(),
                     )
 
                     if self.config.mlflow.auto_log_entity_df:
@@ -1676,7 +1701,7 @@ class FeatureStore:
                             entity_df, start_date=start_date, end_date=end_date
                         )
         except Exception as e:
-            _logger.warning("MLflow auto-log failed for historical retrieval: %s", e)
+            _logger.debug("MLflow auto-log failed for historical retrieval: %s", e)
 
         return job
 
@@ -2857,10 +2882,10 @@ class FeatureStore:
                         feature_service=_fs,
                         feature_service_name=_fs_name,
                         project=self.project,
-                        tracking_uri=self.config.mlflow.tracking_uri,
+                        tracking_uri=self.config.mlflow.get_tracking_uri(),
                     )
         except Exception as e:
-            _logger.warning("MLflow auto-log failed for online retrieval: %s", e)
+            _logger.debug("MLflow auto-log failed for online retrieval: %s", e)
 
         return response
 
