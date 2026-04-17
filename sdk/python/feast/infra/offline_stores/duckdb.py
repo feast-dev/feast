@@ -135,6 +135,8 @@ def _build_entity_df_from_sources(
     entity_dfs: List[pd.DataFrame] = []
 
     for fv in feature_views:
+        if fv.batch_source is None:
+            continue
         fv_table = data_source_reader(fv.batch_source, str(config.repo_path))
 
         for old_name, new_name in fv.batch_source.field_mapping.items():
