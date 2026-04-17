@@ -120,6 +120,7 @@ class Aggregation:
 
 _FUNCTION_ALIASES: Dict[str, str] = {
     "count_distinct": "nunique",
+    "avg": "mean",
 }
 
 
