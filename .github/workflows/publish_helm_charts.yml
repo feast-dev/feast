@@ -40,11 +40,11 @@ jobs:
           custom_version: ${{ github.event.inputs.custom_version }}
           token: ${{ github.event.inputs.token }}
       - name: Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v1'
+        uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - run: gcloud auth configure-docker --quiet

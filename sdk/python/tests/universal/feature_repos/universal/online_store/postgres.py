@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Any, Dict
 
 from testcontainers.core.container import DockerContainer
@@ -53,14 +54,18 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
 
     def create_online_store(self) -> Dict[str, Any]:
         self.container.start()
-        log_string_to_wait_for = "database system is ready to accept connections"
         wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=10
+            container=self.container,
+            predicate="database system is ready to accept connections",
+            timeout=30,
         )
-        init_log_string_to_wait_for = "PostgreSQL init process complete"
         wait_for_logs(
-            container=self.container, predicate=init_log_string_to_wait_for, timeout=10
+            container=self.container,
+            predicate="PostgreSQL init process complete",
+            timeout=30,
         )
+        # PG restarts after init completes; allow the restart to finish
+        time.sleep(3)
         return {
             "host": "localhost",
             "type": "postgres",
