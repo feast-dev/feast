@@ -23,8 +23,12 @@ from feast.infra.offline_stores.ibis import (
     write_logged_features_ibis,
 )
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.infra.offline_stores.offline_utils import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+)
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.utils import compute_non_entity_date_range, to_naive_utc
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
@@ -113,6 +117,73 @@ def _write_data_source(
         )
 
 
+def _build_entity_df_from_sources(
+    config: RepoConfig,
+    feature_views: List[FeatureView],
+    start_date: datetime,
+    end_date: datetime,
+    data_source_reader: Callable[[DataSource, str], Table],
+) -> pd.DataFrame:
+    """Build a synthetic entity DataFrame from feature view sources for non-entity retrieval.
+
+    Reads each feature view's backing data source, extracts distinct entity key
+    combinations within [start_date, end_date], and returns a single DataFrame
+    with one row per unique entity combination and ``event_timestamp`` set to
+    ``end_date``.  When no entity columns exist across all feature views, a
+    minimal single-row DataFrame with only the timestamp column is returned.
+    """
+    entity_dfs: List[pd.DataFrame] = []
+
+    for fv in feature_views:
+        if fv.batch_source is None:
+            continue
+        fv_table = data_source_reader(fv.batch_source, str(config.repo_path))
+
+        for old_name, new_name in fv.batch_source.field_mapping.items():
+            if old_name in fv_table.columns:
+                fv_table = fv_table.rename({new_name: old_name})
+
+        timestamp_field = fv.batch_source.timestamp_field
+
+        start_naive = to_naive_utc(start_date)
+        end_naive = to_naive_utc(end_date)
+
+        fv_table = fv_table.filter(
+            ibis.and_(
+                fv_table[timestamp_field] >= ibis.literal(start_naive),
+                fv_table[timestamp_field] <= ibis.literal(end_naive),
+            )
+        )
+
+        join_key_map = fv.projection.join_key_map or {
+            e.name: e.name for e in fv.entity_columns
+        }
+        source_join_key_cols = list(join_key_map.keys())
+
+        if source_join_key_cols:
+            # join_key_map is {feature_key: entity_key}; ibis rename({new: old}) renames
+            # old->new, so pass inverted map to rename feature columns to entity names.
+            distinct_entities = (
+                fv_table.select(*source_join_key_cols)
+                .rename({v: k for k, v in join_key_map.items()})
+                .distinct()
+                .execute()
+            )
+            entity_dfs.append(distinct_entities)
+
+    if not entity_dfs:
+        return pd.DataFrame({DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL: [end_date]})
+
+    combined = pd.concat(entity_dfs, ignore_index=True)
+
+    all_cols = list(combined.columns)
+    combined = combined.drop_duplicates(subset=all_cols).reset_index(drop=True)
+
+    combined[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL] = end_date
+
+    return combined
+
+
 class DuckDBOfflineStoreConfig(FeastConfigBaseModel):
     type: StrictStr = "duckdb"
     # """ Offline store type selector"""
@@ -154,11 +225,30 @@ class DuckDBOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
+        non_entity_mode = entity_df is None
+
+        if non_entity_mode:
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+            entity_df = _build_entity_df_from_sources(
+                config=config,
+                feature_views=feature_views,
+                start_date=start_date,
+                end_date=end_date,
+                data_source_reader=_read_data_source,
+            )
+
         return get_historical_features_ibis(
             config=config,
             feature_views=feature_views,
