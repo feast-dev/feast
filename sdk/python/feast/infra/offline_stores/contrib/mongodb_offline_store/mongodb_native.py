@@ -13,78 +13,94 @@
 # limitations under the License.
 
 """
-Native MongoDB Offline Store Implementation.
+Native MongoDB Offline Store — Atlas-first, pure-MQL implementation.
 
-This module implements a MongoDB offline store using native MQL aggregation
-pipelines. It uses a single-collection schema where all feature views share
-one collection. It is event-based: each document represents an observation
-of a FeatureView at a specific point in time. Each document may contain a
-subset (0 or more) of the features defined in that FeatureView, all sharing
-a single event_timestamp.
+All feature views share a single ``feature_history`` collection, discriminated
+by a ``feature_view`` field.  Historical retrieval (point-in-time join) is
+executed entirely as a MongoDB aggregation pipeline using ``$documents`` +
+``$lookup``, so all sorting, grouping, and TTL filtering run on the Atlas
+cluster rather than on the client.
 
-Collection Index:
+Minimum server version: MongoDB 5.1 (Atlas M10+ or self-managed 5.1+).
+``$documents`` (the stage that injects the entity DataFrame into the pipeline
+without a temp collection) was introduced in 5.1.
+
+Collection Index (compound, covers both PIT join and pull-latest):
+
     db.feature_history.create_index([
-        ("feature_view", ASCENDING),
-        ("entity_id", ASCENDING),
-        ("event_timestamp", DESCENDING),
+        ("entity_id",        ASCENDING),
+        ("feature_view",     ASCENDING),
+        ("event_timestamp",  DESCENDING),
+        ("created_at",       DESCENDING),
     ])
 
-Document Schema (example):
+    The ``created_at`` key is required so that data corrections (two documents
+    with the same entity_id + feature_view + event_timestamp) are resolved
+    deterministically: the document with the later created_at wins.
+
+Document Schema:
+
     {
-        "_id": ObjectId(),
-        "entity_id": "<serialized_entity_key>",
-        "feature_view": "driver_stats",
+        "_id":             ObjectId(),
+        "entity_id":       Binary(...),          # serialized entity key
+        "feature_view":    "driver_stats",
         "features": {
-            "rating": 4.91,
-            "trips_last_7d": 132
+            "conv_rate":        0.72,
+            "trips_last_7d":    132
         },
         "event_timestamp": ISODate("2026-01-20T12:00:00Z"),
-        "created_at": ISODate("2026-01-20T12:00:05Z")
+        "created_at":      ISODate("2026-01-20T12:00:05Z")
     }
 
+PIT Join Strategy (get_historical_features):
+
+    For each chunk of the entity DataFrame:
+
+    1. Python serializes one entity key per (row, feature_view), using only
+       that feature view's declared join keys and value types.  This is the
+       key correctness invariant: driver_stats is keyed by {driver_id} and
+       customer_stats by {customer_id}; using the union would produce bytes
+       that never match stored documents.
+
+    2. A single ``$documents`` stage injects the chunk as a virtual collection:
+       each document carries ``_row_idx``, ``_ts``, and a per-FV
+       ``_entity_ids`` subdocument.
+
+    3. One ``$lookup`` stage per feature view performs the correlated PIT join
+       entirely on Atlas:
+         - match: entity_id == $$eid, feature_view == <fv_name>,
+                  event_timestamp <= $$ts, (optional) event_timestamp >= $$ts - ttl
+         - sort:  event_timestamp DESC, created_at DESC
+         - limit: 1
+
+    4. A final ``$project`` drops the entity-id payload before results are
+       sent over the network.
+
+    5. Python assembles the flat result DataFrame from the matched docs.
+
 Feature Freshness Semantics:
-    This implementation operates at *document-level freshness*, not
-    per-feature freshness. During retrieval (e.g. point-in-time joins),
-    the system selects the most recent document for a given
-    (entity_id, feature_view) that satisfies time constraints, and then
-    extracts all requested features from that document.
 
-    As a result, if a newer document contains only a subset of features,
-    missing features will be returned as NULL—even if older documents
-    contained values for those features. The system does not backfill
-    individual feature values from earlier events.
-
-    This behavior matches common Feast offline store semantics, but may
-    differ from systems that compute "latest value per feature".
-
-Schema Evolution ("Feature Creep"):
-    Because features are stored in a flexible subdocument, different
-    documents for the same FeatureView may contain different sets of
-    feature fields over time. This supports:
-        - adding new features without backfilling historical data
-        - partial writes or sparse feature computation
-
-    However, it also implies:
-        - newly added features will be NULL for older events
-        - partially populated documents may lead to NULL values even
-          when older data contained those features
-
-    Users should ensure that feature computation pipelines write
-    complete feature sets when consistent availability is required.
-
-Notes:
-    - Entity keys are serialized to ensure consistency with Feast’s
-      online store and to avoid type ambiguity.
-    - Point-in-time correctness is enforced per FeatureView.
-    - TTL (time-to-live) constraints are applied per FeatureView during
-      historical retrieval.
+    This implementation uses document-level freshness: the most recent document
+    for (entity_id, feature_view) whose event_timestamp <= entity row's
+    timestamp is selected, and all requested features are read from that one
+    document.  If a newer document is missing a feature that an older document
+    had, the value is NULL.  This matches standard Feast offline store semantics.
 """
 
 import json
-import uuid
 import warnings
+from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import pandas as pd
 import pyarrow
@@ -97,7 +113,11 @@ except ImportError:
 from pydantic import StrictStr
 
 from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException, FeastExtrasDependencyImportError
+from feast.errors import (
+    DataSourceNoNameException,
+    FeastExtrasDependencyImportError,
+    SavedDatasetLocationAlreadyExists,
+)
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.contrib.mongodb_offline_store import DRIVER_METADATA
@@ -107,22 +127,42 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.offline_stores.offline_utils import (
+    get_expected_join_keys,
     infer_event_timestamp_from_entity_df,
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.SavedDataset_pb2 import (
+    SavedDatasetStorage as SavedDatasetStorageProto,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import mongodb_to_feast_value_type
 from feast.value_type import ValueType
 
+# ---------------------------------------------------------------------------
+# Index tracking — keyed by (connection_string, database, collection) so that
+# multiple RepoConfigs pointing at different clusters never share state.
+# ---------------------------------------------------------------------------
+_indexes_ensured: set = set()
+
+# Chunk size for entity_df processing.  Each chunk becomes one $documents
+# stage; keep it small enough that the aggregation command stays well under
+# MongoDB's 16 MB BSON document limit.
+_CHUNK_SIZE = 50_000
+
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
 
 class MongoDBOfflineStoreNativeConfig(FeastConfigBaseModel):
-    """Configuration for the Native MongoDB offline store."""
+    """Configuration for the native MongoDB offline store (Atlas-first)."""
 
     type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native.MongoDBOfflineStoreNative"
-    """Offline store type selector"""
 
     connection_string: StrictStr = "mongodb://localhost:27017"
     """MongoDB connection URI"""
@@ -131,20 +171,19 @@ class MongoDBOfflineStoreNativeConfig(FeastConfigBaseModel):
     """MongoDB database name"""
 
     collection: StrictStr = "feature_history"
-    """Single collection name for all feature views"""
+    """Single collection name shared by all feature views"""
+
+
+# ---------------------------------------------------------------------------
+# DataSource
+# ---------------------------------------------------------------------------
 
 
 class MongoDBSourceNative(DataSource):
-    """A MongoDB data source for the native offline store.
+    """MongoDB data source for the native (Atlas-first) offline store.
 
-    Unlike many data source implementations, this source does not map each
-    FeatureView to its own table or collection. Instead, all FeatureViews
-    share a single MongoDB collection (configured at the store level).
-
-    Each document in that collection includes a ``feature_view`` field that
-    identifies which FeatureView it belongs to. The ``name`` of this data
-    source corresponds to that value and is used to filter documents during
-    queries.
+    All feature views share a single collection.  The ``name`` of this source
+    doubles as the ``feature_view`` discriminator value stored in each document.
     """
 
     def __init__(
@@ -159,7 +198,6 @@ class MongoDBSourceNative(DataSource):
     ):
         if name is None:
             raise DataSourceNoNameException()
-
         super().__init__(
             name=name,
             timestamp_field=timestamp_field,
@@ -187,7 +225,7 @@ class MongoDBSourceNative(DataSource):
 
     @property
     def feature_view_name(self) -> str:
-        """The feature_view discriminator value (same as source name)."""
+        """The feature_view discriminator value stored in each document."""
         return self.name
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
@@ -210,7 +248,10 @@ class MongoDBSourceNative(DataSource):
         return DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
-            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_native.MongoDBSourceNative",
+            data_source_class_type=(
+                "feast.infra.offline_stores.contrib.mongodb_offline_store"
+                ".mongodb_native.MongoDBSourceNative"
+            ),
             field_mapping=self.field_mapping,
             custom_options=DataSourceProto.CustomSourceOptions(
                 configuration=json.dumps({"feature_view": self.name}).encode()
@@ -235,32 +276,30 @@ class MongoDBSourceNative(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        """Sample documents to infer feature names and types.
-
-        Queries documents matching this source's feature_view name and
-        inspects the ``features`` subdocument to determine schema.
-        """
+        """Sample documents to infer feature names and types."""
         if MongoClient is None:
             raise FeastExtrasDependencyImportError(
                 "mongodb", "pymongo is not installed."
             )
-        connection_string = config.offline_store.connection_string
-        db_name = config.offline_store.database
-        collection_name = config.offline_store.collection
-        client: Any = MongoClient(connection_string, driver=DRIVER_METADATA)
+        client: Any = MongoClient(
+            config.offline_store.connection_string, driver=DRIVER_METADATA
+        )
         try:
             pipeline = [
                 {"$match": {"feature_view": self.name}},
                 {"$sample": {"size": 100}},
             ]
-            docs = list(client[db_name][collection_name].aggregate(pipeline))
+            docs = list(
+                client[config.offline_store.database][
+                    config.offline_store.collection
+                ].aggregate(pipeline)
+            )
         finally:
             client.close()
 
         field_type_counts: Dict[str, Dict[str, int]] = {}
         for doc in docs:
-            features = doc.get("features", {})
-            for field, value in features.items():
+            for field, value in doc.get("features", {}).items():
                 type_str = _infer_python_type_str(value)
                 if type_str is None:
                     continue
@@ -275,54 +314,62 @@ class MongoDBSourceNative(DataSource):
         ]
 
 
-def _infer_python_type_str(value: Any) -> Optional[str]:
-    """Infer a Feast-compatible type string from a Python value."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return "bool"
-    if isinstance(value, int):
-        return "int"
-    if isinstance(value, float):
-        return "float"
-    if isinstance(value, str):
-        return "str"
-    if isinstance(value, bytes):
-        return "bytes"
-    if isinstance(value, datetime):
-        return "datetime"
-    if isinstance(value, list):
-        if not value:
-            return "list[str]"
-        elem_type = _infer_python_type_str(value[0])
-        if elem_type:
-            return f"list[{elem_type}]"
-        return "list[str]"
-    return None
+# ---------------------------------------------------------------------------
+# SavedDataset storage
+# ---------------------------------------------------------------------------
 
 
-def _fetch_documents(
-    client: Any,
-    database: str,
-    collection: str,
-    pipeline: List[Dict],
-) -> List[Dict]:
-    """Execute an aggregation pipeline and return documents."""
-    return list(client[database][collection].aggregate(pipeline))
+class SavedDatasetMongoDBStorageNative(SavedDatasetStorage):
+    """Persists a SavedDataset as a flat MongoDB collection (native store)."""
+
+    _proto_attr_name = "custom_storage"
+
+    def __init__(self, database: str, collection: str):
+        self._database = database
+        self._collection = collection
+
+    @staticmethod
+    def from_proto(
+        storage_proto: SavedDatasetStorageProto,
+    ) -> "SavedDatasetMongoDBStorageNative":
+        config = json.loads(storage_proto.custom_storage.configuration)
+        return SavedDatasetMongoDBStorageNative(
+            database=config["database"],
+            collection=config["collection"],
+        )
+
+    def to_proto(self) -> SavedDatasetStorageProto:
+        return SavedDatasetStorageProto(
+            custom_storage=DataSourceProto.CustomSourceOptions(
+                configuration=json.dumps(
+                    {"database": self._database, "collection": self._collection}
+                ).encode()
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return MongoDBSourceNative(name=self._collection)
+
+
+# ---------------------------------------------------------------------------
+# RetrievalJob
+# ---------------------------------------------------------------------------
 
 
 class MongoDBNativeRetrievalJob(RetrievalJob):
-    """Retrieval job for native MongoDB offline store queries."""
+    """Retrieval job for the native MongoDB offline store."""
 
     def __init__(
         self,
         query_fn: Callable[[], pyarrow.Table],
         full_feature_names: bool,
+        config: RepoConfig,
         on_demand_feature_views: Optional[List[Any]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
         self._query_fn = query_fn
         self._full_feature_names = full_feature_names
+        self._config = config
         self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
 
@@ -346,114 +393,170 @@ class MongoDBNativeRetrievalJob(RetrievalJob):
 
     def persist(
         self,
-        storage: Any,
+        storage: SavedDatasetStorage,
         allow_overwrite: bool = False,
         timeout: Optional[int] = None,
     ) -> None:
-        # TODO: Implement persist for native store
-        raise NotImplementedError("persist() not yet implemented for native store")
+        if not isinstance(storage, SavedDatasetMongoDBStorageNative):
+            raise ValueError(
+                f"MongoDBNativeRetrievalJob.persist expected "
+                f"SavedDatasetMongoDBStorageNative, got "
+                f"{type(storage).__name__!r}."
+            )
+        if MongoClient is None:
+            raise FeastExtrasDependencyImportError(
+                "mongodb", "pymongo is not installed."
+            )
+        db_name = storage._database or self._config.offline_store.database
+        coll_name = storage._collection
+        location = f"{db_name}.{coll_name}"
+
+        client: Any = MongoClient(
+            self._config.offline_store.connection_string,
+            driver=DRIVER_METADATA,
+            tz_aware=True,
+        )
+        try:
+            coll = client[db_name][coll_name]
+            if not allow_overwrite and coll.estimated_document_count() > 0:
+                raise SavedDatasetLocationAlreadyExists(location=location)
+            if allow_overwrite:
+                coll.drop()
+            records = self._to_arrow_internal().to_pylist()
+            if records:
+                coll.insert_many(records)
+        finally:
+            client.close()
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+
+def _infer_python_type_str(value: Any) -> Optional[str]:
+    """Infer a Feast-compatible type string from a Python value."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "bool"
+    if isinstance(value, int):
+        return "int"
+    if isinstance(value, float):
+        return "float"
+    if isinstance(value, str):
+        return "str"
+    if isinstance(value, bytes):
+        return "bytes"
+    if isinstance(value, datetime):
+        return "datetime"
+    if isinstance(value, list):
+        if not value:
+            return "list[str]"
+        elem_type = _infer_python_type_str(value[0])
+        return f"list[{elem_type}]" if elem_type else "list[str]"
+    return None
 
 
 def _serialize_entity_key_from_row(
-    row: pd.Series, join_keys: List[str], entity_key_serialization_version: int
+    row: pd.Series,
+    join_keys: List[str],
+    entity_key_serialization_version: int,
+    join_key_types: Optional[Dict[str, "ValueType"]] = None,
 ) -> bytes:
-    """Serialize entity key from a DataFrame row."""
+    """Serialize an entity key from a DataFrame row.
+
+    Args:
+        row: DataFrame row containing join key values.
+        join_keys: Names of the join key columns for this feature view.
+        entity_key_serialization_version: Version passed to serialize_entity_key.
+        join_key_types: Declared ValueType per join key, derived from
+            ``FeatureView.entity_columns``.  Required for correct INT32 vs
+            INT64 serialization.  Without it, all Python ``int`` values map
+            to ``int64_val``, silently mismatching stored INT32 entity keys.
+    """
     entity_key = EntityKeyProto()
     for key in sorted(join_keys):
         entity_key.join_keys.append(key)
         value = row[key]
         val = ValueProto()
-        if isinstance(value, int):
-            val.int64_val = value
-        elif isinstance(value, str):
-            val.string_val = value
-        elif isinstance(value, float):
-            val.double_val = value
+        if hasattr(value, "item"):
+            # Unwrap numpy scalars (numpy 2.0 broke isinstance(np.int64, int))
+            value = value.item()
+        declared_type = join_key_types.get(key) if join_key_types else None
+        if declared_type is not None:
+            if declared_type == ValueType.INT32:
+                val.int32_val = int(value)
+            elif declared_type == ValueType.INT64:
+                val.int64_val = int(value)
+            elif declared_type == ValueType.STRING:
+                val.string_val = str(value)
+            elif declared_type == ValueType.BYTES:
+                val.bytes_val = bytes(value)
+            elif declared_type == ValueType.UNIX_TIMESTAMP:
+                val.unix_timestamp_val = int(value)
         else:
-            val.string_val = str(value)
+            if isinstance(value, bool):
+                val.bool_val = value
+            elif isinstance(value, int):
+                val.int64_val = value
+            elif isinstance(value, str):
+                val.string_val = value
+            elif isinstance(value, float):
+                val.double_val = value
+            else:
+                val.string_val = str(value)
         entity_key.entity_values.append(val)
     return serialize_entity_key(entity_key, entity_key_serialization_version)
 
 
-def _ttl_to_ms(fv: FeatureView) -> Optional[int]:
-    """Convert FeatureView TTL to milliseconds."""
-    if fv.ttl is None:
-        return None
-    return int(fv.ttl.total_seconds() * 1000)
-
-
-def _build_ttl_gte_expr(feature_views: List[FeatureView]) -> Optional[Dict[str, Any]]:
-    """Build a $gte expression with per-FV TTL using $switch.
-
-    Returns a MongoDB expression that evaluates to:
-        event_timestamp >= (entity_timestamp - ttl_for_this_feature_view)
-
-    Each feature_view can have a different TTL, handled via $switch branches.
-    If no feature views have TTL, returns None (no filtering needed).
-    """
-    branches = []
-
-    for fv in feature_views:
-        ttl_ms = _ttl_to_ms(fv)
-        if ttl_ms is None:
-            # No TTL for this FV - skip (effectively infinite history)
-            continue
-
-        branches.append(
-            {
-                "case": {"$eq": ["$feature_view", fv.name]},
-                "then": {"$subtract": ["$$ts", ttl_ms]},
-            }
-        )
-
-    # If no TTLs at all, no lower bound needed
-    if not branches:
-        return None
-
-    return {
-        "$gte": [
-            "$event_timestamp",
-            {
-                "$switch": {
-                    "branches": branches,
-                    # Default: no lower bound (for FVs without TTL)
-                    "default": {"$literal": 0},
-                }
-            },
-        ]
-    }
+# ---------------------------------------------------------------------------
+# Offline store
+# ---------------------------------------------------------------------------
 
 
 class MongoDBOfflineStoreNative(OfflineStore):
-    """Native MongoDB offline store using single-collection schema.
+    """Atlas-first MongoDB offline store using a single shared collection.
 
-    All feature views share one collection (``feature_history``), with documents
-    containing:
-    - ``entity_id``: serialized entity key (bytes)
-    - ``feature_view``: field matching FeatureView name
-    - ``features``: subdocument with feature name/value pairs
-    - ``event_timestamp``: event time
-    - ``created_at``: ingestion time
+    All computation — sorting, grouping, TTL filtering, and the point-in-time
+    join — runs as a MongoDB aggregation pipeline on the Atlas cluster.  The
+    client serializes entity keys, constructs the pipeline, and assembles the
+    final flat DataFrame from the matched feature documents returned by Atlas.
+
+    Requires MongoDB 5.1+ for the ``$documents`` aggregation stage.
     """
-
-    _index_initialized: bool = False
 
     @staticmethod
     def _ensure_indexes(client: Any, db_name: str, collection_name: str) -> None:
-        """Create recommended indexes on the feature_history collection."""
+        """Create the compound index that covers all query patterns.
+
+        The four-key index satisfies:
+          - pull_latest:  sort {entity_id, event_timestamp DESC, created_at DESC}
+            after an equality match on feature_view.
+          - get_historical_features: $lookup subpipeline match on entity_id
+            (equality) + feature_view (equality) + event_timestamp (range),
+            then sort by event_timestamp DESC, created_at DESC.
+        """
         collection = client[db_name][collection_name]
+        target_key = [
+            ("entity_id", 1),
+            ("feature_view", 1),
+            ("event_timestamp", -1),
+            ("created_at", -1),
+        ]
+        existing = collection.index_information()
+        for idx_info in existing.values():
+            if idx_info.get("key") == target_key:
+                return
         collection.create_index(
-            [
-                ("entity_id", 1),
-                ("feature_view", 1),
-                ("event_timestamp", -1),
-            ],
+            target_key,
             name="entity_fv_ts_idx",
+            background=True,
         )
 
-    @classmethod
-    def _get_client_and_ensure_indexes(cls, config: RepoConfig) -> Any:
-        """Get a MongoClient and ensure indexes exist (once per process)."""
+    @staticmethod
+    def _get_client_and_ensure_indexes(config: RepoConfig) -> Any:
+        """Return a MongoClient, creating the compound index once per process."""
         if MongoClient is None:
             raise FeastExtrasDependencyImportError(
                 "mongodb", "pymongo is not installed."
@@ -461,16 +564,132 @@ class MongoDBOfflineStoreNative(OfflineStore):
         client: Any = MongoClient(
             config.offline_store.connection_string, driver=DRIVER_METADATA
         )
-
-        if not cls._index_initialized:
-            cls._ensure_indexes(
+        cache_key = (
+            config.offline_store.connection_string,
+            config.offline_store.database,
+            config.offline_store.collection,
+        )
+        if cache_key not in _indexes_ensured:
+            MongoDBOfflineStoreNative._ensure_indexes(
                 client,
                 config.offline_store.database,
                 config.offline_store.collection,
             )
-            cls._index_initialized = True
-
+            _indexes_ensured.add(cache_key)
         return client
+
+    # ------------------------------------------------------------------
+    # Write path
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        """Append a batch of feature observations to the feature_history collection.
+
+        Each row in ``table`` becomes one document.  Multiple documents for the
+        same (entity_id, feature_view, event_timestamp) are kept; corrections
+        win by having a later created_at.
+        """
+        if not isinstance(feature_view.batch_source, MongoDBSourceNative):
+            raise ValueError(
+                f"MongoDBOfflineStoreNative.offline_write_batch expected a "
+                f"MongoDBSourceNative batch source, got "
+                f"{type(feature_view.batch_source).__name__!r}."
+            )
+
+        entity_key_version = config.entity_key_serialization_version
+        db_name = config.offline_store.database
+        collection_name = config.offline_store.collection
+
+        # Derive join key names and declared types from entity_columns so that
+        # INT32 entities produce int32_val bytes, matching the read path.
+        join_key_types: Dict[str, ValueType] = {
+            feature_view.projection.join_key_map.get(
+                ec.name, ec.name
+            ): ec.dtype.to_value_type()
+            for ec in feature_view.entity_columns
+        }
+        join_keys = list(join_key_types.keys())
+
+        timestamp_field = feature_view.batch_source.timestamp_field
+        created_ts_col: Optional[str] = (
+            feature_view.batch_source.created_timestamp_column or None
+        )
+        reserved = set(join_keys) | {timestamp_field}
+        if created_ts_col:
+            reserved.add(created_ts_col)
+        feature_cols = [c for c in table.column_names if c not in reserved]
+
+        df = table.to_pandas()
+
+        for ts_col in [timestamp_field] + ([created_ts_col] if created_ts_col else []):
+            if ts_col in df.columns:
+                if not pd.api.types.is_datetime64_any_dtype(df[ts_col]):
+                    df[ts_col] = pd.to_datetime(df[ts_col], utc=True)
+                elif df[ts_col].dt.tz is None:
+                    df[ts_col] = df[ts_col].dt.tz_localize("UTC")
+
+        df["_entity_id"] = df.apply(
+            lambda row: _serialize_entity_key_from_row(
+                row, join_keys, entity_key_version, join_key_types
+            ),
+            axis=1,
+        )
+
+        now = datetime.now(tz=timezone.utc)
+        docs = []
+        for _, row in df.iterrows():
+            features: Dict[str, Any] = {}
+            for col in feature_cols:
+                val = row[col]
+                if pd.isna(val):
+                    continue
+                if hasattr(val, "item"):
+                    val = val.item()
+                features[col] = val
+
+            created_at = now
+            if created_ts_col and created_ts_col in df.columns:
+                ct = row[created_ts_col]
+                if not pd.isna(ct):
+                    created_at = (
+                        ct.to_pydatetime() if hasattr(ct, "to_pydatetime") else ct
+                    )
+
+            docs.append(
+                {
+                    "entity_id": row["_entity_id"],
+                    "feature_view": feature_view.name,
+                    "features": features,
+                    "event_timestamp": (
+                        row[timestamp_field].to_pydatetime()
+                        if hasattr(row[timestamp_field], "to_pydatetime")
+                        else row[timestamp_field]
+                    ),
+                    "created_at": created_at,
+                }
+            )
+
+        client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
+        try:
+            coll = client[db_name][collection_name]
+            BATCH_SIZE = 10_000
+            for i in range(0, len(docs), BATCH_SIZE):
+                batch = docs[i : i + BATCH_SIZE]
+                coll.insert_many(batch, ordered=False)
+                if progress:
+                    progress(len(batch))
+        finally:
+            client.close()
+
+    # ------------------------------------------------------------------
+    # Read path — materialization helpers
+    # ------------------------------------------------------------------
 
     @staticmethod
     def pull_latest_from_table_or_query(
@@ -483,6 +702,10 @@ class MongoDBOfflineStoreNative(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        """Return the most recent feature document per entity within [start, end].
+
+        Used by the materialization engine to populate the online store.
+        """
         if not isinstance(data_source, MongoDBSourceNative):
             raise ValueError(
                 f"MongoDBOfflineStoreNative expected MongoDBSourceNative, "
@@ -496,11 +719,9 @@ class MongoDBOfflineStoreNative(OfflineStore):
         db_name = config.offline_store.database
         collection = config.offline_store.collection
         feature_view_name = data_source.feature_view_name
-
         start_utc = start_date.astimezone(tz=timezone.utc)
         end_utc = end_date.astimezone(tz=timezone.utc)
 
-        # Build projection to flatten features subdoc to top-level fields
         project_stage: Dict[str, Any] = {
             "_id": 0,
             "entity_id": "$doc.entity_id",
@@ -511,7 +732,8 @@ class MongoDBOfflineStoreNative(OfflineStore):
         for feat in feature_name_columns:
             project_stage[feat] = f"$doc.features.{feat}"
 
-        # Build aggregation pipeline
+        # entity_id leads the sort so the compound index backs the entire stage.
+        # created_at tiebreaks corrections sharing the same event_timestamp.
         pipeline: List[Dict[str, Any]] = [
             {
                 "$match": {
@@ -520,22 +742,18 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 }
             },
             {"$sort": {"entity_id": 1, "event_timestamp": -1, "created_at": -1}},
-            {
-                "$group": {
-                    "_id": "$entity_id",
-                    "doc": {"$first": "$$ROOT"},
-                }
-            },
+            {"$group": {"_id": "$entity_id", "doc": {"$first": "$$ROOT"}}},
             {"$project": project_stage},
         ]
 
         def _run() -> pyarrow.Table:
             client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
             try:
-                docs = _fetch_documents(client, db_name, collection, pipeline)
+                docs = list(
+                    client[db_name][collection].aggregate(pipeline, allowDiskUse=True)
+                )
                 if not docs:
                     return pyarrow.Table.from_pydict({})
-
                 df = pd.DataFrame(docs)
                 if not df.empty and "event_timestamp" in df.columns:
                     if df["event_timestamp"].dt.tz is None:
@@ -546,7 +764,9 @@ class MongoDBOfflineStoreNative(OfflineStore):
             finally:
                 client.close()
 
-        return MongoDBNativeRetrievalJob(query_fn=_run, full_feature_names=False)
+        return MongoDBNativeRetrievalJob(
+            query_fn=_run, full_feature_names=False, config=config
+        )
 
     @staticmethod
     def pull_all_from_table_or_query(
@@ -559,6 +779,10 @@ class MongoDBOfflineStoreNative(OfflineStore):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
+        """Return all feature documents in the given time range without deduplication.
+
+        Used for bulk export and dataset generation.
+        """
         if not isinstance(data_source, MongoDBSourceNative):
             raise ValueError(
                 f"MongoDBOfflineStoreNative expected MongoDBSourceNative, "
@@ -573,7 +797,6 @@ class MongoDBOfflineStoreNative(OfflineStore):
         collection = config.offline_store.collection
         feature_view_name = data_source.feature_view_name
 
-        # Build match filter: feature_view + optional time range
         match_filter: Dict[str, Any] = {"feature_view": feature_view_name}
         if start_date or end_date:
             ts_filter: Dict[str, Any] = {}
@@ -583,8 +806,6 @@ class MongoDBOfflineStoreNative(OfflineStore):
                 ts_filter["$lte"] = end_date.astimezone(tz=timezone.utc)
             match_filter["event_timestamp"] = ts_filter
 
-        # Build projection: flatten features subdoc to top-level fields
-        # This uses $getField to extract each feature from the features subdoc
         project_stage: Dict[str, Any] = {
             "_id": 0,
             "entity_id": 1,
@@ -595,7 +816,6 @@ class MongoDBOfflineStoreNative(OfflineStore):
         for feat in feature_name_columns:
             project_stage[feat] = f"$features.{feat}"
 
-        # Simple range scan pipeline - no sorting for efficiency
         pipeline: List[Dict[str, Any]] = [
             {"$match": match_filter},
             {"$project": project_stage},
@@ -604,10 +824,11 @@ class MongoDBOfflineStoreNative(OfflineStore):
         def _run() -> pyarrow.Table:
             client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
             try:
-                docs = _fetch_documents(client, db_name, collection, pipeline)
+                docs = list(
+                    client[db_name][collection].aggregate(pipeline, allowDiskUse=True)
+                )
                 if not docs:
                     return pyarrow.Table.from_pydict({})
-
                 df = pd.DataFrame(docs)
                 if not df.empty and "event_timestamp" in df.columns:
                     if df["event_timestamp"].dt.tz is None:
@@ -618,7 +839,13 @@ class MongoDBOfflineStoreNative(OfflineStore):
             finally:
                 client.close()
 
-        return MongoDBNativeRetrievalJob(query_fn=_run, full_feature_names=False)
+        return MongoDBNativeRetrievalJob(
+            query_fn=_run, full_feature_names=False, config=config
+        )
+
+    # ------------------------------------------------------------------
+    # Read path — point-in-time join
+    # ------------------------------------------------------------------
 
     @staticmethod
     def get_historical_features(
@@ -630,6 +857,14 @@ class MongoDBOfflineStoreNative(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        """Perform a point-in-time join entirely on the Atlas cluster.
+
+        The entity DataFrame is injected into the aggregation pipeline via
+        ``$documents`` (MongoDB 5.1+).  One ``$lookup`` stage per feature view
+        performs the correlated PIT join on the server; no temp collection is
+        created.  Entity keys are serialized per-FV so that each feature view's
+        documents are matched using only that view's own join keys.
+        """
         if isinstance(entity_df, str):
             raise ValueError(
                 "MongoDBOfflineStoreNative does not support SQL entity_df strings. "
@@ -647,17 +882,37 @@ class MongoDBOfflineStoreNative(OfflineStore):
         entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
         event_timestamp_col = infer_event_timestamp_from_entity_df(entity_schema)
 
-        # Map "feature_view:feature" refs → {fv_name: [feature, ...]}
-        fv_to_features: Dict[str, List[str]] = {}
+        # Map "feature_view:feature_name" refs → {fv_name: [feature, ...]}
+        fv_to_features: Dict[str, List[str]] = defaultdict(list)
         for ref in feature_refs:
             fv_name, feat_name = ref.split(":", 1)
-            fv_to_features.setdefault(fv_name, []).append(feat_name)
+            fv_to_features[fv_name].append(feat_name)
 
-        fv_names = list(fv_to_features.keys())
+        fv_by_name = {fv.name: fv for fv in feature_views}
 
-        # Build per-FV TTL expression using $switch
-        relevant_fvs = [fv for fv in feature_views if fv.name in fv_to_features]
-        ttl_expr = _build_ttl_gte_expr(relevant_fvs)
+        # Per-FV join keys: using only each FV's own join keys is the critical
+        # invariant.  A driver_stats document is keyed by serialize({driver_id:
+        # 1001}); including customer_id in the key would produce bytes that
+        # never match any stored document.
+        fv_join_keys_by_name: Dict[str, List[str]] = {
+            fv.name: list(get_expected_join_keys(project, [fv], registry))
+            for fv in feature_views
+        }
+
+        # Declared ValueType per join key — required for INT32 vs INT64
+        # correctness (see _serialize_entity_key_from_row docstring).
+        fv_join_key_types_by_name: Dict[str, Dict[str, ValueType]] = {
+            fv.name: {
+                fv.projection.join_key_map.get(
+                    ec.name, ec.name
+                ): ec.dtype.to_value_type()
+                for ec in fv.entity_columns
+            }
+            for fv in feature_views
+        }
+
+        # Original entity columns (everything except the timestamp).
+        entity_columns = [c for c in entity_df.columns if c != event_timestamp_col]
 
         def _run() -> pyarrow.Table:
             if MongoClient is None:
@@ -665,130 +920,191 @@ class MongoDBOfflineStoreNative(OfflineStore):
                     "mongodb", "pymongo is not installed."
                 )
 
-            # Prepare entity_df: ensure timestamps are UTC and serialize entity keys
-            result = entity_df.copy()
-            if result[event_timestamp_col].dt.tz is None:
-                result[event_timestamp_col] = pd.to_datetime(
-                    result[event_timestamp_col], utc=True
+            # Work on a copy with a guaranteed 0-based integer index so that
+            # _row_idx stored in $documents == iloc position in result.
+            work = entity_df.copy()
+            work = work.reset_index(drop=True)
+
+            if not pd.api.types.is_datetime64_any_dtype(work[event_timestamp_col]):
+                work[event_timestamp_col] = pd.to_datetime(
+                    work[event_timestamp_col], utc=True
+                )
+            elif work[event_timestamp_col].dt.tz is None:
+                work[event_timestamp_col] = work[event_timestamp_col].dt.tz_localize(
+                    "UTC"
                 )
 
-            # Get join keys (all columns except event_timestamp)
-            entity_columns = [c for c in result.columns if c != event_timestamp_col]
-
-            # Serialize entity keys to bytes (same format as online store)
-            result["_entity_id"] = result.apply(
-                lambda row: _serialize_entity_key_from_row(
-                    row, entity_columns, entity_key_version
-                ),
-                axis=1,
-            )
-
-            # Build temp collection documents
-            temp_docs = []
-            for _, row in result.iterrows():
-                temp_docs.append(
-                    {
-                        "entity_id": row["_entity_id"],
-                        "event_timestamp": row[event_timestamp_col],
-                        "_row_idx": _,  # Preserve original order
-                    }
+            # Serialize per-FV entity keys once for the whole DataFrame.
+            # Column names use a prefix unlikely to clash with feature names.
+            for fv_name in fv_to_features:
+                join_keys = fv_join_keys_by_name[fv_name]
+                join_key_types = fv_join_key_types_by_name[fv_name]
+                work[f"__eid__{fv_name}"] = work.apply(
+                    lambda row, jk=join_keys, jkt=join_key_types: (
+                        _serialize_entity_key_from_row(row, jk, entity_key_version, jkt)
+                    ),
+                    axis=1,
                 )
-
-            # Create temporary collection for query
-            temp_collection_name = f"tmp_entity_df_{uuid.uuid4().hex[:12]}"
 
             client = MongoDBOfflineStoreNative._get_client_and_ensure_indexes(config)
             try:
                 db = client[db_name]
-                temp_collection = db[temp_collection_name]
-                temp_collection.insert_many(temp_docs)
+                all_output_rows: List[Dict[str, Any]] = []
 
-                # Build $lookup subpipeline with PIT join logic
-                # Match: entity_id, feature_view in list, event_timestamp <= entity.ts
-                match_conditions: List[Dict[str, Any]] = [
-                    {"$eq": ["$entity_id", "$$entity_id"]},
-                    {"$in": ["$feature_view", fv_names]},
-                    {"$lte": ["$event_timestamp", "$$ts"]},
-                ]
-                # Add per-FV TTL filter using $switch
-                if ttl_expr is not None:
-                    match_conditions.append(ttl_expr)
+                for chunk_start in range(0, len(work), _CHUNK_SIZE):
+                    chunk = work.iloc[chunk_start : chunk_start + _CHUNK_SIZE]
 
-                lookup_pipeline: List[Dict[str, Any]] = [
-                    {"$match": {"$expr": {"$and": match_conditions}}},
-                    {"$sort": {"feature_view": 1, "event_timestamp": -1}},
-                    {
-                        "$group": {
-                            "_id": "$feature_view",
-                            "doc": {"$first": "$$ROOT"},
+                    # Build the $documents array.  Each entry carries:
+                    #   _row_idx   – position in work (used to recover entity cols)
+                    #   _ts        – entity row's event_timestamp (PIT upper bound)
+                    #   _entity_ids – per-FV serialized key bytes
+                    documents: List[Dict[str, Any]] = []
+                    for row_idx, row in chunk.iterrows():
+                        ts = row[event_timestamp_col]
+                        if hasattr(ts, "to_pydatetime"):
+                            ts = ts.to_pydatetime()
+                        documents.append(
+                            {
+                                "_row_idx": int(row_idx),
+                                "_ts": ts,
+                                "_entity_ids": {
+                                    fv_name: row[f"__eid__{fv_name}"]
+                                    for fv_name in fv_to_features
+                                },
+                            }
+                        )
+
+                    # Build the pipeline: $documents + one $lookup per FV.
+                    #
+                    # Each $lookup:
+                    #   let   eid = $_entity_ids.<fv_name>   (Binary bytes)
+                    #         ts  = $_ts                     (datetime)
+                    #
+                    #   subpipeline:
+                    #     $match  entity_id == $$eid
+                    #             feature_view == <fv_name>   (equality → index)
+                    #             event_timestamp <= $$ts     (PIT upper bound)
+                    #             event_timestamp >= $$ts - ttl_ms  (optional)
+                    #     $sort   event_timestamp DESC, created_at DESC
+                    #     $limit  1                           (most recent doc)
+                    #     $project features only             (reduce transfer)
+                    pipeline: List[Dict[str, Any]] = [{"$documents": documents}]
+
+                    for fv_name, _features in fv_to_features.items():
+                        fv = fv_by_name.get(fv_name)
+                        match_exprs: List[Dict[str, Any]] = [
+                            {"$eq": ["$entity_id", "$$eid"]},
+                            {"$eq": ["$feature_view", fv_name]},
+                            {"$lte": ["$event_timestamp", "$$ts"]},
+                        ]
+                        if fv and fv.ttl:
+                            ttl_ms = int(fv.ttl.total_seconds() * 1000)
+                            match_exprs.append(
+                                {
+                                    "$gte": [
+                                        "$event_timestamp",
+                                        {"$subtract": ["$$ts", ttl_ms]},
+                                    ]
+                                }
+                            )
+
+                        pipeline.append(
+                            {
+                                "$lookup": {
+                                    "from": feature_collection,
+                                    "let": {
+                                        # Access the per-FV key from the
+                                        # _entity_ids subdocument.
+                                        "eid": f"$_entity_ids.{fv_name}",
+                                        "ts": "$_ts",
+                                    },
+                                    "pipeline": [
+                                        {"$match": {"$expr": {"$and": match_exprs}}},
+                                        {
+                                            "$sort": {
+                                                "event_timestamp": -1,
+                                                "created_at": -1,
+                                            }
+                                        },
+                                        {"$limit": 1},
+                                        # Return only features — drop entity_id,
+                                        # feature_view, timestamps, and _id to
+                                        # minimise data transferred from Atlas.
+                                        {
+                                            "$project": {
+                                                "_id": 0,
+                                                "features": 1,
+                                            }
+                                        },
+                                    ],
+                                    "as": f"_match_{fv_name}",
+                                }
+                            }
+                        )
+
+                    # Drop _entity_ids before results cross the network.
+                    pipeline.append(
+                        {
+                            "$project": {
+                                "_id": 0,
+                                "_row_idx": 1,
+                                **{
+                                    f"_match_{fv_name}": 1 for fv_name in fv_to_features
+                                },
+                            }
                         }
-                    },
-                ]
+                    )
 
-                # Main aggregation pipeline
-                pipeline: List[Dict[str, Any]] = [
-                    {
-                        "$lookup": {
-                            "from": feature_collection,
-                            "let": {
-                                "entity_id": "$entity_id",
-                                "ts": "$event_timestamp",
-                            },
-                            "pipeline": lookup_pipeline,
-                            "as": "feature_rows",
-                        }
-                    },
-                    {"$sort": {"_row_idx": 1}},  # Preserve original order
-                ]
+                    # $documents pipelines run against the database, not a
+                    # specific collection.
+                    matched_docs = list(db.aggregate(pipeline, allowDiskUse=True))
 
-                docs = list(temp_collection.aggregate(pipeline))
+                    # Assemble flat output rows from the matched documents.
+                    for doc in matched_docs:
+                        row_idx = doc["_row_idx"]
+                        orig = work.iloc[row_idx]
+
+                        out: Dict[str, Any] = {}
+                        for col in entity_columns:
+                            val = orig[col]
+                            if hasattr(val, "item"):
+                                val = val.item()
+                            out[col] = val
+                        out[event_timestamp_col] = orig[event_timestamp_col]
+                        out["_row_idx"] = row_idx
+
+                        for fv_name, feats in fv_to_features.items():
+                            matches = doc.get(f"_match_{fv_name}", [])
+                            feat_doc = matches[0] if matches else None
+                            feat_values = (
+                                feat_doc.get("features", {}) if feat_doc else {}
+                            )
+                            for feat in feats:
+                                col_name = (
+                                    f"{fv_name}__{feat}" if full_feature_names else feat
+                                )
+                                out[col_name] = feat_values.get(feat)
+
+                        all_output_rows.append(out)
 
             finally:
-                # Cleanup temp collection
-                client[db_name][temp_collection_name].drop()
                 client.close()
 
-            if not docs:
-                return pyarrow.Table.from_pydict({})
+            # Restore original entity_df ordering.
+            all_output_rows.sort(key=lambda r: r["_row_idx"])
+            result_df = pd.DataFrame(all_output_rows)
+            result_df = result_df.drop(columns=["_row_idx"], errors="ignore")
 
-            # Build result DataFrame
-            result = result.reset_index(drop=True)
-            rows = []
-            for doc in docs:
-                # Start with entity columns from original entity_df
-                row_idx = doc["_row_idx"]
-                row = result.iloc[row_idx][
-                    entity_columns + [event_timestamp_col]
-                ].to_dict()
-
-                # Extract features from each feature_view's matched doc
-                feature_rows_by_fv = {
-                    fr["_id"]: fr["doc"] for fr in doc.get("feature_rows", [])
-                }
-
-                # Extract features from each feature_view's matched doc
-                # TTL is already applied server-side via $switch expression
-                for fv_name, features in fv_to_features.items():
-                    fv_doc = feature_rows_by_fv.get(fv_name)
-
-                    for feat in features:
-                        col_name = f"{fv_name}__{feat}" if full_feature_names else feat
-                        if fv_doc is None:
-                            row[col_name] = None
-                        else:
-                            row[col_name] = fv_doc.get("features", {}).get(feat)
-
-                rows.append(row)
-
-            result_df = pd.DataFrame(rows)
             if not result_df.empty and event_timestamp_col in result_df.columns:
                 if result_df[event_timestamp_col].dt.tz is None:
                     result_df[event_timestamp_col] = pd.to_datetime(
                         result_df[event_timestamp_col], utc=True
                     )
+
             return pyarrow.Table.from_pandas(result_df, preserve_index=False)
 
         return MongoDBNativeRetrievalJob(
             query_fn=_run,
             full_feature_names=full_feature_names,
+            config=config,
         )
