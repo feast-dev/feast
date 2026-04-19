@@ -657,11 +657,13 @@ class MongoDBOfflineStoreAgg(OfflineStore):
                     fv_df = fv_df.rename(columns={"entity_id": "_fv_entity_id"})
 
                     if "features" in fv_df.columns:
+                        # Expand features dict in one vectorized pass
+                        feat_expanded = pd.json_normalize(fv_df["features"].tolist())
                         for feat in features:
-                            fv_df[feat] = fv_df["features"].apply(
-                                lambda d, f=feat: (
-                                    d.get(f) if isinstance(d, dict) else None
-                                )
+                            fv_df[feat] = (
+                                feat_expanded[feat].values
+                                if feat in feat_expanded.columns
+                                else None
                             )
                         fv_df = fv_df.drop(columns=["features"])
 
@@ -671,36 +673,40 @@ class MongoDBOfflineStoreAgg(OfflineStore):
                         )
 
                     if scoring_path:
-                        # Dict-lookup join + post-filter
-                        ts_map: Dict[bytes, Any] = {
-                            bytes(r["_fv_entity_id"]): r["event_timestamp"]
-                            for _, r in fv_df.iterrows()
-                        }
-                        feat_map: Dict[bytes, Dict] = {}
-                        for _, r in fv_df.iterrows():
-                            eid = bytes(r["_fv_entity_id"])
-                            feat_map[eid] = {f: r.get(f) for f in features}
+                        # Vectorized join: merge fv_df onto result by entity_id,
+                        # then null out rows where the server returned a doc that
+                        # is too recent (max_ts approximation) or TTL-stale.
+                        fv_join_cols = ["_fv_entity_id", "event_timestamp"] + [
+                            f for f in features if f in fv_df.columns
+                        ]
+                        fv_join = fv_df[fv_join_cols].rename(
+                            columns={"event_timestamp": "_fv_ts"}
+                        )
+                        # left merge: entities with no match get NaN features
+                        merged = result[["_fv_entity_id", event_timestamp_col]].merge(
+                            fv_join, on="_fv_entity_id", how="left"
+                        )
+
+                        # Mask: fv doc is in the future relative to entity request
+                        # time (max_ts overshoot) or outside TTL window.
+                        future_mask = merged["_fv_ts"] > merged[event_timestamp_col]
+                        if fv and fv.ttl:
+                            ttl_mask = merged["_fv_ts"] < (
+                                merged[event_timestamp_col] - fv.ttl
+                            )
+                            bad_mask = future_mask | ttl_mask
+                        else:
+                            bad_mask = future_mask
 
                         for feat in features:
                             col = f"{fv_name}__{feat}" if full_feature_names else feat
-                            result[col] = result.apply(
-                                lambda row, f=feat: (
-                                    feat_map.get(bytes(row["_fv_entity_id"]), {}).get(f)
-                                    if (
-                                        bytes(row["_fv_entity_id"]) in ts_map
-                                        and ts_map[bytes(row["_fv_entity_id"])]
-                                        <= row[event_timestamp_col]
-                                        and (
-                                            fv is None
-                                            or fv.ttl is None
-                                            or ts_map[bytes(row["_fv_entity_id"])]
-                                            >= row[event_timestamp_col] - fv.ttl
-                                        )
-                                    )
-                                    else None
-                                ),
-                                axis=1,
+                            vals = (
+                                merged[feat].copy()
+                                if feat in merged.columns
+                                else pd.Series([None] * len(merged), dtype=object)
                             )
+                            vals[bad_mask | merged["_fv_ts"].isna()] = None
+                            result[col] = vals.values
                     else:
                         # merge_asof path (training data)
                         result = result.sort_values(event_timestamp_col).reset_index(

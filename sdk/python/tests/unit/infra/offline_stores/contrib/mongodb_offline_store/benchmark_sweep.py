@@ -316,6 +316,14 @@ def _seed_benchmark(
     return now
 
 
+_COMPOUND_IDX = [
+    ("entity_id", 1),
+    ("feature_view", 1),
+    ("event_timestamp", -1),
+    ("created_at", -1),
+]
+
+
 def _reset_and_seed(
     client: MongoClient,
     fv_names: List[str],
@@ -323,14 +331,21 @@ def _reset_and_seed(
     num_features: int,
     rows_per_entity: int,
 ) -> datetime:
-    """Drop benchmark collections, then seed fresh data for this run."""
+    """Drop benchmark collections, seed fresh data, then build index.
+
+    The compound index is created AFTER seeding so that the bulk insert is
+    not slowed by incremental index maintenance.  All four implementations
+    share this index; building it once here means the first benchmark query
+    never has to wait for a concurrent background index build.
+    """
     db = client[BENCH_DB]
     db[BENCH_FH].drop()
     for fv_name in fv_names:
         db[fv_name].drop()
-    return _seed_benchmark(
-        client, fv_names, num_entities, num_features, rows_per_entity
-    )
+    now = _seed_benchmark(client, fv_names, num_entities, num_features, rows_per_entity)
+    # Build the compound index synchronously so queries are never forced to scan.
+    db[BENCH_FH].create_index(_COMPOUND_IDX, name="entity_fv_ts_idx")
+    return now
 
 
 # ---------------------------------------------------------------------------
