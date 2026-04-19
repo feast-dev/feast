@@ -66,6 +66,11 @@ from testcontainers.mongodb import MongoDbContainer
 
 from feast import Entity, FeatureView, Field
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_agg import (
+    MongoDBOfflineStoreAgg,
+    MongoDBOfflineStoreAggConfig,
+    MongoDBSourceAgg,
+)
 from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_many import (
     MongoDBOfflineStoreMany,
     MongoDBOfflineStoreManyConfig,
@@ -218,6 +223,20 @@ ALL_IMPLS: List[StoreImpl] = [
             database=BENCH_DB,
             collection=fv_name,
             timestamp_field="event_timestamp",
+        ),
+    ),
+    StoreImpl(
+        id="agg",
+        store_class=MongoDBOfflineStoreAgg,
+        make_offline_config=lambda conn: MongoDBOfflineStoreAggConfig(
+            connection_string=conn,
+            database=BENCH_DB,
+            collection=BENCH_FH,
+        ),
+        make_source=lambda fv_name: MongoDBSourceAgg(
+            name=fv_name,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_at",
         ),
     ),
 ]
@@ -537,7 +556,7 @@ _COL_W = 13  # column width per implementation in the table
 
 def _print_table(test: str, params: Dict, results: Dict[str, BenchResult]) -> None:
     """Print a side-by-side results table to stdout."""
-    impl_ids = [impl.id for impl in ALL_IMPLS]
+    impl_ids = list(results.keys())
     N = params.get("N", 0)
 
     title = (
@@ -632,7 +651,12 @@ def _append_csv(test: str, params: Dict, results: Dict[str, BenchResult]) -> Non
 
 
 @pytest.fixture(scope="module")
-def mongodb_container() -> Generator[MongoDbContainer, None, None]:
+def mongodb_container() -> Generator[Optional[MongoDbContainer], None, None]:
+    import os
+
+    if os.environ.get("MONGODB_URI"):
+        yield None  # external cluster — no container needed
+        return
     container = MongoDbContainer(
         "mongo:latest",
         username="test",
@@ -644,7 +668,13 @@ def mongodb_container() -> Generator[MongoDbContainer, None, None]:
 
 
 @pytest.fixture
-def conn_str(mongodb_container: MongoDbContainer) -> str:
+def conn_str(mongodb_container: Optional[MongoDbContainer]) -> str:
+    import os
+
+    uri = os.environ.get("MONGODB_URI")
+    if uri:
+        return uri
+    assert mongodb_container is not None
     port = mongodb_container.get_exposed_port(27017)
     return f"mongodb://test:test@localhost:{port}"  # pragma: allowlist secret
 
