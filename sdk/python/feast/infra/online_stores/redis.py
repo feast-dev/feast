@@ -109,6 +109,8 @@ class RedisOnlineStore(OnlineStore):
         None
     )
 
+    supports_versioned_online_reads = True
+
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
         deleted_count = 0

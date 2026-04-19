@@ -91,5 +91,16 @@ def online_store_table_id(
     return f"{project}_{name}"
 
 
+def compute_versioned_name(table: FeatureView, enable_versioning: bool = False) -> str:
+    name = table.name
+    if enable_versioning:
+        version = getattr(table.projection, "version_tag", None)
+        if version is None:
+            version = getattr(table, "current_version_number", None)
+        if version is not None and version > 0:
+            name = f"{table.name}_v{version}"
+    return name
+
+
 def compute_table_id(project: str, table: Any, enable_versioning: bool = False) -> str:
     return online_store_table_id(project, table, enable_versioning)
