@@ -57,6 +57,12 @@ def monitor_cmd():
     default=False,
     help="Mark this computation as the baseline for drift detection.",
 )
+@click.option(
+    "--source-type",
+    type=click.Choice(["batch", "log", "all"]),
+    default="batch",
+    help="Data source type: 'batch' (offline store), 'log' (serving logs), or 'all'.",
+)
 @click.pass_context
 def monitor_run(
     ctx: click.Context,
@@ -67,11 +73,15 @@ def monitor_run(
     end_date: Optional[str],
     granularity: Optional[str],
     set_baseline: bool,
+    source_type: str,
 ):
     """Compute feature quality metrics.
 
     Without --start-date/--end-date/--granularity, runs in auto mode:
     detects date ranges from source data and computes all granularities.
+
+    Use --source-type log to compute metrics from feature serving logs
+    (requires feature services with logging configured).
     """
     store = create_feature_store(ctx)
 
@@ -85,8 +95,44 @@ def monitor_run(
     auto_mode = start_date is None and end_date is None and granularity is None
     feat_names: Optional[List[str]] = list(feature_name) if feature_name else None
 
+    if source_type in ("batch", "all"):
+        _run_batch_monitoring(
+            svc,
+            project,
+            feature_view,
+            feat_names,
+            start_date,
+            end_date,
+            granularity,
+            set_baseline,
+            auto_mode,
+        )
+
+    if source_type in ("log", "all"):
+        _run_log_monitoring(
+            svc,
+            project,
+            feature_view,
+            start_date,
+            end_date,
+            granularity,
+            auto_mode,
+        )
+
+
+def _run_batch_monitoring(
+    svc,
+    project,
+    feature_view,
+    feat_names,
+    start_date,
+    end_date,
+    granularity,
+    set_baseline,
+    auto_mode,
+):
     if auto_mode and not set_baseline:
-        click.echo("Auto-computing metrics for all granularities...")
+        click.echo("Auto-computing batch metrics for all granularities...")
         result = svc.auto_compute(
             project=project,
             feature_view_name=feature_view,
@@ -120,3 +166,41 @@ def monitor_run(
 
         if set_baseline:
             click.echo("Baseline: SET")
+
+
+def _run_log_monitoring(
+    svc, project, feature_service_name, start_date, end_date, granularity, auto_mode
+):
+    if auto_mode:
+        click.echo("Auto-computing log metrics for all granularities...")
+        result = svc.auto_compute_log_metrics(
+            project=project,
+            feature_service_name=feature_service_name,
+        )
+        click.echo(f"Status: {result['status']}")
+        click.echo(f"Feature services computed: {result['computed_feature_services']}")
+        click.echo(f"Features computed: {result['computed_features']}")
+        click.echo(f"Granularities: {', '.join(result['granularities'])}")
+        click.echo(f"Duration: {result['duration_ms']}ms")
+    else:
+        if not feature_service_name:
+            click.echo(
+                "Error: --feature-view (as feature service name) is required for log source with explicit dates."
+            )
+            return
+
+        start_d = date.fromisoformat(start_date) if start_date else None
+        end_d = date.fromisoformat(end_date) if end_date else None
+
+        result = svc.compute_log_metrics(
+            project=project,
+            feature_service_name=feature_service_name,
+            start_date=start_d,
+            end_date=end_d,
+            granularity=granularity or "daily",
+        )
+
+        click.echo(f"Status: {result['status']}")
+        click.echo("Source: log")
+        click.echo(f"Features computed: {result.get('computed_features', 0)}")
+        click.echo(f"Duration: {result['duration_ms']}ms")

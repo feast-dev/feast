@@ -1,8 +1,10 @@
 import logging
 import time
+from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from feast.feature_logging import LOG_TIMESTAMP_FIELD, FeatureServiceLoggingSource
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.monitoring.dqm_job_manager import DQMJobManager
 from feast.monitoring.metrics_calculator import MetricsCalculator
@@ -118,6 +120,163 @@ class MonitoringService:
         return {
             "status": "completed",
             "computed_feature_views": total_views,
+            "computed_features": total_features,
+            "granularities": sorted(granularities_computed),
+            "duration_ms": duration_ms,
+        }
+
+    # ------------------------------------------------------------------ #
+    #  Log source: compute metrics from feature serving logs
+    # ------------------------------------------------------------------ #
+
+    def compute_log_metrics(
+        self,
+        project: str,
+        feature_service_name: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        granularity: str = "daily",
+        set_baseline: bool = False,
+    ) -> Dict[str, Any]:
+        """Compute monitoring metrics from feature serving logs.
+
+        Requires the feature service to have a logging_config with a
+        LoggingDestination that can be converted to a DataSource.
+        """
+        self._ensure_monitoring_tables()
+        if granularity not in VALID_GRANULARITIES:
+            raise ValueError(
+                f"Invalid granularity '{granularity}'. "
+                f"Must be one of {VALID_GRANULARITIES}"
+            )
+
+        start_time = time.time()
+        start_dt, end_dt = self._to_date_range(start_date, end_date)
+
+        if project is None:
+            project = self._store.config.project
+
+        fs = self._store.registry.get_feature_service(
+            name=feature_service_name, project=project
+        )
+        log_source = self._resolve_log_source(fs)
+        if log_source is None:
+            return {
+                "status": "skipped",
+                "reason": f"Feature service '{feature_service_name}' has no logging configured",
+                "duration_ms": int((time.time() - start_time) * 1000),
+            }
+
+        data_source, ts_field, feature_fields, log_col_map = log_source
+        metrics_list = self._compute_from_source(
+            data_source,
+            ts_field,
+            feature_fields,
+            start_dt,
+            end_dt,
+        )
+
+        now = datetime.now(timezone.utc)
+        metric_date = start_dt.date()
+
+        self._save_log_metrics(
+            project=project,
+            feature_service_name=feature_service_name,
+            log_col_map=log_col_map,
+            metrics_list=metrics_list,
+            metric_date=metric_date,
+            granularity=granularity,
+            set_baseline=set_baseline,
+            now=now,
+        )
+
+        duration_ms = int((time.time() - start_time) * 1000)
+        return {
+            "status": "completed",
+            "data_source_type": "log",
+            "feature_service_name": feature_service_name,
+            "granularity": granularity,
+            "computed_features": len(metrics_list),
+            "metric_date": metric_date.isoformat(),
+            "duration_ms": duration_ms,
+        }
+
+    def auto_compute_log_metrics(
+        self,
+        project: Optional[str] = None,
+        feature_service_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Auto-detect date ranges from log data and compute all granularities."""
+        start_time = time.time()
+        self._ensure_monitoring_tables()
+        if project is None:
+            project = self._store.config.project
+
+        if feature_service_name:
+            services = [
+                self._store.registry.get_feature_service(
+                    name=feature_service_name, project=project
+                )
+            ]
+        else:
+            services = self._store.registry.list_feature_services(project=project)
+
+        total_features = 0
+        total_services = 0
+        granularities_computed: set = set()
+
+        for fs in services:
+            try:
+                log_source = self._resolve_log_source(fs)
+                if log_source is None:
+                    continue
+
+                data_source, ts_field, feature_fields, log_col_map = log_source
+
+                max_ts = self._get_max_timestamp_for_source(data_source, ts_field)
+                if max_ts is None:
+                    logger.warning(
+                        "No log data found for feature service '%s', skipping",
+                        fs.name,
+                    )
+                    continue
+
+                now = datetime.now(timezone.utc)
+
+                for gran, window in GRANULARITY_WINDOWS.items():
+                    window_start = max_ts - window
+                    metrics_list = self._compute_from_source(
+                        data_source,
+                        ts_field,
+                        feature_fields,
+                        window_start,
+                        max_ts,
+                    )
+                    self._save_log_metrics(
+                        project=project,
+                        feature_service_name=fs.name,
+                        log_col_map=log_col_map,
+                        metrics_list=metrics_list,
+                        metric_date=window_start.date(),
+                        granularity=gran,
+                        set_baseline=False,
+                        now=now,
+                    )
+                    total_features += len(metrics_list)
+                    granularities_computed.add(gran)
+
+                total_services += 1
+            except Exception:
+                logger.exception(
+                    "Failed to auto-compute log metrics for feature service '%s'",
+                    fs.name,
+                )
+
+        duration_ms = int((time.time() - start_time) * 1000)
+        return {
+            "status": "completed",
+            "data_source_type": "log",
+            "computed_feature_services": total_services,
             "computed_features": total_features,
             "granularities": sorted(granularities_computed),
             "duration_ms": duration_ms,
@@ -812,6 +971,257 @@ class MonitoringService:
         )
 
         return {"feature_count": len(metrics_list), "dates": {metric_date}}
+
+    # ------------------------------------------------------------------ #
+    #  Private: log source helpers
+    # ------------------------------------------------------------------ #
+
+    def _resolve_log_source(self, feature_service):
+        """Resolve log data source for a feature service.
+
+        Returns (DataSource, timestamp_field, feature_fields, log_col_map)
+        or None if the feature service has no logging configured.
+
+        ``feature_fields`` uses the raw log column names (needed for
+        SQL/PyArrow column access).  ``log_col_map`` maps each raw log
+        column to ``(feature_view_name, normalized_feature_name)`` so
+        callers can store metrics under the correct view and feature
+        name — critical for drift detection across batch and log sources.
+        """
+        if not feature_service.logging_config:
+            return None
+
+        destination = feature_service.logging_config.destination
+        try:
+            data_source = destination.to_data_source()
+        except NotImplementedError:
+            logger.warning(
+                "Logging destination for '%s' does not support to_data_source()",
+                feature_service.name,
+            )
+            return None
+
+        logging_source = FeatureServiceLoggingSource(
+            feature_service,
+            self._store.config.project,
+        )
+        schema = logging_source.get_schema(self._store.registry)
+
+        skip_cols = {
+            LOG_TIMESTAMP_FIELD,
+            "__log_date",
+            "__request_id",
+        }
+        entity_columns = set()
+        view_feature_names: dict = {}
+        for proj in feature_service.feature_view_projections:
+            view_alias = proj.name_to_use()
+            try:
+                fv = self._store.registry.get_feature_view(
+                    name=proj.name, project=self._store.config.project
+                )
+                for ec in fv.entity_columns:
+                    entity_columns.add(ec.name)
+            except Exception:
+                pass
+            for feat in proj.features:
+                log_col = f"{view_alias}__{feat.name}"
+                view_feature_names[log_col] = (proj.name, feat.name)
+
+        feature_fields = []
+        log_col_map: dict = {}
+        for field in schema:
+            if field.name in skip_cols or field.name in entity_columns:
+                continue
+            if field.name.endswith("__timestamp") or field.name.endswith("__status"):
+                continue
+            ftype = MetricsCalculator.classify_feature_arrow(field.type)
+            if ftype is not None:
+                feature_fields.append((field.name, ftype))
+                if field.name in view_feature_names:
+                    log_col_map[field.name] = view_feature_names[field.name]
+
+        if not feature_fields:
+            return None
+
+        return data_source, LOG_TIMESTAMP_FIELD, feature_fields, log_col_map
+
+    def _get_max_timestamp_for_source(self, data_source, ts_field):
+        """Get MAX timestamp from an arbitrary data source."""
+        provider = self._store._get_provider()
+        offline_store = provider.offline_store
+        try:
+            return offline_store.get_monitoring_max_timestamp(
+                config=self._store.config,
+                data_source=data_source,
+                timestamp_field=ts_field,
+            )
+        except NotImplementedError:
+            return self._get_max_timestamp_for_source_fallback(
+                data_source,
+                ts_field,
+            )
+
+    def _get_max_timestamp_for_source_fallback(self, data_source, ts_field):
+        """Pull data and compute max timestamp in Python (fallback)."""
+        import pyarrow.compute as pc
+
+        provider = self._store._get_provider()
+        offline_store = provider.offline_store
+
+        retrieval_job = offline_store.pull_all_from_table_or_query(
+            config=self._store.config,
+            data_source=data_source,
+            join_key_columns=[],
+            feature_name_columns=[],
+            timestamp_field=ts_field,
+            start_date=_EPOCH,
+            end_date=_FAR_FUTURE,
+        )
+
+        table = retrieval_job.to_arrow()
+        if ts_field not in table.column_names or len(table) == 0:
+            return None
+
+        max_val = pc.max(table.column(ts_field)).as_py()
+        if max_val is None:
+            return None
+
+        if isinstance(max_val, datetime):
+            return max_val if max_val.tzinfo else max_val.replace(tzinfo=timezone.utc)
+        return datetime.combine(max_val, datetime.min.time(), tzinfo=timezone.utc)
+
+    def _compute_from_source(
+        self,
+        data_source,
+        ts_field: str,
+        feature_fields: List[Tuple[str, str]],
+        start_dt: datetime,
+        end_dt: datetime,
+    ) -> List[Dict[str, Any]]:
+        """Compute metrics from an arbitrary data source (batch or log)."""
+        provider = self._store._get_provider()
+        offline_store = provider.offline_store
+        try:
+            return offline_store.compute_monitoring_metrics(
+                config=self._store.config,
+                data_source=data_source,
+                feature_columns=feature_fields,
+                timestamp_field=ts_field,
+                start_date=start_dt,
+                end_date=end_dt,
+                histogram_bins=self._calculator.histogram_bins,
+                top_n=self._calculator.top_n,
+            )
+        except NotImplementedError:
+            logger.debug(
+                "Offline store does not support compute_monitoring_metrics, "
+                "falling back to Python-based computation for log source"
+            )
+            retrieval_job = offline_store.pull_all_from_table_or_query(
+                config=self._store.config,
+                data_source=data_source,
+                join_key_columns=[],
+                feature_name_columns=[name for name, _ in feature_fields],
+                timestamp_field=ts_field,
+                start_date=start_dt,
+                end_date=end_dt,
+            )
+            arrow_table = retrieval_job.to_arrow()
+            return self._calculator.compute_all(arrow_table, feature_fields)
+
+    def _save_log_metrics(
+        self,
+        project: str,
+        feature_service_name: str,
+        log_col_map: Dict[str, Tuple[str, str]],
+        metrics_list: List[Dict[str, Any]],
+        metric_date: date,
+        granularity: str,
+        set_baseline: bool,
+        now: datetime,
+    ) -> None:
+        """Save log-sourced metrics tagged with data_source_type='log'.
+
+        Normalizes log column names (``driver_stats__conv_rate``) back to
+        their originating ``feature_view_name`` and ``feature_name`` so
+        that drift detection can join batch and log metrics on the same
+        feature identity.
+        """
+        if not metrics_list:
+            return
+
+        offline_store = self._get_offline_store()
+        config = self._store.config
+
+        for m in metrics_list:
+            log_col = m.get("feature_name", "")
+            view_name, feat_name = log_col_map.get(
+                log_col, (feature_service_name, log_col)
+            )
+            m["project_id"] = project
+            m["feature_view_name"] = view_name
+            m["feature_name"] = feat_name
+            m["metric_date"] = metric_date
+            m["granularity"] = granularity
+            m["data_source_type"] = "log"
+            m["computed_at"] = now
+            m["is_baseline"] = set_baseline
+
+        offline_store.save_monitoring_metrics(config, "feature", metrics_list)
+
+        # --- per-feature-view aggregates (grouped by originating view) ---
+        by_view: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for m in metrics_list:
+            by_view[m["feature_view_name"]].append(m)
+
+        view_metrics = []
+        for vname, vmetrics in by_view.items():
+            null_rates = [
+                m["null_rate"] for m in vmetrics if m.get("null_rate") is not None
+            ]
+            view_metrics.append(
+                {
+                    "project_id": project,
+                    "feature_view_name": vname,
+                    "metric_date": metric_date,
+                    "granularity": granularity,
+                    "data_source_type": "log",
+                    "computed_at": now,
+                    "is_baseline": set_baseline,
+                    "total_row_count": vmetrics[0]["row_count"] if vmetrics else 0,
+                    "total_features": len(vmetrics),
+                    "features_with_nulls": sum(
+                        1 for m in vmetrics if (m.get("null_count") or 0) > 0
+                    ),
+                    "avg_null_rate": (
+                        sum(null_rates) / len(null_rates) if null_rates else 0.0
+                    ),
+                    "max_null_rate": max(null_rates) if null_rates else 0.0,
+                }
+            )
+        offline_store.save_monitoring_metrics(config, "feature_view", view_metrics)
+
+        # --- feature service aggregate ---
+        all_null_rates = [
+            m["null_rate"] for m in metrics_list if m.get("null_rate") is not None
+        ]
+        svc_metric = {
+            "project_id": project,
+            "feature_service_name": feature_service_name,
+            "metric_date": metric_date,
+            "granularity": granularity,
+            "data_source_type": "log",
+            "computed_at": now,
+            "is_baseline": set_baseline,
+            "total_feature_views": len(by_view),
+            "total_features": len(metrics_list),
+            "avg_null_rate": (
+                sum(all_null_rates) / len(all_null_rates) if all_null_rates else 0.0
+            ),
+            "max_null_rate": max(all_null_rates) if all_null_rates else 0.0,
+        }
+        offline_store.save_monitoring_metrics(config, "feature_service", [svc_metric])
 
     def _read_batch_source(self, feature_view, feature_fields, start_dt, end_dt):
         config = self._store.config
