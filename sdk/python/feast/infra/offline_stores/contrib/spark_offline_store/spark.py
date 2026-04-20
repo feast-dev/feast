@@ -52,6 +52,15 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    empty_categorical_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
@@ -523,7 +532,7 @@ class SparkOfflineStore(OfflineStore):
         if not metrics:
             return
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
-        table, columns, pk_columns = _spark_mon_table_meta(metric_type)
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
         pdf_new = pd.DataFrame([{c: m.get(c) for c in columns} for m in metrics])
         pdf_new = _spark_normalize_histogram_column(pdf_new)
 
@@ -550,7 +559,7 @@ class SparkOfflineStore(OfflineStore):
         end_date: Optional[date] = None,
     ) -> List[Dict[str, Any]]:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
-        table, columns, _ = _spark_mon_table_meta(metric_type)
+        table, columns, _ = monitoring_table_meta(metric_type)
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
@@ -584,10 +593,10 @@ class SparkOfflineStore(OfflineStore):
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
-        if not spark_session.catalog.tableExists(_SPARK_MON_FEATURE_TABLE):
+        if not spark_session.catalog.tableExists(MON_TABLE_FEATURE):
             return
 
-        pdf = spark_session.table(_SPARK_MON_FEATURE_TABLE).toPandas()
+        pdf = spark_session.table(MON_TABLE_FEATURE).toPandas()
         mask = (pdf["project_id"] == project) & (pdf["is_baseline"] == True)  # noqa: E712
         if feature_view_name is not None:
             mask &= pdf["feature_view_name"] == feature_view_name
@@ -598,93 +607,13 @@ class SparkOfflineStore(OfflineStore):
 
         pdf.loc[mask, "is_baseline"] = False
         spark_session.createDataFrame(pdf).write.mode("overwrite").saveAsTable(
-            _SPARK_MON_FEATURE_TABLE
+            MON_TABLE_FEATURE
         )
 
 
-_SPARK_MON_FEATURE_TABLE = "feast_monitoring_feature_metrics"
-_SPARK_MON_VIEW_TABLE = "feast_monitoring_feature_view_metrics"
-_SPARK_MON_SERVICE_TABLE = "feast_monitoring_feature_service_metrics"
-
-_SPARK_MON_FEATURE_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "feature_type",
-    "row_count",
-    "null_count",
-    "null_rate",
-    "mean",
-    "stddev",
-    "min_val",
-    "max_val",
-    "p50",
-    "p75",
-    "p90",
-    "p95",
-    "p99",
-    "histogram",
-]
-_SPARK_MON_FEATURE_PK = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_SPARK_MON_VIEW_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_row_count",
-    "total_features",
-    "features_with_nulls",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_SPARK_MON_VIEW_PK = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_SPARK_MON_SERVICE_COLUMNS = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_feature_views",
-    "total_features",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_SPARK_MON_SERVICE_PK = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
 _SPARK_MONITORING_DDL_STATEMENTS = [
     f"""
-CREATE TABLE IF NOT EXISTS {_SPARK_MON_FEATURE_TABLE} (
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
     project_id        STRING NOT NULL,
     feature_view_name STRING NOT NULL,
     feature_name      STRING NOT NULL,
@@ -710,7 +639,7 @@ CREATE TABLE IF NOT EXISTS {_SPARK_MON_FEATURE_TABLE} (
 ) USING PARQUET
 """,
     f"""
-CREATE TABLE IF NOT EXISTS {_SPARK_MON_VIEW_TABLE} (
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
     project_id        STRING NOT NULL,
     feature_view_name STRING NOT NULL,
     metric_date       DATE NOT NULL,
@@ -726,7 +655,7 @@ CREATE TABLE IF NOT EXISTS {_SPARK_MON_VIEW_TABLE} (
 ) USING PARQUET
 """,
     f"""
-CREATE TABLE IF NOT EXISTS {_SPARK_MON_SERVICE_TABLE} (
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
     project_id           STRING NOT NULL,
     feature_service_name STRING NOT NULL,
     metric_date          DATE NOT NULL,
@@ -741,42 +670,6 @@ CREATE TABLE IF NOT EXISTS {_SPARK_MON_SERVICE_TABLE} (
 ) USING PARQUET
 """,
 ]
-
-_SPARK_EMPTY_METRIC_TEMPLATE: Dict[str, Any] = {
-    "feature_name": "",
-    "feature_type": "categorical",
-    "row_count": 0,
-    "null_count": 0,
-    "null_rate": 0.0,
-    "mean": None,
-    "stddev": None,
-    "min_val": None,
-    "max_val": None,
-    "p50": None,
-    "p75": None,
-    "p90": None,
-    "p95": None,
-    "p99": None,
-    "histogram": None,
-}
-
-
-def _spark_mon_table_meta(metric_type: str):
-    if metric_type == "feature":
-        return (
-            _SPARK_MON_FEATURE_TABLE,
-            _SPARK_MON_FEATURE_COLUMNS,
-            _SPARK_MON_FEATURE_PK,
-        )
-    if metric_type == "feature_view":
-        return _SPARK_MON_VIEW_TABLE, _SPARK_MON_VIEW_COLUMNS, _SPARK_MON_VIEW_PK
-    if metric_type == "feature_service":
-        return (
-            _SPARK_MON_SERVICE_TABLE,
-            _SPARK_MON_SERVICE_COLUMNS,
-            _SPARK_MON_SERVICE_PK,
-        )
-    raise ValueError(f"Unknown metric_type '{metric_type}'")
 
 
 def _spark_normalize_histogram_column(pdf: pd.DataFrame) -> pd.DataFrame:
@@ -807,10 +700,6 @@ def _spark_pandas_upsert(
     kept = old_idx.loc[~old_idx.index.isin(new_idx.index)]
     kept_df = kept.reset_index()
     return pd.concat([kept_df, pdf_new], ignore_index=True)
-
-
-def _spark_opt_float(val: Any) -> Optional[float]:
-    return float(val) if val is not None else None
 
 
 def _spark_sql_numeric_stats(
@@ -845,9 +734,7 @@ def _spark_sql_numeric_stats(
     )
     rows = spark_session.sql(query).collect()
     if not rows or rows[0] is None:
-        return [
-            {**_SPARK_EMPTY_METRIC_TEMPLATE, "feature_name": n} for n in feature_names
-        ]
+        return [empty_categorical_metric(n) for n in feature_names]
 
     row = rows[0]
     row_count = int(row[0] or 0)
@@ -858,8 +745,8 @@ def _spark_sql_numeric_stats(
         non_null = int(row[base] or 0)
         null_count = row_count - non_null
 
-        min_val = _spark_opt_float(row[base + 3])
-        max_val = _spark_opt_float(row[base + 4])
+        min_val = opt_float(row[base + 3])
+        max_val = opt_float(row[base + 4])
 
         result: Dict[str, Any] = {
             "feature_name": col,
@@ -867,15 +754,15 @@ def _spark_sql_numeric_stats(
             "row_count": row_count,
             "null_count": null_count,
             "null_rate": null_count / row_count if row_count > 0 else 0.0,
-            "mean": _spark_opt_float(row[base + 1]),
-            "stddev": _spark_opt_float(row[base + 2]),
+            "mean": opt_float(row[base + 1]),
+            "stddev": opt_float(row[base + 2]),
             "min_val": min_val,
             "max_val": max_val,
-            "p50": _spark_opt_float(row[base + 5]),
-            "p75": _spark_opt_float(row[base + 6]),
-            "p90": _spark_opt_float(row[base + 7]),
-            "p95": _spark_opt_float(row[base + 8]),
-            "p99": _spark_opt_float(row[base + 9]),
+            "p50": opt_float(row[base + 5]),
+            "p75": opt_float(row[base + 6]),
+            "p90": opt_float(row[base + 7]),
+            "p95": opt_float(row[base + 8]),
+            "p99": opt_float(row[base + 9]),
             "histogram": None,
         }
 
@@ -971,11 +858,7 @@ def _spark_sql_categorical_stats(
 
     rows = spark_session.sql(query).collect()
     if not rows:
-        return {
-            **_SPARK_EMPTY_METRIC_TEMPLATE,
-            "feature_name": col_name,
-            "feature_type": "categorical",
-        }
+        return empty_categorical_metric(col_name)
 
     row_count = int(rows[0][0] or 0)
     null_count = int(rows[0][1] or 0)
@@ -1012,26 +895,11 @@ def _spark_rows_to_metric_dicts(
     rows: List[Any],
     columns: List[str],
 ) -> List[Dict[str, Any]]:
-    from datetime import date as date_type
-    from datetime import datetime as datetime_type
-
     out: List[Dict[str, Any]] = []
     for r in rows:
         d = r.asDict()
         rec = {c: d.get(c) for c in columns}
-        h = rec.get("histogram")
-        if isinstance(h, str):
-            try:
-                rec["histogram"] = json.loads(h)
-            except json.JSONDecodeError:
-                pass
-        md = rec.get("metric_date")
-        if isinstance(md, date_type):
-            rec["metric_date"] = md.isoformat()
-        ca = rec.get("computed_at")
-        if isinstance(ca, datetime_type):
-            rec["computed_at"] = ca.isoformat()
-        out.append(rec)
+        out.append(normalize_monitoring_row(rec))
     return out
 
 
