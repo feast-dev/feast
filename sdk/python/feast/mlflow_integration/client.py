@@ -140,27 +140,13 @@ class FeastMlflowClient:
             if not features:
                 return
 
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".json", delete=False
-            ) as f:
-                json.dump(features, f)
-                tmppath = f.name
-            try:
-                self._mlflow.log_artifact(tmppath, "")
-                final_name = os.path.basename(tmppath)
-                if final_name != "required_features.json":
-                    pass
-            finally:
-                os.unlink(tmppath)
-
-            fd, tmppath2 = tempfile.mkstemp(suffix=".json")
-            try:
-                with os.fdopen(fd, "w") as f2:
-                    json.dump(features, f2)
-                self._client.log_artifact(run.info.run_id, tmppath2, artifact_path="")
-            finally:
-                if os.path.exists(tmppath2):
-                    os.unlink(tmppath2)
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                path = os.path.join(tmp_dir, "required_features.json")
+                with open(path, "w") as f:
+                    json.dump(features, f)
+                self._client.log_artifact(
+                    run.info.run_id, path, artifact_path=""
+                )
         except Exception as e:
             _logger.debug("Failed to log required_features.json: %s", e)
 

@@ -1204,7 +1204,11 @@ class FeatureStore:
         """Log apply operation to MLflow ops experiment."""
         try:
             mlflow_cfg = self.config.mlflow
-            if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.log_operations:
+            if (
+                mlflow_cfg is None
+                or not mlflow_cfg.enabled
+                or not mlflow_cfg.log_operations
+            ):
                 return
             objects: List[Any] = []
             for feast_object_diff in registry_diff.feast_object_diffs:
@@ -1517,7 +1521,11 @@ class FeatureStore:
         """Log applied objects to MLflow ops experiment."""
         try:
             mlflow_cfg = self.config.mlflow
-            if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.log_operations:
+            if (
+                mlflow_cfg is None
+                or not mlflow_cfg.enabled
+                or not mlflow_cfg.log_operations
+            ):
                 return
             from feast.mlflow_integration.logger import log_apply_to_mlflow
 
@@ -2276,7 +2284,11 @@ class FeatureStore:
         """Log materialization to MLflow ops experiment."""
         try:
             mlflow_cfg = self.config.mlflow
-            if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.log_operations:
+            if (
+                mlflow_cfg is None
+                or not mlflow_cfg.enabled
+                or not mlflow_cfg.log_operations
+            ):
                 return
             from feast.mlflow_integration.logger import log_materialize_to_mlflow
 

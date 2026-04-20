@@ -163,6 +163,14 @@ def log_training_dataset_to_mlflow(
         return False
 
 
+def _get_or_create_experiment(client, experiment_name: str) -> str:
+    """Return the experiment ID for *experiment_name*, creating it if needed."""
+    exp = client.get_experiment_by_name(experiment_name)
+    if exp is not None:
+        return exp.experiment_id
+    return client.create_experiment(experiment_name)
+
+
 def log_apply_to_mlflow(
     changed_objects: List[Any],
     project: str,
@@ -171,23 +179,22 @@ def log_apply_to_mlflow(
 ) -> bool:
     """Log a feast apply operation to a dedicated MLflow experiment.
 
-    Creates a self-contained run (not dependent on a user's active run)
-    in the ``{project}{ops_experiment_suffix}`` experiment.
+    Uses ``MlflowClient`` with explicit experiment IDs so that global
+    MLflow state (tracking URI, active experiment) is never mutated.
     """
     mlflow = _get_mlflow()
     if mlflow is None:
         return False
 
-    _prev_tracking_uri = mlflow.get_tracking_uri()
     try:
         from feast import Entity, FeatureService
         from feast.feature_view import FeatureView
 
-        if tracking_uri:
-            mlflow.set_tracking_uri(tracking_uri)
+        effective_uri = tracking_uri or mlflow.get_tracking_uri()
+        client = mlflow.MlflowClient(tracking_uri=effective_uri)
 
         experiment_name = f"{project}{ops_experiment_suffix}"
-        mlflow.set_experiment(experiment_name)
+        experiment_id = _get_or_create_experiment(client, experiment_name)
 
         fv_names = []
         fs_names = []
@@ -200,38 +207,46 @@ def log_apply_to_mlflow(
             elif isinstance(obj, Entity) and obj.name != "__dummy":
                 entity_names.append(obj.name)
 
-        with mlflow.start_run(run_name=f"apply_{project}"):
-            mlflow.set_tag("feast.operation", "apply")
-            mlflow.set_tag("feast.project", project)
+        run = client.create_run(
+            experiment_id, run_name=f"apply_{project}"
+        )
+        run_id = run.info.run_id
+        try:
+            client.set_tag(run_id, "feast.operation", "apply")
+            client.set_tag(run_id, "feast.project", project)
             if fv_names:
-                mlflow.set_tag(
+                client.set_tag(
+                    run_id,
                     "feast.feature_views_changed",
                     _truncate_for_tag(",".join(fv_names)),
                 )
             if fs_names:
-                mlflow.set_tag(
+                client.set_tag(
+                    run_id,
                     "feast.feature_services_changed",
                     _truncate_for_tag(",".join(fs_names)),
                 )
             if entity_names:
-                mlflow.set_tag(
+                client.set_tag(
+                    run_id,
                     "feast.entities_changed",
                     _truncate_for_tag(",".join(entity_names)),
                 )
-            mlflow.log_metric("feast.apply.feature_views_count", len(fv_names))
-            mlflow.log_metric("feast.apply.feature_services_count", len(fs_names))
-            mlflow.log_metric("feast.apply.entities_count", len(entity_names))
+            client.log_metric(run_id, "feast.apply.feature_views_count", len(fv_names))
+            client.log_metric(
+                run_id, "feast.apply.feature_services_count", len(fs_names)
+            )
+            client.log_metric(
+                run_id, "feast.apply.entities_count", len(entity_names)
+            )
+        finally:
+            client.set_terminated(run_id)
 
+        _report_success()
         return True
     except Exception as e:
         _report_failure("Failed to log apply to MLflow", e)
         return False
-    finally:
-        try:
-            mlflow.set_tracking_uri(_prev_tracking_uri)
-            mlflow.set_experiment(project)
-        except Exception:
-            pass
 
 
 def log_materialize_to_mlflow(
@@ -244,41 +259,56 @@ def log_materialize_to_mlflow(
     incremental: bool = False,
     ops_experiment_suffix: str = "-feast-ops",
 ) -> bool:
-    """Log a feast materialize operation to a dedicated MLflow experiment."""
+    """Log a feast materialize operation to a dedicated MLflow experiment.
+
+    Uses ``MlflowClient`` with explicit experiment IDs so that global
+    MLflow state (tracking URI, active experiment) is never mutated.
+    """
     mlflow = _get_mlflow()
     if mlflow is None:
         return False
 
-    _prev_tracking_uri = mlflow.get_tracking_uri()
     try:
-        if tracking_uri:
-            mlflow.set_tracking_uri(tracking_uri)
+        effective_uri = tracking_uri or mlflow.get_tracking_uri()
+        client = mlflow.MlflowClient(tracking_uri=effective_uri)
 
         experiment_name = f"{project}{ops_experiment_suffix}"
-        mlflow.set_experiment(experiment_name)
+        experiment_id = _get_or_create_experiment(client, experiment_name)
 
         op_type = "materialize_incremental" if incremental else "materialize"
-        with mlflow.start_run(run_name=f"{op_type}_{project}"):
-            mlflow.set_tag("feast.operation", op_type)
-            mlflow.set_tag("feast.project", project)
-            mlflow.set_tag(
+        run = client.create_run(
+            experiment_id, run_name=f"{op_type}_{project}"
+        )
+        run_id = run.info.run_id
+        try:
+            client.set_tag(run_id, "feast.operation", op_type)
+            client.set_tag(run_id, "feast.project", project)
+            client.set_tag(
+                run_id,
                 "feast.materialize.feature_views",
                 _truncate_for_tag(",".join(feature_view_names)),
             )
             if start_date:
-                mlflow.log_param("feast.materialize.start_date", start_date.isoformat())
-            mlflow.log_param("feast.materialize.end_date", end_date.isoformat())
-            mlflow.log_metric(
-                "feast.materialize.duration_sec", round(duration_seconds, 4)
+                client.log_param(
+                    run_id,
+                    "feast.materialize.start_date",
+                    start_date.isoformat(),
+                )
+            client.log_param(
+                run_id,
+                "feast.materialize.end_date",
+                end_date.isoformat(),
             )
+            client.log_metric(
+                run_id,
+                "feast.materialize.duration_sec",
+                round(duration_seconds, 4),
+            )
+        finally:
+            client.set_terminated(run_id)
 
+        _report_success()
         return True
     except Exception as e:
         _report_failure("Failed to log materialize to MLflow", e)
         return False
-    finally:
-        try:
-            mlflow.set_tracking_uri(_prev_tracking_uri)
-            mlflow.set_experiment(project)
-        except Exception:
-            pass
