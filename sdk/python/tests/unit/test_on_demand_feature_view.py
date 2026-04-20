@@ -703,3 +703,48 @@ def test_input_schema_aggregation_no_udf():
     assert restored.feature_transformation is None
     assert len(restored.aggregations) == 1
     assert restored.input_schema == [Field(name="purchase_count", dtype=Float32)]
+
+
+def test_on_demand_feature_view_org_field():
+    """Test that the optional `org` field is stored, serialized, and round-trips correctly."""
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+    )
+    common = dict(
+        sources=[feature_view],
+        schema=[Field(name="output1", dtype=Float32)],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+    )
+
+    # org defaults to empty string
+    odfv_no_org = OnDemandFeatureView(name="odfv-no-org", **common)
+    assert odfv_no_org.org == ""
+
+    # org can be set explicitly
+    odfv_with_org = OnDemandFeatureView(name="odfv-with-org", org="ads", **common)
+    assert odfv_with_org.org == "ads"
+
+    # org is serialized to proto
+    proto = odfv_with_org.to_proto()
+    assert proto.spec.org == "ads"
+
+    # org survives a proto round-trip
+    roundtripped = OnDemandFeatureView.from_proto(proto)
+    assert roundtripped.org == "ads"
+
+    # a view without org round-trips to empty string
+    proto_no_org = odfv_no_org.to_proto()
+    assert proto_no_org.spec.org == ""
+    roundtripped_no_org = OnDemandFeatureView.from_proto(proto_no_org)
+    assert roundtripped_no_org.org == ""
+
+    # equality respects org
+    odfv_org_a = OnDemandFeatureView(name="odfv-eq", org="ads", **common)
+    odfv_org_b = OnDemandFeatureView(name="odfv-eq", org="search", **common)
+    assert odfv_org_a != odfv_org_b

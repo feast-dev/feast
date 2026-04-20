@@ -146,6 +146,7 @@ class OnDemandFeatureView(BaseFeatureView):
     description: str
     tags: dict[str, str]
     owner: str
+    org: str
     write_to_online_store: bool
     singleton: bool
     track_metrics: bool
@@ -168,6 +169,7 @@ class OnDemandFeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[dict[str, str]] = None,
         owner: str = "",
+        org: str = "",
         write_to_online_store: bool = False,
         singleton: bool = False,
         track_metrics: bool = False,
@@ -199,6 +201,8 @@ class OnDemandFeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the on demand feature view, typically the email
                 of the primary maintainer.
+            org (optional): The organizational unit that owns this feature view
+                (e.g. "ads", "search").
             write_to_online_store (optional): A boolean that indicates whether to write the on demand feature view to
             the online store for faster retrieval.
             singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
@@ -218,6 +222,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=owner,
         )
 
+        self.org = org
         self.version = version
         schema = schema or []
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
@@ -384,6 +389,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            org=self.org,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton,
             version=self.version,
@@ -463,6 +469,7 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.aggregations != other.aggregations
             or normalize_version_string(self.version)
             != normalize_version_string(other.version)
+            or self.org != other.org
         ):
             return False
 
@@ -621,6 +628,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=tags,
             owner=self.owner,
+            org=self.org,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton or False,
             aggregations=[agg.to_proto() for agg in self.aggregations],
@@ -689,6 +697,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=on_demand_feature_view_proto.spec.description,
             tags=proto_tags,
             owner=on_demand_feature_view_proto.spec.owner,
+            org=on_demand_feature_view_proto.spec.org,
             write_to_online_store=optional_fields["write_to_online_store"],
             singleton=optional_fields["singleton"],
             track_metrics=track_metrics,
