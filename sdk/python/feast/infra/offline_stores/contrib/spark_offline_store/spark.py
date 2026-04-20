@@ -1,9 +1,11 @@
+import json
 import os
 import tempfile
 import uuid
 import warnings
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from datetime import time as dt_time
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -422,6 +424,615 @@ class SparkOfflineStore(OfflineStore):
             full_feature_names=False,
             config=config,
         )
+
+    @staticmethod
+    def compute_monitoring_metrics(
+        config: RepoConfig,
+        data_source: DataSource,
+        feature_columns: List[Tuple[str, str]],
+        timestamp_field: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        histogram_bins: int = 20,
+        top_n: int = 10,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(data_source, SparkSource)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        from_expression = data_source.get_table_query_string()
+        ts_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+            quote_fields=False,
+        )
+        ts_clause = ts_filter if ts_filter else "1=1"
+
+        numeric_features = [n for n, t in feature_columns if t == "numeric"]
+        categorical_features = [n for n, t in feature_columns if t == "categorical"]
+        results: List[Dict[str, Any]] = []
+
+        if numeric_features:
+            results.extend(
+                _spark_sql_numeric_stats(
+                    spark_session,
+                    from_expression,
+                    numeric_features,
+                    ts_clause,
+                    histogram_bins,
+                )
+            )
+
+        for col_name in categorical_features:
+            results.append(
+                _spark_sql_categorical_stats(
+                    spark_session,
+                    from_expression,
+                    col_name,
+                    ts_clause,
+                    top_n,
+                )
+            )
+
+        return results
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(data_source, SparkSource)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        from_expression = data_source.get_table_query_string()
+        q_ts = f"`{timestamp_field}`"
+        sql = f"SELECT MAX({q_ts}) AS max_ts FROM {from_expression} AS _src"
+        row = spark_session.sql(sql).collect()
+        if not row or row[0][0] is None:
+            return None
+        val = row[0][0]
+        if isinstance(val, datetime):
+            return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        if isinstance(val, date):
+            return datetime.combine(val, dt_time.min, tzinfo=timezone.utc)
+        return pandas.to_datetime(val, utc=True).to_pydatetime()
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        for stmt in _SPARK_MONITORING_DDL_STATEMENTS:
+            spark_session.sql(stmt)
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        if not metrics:
+            return
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        table, columns, pk_columns = _spark_mon_table_meta(metric_type)
+        pdf_new = pd.DataFrame([{c: m.get(c) for c in columns} for m in metrics])
+        pdf_new = _spark_normalize_histogram_column(pdf_new)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if spark_session.catalog.tableExists(table):
+            pdf_old = spark_session.table(table).toPandas()
+            pdf_merged = _spark_pandas_upsert(pdf_old, pdf_new, pk_columns)
+        else:
+            pdf_merged = pdf_new
+
+        spark_session.createDataFrame(pdf_merged).write.mode("overwrite").saveAsTable(
+            table
+        )
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        table, columns, _ = _spark_mon_table_meta(metric_type)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if not spark_session.catalog.tableExists(table):
+            return []
+
+        from pyspark.sql import functions as F
+
+        df = spark_session.table(table).filter(F.col("project_id") == project)
+        if filters:
+            for key, value in filters.items():
+                if value is not None:
+                    df = df.filter(F.col(key) == value)
+        if start_date is not None:
+            df = df.filter(F.col("metric_date") >= F.lit(start_date))
+        if end_date is not None:
+            df = df.filter(F.col("metric_date") <= F.lit(end_date))
+
+        rows = df.orderBy("metric_date").collect()
+        return _spark_rows_to_metric_dicts(rows, columns)
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if not spark_session.catalog.tableExists(_SPARK_MON_FEATURE_TABLE):
+            return
+
+        pdf = spark_session.table(_SPARK_MON_FEATURE_TABLE).toPandas()
+        mask = (pdf["project_id"] == project) & (pdf["is_baseline"] == True)  # noqa: E712
+        if feature_view_name is not None:
+            mask &= pdf["feature_view_name"] == feature_view_name
+        if feature_name is not None:
+            mask &= pdf["feature_name"] == feature_name
+        if data_source_type is not None:
+            mask &= pdf["data_source_type"] == data_source_type
+
+        pdf.loc[mask, "is_baseline"] = False
+        spark_session.createDataFrame(pdf).write.mode("overwrite").saveAsTable(
+            _SPARK_MON_FEATURE_TABLE
+        )
+
+
+_SPARK_MON_FEATURE_TABLE = "feast_monitoring_feature_metrics"
+_SPARK_MON_VIEW_TABLE = "feast_monitoring_feature_view_metrics"
+_SPARK_MON_SERVICE_TABLE = "feast_monitoring_feature_service_metrics"
+
+_SPARK_MON_FEATURE_COLUMNS = [
+    "project_id",
+    "feature_view_name",
+    "feature_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+    "computed_at",
+    "is_baseline",
+    "feature_type",
+    "row_count",
+    "null_count",
+    "null_rate",
+    "mean",
+    "stddev",
+    "min_val",
+    "max_val",
+    "p50",
+    "p75",
+    "p90",
+    "p95",
+    "p99",
+    "histogram",
+]
+_SPARK_MON_FEATURE_PK = [
+    "project_id",
+    "feature_view_name",
+    "feature_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+]
+
+_SPARK_MON_VIEW_COLUMNS = [
+    "project_id",
+    "feature_view_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+    "computed_at",
+    "is_baseline",
+    "total_row_count",
+    "total_features",
+    "features_with_nulls",
+    "avg_null_rate",
+    "max_null_rate",
+]
+_SPARK_MON_VIEW_PK = [
+    "project_id",
+    "feature_view_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+]
+
+_SPARK_MON_SERVICE_COLUMNS = [
+    "project_id",
+    "feature_service_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+    "computed_at",
+    "is_baseline",
+    "total_feature_views",
+    "total_features",
+    "avg_null_rate",
+    "max_null_rate",
+]
+_SPARK_MON_SERVICE_PK = [
+    "project_id",
+    "feature_service_name",
+    "metric_date",
+    "granularity",
+    "data_source_type",
+]
+
+_SPARK_MONITORING_DDL_STATEMENTS = [
+    f"""
+CREATE TABLE IF NOT EXISTS {_SPARK_MON_FEATURE_TABLE} (
+    project_id        STRING NOT NULL,
+    feature_view_name STRING NOT NULL,
+    feature_name      STRING NOT NULL,
+    metric_date       DATE NOT NULL,
+    granularity       STRING NOT NULL,
+    data_source_type  STRING NOT NULL,
+    computed_at       TIMESTAMP NOT NULL,
+    is_baseline       BOOLEAN NOT NULL,
+    feature_type      STRING NOT NULL,
+    row_count         BIGINT,
+    null_count        BIGINT,
+    null_rate         DOUBLE,
+    mean              DOUBLE,
+    stddev            DOUBLE,
+    min_val           DOUBLE,
+    max_val           DOUBLE,
+    p50               DOUBLE,
+    p75               DOUBLE,
+    p90               DOUBLE,
+    p95               DOUBLE,
+    p99               DOUBLE,
+    histogram         STRING
+) USING PARQUET
+""",
+    f"""
+CREATE TABLE IF NOT EXISTS {_SPARK_MON_VIEW_TABLE} (
+    project_id        STRING NOT NULL,
+    feature_view_name STRING NOT NULL,
+    metric_date       DATE NOT NULL,
+    granularity       STRING NOT NULL,
+    data_source_type  STRING NOT NULL,
+    computed_at       TIMESTAMP NOT NULL,
+    is_baseline       BOOLEAN NOT NULL,
+    total_row_count   BIGINT,
+    total_features    INT,
+    features_with_nulls INT,
+    avg_null_rate     DOUBLE,
+    max_null_rate     DOUBLE
+) USING PARQUET
+""",
+    f"""
+CREATE TABLE IF NOT EXISTS {_SPARK_MON_SERVICE_TABLE} (
+    project_id           STRING NOT NULL,
+    feature_service_name STRING NOT NULL,
+    metric_date          DATE NOT NULL,
+    granularity          STRING NOT NULL,
+    data_source_type     STRING NOT NULL,
+    computed_at          TIMESTAMP NOT NULL,
+    is_baseline          BOOLEAN NOT NULL,
+    total_feature_views  INT,
+    total_features       INT,
+    avg_null_rate        DOUBLE,
+    max_null_rate        DOUBLE
+) USING PARQUET
+""",
+]
+
+_SPARK_EMPTY_METRIC_TEMPLATE: Dict[str, Any] = {
+    "feature_name": "",
+    "feature_type": "categorical",
+    "row_count": 0,
+    "null_count": 0,
+    "null_rate": 0.0,
+    "mean": None,
+    "stddev": None,
+    "min_val": None,
+    "max_val": None,
+    "p50": None,
+    "p75": None,
+    "p90": None,
+    "p95": None,
+    "p99": None,
+    "histogram": None,
+}
+
+
+def _spark_mon_table_meta(metric_type: str):
+    if metric_type == "feature":
+        return (
+            _SPARK_MON_FEATURE_TABLE,
+            _SPARK_MON_FEATURE_COLUMNS,
+            _SPARK_MON_FEATURE_PK,
+        )
+    if metric_type == "feature_view":
+        return _SPARK_MON_VIEW_TABLE, _SPARK_MON_VIEW_COLUMNS, _SPARK_MON_VIEW_PK
+    if metric_type == "feature_service":
+        return (
+            _SPARK_MON_SERVICE_TABLE,
+            _SPARK_MON_SERVICE_COLUMNS,
+            _SPARK_MON_SERVICE_PK,
+        )
+    raise ValueError(f"Unknown metric_type '{metric_type}'")
+
+
+def _spark_normalize_histogram_column(pdf: pd.DataFrame) -> pd.DataFrame:
+    if "histogram" not in pdf.columns:
+        return pdf
+    out = pdf.copy()
+
+    def _ser(x: Any) -> Any:
+        if x is None:
+            return None
+        if isinstance(x, str):
+            return x
+        return json.dumps(x)
+
+    out["histogram"] = out["histogram"].map(_ser)
+    return out
+
+
+def _spark_pandas_upsert(
+    pdf_old: pd.DataFrame,
+    pdf_new: pd.DataFrame,
+    pk_columns: List[str],
+) -> pd.DataFrame:
+    if pdf_old.empty:
+        return pdf_new
+    old_idx = pdf_old.set_index(pk_columns)
+    new_idx = pdf_new.set_index(pk_columns)
+    kept = old_idx.loc[~old_idx.index.isin(new_idx.index)]
+    kept_df = kept.reset_index()
+    return pd.concat([kept_df, pdf_new], ignore_index=True)
+
+
+def _spark_opt_float(val: Any) -> Optional[float]:
+    return float(val) if val is not None else None
+
+
+def _spark_sql_numeric_stats(
+    spark_session: SparkSession,
+    from_expression: str,
+    feature_names: List[str],
+    ts_clause: str,
+    histogram_bins: int,
+) -> List[Dict[str, Any]]:
+    select_parts = ["COUNT(*)"]
+    for col in feature_names:
+        q = f"`{col}`"
+        c = f"CAST({q} AS DOUBLE)"
+        select_parts.extend(
+            [
+                f"COUNT({q})",
+                f"AVG({c})",
+                f"STDDEV_SAMP({c})",
+                f"MIN({c})",
+                f"MAX({c})",
+                f"PERCENTILE_APPROX({c}, 0.50)",
+                f"PERCENTILE_APPROX({c}, 0.75)",
+                f"PERCENTILE_APPROX({c}, 0.90)",
+                f"PERCENTILE_APPROX({c}, 0.95)",
+                f"PERCENTILE_APPROX({c}, 0.99)",
+            ]
+        )
+
+    query = (
+        f"SELECT {', '.join(select_parts)} "
+        f"FROM {from_expression} AS _src WHERE {ts_clause}"
+    )
+    rows = spark_session.sql(query).collect()
+    if not rows or rows[0] is None:
+        return [
+            {**_SPARK_EMPTY_METRIC_TEMPLATE, "feature_name": n} for n in feature_names
+        ]
+
+    row = rows[0]
+    row_count = int(row[0] or 0)
+    results: List[Dict[str, Any]] = []
+
+    for i, col in enumerate(feature_names):
+        base = 1 + i * 10
+        non_null = int(row[base] or 0)
+        null_count = row_count - non_null
+
+        min_val = _spark_opt_float(row[base + 3])
+        max_val = _spark_opt_float(row[base + 4])
+
+        result: Dict[str, Any] = {
+            "feature_name": col,
+            "feature_type": "numeric",
+            "row_count": row_count,
+            "null_count": null_count,
+            "null_rate": null_count / row_count if row_count > 0 else 0.0,
+            "mean": _spark_opt_float(row[base + 1]),
+            "stddev": _spark_opt_float(row[base + 2]),
+            "min_val": min_val,
+            "max_val": max_val,
+            "p50": _spark_opt_float(row[base + 5]),
+            "p75": _spark_opt_float(row[base + 6]),
+            "p90": _spark_opt_float(row[base + 7]),
+            "p95": _spark_opt_float(row[base + 8]),
+            "p99": _spark_opt_float(row[base + 9]),
+            "histogram": None,
+        }
+
+        if min_val is not None and max_val is not None and non_null > 0:
+            result["histogram"] = _spark_sql_numeric_histogram(
+                spark_session,
+                from_expression,
+                col,
+                ts_clause,
+                histogram_bins,
+                min_val,
+                max_val,
+            )
+
+        results.append(result)
+
+    return results
+
+
+def _spark_sql_numeric_histogram(
+    spark_session: SparkSession,
+    from_expression: str,
+    col_name: str,
+    ts_clause: str,
+    bins: int,
+    min_val: float,
+    max_val: float,
+) -> Dict[str, Any]:
+    q_col = f"`{col_name}`"
+
+    if min_val == max_val:
+        sql = (
+            f"SELECT COUNT(*) FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause}"
+        )
+        cnt = int(spark_session.sql(sql).collect()[0][0] or 0)
+        return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
+
+    bin_width = (max_val - min_val) / bins
+    cast_col = f"CAST({q_col} AS DOUBLE)"
+    inner = (
+        f"CASE WHEN {min_val} = {max_val} THEN 1 "
+        f"ELSE LEAST(GREATEST(FLOOR(({cast_col} - {min_val}) / {bin_width}) + 1, 1), {bins}) "
+        f"END AS bucket"
+    )
+
+    query = (
+        f"SELECT bucket, COUNT(*) AS cnt FROM ("
+        f"  SELECT {inner} "
+        f"  FROM {from_expression} AS _src "
+        f"  WHERE {q_col} IS NOT NULL AND {ts_clause}"
+        f") AS _b WHERE bucket IS NOT NULL "
+        f"GROUP BY bucket ORDER BY bucket"
+    )
+    hrows = spark_session.sql(query).collect()
+    counts = [0] * bins
+    for hr in hrows:
+        bucket = int(hr[0] or 0)
+        cnt = int(hr[1] or 0)
+        if 1 <= bucket <= bins:
+            counts[bucket - 1] = cnt
+
+    bin_edges = [min_val + i * bin_width for i in range(bins + 1)]
+    return {
+        "bins": [float(b) for b in bin_edges],
+        "counts": counts,
+        "bin_width": float(bin_width),
+    }
+
+
+def _spark_sql_categorical_stats(
+    spark_session: SparkSession,
+    from_expression: str,
+    col_name: str,
+    ts_clause: str,
+    top_n: int,
+) -> Dict[str, Any]:
+    q_col = f"`{col_name}`"
+
+    query = (
+        f"WITH filtered AS ("
+        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_clause}"
+        f") "
+        f"SELECT "
+        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
+        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
+        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
+        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
+        f"  CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
+        f"FROM filtered WHERE {q_col} IS NOT NULL "
+        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+    )
+
+    rows = spark_session.sql(query).collect()
+    if not rows:
+        return {
+            **_SPARK_EMPTY_METRIC_TEMPLATE,
+            "feature_name": col_name,
+            "feature_type": "categorical",
+        }
+
+    row_count = int(rows[0][0] or 0)
+    null_count = int(rows[0][1] or 0)
+    unique_count = int(rows[0][2] or 0)
+
+    top_entries = [{"value": r[3], "count": int(r[4] or 0)} for r in rows]
+    top_total = sum(e["count"] for e in top_entries)
+    other_count = (row_count - null_count) - top_total
+
+    return {
+        "feature_name": col_name,
+        "feature_type": "categorical",
+        "row_count": row_count,
+        "null_count": null_count,
+        "null_rate": null_count / row_count if row_count > 0 else 0.0,
+        "mean": None,
+        "stddev": None,
+        "min_val": None,
+        "max_val": None,
+        "p50": None,
+        "p75": None,
+        "p90": None,
+        "p95": None,
+        "p99": None,
+        "histogram": {
+            "values": top_entries,
+            "other_count": max(other_count, 0),
+            "unique_count": unique_count,
+        },
+    }
+
+
+def _spark_rows_to_metric_dicts(
+    rows: List[Any],
+    columns: List[str],
+) -> List[Dict[str, Any]]:
+    from datetime import date as date_type
+    from datetime import datetime as datetime_type
+
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        d = r.asDict()
+        rec = {c: d.get(c) for c in columns}
+        h = rec.get("histogram")
+        if isinstance(h, str):
+            try:
+                rec["histogram"] = json.loads(h)
+            except json.JSONDecodeError:
+                pass
+        md = rec.get("metric_date")
+        if isinstance(md, date_type):
+            rec["metric_date"] = md.isoformat()
+        ca = rec.get("computed_at")
+        if isinstance(ca, datetime_type):
+            rec["computed_at"] = ca.isoformat()
+        out.append(rec)
+    return out
 
 
 class SparkRetrievalJob(RetrievalJob):
