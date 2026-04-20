@@ -2256,6 +2256,7 @@ spec:
                                 - milvus
                                 - hybrid
                                 - mongodb
+                                - aerospike
                                 type: string
                             required:
                             - secretRef
@@ -8281,6 +8282,7 @@ spec:
                                     - milvus
                                     - hybrid
                                     - mongodb
+                                    - aerospike
                                     type: string
                                 required:
                                 - secretRef
@@ -13578,6 +13580,7 @@ spec:
                                 - milvus
                                 - hybrid
                                 - mongodb
+                                - aerospike
                                 type: string
                             required:
                             - secretRef
@@ -17856,6 +17859,7 @@ spec:
                                     - milvus
                                     - hybrid
                                     - mongodb
+                                    - aerospike
                                     type: string
                                 required:
                                 - secretRef
