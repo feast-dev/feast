@@ -51,7 +51,7 @@ import tracemalloc
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional
+from typing import Any, Callable, Dict, Generator, List, Optional, Set
 
 import pandas as pd
 import pytest
@@ -517,6 +517,7 @@ def _run_all(
     entity_df: pd.DataFrame,
     mongo_client: Any,
     skip_many_if_oom: bool = False,
+    skip_impl_ids: Optional[Set[str]] = None,
     N: int = 0,
     P: int = 0,
 ) -> Dict[str, BenchResult]:
@@ -525,9 +526,26 @@ def _run_all(
     results: Dict[str, BenchResult] = {}
 
     for impl in ALL_IMPLS:
-        # OOM guard for 'many' in stress scenarios
+        # Caller-supplied skip list (e.g. native at high K due to COLLSCAN × K issue)
+        if skip_impl_ids and impl.id in skip_impl_ids:
+            results[impl.id] = BenchResult(
+                elapsed_s=0,
+                trace_mb=0,
+                status="SKIPPED:excluded",
+            )
+            continue
+
+        # OOM guard for 'many' in stress scenarios.
+        # 'many' processes K feature views sequentially but does NOT release
+        # the merged result between iterations — the full K×N×M array
+        # accumulates.  Multiply the per-FV projection by K before checking.
         if skip_many_if_oom and impl.id == "many" and N > 0 and P > 0:
-            safe, proj_mb, free_mb = _many_safe(N, P, num_features)
+            K = len(fv_names)
+            per_fv_mb = _projected_many_mb(N, P, num_features)
+            total_proj_mb = per_fv_mb * K
+            free_mb = _free_memory_mb()
+            safe = total_proj_mb < free_mb * 0.80
+            proj_mb = total_proj_mb
             if not safe:
                 results[impl.id] = BenchResult(
                     elapsed_s=0,
@@ -536,7 +554,7 @@ def _run_all(
                 )
                 print(
                     f"  [many] SKIPPED — projected {proj_mb:.0f} MB "
-                    f"> 80 % of {free_mb:.0f} MB free"
+                    f"(K={K} × {per_fv_mb:.0f} MB/FV) > 80 % of {free_mb:.0f} MB free"
                 )
                 continue
 
@@ -995,4 +1013,79 @@ def test_stress_oom_crossover(conn_str: str) -> None:
 
     assert results["one"].status == "OK", (
         f"'one' must complete regardless of scale — got {results['one'].status}"
+    )
+
+
+# =============================================================================
+# Stress: K fan-out — K-collapse comparison
+#
+# All K feature views share the same driver_id join key.
+#
+#   agg    : K-collapses all K FVs into ONE $match+$sort+$group aggregation,
+#            regardless of K.  Round trips = ceil(N / MONGO_BATCH_SIZE).
+#   one    : issues K separate $match aggregations per batch.
+#            Round trips = K × ceil(N / MONGO_BATCH_SIZE).
+#   many   : does K full per-FV collection scans, one per FV.
+#   native : SKIPPED at all K — it issues K independent $documents+$lookup
+#            pipelines, each doing a full COLLSCAN of the shared collection
+#            (COLLSCAN cost is O(K × N × total_docs) — impractical at K ≥ 10).
+#
+# Expected pattern:
+#   agg    time ≈ constant as K grows (single aggregation, K-collapse)
+#   one    time grows O(K)            (K round trips)
+#   many   time grows O(K)            (K collection scans, large network transfer)
+# =============================================================================
+
+N_FAN_K = 2_000
+M_FAN_K = 100
+P_FAN_K = 5
+K_FAN_VALUES = [1, 10, 100]
+
+
+@_requires_docker
+@pytest.mark.slow
+@pytest.mark.timeout(0)
+@pytest.mark.parametrize("K", K_FAN_VALUES)
+def test_stress_fan_K(conn_str: str, K: int) -> None:
+    """K fan-out stress test: measures K-collapse benefit of agg vs one/many.
+
+    native is always skipped: it issues K independent $documents+$lookup pipelines
+    each doing a COLLSCAN of the shared collection.  At K=10 with N=2000 (100 k docs)
+    this is already impractical; at K=100 it would never complete.
+    """
+    N, M, P = N_FAN_K, M_FAN_K, P_FAN_K
+    total_docs = N * P * K
+    fv_names = [f"fv_{k}" for k in range(K)]
+    params = {"N": N, "M": M, "P": P, "K": K}
+
+    client = MongoClient(conn_str)
+    try:
+        print(
+            f"\n[stress_fan_K] Seeding {total_docs:,} docs "
+            f"({N:,} entities × {P} rows × {M} features × {K} FVs)…"
+        )
+        now = _reset_and_seed(client, fv_names, N, M, P)
+        entity_df = pd.DataFrame(
+            {"driver_id": list(range(N)), "event_timestamp": [now] * N}
+        )
+        results = _run_all(
+            conn_str,
+            fv_names,
+            M,
+            entity_df,
+            client,
+            skip_many_if_oom=True,
+            skip_impl_ids={"native"},  # K COLLSCANs — impractical at K >= 10
+            N=N,
+            P=P,
+        )
+    finally:
+        client.close()
+
+    _print_table("stress_fan_K", params, results)
+    _append_csv("stress_fan_K", params, results)
+    print(f"  Total docs: {total_docs:,}  |  Raw ≈ {total_docs * M * 8 / 1e6:.0f} MB")
+
+    assert results["agg"].status == "OK", (
+        f"'agg' must complete — got {results['agg'].status}"
     )
