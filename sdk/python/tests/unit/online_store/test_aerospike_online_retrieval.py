@@ -7,6 +7,7 @@ write/read/admin dispatch with a mocked Aerospike client). One end-to-end test
 is marked with ``@_requires_docker`` and is skipped when Docker is unavailable.
 """
 
+import time
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -242,7 +243,10 @@ def test_build_batch_writes_produces_three_ops_with_created_ts():
     assert len(batch.batch_records) == 1
     bw = batch.batch_records[0]
     assert bw.key[:2] == ("feast", "demo_latest")
-    assert isinstance(bw.key[2], bytes)
+    # Must be bytearray, not bytes: the Aerospike Python C client rejects
+    # bytes user keys ("Key is invalid") and silently hashes only the first
+    # byte inside batch_operate/batch_read — causing digest collisions.
+    assert isinstance(bw.key[2], bytearray)
     assert bw.meta == {"ttl": 3600}
     assert bw.policy == {"key": aerospike.POLICY_KEY_SEND}
     assert len(bw.ops) == 3
@@ -351,7 +355,9 @@ def test_online_read_happy_path_with_projection_and_ordering():
         assert len(ops) == 2
         assert ops[0]["bin"] == "features"
         assert ops[1]["bin"] == "event_ts"
-        # Return records in a *shuffled* order to prove the output still respects input order.
+        # Aerospike's batch_operate preserves input order; the middle record
+        # is simulated as missing to verify we still emit (None, None) in
+        # the correct slot.
         br1 = _fake_batch_record(
             key1,
             {
@@ -359,6 +365,7 @@ def test_online_read_happy_path_with_projection_and_ordering():
                 "event_ts": _datetime_to_epoch_ms(ts),
             },
         )
+        br2 = _fake_batch_record(key2, None)  # missing record
         br3 = _fake_batch_record(
             key3,
             {
@@ -366,8 +373,7 @@ def test_online_read_happy_path_with_projection_and_ordering():
                 "event_ts": _datetime_to_epoch_ms(ts),
             },
         )
-        br2 = _fake_batch_record(key2, None)  # missing record
-        return SimpleNamespace(batch_records=[br3, br1, br2])
+        return SimpleNamespace(batch_records=[br1, br2, br3])
 
     fake_client = MagicMock()
     fake_client.batch_operate.side_effect = fake_batch_operate
@@ -739,3 +745,170 @@ def test_aerospike_online_features(aerospike_online_store_config):
             full_feature_names=False,
         ).to_dict()
         assert missing["trips"] == [None]
+
+
+# ---------------------------------------------------------------------------
+# Integration tests that exercise the store directly (no CliRunner/apply).
+# ---------------------------------------------------------------------------
+
+
+def _integration_repo_config(
+    aerospike_online_store_config: dict, collection_suffix: str
+) -> RepoConfig:
+    """Build a RepoConfig targeting the live container with an isolated set name.
+
+    Each test passes a unique ``collection_suffix`` so the module-scoped
+    Aerospike container can host multiple tests without cross-contamination.
+    """
+    return RepoConfig(
+        project="itest",
+        provider="local",
+        registry="/tmp/reg.db",
+        online_store={
+            **aerospike_online_store_config,
+            "collection_suffix": collection_suffix,
+        },
+        entity_key_serialization_version=3,
+    )
+
+
+def _multi_fv_feature_view(name: str) -> SimpleNamespace:
+    """Minimal FV duck-typed for the store: exposes .name and .features."""
+    return SimpleNamespace(
+        name=name,
+        features=[
+            SimpleNamespace(name="value", dtype=Int64),
+        ],
+    )
+
+
+@_requires_docker
+def test_aerospike_cross_fv_map_cdt_upsert(aerospike_online_store_config):
+    """Writing two feature views for the same entity must not clobber each other.
+
+    The store uses Aerospike Map CDT ops (``map_put_items``) rather than a
+    full-record ``put``, so two feature views sharing an entity key live in
+    separate slots of the ``features`` / ``event_ts`` maps. This test
+    exercises that guarantee end to end against a real server.
+    """
+    config = _integration_repo_config(aerospike_online_store_config, "cross_fv")
+    store = AerospikeOnlineStore()
+
+    fv_a = _multi_fv_feature_view("driver_stats")
+    fv_b = _multi_fv_feature_view("driver_geo")
+    ek = _entity_key("driver_id", 101)
+    ts = _utc_now()
+
+    store.online_write_batch(
+        config,
+        fv_a,
+        [(ek, {"value": ValueProto(int64_val=42)}, ts, ts)],
+        progress=None,
+    )
+    # Second write targets the SAME entity key under a different feature
+    # view — it must add a new map entry rather than overwrite fv_a.
+    store.online_write_batch(
+        config,
+        fv_b,
+        [(ek, {"value": ValueProto(int64_val=7)}, ts, ts)],
+        progress=None,
+    )
+
+    results_a = store.online_read(config, fv_a, [ek])
+    results_b = store.online_read(config, fv_b, [ek])
+
+    assert len(results_a) == 1 and len(results_b) == 1
+    _, feats_a = results_a[0]
+    _, feats_b = results_b[0]
+    assert feats_a is not None, "driver_stats was clobbered by the driver_geo write"
+    assert feats_b is not None, "driver_geo write did not produce a readable slot"
+    assert feats_a["value"].int64_val == 42
+    assert feats_b["value"].int64_val == 7
+
+    # Sanity-check the raw record too: both feature views should coexist in
+    # the ``features`` Map CDT under their own names.
+    client = store._get_client(config)
+    _, _, bins = client.get(store._aerospike_key(config, ek))
+    assert set(bins["features"].keys()) == {"driver_stats", "driver_geo"}
+    assert set(bins["event_ts"].keys()) == {"driver_stats", "driver_geo"}
+
+    store.teardown(config, [], [])
+
+
+@_requires_docker
+def test_aerospike_update_strips_dropped_feature_view(aerospike_online_store_config):
+    """``update(tables_to_delete=[...])`` removes a FV's slot from every record.
+
+    The store issues a single background scan that applies
+    ``map_remove_by_key`` to the ``features`` and ``event_ts`` bins for each
+    dropped feature view. We verify:
+
+    * The dropped FV's slot disappears from the record (read returns
+      ``(None, None)``).
+    * The kept FV is untouched (still readable with its original values).
+    * The underlying record itself still exists (background scan strips map
+      entries, not whole records).
+    """
+    config = _integration_repo_config(aerospike_online_store_config, "update")
+    store = AerospikeOnlineStore()
+
+    fv_keep = _multi_fv_feature_view("keep_fv")
+    fv_drop = _multi_fv_feature_view("drop_fv")
+    ek = _entity_key("driver_id", 202)
+    ts = _utc_now()
+
+    store.online_write_batch(
+        config,
+        fv_keep,
+        [(ek, {"value": ValueProto(int64_val=1)}, ts, ts)],
+        progress=None,
+    )
+    store.online_write_batch(
+        config,
+        fv_drop,
+        [(ek, {"value": ValueProto(int64_val=999)}, ts, ts)],
+        progress=None,
+    )
+
+    # Pre-condition: both feature views readable.
+    assert store.online_read(config, fv_keep, [ek])[0][1] is not None
+    assert store.online_read(config, fv_drop, [ek])[0][1] is not None
+
+    store.update(
+        config=config,
+        tables_to_delete=[fv_drop],
+        tables_to_keep=[fv_keep],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=False,
+    )
+
+    # The background scan is asynchronous server-side. Poll up to ~10s for
+    # the drop_fv slot to disappear before failing — this matches how a real
+    # Feast caller would experience the post-apply propagation delay.
+    deadline = time.monotonic() + 10.0
+    drop_result = store.online_read(config, fv_drop, [ek])[0]
+    while drop_result != (None, None) and time.monotonic() < deadline:
+        time.sleep(0.1)
+        drop_result = store.online_read(config, fv_drop, [ek])[0]
+    assert drop_result == (None, None), (
+        f"drop_fv slot was not cleared by background scan within 10s; "
+        f"last result: {drop_result!r}"
+    )
+
+    # keep_fv must still be present with its original value.
+    keep_ts, keep_feats = store.online_read(config, fv_keep, [ek])[0]
+    assert keep_feats is not None, "keep_fv was removed by the scan"
+    assert keep_feats["value"].int64_val == 1
+    assert keep_ts is not None
+
+    # The record itself still exists — only the dropped FV's map entries
+    # were removed. Verify directly via a raw get so we notice if a future
+    # change accidentally escalates to a full-record delete.
+    client = store._get_client(config)
+    _, _, bins = client.get(store._aerospike_key(config, ek))
+    assert "drop_fv" not in bins["features"]
+    assert "drop_fv" not in bins["event_ts"]
+    assert "keep_fv" in bins["features"]
+
+    store.teardown(config, [], [])

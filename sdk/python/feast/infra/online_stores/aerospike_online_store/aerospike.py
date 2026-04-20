@@ -217,13 +217,24 @@ class AerospikeOnlineStore(OnlineStore):
 
     def _aerospike_key(
         self, config: RepoConfig, entity_key: EntityKeyProto
-    ) -> Tuple[str, str, bytes]:
-        """Build a ``(namespace, set, user_key_bytes)`` tuple for an entity."""
+    ) -> Tuple[str, str, bytearray]:
+        """Build a ``(namespace, set, user_key)`` tuple for an entity.
+
+        The user key is returned as a ``bytearray`` rather than ``bytes``:
+        the Aerospike Python C client rejects ``bytes`` user keys
+        (``calc_digest`` raises ``"Key is invalid"``), and ``batch_read`` /
+        ``batch_operate`` silently hash only the first byte of a ``bytes``
+        key. ``bytearray`` is the supported binary-key type.
+        """
         user_key = serialize_entity_key(
             entity_key,
             entity_key_serialization_version=config.entity_key_serialization_version,
         )
-        return (config.online_store.namespace, self._set_name(config), user_key)
+        return (
+            config.online_store.namespace,
+            self._set_name(config),
+            bytearray(user_key),
+        )
 
     # ------------------------------------------------------------------
     # Write path
@@ -256,9 +267,11 @@ class AerospikeOnlineStore(OnlineStore):
 
         batch = BatchRecords()
         for entity_key, proto_values, event_timestamp, created_timestamp in data:
-            user_key = serialize_entity_key(
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
+            user_key = bytearray(
+                serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
             )
             feature_map = {
                 field: feast_value_type_to_python_type(val)
@@ -350,9 +363,11 @@ class AerospikeOnlineStore(OnlineStore):
             (
                 ns,
                 set_name,
-                serialize_entity_key(
-                    k,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
+                bytearray(
+                    serialize_entity_key(
+                        k,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    )
                 ),
             )
             for k in entity_keys
@@ -364,15 +379,23 @@ class AerospikeOnlineStore(OnlineStore):
 
         batch = client.batch_operate(keys, read_ops)
 
-        ids = [user_key for _, _, user_key in keys]
+        # ``ids`` and ``docs`` use immutable ``bytes`` because ``bytearray`` is
+        # unhashable and can't key a dict. Keys on the wire must stay
+        # ``bytearray`` (see ``_aerospike_key``) — we only convert here for
+        # lookup.
+        ids = [bytes(user_key) for _, _, user_key in keys]
         docs: Dict[bytes, Dict[str, Any]] = {}
-        for br in batch.batch_records:
+        # batch_operate preserves request order. We pair each response with
+        # the original user-key rather than ``br.key[2]``: the Aerospike
+        # client may return the key in a different representation (e.g. only
+        # the first byte as a str when the write didn't use POLICY_KEY_SEND
+        # for reads).
+        for user_key, br in zip(ids, batch.batch_records):
             if br.record is None:
                 continue
             _, _, bins = br.record
             fv_features = bins.get("features") if bins else None
             fv_event_ts_ms = bins.get("event_ts") if bins else None
-            user_key = br.key[2]
             docs[user_key] = {
                 "features": {table.name: fv_features} if fv_features else {},
                 "event_timestamps": {table.name: _epoch_ms_to_datetime(fv_event_ts_ms)},
