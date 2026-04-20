@@ -797,3 +797,126 @@ class MongoDBOfflineStoreAgg(OfflineStore):
             full_feature_names=full_feature_names,
             config=config,
         )
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        """Write a batch of feature observations into the feature_history collection.
+
+        Each row in *table* is stored as one document::
+
+            {
+                "entity_id":       <serialized entity key bytes>,
+                "feature_view":    <feature view name>,
+                "features":        {<feature_name>: <value>, ...},
+                "event_timestamp": <datetime>,
+                "created_at":      <datetime>,
+            }
+
+        Writes are append-only (no upsert).  Conflict resolution at read time:
+        pull_latest picks the highest ``created_at``; the scoring path
+        ``$sort created_at DESC`` → ``$group $first`` also picks the highest.
+
+        Args:
+            config: Feast repo configuration.
+            feature_view: The feature view being written; must have a
+                MongoDBSourceAgg batch source.
+            table: Arrow table with join key columns, feature columns,
+                ``event_timestamp``, and optionally ``created_at``.
+            progress: Optional callback invoked with the row count after each
+                batch insert.
+        """
+        if not isinstance(feature_view.batch_source, MongoDBSourceAgg):
+            raise ValueError(
+                f"MongoDBOfflineStoreAgg.offline_write_batch expected a MongoDBSourceAgg "
+                f"batch source, got {type(feature_view.batch_source).__name__!r}."
+            )
+
+        entity_key_version = config.entity_key_serialization_version
+        db_name = config.offline_store.database
+        collection_name = config.offline_store.collection
+
+        join_key_types: Dict[str, ValueType] = {
+            feature_view.projection.join_key_map.get(
+                ec.name, ec.name
+            ): ec.dtype.to_value_type()
+            for ec in feature_view.entity_columns
+        }
+        join_keys = list(join_key_types.keys())
+
+        timestamp_field = feature_view.batch_source.timestamp_field
+        created_ts_col: Optional[str] = (
+            feature_view.batch_source.created_timestamp_column or None
+        )
+
+        reserved = set(join_keys) | {timestamp_field}
+        if created_ts_col:
+            reserved.add(created_ts_col)
+        feature_cols = [c for c in table.column_names if c not in reserved]
+
+        df = table.to_pandas()
+
+        for ts_col in [timestamp_field] + ([created_ts_col] if created_ts_col else []):
+            if ts_col in df.columns:
+                if not pd.api.types.is_datetime64_any_dtype(df[ts_col]):
+                    df[ts_col] = pd.to_datetime(df[ts_col], utc=True)
+                elif df[ts_col].dt.tz is None:
+                    df[ts_col] = df[ts_col].dt.tz_localize("UTC")
+
+        df["_entity_id"] = df.apply(
+            lambda row: _serialize_entity_key_from_row(
+                row, join_keys, entity_key_version, join_key_types
+            ),
+            axis=1,
+        )
+
+        now = datetime.now(tz=timezone.utc)
+
+        docs = []
+        for _, row in df.iterrows():
+            features: Dict[str, Any] = {}
+            for col in feature_cols:
+                val = row[col]
+                if pd.isna(val):
+                    continue
+                if hasattr(val, "item"):
+                    val = val.item()
+                features[col] = val
+
+            created_at = now
+            if created_ts_col and created_ts_col in df.columns:
+                ct = row[created_ts_col]
+                if not pd.isna(ct):
+                    created_at = (
+                        ct.to_pydatetime() if hasattr(ct, "to_pydatetime") else ct
+                    )
+
+            docs.append(
+                {
+                    "entity_id": row["_entity_id"],
+                    "feature_view": feature_view.name,
+                    "features": features,
+                    "event_timestamp": (
+                        row[timestamp_field].to_pydatetime()
+                        if hasattr(row[timestamp_field], "to_pydatetime")
+                        else row[timestamp_field]
+                    ),
+                    "created_at": created_at,
+                }
+            )
+
+        client = MongoDBOfflineStoreAgg._get_client_and_ensure_indexes(config)
+        try:
+            coll = client[db_name][collection_name]
+            BATCH_SIZE = 10_000
+            for i in range(0, len(docs), BATCH_SIZE):
+                batch = docs[i : i + BATCH_SIZE]
+                coll.insert_many(batch, ordered=False)
+                if progress:
+                    progress(len(batch))
+        finally:
+            client.close()
