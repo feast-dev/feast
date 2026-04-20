@@ -48,6 +48,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+aerospike = [
+    "aerospike>=19.0.0,<20.0.0",
+]
 aws = ["boto3>=1.38.27", "fsspec>=2024.1.0", "aiobotocore>=2"]
 azure = [
     "azure-storage-blob>=0.37.0",
