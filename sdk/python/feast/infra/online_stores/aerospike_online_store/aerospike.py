@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import functools
 from datetime import datetime, timezone
 from logging import getLogger
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -447,6 +449,64 @@ class AerospikeOnlineStore(OnlineStore):
             }
             results.append((ts, row_features))
         return results
+
+    # ------------------------------------------------------------------
+    # Async wrappers
+    # ------------------------------------------------------------------
+    # The Aerospike Python client is a synchronous C extension; there is no
+    # native asyncio interface. Network calls do release the GIL, so we expose
+    # a correct ``async`` surface by offloading each blocking call to the
+    # default thread-pool executor. Callers that ``await`` these methods keep
+    # the event loop responsive while the client talks to the cluster.
+
+    async def online_write_batch_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            functools.partial(self.online_write_batch, config, table, data, progress),
+        )
+
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            functools.partial(
+                self.online_read, config, table, entity_keys, requested_features
+            ),
+        )
+
+    async def initialize(self, config: RepoConfig) -> None:
+        """Pre-warm the Aerospike client so the first request is hot.
+
+        Feature servers typically call :meth:`initialize` during startup so the
+        TCP + handshake latency is paid upfront rather than on the first
+        ``online_read``.
+        """
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, functools.partial(self._get_client, config))
+
+    async def close(self) -> None:
+        """Release the cached Aerospike client, if any."""
+        if self._client is None:
+            return
+        client = self._client
+        self._client = None
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, client.close)
 
     # ------------------------------------------------------------------
     # Admin paths (update / teardown)

@@ -517,6 +517,96 @@ def test_teardown_rejects_non_aerospike_config():
 
 
 # ---------------------------------------------------------------------------
+# Async wrappers (run_in_executor)
+# ---------------------------------------------------------------------------
+
+
+async def test_online_write_batch_async_delegates_to_sync():
+    """The async write path must produce identical side-effects to the sync one."""
+    config = _aerospike_repo_config()
+    fv = SimpleNamespace(name="fv")
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    store._client = fake_client
+
+    row = (
+        _entity_key("id", 1),
+        {"x": ValueProto(int64_val=1)},
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+        None,
+    )
+    progress_calls: list[int] = []
+    await store.online_write_batch_async(
+        config, fv, [row], progress=progress_calls.append
+    )
+
+    assert fake_client.batch_write.called
+    assert progress_calls == [1]
+
+
+async def test_online_read_async_returns_same_shape_as_sync():
+    config = _aerospike_repo_config()
+    fv = _read_feature_view()
+    store = AerospikeOnlineStore()
+    ts = datetime(2026, 4, 20, tzinfo=timezone.utc)
+    ek = _entity_key("driver_id", 1)
+    key = store._aerospike_key(config, ek)
+
+    def fake_batch_operate(keys, ops):
+        return SimpleNamespace(
+            batch_records=[
+                _fake_batch_record(
+                    key,
+                    {
+                        "features": {"rating": 4.91, "trips_last_7d": 132},
+                        "event_ts": _datetime_to_epoch_ms(ts),
+                    },
+                )
+            ]
+        )
+
+    fake_client = MagicMock()
+    fake_client.batch_operate.side_effect = fake_batch_operate
+    store._client = fake_client
+
+    results = await store.online_read_async(config, fv, [ek])
+    assert len(results) == 1
+    ts_out, feats = results[0]
+    assert ts_out == ts
+    assert feats["trips_last_7d"].int64_val == 132
+
+
+async def test_initialize_pre_warms_client():
+    """initialize() must cause the client to connect without needing a read/write."""
+    config = _aerospike_repo_config()
+    store = AerospikeOnlineStore()
+    assert store._client is None
+
+    sentinel = MagicMock(name="warm_client")
+    store._get_client = MagicMock(return_value=sentinel)  # type: ignore[assignment]
+
+    await store.initialize(config)
+    store._get_client.assert_called_once_with(config)
+
+
+async def test_close_is_noop_without_client():
+    store = AerospikeOnlineStore()
+    assert store._client is None
+    await store.close()  # must not raise
+
+
+async def test_close_releases_client():
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    store._client = fake_client
+
+    await store.close()
+
+    fake_client.close.assert_called_once()
+    assert store._client is None
+
+
+# ---------------------------------------------------------------------------
 # End-to-end integration test — requires Docker
 # ---------------------------------------------------------------------------
 
