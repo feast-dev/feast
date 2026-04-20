@@ -448,6 +448,9 @@ class AerospikeOnlineStore(OnlineStore):
             results.append((ts, row_features))
         return results
 
+    # ------------------------------------------------------------------
+    # Admin paths (update / teardown)
+    # ------------------------------------------------------------------
     def update(
         self,
         config: RepoConfig,
@@ -457,7 +460,46 @@ class AerospikeOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ) -> None:
-        raise NotImplementedError("AerospikeOnlineStore.update is not implemented yet.")
+        """Reconcile per-feature-view data when a schema change is applied.
+
+        Aerospike has no explicit schema, and records/sets are created lazily
+        on first write, so there is nothing to do for ``tables_to_keep`` or
+        either of the entity lists. For ``tables_to_delete`` we strip each
+        feature-view's slot out of the ``features`` and ``event_ts`` Map
+        CDTs on every record in the project's set.
+
+        This is issued as a single **background scan** with a combined op
+        list covering all feature views being removed, so the cost is a
+        single server-side pass regardless of how many feature views are
+        dropped. The scan runs asynchronously server-side and returns
+        immediately; this matches the intent of ``feast apply``, after
+        which the caller stops reading the dropped feature views anyway.
+        """
+        if not isinstance(config.online_store, AerospikeOnlineStoreConfig):
+            raise RuntimeError(f"{config.online_store.type = }. It must be aerospike.")
+        if not tables_to_delete:
+            return
+
+        client = self._get_client(config)
+        ns = config.online_store.namespace
+        set_name = self._set_name(config)
+
+        remove_ops: List[Dict[str, Any]] = []
+        for fv in tables_to_delete:
+            remove_ops.append(
+                map_ops.map_remove_by_key(
+                    "features", fv.name, aerospike.MAP_RETURN_NONE
+                )
+            )
+            remove_ops.append(
+                map_ops.map_remove_by_key(
+                    "event_ts", fv.name, aerospike.MAP_RETURN_NONE
+                )
+            )
+
+        scan = client.scan(ns, set_name)
+        scan.add_ops(remove_ops)
+        scan.execute_background()
 
     def teardown(
         self,
@@ -465,6 +507,23 @@ class AerospikeOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ) -> None:
-        raise NotImplementedError(
-            "AerospikeOnlineStore.teardown is not implemented yet."
-        )
+        """Truncate the project's set and close the cached client.
+
+        Uses Aerospike's ``truncate(namespace, set, 0)`` — a set-scoped
+        metadata operation that clears every record in O(1) client time,
+        cheaper than Mongo's ``collection.drop()``. Passing ``0`` as the
+        cutoff means "drop everything regardless of last-update time".
+
+        Truncate on a non-existent set is a no-op, so calling ``teardown``
+        on a project that never wrote data is safe.
+        """
+        if not isinstance(config.online_store, AerospikeOnlineStoreConfig):
+            raise RuntimeError(f"{config.online_store.type = }. It must be aerospike.")
+
+        client = self._get_client(config)
+        ns = config.online_store.namespace
+        set_name = self._set_name(config)
+        client.truncate(ns, set_name, 0)
+        if self._client is not None:
+            self._client.close()
+            self._client = None
