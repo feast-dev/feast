@@ -8,6 +8,7 @@ from feast.feature_logging import LOG_TIMESTAMP_FIELD, FeatureServiceLoggingSour
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.monitoring.dqm_job_manager import DQMJobManager
 from feast.monitoring.metrics_calculator import MetricsCalculator
+from feast.monitoring.monitoring_utils import build_view_aggregate
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,12 @@ class MonitoringService:
         self._job_manager: Optional[DQMJobManager] = None
         self._calculator = MetricsCalculator()
         self._monitoring_tables_ensured = False
+        self._offline_store_cache = None
 
     def _get_offline_store(self):
-        return self._store._get_provider().offline_store
+        if self._offline_store_cache is None:
+            self._offline_store_cache = self._store._get_provider().offline_store
+        return self._offline_store_cache
 
     def _ensure_monitoring_tables(self):
         if not self._monitoring_tables_ensured:
@@ -331,13 +335,6 @@ class MonitoringService:
                 )
 
                 now = datetime.now(timezone.utc)
-                offline_store = self._get_offline_store()
-                offline_store.clear_monitoring_baseline(
-                    config=self._store.config,
-                    project=project,
-                    feature_view_name=fv.name,
-                )
-
                 self._save_computed_metrics(
                     project=project,
                     feature_view=fv,
@@ -700,87 +697,21 @@ class MonitoringService:
         start_dt: datetime,
         end_dt: datetime,
     ) -> List[Dict[str, Any]]:
-        """Compute metrics, preferring offline store SQL push-down.
-
-        Falls back to Python-based (PyArrow/NumPy) computation when the
-        offline store does not implement compute_monitoring_metrics.
-        """
-        provider = self._store._get_provider()
-        offline_store = provider.offline_store
-        try:
-            return offline_store.compute_monitoring_metrics(
-                config=self._store.config,
-                data_source=feature_view.batch_source,
-                feature_columns=feature_fields,
-                timestamp_field=feature_view.batch_source.timestamp_field,
-                start_date=start_dt,
-                end_date=end_dt,
-                histogram_bins=self._calculator.histogram_bins,
-                top_n=self._calculator.top_n,
-            )
-        except NotImplementedError:
-            logger.debug(
-                "Offline store does not support compute_monitoring_metrics, "
-                "falling back to Python-based computation"
-            )
-            arrow_table = self._read_batch_source(
-                feature_view,
-                feature_fields,
-                start_dt,
-                end_dt,
-            )
-            return self._calculator.compute_all(arrow_table, feature_fields)
-
-    def _get_max_timestamp(self, feature_view) -> Optional[datetime]:
-        """Query the batch source for MAX(event_timestamp).
-
-        Prefers the offline store's native push-down; falls back to reading
-        the full table and computing max in Python.
-        """
-        provider = self._store._get_provider()
-        offline_store = provider.offline_store
-        try:
-            return offline_store.get_monitoring_max_timestamp(
-                config=self._store.config,
-                data_source=feature_view.batch_source,
-                timestamp_field=feature_view.batch_source.timestamp_field,
-            )
-        except NotImplementedError:
-            return self._get_max_timestamp_fallback(feature_view)
-
-    def _get_max_timestamp_fallback(self, feature_view) -> Optional[datetime]:
-        """Pull all data and compute max timestamp in Python (fallback)."""
-        import pyarrow.compute as pc
-
-        data_source = feature_view.batch_source
-        ts_field = data_source.timestamp_field
-
-        provider = self._store._get_provider()
-        offline_store = provider.offline_store
-
-        retrieval_job = offline_store.pull_all_from_table_or_query(
-            config=self._store.config,
-            data_source=data_source,
-            join_key_columns=self._resolve_join_key_columns(feature_view),
-            feature_name_columns=[],
-            timestamp_field=ts_field,
-            created_timestamp_column=data_source.created_timestamp_column,
-            start_date=_EPOCH,
-            end_date=_FAR_FUTURE,
+        """Compute metrics from a feature view's batch source."""
+        return self._compute_from_source(
+            feature_view.batch_source,
+            feature_view.batch_source.timestamp_field,
+            feature_fields,
+            start_dt,
+            end_dt,
         )
 
-        table = retrieval_job.to_arrow()
-        if ts_field not in table.column_names or len(table) == 0:
-            return None
-
-        max_val = pc.max(table.column(ts_field)).as_py()
-        if max_val is None:
-            return None
-
-        if isinstance(max_val, datetime):
-            return max_val if max_val.tzinfo else max_val.replace(tzinfo=timezone.utc)
-
-        return datetime.combine(max_val, datetime.min.time(), tzinfo=timezone.utc)
+    def _get_max_timestamp(self, feature_view) -> Optional[datetime]:
+        """Query the batch source for MAX(event_timestamp)."""
+        return self._get_max_timestamp_for_source(
+            feature_view.batch_source,
+            feature_view.batch_source.timestamp_field,
+        )
 
     # ------------------------------------------------------------------ #
     #  Private: shared helpers (DRY)
@@ -868,9 +799,6 @@ class MonitoringService:
 
         offline_store.save_monitoring_metrics(config, "feature", metrics_list)
 
-        null_rates = [
-            m["null_rate"] for m in metrics_list if m.get("null_rate") is not None
-        ]
         view_metric = {
             "project_id": project,
             "feature_view_name": feature_view.name,
@@ -879,13 +807,7 @@ class MonitoringService:
             "data_source_type": "batch",
             "computed_at": now,
             "is_baseline": set_baseline,
-            "total_row_count": metrics_list[0]["row_count"] if metrics_list else 0,
-            "total_features": len(metrics_list),
-            "features_with_nulls": sum(
-                1 for m in metrics_list if (m.get("null_count") or 0) > 0
-            ),
-            "avg_null_rate": sum(null_rates) / len(null_rates) if null_rates else 0.0,
-            "max_null_rate": max(null_rates) if null_rates else 0.0,
+            **build_view_aggregate(metrics_list),
         }
         offline_store.save_monitoring_metrics(config, "feature_view", [view_metric])
 
@@ -1047,9 +969,12 @@ class MonitoringService:
         return data_source, LOG_TIMESTAMP_FIELD, feature_fields, log_col_map
 
     def _get_max_timestamp_for_source(self, data_source, ts_field):
-        """Get MAX timestamp from an arbitrary data source."""
-        provider = self._store._get_provider()
-        offline_store = provider.offline_store
+        """Get MAX timestamp from an arbitrary data source.
+
+        Prefers the offline store's native push-down; falls back to reading
+        the table and computing max in Python.
+        """
+        offline_store = self._get_offline_store()
         try:
             return offline_store.get_monitoring_max_timestamp(
                 config=self._store.config,
@@ -1057,17 +982,9 @@ class MonitoringService:
                 timestamp_field=ts_field,
             )
         except NotImplementedError:
-            return self._get_max_timestamp_for_source_fallback(
-                data_source,
-                ts_field,
-            )
+            pass
 
-    def _get_max_timestamp_for_source_fallback(self, data_source, ts_field):
-        """Pull data and compute max timestamp in Python (fallback)."""
         import pyarrow.compute as pc
-
-        provider = self._store._get_provider()
-        offline_store = provider.offline_store
 
         retrieval_job = offline_store.pull_all_from_table_or_query(
             config=self._store.config,
@@ -1099,9 +1016,11 @@ class MonitoringService:
         start_dt: datetime,
         end_dt: datetime,
     ) -> List[Dict[str, Any]]:
-        """Compute metrics from an arbitrary data source (batch or log)."""
-        provider = self._store._get_provider()
-        offline_store = provider.offline_store
+        """Compute metrics from an arbitrary data source (batch or log).
+
+        Prefers SQL push-down; falls back to Python-based computation.
+        """
+        offline_store = self._get_offline_store()
         try:
             return offline_store.compute_monitoring_metrics(
                 config=self._store.config,
@@ -1175,37 +1094,23 @@ class MonitoringService:
         for m in metrics_list:
             by_view[m["feature_view_name"]].append(m)
 
-        view_metrics = []
-        for vname, vmetrics in by_view.items():
-            null_rates = [
-                m["null_rate"] for m in vmetrics if m.get("null_rate") is not None
-            ]
-            view_metrics.append(
-                {
-                    "project_id": project,
-                    "feature_view_name": vname,
-                    "metric_date": metric_date,
-                    "granularity": granularity,
-                    "data_source_type": "log",
-                    "computed_at": now,
-                    "is_baseline": set_baseline,
-                    "total_row_count": vmetrics[0]["row_count"] if vmetrics else 0,
-                    "total_features": len(vmetrics),
-                    "features_with_nulls": sum(
-                        1 for m in vmetrics if (m.get("null_count") or 0) > 0
-                    ),
-                    "avg_null_rate": (
-                        sum(null_rates) / len(null_rates) if null_rates else 0.0
-                    ),
-                    "max_null_rate": max(null_rates) if null_rates else 0.0,
-                }
-            )
+        view_metrics = [
+            {
+                "project_id": project,
+                "feature_view_name": vname,
+                "metric_date": metric_date,
+                "granularity": granularity,
+                "data_source_type": "log",
+                "computed_at": now,
+                "is_baseline": set_baseline,
+                **build_view_aggregate(vmetrics),
+            }
+            for vname, vmetrics in by_view.items()
+        ]
         offline_store.save_monitoring_metrics(config, "feature_view", view_metrics)
 
         # --- feature service aggregate ---
-        all_null_rates = [
-            m["null_rate"] for m in metrics_list if m.get("null_rate") is not None
-        ]
+        svc_agg = build_view_aggregate(metrics_list)
         svc_metric = {
             "project_id": project,
             "feature_service_name": feature_service_name,
@@ -1215,20 +1120,16 @@ class MonitoringService:
             "computed_at": now,
             "is_baseline": set_baseline,
             "total_feature_views": len(by_view),
-            "total_features": len(metrics_list),
-            "avg_null_rate": (
-                sum(all_null_rates) / len(all_null_rates) if all_null_rates else 0.0
-            ),
-            "max_null_rate": max(all_null_rates) if all_null_rates else 0.0,
+            "total_features": svc_agg["total_features"],
+            "avg_null_rate": svc_agg["avg_null_rate"],
+            "max_null_rate": svc_agg["max_null_rate"],
         }
         offline_store.save_monitoring_metrics(config, "feature_service", [svc_metric])
 
     def _read_batch_source(self, feature_view, feature_fields, start_dt, end_dt):
         config = self._store.config
         data_source = feature_view.batch_source
-
-        provider = self._store._get_provider()
-        offline_store = provider.offline_store
+        offline_store = self._get_offline_store()
 
         retrieval_job = offline_store.pull_all_from_table_or_query(
             config=config,
@@ -1264,7 +1165,7 @@ class MonitoringService:
 
         for fs in feature_services:
             try:
-                fv_names = [proj.name for proj in fs.feature_view_projections]
+                fv_names = {proj.name for proj in fs.feature_view_projections}
 
                 for metric_date in metric_dates:
                     fv_metrics = offline_store.query_monitoring_metrics(

@@ -51,6 +51,16 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     write_pandas,
     write_parquet,
 )
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.types import (
@@ -503,13 +513,9 @@ class SnowflakeOfflineStore(OfflineStore):
     def ensure_monitoring_tables(config: RepoConfig) -> None:
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
 
-        fq_feature = _snowflake_monitoring_table_fqn(
-            config, _SNOWFLAKE_MON_FEATURE_TABLE
-        )
-        fq_view = _snowflake_monitoring_table_fqn(config, _SNOWFLAKE_MON_VIEW_TABLE)
-        fq_service = _snowflake_monitoring_table_fqn(
-            config, _SNOWFLAKE_MON_SERVICE_TABLE
-        )
+        fq_feature = _snowflake_monitoring_table_fqn(config, MON_TABLE_FEATURE)
+        fq_view = _snowflake_monitoring_table_fqn(config, MON_TABLE_FEATURE_VIEW)
+        fq_service = _snowflake_monitoring_table_fqn(config, MON_TABLE_FEATURE_SERVICE)
 
         ddl_feature = f"""
             CREATE TABLE IF NOT EXISTS {fq_feature} (
@@ -590,7 +596,7 @@ class SnowflakeOfflineStore(OfflineStore):
             return
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
 
-        table, columns, pk_columns = _snowflake_mon_table_meta(metric_type)
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
         _snowflake_mon_merge_upsert(
             config.offline_store, table, columns, pk_columns, metrics
         )
@@ -606,7 +612,7 @@ class SnowflakeOfflineStore(OfflineStore):
     ) -> List[Dict[str, Any]]:
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
 
-        _, columns, _ = _snowflake_mon_table_meta(metric_type)
+        _, columns, _ = monitoring_table_meta(metric_type)
         return _snowflake_mon_query(
             config.offline_store,
             metric_type,
@@ -627,7 +633,7 @@ class SnowflakeOfflineStore(OfflineStore):
     ) -> None:
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
 
-        fq_table = _snowflake_monitoring_table_fqn(config, _SNOWFLAKE_MON_FEATURE_TABLE)
+        fq_table = _snowflake_monitoring_table_fqn(config, MON_TABLE_FEATURE)
         conditions = [f'"project_id" = {_snowflake_sql_literal(project)}']
         if feature_view_name:
             conditions.append(
@@ -873,111 +879,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
 #  Snowflake monitoring SQL push-down & storage helpers
 # ------------------------------------------------------------------ #
 
-_SNOWFLAKE_MON_FEATURE_TABLE = "feast_monitoring_feature_metrics"
-_SNOWFLAKE_MON_VIEW_TABLE = "feast_monitoring_feature_view_metrics"
-_SNOWFLAKE_MON_SERVICE_TABLE = "feast_monitoring_feature_service_metrics"
-
-_SNOWFLAKE_MON_FEATURE_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "feature_type",
-    "row_count",
-    "null_count",
-    "null_rate",
-    "mean",
-    "stddev",
-    "min_val",
-    "max_val",
-    "p50",
-    "p75",
-    "p90",
-    "p95",
-    "p99",
-    "histogram",
-]
-_SNOWFLAKE_MON_FEATURE_PK = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_SNOWFLAKE_MON_VIEW_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_row_count",
-    "total_features",
-    "features_with_nulls",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_SNOWFLAKE_MON_VIEW_PK = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_SNOWFLAKE_MON_SERVICE_COLUMNS = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_feature_views",
-    "total_features",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_SNOWFLAKE_MON_SERVICE_PK = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_EMPTY_SNOWFLAKE_NUMERIC_METRIC: Dict[str, Any] = {
-    "feature_type": "numeric",
-    "row_count": 0,
-    "null_count": 0,
-    "null_rate": 0.0,
-    "mean": None,
-    "stddev": None,
-    "min_val": None,
-    "max_val": None,
-    "p50": None,
-    "p75": None,
-    "p90": None,
-    "p95": None,
-    "p99": None,
-    "histogram": None,
-}
-
-
-def _opt_float(val: Any) -> Optional[float]:
-    if val is None:
-        return None
-    if isinstance(val, Decimal):
-        return float(val)
-    return float(val)
-
 
 def _escape_snowflake_sql_string(value: str) -> str:
     return value.replace("'", "''")
@@ -1026,28 +927,6 @@ def _snowflake_monitoring_table_fqn(
     os = config.offline_store
     assert isinstance(os, SnowflakeOfflineStoreConfig)
     return f'"{os.database}"."{os.schema_}"."{table_name}"'
-
-
-def _snowflake_mon_table_meta(metric_type: str) -> Tuple[str, List[str], List[str]]:
-    if metric_type == "feature":
-        return (
-            _SNOWFLAKE_MON_FEATURE_TABLE,
-            _SNOWFLAKE_MON_FEATURE_COLUMNS,
-            _SNOWFLAKE_MON_FEATURE_PK,
-        )
-    if metric_type == "feature_view":
-        return (
-            _SNOWFLAKE_MON_VIEW_TABLE,
-            _SNOWFLAKE_MON_VIEW_COLUMNS,
-            _SNOWFLAKE_MON_VIEW_PK,
-        )
-    if metric_type == "feature_service":
-        return (
-            _SNOWFLAKE_MON_SERVICE_TABLE,
-            _SNOWFLAKE_MON_SERVICE_COLUMNS,
-            _SNOWFLAKE_MON_SERVICE_PK,
-        )
-    raise ValueError(f"Unknown metric_type '{metric_type}'")
 
 
 def _snowflake_sql_numeric_histogram(
@@ -1133,10 +1012,7 @@ def _snowflake_sql_numeric_stats(
     row = cursor.fetchone()
 
     if row is None:
-        return [
-            {**_EMPTY_SNOWFLAKE_NUMERIC_METRIC, "feature_name": n}
-            for n in feature_names
-        ]
+        return [empty_numeric_metric(n) for n in feature_names]
 
     row_count = row[0]
     results: List[Dict[str, Any]] = []
@@ -1146,8 +1022,8 @@ def _snowflake_sql_numeric_stats(
         non_null = row[base] or 0
         null_count = row_count - non_null
 
-        min_val = _opt_float(row[base + 3])
-        max_val = _opt_float(row[base + 4])
+        min_val = opt_float(row[base + 3])
+        max_val = opt_float(row[base + 4])
 
         result: Dict[str, Any] = {
             "feature_name": col,
@@ -1155,15 +1031,15 @@ def _snowflake_sql_numeric_stats(
             "row_count": row_count,
             "null_count": null_count,
             "null_rate": null_count / row_count if row_count > 0 else 0.0,
-            "mean": _opt_float(row[base + 1]),
-            "stddev": _opt_float(row[base + 2]),
+            "mean": opt_float(row[base + 1]),
+            "stddev": opt_float(row[base + 2]),
             "min_val": min_val,
             "max_val": max_val,
-            "p50": _opt_float(row[base + 5]),
-            "p75": _opt_float(row[base + 6]),
-            "p90": _opt_float(row[base + 7]),
-            "p95": _opt_float(row[base + 8]),
-            "p99": _opt_float(row[base + 9]),
+            "p50": opt_float(row[base + 5]),
+            "p75": opt_float(row[base + 6]),
+            "p90": opt_float(row[base + 7]),
+            "p95": opt_float(row[base + 8]),
+            "p99": opt_float(row[base + 9]),
             "histogram": None,
         }
 
@@ -1210,11 +1086,7 @@ def _snowflake_sql_categorical_stats(
     rows = cursor.fetchall()
 
     if not rows:
-        return {
-            **_EMPTY_SNOWFLAKE_NUMERIC_METRIC,
-            "feature_name": col_name,
-            "feature_type": "categorical",
-        }
+        return empty_categorical_metric(col_name)
 
     row_count = rows[0][0]
     null_count = rows[0][1]
@@ -1299,7 +1171,7 @@ def _snowflake_mon_query(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
 ) -> List[Dict[str, Any]]:
-    table, _, _ = _snowflake_mon_table_meta(metric_type)
+    table, _, _ = monitoring_table_meta(metric_type)
     fq = f'"{offline_store.database}"."{offline_store.schema_}"."{table}"'
 
     conditions = [f'"project_id" = {_snowflake_sql_literal(project)}']
@@ -1326,19 +1198,7 @@ def _snowflake_mon_query(
     results: List[Dict[str, Any]] = []
     for row in rows:
         record = dict(zip(columns, row))
-        hist = record.get("histogram")
-        if hist is not None and isinstance(hist, str):
-            record["histogram"] = json.loads(hist)
-        md = record.get("metric_date")
-        if md is not None:
-            if isinstance(md, datetime):
-                record["metric_date"] = md.date().isoformat()
-            elif isinstance(md, date):
-                record["metric_date"] = md.isoformat()
-        ca = record.get("computed_at")
-        if ca is not None and isinstance(ca, datetime):
-            record["computed_at"] = ca.isoformat()
-        results.append(record)
+        results.append(normalize_monitoring_row(record))
 
     return results
 

@@ -43,6 +43,16 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -546,27 +556,6 @@ class BigQueryOfflineStore(OfflineStore):
 #  BigQuery monitoring metrics (native)
 # ------------------------------------------------------------------ #
 
-_BQ_MON_FEATURE_TABLE = "feast_monitoring_feature_metrics"
-_BQ_MON_VIEW_TABLE = "feast_monitoring_feature_view_metrics"
-_BQ_MON_SERVICE_TABLE = "feast_monitoring_feature_service_metrics"
-
-_BQ_EMPTY_METRIC_TEMPLATE: Dict[str, Any] = {
-    "feature_type": "numeric",
-    "row_count": 0,
-    "null_count": 0,
-    "null_rate": 0.0,
-    "mean": None,
-    "stddev": None,
-    "min_val": None,
-    "max_val": None,
-    "p50": None,
-    "p75": None,
-    "p90": None,
-    "p95": None,
-    "p99": None,
-    "histogram": None,
-}
-
 
 def _bq_monitoring_table_fqn(config: RepoConfig, table_name: str) -> str:
     assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
@@ -578,99 +567,6 @@ def _bq_monitoring_table_fqn(config: RepoConfig, table_name: str) -> str:
         )
         project_id = client.project
     return f"`{project_id}.{config.offline_store.dataset}.{table_name}`"
-
-
-def _bq_opt_float(val: Any) -> Optional[float]:
-    return float(val) if val is not None else None
-
-
-def _bq_mon_table_meta(metric_type: str) -> Tuple[str, List[str], List[str]]:
-    if metric_type == "feature":
-        return (
-            _BQ_MON_FEATURE_TABLE,
-            [
-                "project_id",
-                "feature_view_name",
-                "feature_name",
-                "metric_date",
-                "granularity",
-                "data_source_type",
-                "computed_at",
-                "is_baseline",
-                "feature_type",
-                "row_count",
-                "null_count",
-                "null_rate",
-                "mean",
-                "stddev",
-                "min_val",
-                "max_val",
-                "p50",
-                "p75",
-                "p90",
-                "p95",
-                "p99",
-                "histogram",
-            ],
-            [
-                "project_id",
-                "feature_view_name",
-                "feature_name",
-                "metric_date",
-                "granularity",
-                "data_source_type",
-            ],
-        )
-    if metric_type == "feature_view":
-        return (
-            _BQ_MON_VIEW_TABLE,
-            [
-                "project_id",
-                "feature_view_name",
-                "metric_date",
-                "granularity",
-                "data_source_type",
-                "computed_at",
-                "is_baseline",
-                "total_row_count",
-                "total_features",
-                "features_with_nulls",
-                "avg_null_rate",
-                "max_null_rate",
-            ],
-            [
-                "project_id",
-                "feature_view_name",
-                "metric_date",
-                "granularity",
-                "data_source_type",
-            ],
-        )
-    if metric_type == "feature_service":
-        return (
-            _BQ_MON_SERVICE_TABLE,
-            [
-                "project_id",
-                "feature_service_name",
-                "metric_date",
-                "granularity",
-                "data_source_type",
-                "computed_at",
-                "is_baseline",
-                "total_feature_views",
-                "total_features",
-                "avg_null_rate",
-                "max_null_rate",
-            ],
-            [
-                "project_id",
-                "feature_service_name",
-                "metric_date",
-                "granularity",
-                "data_source_type",
-            ],
-        )
-    raise ValueError(f"Unknown metric_type '{metric_type}'")
 
 
 def _bq_scalar_param_type(column: str) -> str:
@@ -753,7 +649,7 @@ def _bq_save_monitoring_metrics(
     metric_type: str,
     metrics: List[Dict[str, Any]],
 ) -> None:
-    table_short, columns, pk_columns = _bq_mon_table_meta(metric_type)
+    table_short, columns, pk_columns = monitoring_table_meta(metric_type)
     table_fqn = _bq_monitoring_table_fqn(config, table_short)
     for row in metrics:
         _bq_merge_row(config, table_fqn, columns, pk_columns, row)
@@ -767,7 +663,7 @@ def _bq_query_monitoring_metrics(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
 ) -> List[Dict[str, Any]]:
-    table_short, columns, _ = _bq_mon_table_meta(metric_type)
+    table_short, columns, _ = monitoring_table_meta(metric_type)
     table_fqn = _bq_monitoring_table_fqn(config, table_short)
     project_id = (
         config.offline_store.billing_project_id or config.offline_store.project_id
@@ -806,13 +702,7 @@ def _bq_query_monitoring_metrics(
     results: List[Dict[str, Any]] = []
     for r in job:
         record = {columns[i]: r[i] for i in range(len(columns))}
-        if "histogram" in record and isinstance(record["histogram"], str):
-            record["histogram"] = json.loads(record["histogram"])
-        if "metric_date" in record and isinstance(record["metric_date"], date):
-            record["metric_date"] = record["metric_date"].isoformat()
-        if "computed_at" in record and isinstance(record["computed_at"], datetime):
-            record["computed_at"] = record["computed_at"].isoformat()
-        results.append(record)
+        results.append(normalize_monitoring_row(record))
     return results
 
 
@@ -823,7 +713,7 @@ def _bq_clear_monitoring_baseline(
     feature_name: Optional[str] = None,
     data_source_type: Optional[str] = None,
 ) -> None:
-    table_fqn = _bq_monitoring_table_fqn(config, _BQ_MON_FEATURE_TABLE)
+    table_fqn = _bq_monitoring_table_fqn(config, MON_TABLE_FEATURE)
     project_id = (
         config.offline_store.billing_project_id or config.offline_store.project_id
     )
@@ -870,7 +760,7 @@ def _bq_ensure_monitoring_tables(config: RepoConfig) -> None:
     ds = config.offline_store.dataset
     proj = config.offline_store.project_id or client.project
     feature_ddl = f"""
-CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{_BQ_MON_FEATURE_TABLE}` (
+CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE}` (
   project_id STRING NOT NULL,
   feature_view_name STRING NOT NULL,
   feature_name STRING NOT NULL,
@@ -897,7 +787,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{_BQ_MON_FEATURE_TABLE}` (
 PRIMARY KEY (project_id, feature_view_name, feature_name, metric_date, granularity, data_source_type) NOT ENFORCED
 """
     view_ddl = f"""
-CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{_BQ_MON_VIEW_TABLE}` (
+CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_VIEW}` (
   project_id STRING NOT NULL,
   feature_view_name STRING NOT NULL,
   metric_date DATE NOT NULL,
@@ -914,7 +804,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{_BQ_MON_VIEW_TABLE}` (
 PRIMARY KEY (project_id, feature_view_name, metric_date, granularity, data_source_type) NOT ENFORCED
 """
     service_ddl = f"""
-CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{_BQ_MON_SERVICE_TABLE}` (
+CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_SERVICE}` (
   project_id STRING NOT NULL,
   feature_service_name STRING NOT NULL,
   metric_date DATE NOT NULL,
@@ -1061,7 +951,7 @@ def _bq_numeric_stats(
     job.result()
     rows = list(job)
     if not rows:
-        return [{**_BQ_EMPTY_METRIC_TEMPLATE, "feature_name": n} for n in feature_names]
+        return [empty_numeric_metric(n) for n in feature_names]
     row = rows[0]
     row_count = row["_row_count"] or 0
     results: List[Dict[str, Any]] = []
@@ -1069,23 +959,23 @@ def _bq_numeric_stats(
         base = f"c{i}_"
         non_null = row[f"{base}nn"] or 0
         null_count = int(row_count) - int(non_null)
-        min_v = _bq_opt_float(row[f"{base}min"])
-        max_v = _bq_opt_float(row[f"{base}max"])
+        min_v = opt_float(row[f"{base}min"])
+        max_v = opt_float(row[f"{base}max"])
         result: Dict[str, Any] = {
             "feature_name": col,
             "feature_type": "numeric",
             "row_count": int(row_count),
             "null_count": null_count,
             "null_rate": null_count / row_count if row_count > 0 else 0.0,
-            "mean": _bq_opt_float(row[f"{base}avg"]),
-            "stddev": _bq_opt_float(row[f"{base}stddev"]),
+            "mean": opt_float(row[f"{base}avg"]),
+            "stddev": opt_float(row[f"{base}stddev"]),
             "min_val": min_v,
             "max_val": max_v,
-            "p50": _bq_opt_float(row[f"{base}p50"]),
-            "p75": _bq_opt_float(row[f"{base}p75"]),
-            "p90": _bq_opt_float(row[f"{base}p90"]),
-            "p95": _bq_opt_float(row[f"{base}p95"]),
-            "p99": _bq_opt_float(row[f"{base}p99"]),
+            "p50": opt_float(row[f"{base}p50"]),
+            "p75": opt_float(row[f"{base}p75"]),
+            "p90": opt_float(row[f"{base}p90"]),
+            "p95": opt_float(row[f"{base}p95"]),
+            "p99": opt_float(row[f"{base}p99"]),
             "histogram": None,
         }
         if min_v is not None and max_v is not None and non_null and int(non_null) > 0:
@@ -1137,11 +1027,7 @@ LIMIT {int(top_n)}
     job.result()
     rows = list(job)
     if not rows:
-        return {
-            **_BQ_EMPTY_METRIC_TEMPLATE,
-            "feature_name": col_name,
-            "feature_type": "categorical",
-        }
+        return empty_categorical_metric(col_name)
     row_count = rows[0]["row_count"]
     null_count = rows[0]["null_count"]
     unique_count = rows[0]["unique_count"]

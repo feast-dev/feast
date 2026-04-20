@@ -41,6 +41,16 @@ from feast.infra.offline_stores.redshift_source import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -463,7 +473,7 @@ class RedshiftOfflineStore(OfflineStore):
         if not metrics:
             return
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
-        table, columns, pk_columns = _redshift_mon_table_meta(metric_type)
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
         for row in metrics:
             _redshift_merge_metric_row(config, table, columns, pk_columns, row)
 
@@ -477,7 +487,7 @@ class RedshiftOfflineStore(OfflineStore):
         end_date: Optional[date] = None,
     ) -> List[Dict[str, Any]]:
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
-        _, columns, _ = _redshift_mon_table_meta(metric_type)
+        _, columns, _ = monitoring_table_meta(metric_type)
         return _redshift_mon_query(
             config, metric_type, columns, project, filters, start_date, end_date
         )
@@ -506,93 +516,13 @@ class RedshiftOfflineStore(OfflineStore):
                 f"data_source_type = {_redshift_sql_literal(data_source_type)}"
             )
         where_sql = " AND ".join(parts)
-        sql = f"UPDATE {_MON_FEATURE_TABLE} SET is_baseline = FALSE WHERE {where_sql}"
+        sql = f"UPDATE {MON_TABLE_FEATURE} SET is_baseline = FALSE WHERE {where_sql}"
         _redshift_execute_statement(config, sql)
 
 
-_MON_FEATURE_TABLE = "feast_monitoring_feature_metrics"
-_MON_VIEW_TABLE = "feast_monitoring_feature_view_metrics"
-_MON_SERVICE_TABLE = "feast_monitoring_feature_service_metrics"
-
-_MON_FEATURE_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "feature_type",
-    "row_count",
-    "null_count",
-    "null_rate",
-    "mean",
-    "stddev",
-    "min_val",
-    "max_val",
-    "p50",
-    "p75",
-    "p90",
-    "p95",
-    "p99",
-    "histogram",
-]
-_MON_FEATURE_PK = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_MON_VIEW_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_row_count",
-    "total_features",
-    "features_with_nulls",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_MON_VIEW_PK = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_MON_SERVICE_COLUMNS = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_feature_views",
-    "total_features",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_MON_SERVICE_PK = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
 _REDSHIFT_MONITORING_DDL_STATEMENTS = [
     f"""
-CREATE TABLE IF NOT EXISTS {_MON_FEATURE_TABLE} (
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
     project_id        VARCHAR(255) NOT NULL,
     feature_view_name VARCHAR(255) NOT NULL,
     feature_name      VARCHAR(255) NOT NULL,
@@ -620,7 +550,7 @@ CREATE TABLE IF NOT EXISTS {_MON_FEATURE_TABLE} (
 );
 """,
     f"""
-CREATE TABLE IF NOT EXISTS {_MON_VIEW_TABLE} (
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
     project_id        VARCHAR(255) NOT NULL,
     feature_view_name VARCHAR(255) NOT NULL,
     metric_date       DATE         NOT NULL,
@@ -638,7 +568,7 @@ CREATE TABLE IF NOT EXISTS {_MON_VIEW_TABLE} (
 );
 """,
     f"""
-CREATE TABLE IF NOT EXISTS {_MON_SERVICE_TABLE} (
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
     project_id           VARCHAR(255) NOT NULL,
     feature_service_name VARCHAR(255) NOT NULL,
     metric_date          DATE         NOT NULL,
@@ -655,34 +585,6 @@ CREATE TABLE IF NOT EXISTS {_MON_SERVICE_TABLE} (
 );
 """,
 ]
-
-_EMPTY_METRIC_TEMPLATE: Dict[str, Any] = {
-    "feature_name": "",
-    "feature_type": "categorical",
-    "row_count": 0,
-    "null_count": 0,
-    "null_rate": 0.0,
-    "mean": None,
-    "stddev": None,
-    "min_val": None,
-    "max_val": None,
-    "p50": None,
-    "p75": None,
-    "p90": None,
-    "p95": None,
-    "p99": None,
-    "histogram": None,
-}
-
-
-def _redshift_mon_table_meta(metric_type: str):
-    if metric_type == "feature":
-        return _MON_FEATURE_TABLE, _MON_FEATURE_COLUMNS, _MON_FEATURE_PK
-    if metric_type == "feature_view":
-        return _MON_VIEW_TABLE, _MON_VIEW_COLUMNS, _MON_VIEW_PK
-    if metric_type == "feature_service":
-        return _MON_SERVICE_TABLE, _MON_SERVICE_COLUMNS, _MON_SERVICE_PK
-    raise ValueError(f"Unknown metric_type '{metric_type}'")
 
 
 def _redshift_execute_statement(config: RepoConfig, sql: str) -> str:
@@ -745,10 +647,6 @@ def _redshift_field_value(field: Dict[str, Any]) -> Any:
     if "booleanValue" in field:
         return field["booleanValue"]
     return None
-
-
-def _redshift_opt_float(val: Any) -> Optional[float]:
-    return float(val) if val is not None else None
 
 
 def _redshift_sql_literal(val: Any) -> str:
@@ -820,7 +718,7 @@ def _redshift_mon_query(
     start_date: Optional[date],
     end_date: Optional[date],
 ) -> List[Dict[str, Any]]:
-    table, _, _ = _redshift_mon_table_meta(metric_type)
+    table, _, _ = monitoring_table_meta(metric_type)
     conditions = [f"project_id = {_redshift_sql_literal(project)}"]
     if filters:
         for key, value in filters.items():
@@ -848,18 +746,7 @@ def _redshift_mon_query(
     out: List[Dict[str, Any]] = []
     for rec in rows:
         record = {col_names[i]: _redshift_field_value(rec[i]) for i in range(len(rec))}
-        if "histogram" in record and isinstance(record["histogram"], str):
-            record["histogram"] = json.loads(record["histogram"])
-        if "metric_date" in record and record["metric_date"] is not None:
-            md = record["metric_date"]
-            if isinstance(md, str):
-                record["metric_date"] = md[:10]
-            elif isinstance(md, date):
-                record["metric_date"] = md.isoformat()
-        if "computed_at" in record and record["computed_at"] is not None:
-            ca = record["computed_at"]
-            record["computed_at"] = ca if isinstance(ca, str) else str(ca)
-        out.append(record)
+        out.append(normalize_monitoring_row(record))
     return out
 
 
@@ -895,7 +782,7 @@ def _redshift_sql_numeric_stats(
     )
     rows = _redshift_execute_fetch_rows(config, query)
     if not rows or not rows[0]:
-        return [{**_EMPTY_METRIC_TEMPLATE, "feature_name": n} for n in feature_names]
+        return [empty_numeric_metric(n) for n in feature_names]
 
     row = rows[0]
     row_count = int(_redshift_field_value(row[0]) or 0)
@@ -906,8 +793,8 @@ def _redshift_sql_numeric_stats(
         non_null = int(_redshift_field_value(row[base]) or 0)
         null_count = row_count - non_null
 
-        min_val = _redshift_opt_float(_redshift_field_value(row[base + 3]))
-        max_val = _redshift_opt_float(_redshift_field_value(row[base + 4]))
+        min_val = opt_float(_redshift_field_value(row[base + 3]))
+        max_val = opt_float(_redshift_field_value(row[base + 4]))
 
         result: Dict[str, Any] = {
             "feature_name": col,
@@ -915,15 +802,15 @@ def _redshift_sql_numeric_stats(
             "row_count": row_count,
             "null_count": null_count,
             "null_rate": null_count / row_count if row_count > 0 else 0.0,
-            "mean": _redshift_opt_float(_redshift_field_value(row[base + 1])),
-            "stddev": _redshift_opt_float(_redshift_field_value(row[base + 2])),
+            "mean": opt_float(_redshift_field_value(row[base + 1])),
+            "stddev": opt_float(_redshift_field_value(row[base + 2])),
             "min_val": min_val,
             "max_val": max_val,
-            "p50": _redshift_opt_float(_redshift_field_value(row[base + 5])),
-            "p75": _redshift_opt_float(_redshift_field_value(row[base + 6])),
-            "p90": _redshift_opt_float(_redshift_field_value(row[base + 7])),
-            "p95": _redshift_opt_float(_redshift_field_value(row[base + 8])),
-            "p99": _redshift_opt_float(_redshift_field_value(row[base + 9])),
+            "p50": opt_float(_redshift_field_value(row[base + 5])),
+            "p75": opt_float(_redshift_field_value(row[base + 6])),
+            "p90": opt_float(_redshift_field_value(row[base + 7])),
+            "p95": opt_float(_redshift_field_value(row[base + 8])),
+            "p99": opt_float(_redshift_field_value(row[base + 9])),
             "histogram": None,
         }
 
@@ -1021,11 +908,7 @@ def _redshift_sql_categorical_stats(
 
     rows = _redshift_execute_fetch_rows(config, query)
     if not rows:
-        return {
-            **_EMPTY_METRIC_TEMPLATE,
-            "feature_name": col_name,
-            "feature_type": "categorical",
-        }
+        return empty_categorical_metric(col_name)
 
     row_count = int(_redshift_field_value(rows[0][0]) or 0)
     null_count = int(_redshift_field_value(rows[0][1]) or 0)

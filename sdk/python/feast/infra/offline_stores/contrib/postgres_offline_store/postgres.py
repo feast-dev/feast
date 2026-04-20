@@ -42,6 +42,16 @@ from feast.infra.utils.postgres.connection_utils import (
     get_query_schema,
 )
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -377,7 +387,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
             cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS {_MON_FEATURE_TABLE} (
+                CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
                     project_id        VARCHAR(255) NOT NULL,
                     feature_view_name VARCHAR(255) NOT NULL,
                     feature_name      VARCHAR(255) NOT NULL,
@@ -404,20 +414,20 @@ class PostgreSQLOfflineStore(OfflineStore):
                                  metric_date, granularity, data_source_type)
                 );
                 CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_project
-                    ON {_MON_FEATURE_TABLE} (project_id);
+                    ON {MON_TABLE_FEATURE} (project_id);
                 CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_view
-                    ON {_MON_FEATURE_TABLE} (project_id, feature_view_name);
+                    ON {MON_TABLE_FEATURE} (project_id, feature_view_name);
                 CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_date
-                    ON {_MON_FEATURE_TABLE} (metric_date);
+                    ON {MON_TABLE_FEATURE} (metric_date);
                 CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_granularity
-                    ON {_MON_FEATURE_TABLE} (granularity);
+                    ON {MON_TABLE_FEATURE} (granularity);
                 CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_baseline
-                    ON {_MON_FEATURE_TABLE} (project_id, feature_view_name, feature_name)
+                    ON {MON_TABLE_FEATURE} (project_id, feature_view_name, feature_name)
                     WHERE is_baseline = TRUE;
             """)
 
             cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS {_MON_VIEW_TABLE} (
+                CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
                     project_id        VARCHAR(255) NOT NULL,
                     feature_view_name VARCHAR(255) NOT NULL,
                     metric_date       DATE         NOT NULL,
@@ -436,7 +446,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             """)
 
             cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS {_MON_SERVICE_TABLE} (
+                CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
                     project_id           VARCHAR(255) NOT NULL,
                     feature_service_name VARCHAR(255) NOT NULL,
                     metric_date          DATE         NOT NULL,
@@ -464,7 +474,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             return
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
 
-        table, columns, pk_columns = _mon_table_meta(metric_type)
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
         _mon_upsert(config.offline_store, table, columns, pk_columns, metrics)
 
     @staticmethod
@@ -478,7 +488,7 @@ class PostgreSQLOfflineStore(OfflineStore):
     ) -> List[Dict[str, Any]]:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
 
-        _, columns, _ = _mon_table_meta(metric_type)
+        _, columns, _ = monitoring_table_meta(metric_type)
         return _mon_query(
             config.offline_store,
             metric_type,
@@ -515,7 +525,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         conditions.append(sql.SQL("is_baseline = TRUE"))
 
         query = sql.SQL("UPDATE {} SET is_baseline = FALSE WHERE {}").format(
-            sql.Identifier(_MON_FEATURE_TABLE),
+            sql.Identifier(MON_TABLE_FEATURE),
             sql.SQL(" AND ").join(conditions),
         )
 
@@ -1022,23 +1032,6 @@ LEFT JOIN (
 #  Monitoring SQL push-down helpers
 # ------------------------------------------------------------------ #
 
-_EMPTY_METRIC_TEMPLATE: Dict[str, Any] = {
-    "feature_type": "numeric",
-    "row_count": 0,
-    "null_count": 0,
-    "null_rate": 0.0,
-    "mean": None,
-    "stddev": None,
-    "min_val": None,
-    "max_val": None,
-    "p50": None,
-    "p75": None,
-    "p90": None,
-    "p95": None,
-    "p99": None,
-    "histogram": None,
-}
-
 
 def _sql_numeric_stats(
     conn,
@@ -1078,7 +1071,7 @@ def _sql_numeric_stats(
         row = cur.fetchone()
 
     if row is None:
-        return [{**_EMPTY_METRIC_TEMPLATE, "feature_name": n} for n in feature_names]
+        return [empty_numeric_metric(n) for n in feature_names]
 
     row_count = row[0]
     results: List[Dict[str, Any]] = []
@@ -1088,8 +1081,8 @@ def _sql_numeric_stats(
         non_null = row[base] or 0
         null_count = row_count - non_null
 
-        min_val = _opt_float(row[base + 3])
-        max_val = _opt_float(row[base + 4])
+        min_val = opt_float(row[base + 3])
+        max_val = opt_float(row[base + 4])
 
         result: Dict[str, Any] = {
             "feature_name": col,
@@ -1097,15 +1090,15 @@ def _sql_numeric_stats(
             "row_count": row_count,
             "null_count": null_count,
             "null_rate": null_count / row_count if row_count > 0 else 0.0,
-            "mean": _opt_float(row[base + 1]),
-            "stddev": _opt_float(row[base + 2]),
+            "mean": opt_float(row[base + 1]),
+            "stddev": opt_float(row[base + 2]),
             "min_val": min_val,
             "max_val": max_val,
-            "p50": _opt_float(row[base + 5]),
-            "p75": _opt_float(row[base + 6]),
-            "p90": _opt_float(row[base + 7]),
-            "p95": _opt_float(row[base + 8]),
-            "p99": _opt_float(row[base + 9]),
+            "p50": opt_float(row[base + 5]),
+            "p75": opt_float(row[base + 6]),
+            "p90": opt_float(row[base + 7]),
+            "p95": opt_float(row[base + 8]),
+            "p99": opt_float(row[base + 9]),
             "histogram": None,
         }
 
@@ -1201,11 +1194,7 @@ def _sql_categorical_stats(
         rows = cur.fetchall()
 
     if not rows:
-        return {
-            **_EMPTY_METRIC_TEMPLATE,
-            "feature_name": col_name,
-            "feature_type": "categorical",
-        }
+        return empty_categorical_metric(col_name)
 
     row_count = rows[0][0]
     null_count = rows[0][1]
@@ -1238,104 +1227,9 @@ def _sql_categorical_stats(
     }
 
 
-def _opt_float(val: Any) -> Optional[float]:
-    """Convert a DB aggregate result to float, preserving None."""
-    return float(val) if val is not None else None
-
-
 # ------------------------------------------------------------------ #
 #  Monitoring metrics storage helpers
 # ------------------------------------------------------------------ #
-
-_MON_FEATURE_TABLE = "feast_monitoring_feature_metrics"
-_MON_VIEW_TABLE = "feast_monitoring_feature_view_metrics"
-_MON_SERVICE_TABLE = "feast_monitoring_feature_service_metrics"
-
-_MON_FEATURE_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "feature_type",
-    "row_count",
-    "null_count",
-    "null_rate",
-    "mean",
-    "stddev",
-    "min_val",
-    "max_val",
-    "p50",
-    "p75",
-    "p90",
-    "p95",
-    "p99",
-    "histogram",
-]
-_MON_FEATURE_PK = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_MON_VIEW_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_row_count",
-    "total_features",
-    "features_with_nulls",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_MON_VIEW_PK = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_MON_SERVICE_COLUMNS = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_feature_views",
-    "total_features",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_MON_SERVICE_PK = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-
-def _mon_table_meta(metric_type: str):
-    if metric_type == "feature":
-        return _MON_FEATURE_TABLE, _MON_FEATURE_COLUMNS, _MON_FEATURE_PK
-    if metric_type == "feature_view":
-        return _MON_VIEW_TABLE, _MON_VIEW_COLUMNS, _MON_VIEW_PK
-    if metric_type == "feature_service":
-        return _MON_SERVICE_TABLE, _MON_SERVICE_COLUMNS, _MON_SERVICE_PK
-    raise ValueError(f"Unknown metric_type '{metric_type}'")
 
 
 def _mon_upsert(
@@ -1381,11 +1275,7 @@ def _mon_query(
     start_date: Optional["date"] = None,
     end_date: Optional["date"] = None,
 ) -> List[Dict[str, Any]]:
-    import json as _json
-    from datetime import date as _date
-    from datetime import datetime as _datetime
-
-    table, _, _ = _mon_table_meta(metric_type)
+    table, _, _ = monitoring_table_meta(metric_type)
 
     conditions = [sql.SQL("project_id = %s")]
     params: list = [project]
@@ -1418,12 +1308,6 @@ def _mon_query(
     results = []
     for row in rows:
         record = dict(zip(columns, row))
-        if "histogram" in record and isinstance(record["histogram"], str):
-            record["histogram"] = _json.loads(record["histogram"])
-        if "metric_date" in record and isinstance(record["metric_date"], _date):
-            record["metric_date"] = record["metric_date"].isoformat()
-        if "computed_at" in record and isinstance(record["computed_at"], _datetime):
-            record["computed_at"] = record["computed_at"].isoformat()
-        results.append(record)
+        results.append(normalize_monitoring_row(record))
 
     return results
