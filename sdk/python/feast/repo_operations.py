@@ -412,11 +412,6 @@ def apply_total_with_repo_instance(
 def _submit_baseline_jobs_if_needed(store, project_name, repo):
     """Submit async baseline DQM jobs for new features after feast apply."""
     try:
-        from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
-
-        if not isinstance(store.config.offline_store, PostgreSQLConfig):
-            return
-
         from feast.monitoring.monitoring_service import MonitoringService
 
         svc = MonitoringService(store)
