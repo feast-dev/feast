@@ -16,272 +16,318 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
+
+from collections import abc as _abc
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+if sys.version_info >= (3, 13):
+    from warnings import deprecated as _deprecated
+else:
+    from typing_extensions import deprecated as _deprecated
 
-class FileFormat(google.protobuf.message.Message):
+DESCRIPTOR: _descriptor.FileDescriptor
+
+@_typing.final
+class FileFormat(_message.Message):
     """Defines the file format encoding the features/entity data in files"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class ParquetFormat(google.protobuf.message.Message):
+    @_typing.final
+    class ParquetFormat(_message.Message):
         """Defines options for the Parquet data format"""
 
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        DESCRIPTOR: _descriptor.Descriptor
 
         def __init__(
             self,
         ) -> None: ...
 
-    PARQUET_FORMAT_FIELD_NUMBER: builtins.int
-    DELTA_FORMAT_FIELD_NUMBER: builtins.int
-    @property
-    def parquet_format(self) -> global___FileFormat.ParquetFormat: ...
-    @property
-    def delta_format(self) -> global___TableFormat.DeltaFormat:
+    PARQUET_FORMAT_FIELD_NUMBER: _builtins.int
+    DELTA_FORMAT_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def parquet_format(self) -> Global___FileFormat.ParquetFormat: ...
+    @_builtins.property
+    @_deprecated("""This field has been marked as deprecated using proto field options.""")
+    def delta_format(self) -> Global___TableFormat.DeltaFormat:
         """Deprecated: Delta Lake is a table format, not a file format.
         Use TableFormat.DeltaFormat instead for Delta Lake support.
         """
+
     def __init__(
         self,
         *,
-        parquet_format: global___FileFormat.ParquetFormat | None = ...,
-        delta_format: global___TableFormat.DeltaFormat | None = ...,
+        parquet_format: Global___FileFormat.ParquetFormat | None = ...,
+        delta_format: Global___TableFormat.DeltaFormat | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["parquet_format", "delta_format"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["delta_format", b"delta_format", "format", b"format", "parquet_format", b"parquet_format"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_format: _TypeAlias = _typing.Literal["parquet_format", "delta_format"]  # noqa: Y015
+    _WhichOneofArgType_format: _TypeAlias = _typing.Literal["format", b"format"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_format) -> _WhichOneofReturnType_format | None: ...
 
-global___FileFormat = FileFormat
+Global___FileFormat: _TypeAlias = FileFormat  # noqa: Y015
 
-class TableFormat(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class TableFormat(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class IcebergFormat(google.protobuf.message.Message):
+    @_typing.final
+    class IcebergFormat(_message.Message):
         """Defines options for Apache Iceberg table format"""
 
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        DESCRIPTOR: _descriptor.Descriptor
 
-        class PropertiesEntry(google.protobuf.message.Message):
-            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        @_typing.final
+        class PropertiesEntry(_message.Message):
+            DESCRIPTOR: _descriptor.Descriptor
 
-            KEY_FIELD_NUMBER: builtins.int
-            VALUE_FIELD_NUMBER: builtins.int
-            key: builtins.str
-            value: builtins.str
+            KEY_FIELD_NUMBER: _builtins.int
+            VALUE_FIELD_NUMBER: _builtins.int
+            key: _builtins.str
+            value: _builtins.str
             def __init__(
                 self,
                 *,
-                key: builtins.str = ...,
-                value: builtins.str = ...,
+                key: _builtins.str = ...,
+                value: _builtins.str = ...,
             ) -> None: ...
-            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+            _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+            def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-        CATALOG_FIELD_NUMBER: builtins.int
-        NAMESPACE_FIELD_NUMBER: builtins.int
-        PROPERTIES_FIELD_NUMBER: builtins.int
-        catalog: builtins.str
+        CATALOG_FIELD_NUMBER: _builtins.int
+        NAMESPACE_FIELD_NUMBER: _builtins.int
+        PROPERTIES_FIELD_NUMBER: _builtins.int
+        catalog: _builtins.str
         """Optional catalog name for the Iceberg table"""
-        namespace: builtins.str
+        namespace: _builtins.str
         """Optional namespace (schema/database) within the catalog"""
-        @property
-        def properties(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+        @_builtins.property
+        def properties(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
             """Additional properties for Iceberg configuration
             Examples: warehouse location, snapshot-id, as-of-timestamp, etc.
             """
+
         def __init__(
             self,
             *,
-            catalog: builtins.str = ...,
-            namespace: builtins.str = ...,
-            properties: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+            catalog: _builtins.str = ...,
+            namespace: _builtins.str = ...,
+            properties: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["catalog", b"catalog", "namespace", b"namespace", "properties", b"properties"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["catalog", b"catalog", "namespace", b"namespace", "properties", b"properties"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    class DeltaFormat(google.protobuf.message.Message):
+    @_typing.final
+    class DeltaFormat(_message.Message):
         """Defines options for Delta Lake table format"""
 
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        DESCRIPTOR: _descriptor.Descriptor
 
-        class PropertiesEntry(google.protobuf.message.Message):
-            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        @_typing.final
+        class PropertiesEntry(_message.Message):
+            DESCRIPTOR: _descriptor.Descriptor
 
-            KEY_FIELD_NUMBER: builtins.int
-            VALUE_FIELD_NUMBER: builtins.int
-            key: builtins.str
-            value: builtins.str
+            KEY_FIELD_NUMBER: _builtins.int
+            VALUE_FIELD_NUMBER: _builtins.int
+            key: _builtins.str
+            value: _builtins.str
             def __init__(
                 self,
                 *,
-                key: builtins.str = ...,
-                value: builtins.str = ...,
+                key: _builtins.str = ...,
+                value: _builtins.str = ...,
             ) -> None: ...
-            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+            _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+            def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-        CHECKPOINT_LOCATION_FIELD_NUMBER: builtins.int
-        PROPERTIES_FIELD_NUMBER: builtins.int
-        checkpoint_location: builtins.str
+        CHECKPOINT_LOCATION_FIELD_NUMBER: _builtins.int
+        PROPERTIES_FIELD_NUMBER: _builtins.int
+        checkpoint_location: _builtins.str
         """Optional checkpoint location for Delta transaction logs"""
-        @property
-        def properties(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+        @_builtins.property
+        def properties(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
             """Additional properties for Delta configuration
             Examples: auto-optimize settings, vacuum settings, etc.
             """
+
         def __init__(
             self,
             *,
-            checkpoint_location: builtins.str = ...,
-            properties: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+            checkpoint_location: _builtins.str = ...,
+            properties: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["checkpoint_location", b"checkpoint_location", "properties", b"properties"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["checkpoint_location", b"checkpoint_location", "properties", b"properties"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    class HudiFormat(google.protobuf.message.Message):
+    @_typing.final
+    class HudiFormat(_message.Message):
         """Defines options for Apache Hudi table format"""
 
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        DESCRIPTOR: _descriptor.Descriptor
 
-        class PropertiesEntry(google.protobuf.message.Message):
-            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        @_typing.final
+        class PropertiesEntry(_message.Message):
+            DESCRIPTOR: _descriptor.Descriptor
 
-            KEY_FIELD_NUMBER: builtins.int
-            VALUE_FIELD_NUMBER: builtins.int
-            key: builtins.str
-            value: builtins.str
+            KEY_FIELD_NUMBER: _builtins.int
+            VALUE_FIELD_NUMBER: _builtins.int
+            key: _builtins.str
+            value: _builtins.str
             def __init__(
                 self,
                 *,
-                key: builtins.str = ...,
-                value: builtins.str = ...,
+                key: _builtins.str = ...,
+                value: _builtins.str = ...,
             ) -> None: ...
-            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+            _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+            def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-        TABLE_TYPE_FIELD_NUMBER: builtins.int
-        RECORD_KEY_FIELD_NUMBER: builtins.int
-        PRECOMBINE_FIELD_FIELD_NUMBER: builtins.int
-        PROPERTIES_FIELD_NUMBER: builtins.int
-        table_type: builtins.str
+        TABLE_TYPE_FIELD_NUMBER: _builtins.int
+        RECORD_KEY_FIELD_NUMBER: _builtins.int
+        PRECOMBINE_FIELD_FIELD_NUMBER: _builtins.int
+        PROPERTIES_FIELD_NUMBER: _builtins.int
+        table_type: _builtins.str
         """Type of Hudi table (COPY_ON_WRITE or MERGE_ON_READ)"""
-        record_key: builtins.str
+        record_key: _builtins.str
         """Field(s) that uniquely identify a record"""
-        precombine_field: builtins.str
+        precombine_field: _builtins.str
         """Field used to determine the latest version of a record"""
-        @property
-        def properties(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+        @_builtins.property
+        def properties(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
             """Additional properties for Hudi configuration
             Examples: compaction strategy, indexing options, etc.
             """
+
         def __init__(
             self,
             *,
-            table_type: builtins.str = ...,
-            record_key: builtins.str = ...,
-            precombine_field: builtins.str = ...,
-            properties: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+            table_type: _builtins.str = ...,
+            record_key: _builtins.str = ...,
+            precombine_field: _builtins.str = ...,
+            properties: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["precombine_field", b"precombine_field", "properties", b"properties", "record_key", b"record_key", "table_type", b"table_type"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["precombine_field", b"precombine_field", "properties", b"properties", "record_key", b"record_key", "table_type", b"table_type"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    ICEBERG_FORMAT_FIELD_NUMBER: builtins.int
-    DELTA_FORMAT_FIELD_NUMBER: builtins.int
-    HUDI_FORMAT_FIELD_NUMBER: builtins.int
-    @property
-    def iceberg_format(self) -> global___TableFormat.IcebergFormat: ...
-    @property
-    def delta_format(self) -> global___TableFormat.DeltaFormat: ...
-    @property
-    def hudi_format(self) -> global___TableFormat.HudiFormat: ...
+    ICEBERG_FORMAT_FIELD_NUMBER: _builtins.int
+    DELTA_FORMAT_FIELD_NUMBER: _builtins.int
+    HUDI_FORMAT_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def iceberg_format(self) -> Global___TableFormat.IcebergFormat: ...
+    @_builtins.property
+    def delta_format(self) -> Global___TableFormat.DeltaFormat: ...
+    @_builtins.property
+    def hudi_format(self) -> Global___TableFormat.HudiFormat: ...
     def __init__(
         self,
         *,
-        iceberg_format: global___TableFormat.IcebergFormat | None = ...,
-        delta_format: global___TableFormat.DeltaFormat | None = ...,
-        hudi_format: global___TableFormat.HudiFormat | None = ...,
+        iceberg_format: Global___TableFormat.IcebergFormat | None = ...,
+        delta_format: Global___TableFormat.DeltaFormat | None = ...,
+        hudi_format: Global___TableFormat.HudiFormat | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["iceberg_format", "delta_format", "hudi_format"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_format: _TypeAlias = _typing.Literal["iceberg_format", "delta_format", "hudi_format"]  # noqa: Y015
+    _WhichOneofArgType_format: _TypeAlias = _typing.Literal["format", b"format"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_format) -> _WhichOneofReturnType_format | None: ...
 
-global___TableFormat = TableFormat
+Global___TableFormat: _TypeAlias = TableFormat  # noqa: Y015
 
-class StreamFormat(google.protobuf.message.Message):
+@_typing.final
+class StreamFormat(_message.Message):
     """Defines the data format encoding features/entity data in data streams"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class ProtoFormat(google.protobuf.message.Message):
+    @_typing.final
+    class ProtoFormat(_message.Message):
         """Defines options for the protobuf data format"""
 
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        DESCRIPTOR: _descriptor.Descriptor
 
-        CLASS_PATH_FIELD_NUMBER: builtins.int
-        class_path: builtins.str
+        CLASS_PATH_FIELD_NUMBER: _builtins.int
+        class_path: _builtins.str
         """Classpath to the generated Java Protobuf class that can be used to decode
         Feature data from the obtained stream message
         """
         def __init__(
             self,
             *,
-            class_path: builtins.str = ...,
+            class_path: _builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["class_path", b"class_path"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["class_path", b"class_path"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    class AvroFormat(google.protobuf.message.Message):
+    @_typing.final
+    class AvroFormat(_message.Message):
         """Defines options for the avro data format"""
 
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+        DESCRIPTOR: _descriptor.Descriptor
 
-        SCHEMA_JSON_FIELD_NUMBER: builtins.int
-        schema_json: builtins.str
+        SCHEMA_JSON_FIELD_NUMBER: _builtins.int
+        schema_json: _builtins.str
         """Optional if used in a File DataSource as schema is embedded in avro file.
         Specifies the schema of the Avro message as JSON string.
         """
         def __init__(
             self,
             *,
-            schema_json: builtins.str = ...,
+            schema_json: _builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["schema_json", b"schema_json"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["schema_json", b"schema_json"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    class JsonFormat(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    @_typing.final
+    class JsonFormat(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
 
-        SCHEMA_JSON_FIELD_NUMBER: builtins.int
-        schema_json: builtins.str
+        SCHEMA_JSON_FIELD_NUMBER: _builtins.int
+        schema_json: _builtins.str
         def __init__(
             self,
             *,
-            schema_json: builtins.str = ...,
+            schema_json: _builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["schema_json", b"schema_json"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["schema_json", b"schema_json"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    AVRO_FORMAT_FIELD_NUMBER: builtins.int
-    PROTO_FORMAT_FIELD_NUMBER: builtins.int
-    JSON_FORMAT_FIELD_NUMBER: builtins.int
-    @property
-    def avro_format(self) -> global___StreamFormat.AvroFormat: ...
-    @property
-    def proto_format(self) -> global___StreamFormat.ProtoFormat: ...
-    @property
-    def json_format(self) -> global___StreamFormat.JsonFormat: ...
+    AVRO_FORMAT_FIELD_NUMBER: _builtins.int
+    PROTO_FORMAT_FIELD_NUMBER: _builtins.int
+    JSON_FORMAT_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def avro_format(self) -> Global___StreamFormat.AvroFormat: ...
+    @_builtins.property
+    def proto_format(self) -> Global___StreamFormat.ProtoFormat: ...
+    @_builtins.property
+    def json_format(self) -> Global___StreamFormat.JsonFormat: ...
     def __init__(
         self,
         *,
-        avro_format: global___StreamFormat.AvroFormat | None = ...,
-        proto_format: global___StreamFormat.ProtoFormat | None = ...,
-        json_format: global___StreamFormat.JsonFormat | None = ...,
+        avro_format: Global___StreamFormat.AvroFormat | None = ...,
+        proto_format: Global___StreamFormat.ProtoFormat | None = ...,
+        json_format: Global___StreamFormat.JsonFormat | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["avro_format", b"avro_format", "format", b"format", "json_format", b"json_format", "proto_format", b"proto_format"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["avro_format", b"avro_format", "format", b"format", "json_format", b"json_format", "proto_format", b"proto_format"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["avro_format", "proto_format", "json_format"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["avro_format", b"avro_format", "format", b"format", "json_format", b"json_format", "proto_format", b"proto_format"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["avro_format", b"avro_format", "format", b"format", "json_format", b"json_format", "proto_format", b"proto_format"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_format: _TypeAlias = _typing.Literal["avro_format", "proto_format", "json_format"]  # noqa: Y015
+    _WhichOneofArgType_format: _TypeAlias = _typing.Literal["format", b"format"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_format) -> _WhichOneofReturnType_format | None: ...
 
-global___StreamFormat = StreamFormat
+Global___StreamFormat: _TypeAlias = StreamFormat  # noqa: Y015

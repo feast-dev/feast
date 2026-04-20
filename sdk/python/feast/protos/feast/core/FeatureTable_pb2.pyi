@@ -16,151 +16,174 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-import feast.core.DataSource_pb2
-import feast.core.Feature_pb2
-import google.protobuf.descriptor
-import google.protobuf.duration_pb2
-import google.protobuf.internal.containers
-import google.protobuf.message
-import google.protobuf.timestamp_pb2
+
+from collections import abc as _abc
+from feast.core import DataSource_pb2 as _DataSource_pb2
+from feast.core import Feature_pb2 as _Feature_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import duration_pb2 as _duration_pb2
+from google.protobuf import message as _message
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-class FeatureTable(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class FeatureTable(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SPEC_FIELD_NUMBER: builtins.int
-    META_FIELD_NUMBER: builtins.int
-    @property
-    def spec(self) -> global___FeatureTableSpec:
+    SPEC_FIELD_NUMBER: _builtins.int
+    META_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def spec(self) -> Global___FeatureTableSpec:
         """User-specified specifications of this feature table."""
-    @property
-    def meta(self) -> global___FeatureTableMeta:
+
+    @_builtins.property
+    def meta(self) -> Global___FeatureTableMeta:
         """System-populated metadata for this feature table."""
+
     def __init__(
         self,
         *,
-        spec: global___FeatureTableSpec | None = ...,
-        meta: global___FeatureTableMeta | None = ...,
+        spec: Global___FeatureTableSpec | None = ...,
+        meta: Global___FeatureTableMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___FeatureTable = FeatureTable
+Global___FeatureTable: _TypeAlias = FeatureTable  # noqa: Y015
 
-class FeatureTableSpec(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class FeatureTableSpec(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class LabelsEntry(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    @_typing.final
+    class LabelsEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: builtins.int
-        VALUE_FIELD_NUMBER: builtins.int
-        key: builtins.str
-        value: builtins.str
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        value: _builtins.str
         def __init__(
             self,
             *,
-            key: builtins.str = ...,
-            value: builtins.str = ...,
+            key: _builtins.str = ...,
+            value: _builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    NAME_FIELD_NUMBER: builtins.int
-    PROJECT_FIELD_NUMBER: builtins.int
-    ENTITIES_FIELD_NUMBER: builtins.int
-    FEATURES_FIELD_NUMBER: builtins.int
-    LABELS_FIELD_NUMBER: builtins.int
-    MAX_AGE_FIELD_NUMBER: builtins.int
-    BATCH_SOURCE_FIELD_NUMBER: builtins.int
-    STREAM_SOURCE_FIELD_NUMBER: builtins.int
-    name: builtins.str
+    NAME_FIELD_NUMBER: _builtins.int
+    PROJECT_FIELD_NUMBER: _builtins.int
+    ENTITIES_FIELD_NUMBER: _builtins.int
+    FEATURES_FIELD_NUMBER: _builtins.int
+    LABELS_FIELD_NUMBER: _builtins.int
+    MAX_AGE_FIELD_NUMBER: _builtins.int
+    BATCH_SOURCE_FIELD_NUMBER: _builtins.int
+    STREAM_SOURCE_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
     """Name of the feature table. Must be unique. Not updated."""
-    project: builtins.str
+    project: _builtins.str
     """Name of Feast project that this feature table belongs to."""
-    @property
-    def entities(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+    @_builtins.property
+    def entities(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """List names of entities to associate with the Features defined in this 
         Feature Table. Not updatable.
         """
-    @property
-    def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
+
+    @_builtins.property
+    def features(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]:
         """List of features specifications for each feature defined with this feature table."""
-    @property
-    def labels(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+
+    @_builtins.property
+    def labels(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
         """User defined metadata"""
-    @property
-    def max_age(self) -> google.protobuf.duration_pb2.Duration:
+
+    @_builtins.property
+    def max_age(self) -> _duration_pb2.Duration:
         """Features in this feature table can only be retrieved from online serving
         younger than max age. Age is measured as the duration of time between 
         the feature's event timestamp and when the feature is retrieved
         Feature values outside max age will be returned as unset values and indicated to end user
         """
-    @property
-    def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
+
+    @_builtins.property
+    def batch_source(self) -> _DataSource_pb2.DataSource:
         """Batch/Offline DataSource to source batch/offline feature data.
         Only batch DataSource can be specified 
         (ie source type should start with 'BATCH_')
         """
-    @property
-    def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
+
+    @_builtins.property
+    def stream_source(self) -> _DataSource_pb2.DataSource:
         """Stream/Online DataSource to source stream/online feature data.
         Only stream DataSource can be specified 
         (ie source type should start with 'STREAM_')
         """
+
     def __init__(
         self,
         *,
-        name: builtins.str = ...,
-        project: builtins.str = ...,
-        entities: collections.abc.Iterable[builtins.str] | None = ...,
-        features: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
-        labels: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
-        max_age: google.protobuf.duration_pb2.Duration | None = ...,
-        batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
-        stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
+        name: _builtins.str = ...,
+        project: _builtins.str = ...,
+        entities: _abc.Iterable[_builtins.str] | None = ...,
+        features: _abc.Iterable[_Feature_pb2.FeatureSpecV2] | None = ...,
+        labels: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
+        max_age: _duration_pb2.Duration | None = ...,
+        batch_source: _DataSource_pb2.DataSource | None = ...,
+        stream_source: _DataSource_pb2.DataSource | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "max_age", b"max_age", "stream_source", b"stream_source"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "entities", b"entities", "features", b"features", "labels", b"labels", "max_age", b"max_age", "name", b"name", "project", b"project", "stream_source", b"stream_source"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["batch_source", b"batch_source", "max_age", b"max_age", "stream_source", b"stream_source"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["batch_source", b"batch_source", "entities", b"entities", "features", b"features", "labels", b"labels", "max_age", b"max_age", "name", b"name", "project", b"project", "stream_source", b"stream_source"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___FeatureTableSpec = FeatureTableSpec
+Global___FeatureTableSpec: _TypeAlias = FeatureTableSpec  # noqa: Y015
 
-class FeatureTableMeta(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class FeatureTableMeta(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    REVISION_FIELD_NUMBER: builtins.int
-    HASH_FIELD_NUMBER: builtins.int
-    @property
-    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
-        """Time where this Feature Table is created"""
-    @property
-    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
-        """Time where this Feature Table is last updated"""
-    revision: builtins.int
+    CREATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    REVISION_FIELD_NUMBER: _builtins.int
+    HASH_FIELD_NUMBER: _builtins.int
+    revision: _builtins.int
     """Auto incrementing revision no. of this Feature Table"""
-    hash: builtins.str
+    hash: _builtins.str
     """Hash entities, features, batch_source and stream_source to inform JobService if
     jobs should be restarted should hash change
     """
+    @_builtins.property
+    def created_timestamp(self) -> _timestamp_pb2.Timestamp:
+        """Time where this Feature Table is created"""
+
+    @_builtins.property
+    def last_updated_timestamp(self) -> _timestamp_pb2.Timestamp:
+        """Time where this Feature Table is last updated"""
+
     def __init__(
         self,
         *,
-        created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        revision: builtins.int = ...,
-        hash: builtins.str = ...,
+        created_timestamp: _timestamp_pb2.Timestamp | None = ...,
+        last_updated_timestamp: _timestamp_pb2.Timestamp | None = ...,
+        revision: _builtins.int = ...,
+        hash: _builtins.str = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "hash", b"hash", "last_updated_timestamp", b"last_updated_timestamp", "revision", b"revision"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "hash", b"hash", "last_updated_timestamp", b"last_updated_timestamp", "revision", b"revision"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___FeatureTableMeta = FeatureTableMeta
+Global___FeatureTableMeta: _TypeAlias = FeatureTableMeta  # noqa: Y015
