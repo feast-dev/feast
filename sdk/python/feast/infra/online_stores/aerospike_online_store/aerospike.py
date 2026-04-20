@@ -24,7 +24,10 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.type_map import feast_value_type_to_python_type
+from feast.type_map import (
+    feast_value_type_to_python_type,
+    python_values_to_proto_values,
+)
 
 logger = getLogger(__name__)
 
@@ -307,7 +310,7 @@ class AerospikeOnlineStore(OnlineStore):
             progress(len(data))
 
     # ------------------------------------------------------------------
-    # Read / admin paths — implemented in subsequent chunks.
+    # Read path
     # ------------------------------------------------------------------
     def online_read(
         self,
@@ -316,9 +319,134 @@ class AerospikeOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        raise NotImplementedError(
-            "AerospikeOnlineStore.online_read is not implemented yet."
-        )
+        """Read feature values for a batch of entities in a single round trip.
+
+        Uses Aerospike's ``batch_operate`` with two server-side Map-get ops per
+        record:
+
+        * ``map_get_by_key("features", <fv>, MAP_RETURN_VALUE)`` returns the
+          feature-view's own feature map only (not the whole record).
+        * ``map_get_by_key("event_ts", <fv>, MAP_RETURN_VALUE)`` returns the
+          event timestamp recorded for that feature view.
+
+        Missing records, records without a map entry for this feature view, and
+        per-record errors are all reported as ``(None, None)`` to match the
+        :class:`OnlineStore` contract. Output order matches ``entity_keys``.
+
+        ``requested_features`` is accepted for API compatibility but ignored
+        here — the helper returns every feature declared on ``table`` (the
+        caller filters downstream). This mirrors the MongoDB implementation.
+        """
+        if not entity_keys:
+            return []
+
+        client = self._get_client(config)
+        ns = config.online_store.namespace
+        set_name = self._set_name(config)
+
+        keys = [
+            (
+                ns,
+                set_name,
+                serialize_entity_key(
+                    k,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                ),
+            )
+            for k in entity_keys
+        ]
+        read_ops = [
+            map_ops.map_get_by_key("features", table.name, aerospike.MAP_RETURN_VALUE),
+            map_ops.map_get_by_key("event_ts", table.name, aerospike.MAP_RETURN_VALUE),
+        ]
+
+        batch = client.batch_operate(keys, read_ops)
+
+        ids = [user_key for _, _, user_key in keys]
+        docs: Dict[bytes, Dict[str, Any]] = {}
+        for br in batch.batch_records:
+            if br.record is None:
+                continue
+            _, _, bins = br.record
+            fv_features = bins.get("features") if bins else None
+            fv_event_ts_ms = bins.get("event_ts") if bins else None
+            user_key = br.key[2]
+            docs[user_key] = {
+                "features": {table.name: fv_features} if fv_features else {},
+                "event_timestamps": {table.name: _epoch_ms_to_datetime(fv_event_ts_ms)},
+            }
+
+        return self._convert_raw_docs_to_proto(ids, docs, table)
+
+    @staticmethod
+    def _convert_raw_docs_to_proto(
+        ids: List[bytes],
+        docs: Dict[bytes, Dict[str, Any]],
+        table: FeatureView,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """Convert raw feature maps into ordered proto rows.
+
+        The heavy lifting is done by
+        :func:`feast.type_map.python_values_to_proto_values`, which is
+        column-oriented and expects a list of values of a single type. This
+        helper transforms the row-oriented Aerospike lookup result into
+        columns, converts each column once, then reassembles rows — mirroring
+        the MongoDB online store's reshape so we amortize the python→proto
+        cost across the whole batch.
+
+        Args:
+            ids: serialized entity-key bytes, in the order requested.
+            docs: ``{entity_id_bytes: {"features": {<fv>: {...}},
+                "event_timestamps": {<fv>: datetime}}}``. Missing keys denote
+                "record not found".
+            table: FeatureView being read; provides feature name → type.
+
+        Returns:
+            A list of ``(event_timestamp, feature_dict)`` the same length as
+            ``ids`` (``(None, None)`` for entities that had no data for this
+            feature view).
+        """
+        feature_type_map = {
+            feature.name: feature.dtype.to_value_type() for feature in table.features
+        }
+
+        raw_feature_columns: Dict[str, List[Any]] = {
+            feature_name: [] for feature_name in feature_type_map
+        }
+        for entity_id in ids:
+            doc = docs.get(entity_id)
+            feature_dict = doc.get("features", {}).get(table.name, {}) if doc else {}
+            for feature_name in feature_type_map:
+                raw_feature_columns[feature_name].append(
+                    feature_dict.get(feature_name, None)
+                )
+
+        proto_feature_columns = {
+            feature_name: python_values_to_proto_values(
+                raw_values, feature_type=feature_type_map[feature_name]
+            )
+            for feature_name, raw_values in raw_feature_columns.items()
+        }
+
+        results: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        for i, entity_id in enumerate(ids):
+            doc = docs.get(entity_id)
+            if doc is None:
+                results.append((None, None))
+                continue
+
+            fv_features = doc.get("features", {}).get(table.name)
+            if fv_features is None:
+                results.append((None, None))
+                continue
+
+            ts = doc.get("event_timestamps", {}).get(table.name)
+            row_features = {
+                feature_name: proto_feature_columns[feature_name][i]
+                for feature_name in proto_feature_columns
+            }
+            results.append((ts, row_features))
+        return results
 
     def update(
         self,
