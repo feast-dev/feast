@@ -37,6 +37,15 @@ from feast.infra.offline_stores.offline_utils import (
     get_pyarrow_schema_from_batch_source,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.monitoring.monitoring_utils import (
+    FEATURE_METRICS_COLUMNS,
+    FEATURE_METRICS_PK,
+    FEATURE_SERVICE_METRICS_COLUMNS,
+    FEATURE_SERVICE_METRICS_PK,
+    FEATURE_VIEW_METRICS_COLUMNS,
+    FEATURE_VIEW_METRICS_PK,
+    normalize_monitoring_row,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -652,9 +661,9 @@ class DaskOfflineStore(OfflineStore):
         os.makedirs(base, exist_ok=True)
 
         tables = [
-            (_DASK_FEATURE_METRICS_FILE, _DASK_MON_FEATURE_COLUMNS),
-            (_DASK_VIEW_METRICS_FILE, _DASK_MON_VIEW_COLUMNS),
-            (_DASK_SERVICE_METRICS_FILE, _DASK_MON_SERVICE_COLUMNS),
+            (_DASK_FEATURE_METRICS_FILE, FEATURE_METRICS_COLUMNS),
+            (_DASK_VIEW_METRICS_FILE, FEATURE_VIEW_METRICS_COLUMNS),
+            (_DASK_SERVICE_METRICS_FILE, FEATURE_SERVICE_METRICS_COLUMNS),
         ]
         for fname, columns in tables:
             fpath = _dask_monitoring_path(config, fname)
@@ -726,82 +735,6 @@ _DASK_FEATURE_METRICS_FILE = "feature_metrics.parquet"
 _DASK_VIEW_METRICS_FILE = "feature_view_metrics.parquet"
 _DASK_SERVICE_METRICS_FILE = "feature_service_metrics.parquet"
 
-_DASK_MON_FEATURE_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "feature_type",
-    "row_count",
-    "null_count",
-    "null_rate",
-    "mean",
-    "stddev",
-    "min_val",
-    "max_val",
-    "p50",
-    "p75",
-    "p90",
-    "p95",
-    "p99",
-    "histogram",
-]
-_DASK_MON_FEATURE_PK = [
-    "project_id",
-    "feature_view_name",
-    "feature_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_DASK_MON_VIEW_COLUMNS = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_row_count",
-    "total_features",
-    "features_with_nulls",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_DASK_MON_VIEW_PK = [
-    "project_id",
-    "feature_view_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
-_DASK_MON_SERVICE_COLUMNS = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-    "computed_at",
-    "is_baseline",
-    "total_feature_views",
-    "total_features",
-    "avg_null_rate",
-    "max_null_rate",
-]
-_DASK_MON_SERVICE_PK = [
-    "project_id",
-    "feature_service_name",
-    "metric_date",
-    "granularity",
-    "data_source_type",
-]
-
 
 def _dask_monitoring_base(config: RepoConfig) -> str:
     base = config.repo_path
@@ -814,18 +747,18 @@ def _dask_monitoring_path(config: RepoConfig, filename: str) -> str:
 
 def _dask_mon_table_meta(metric_type: str):
     if metric_type == "feature":
-        return (
-            _DASK_FEATURE_METRICS_FILE,
-            _DASK_MON_FEATURE_COLUMNS,
-            _DASK_MON_FEATURE_PK,
-        )
+        return _DASK_FEATURE_METRICS_FILE, FEATURE_METRICS_COLUMNS, FEATURE_METRICS_PK
     if metric_type == "feature_view":
-        return _DASK_VIEW_METRICS_FILE, _DASK_MON_VIEW_COLUMNS, _DASK_MON_VIEW_PK
+        return (
+            _DASK_VIEW_METRICS_FILE,
+            FEATURE_VIEW_METRICS_COLUMNS,
+            FEATURE_VIEW_METRICS_PK,
+        )
     if metric_type == "feature_service":
         return (
             _DASK_SERVICE_METRICS_FILE,
-            _DASK_MON_SERVICE_COLUMNS,
-            _DASK_MON_SERVICE_PK,
+            FEATURE_SERVICE_METRICS_COLUMNS,
+            FEATURE_SERVICE_METRICS_PK,
         )
     raise ValueError(f"Unknown metric_type '{metric_type}'")
 
@@ -1025,15 +958,15 @@ def _dask_parquet_query(
     results = []
     for _, row in df.iterrows():
         record = {c: row.get(c) for c in columns}
-        if "histogram" in record and isinstance(record["histogram"], str):
-            try:
-                record["histogram"] = json.loads(record["histogram"])
-            except json.JSONDecodeError:
-                pass
-        if "metric_date" in record and hasattr(record["metric_date"], "isoformat"):
-            record["metric_date"] = record["metric_date"].isoformat()
-        if "computed_at" in record and hasattr(record["computed_at"], "isoformat"):
-            record["computed_at"] = record["computed_at"].isoformat()
+        normalize_monitoring_row(record)
+        for key in ("metric_date", "computed_at"):
+            val = record.get(key)
+            if (
+                val is not None
+                and not isinstance(val, str)
+                and hasattr(val, "isoformat")
+            ):
+                record[key] = val.isoformat()
         results.append(record)
 
     return results
