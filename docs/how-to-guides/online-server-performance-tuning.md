@@ -278,6 +278,7 @@ The online store is the single largest factor in `get_online_features()` latency
 | **DynamoDB** | 2–5 ms | Yes | Serverless, auto-scaling on AWS | Pay-per-request cost; batch API limits (100 items) |
 | **PostgreSQL** | 3–10 ms | No (threadpool) | Teams with existing Postgres infra | Connection pooling needed at scale |
 | **MongoDB** | 2–5 ms | Yes | Flexible schema, async-native | Requires index tuning for large datasets |
+| **Aerospike** | < 1 ms | No (threadpool) | Ultra-low latency, hybrid memory (RAM + SSD), large datasets | Namespace must be pre-configured on the cluster |
 | **Bigtable** | 3–8 ms | No (threadpool) | Large-scale GCP workloads | Row-key design affects read performance |
 | **Cassandra / ScyllaDB** | 2–5 ms | No (threadpool) | Multi-region, write-heavy | Tunable consistency; requires DC-aware routing |
 | **Remote** | Varies | No (threadpool) | Centralized feature server architecture | Adds an HTTP hop; tune connection pool |
@@ -305,6 +306,7 @@ The feature server can read from the online store using either an **async** or *
 | **MongoDB** | Yes | Yes | Uses `motor` (async MongoDB driver) |
 | **PostgreSQL** | Implemented | No | Has `online_read_async` but does not yet advertise via `async_supported`; uses sync/threadpool path |
 | **Redis** | Implemented | **Yes** | `online_read_async` and `online_write_batch_async` both implemented; uses sync/threadpool path for `get_online_features` (overridden with batched single pipeline) |
+| **Aerospike** | Implemented | No | Async methods wrap the blocking C client via `run_in_executor`; does not yet advertise via `async_supported`, so the server still uses the threadpool path |
 | All others | No | No | Fall back to sync with `run_in_threadpool()` |
 
 **When async matters most:**
@@ -466,6 +468,34 @@ online_store:
 - **`maxPoolSize` / `minPoolSize`**: Controls the driver connection pool. Default `maxPoolSize` is 100 in PyMongo, but explicitly setting it ensures predictability across versions.
 - **`connectTimeoutMS` / `socketTimeoutMS`**: Tighter timeouts improve p99 by failing fast on slow connections.
 - MongoDB is one of the stores with **full async support** (read and write), so it benefits from concurrent feature view reads via `asyncio.gather()`.
+
+### Aerospike tuning
+
+Aerospike offers sub-millisecond reads thanks to its hybrid-memory architecture (primary index in RAM, data on SSD or RAM). Tune the per-call policies in the Feast config and rely on the Aerospike cluster's own tuning for everything else:
+
+```yaml
+online_store:
+  type: aerospike
+  hosts:
+    - ["aerospike-1.internal", 3000]
+    - ["aerospike-2.internal", 3000]
+  namespace: feast
+  read_timeout_ms: 50
+  write_timeout_ms: 200
+  total_timeout_ms: 500
+  max_retries: 2
+  ttl_seconds: 86400            # record-level TTL; omit to use the namespace default
+  client_kwargs:                # escape hatch for any client-config field not surfaced above
+    policies:
+      batch:
+        concurrent_nodes: 0     # 0 = parallel to every node (lowest latency on multi-node clusters)
+```
+
+- **`read_timeout_ms` / `write_timeout_ms` / `total_timeout_ms`**: Per-call deadlines (in milliseconds). Tighter deadlines improve p99 by failing fast on misbehaving nodes; pair with `max_retries`.
+- **`hosts`**: List every seed node. The Aerospike client discovers the rest of the cluster automatically and opens one connection pool per node.
+- **`ttl_seconds: 0`** means "never expire"; omit the key to inherit the namespace's `default-ttl`. Expiry is enforced by the server's `nsup` thread — nothing to delete on the client side.
+- Co-locate the feature server in the **same availability zone / rack** as the Aerospike cluster; sub-millisecond reads are bandwidth- and RTT-sensitive.
+- On the Aerospike side: increase `proto-fd-max` if the feature server reports "max fd" errors, and turn on `partition-tree-sprigs` for namespaces with billions of records to spread index contention.
 
 ### Remote online store tuning
 
@@ -700,6 +730,7 @@ This applies to every connection-oriented online store:
 | **DynamoDB** | `max_pool_connections` (HTTP pool) | 10 | No hard limit, but AWS SDK has per-process pool caps; monitor throttling |
 | **Redis** | Connection per worker | 1 | `maxclients` on the Redis server (default: 10,000) |
 | **MongoDB** | `maxPoolSize` (in `client_kwargs`) | 100 | Server's `net.maxIncomingConnections` |
+| **Aerospike** | Driver manages pool per seed node | Auto | `proto-fd-max` (default 15000) on each Aerospike node |
 | **Cassandra** | Driver manages pool per node | Auto | `native_transport_max_threads` on each Cassandra node |
 | **Remote** | `connection_pool_size` (HTTP pool) | 50 | The target feature server's worker capacity |
 
