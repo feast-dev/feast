@@ -93,6 +93,7 @@ class BatchFeatureView(FeatureView):
         offline: bool = False,
         description: str = "",
         owner: str = "",
+        org: str = "",
         schema: Optional[List[Field]] = None,
         udf: Optional[Callable[[Any], Any]] = None,
         udf_string: Optional[str] = "",
@@ -151,6 +152,7 @@ class BatchFeatureView(FeatureView):
             offline=offline,
             description=description,
             owner=owner,
+            org=org,
             schema=schema,
             source=source,  # type: ignore[arg-type]
             sink_source=sink_source,
