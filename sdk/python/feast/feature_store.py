@@ -226,6 +226,16 @@ class FeatureStore:
 
         self._init_mlflow_tracking()
 
+    def get_mlflow_client(self):
+        """Return a :class:`~feast.mlflow_integration.client.FeastMlflowClient`.
+
+        The client wraps MLflow so that ``import mlflow`` is never needed
+        in user code.  Configuration is inherited from ``feature_store.yaml``.
+        """
+        from feast.mlflow_integration.client import FeastMlflowClient
+
+        return FeastMlflowClient(self)
+
     def _init_mlflow_tracking(self):
         """Configure the global MLflow tracking URI and experiment from feature_store.yaml.
 
@@ -1187,6 +1197,24 @@ class FeatureStore:
         # Emit OpenLineage events for applied objects
         self._emit_openlineage_apply_diffs(registry_diff)
 
+        # Emit MLflow events for applied objects (Phase 7)
+        self._mlflow_log_apply_diffs(registry_diff)
+
+    def _mlflow_log_apply_diffs(self, registry_diff: RegistryDiff):
+        """Log apply operation to MLflow ops experiment."""
+        try:
+            mlflow_cfg = self.config.mlflow
+            if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.log_operations:
+                return
+            objects: List[Any] = []
+            for feast_object_diff in registry_diff.feast_object_diffs:
+                if feast_object_diff.new_feast_object is not None:
+                    objects.append(feast_object_diff.new_feast_object)
+            if objects:
+                self._mlflow_log_apply(objects)
+        except Exception as e:
+            _logger.debug("MLflow apply logging failed: %s", e)
+
     def _emit_openlineage_apply_diffs(self, registry_diff: RegistryDiff):
         """Emit OpenLineage events for objects applied via diffs."""
         if self.openlineage_emitter is None:
@@ -1481,6 +1509,26 @@ class FeatureStore:
 
         # Emit OpenLineage events for applied objects
         self._emit_openlineage_apply(objects)
+
+        # Emit MLflow events for applied objects (Phase 7)
+        self._mlflow_log_apply(objects)
+
+    def _mlflow_log_apply(self, objects: List[Any]):
+        """Log applied objects to MLflow ops experiment."""
+        try:
+            mlflow_cfg = self.config.mlflow
+            if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.log_operations:
+                return
+            from feast.mlflow_integration.logger import log_apply_to_mlflow
+
+            log_apply_to_mlflow(
+                changed_objects=objects,
+                project=self.project,
+                tracking_uri=mlflow_cfg.get_tracking_uri(),
+                ops_experiment_suffix=mlflow_cfg.ops_experiment_suffix,
+            )
+        except Exception as e:
+            _logger.debug("MLflow apply logging failed: %s", e)
 
     def _emit_openlineage_apply(self, objects: List[Any]):
         """Emit OpenLineage events for applied objects."""
@@ -2062,6 +2110,12 @@ class FeatureStore:
             self._emit_openlineage_materialize_complete(
                 ol_run_id, feature_views_to_materialize
             )
+
+            # Emit MLflow event for materialization (Phase 7)
+            _mat_duration = time.monotonic() - _retrieval_start if '_retrieval_start' in dir() else 0
+            self._mlflow_log_materialize(
+                feature_views_to_materialize, None, end_date, _mat_duration, incremental=True,
+            )
         except Exception as e:
             # Emit OpenLineage FAIL event
             self._emit_openlineage_materialize_fail(ol_run_id, str(e))
@@ -2190,10 +2244,44 @@ class FeatureStore:
             self._emit_openlineage_materialize_complete(
                 ol_run_id, feature_views_to_materialize
             )
+
+            # Emit MLflow event for materialization (Phase 7)
+            self._mlflow_log_materialize(
+                feature_views_to_materialize, start_date, end_date, 0, incremental=False,
+            )
         except Exception as e:
             # Emit OpenLineage FAIL event
             self._emit_openlineage_materialize_fail(ol_run_id, str(e))
             raise
+
+    def _mlflow_log_materialize(
+        self,
+        feature_views: List[Any],
+        start_date: Optional[datetime],
+        end_date: datetime,
+        duration_seconds: float,
+        incremental: bool = False,
+    ):
+        """Log materialization to MLflow ops experiment."""
+        try:
+            mlflow_cfg = self.config.mlflow
+            if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.log_operations:
+                return
+            from feast.mlflow_integration.logger import log_materialize_to_mlflow
+
+            fv_names = [getattr(fv, "name", str(fv)) for fv in feature_views]
+            log_materialize_to_mlflow(
+                feature_view_names=fv_names,
+                start_date=start_date,
+                end_date=end_date,
+                duration_seconds=duration_seconds,
+                project=self.project,
+                tracking_uri=mlflow_cfg.get_tracking_uri(),
+                incremental=incremental,
+                ops_experiment_suffix=mlflow_cfg.ops_experiment_suffix,
+            )
+        except Exception as e:
+            _logger.debug("MLflow materialize logging failed: %s", e)
 
     def _emit_openlineage_materialize_start(
         self,

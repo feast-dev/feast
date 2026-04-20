@@ -215,6 +215,100 @@ def get_app(
                 "error": "Failed to fetch MLflow runs",
             }
 
+    _feature_usage_cache: Dict = {"data": None, "timestamp": 0.0}
+    _FEATURE_USAGE_TTL_SECONDS = 300
+
+    @app.get("/api/mlflow-feature-usage")
+    def get_mlflow_feature_usage():
+        """Return per-feature-view usage stats aggregated from MLflow runs.
+
+        Caches results for 5 minutes to avoid hammering the MLflow server.
+        """
+        import time as _time
+
+        mlflow_cfg = getattr(store.config, "mlflow", None)
+        if not mlflow_cfg or not mlflow_cfg.enabled:
+            return {"feature_usage": {}}
+
+        now = _time.monotonic()
+        if (
+            _feature_usage_cache["data"] is not None
+            and (now - _feature_usage_cache["timestamp"]) < _FEATURE_USAGE_TTL_SECONDS
+        ):
+            return _feature_usage_cache["data"]
+
+        try:
+            import mlflow
+
+            tracking_uri = mlflow_cfg.tracking_uri or "http://127.0.0.1:5000"
+            client = mlflow.MlflowClient(tracking_uri=tracking_uri)
+            project_name = store.config.project
+
+            experiment = client.get_experiment_by_name(project_name)
+            if experiment is None:
+                result = {"feature_usage": {}}
+                _feature_usage_cache["data"] = result
+                _feature_usage_cache["timestamp"] = now
+                return result
+
+            filter_str = (
+                f"tags.`feast.project` = '{project_name}' "
+                f"AND tags.`feast.retrieval_type` != ''"
+            )
+            runs = client.search_runs(
+                experiment_ids=[experiment.experiment_id],
+                filter_string=filter_str,
+                max_results=200,
+                order_by=["start_time DESC"],
+            )
+
+            run_id_to_models: Dict[str, List[str]] = {}
+            try:
+                for rm in client.search_registered_models():
+                    for mv in rm.latest_versions or []:
+                        if mv.run_id:
+                            run_id_to_models.setdefault(mv.run_id, []).append(rm.name)
+            except Exception:
+                pass
+
+            usage: Dict[str, dict] = {}
+            for run in runs:
+                refs_raw = run.data.tags.get("feast.feature_refs", "")
+                fv_names = set()
+                for ref in refs_raw.split(","):
+                    ref = ref.strip()
+                    if ":" in ref:
+                        fv_names.add(ref.split(":")[0])
+
+                run_models = run_id_to_models.get(run.info.run_id, [])
+
+                for fv_name in fv_names:
+                    if fv_name not in usage:
+                        usage[fv_name] = {
+                            "run_count": 0,
+                            "last_used": None,
+                            "models": [],
+                        }
+                    usage[fv_name]["run_count"] += 1
+                    run_ts = run.info.start_time
+                    if usage[fv_name]["last_used"] is None or (
+                        run_ts and run_ts > usage[fv_name]["last_used"]
+                    ):
+                        usage[fv_name]["last_used"] = run_ts
+                    for m in run_models:
+                        if m not in usage[fv_name]["models"]:
+                            usage[fv_name]["models"].append(m)
+
+            result = {"feature_usage": usage}
+            _feature_usage_cache["data"] = result
+            _feature_usage_cache["timestamp"] = now
+            return result
+        except ImportError:
+            return {"feature_usage": {}, "error": "mlflow is not installed"}
+        except Exception as e:
+            _logger.debug("Failed to fetch feature usage: %s", e)
+            return {"feature_usage": {}, "error": "Failed to fetch usage data"}
+
     @app.get("/api/mlflow-feature-models")
     def get_mlflow_feature_models():
         """Return a mapping of feature_ref -> registered models that use it.

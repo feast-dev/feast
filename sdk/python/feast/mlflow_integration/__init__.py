@@ -26,13 +26,16 @@ Usage:
       from a previous MLflow run's artifacts.
 """
 
+from feast.mlflow_integration.client import FeastMlflowClient
 from feast.mlflow_integration.config import MlflowConfig
 from feast.mlflow_integration.entity_df_builder import (
     FeastMlflowEntityDfError,
     get_entity_df_from_mlflow_run,
 )
 from feast.mlflow_integration.logger import (
+    log_apply_to_mlflow,
     log_feature_retrieval_to_mlflow,
+    log_materialize_to_mlflow,
     log_training_dataset_to_mlflow,
 )
 from feast.mlflow_integration.model_resolver import (
@@ -41,9 +44,12 @@ from feast.mlflow_integration.model_resolver import (
 )
 
 __all__ = [
+    "FeastMlflowClient",
     "MlflowConfig",
     "log_feature_retrieval_to_mlflow",
     "log_training_dataset_to_mlflow",
+    "log_apply_to_mlflow",
+    "log_materialize_to_mlflow",
     "resolve_feature_service_from_model_uri",
     "FeastMlflowModelResolutionError",
     "get_entity_df_from_mlflow_run",

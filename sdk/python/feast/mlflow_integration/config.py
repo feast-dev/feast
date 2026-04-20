@@ -52,6 +52,14 @@ class MlflowConfig(FeastBaseModel):
         artifact. DataFrames exceeding this limit are skipped to avoid
         OOM and slow uploads. Defaults to 100000. """
 
+    log_operations: StrictBool = False
+    """ bool: Log feast apply and materialize operations to a separate
+        MLflow experiment. Opt-in to avoid noise. Defaults to False. """
+
+    ops_experiment_suffix: StrictStr = "-feast-ops"
+    """ str: Suffix appended to the project name to form the MLflow
+        experiment name for operation logs. Defaults to '-feast-ops'. """
+
     def get_tracking_uri(self) -> Optional[str]:
         """Resolve the effective tracking URI for this config instance."""
         return resolve_tracking_uri(self.tracking_uri)
