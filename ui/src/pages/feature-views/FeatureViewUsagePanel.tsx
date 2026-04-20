@@ -86,9 +86,7 @@ const FeatureViewUsagePanel = ({
     {
       name: "Registered Model",
       field: "name",
-      render: (name: string) => (
-        <EuiBadge color="hollow">{name}</EuiBadge>
-      ),
+      render: (name: string) => <EuiBadge color="hollow">{name}</EuiBadge>,
     },
   ];
 
@@ -105,13 +103,9 @@ const FeatureViewUsagePanel = ({
           </EuiText>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
-          <EuiToolTip
-            position="top"
-            content={formatTimestamp(usage.last_used)}
-          >
+          <EuiToolTip position="top" content={formatTimestamp(usage.last_used)}>
             <EuiText size="s">
-              <strong>Last used:</strong>{" "}
-              {formatRelativeTime(usage.last_used)}
+              <strong>Last used:</strong> {formatRelativeTime(usage.last_used)}
             </EuiText>
           </EuiToolTip>
         </EuiFlexItem>

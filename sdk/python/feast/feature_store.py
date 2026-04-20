@@ -357,7 +357,7 @@ class FeatureStore:
                     with tempfile.TemporaryDirectory() as tmp_dir:
                         path = os.path.join(tmp_dir, "entity_df.parquet")
                         entity_df.to_parquet(path, index=False)
-                        mlflow.log_artifact(path)
+                        client.log_artifact(run_id, path)
 
             elif entity_df is None and (start_date or end_date):
                 client.set_tag(run_id, "feast.entity_df_type", "range")
@@ -2015,6 +2015,7 @@ class FeatureStore:
             feature_views_to_materialize, None, end_date
         )
 
+        _mat_start = time.monotonic()
         try:
             # TODO paging large loads
             for feature_view in feature_views_to_materialize:
@@ -2112,9 +2113,13 @@ class FeatureStore:
             )
 
             # Emit MLflow event for materialization (Phase 7)
-            _mat_duration = time.monotonic() - _retrieval_start if '_retrieval_start' in dir() else 0
+            _mat_duration = time.monotonic() - _mat_start
             self._mlflow_log_materialize(
-                feature_views_to_materialize, None, end_date, _mat_duration, incremental=True,
+                feature_views_to_materialize,
+                None,
+                end_date,
+                _mat_duration,
+                incremental=True,
             )
         except Exception as e:
             # Emit OpenLineage FAIL event
@@ -2182,6 +2187,7 @@ class FeatureStore:
             feature_views_to_materialize, start_date, end_date
         )
 
+        _mat_start = time.monotonic()
         try:
             # TODO paging large loads
             for feature_view in feature_views_to_materialize:
@@ -2246,8 +2252,13 @@ class FeatureStore:
             )
 
             # Emit MLflow event for materialization (Phase 7)
+            _mat_duration = time.monotonic() - _mat_start
             self._mlflow_log_materialize(
-                feature_views_to_materialize, start_date, end_date, 0, incremental=False,
+                feature_views_to_materialize,
+                start_date,
+                end_date,
+                _mat_duration,
+                incremental=False,
             )
         except Exception as e:
             # Emit OpenLineage FAIL event

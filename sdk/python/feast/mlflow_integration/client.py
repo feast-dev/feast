@@ -5,9 +5,7 @@ import logging
 import os
 import re
 import tempfile
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
-
-from feast.mlflow_integration.config import resolve_tracking_uri
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -82,7 +80,12 @@ class FeastMlflowClient:
         run = self._mlflow.active_run()
         return run.info.run_id if run else None
 
-    def start_run(self, run_name: Optional[str] = None, tags: Optional[Dict[str, str]] = None, **kwargs):
+    def start_run(
+        self,
+        run_name: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        **kwargs,
+    ):
         """Context manager that starts an MLflow run pre-tagged with Feast metadata.
 
         The ``feast.project`` tag is always set.  Additional tags can be
@@ -154,9 +157,7 @@ class FeastMlflowClient:
             try:
                 with os.fdopen(fd, "w") as f2:
                     json.dump(features, f2)
-                self._client.log_artifact(
-                    run.info.run_id, tmppath2, artifact_path=""
-                )
+                self._client.log_artifact(run.info.run_id, tmppath2, artifact_path="")
             finally:
                 if os.path.exists(tmppath2):
                     os.unlink(tmppath2)
@@ -218,9 +219,7 @@ class FeastMlflowClient:
                 return model
 
             if mv.run_id:
-                self._client.set_tag(
-                    run_id, "feast.training_run_id", mv.run_id
-                )
+                self._client.set_tag(run_id, "feast.training_run_id", mv.run_id)
             self._client.set_tag(run_id, "feast.model_name", model_name)
             self._client.set_tag(run_id, "feast.model_version", str(mv.version))
 
@@ -228,9 +227,7 @@ class FeastMlflowClient:
                 training_run = self._client.get_run(mv.run_id)
                 fs_name = training_run.data.tags.get("feast.feature_service")
                 if fs_name:
-                    self._client.set_tag(
-                        run_id, "feast.feature_service", fs_name
-                    )
+                    self._client.set_tag(run_id, "feast.feature_service", fs_name)
             except Exception:
                 pass
 
@@ -250,7 +247,10 @@ class FeastMlflowClient:
         )
 
     def get_training_entity_df(
-        self, run_id: str, timestamp_column: str = "event_timestamp", max_rows: Optional[int] = None
+        self,
+        run_id: str,
+        timestamp_column: str = "event_timestamp",
+        max_rows: Optional[int] = None,
     ) -> "pd.DataFrame":
         """Pull the entity DataFrame from a past MLflow run."""
         from feast.mlflow_integration.entity_df_builder import (

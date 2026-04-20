@@ -128,7 +128,7 @@ def get_app(
         try:
             import mlflow
 
-            tracking_uri = mlflow_cfg.tracking_uri or "http://127.0.0.1:5000"
+            tracking_uri = mlflow_cfg.get_tracking_uri()
             client = mlflow.MlflowClient(tracking_uri=tracking_uri)
 
             project_name = store.config.project
@@ -240,7 +240,7 @@ def get_app(
         try:
             import mlflow
 
-            tracking_uri = mlflow_cfg.tracking_uri or "http://127.0.0.1:5000"
+            tracking_uri = mlflow_cfg.get_tracking_uri()
             client = mlflow.MlflowClient(tracking_uri=tracking_uri)
             project_name = store.config.project
 
@@ -325,7 +325,7 @@ def get_app(
         try:
             import mlflow
 
-            tracking_uri = mlflow_cfg.tracking_uri or "http://127.0.0.1:5000"
+            tracking_uri = mlflow_cfg.get_tracking_uri()
             client = mlflow.MlflowClient(tracking_uri=tracking_uri)
             project_name = store.config.project
 
