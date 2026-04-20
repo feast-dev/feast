@@ -9,6 +9,7 @@ Tests cover:
 - REST API endpoints
 - RBAC enforcement
 - Compute engine dispatch (SQL push-down vs Python fallback)
+- Log source monitoring (feature serving logs)
 """
 
 from datetime import date, datetime, timezone
@@ -56,13 +57,40 @@ def _make_feature_view(name, features, entities=None, batch_source=None):
     return fv
 
 
-def _make_feature_service(name, fv_names):
+def _make_feature_service(name, fv_names, logging_config=None, feature_map=None):
+    """Create a mock FeatureService.
+
+    Args:
+        feature_map: optional dict mapping view_name -> list of feature names.
+            Used to build realistic projections with features and name_to_use().
+    """
     fs = MagicMock()
     fs.name = name
     fs.feature_view_projections = [MagicMock(name=n) for n in fv_names]
     for proj, n in zip(fs.feature_view_projections, fv_names):
         proj.name = n
+        proj.name_to_use.return_value = n
+        if feature_map and n in feature_map:
+            feats = []
+            for fname in feature_map[n]:
+                f = MagicMock()
+                f.name = fname
+                feats.append(f)
+            proj.features = feats
+        else:
+            proj.features = []
+    fs.logging_config = logging_config
     return fs
+
+
+def _make_logging_config_with_source(log_table_schema):
+    """Create a mock LoggingConfig whose destination.to_data_source() returns a DataSource."""
+    logging_config = MagicMock()
+    mock_data_source = MagicMock()
+    mock_data_source.timestamp_field = "__log_timestamp"
+    mock_data_source.created_timestamp_column = ""
+    logging_config.destination.to_data_source.return_value = mock_data_source
+    return logging_config, mock_data_source
 
 
 def _make_mock_store(feature_views, feature_services=None):
@@ -802,3 +830,187 @@ class TestNativeStorageDispatch:
 
         provider = store._get_provider.return_value
         provider.offline_store.save_monitoring_metrics.assert_not_called()
+
+
+# ------------------------------------------------------------------ #
+#  Test: Log source monitoring
+# ------------------------------------------------------------------ #
+
+
+class TestLogSourceMonitoring:
+    """Verify that monitoring can compute metrics from feature serving logs."""
+
+    # Realistic log column names follow the {view}__{feature} convention
+    # produced by FeatureServiceLoggingSource.get_schema().
+    _LOG_SCHEMA = pa.schema(
+        [
+            ("driver_id", pa.int64()),
+            ("driver_stats__conv_rate", pa.float64()),
+            ("driver_stats__conv_rate__timestamp", pa.timestamp("us", tz="UTC")),
+            ("driver_stats__conv_rate__status", pa.int32()),
+            ("driver_stats__city", pa.utf8()),
+            ("driver_stats__city__timestamp", pa.timestamp("us", tz="UTC")),
+            ("driver_stats__city__status", pa.int32()),
+            ("__log_timestamp", pa.timestamp("us", tz="UTC")),
+            ("__log_date", pa.date32()),
+            ("__request_id", pa.utf8()),
+        ]
+    )
+
+    def _make_log_store(self):
+        """Create a mock store with a feature service that has logging configured."""
+        fv = _make_feature_view(
+            "driver_stats",
+            [
+                _make_feature_field("conv_rate", PrimitiveFeastType.FLOAT64),
+                _make_feature_field("city", PrimitiveFeastType.STRING),
+            ],
+        )
+
+        logging_config, log_data_source = _make_logging_config_with_source(
+            self._LOG_SCHEMA
+        )
+
+        fs = _make_feature_service(
+            "driver_service",
+            ["driver_stats"],
+            logging_config=logging_config,
+            feature_map={"driver_stats": ["conv_rate", "city"]},
+        )
+        store = _make_mock_store([fv], feature_services=[fs])
+
+        log_arrow_table = pa.table(
+            {
+                "driver_stats__conv_rate": [0.1, 0.5, 0.9, 0.3, 0.7],
+                "driver_stats__city": ["NYC", "LA", "NYC", "SF", "LA"],
+                "__log_timestamp": [
+                    datetime(2025, 3, 25, tzinfo=timezone.utc),
+                    datetime(2025, 3, 26, tzinfo=timezone.utc),
+                    datetime(2025, 3, 26, tzinfo=timezone.utc),
+                    datetime(2025, 3, 27, tzinfo=timezone.utc),
+                    datetime(2025, 3, 27, tzinfo=timezone.utc),
+                ],
+            }
+        )
+
+        mock_log_retrieval = MagicMock()
+        mock_log_retrieval.to_arrow.return_value = log_arrow_table
+
+        provider = store._get_provider.return_value
+        provider.offline_store.pull_all_from_table_or_query.return_value = (
+            mock_log_retrieval
+        )
+
+        entity_col = MagicMock()
+        entity_col.name = "driver_id"
+        fv.entity_columns = [entity_col]
+
+        return store, fs
+
+    def test_compute_log_metrics(self):
+        store, fs = self._make_log_store()
+        svc = MonitoringService(store)
+
+        with patch(
+            "feast.monitoring.monitoring_service.FeatureServiceLoggingSource"
+        ) as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.get_schema.return_value = self._LOG_SCHEMA
+            mock_cls.return_value = mock_instance
+
+            result = svc.compute_log_metrics(
+                project="test_project",
+                feature_service_name="driver_service",
+                start_date=date(2025, 3, 25),
+                end_date=date(2025, 3, 27),
+                granularity="daily",
+            )
+
+        assert result["status"] == "completed"
+        assert result["data_source_type"] == "log"
+        assert result["computed_features"] == 2
+
+        provider = store._get_provider.return_value
+        provider.offline_store.save_monitoring_metrics.assert_called()
+
+        save_calls = provider.offline_store.save_monitoring_metrics.call_args_list
+        feature_calls = [c for c in save_calls if c[0][1] == "feature"]
+        assert len(feature_calls) >= 1
+        saved_metrics = feature_calls[0][0][2]
+        assert all(m["data_source_type"] == "log" for m in saved_metrics)
+        # Feature names normalized: driver_stats__conv_rate -> conv_rate
+        saved_names = {m["feature_name"] for m in saved_metrics}
+        assert saved_names == {"conv_rate", "city"}
+        # Feature view name is the actual view, not the service
+        assert all(m["feature_view_name"] == "driver_stats" for m in saved_metrics)
+
+        # Feature service aggregate saved to the service table
+        svc_calls = [c for c in save_calls if c[0][1] == "feature_service"]
+        assert len(svc_calls) >= 1
+        svc_metric = svc_calls[0][0][2][0]
+        assert svc_metric["feature_service_name"] == "driver_service"
+        assert svc_metric["data_source_type"] == "log"
+        assert svc_metric["total_features"] == 2
+
+    def test_compute_log_metrics_no_logging_config(self):
+        fv = _make_feature_view(
+            "driver_stats",
+            [_make_feature_field("conv_rate", PrimitiveFeastType.FLOAT64)],
+        )
+        fs = _make_feature_service("no_log_service", ["driver_stats"])
+        fs.logging_config = None
+        store = _make_mock_store([fv], feature_services=[fs])
+        svc = MonitoringService(store)
+
+        result = svc.compute_log_metrics(
+            project="test_project",
+            feature_service_name="no_log_service",
+        )
+
+        assert result["status"] == "skipped"
+        assert "no logging configured" in result["reason"]
+
+    def test_auto_compute_log_metrics(self):
+        store, fs = self._make_log_store()
+        svc = MonitoringService(store)
+
+        with patch(
+            "feast.monitoring.monitoring_service.FeatureServiceLoggingSource"
+        ) as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.get_schema.return_value = self._LOG_SCHEMA
+            mock_cls.return_value = mock_instance
+
+            result = svc.auto_compute_log_metrics(project="test_project")
+
+        assert result["status"] == "completed"
+        assert result["data_source_type"] == "log"
+        assert result["computed_feature_services"] == 1
+        assert len(result["granularities"]) == len(VALID_GRANULARITIES)
+
+    def test_log_metrics_tagged_differently_from_batch(self):
+        """Log metrics should have data_source_type='log', batch should have 'batch'."""
+        store, fs = self._make_log_store()
+        svc = MonitoringService(store)
+
+        with patch(
+            "feast.monitoring.monitoring_service.FeatureServiceLoggingSource"
+        ) as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.get_schema.return_value = self._LOG_SCHEMA
+            mock_cls.return_value = mock_instance
+
+            svc.compute_log_metrics(
+                project="test_project",
+                feature_service_name="driver_service",
+                granularity="daily",
+            )
+
+        provider = store._get_provider.return_value
+        save_calls = provider.offline_store.save_monitoring_metrics.call_args_list
+        feature_calls = [c for c in save_calls if c[0][1] == "feature"]
+        for call in feature_calls:
+            for m in call[0][2]:
+                assert m["data_source_type"] == "log"
+                assert m["feature_view_name"] == "driver_stats"
+                assert m["feature_name"] in ("conv_rate", "city")

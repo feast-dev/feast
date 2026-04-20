@@ -41,6 +41,23 @@ class MetricsCalculator:
                 return "categorical"
         return None
 
+    @staticmethod
+    def classify_feature_arrow(arrow_type: pa.DataType) -> Optional[str]:
+        """Classify a PyArrow data type as numeric or categorical."""
+        if (
+            pa.types.is_integer(arrow_type)
+            or pa.types.is_floating(arrow_type)
+            or pa.types.is_decimal(arrow_type)
+        ):
+            return "numeric"
+        if (
+            pa.types.is_string(arrow_type)
+            or pa.types.is_large_string(arrow_type)
+            or pa.types.is_boolean(arrow_type)
+        ):
+            return "categorical"
+        return None
+
     def compute_numeric(self, array: pa.Array) -> Dict:
         total = len(array)
         null_count = array.null_count

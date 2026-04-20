@@ -9,10 +9,9 @@ from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.permissions.action import AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 
-VALID_GRANULARITIES = OfflineStore.MONITORING_VALID_GRANULARITIES
-
-
 logger = logging.getLogger(__name__)
+
+VALID_GRANULARITIES = OfflineStore.MONITORING_VALID_GRANULARITIES
 
 
 class ComputeMetricsRequest(BaseModel):
@@ -28,6 +27,20 @@ class ComputeMetricsRequest(BaseModel):
 class AutoComputeRequest(BaseModel):
     project: str
     feature_view_name: Optional[str] = None
+
+
+class ComputeLogMetricsRequest(BaseModel):
+    project: str
+    feature_service_name: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    granularity: str = Field("daily")
+    set_baseline: bool = False
+
+
+class AutoComputeLogRequest(BaseModel):
+    project: str
+    feature_service_name: Optional[str] = None
 
 
 class ComputeTransientRequest(BaseModel):
@@ -118,6 +131,64 @@ def get_monitoring_router(grpc_handler, server=None):
         try:
             result = svc.execute_job(job_id)
             return {"job_id": job_id, **result}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # ------------------------------------------------------------------ #
+    #  Log source: compute from feature serving logs
+    # ------------------------------------------------------------------ #
+
+    @router.post("/monitoring/compute/log", tags=["Monitoring"])
+    async def compute_log_metrics(request: ComputeLogMetricsRequest):
+        """Compute metrics from feature serving logs for a feature service."""
+        if request.granularity not in VALID_GRANULARITIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid granularity '{request.granularity}'. "
+                f"Must be one of {VALID_GRANULARITIES}",
+            )
+
+        store = _get_store()
+        fs = store.registry.get_feature_service(
+            name=request.feature_service_name, project=request.project
+        )
+        assert_permissions(fs, actions=[AuthzedAction.UPDATE])
+
+        svc = _get_monitoring_service()
+
+        start_d = date.fromisoformat(request.start_date) if request.start_date else None
+        end_d = date.fromisoformat(request.end_date) if request.end_date else None
+
+        try:
+            result = svc.compute_log_metrics(
+                project=request.project,
+                feature_service_name=request.feature_service_name,
+                start_date=start_d,
+                end_date=end_d,
+                granularity=request.granularity,
+                set_baseline=request.set_baseline,
+            )
+            return result
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.post("/monitoring/auto_compute/log", tags=["Monitoring"])
+    async def auto_compute_log(request: AutoComputeLogRequest):
+        """Auto-detect date ranges from log data and compute all granularities."""
+        store = _get_store()
+        if request.feature_service_name:
+            fs = store.registry.get_feature_service(
+                name=request.feature_service_name, project=request.project
+            )
+            assert_permissions(fs, actions=[AuthzedAction.UPDATE])
+
+        svc = _get_monitoring_service()
+        try:
+            result = svc.auto_compute_log_metrics(
+                project=request.project,
+                feature_service_name=request.feature_service_name,
+            )
+            return result
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
