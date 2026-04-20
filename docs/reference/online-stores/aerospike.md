@@ -68,6 +68,8 @@ online_store:
 
 ### Aerospike Enterprise with authentication
 
+> Requires Aerospike Enterprise Edition. The Community Edition server has no built-in user/security model and will reject these config keys.
+
 {% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
@@ -84,7 +86,9 @@ online_store:
 ```
 {% endcode %}
 
-### TLS-enabled cluster
+### Aerospike Enterprise with TLS
+
+> Requires Aerospike Enterprise Edition. The Community Edition server does not implement TLS, so `tls` config is effective only against EE clusters.
 
 {% code title="feature_store.yaml" %}
 ```yaml
