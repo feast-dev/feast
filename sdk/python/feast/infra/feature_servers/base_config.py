@@ -83,6 +83,22 @@ class MetricsConfig(FeastConfigBaseModel):
     (feast_feature_freshness_seconds)."""
 
 
+class DqmInitialDistributionConfig(FeastConfigBaseModel):
+    """Controls whether baseline distribution is computed on ``feast apply``."""
+
+    enabled: StrictBool = True
+
+
+class DqmDistributionConfig(FeastConfigBaseModel):
+    initial: DqmInitialDistributionConfig = DqmInitialDistributionConfig()
+
+
+class DqmConfig(FeastConfigBaseModel):
+    """Data Quality Monitoring (DQM) configuration."""
+
+    distribution: DqmDistributionConfig = DqmDistributionConfig()
+
+
 class BaseFeatureServerConfig(FeastConfigBaseModel):
     """Base Feature Server config that should be extended"""
 
@@ -95,6 +111,9 @@ class BaseFeatureServerConfig(FeastConfigBaseModel):
 
     feature_logging: Optional[FeatureLoggingConfig] = None
     """ Feature logging configuration """
+
+    dqm: Optional[DqmConfig] = None
+    """Data Quality Monitoring configuration."""
 
     offline_push_batching_enabled: Optional[StrictBool] = None
     """Whether to batch writes to the offline store via the `/push` endpoint."""

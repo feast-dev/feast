@@ -318,6 +318,37 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
+
+			By("Having DQM config with initial distribution disabled")
+			featureStore = minimalFeatureStore()
+			dqmEnabled := false
+			featureStore.Spec.Dqm = &feastdevv1.DqmConfig{
+				Distribution: &feastdevv1.DqmDistributionConfig{
+					Initial: &feastdevv1.DqmInitialDistributionConfig{
+						Enabled: &dqmEnabled,
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Dqm).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Dqm.Distribution).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Dqm.Distribution.Initial).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Dqm.Distribution.Initial.Enabled).To(BeFalse())
+
+			fsYaml, marshalErr := yaml.Marshal(repoConfig)
+			Expect(marshalErr).NotTo(HaveOccurred())
+			Expect(string(fsYaml)).To(ContainSubstring("feature_server:"))
+			Expect(string(fsYaml)).To(ContainSubstring("enabled: false"))
+
+			By("Having no DQM config — feature_server should be nil")
+			featureStore = minimalFeatureStore()
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).To(BeNil())
 		})
 
 		It("should set feature_server block with type local and all options", func() {

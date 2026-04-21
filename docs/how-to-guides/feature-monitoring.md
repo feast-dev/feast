@@ -46,6 +46,32 @@ Baseline computation is:
 - **Non-blocking** — `feast apply` returns immediately; computation runs asynchronously
 - **Idempotent** — only features without existing baselines are computed; re-running `feast apply` won't recompute existing baselines
 
+### Disabling auto-baseline
+
+To skip automatic baseline computation on `feast apply`, set the DQM config in `feature_store.yaml`:
+
+```yaml
+feature_server:
+  type: local
+  dqm:
+    distribution:
+      initial:
+        enabled: false
+```
+
+When using the Feast operator, set this in the `FeatureStore` CR:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+spec:
+  feastProject: my_project
+  dqm:
+    distribution:
+      initial:
+        enabled: false
+```
+
 ## 3. Scheduled monitoring with the CLI
 
 ### Auto mode (recommended for production)

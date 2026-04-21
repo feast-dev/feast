@@ -127,6 +127,9 @@ type FeatureStoreSpec struct {
 	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
 	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
 	BatchEngine     *BatchEngineConfig    `json:"batchEngine,omitempty"`
+	// Dqm configures Data Quality Monitoring behaviour.
+	// +optional
+	Dqm *DqmConfig `json:"dqm,omitempty"`
 	// Replicas is the desired number of pod replicas. Used by the scale sub-resource.
 	// Mutually exclusive with services.scaling.autoscaling.
 	// +kubebuilder:default=1
@@ -227,6 +230,27 @@ type BatchEngineConfig struct {
 	ConfigMapRef *corev1.LocalObjectReference `json:"configMapRef,omitempty"`
 	// Key name in the ConfigMap. Defaults to "config" if not specified.
 	ConfigMapKey string `json:"configMapKey,omitempty"`
+}
+
+// DqmConfig defines the Data Quality Monitoring configuration.
+type DqmConfig struct {
+	// Distribution controls distribution-related DQM behaviour.
+	// +optional
+	Distribution *DqmDistributionConfig `json:"distribution,omitempty"`
+}
+
+// DqmDistributionConfig controls distribution monitoring settings.
+type DqmDistributionConfig struct {
+	// Initial controls automatic baseline distribution computation on feast apply.
+	// +optional
+	Initial *DqmInitialDistributionConfig `json:"initial,omitempty"`
+}
+
+// DqmInitialDistributionConfig controls the initial baseline distribution computation.
+type DqmInitialDistributionConfig struct {
+	// Enabled controls whether baseline distribution is computed on feast apply. Defaults to true.
+	// +kubebuilder:default=true
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // JobSpec describes how the job execution will look like.
