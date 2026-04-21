@@ -37,15 +37,17 @@ class Aggregation:
         time_window: Optional[timedelta] = None,
         slide_interval: Optional[timedelta] = None,
         name: Optional[str] = None,
+        output: Optional[str] = None,
+        window: Optional[timedelta] = None,
     ):
         self.column = column or ""
         self.function = function or ""
-        self.time_window = time_window
+        self.time_window = window if window is not None else time_window
         if not slide_interval:
             self.slide_interval = self.time_window
         else:
             self.slide_interval = slide_interval
-        self.name = name or ""
+        self.name = output or name or ""
 
     def to_proto(self) -> AggregationProto:
         window_duration = None
