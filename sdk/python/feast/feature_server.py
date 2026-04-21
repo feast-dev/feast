@@ -808,10 +808,76 @@ def get_app(
     with importlib_resources.as_file(static_dir_ref) as static_dir:
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    # Mount registry routes so they are available via MCP
+    _add_registry_routes(app, store)
+
     # Add MCP support if enabled in feature server configuration
     _add_mcp_support_if_enabled(app, store)
 
     return app
+
+
+def _add_registry_routes(app, store: "feast.FeatureStore"):
+    """Mount the existing REST registry routers under ``/registry``.
+
+    This makes registry introspection endpoints (list/get for entities,
+    feature views, data sources, feature services, etc.) available on the
+    feature server -- and therefore automatically exposed as MCP tools
+    when ``fastapi_mcp`` is enabled.
+    """
+    try:
+        from feast.api.registry.rest import (
+            get_data_source_router,
+            get_entity_router,
+            get_feature_router,
+            get_feature_service_router,
+            get_feature_view_router,
+            get_lineage_router,
+            get_permission_router,
+            get_project_router,
+            get_saved_dataset_router,
+            get_search_router,
+        )
+        from feast.registry_server import RegistryServer
+
+        grpc_handler = RegistryServer(store.registry)
+        prefix = "/registry"
+        deps = [Depends(inject_user_details)]
+
+        app.include_router(
+            get_entity_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_data_source_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_feature_service_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_feature_view_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_feature_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_lineage_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_permission_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_project_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_saved_dataset_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+        app.include_router(
+            get_search_router(grpc_handler), prefix=prefix, dependencies=deps
+        )
+
+        logger.info("Registry routes mounted under /registry")
+    except Exception as e:
+        logger.warning(f"Failed to mount registry routes: {e}")
 
 
 def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
