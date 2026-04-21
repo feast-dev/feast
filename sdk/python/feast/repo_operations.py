@@ -411,6 +411,11 @@ def apply_total_with_repo_instance(
 
 def _submit_baseline_jobs_if_needed(store, project_name, repo):
     """Submit async baseline DQM jobs for new features after feast apply."""
+    fs_config = store.config.feature_server
+    if fs_config is not None and fs_config.dqm is not None:
+        if not fs_config.dqm.distribution.initial.enabled:
+            return
+
     try:
         from feast.monitoring.monitoring_service import MonitoringService
 
