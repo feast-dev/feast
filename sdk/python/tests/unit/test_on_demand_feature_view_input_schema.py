@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 
 from feast import Entity, Field
-from feast.aggregation import Aggregation
+from feast.aggregation import Aggregation, aggregation_specs_to_agg_ops
 from feast.on_demand_feature_view import OnDemandFeatureView, on_demand_feature_view
 from feast.types import Float64, Int64
 from feast.value_type import ValueType
@@ -73,7 +73,9 @@ def test_decorator_with_input_schema():
     assert len(compute_txn_stats.features) == 3
 
     # The internal sentinel RequestSource should be present
-    sentinel_name = f"{OnDemandFeatureView._INPUT_SCHEMA_SOURCE_PREFIX}compute_txn_stats"
+    sentinel_name = (
+        f"{OnDemandFeatureView._INPUT_SCHEMA_SOURCE_PREFIX}compute_txn_stats"
+    )
     assert sentinel_name in compute_txn_stats.source_request_sources
 
     # sources (user-visible) should be empty
@@ -163,3 +165,26 @@ def test_sources_required_without_input_schema():
             schema=[Field(name="out", dtype=Float64)],
             udf=dummy,
         )
+
+
+def test_aggregation_from_proto_no_time_window_roundtrip():
+    """Aggregation.from_proto preserves None time_window (fixes timedelta(0) regression)."""
+    agg = Aggregation(column="amount", function="sum", name="total_amount")
+    assert agg.time_window is None
+
+    restored = Aggregation.from_proto(agg.to_proto())
+    assert restored.time_window is None
+    assert restored == agg
+
+
+def test_aggregation_from_proto_no_time_window_online_serving():
+    """Aggregations without time_window don't raise in aggregation_specs_to_agg_ops after roundtrip."""
+    agg = Aggregation(column="amount", function="sum", name="total_amount")
+    restored = Aggregation.from_proto(agg.to_proto())
+
+    # Should not raise — time_window is None, not timedelta(0)
+    result = aggregation_specs_to_agg_ops(
+        [restored],
+        time_window_unsupported_error_message="Time window aggregation is not supported in online serving",
+    )
+    assert result == {"total_amount": ("sum", "amount")}

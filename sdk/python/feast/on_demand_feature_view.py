@@ -620,9 +620,8 @@ class OnDemandFeatureView(BaseFeatureView):
         input_schema: Optional[List[Field]] = None
         sources_without_sentinel: List[OnDemandSourceType] = []
         for source in sources:
-            if (
-                isinstance(source, RequestSource)
-                and source.name.startswith(cls._INPUT_SCHEMA_SOURCE_PREFIX)
+            if isinstance(source, RequestSource) and source.name.startswith(
+                cls._INPUT_SCHEMA_SOURCE_PREFIX
             ):
                 input_schema = source.schema
             else:
