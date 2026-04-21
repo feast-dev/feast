@@ -33,7 +33,7 @@ USER 0
 # Runtime shared libraries required by compiled Python extensions:
 #   libicu  - pyarrow (Arrow C++ depends on ICU)
 #   libpq   - psycopg[c] (PostgreSQL C adapter)
-RUN microdnf install -y libicu libpq && microdnf clean all
+RUN microdnf install -y git libicu libpq && microdnf clean all
 
 # Copy installed Python packages and entry-point scripts from builder
 COPY --from=builder /opt/app-root/lib /opt/app-root/lib
