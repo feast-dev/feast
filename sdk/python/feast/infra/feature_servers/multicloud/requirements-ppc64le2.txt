@@ -1,0 +1,1 @@
+snowflake-connector-python @ https://packages.redhat.com/api/pulp-content/public-rhai/rhoai/3.5-EA1/cpu-ubi9-test/snowflake_connector_python-4.4.0-2-cp312-cp312-linux_ppc64le.whl --hash=sha256:59b6031b547f02e84f6e6032948c1f8b7be49fd430d3c21488d87a3170343af8

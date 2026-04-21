@@ -1,30 +1,46 @@
-pyproject_hooks==1.1.0; platform_machine == "ppc64le"
-build == 1.3.0; platform_machine == "ppc64le"
-Cython == 3.0.8; platform_machine == "ppc64le"
-setuptools_scm == 9.2.0; platform_machine == "ppc64le"
-numpy == 2.3.3; platform_machine == "ppc64le"
-pybind11 == 3.0.1; platform_machine == "ppc64le"
-ninja == 1.13.0; platform_machine == "ppc64le"
-wheel == 0.45.1; platform_machine == "ppc64le"
-urllib3 == 1.26.20; platform_machine == "ppc64le"
-conan==1.64.1; platform_machine == "ppc64le"
-setuptools==70.0.0; platform_machine == "ppc64le"
-bottle==0.12.25; platform_machine == "ppc64le"
-certifi==2025.8.3; platform_machine == "ppc64le"
-charset-normalizer==3.4.3; platform_machine == "ppc64le"
-colorama==0.4.6; platform_machine == "ppc64le"
-distro==1.8.0; platform_machine == "ppc64le"
-fasteners==0.20; platform_machine == "ppc64le"
-idna==3.10; platform_machine == "ppc64le"
-Jinja2==3.1.6; platform_machine == "ppc64le"
-MarkupSafe==3.0.2; platform_machine == "ppc64le"
-node-semver==0.6.1; platform_machine == "ppc64le"
-patch-ng==1.17.4; platform_machine == "ppc64le"
-pluginbase==1.0.1; platform_machine == "ppc64le"
-Pygments==2.19.2; platform_machine == "ppc64le"
-PyJWT==2.10.1; platform_machine == "ppc64le"
-python-dateutil==2.9.0.post0; platform_machine == "ppc64le"
-PyYAML==6.0.2; platform_machine == "ppc64le"
-requests==2.32.5; platform_machine == "ppc64le"
-six==1.16.0; platform_machine == "ppc64le"
-tqdm==4.67.1; platform_machine == "ppc64le"
+--index-url https://wheels-staging.developerfirst.ibm.com/ppc64le/linux/+simple/
+
+pyarrow==22.0.0+ppc64le1 \
+    --hash=sha256:c88347a7a3ff447a893a9354d94cf4e8cd8af85ef635048f7938056d9baa8475
+
+duckdb==1.4.3+ppc64le1 \
+    --hash=sha256:613f6836ae5d6cfcf4e293a12701ca383c5201c6147cf39f1e8d925f61de0be9
+
+milvus-lite==2.4.12+ppc64le1 \
+    --hash=sha256:8b5dbc216ec003c71aeb85f2eb1edf184de3e75886464a06e26e972be8b264e4
+
+numpy==2.4.4+ppc64le1 \
+    --hash=sha256:3c0ede74d01bd0d1a55644b5b81f0b5cfc42355bebd8f93efcd837f0407781b3
+
+pandas==2.3.3+ppc64le1 \
+    --hash=sha256:e2ece34c1d05e094e4ec6ce1aac552579c515a8a589669e235293b18f1624c6c
+
+pyyaml==6.0.3+ppc64le1 \
+    --hash=sha256:b1ba6aa297d0d6c493f78705b367e89df71c75e775e55bf4e368cba754857727
+
+psutil==7.2.2+ppc64le1 \
+    --hash=sha256:643576677dc5f0a70e9bc25af4b9640bdc0569415a1fbb4613b50feb9a0a6228
+
+markupsafe==3.0.3+ppc64le1 \
+    --hash=sha256:9e19dec5a2a3e1b44f9153edb60858d61f42f3b296e0f670b5dce7b8c8294f9b
+
+httptools==0.7.1+ppc64le1 \
+    --hash=sha256:483b99ef714ef4cf3fd43c86c95b81878f204de13bf088065cc1b5a42742adb2
+
+uvloop==0.22.1+ppc64le1 \
+    --hash=sha256:a2ba692239f29c47352f3d1dd8c962c66da04c07b8641a05a8aeaf3decff0b7b
+
+google-crc32c==1.8.0+ppc64le1 \
+    --hash=sha256:10ebe865117f3eb5a4efe71ed70cbdd7b0e8f0bd1c758ebb3d70ab35f004b506
+
+ujson==5.11.0+ppc64le1 \
+    --hash=sha256:941827306e7d611df191a753d58227c7b5550313da15a942356c3ab8915485ae
+
+grpcio==1.62.3+ppc64le1 \
+    --hash=sha256:20c871d8b8a47ee657902237cc5aaeec150823a70243824d6c0c52cf6d96ceb4
+
+#snowflake-connector-python==4.3.0+ppc64le1 \
+#    --hash=sha256:da61ba5d15b8c14858ba6ed5967bcf4d22c53451fcef8a86b6b4441c6af96e6c
+
+librt==0.8.1+ppc64le1 \
+    --hash=sha256:48036383ae90faed2fbd417180ef63c986f1b723b31f0d224ad9617d0883d761
