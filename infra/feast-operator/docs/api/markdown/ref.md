@@ -496,6 +496,7 @@ McpConfig enables MCP (Model Context Protocol) server support in the feature ser
 When this field is set on ServingConfig, the feature server type is switched to "mcp".
 
 _Appears in:_
+- [RegistryServerConfigs](#registryserverconfigs)
 - [ServingConfig](#servingconfig)
 
 | Field | Description |
@@ -883,6 +884,8 @@ volume definition in the Volumes field. |
 These options are primarily used for production deployments to optimize performance. |
 | `restAPI` _boolean_ | Enable REST API registry server. |
 | `grpc` _boolean_ | Enable gRPC registry server. Defaults to true if unset. |
+| `mcp` _[McpConfig](#mcpconfig)_ | Mcp enables MCP (Model Context Protocol) on the REST registry server.
+Requires restAPI to be true. Reuses the same McpConfig struct as the online store. |
 
 
 #### RemoteRegistryConfig

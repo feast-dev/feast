@@ -258,3 +258,68 @@ class TestFeatureServerMCPHooks(unittest.TestCase):
 
         with self.assertRaises(McpTransportNotSupportedError):
             _add_mcp_support_if_enabled(mock_app, mock_store)
+
+
+class TestRestRegistryServerMCP(unittest.TestCase):
+    """Test MCP integration in RestRegistryServer."""
+
+    @patch("fastapi_mcp.FastApiMCP")
+    @patch("feast.api.registry.rest.rest_registry_server.RestRegistryServer._init_auth")
+    @patch(
+        "feast.api.registry.rest.rest_registry_server.RestRegistryServer._register_routes"
+    )
+    def test_mcp_mounted_when_enabled(
+        self, mock_register, mock_auth, mock_fast_api_mcp
+    ):
+        """Test that MCP is mounted on RestRegistryServer when registry.mcp.enabled is True."""
+        from feast.api.registry.rest.rest_registry_server import RestRegistryServer
+
+        mock_store = Mock()
+        mock_store.config.registry.mcp = SimpleNamespace(enabled=True)
+        mock_store.config.auth_config.type = "no_auth"
+        mock_store.registry = Mock()
+        mock_store.project = "test_project"
+
+        mock_mcp_instance = Mock()
+        mock_fast_api_mcp.return_value = mock_mcp_instance
+
+        server = RestRegistryServer(mock_store)
+
+        mock_fast_api_mcp.assert_called_once_with(server.app, name="feast-registry-mcp")
+        mock_mcp_instance.mount.assert_called_once()
+
+    @patch("feast.api.registry.rest.rest_registry_server.RestRegistryServer._init_auth")
+    @patch(
+        "feast.api.registry.rest.rest_registry_server.RestRegistryServer._register_routes"
+    )
+    def test_mcp_not_mounted_when_disabled(self, mock_register, mock_auth):
+        """Test that MCP is not mounted when registry.mcp.enabled is False."""
+        from feast.api.registry.rest.rest_registry_server import RestRegistryServer
+
+        mock_store = Mock()
+        mock_store.config.registry.mcp = SimpleNamespace(enabled=False)
+        mock_store.config.auth_config.type = "no_auth"
+        mock_store.registry = Mock()
+        mock_store.project = "test_project"
+
+        with patch("fastapi_mcp.FastApiMCP") as mock_fast_api_mcp:
+            RestRegistryServer(mock_store)
+            mock_fast_api_mcp.assert_not_called()
+
+    @patch("feast.api.registry.rest.rest_registry_server.RestRegistryServer._init_auth")
+    @patch(
+        "feast.api.registry.rest.rest_registry_server.RestRegistryServer._register_routes"
+    )
+    def test_mcp_not_mounted_when_mcp_config_absent(self, mock_register, mock_auth):
+        """Test that MCP is not mounted when registry.mcp is None."""
+        from feast.api.registry.rest.rest_registry_server import RestRegistryServer
+
+        mock_store = Mock()
+        mock_store.config.registry.mcp = None
+        mock_store.config.auth_config.type = "no_auth"
+        mock_store.registry = Mock()
+        mock_store.project = "test_project"
+
+        with patch("fastapi_mcp.FastApiMCP") as mock_fast_api_mcp:
+            RestRegistryServer(mock_store)
+            mock_fast_api_mcp.assert_not_called()

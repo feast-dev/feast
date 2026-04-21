@@ -76,6 +76,21 @@ class RestRegistryServer:
         self._init_auth()
         self._register_routes()
 
+        registry_cfg = getattr(store.config, "registry", None)
+        mcp_cfg = getattr(registry_cfg, "mcp", None)
+        if mcp_cfg and getattr(mcp_cfg, "enabled", False):
+            try:
+                from fastapi_mcp import FastApiMCP
+
+                mcp = FastApiMCP(self.app, name="feast-registry-mcp")
+                mcp.mount()
+                logger.info("MCP support enabled on REST registry server")
+            except ImportError:
+                logger.warning(
+                    "MCP support requested but fastapi_mcp is not installed. "
+                    "Install it with: pip install feast[mcp]"
+                )
+
     def _add_exception_handlers(self):
         """Add custom exception handlers to include HTTP status codes in JSON responses."""
 
