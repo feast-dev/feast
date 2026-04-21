@@ -345,7 +345,13 @@ type RegistryConfig struct {
 	S3AdditionalKwargs *map[string]string     `yaml:"s3_additional_kwargs,omitempty"`
 	CacheTTLSeconds    *int32                 `yaml:"cache_ttl_seconds,omitempty"`
 	CacheMode          *string                `yaml:"cache_mode,omitempty"`
+	Mcp                *RegistryMcpYamlConfig `yaml:"mcp,omitempty"`
 	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// RegistryMcpYamlConfig maps to the registry.mcp section of feature_store.yaml.
+type RegistryMcpYamlConfig struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // AuthzConfig is the RBAC authorization configuration.

@@ -151,6 +151,13 @@ class FeastConfigBaseModel(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
 
+class McpRegistryConfig(FeastBaseModel):
+    """MCP (Model Context Protocol) configuration for the registry REST server."""
+
+    enabled: StrictBool = False
+    """ bool: Enable MCP support on the REST registry server. """
+
+
 class RegistryConfig(FeastBaseModel):
     """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
@@ -190,6 +197,9 @@ class RegistryConfig(FeastBaseModel):
         (e.g., 'fv@v2:feature'). When True, each schema version gets its own
         online store table and can be queried independently. Version history
         tracking in the registry is always active regardless of this setting. """
+
+    mcp: Optional[McpRegistryConfig] = None
+    """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
 
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:

@@ -279,6 +279,34 @@ MCP is mounted at `/mcp` on port 6566 — no additional Kubernetes Service is cr
 > **Dependency**: the feature server image must include `feast[mcp]` (`fastapi-mcp`).
 > Without it the server starts normally but MCP routes are not registered.
 
+### Registry MCP
+
+MCP can also be enabled on the **registry REST server**, exposing registry metadata
+(entities, feature views, feature services) as MCP tool endpoints. This is configured
+under `registry.local.server.mcp` and requires `restAPI: true`.
+
+```yaml
+services:
+  registry:
+    local:
+      server:
+        restAPI: true
+        mcp:
+          enabled: true
+      persistence:
+        store:
+          type: sql
+          secretRef:
+            name: feast-data-stores
+```
+
+The operator writes `registry.mcp.enabled: true` into `feature_store.yaml` when
+this field is set. A CEL validation rule enforces that `restAPI` must be `true`
+when MCP is enabled.
+
+> **Note**: Registry MCP uses only the `enabled` field — `serverName`, `serverVersion`,
+> and `transport` are not applicable to the registry server.
+
 ---
 
 ## `serving` vs `server` — summary
