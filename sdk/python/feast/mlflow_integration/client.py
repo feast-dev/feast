@@ -144,9 +144,7 @@ class FeastMlflowClient:
                 path = os.path.join(tmp_dir, "required_features.json")
                 with open(path, "w") as f:
                     json.dump(features, f)
-                self._client.log_artifact(
-                    run.info.run_id, path, artifact_path=""
-                )
+                self._client.log_artifact(run.info.run_id, path, artifact_path="")
         except Exception as e:
             _logger.debug("Failed to log required_features.json: %s", e)
 

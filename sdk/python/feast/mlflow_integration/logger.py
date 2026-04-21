@@ -207,9 +207,7 @@ def log_apply_to_mlflow(
             elif isinstance(obj, Entity) and obj.name != "__dummy":
                 entity_names.append(obj.name)
 
-        run = client.create_run(
-            experiment_id, run_name=f"apply_{project}"
-        )
+        run = client.create_run(experiment_id, run_name=f"apply_{project}")
         run_id = run.info.run_id
         try:
             client.set_tag(run_id, "feast.operation", "apply")
@@ -236,9 +234,7 @@ def log_apply_to_mlflow(
             client.log_metric(
                 run_id, "feast.apply.feature_services_count", len(fs_names)
             )
-            client.log_metric(
-                run_id, "feast.apply.entities_count", len(entity_names)
-            )
+            client.log_metric(run_id, "feast.apply.entities_count", len(entity_names))
         finally:
             client.set_terminated(run_id)
 
@@ -276,9 +272,7 @@ def log_materialize_to_mlflow(
         experiment_id = _get_or_create_experiment(client, experiment_name)
 
         op_type = "materialize_incremental" if incremental else "materialize"
-        run = client.create_run(
-            experiment_id, run_name=f"{op_type}_{project}"
-        )
+        run = client.create_run(experiment_id, run_name=f"{op_type}_{project}")
         run_id = run.info.run_id
         try:
             client.set_tag(run_id, "feast.operation", op_type)

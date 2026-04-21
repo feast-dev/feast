@@ -311,13 +311,10 @@ class FeatureStore:
             _logger.debug("Failed to resolve feature service name: %s", e)
             return None
 
-    def _auto_log_entity_df_info(self, entity_df, start_date=None, end_date=None):
-        """Log entity_df info to MLflow for reproducibility.
+    def _log_entity_df_metadata(self, entity_df, start_date=None, end_date=None):
+        """Log lightweight entity_df metadata to MLflow (type, row count, columns, query, dates).
 
-        Handles three entity_df types:
-        - pd.DataFrame: saves metadata + full parquet artifact (within configured limit)
-        - str (SQL query): logs the query as a param
-        - None (range-based): logs start_date/end_date
+        Always called during historical retrieval regardless of auto_log_entity_df.
         """
         try:
             import mlflow
@@ -350,15 +347,6 @@ class FeatureStore:
                     cols = cols[:MLFLOW_PARAM_TRUNCATION_SLICE] + "..."
                 client.log_param(run_id, "feast.entity_df_columns", cols)
 
-                max_rows = mlflow_cfg.entity_df_max_rows
-                if len(entity_df) <= max_rows:
-                    import tempfile
-
-                    with tempfile.TemporaryDirectory() as tmp_dir:
-                        path = os.path.join(tmp_dir, "entity_df.parquet")
-                        entity_df.to_parquet(path, index=False)
-                        client.log_artifact(run_id, path)
-
             elif entity_df is None and (start_date or end_date):
                 client.set_tag(run_id, "feast.entity_df_type", "range")
                 if start_date:
@@ -367,7 +355,38 @@ class FeatureStore:
                     client.log_param(run_id, "feast.end_date", str(end_date))
 
         except Exception as e:
-            _logger.debug("Failed to log entity_df info to MLflow: %s", e)
+            _logger.debug("Failed to log entity_df metadata to MLflow: %s", e)
+
+    def _log_entity_df_artifact(self, entity_df):
+        """Upload entity DataFrame as a parquet artifact to MLflow.
+
+        Only called when auto_log_entity_df is True and entity_df is a DataFrame
+        within the configured row limit.
+        """
+        try:
+            import mlflow
+
+            if mlflow.active_run() is None:
+                return
+            if not isinstance(entity_df, pd.DataFrame):
+                return
+
+            mlflow_cfg = self.config.mlflow
+            tracking_uri = mlflow_cfg.get_tracking_uri()
+            client = mlflow.MlflowClient(tracking_uri=tracking_uri)
+            run_id = mlflow.active_run().info.run_id
+
+            max_rows = mlflow_cfg.entity_df_max_rows
+            if len(entity_df) <= max_rows:
+                import tempfile
+
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    path = os.path.join(tmp_dir, "entity_df.parquet")
+                    entity_df.to_parquet(path, index=False)
+                    client.log_artifact(run_id, path)
+
+        except Exception as e:
+            _logger.debug("Failed to log entity_df artifact to MLflow: %s", e)
 
     def _init_openlineage_emitter(self) -> Optional[Any]:
         """Initialize OpenLineage emitter if configured and enabled."""
@@ -1750,10 +1769,12 @@ class FeatureStore:
                         tracking_uri=self.config.mlflow.get_tracking_uri(),
                     )
 
+                    self._log_entity_df_metadata(
+                        entity_df, start_date=start_date, end_date=end_date
+                    )
+
                     if self.config.mlflow.auto_log_entity_df:
-                        self._auto_log_entity_df_info(
-                            entity_df, start_date=start_date, end_date=end_date
-                        )
+                        self._log_entity_df_artifact(entity_df)
         except Exception as e:
             _logger.debug("MLflow auto-log failed for historical retrieval: %s", e)
 
@@ -3036,7 +3057,9 @@ class FeatureStore:
         """
         provider = self._get_provider()
 
-        return await provider.get_online_features_async(
+        _retrieval_start = time.monotonic()
+
+        response = await provider.get_online_features_async(
             config=self.config,
             features=features,
             entity_rows=entity_rows,
@@ -3045,6 +3068,52 @@ class FeatureStore:
             full_feature_names=full_feature_names,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
+
+        try:
+            if (
+                self.config.mlflow is not None
+                and self.config.mlflow.enabled
+                and self.config.mlflow.auto_log
+            ):
+                _log_fn = _get_mlflow_log_fn()
+                if _log_fn is not None:
+                    _duration = time.monotonic() - _retrieval_start
+                    _feature_refs = utils._get_features(
+                        self.registry, self.project, features, allow_cache=True
+                    )
+                    if isinstance(entity_rows, list):
+                        _entity_count = len(entity_rows)
+                    elif isinstance(entity_rows, Mapping):
+                        try:
+                            _first_col = next(iter(entity_rows.values()))
+                            if isinstance(_first_col, RepeatedValue):
+                                _entity_count = len(_first_col.val)
+                            else:
+                                _entity_count = len(_first_col)
+                        except Exception:
+                            _entity_count = 0
+                    else:
+                        _entity_count = 0
+                    _fs = features if isinstance(features, FeatureService) else None
+                    _fs_name = (
+                        features.name
+                        if isinstance(features, FeatureService)
+                        else self._resolve_feature_service_name(_feature_refs)
+                    )
+                    _log_fn(
+                        feature_refs=_feature_refs,
+                        entity_count=_entity_count,
+                        duration_seconds=_duration,
+                        retrieval_type="online",
+                        feature_service=_fs,
+                        feature_service_name=_fs_name,
+                        project=self.project,
+                        tracking_uri=self.config.mlflow.get_tracking_uri(),
+                    )
+        except Exception as e:
+            _logger.debug("MLflow auto-log failed for online retrieval: %s", e)
+
+        return response
 
     def retrieve_online_documents(
         self,

@@ -548,11 +548,13 @@ class TestDisabledIntegration:
                 entity_df=entity_df,
             ).to_df()
 
+        run_data = client.get_run(run.info.run_id).data
         artifacts = [a.path for a in client.list_artifacts(run.info.run_id)]
         assert "entity_df.parquet" not in artifacts
-        assert "feast.entity_df_rows" not in client.get_run(run.info.run_id).data.params
-        tags = client.get_run(run.info.run_id).data.tags
-        assert tags["feast.feature_service"] == "driver_activity_v1"
+
+        assert "feast.entity_df_rows" in run_data.params
+        assert run_data.tags["feast.entity_df_type"] == "dataframe"
+        assert run_data.tags["feast.feature_service"] == "driver_activity_v1"
 
 
 class TestEntityDfBuilder:
