@@ -37,11 +37,10 @@ class Aggregation:
         time_window: Optional[timedelta] = None,
         slide_interval: Optional[timedelta] = None,
         name: Optional[str] = None,
-        window: Optional[timedelta] = None,
     ):
         self.column = column or ""
         self.function = function or ""
-        self.time_window = window if window is not None else time_window
+        self.time_window = time_window
         if not slide_interval:
             self.slide_interval = self.time_window
         else:
