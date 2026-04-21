@@ -387,12 +387,18 @@ class SparkOfflineStore(OfflineStore):
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
             timestamp_fields.append(created_timestamp_column)
-        (fields_with_aliases, aliases) = _get_fields_with_aliases(
-            fields=join_key_columns + feature_name_columns + timestamp_fields,
-            field_mappings=data_source.field_mapping,
-        )
 
-        fields_with_alias_string = ", ".join(fields_with_aliases)
+        if feature_name_columns:
+            (fields_with_aliases, _) = _get_fields_with_aliases(
+                fields=join_key_columns + feature_name_columns + timestamp_fields,
+                field_mappings=data_source.field_mapping,
+            )
+            fields_with_alias_string = ", ".join(fields_with_aliases)
+        else:
+            # Empty feature_name_columns signals "read all source columns".
+            # Used by BatchFeatureView with TransformationMode.PYTHON/ray/pandas where
+            # the UDF computes output features from raw input — don't project upfront.
+            fields_with_alias_string = "*"
 
         from_expression = data_source.get_table_query_string()
         timestamp_filter = get_timestamp_filter_sql(
