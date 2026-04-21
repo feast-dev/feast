@@ -496,7 +496,7 @@ class SnowflakeOfflineStore(OfflineStore):
         with GetSnowflakeConnection(config.offline_store) as conn:
             cursor = execute_snowflake_statement(
                 conn,
-                f'SELECT MAX("{timestamp_field}") FROM {from_expression}',
+                f'SELECT MAX("{timestamp_field}") FROM {from_expression} AS _src',
             )
             row = cursor.fetchone()
 
