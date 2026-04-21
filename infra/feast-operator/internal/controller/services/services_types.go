@@ -260,14 +260,35 @@ type FeastServices struct {
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
 // https://rtd.feast.dev/en/stable/#feast.repo_config.RepoConfig
 type RepoConfig struct {
-	Project                       string               `yaml:"project,omitempty"`
-	Provider                      FeastProviderType    `yaml:"provider,omitempty"`
-	OfflineStore                  OfflineStoreConfig   `yaml:"offline_store,omitempty"`
-	OnlineStore                   OnlineStoreConfig    `yaml:"online_store,omitempty"`
-	Registry                      RegistryConfig       `yaml:"registry,omitempty"`
-	AuthzConfig                   AuthzConfig          `yaml:"auth,omitempty"`
-	EntityKeySerializationVersion int                  `yaml:"entity_key_serialization_version,omitempty"`
-	BatchEngine                   *ComputeEngineConfig `yaml:"batch_engine,omitempty"`
+	Project                       string                   `yaml:"project,omitempty"`
+	Provider                      FeastProviderType        `yaml:"provider,omitempty"`
+	OfflineStore                  OfflineStoreConfig       `yaml:"offline_store,omitempty"`
+	OnlineStore                   OnlineStoreConfig        `yaml:"online_store,omitempty"`
+	Registry                      RegistryConfig           `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig              `yaml:"auth,omitempty"`
+	EntityKeySerializationVersion int                      `yaml:"entity_key_serialization_version,omitempty"`
+	BatchEngine                   *ComputeEngineConfig     `yaml:"batch_engine,omitempty"`
+	FeatureServer                 *FeatureServerYamlConfig `yaml:"feature_server,omitempty"`
+}
+
+// FeatureServerYamlConfig is the feature_server section of feature_store.yaml.
+type FeatureServerYamlConfig struct {
+	Dqm *DqmYamlConfig `yaml:"dqm,omitempty"`
+}
+
+// DqmYamlConfig mirrors the Python DqmConfig for feature_store.yaml serialization.
+type DqmYamlConfig struct {
+	Distribution *DqmDistributionYamlConfig `yaml:"distribution,omitempty"`
+}
+
+// DqmDistributionYamlConfig mirrors the Python DqmDistributionConfig.
+type DqmDistributionYamlConfig struct {
+	Initial *DqmInitialDistributionYamlConfig `yaml:"initial,omitempty"`
+}
+
+// DqmInitialDistributionYamlConfig mirrors the Python DqmInitialDistributionConfig.
+type DqmInitialDistributionYamlConfig struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.
