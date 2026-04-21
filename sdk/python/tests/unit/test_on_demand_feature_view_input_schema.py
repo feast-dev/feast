@@ -45,19 +45,19 @@ def test_decorator_with_input_schema():
             Aggregation(
                 column="txn_amount",
                 function="count",
-                output="txn_count",
+                name="txn_count",
                 window=timedelta(days=30),
             ),
             Aggregation(
                 column="txn_amount",
                 function="sum",
-                output="total_txn_amount",
+                name="total_txn_amount",
                 window=timedelta(days=30),
             ),
             Aggregation(
                 column="txn_amount",
                 function="mean",
-                output="avg_txn_amount",
+                name="avg_txn_amount",
                 window=timedelta(days=30),
             ),
         ],
@@ -83,11 +83,11 @@ def test_decorator_with_input_schema():
 
 
 def test_aggregation_aliases():
-    """Aggregation accepts 'output' alias for 'name' and 'window' alias for 'time_window'."""
+    """Aggregation accepts 'window' alias for 'time_window'."""
     agg = Aggregation(
         column="txn_amount",
         function="sum",
-        output="total_txn_amount",
+        name="total_txn_amount",
         window=timedelta(days=30),
     )
     assert agg.name == "total_txn_amount"
@@ -108,7 +108,7 @@ def test_input_schema_proto_roundtrip():
             Aggregation(
                 column="txn_amount",
                 function="sum",
-                output="total_txn_amount",
+                name="total_txn_amount",
                 window=timedelta(days=30),
             ),
         ],
@@ -137,7 +137,7 @@ def test_input_schema_copy():
             Field(name="total_txn_amount", dtype=Float64),
         ],
         aggregations=[
-            Aggregation(column="txn_amount", function="sum", output="total_txn_amount"),
+            Aggregation(column="txn_amount", function="sum", name="total_txn_amount"),
         ],
         entities=[user],
     )
