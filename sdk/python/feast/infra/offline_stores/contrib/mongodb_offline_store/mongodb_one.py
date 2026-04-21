@@ -900,7 +900,7 @@ class MongoDBOfflineStoreOne(OfflineStore):
         # serialized bytes that never match stored documents when FVs have
         # heterogeneous join keys (e.g. FV1 uses driver_id, FV2 uses customer_id).
         fv_join_keys_by_name: Dict[str, List[str]] = {
-            fv.name: get_expected_join_keys(project, [fv], registry)
+            fv.name: list(get_expected_join_keys(project, [fv], registry))
             for fv in feature_views
         }
         # Declared ValueType per join key, derived directly from entity_columns on

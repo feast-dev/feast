@@ -39,7 +39,7 @@ Index (created lazily on first use)::
 
 import warnings
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
     Callable,
@@ -150,45 +150,41 @@ class MongoDBSourceAgg(DataSource):
     def feature_view_name(self) -> str:
         return self.name
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.CUSTOM_SOURCE
+
     def validate(self, config: RepoConfig) -> None:
         pass
 
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> "MongoDBSourceAgg":
-        custom = data_source.custom_options
+        assert data_source.HasField("custom_options")
         return MongoDBSourceAgg(
-            name=custom.configuration.get("name", ""),
-            timestamp_field=custom.configuration.get(
-                "timestamp_field", "event_timestamp"
-            ),
-            created_timestamp_column=custom.configuration.get(
-                "created_timestamp_column", "created_at"
-            ),
+            name=data_source.name,
+            timestamp_field=data_source.timestamp_field,
+            created_timestamp_column=data_source.created_timestamp_column,
+            field_mapping=dict(data_source.field_mapping),
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         import json
 
-        options = DataSourceProto.CustomSourceOptions(
-            configuration=json.dumps(
-                {
-                    "name": self.name,
-                    "timestamp_field": self.timestamp_field,
-                    "created_timestamp_column": self.created_timestamp_column,
-                }
-            )
-        )
         return DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
+            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_agg.MongoDBSourceAgg",
+            field_mapping=self.field_mapping,
+            custom_options=DataSourceProto.CustomSourceOptions(
+                configuration=json.dumps({"feature_view": self.name}).encode()
+            ),
             description=self.description,
             tags=self.tags,
             owner=self.owner,
             timestamp_field=self.timestamp_field,
-            custom_options=options,
+            created_timestamp_column=self.created_timestamp_column,
         )
 
     def get_table_query_string(self) -> str:
@@ -228,9 +224,6 @@ class MongoDBAggRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         return self._query_fn()
 
-    def to_df(self, timeout: Optional[int] = None) -> pd.DataFrame:
-        return self._to_arrow_internal(timeout=timeout).to_pandas()
-
     def persist(
         self,
         storage: SavedDatasetStorage,
@@ -244,7 +237,7 @@ class MongoDBAggRetrievalJob(RetrievalJob):
                     import os
 
                     if os.path.exists(path):
-                        raise SavedDatasetLocationAlreadyExists(save_path=path)
+                        raise SavedDatasetLocationAlreadyExists(location=path)
                 self.to_df().to_parquet(path)
 
 
@@ -321,7 +314,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         db_name = config.offline_store.database
         collection = config.offline_store.collection
         cache_key = f"{conn_str}/{db_name}/{collection}"
-        client = MongoClient(conn_str)
+        client: Any = MongoClient(conn_str)
         if cache_key not in _indexes_ensured:
             MongoDBOfflineStoreAgg._ensure_indexes(client, db_name, collection)
             _indexes_ensured.add(cache_key)
@@ -426,7 +419,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
             if end_date:
                 ts_filter["$lte"] = end_date.astimezone(tz=timezone.utc)
             match_filter["event_timestamp"] = ts_filter
-        project_stage = {"_id": 0, "entity_id": 1, "event_timestamp": 1}
+        project_stage: Dict[str, Any] = {"_id": 0, "entity_id": 1, "event_timestamp": 1}
         if created_timestamp_column:
             project_stage["created_at"] = 1
         for feat in feature_name_columns:
@@ -501,7 +494,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
 
         fv_by_name = {fv.name: fv for fv in feature_views}
         fv_join_keys_by_name: Dict[str, List[str]] = {
-            fv.name: get_expected_join_keys(project, [fv], registry)
+            fv.name: list(get_expected_join_keys(project, [fv], registry))
             for fv in feature_views
         }
         fv_join_key_types_by_name: Dict[str, Dict[str, ValueType]] = {
@@ -567,10 +560,10 @@ class MongoDBOfflineStoreAgg(OfflineStore):
                 unique_entity_ids = result["_fv_entity_id"].unique().tolist()
 
                 # Use the most conservative TTL across the group for the lower bound
-                ttls = [
-                    fv_by_name[n].ttl
+                ttls: List[timedelta] = [
+                    ttl
                     for n in group_fv_names
-                    if fv_by_name.get(n) and fv_by_name[n].ttl
+                    if fv_by_name.get(n) and (ttl := fv_by_name[n].ttl) is not None
                 ]
                 ts_filter: Dict[str, Any] = {"$lte": max_ts}
                 if ttls:
