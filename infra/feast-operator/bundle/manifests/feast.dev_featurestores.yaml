@@ -3061,6 +3061,31 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              mcp:
+                                description: |-
+                                  Mcp enables MCP (Model Context Protocol) on the REST registry server.
+                                  Requires restAPI to be true.
+                                properties:
+                                  enabled:
+                                    description: Enable the MCP server.
+                                    type: boolean
+                                  serverName:
+                                    description: MCP server name for identification.
+                                      Defaults to "feast-mcp-server".
+                                    type: string
+                                  serverVersion:
+                                    description: MCP server version string. Defaults
+                                      to "1.0.0".
+                                    type: string
+                                  transport:
+                                    description: MCP transport protocol.
+                                    enum:
+                                    - sse
+                                    - http
+                                    type: string
+                                required:
+                                - enabled
+                                type: object
                               metrics:
                                 description: Metrics exposes Prometheus-compatible
                                   metrics for the Feast server when enabled.
@@ -9031,6 +9056,31 @@ spec:
                                     - error
                                     - critical
                                     type: string
+                                  mcp:
+                                    description: |-
+                                      Mcp enables MCP (Model Context Protocol) on the REST registry server.
+                                      Requires restAPI to be true.
+                                    properties:
+                                      enabled:
+                                        description: Enable the MCP server.
+                                        type: boolean
+                                      serverName:
+                                        description: MCP server name for identification.
+                                          Defaults to "feast-mcp-server".
+                                        type: string
+                                      serverVersion:
+                                        description: MCP server version string. Defaults
+                                          to "1.0.0".
+                                        type: string
+                                      transport:
+                                        description: MCP transport protocol.
+                                        enum:
+                                        - sse
+                                        - http
+                                        type: string
+                                    required:
+                                    - enabled
+                                    type: object
                                   metrics:
                                     description: Metrics exposes Prometheus-compatible
                                       metrics for the Feast server when enabled.

@@ -3061,6 +3061,31 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              mcp:
+                                description: |-
+                                  Mcp enables MCP (Model Context Protocol) on the REST registry server.
+                                  Requires restAPI to be true.
+                                properties:
+                                  enabled:
+                                    description: Enable the MCP server.
+                                    type: boolean
+                                  serverName:
+                                    description: MCP server name for identification.
+                                      Defaults to "feast-mcp-server".
+                                    type: string
+                                  serverVersion:
+                                    description: MCP server version string. Defaults
+                                      to "1.0.0".
+                                    type: string
+                                  transport:
+                                    description: MCP transport protocol.
+                                    enum:
+                                    - sse
+                                    - http
+                                    type: string
+                                required:
+                                - enabled
+                                type: object
                               metrics:
                                 description: Metrics exposes Prometheus-compatible
                                   metrics for the Feast server when enabled.
@@ -3255,6 +3280,9 @@ spec:
                             x-kubernetes-validations:
                             - message: At least one of restAPI or grpc must be true
                               rule: self.restAPI == true || self.grpc == true || !has(self.grpc)
+                            - message: MCP requires restAPI to be true
+                              rule: '!has(self.mcp) || !self.mcp.enabled || (has(self.restAPI)
+                                && self.restAPI == true)'
                         type: object
                       remote:
                         description: RemoteRegistryConfig points to a remote feast
@@ -9031,6 +9059,31 @@ spec:
                                     - error
                                     - critical
                                     type: string
+                                  mcp:
+                                    description: |-
+                                      Mcp enables MCP (Model Context Protocol) on the REST registry server.
+                                      Requires restAPI to be true.
+                                    properties:
+                                      enabled:
+                                        description: Enable the MCP server.
+                                        type: boolean
+                                      serverName:
+                                        description: MCP server name for identification.
+                                          Defaults to "feast-mcp-server".
+                                        type: string
+                                      serverVersion:
+                                        description: MCP server version string. Defaults
+                                          to "1.0.0".
+                                        type: string
+                                      transport:
+                                        description: MCP transport protocol.
+                                        enum:
+                                        - sse
+                                        - http
+                                        type: string
+                                    required:
+                                    - enabled
+                                    type: object
                                   metrics:
                                     description: Metrics exposes Prometheus-compatible
                                       metrics for the Feast server when enabled.
@@ -9231,6 +9284,9 @@ spec:
                                     true
                                   rule: self.restAPI == true || self.grpc == true
                                     || !has(self.grpc)
+                                - message: MCP requires restAPI to be true
+                                  rule: '!has(self.mcp) || !self.mcp.enabled || (has(self.restAPI)
+                                    && self.restAPI == true)'
                             type: object
                           remote:
                             description: RemoteRegistryConfig points to a remote feast

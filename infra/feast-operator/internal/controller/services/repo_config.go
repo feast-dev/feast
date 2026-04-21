@@ -259,6 +259,15 @@ func setRepoConfigRegistry(services *feastdevv1.FeatureStoreServices, secretExtr
 			repoConfig.Registry.DBParameters = parametersMap
 		}
 	}
+
+	if services.Registry.Local.Server != nil &&
+		services.Registry.Local.Server.Mcp != nil &&
+		services.Registry.Local.Server.Mcp.Enabled {
+		repoConfig.Registry.Mcp = &RegistryMcpYamlConfig{
+			Enabled: true,
+		}
+	}
+
 	return nil
 }
 
