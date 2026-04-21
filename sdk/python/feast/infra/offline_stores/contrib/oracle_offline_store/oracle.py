@@ -681,7 +681,7 @@ class OracleOfflineStore(OfflineStore):
         con = get_ibis_connection(config)
         rows = _oracle_fetchall(
             con,
-            f"SELECT MAX({ts_col}) FROM {from_expression}",
+            f"SELECT MAX({ts_col}) FROM {from_expression} _src",
         )
         row = rows[0] if rows else None
 

@@ -56,6 +56,7 @@
 * [RAG Fine Tuning with Feast and Milvus](../examples/rag-retriever/README.md)
 * [MCP - AI Agent Example](../examples/mcp_feature_store/README.md)
 * [Feast-Powered AI Agent](../examples/agent_feature_store/README.md)
+* [Feature Quality Monitoring Quickstart](../examples/monitoring/monitoring-quickstart.ipynb)
 
 ## How-to Guides
 
@@ -81,6 +82,7 @@
 * [Adding or reusing tests](how-to-guides/adding-or-reusing-tests.md)
 * [Starting Feast servers in TLS(SSL) Mode](how-to-guides/starting-feast-servers-tls-mode.md)
 * [Importing Features from dbt](how-to-guides/dbt-integration.md)
+* [Feature Quality Monitoring](how-to-guides/feature-monitoring.md)
 
 ## Reference
 

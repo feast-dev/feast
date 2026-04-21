@@ -363,7 +363,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
 
-        from_expression = data_source.get_table_query_string()
+        from_expression = data_source.get_table_query_string_with_alias("max_ts_alias")
 
         with _get_conn(config.offline_store) as conn:
             conn.read_only = True
