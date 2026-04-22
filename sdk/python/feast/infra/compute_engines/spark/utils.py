@@ -1,3 +1,5 @@
+import logging
+import os
 from typing import Dict, Iterable, Literal, Optional
 
 import pandas as pd
@@ -9,6 +11,68 @@ from pyspark.sql import SparkSession
 from feast.infra.common.serde import SerializedArtifacts
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
 
+logger = logging.getLogger(__name__)
+
+
+def _ensure_s3a_event_log_dir(spark_config: Dict[str, str]) -> None:
+    """Pre-create the S3A event log prefix before SparkContext initialisation.
+
+    Spark's EventLogFileWriter.requireLogBaseDirAsDirectory() is called inside
+    SparkContext.__init__ and crashes if the S3A path doesn't exist yet (S3 has no
+    real directories, so an empty prefix returns a 404). This function writes a
+    zero-byte placeholder so the prefix exists before SparkContext is built.
+
+    This is only attempted when:
+      - spark.eventLog.enabled == "true"
+      - spark.eventLog.dir starts with "s3a://"
+    Failures are non-fatal: Spark will surface its own error if the dir is still missing.
+    """
+    if spark_config.get("spark.eventLog.enabled", "false").lower() != "true":
+        return
+    event_dir = spark_config.get("spark.eventLog.dir", "")
+    if not event_dir.startswith("s3a://"):
+        return
+
+    path = event_dir[len("s3a://") :]
+    bucket, _, prefix = path.partition("/")
+    prefix = prefix.rstrip("/") + "/"
+    placeholder_key = prefix + ".keep"
+
+    endpoint = spark_config.get(
+        "spark.hadoop.fs.s3a.endpoint",
+        os.environ.get("FEAST_S3A_ENDPOINT", ""),
+    )
+    access_key = os.environ.get("AWS_ACCESS_KEY_ID", "")
+    secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+
+    try:
+        import boto3
+        from botocore.client import Config
+
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=endpoint if endpoint else None,
+            aws_access_key_id=access_key or None,
+            aws_secret_access_key=secret_key or None,
+            config=Config(signature_version="s3v4"),
+        )
+        resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=1)
+        if resp.get("KeyCount", 0) == 0:
+            s3.put_object(Bucket=bucket, Key=placeholder_key, Body=b"")
+            logger.debug(
+                "Created S3A event log dir placeholder: s3a://%s/%s",
+                bucket,
+                placeholder_key,
+            )
+    except Exception as exc:
+        logger.warning(
+            "Could not pre-create S3A event log dir s3a://%s/%s — "
+            "SparkContext may fail if the path still doesn't exist: %s",
+            bucket,
+            prefix,
+            exc,
+        )
+
 
 def get_or_create_new_spark_session(
     spark_config: Optional[Dict[str, str]] = None,
@@ -17,6 +81,10 @@ def get_or_create_new_spark_session(
     if not spark_session:
         spark_builder = SparkSession.builder
         if spark_config:
+            # Spark's EventLogFileWriter.requireLogBaseDirAsDirectory() is called
+            # during SparkContext.__init__ and will crash if the S3A event log
+            # prefix doesn't exist yet. Ensure the prefix exists first.
+            _ensure_s3a_event_log_dir(spark_config)
             spark_builder = spark_builder.config(
                 conf=SparkConf().setAll([(k, v) for k, v in spark_config.items()])
             )

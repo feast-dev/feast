@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import cast
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pyspark.sql import DataFrame
@@ -15,6 +15,7 @@ from feast.infra.common.materialization_job import (
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.spark.compute import SparkComputeEngine
 from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
+from feast.infra.compute_engines.spark.utils import _ensure_s3a_event_log_dir
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
 )
@@ -190,6 +191,77 @@ def test_spark_compute_engine_materialize():
         )
     finally:
         spark_environment.teardown()
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _ensure_s3a_event_log_dir — no Spark dependency needed
+# ---------------------------------------------------------------------------
+
+
+def _base_conf(event_log_dir: str) -> dict:
+    return {
+        "spark.eventLog.enabled": "true",
+        "spark.eventLog.dir": event_log_dir,
+        "spark.hadoop.fs.s3a.endpoint": "http://minio:9000",
+    }
+
+
+@patch("feast.infra.compute_engines.spark.utils.boto3")
+def test_ensure_s3a_event_log_dir_creates_placeholder_when_empty(mock_boto3):
+    """S3A prefix doesn't exist → placeholder object is written."""
+    s3 = MagicMock()
+    mock_boto3.client.return_value = s3
+    s3.list_objects_v2.return_value = {"KeyCount": 0}
+
+    _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket/spark-events/"))
+
+    s3.list_objects_v2.assert_called_once_with(
+        Bucket="my-bucket", Prefix="spark-events/", MaxKeys=1
+    )
+    s3.put_object.assert_called_once_with(
+        Bucket="my-bucket", Key="spark-events/.keep", Body=b""
+    )
+
+
+@patch("feast.infra.compute_engines.spark.utils.boto3")
+def test_ensure_s3a_event_log_dir_skips_when_prefix_exists(mock_boto3):
+    """S3A prefix already has objects → no placeholder written."""
+    s3 = MagicMock()
+    mock_boto3.client.return_value = s3
+    s3.list_objects_v2.return_value = {"KeyCount": 3}
+
+    _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket/spark-events/"))
+
+    s3.put_object.assert_not_called()
+
+
+@patch("feast.infra.compute_engines.spark.utils.boto3")
+def test_ensure_s3a_event_log_dir_noop_when_event_log_disabled(mock_boto3):
+    """spark.eventLog.enabled != true → boto3 never called."""
+    _ensure_s3a_event_log_dir(
+        {"spark.eventLog.enabled": "false", "spark.eventLog.dir": "s3a://b/p/"}
+    )
+    mock_boto3.client.assert_not_called()
+
+
+@patch("feast.infra.compute_engines.spark.utils.boto3")
+def test_ensure_s3a_event_log_dir_noop_for_non_s3a_path(mock_boto3):
+    """Non-S3A paths (hdfs://, file://, etc.) are left untouched."""
+    _ensure_s3a_event_log_dir(
+        {"spark.eventLog.enabled": "true", "spark.eventLog.dir": "hdfs:///spark-logs"}
+    )
+    mock_boto3.client.assert_not_called()
+
+
+@patch("feast.infra.compute_engines.spark.utils.boto3")
+def test_ensure_s3a_event_log_dir_non_fatal_on_s3_error(mock_boto3):
+    """boto3 errors are swallowed — SparkContext will surface its own error."""
+    s3 = MagicMock()
+    mock_boto3.client.return_value = s3
+    s3.list_objects_v2.side_effect = Exception("connection refused")
+
+    # Must not raise
+    _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket/spark-events/"))
 
 
 if __name__ == "__main__":
