@@ -108,8 +108,7 @@ def project_delete(ctx: click.Context, name: str, yes: bool):
         )
 
     try:
-        assert store._registry is not None
-        store._registry.delete_project(name, commit=True)
+        store.registry.delete_project(name, commit=True)
     except (FeastObjectNotFoundException, ProjectNotFoundException) as e:
         print(str(e))
         raise SystemExit(1)
