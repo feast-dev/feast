@@ -10,8 +10,9 @@ from feast.repo_operations import create_feature_store
 @click.group(name="projects")
 def projects_cmd():
     """
-    Access and manage projects
+    Access projects
     """
+    pass
 
 
 @projects_cmd.command("describe")
@@ -26,8 +27,8 @@ def project_describe(ctx: click.Context, name: str):
     try:
         project = store.get_project(name)
     except FeastObjectNotFoundException as e:
-        print(str(e))
-        raise SystemExit(1)
+        print(e)
+        exit(1)
 
     print(
         yaml.dump(
@@ -40,13 +41,24 @@ def project_describe(ctx: click.Context, name: str):
 @click.pass_context
 def project_current(ctx: click.Context):
     """
-    Returns the current project configured with FeatureStore
+    Returns the current project configured with FeatureStore object
     """
     store = create_feature_store(ctx)
-    print(store.project)
+
+    try:
+        project = store.get_project(name=None)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(project)), default_flow_style=False, sort_keys=False
+        )
+    )
 
 
-@projects_cmd.command("list")
+@projects_cmd.command(name="list")
 @tagsOption
 @click.pass_context
 def project_list(ctx: click.Context, tags: list[str]):
@@ -54,13 +66,18 @@ def project_list(ctx: click.Context, tags: list[str]):
     List all projects
     """
     store = create_feature_store(ctx)
+    table = []
+    tags_filter = utils.tags_list_to_dict(tags)
+    for project in store.list_projects(tags=tags_filter):
+        table.append([project.name, project.description, project.tags, project.owner])
 
-    projects = store.list_projects(
-        tags=dict(tag.split(":", 1) for tag in tags),
+    from tabulate import tabulate
+
+    print(
+        tabulate(
+            table, headers=["NAME", "DESCRIPTION", "TAGS", "OWNER"], tablefmt="plain"
+        )
     )
-
-    for project in projects:
-        print(utils.py_object_to_proto(project).name)
 
 
 @projects_cmd.command("delete")
