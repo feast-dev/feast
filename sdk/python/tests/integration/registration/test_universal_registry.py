@@ -2299,6 +2299,7 @@ def test_cross_type_feature_view_odfv_conflict(test_registry: BaseRegistry):
     test_registry.teardown()
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
     all_fixtures,
@@ -2354,6 +2355,7 @@ def test_cross_project_feature_view_name_allowed(test_registry: BaseRegistry):
     test_registry.teardown()
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
     all_fixtures,
