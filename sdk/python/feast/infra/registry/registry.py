@@ -404,7 +404,9 @@ class Registry(BaseRegistry):
                     return
                 else:
                     # Preserve created_timestamp from existing data source
-                    data_source.created_timestamp = existing_data_source.created_timestamp
+                    data_source.created_timestamp = (
+                        existing_data_source.created_timestamp
+                    )
                     del registry.data_sources[idx]
                     break
 
@@ -424,10 +426,7 @@ class Registry(BaseRegistry):
         for idx, data_source_proto in enumerate(
             self.cached_registry_proto.data_sources
         ):
-            if (
-                data_source_proto.name == name
-                and data_source_proto.project == project
-            ):
+            if data_source_proto.name == name and data_source_proto.project == project:
                 del self.cached_registry_proto.data_sources[idx]
                 if commit:
                     self.commit()
