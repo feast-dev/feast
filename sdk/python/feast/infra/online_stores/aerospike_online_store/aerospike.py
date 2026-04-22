@@ -51,6 +51,15 @@ _AUTH_MODE_TO_CONSTANT: Dict[str, int] = {
 }
 
 
+# Create every Map CDT bin with an ordered map. map_get_by_key /
+# map_remove_by_key on an ordered map are O(log N) in the map size instead of
+# O(N), which matters on the update() background scan (which walks every
+# record in the project's set) and on reads of wide feature views. The policy
+# is applied on each put so map-creation on the first write picks up the
+# ordering; subsequent puts keep it.
+_ORDERED_MAP_POLICY: Dict[str, Any] = {"map_order": aerospike.MAP_KEY_ORDERED}
+
+
 def _datetime_to_epoch_ms(dt: datetime) -> int:
     """Convert a datetime to int64 epoch milliseconds.
 
@@ -168,7 +177,7 @@ class AerospikeOnlineStoreConfig(FeastConfigBaseModel):
 class AerospikeOnlineStore(OnlineStore):
     """Aerospike implementation of the Feast :class:`OnlineStore`.
 
-    Storage layout (MongoDB-style, one set per project):
+    Storage layout (one set per project):
 
     * Namespace: ``config.online_store.namespace`` (server-configured)
     * Set:       ``{project}_{collection_suffix}``
@@ -184,7 +193,10 @@ class AerospikeOnlineStore(OnlineStore):
     :class:`OnlineStore` contract.
     """
 
-    _client: Optional[aerospike.Client] = None
+    def __init__(self) -> None:
+        # Kept on the instance rather than the class so two ``AerospikeOnlineStore``
+        # instances can't accidentally share a cached client through class state.
+        self._client: Optional[aerospike.Client] = None
 
     # ------------------------------------------------------------------
     # Lifecycle / connection management
@@ -295,11 +307,17 @@ class AerospikeOnlineStore(OnlineStore):
 
         Using Map CDT ops rather than a full-record ``put`` means two writers
         touching different feature views on the same entity will not clobber
-        each other, matching the MongoDB ``$set`` semantics.
+        each other — each write only mutates its own slot in the outer map.
+
+        The Map CDTs are created with ``MAP_KEY_ORDERED`` so key lookups on
+        reads and the ``update()`` background scan stay O(log N) in the map
+        size. Writes use the default ``POLICY_KEY_DIGEST`` — the serialized
+        entity key itself is not stored on the server, saving per-record
+        storage that the read path never consumes (result order is preserved
+        by ``batch_operate`` and paired back via ``zip`` in ``online_read``).
         """
         ns = config.online_store.namespace
         ttl_meta = {"ttl": _resolve_ttl(config.online_store.ttl_seconds)}
-        write_policy = {"key": aerospike.POLICY_KEY_SEND}
 
         batch = BatchRecords()
         for entity_key, proto_values, event_timestamp, created_timestamp in data:
@@ -314,9 +332,16 @@ class AerospikeOnlineStore(OnlineStore):
                 for field, val in proto_values.items()
             }
             operations: List[Dict[str, Any]] = [
-                map_ops.map_put_items("features", {table.name: feature_map}),
+                map_ops.map_put_items(
+                    "features",
+                    {table.name: feature_map},
+                    map_policy=_ORDERED_MAP_POLICY,
+                ),
                 map_ops.map_put(
-                    "event_ts", table.name, _datetime_to_epoch_ms(event_timestamp)
+                    "event_ts",
+                    table.name,
+                    _datetime_to_epoch_ms(event_timestamp),
+                    map_policy=_ORDERED_MAP_POLICY,
                 ),
             ]
             if created_timestamp is not None:
@@ -328,7 +353,6 @@ class AerospikeOnlineStore(OnlineStore):
                     key=(ns, set_name, user_key),
                     ops=operations,
                     meta=ttl_meta,
-                    policy=write_policy,
                 )
             )
         return batch

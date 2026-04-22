@@ -303,10 +303,19 @@ def test_build_batch_writes_produces_three_ops_with_created_ts():
     # byte inside batch_operate/batch_read — causing digest collisions.
     assert isinstance(bw.key[2], bytearray)
     assert bw.meta == {"ttl": 3600}
-    assert bw.policy == {"key": aerospike.POLICY_KEY_SEND}
+    # No explicit per-record policy: writes rely on the client-level default
+    # (POLICY_KEY_DIGEST), which doesn't persist the serialized entity key
+    # server-side — batch_operate preserves request order so the stored key
+    # has no functional use on the read path.
+    assert bw.policy is None
     assert len(bw.ops) == 3
     bin_names = [op["bin"] for op in bw.ops]
     assert bin_names == ["features", "event_ts", "created_ts"]
+    # Map CDTs must be created with MAP_KEY_ORDERED so key lookups on reads
+    # and the update() background scan stay O(log N).
+    for op in bw.ops:
+        if op["bin"] in ("features", "event_ts"):
+            assert op["map_policy"] == {"map_order": aerospike.MAP_KEY_ORDERED}
 
 
 def test_build_batch_writes_omits_created_ts_when_none():
