@@ -910,6 +910,8 @@ def test_apply_data_source_cross_project_isolation(test_registry):
     Regression test for https://github.com/feast-dev/feast/issues/6206:
     applying a data source to one project must not overwrite the data source
     with the same name in a different project.
+
+    See: feast-dev/feast#6298
     """
     project_a = "project_a"
     project_b = "project_b"
