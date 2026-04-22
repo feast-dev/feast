@@ -247,6 +247,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 name=f"{self._INPUT_SCHEMA_SOURCE_PREFIX}{name}",
                 schema=input_schema,
             )
+            self.source_request_sources[self._input_schema_sentinel.name] = self._input_schema_sentinel
         elif not effective_sources:
             raise ValueError(
                 "Either 'sources' or 'input_schema' must be provided for OnDemandFeatureView."
