@@ -422,6 +422,163 @@ def test_online_read_record_exists_but_fv_not_present_returns_none():
     assert results == [(None, None)]
 
 
+def _fake_error_record(key: tuple, result_code: int):
+    """Batch response for an error case — no ``record`` but a non-OK result."""
+    return SimpleNamespace(key=key, result=result_code, record=None, in_doubt=False)
+
+
+def test_online_read_record_not_found_returns_none():
+    """``br.result == 2`` (RECORD_NOT_FOUND) is a genuine miss, not an error."""
+    config = _aerospike_repo_config()
+    fv = _read_feature_view()
+    store = AerospikeOnlineStore()
+    ek = _entity_key("driver_id", 1)
+    key = store._aerospike_key(config, ek)
+
+    fake_client = MagicMock()
+    fake_client.batch_operate.return_value = SimpleNamespace(
+        batch_records=[_fake_error_record(key, result_code=2)]
+    )
+    store._client = fake_client
+
+    assert store.online_read(config, fv, [ek]) == [(None, None)]
+
+
+def test_online_read_op_not_applicable_returns_none():
+    """``br.result == 26`` (OP_NOT_APPLICABLE) happens when the nested FV
+    submap is absent — also a miss under the OnlineStore contract, not an
+    error."""
+    config = _aerospike_repo_config()
+    fv = _read_feature_view()
+    store = AerospikeOnlineStore()
+    ek = _entity_key("driver_id", 1)
+    key = store._aerospike_key(config, ek)
+
+    fake_client = MagicMock()
+    fake_client.batch_operate.return_value = SimpleNamespace(
+        batch_records=[_fake_error_record(key, result_code=26)]
+    )
+    store._client = fake_client
+
+    assert store.online_read(config, fv, [ek]) == [(None, None)]
+
+
+def test_online_read_raises_on_transient_error():
+    """Any other non-OK result (e.g. 9 = TIMEOUT) must be surfaced as an error.
+
+    A silent null-return on a transient timeout is the root-cause class of
+    bug that shows up weeks later as a model-quality regression; pinning
+    this with a test keeps the read path loud on failure.
+    """
+    config = _aerospike_repo_config()
+    fv = _read_feature_view()
+    store = AerospikeOnlineStore()
+    ek = _entity_key("driver_id", 1)
+    key = store._aerospike_key(config, ek)
+
+    fake_client = MagicMock()
+    fake_client.batch_operate.return_value = SimpleNamespace(
+        batch_records=[_fake_error_record(key, result_code=9)]  # TIMEOUT
+    )
+    store._client = fake_client
+
+    with pytest.raises(RuntimeError, match="non-OK status"):
+        store.online_read(config, fv, [ek])
+
+
+def test_online_read_projects_requested_features_server_side():
+    """``requested_features`` must drive a ``map_get_by_key_list`` projection
+    nested into the feature-view submap via ``cdt_ctx``; the unordered
+    ``MAP_RETURN_KEY_VALUE`` response is a flat ``[k1,v1,k2,v2]`` list."""
+    config = _aerospike_repo_config()
+    fv = _read_feature_view()
+    store = AerospikeOnlineStore()
+    ek = _entity_key("driver_id", 1)
+    key = store._aerospike_key(config, ek)
+    ts = datetime(2026, 4, 20, 12, 30, 45, tzinfo=timezone.utc)
+
+    captured_ops: list = []
+
+    def fake_batch_operate(keys, ops):
+        captured_ops.extend(ops)
+        # Projected features come back as a flat [k,v,k,v] list rather than
+        # a dict — the store must normalize this before feeding the row
+        # reshape helper.
+        return SimpleNamespace(
+            batch_records=[
+                _fake_batch_record(
+                    key,
+                    {
+                        "features": ["rating", 4.91, "trips_last_7d", 132],
+                        "event_ts": _datetime_to_epoch_ms(ts),
+                    },
+                )
+            ]
+        )
+
+    fake_client = MagicMock()
+    fake_client.batch_operate.side_effect = fake_batch_operate
+    store._client = fake_client
+
+    results = store.online_read(config, fv, [ek], requested_features=["rating"])
+
+    assert len(results) == 1
+    ts_out, feats = results[0]
+    assert ts_out == ts
+    assert abs(feats["rating"].double_val - 4.91) < 1e-9
+    assert feats["trips_last_7d"].int64_val == 132
+
+    features_op = captured_ops[0]
+    assert features_op["op"] == aerospike.OP_MAP_GET_BY_KEY_LIST
+    assert features_op["bin"] == "features"
+    assert features_op["val"] == ["rating"]
+    assert features_op["return_type"] == aerospike.MAP_RETURN_KEY_VALUE
+    # The ctx must nest the projection inside the FV's submap so the server
+    # only ships the requested columns over the wire.
+    assert features_op.get("ctx"), "projection op is missing ctx"
+
+
+def test_normalize_projected_features_handles_all_payload_shapes():
+    """The shape of the ``features`` payload depends on which op produced it;
+    the helper must accept all of them."""
+    assert AerospikeOnlineStore._normalize_projected_features(None) is None
+    assert AerospikeOnlineStore._normalize_projected_features([]) is None
+    assert AerospikeOnlineStore._normalize_projected_features(["a", 1, "b", 2]) == {
+        "a": 1,
+        "b": 2,
+    }
+    assert AerospikeOnlineStore._normalize_projected_features({"a": 1, "b": 2}) == {
+        "a": 1,
+        "b": 2,
+    }
+
+
+def test_online_write_batch_raises_on_per_record_error():
+    """A partial batch failure (one record's result != 0) must raise rather
+    than silently succeed — otherwise downstream sees "model saw stale
+    features" weeks after the fact."""
+    config = _aerospike_repo_config()
+    fv = SimpleNamespace(name="fv")
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+
+    def fake_batch_write(batch):
+        # Simulate a one-partition timeout on the single record.
+        batch.batch_records[0].result = 9  # TIMEOUT
+
+    fake_client.batch_write.side_effect = fake_batch_write
+    store._client = fake_client
+
+    row = (
+        _entity_key("id", 1),
+        {"x": ValueProto(int64_val=1)},
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+        None,
+    )
+    with pytest.raises(RuntimeError, match="non-OK"):
+        store.online_write_batch(config, fv, [row], progress=None)
+
+
 # ---------------------------------------------------------------------------
 # Admin paths: update / teardown
 # ---------------------------------------------------------------------------

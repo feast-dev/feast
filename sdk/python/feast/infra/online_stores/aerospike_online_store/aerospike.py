@@ -10,6 +10,7 @@ from pydantic import SecretStr
 
 try:
     import aerospike
+    from aerospike_helpers import cdt_ctx
     from aerospike_helpers.batch.records import BatchRecords
     from aerospike_helpers.batch.records import Write as BatchWrite
     from aerospike_helpers.operations import map_operations as map_ops
@@ -32,6 +33,15 @@ from feast.type_map import (
 )
 
 logger = getLogger(__name__)
+
+
+# Aerospike per-record batch result codes we treat specially. Anything not
+# listed here is surfaced as an exception so a transient server error (e.g.
+# timeout, device overload) is never silently misreported as a missing feature.
+# See https://aerospike.com/docs/server/reference/errors.
+_AS_OK: int = 0
+_AS_ERR_RECORD_NOT_FOUND: int = 2  # genuine "entity has never been written"
+_AS_ERR_OP_NOT_APPLICABLE: int = 26  # map/list op targeted a missing CDT path
 
 
 _AUTH_MODE_TO_CONSTANT: Dict[str, int] = {
@@ -321,6 +331,12 @@ class AerospikeOnlineStore(OnlineStore):
         batch = self._build_batch_writes(config, table, data, set_name)
         if batch.batch_records:
             client.batch_write(batch)
+            # Per-record result codes must be inspected: client.batch_write
+            # only raises if the whole request was rejected. A partial failure
+            # (e.g. a single-partition timeout) is otherwise silent, which in
+            # an online-serving path presents downstream as "model saw stale
+            # features" weeks after the fact.
+            self._raise_on_batch_errors(batch.batch_records, set_name, op="write")
         if progress:
             progress(len(data))
 
@@ -337,20 +353,24 @@ class AerospikeOnlineStore(OnlineStore):
         """Read feature values for a batch of entities in a single round trip.
 
         Uses Aerospike's ``batch_operate`` with two server-side Map-get ops per
-        record:
+        record. When ``requested_features`` is provided, only those feature
+        columns are shipped over the wire using ``map_get_by_key_list`` nested
+        into the feature-view's Map CDT via ``cdt_ctx_map_key``. Otherwise the
+        whole feature-view slot is returned.
 
-        * ``map_get_by_key("features", <fv>, MAP_RETURN_VALUE)`` returns the
-          feature-view's own feature map only (not the whole record).
-        * ``map_get_by_key("event_ts", <fv>, MAP_RETURN_VALUE)`` returns the
-          event timestamp recorded for that feature view.
+        * features op (projected):
+          ``map_get_by_key_list("features", requested_features,
+          MAP_RETURN_KEY_VALUE, ctx=[cdt_ctx_map_key(<fv>)])``
+        * features op (full):
+          ``map_get_by_key("features", <fv>, MAP_RETURN_VALUE)``
+        * event_ts op (always):
+          ``map_get_by_key("event_ts", <fv>, MAP_RETURN_VALUE)``
 
-        Missing records, records without a map entry for this feature view, and
-        per-record errors are all reported as ``(None, None)`` to match the
-        :class:`OnlineStore` contract. Output order matches ``entity_keys``.
-
-        ``requested_features`` is accepted for API compatibility but ignored
-        here — the helper returns every feature declared on ``table`` (the
-        caller filters downstream). This mirrors the MongoDB implementation.
+        Per-record status codes are inspected so we can tell a genuine miss
+        (``RECORD_NOT_FOUND``, or a nested ``OP_NOT_APPLICABLE`` when the
+        feature-view slot is absent) apart from a transient server error,
+        which is raised rather than silently returned as a null row. Output
+        order matches ``entity_keys``.
         """
         if not entity_keys:
             return []
@@ -372,10 +392,7 @@ class AerospikeOnlineStore(OnlineStore):
             )
             for k in entity_keys
         ]
-        read_ops = [
-            map_ops.map_get_by_key("features", table.name, aerospike.MAP_RETURN_VALUE),
-            map_ops.map_get_by_key("event_ts", table.name, aerospike.MAP_RETURN_VALUE),
-        ]
+        read_ops = self._build_read_ops(table.name, requested_features)
 
         batch = client.batch_operate(keys, read_ops)
 
@@ -391,17 +408,101 @@ class AerospikeOnlineStore(OnlineStore):
         # the first byte as a str when the write didn't use POLICY_KEY_SEND
         # for reads).
         for user_key, br in zip(ids, batch.batch_records):
+            if br.result == _AS_ERR_RECORD_NOT_FOUND:
+                continue
+            if br.result == _AS_ERR_OP_NOT_APPLICABLE:
+                # The record exists but the nested feature-view slot doesn't;
+                # treat as a miss to match the OnlineStore contract.
+                continue
+            if br.result != _AS_OK:
+                raise RuntimeError(
+                    f"Aerospike batch_operate returned a non-OK status for "
+                    f"entity (ns={ns}, set={set_name}): result={br.result}"
+                )
             if br.record is None:
                 continue
             _, _, bins = br.record
-            fv_features = bins.get("features") if bins else None
+            raw_features = bins.get("features") if bins else None
             fv_event_ts_ms = bins.get("event_ts") if bins else None
+            fv_features = self._normalize_projected_features(raw_features)
             docs[user_key] = {
                 "features": {table.name: fv_features} if fv_features else {},
                 "event_timestamps": {table.name: _epoch_ms_to_datetime(fv_event_ts_ms)},
             }
 
         return self._convert_raw_docs_to_proto(ids, docs, table)
+
+    @staticmethod
+    def _build_read_ops(
+        fv_name: str, requested_features: Optional[List[str]]
+    ) -> List[Dict[str, Any]]:
+        """Build the per-record op list for an ``online_read`` call.
+
+        Projects ``requested_features`` server-side via
+        ``map_get_by_key_list`` + ``cdt_ctx_map_key`` when a projection list
+        is provided. Without a projection, returns the whole feature-view
+        submap.
+        """
+        if requested_features:
+            features_op = map_ops.map_get_by_key_list(
+                "features",
+                list(requested_features),
+                aerospike.MAP_RETURN_KEY_VALUE,
+                ctx=[cdt_ctx.cdt_ctx_map_key(fv_name)],
+            )
+        else:
+            features_op = map_ops.map_get_by_key(
+                "features", fv_name, aerospike.MAP_RETURN_VALUE
+            )
+        return [
+            features_op,
+            map_ops.map_get_by_key("event_ts", fv_name, aerospike.MAP_RETURN_VALUE),
+        ]
+
+    @staticmethod
+    def _normalize_projected_features(
+        raw: Optional[Union[Dict[str, Any], List[Any]]],
+    ) -> Optional[Dict[str, Any]]:
+        """Convert an Aerospike features payload into a uniform ``{name: val}`` dict.
+
+        The shape depends on which op produced the payload:
+
+        * ``map_get_by_key("features", <fv>, MAP_RETURN_VALUE)`` returns a
+          ``dict`` (the inner feature-view submap).
+        * ``map_get_by_key_list("features", [...], MAP_RETURN_KEY_VALUE,
+          ctx=...)`` returns a flat ``list`` of ``[k1, v1, k2, v2, ...]``
+          containing only the requested keys that exist.
+        """
+        if raw is None:
+            return None
+        if isinstance(raw, dict):
+            return raw
+        if isinstance(raw, list):
+            if not raw:
+                return None
+            return dict(zip(raw[0::2], raw[1::2]))
+        return None
+
+    @staticmethod
+    def _raise_on_batch_errors(
+        batch_records: Sequence[Any], set_name: str, op: str
+    ) -> None:
+        """Raise if any per-record result code signals a failed batch write/op.
+
+        ``client.batch_write`` and ``client.batch_operate`` only raise when the
+        overall request was rejected; partial failures (a single-partition
+        timeout, a replica quorum miss, etc.) are surfaced per record via
+        ``br.result`` and are otherwise silent. In an online-serving path
+        those silent failures later present as missing features, so we fail
+        loud here instead.
+        """
+        errors = [br.result for br in batch_records if br.result != _AS_OK]
+        if errors:
+            raise RuntimeError(
+                f"Aerospike batch_{op} returned non-OK status codes for "
+                f"{len(errors)} of {len(batch_records)} records "
+                f"(set={set_name}): codes={errors[:10]}"
+            )
 
     @staticmethod
     def _convert_raw_docs_to_proto(
