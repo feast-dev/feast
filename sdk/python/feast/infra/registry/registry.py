@@ -394,16 +394,17 @@ class Registry(BaseRegistry):
         registry = self._prepare_registry_for_changes(project)
 
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
-            if existing_data_source_proto.name == data_source.name:
+            if (
+                existing_data_source_proto.name == data_source.name
+                and existing_data_source_proto.project == project
+            ):
                 existing_data_source = DataSource.from_proto(existing_data_source_proto)
                 # Check if the data source has actually changed
                 if existing_data_source == data_source:
                     return
                 else:
                     # Preserve created_timestamp from existing data source
-                    data_source.created_timestamp = (
-                        existing_data_source.created_timestamp
-                    )
+                    data_source.created_timestamp = existing_data_source.created_timestamp
                     del registry.data_sources[idx]
                     break
 
@@ -423,7 +424,10 @@ class Registry(BaseRegistry):
         for idx, data_source_proto in enumerate(
             self.cached_registry_proto.data_sources
         ):
-            if data_source_proto.name == name:
+            if (
+                data_source_proto.name == name
+                and data_source_proto.project == project
+            ):
                 del self.cached_registry_proto.data_sources[idx]
                 if commit:
                     self.commit()
@@ -688,13 +692,13 @@ class Registry(BaseRegistry):
 
         if not is_latest:
             # Explicit version: check if it exists (pin/revert) or not (forward declaration).
-            # Note: The file registry is last-write-wins for true concurrent races —
+            # Note: The file registry is last-write-wins for true concurrent races â
             # this is a pre-existing limitation for all file registry operations.
             # For multi-client environments, use the SQL registry.
             record = self._get_version_record(feature_view.name, project, pin_version)
 
             if record is not None:
-                # Version exists → pin/revert to that snapshot
+                # Version exists â pin/revert to that snapshot
                 # Check that the user hasn't also modified the definition.
                 # Compare user's FV (with version="latest") against active FV.
                 self._prepare_registry_for_changes(project)
@@ -735,7 +739,7 @@ class Registry(BaseRegistry):
                 # Apply the restored FV using the standard path below
                 feature_view = restored_fv
             else:
-                # Version doesn't exist → forward declaration: create it
+                # Version doesn't exist â forward declaration: create it
                 feature_view.current_version_number = pin_version
                 feature_view_proto = feature_view.to_proto()
                 feature_view_proto.spec.project = project
