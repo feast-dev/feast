@@ -697,7 +697,7 @@ class Registry(BaseRegistry):
 
         if not is_latest:
             # Explicit version: check if it exists (pin/revert) or not (forward declaration).
-            # Note: The file registry is last-write-wins for true concurrent races â
+            # Note: The file registry is last-write-wins for true concurrent races —
             # this is a pre-existing limitation for all file registry operations.
             # For multi-client environments, use the SQL registry.
             record = self._get_version_record(feature_view.name, project, pin_version)
