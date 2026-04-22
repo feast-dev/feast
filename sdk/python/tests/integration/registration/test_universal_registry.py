@@ -446,7 +446,10 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
                 lazy_fixture("hdfs_registry"),
                 marks=pytest.mark.xdist_group(name="hdfs_registry"),
             ),
-            lazy_fixture("snowflake_registry"),
+            pytest.param(
+                lazy_fixture("snowflake_registry"),
+                marks=pytest.mark.xdist_group(name="snowflake_registry"),
+            ),
         ]
     )
 else:
