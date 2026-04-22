@@ -26,43 +26,35 @@ _FLAVOR_MAP = {
 
 
 class FeastMlflowClient:
-    """Thin wrapper around MLflow that eliminates direct ``import mlflow``.
+    """Internal wrapper around MLflow — use ``feast.mlflow`` instead.
 
-    All configuration (tracking URI, experiment) is inherited from the
-    ``FeatureStore`` instance.  The wrapper auto-tags runs with Feast
-    metadata and provides training-to-prediction run linkage via
-    :meth:`load_model`.
+    Contains only **Feast-enhanced** methods (``start_run``, ``log_model``,
+    ``register_model``, ``load_model``, ``resolve_features``,
+    ``get_training_entity_df``).  All plain MLflow calls (``log_params``,
+    ``log_metrics``, ``set_tag``, ``MlflowClient``, etc.) are handled by
+    the open delegation in ``feast/mlflow.py``, which falls back to the
+    raw ``mlflow`` module automatically.
 
-    Usage::
+    This class is not meant to be instantiated directly. Use the
+    ``feast.mlflow`` module-level API::
 
-        store = FeatureStore(".")
-        client = store.get_mlflow_client()
+        import feast.mlflow
+        from feast import FeatureStore
 
-        with client.start_run(run_name="training"):
+        store = FeatureStore(".")      # auto-registers with feast.mlflow
+
+        with feast.mlflow.start_run(run_name="training"):
             df = store.get_historical_features(...).to_df()
             model = train(df)
-            client.log_model(model, "model")
-
+            feast.mlflow.log_model(model, "model")
     """
 
     def __init__(self, store: "FeatureStore"):
-        mlflow_cfg = store.config.mlflow
-        if mlflow_cfg is None or not mlflow_cfg.enabled:
-            raise ValueError(
-                "MLflow integration is not enabled. "
-                "Set mlflow.enabled=true in feature_store.yaml."
-            )
-
-        try:
-            import mlflow as _mlflow_mod
-        except ImportError:
-            raise ImportError(
-                "mlflow is not installed. Install with: pip install feast[mlflow]"
-            )
+        import mlflow as _mlflow_mod
 
         self._mlflow = _mlflow_mod
         self._store = store
-        self._tracking_uri = mlflow_cfg.get_tracking_uri()
+        self._tracking_uri = store.config.mlflow.get_tracking_uri()
         self._client = _mlflow_mod.MlflowClient(tracking_uri=self._tracking_uri)
 
         if self._tracking_uri:
@@ -95,18 +87,6 @@ class FeastMlflowClient:
         if tags:
             merged_tags.update(tags)
         return self._mlflow.start_run(run_name=run_name, tags=merged_tags, **kwargs)
-
-    def log_params(self, params: Dict[str, Any]):
-        """Log parameters to the active run."""
-        self._mlflow.log_params(params)
-
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None):
-        """Log metrics to the active run."""
-        self._mlflow.log_metrics(metrics, step=step)
-
-    def log_metric(self, key: str, value: float, step: Optional[int] = None):
-        """Log a single metric to the active run."""
-        self._mlflow.log_metric(key, value, step=step)
 
     def log_model(
         self,

@@ -37,10 +37,12 @@ from feast.mlflow_integration import (  # noqa: E402
     log_training_dataset_to_mlflow,
     resolve_feature_service_from_model_uri,
 )
+from feast.mlflow_integration.logger import log_apply_to_mlflow  # noqa: E402
 from feast.mlflow_integration.config import (  # noqa: E402
     MLFLOW_TAG_TRUNCATION_LIMIT,
     resolve_tracking_uri,
 )
+import feast.mlflow  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -64,6 +66,8 @@ def _isolate_mlflow_globals():
     logger_mod._mlflow_checked = False
     logger_mod._consecutive_failures = 0
     logger_mod._last_warning_time = 0.0
+    feast.mlflow._client = None
+    feast.mlflow._registered_store = None
     yield
 
 
@@ -905,3 +909,273 @@ class TestEndToEnd:
         )
         assert repro_tags["feast.feature_service"] == "driver_activity_v1"
         assert repro_tags["feast.entity_count"] == str(len(entity_df))
+
+
+class TestLogApplyTransitionTypes:
+    """Tests for per-object transition type tags in log_apply_to_mlflow."""
+
+    @pytest.mark.integration
+    def test_transition_tags_created(self, tracking_uri, feast_objects):
+        driver, source, fv, fs = feast_objects
+        transition_types = {
+            fv.name: "CREATE",
+            fs.name: "CREATE",
+            driver.name: "CREATE",
+        }
+        log_apply_to_mlflow(
+            changed_objects=[fv, fs, driver],
+            project="test_mlflow",
+            tracking_uri=tracking_uri,
+            transition_types=transition_types,
+        )
+
+        client = MlflowClient(tracking_uri=tracking_uri)
+        exp = client.get_experiment_by_name("test_mlflow-feast-ops")
+        assert exp is not None
+        runs = client.search_runs(experiment_ids=[exp.experiment_id])
+        assert len(runs) == 1
+
+        tags = runs[0].data.tags
+        assert tags["feast.operation"] == "apply"
+        assert tags["feast.feature_views_created"] == fv.name
+        assert tags["feast.feature_services_created"] == fs.name
+        assert tags["feast.entities_created"] == driver.name
+        assert "feast.feature_views_updated" not in tags
+        assert "feast.feature_views_deleted" not in tags
+
+    @pytest.mark.integration
+    def test_transition_tags_mixed(self, tracking_uri, feast_objects):
+        driver, source, fv, fs = feast_objects
+
+        fv2 = FeatureView(
+            name="driver_daily_stats",
+            entities=[driver],
+            ttl=timedelta(days=1),
+            schema=[Field(name="conv_rate", dtype=Float32)],
+            online=True,
+            source=source,
+        )
+
+        transition_types = {
+            fv.name: "UPDATE",
+            fv2.name: "CREATE",
+            fs.name: "DELETE",
+        }
+        log_apply_to_mlflow(
+            changed_objects=[fv, fv2, fs],
+            project="test_mlflow",
+            tracking_uri=tracking_uri,
+            transition_types=transition_types,
+        )
+
+        client = MlflowClient(tracking_uri=tracking_uri)
+        exp = client.get_experiment_by_name("test_mlflow-feast-ops")
+        runs = client.search_runs(experiment_ids=[exp.experiment_id])
+        assert len(runs) == 1
+
+        tags = runs[0].data.tags
+        assert fv.name in tags["feast.feature_views_updated"]
+        assert fv2.name in tags["feast.feature_views_created"]
+        assert fs.name in tags["feast.feature_services_deleted"]
+
+    @pytest.mark.integration
+    def test_no_transition_tags_when_none(self, tracking_uri, feast_objects):
+        _, _, fv, fs = feast_objects
+        log_apply_to_mlflow(
+            changed_objects=[fv, fs],
+            project="test_mlflow",
+            tracking_uri=tracking_uri,
+            transition_types=None,
+        )
+
+        client = MlflowClient(tracking_uri=tracking_uri)
+        exp = client.get_experiment_by_name("test_mlflow-feast-ops")
+        runs = client.search_runs(experiment_ids=[exp.experiment_id])
+        assert len(runs) == 1
+
+        tags = runs[0].data.tags
+        assert tags["feast.feature_views_changed"] == fv.name
+        assert "feast.feature_views_created" not in tags
+        assert "feast.feature_views_updated" not in tags
+
+    @pytest.mark.integration
+    def test_backward_compatible_changed_tags_still_present(
+        self, tracking_uri, feast_objects
+    ):
+        """Transition tags are additive — the aggregate *_changed tags still appear."""
+        driver, _, fv, fs = feast_objects
+        transition_types = {
+            fv.name: "CREATE",
+            fs.name: "UPDATE",
+            driver.name: "CREATE",
+        }
+        log_apply_to_mlflow(
+            changed_objects=[fv, fs, driver],
+            project="test_mlflow",
+            tracking_uri=tracking_uri,
+            transition_types=transition_types,
+        )
+
+        client = MlflowClient(tracking_uri=tracking_uri)
+        exp = client.get_experiment_by_name("test_mlflow-feast-ops")
+        runs = client.search_runs(experiment_ids=[exp.experiment_id])
+        tags = runs[0].data.tags
+
+        assert tags["feast.feature_views_changed"] == fv.name
+        assert tags["feast.feature_services_changed"] == fs.name
+        assert tags["feast.entities_changed"] == driver.name
+        assert tags["feast.feature_views_created"] == fv.name
+        assert tags["feast.feature_services_updated"] == fs.name
+        assert tags["feast.entities_created"] == driver.name
+
+
+class TestFeastMlflowModuleAPI:
+    """Tests for the ``feast.mlflow`` module-level API."""
+
+    @pytest.mark.integration
+    def test_auto_registration_via_feature_store(self, store_enabled, tracking_uri):
+        """FeatureStore auto-registers with feast.mlflow — no init() needed."""
+        client = MlflowClient(tracking_uri=tracking_uri)
+
+        with feast.mlflow.start_run(run_name="auto_reg") as run:
+            feast.mlflow.log_params({"lr": "0.01"})
+            feast.mlflow.log_metrics({"acc": 0.95})
+            feast.mlflow.log_metric("loss", 0.05)
+            assert feast.mlflow.get_active_run_id() == run.info.run_id
+
+        data = client.get_run(run.info.run_id)
+        assert data.data.params["lr"] == "0.01"
+        assert data.data.metrics["acc"] == 0.95
+        assert data.data.metrics["loss"] == 0.05
+        assert data.data.tags.get("feast.project") == "test_mlflow"
+
+    @pytest.mark.integration
+    def test_explicit_init_overrides_auto_registration(
+        self, store_enabled, tracking_uri
+    ):
+        feast.mlflow.init(store_enabled)
+        with feast.mlflow.start_run(run_name="explicit_init") as run:
+            feast.mlflow.log_metric("x", 1.0)
+
+        client = MlflowClient(tracking_uri=tracking_uri)
+        data = client.get_run(run.info.run_id)
+        assert data.data.tags.get("feast.project") == "test_mlflow"
+
+    @pytest.mark.integration
+    def test_getattr_delegates_all_methods(self, store_enabled, tracking_uri):
+        """All FeastMlflowClient public methods are accessible via feast.mlflow."""
+        for method_name in [
+            "start_run", "log_params", "log_metrics", "log_metric",
+            "log_model", "register_model", "load_model",
+            "resolve_features", "get_training_entity_df",
+        ]:
+            attr = getattr(feast.mlflow, method_name)
+            assert callable(attr), f"{method_name} should be callable"
+
+    @pytest.mark.integration
+    def test_active_run_id_property(self, store_enabled):
+        assert feast.mlflow.active_run_id is None
+        with feast.mlflow.start_run(run_name="prop_test"):
+            assert feast.mlflow.active_run_id is not None
+
+    @pytest.mark.integration
+    def test_mlflow_escape_hatch(self, store_enabled):
+        raw = feast.mlflow.mlflow
+        assert hasattr(raw, "start_run")
+
+    @pytest.mark.integration
+    def test_unknown_attr_raises(self, store_enabled):
+        with pytest.raises(AttributeError, match="no attribute"):
+            feast.mlflow.nonexistent_method
+
+    @pytest.mark.integration
+    def test_log_model_and_register(self, store_enabled, entity_df, tracking_uri):
+        from sklearn.linear_model import LogisticRegression
+
+        with feast.mlflow.start_run(run_name="mod_train"):
+            store_enabled.get_historical_features(
+                features=store_enabled.get_feature_service("driver_activity_v1"),
+                entity_df=entity_df,
+            ).to_df()
+
+            model = LogisticRegression().fit([[0, 0], [1, 1]], [0, 1])
+            feast.mlflow.log_model(model, "model")
+            train_run_id = feast.mlflow.get_active_run_id()
+
+        mv = feast.mlflow.register_model(
+            f"runs:/{train_run_id}/model", "mod_test_model"
+        )
+        assert mv.version is not None
+
+        client = MlflowClient(tracking_uri=tracking_uri)
+        mv_info = client.get_model_version("mod_test_model", mv.version)
+        assert mv_info.tags.get("feast.feature_service") == "driver_activity_v1"
+
+    @pytest.mark.integration
+    def test_load_model_tags_prediction_run(
+        self, store_enabled, entity_df, tracking_uri
+    ):
+        from sklearn.linear_model import LogisticRegression
+
+        with feast.mlflow.start_run(run_name="mod_train_load"):
+            store_enabled.get_historical_features(
+                features=store_enabled.get_feature_service("driver_activity_v1"),
+                entity_df=entity_df,
+            ).to_df()
+            model = LogisticRegression().fit([[0, 0], [1, 1]], [0, 1])
+            feast.mlflow.log_model(model, "model")
+            train_run_id = feast.mlflow.get_active_run_id()
+
+        feast.mlflow.register_model(
+            f"runs:/{train_run_id}/model", "mod_load_test"
+        )
+
+        with feast.mlflow.start_run(run_name="mod_predict") as pred_run:
+            feast.mlflow.load_model("models:/mod_load_test/1")
+
+        client = MlflowClient(tracking_uri=tracking_uri)
+        tags = client.get_run(pred_run.info.run_id).data.tags
+        assert tags.get("feast.training_run_id") == train_run_id
+        assert tags.get("feast.model_name") == "mod_load_test"
+
+    @pytest.mark.integration
+    def test_resolve_features_and_get_training_entity_df(
+        self, store_enabled, entity_df, tracking_uri
+    ):
+        from sklearn.linear_model import LogisticRegression
+
+        with feast.mlflow.start_run(run_name="mod_resolve"):
+            store_enabled.get_historical_features(
+                features=store_enabled.get_feature_service("driver_activity_v1"),
+                entity_df=entity_df,
+            ).to_df()
+            model = LogisticRegression().fit([[0, 0], [1, 1]], [0, 1])
+            feast.mlflow.log_model(model, "model")
+            train_run_id = feast.mlflow.get_active_run_id()
+
+        feast.mlflow.register_model(
+            f"runs:/{train_run_id}/model", "mod_resolve_model"
+        )
+
+        fs_name = feast.mlflow.resolve_features("models:/mod_resolve_model/1")
+        assert fs_name == "driver_activity_v1"
+
+        recovered = feast.mlflow.get_training_entity_df(train_run_id)
+        assert recovered.shape == entity_df.shape
+
+    @pytest.mark.integration
+    def test_no_active_run_returns_none(self, store_enabled):
+        assert feast.mlflow.get_active_run_id() is None
+
+    @pytest.mark.integration
+    def test_error_when_mlflow_disabled(self, driver_parquet, tracking_uri):
+        """feast.mlflow raises RuntimeError when mlflow is not enabled."""
+        tmp_path, _ = driver_parquet
+        feast.mlflow._client = None
+        feast.mlflow._registered_store = None
+
+        disabled_store = _make_store(tmp_path, tracking_uri, enabled=False)
+        feast.mlflow.init(disabled_store)
+
+        with pytest.raises(RuntimeError, match="not enabled"):
+            feast.mlflow.start_run(run_name="should_fail")

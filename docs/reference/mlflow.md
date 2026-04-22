@@ -5,7 +5,7 @@ Feast provides **native integration** with [MLflow](https://mlflow.org/) for aut
 ## Overview
 
 - **Which features did this model use?** -- auto-logged on every `get_historical_features()` / `get_online_features()` call
-- **Which feature service should I use to serve this model?** -- resolved from model URI via `resolve_features()`
+- **Which feature service should I use to serve this model?** -- resolved from model URI via `feast.mlflow.resolve_features()`
 - **Can I reproduce the exact training data?** -- entity DataFrame saved as an MLflow artifact
 - **Which models break if I change a feature view?** -- reverse index via the Feast UI `/api/mlflow-feature-usage` endpoint
 - **When was the feature store last updated?** -- `feast apply` and `feast materialize` logged to a separate ops experiment
@@ -17,10 +17,10 @@ Feast provides **native integration** with [MLflow](https://mlflow.org/) for aut
 | Auto-log feature metadata | Tags on every retrieval inside an active MLflow run |
 | Entity DataFrame archival | `entity_df.parquet` artifact for full reproducibility |
 | Model registration with lineage | `feast.feature_service` tag propagated to model versions |
-| Training-to-prediction linkage | `load_model()` links prediction runs back to training runs |
+| Training-to-prediction linkage | `feast.mlflow.load_model()` links prediction runs back to training runs |
 | Model-to-feature resolution | Map any model URI back to its Feast feature service |
 | Operation audit trail | `feast apply` / `feast materialize` logged to `{project}-feast-ops` |
-| FeastMlflowClient | Thin wrapper that eliminates direct `import mlflow` in user code |
+| `feast.mlflow` module API | Module-level functions — zero `import mlflow`, zero client objects |
 | Feast UI integration | Per-feature-view usage stats and registered model associations |
 
 ## Installation
@@ -105,7 +105,7 @@ When `auto_log_entity_df: true` and the entity DataFrame has fewer than `entity_
 |----------|-------------|
 | `entity_df.parquet` | Full entity DataFrame used in the retrieval |
 
-When a model is logged via `client.log_model()`:
+When a model is logged via `feast.mlflow.log_model()`:
 
 | Artifact | Description |
 |----------|-------------|
@@ -176,68 +176,108 @@ with mlflow.start_run(run_name="my_training"):
 
 No extra code needed -- the tags are written automatically.
 
-### FeastMlflowClient (zero `import mlflow`)
+### `feast.mlflow` module API (recommended)
 
-The `FeastMlflowClient` wraps MLflow so user code never needs `import mlflow`. All configuration is inherited from `feature_store.yaml`:
+`feast.mlflow` is a **drop-in replacement for `import mlflow`** with Feast superpowers. A subset of calls are Feast-enhanced (see table below); every other MLflow function passes through to the raw `mlflow` module unchanged:
 
 ```python
+import feast.mlflow
 from feast import FeatureStore
 
-store = FeatureStore(".")
-client = store.get_mlflow_client()
+store = FeatureStore(".")   # auto-registers with feast.mlflow
 
 # Training
-with client.start_run(run_name="v1_training"):
+with feast.mlflow.start_run(run_name="v1_training"):
     df = store.get_historical_features(
         features=store.get_feature_service("driver_activity_v1"),
         entity_df=entity_df,
     ).to_df()
 
     model = LogisticRegression().fit(X, y)
-    client.log_params({"model_type": "logistic_regression"})
-    client.log_metrics({"f1": 0.85})
-    client.log_model(model, "model")          # also saves required_features.json
-    train_run_id = client.active_run_id
+    feast.mlflow.log_params({"model_type": "logistic_regression"})  # plain passthrough
+    feast.mlflow.log_metrics({"f1": 0.85})                         # plain passthrough
+    feast.mlflow.log_model(model, "model")     # Feast-enhanced: also saves required_features.json
+    train_run_id = feast.mlflow.get_active_run_id()
 
-# Register model (auto-tags version with feast.feature_service)
-client.register_model(f"runs:/{train_run_id}/model", "driver_model")
+# Register model (Feast-enhanced: auto-tags version with feast.feature_service)
+feast.mlflow.register_model(f"runs:/{train_run_id}/model", "driver_model")
 
-# Prediction (auto-links to training run)
-with client.start_run(run_name="prediction"):
-    model = client.load_model("models:/driver_model/1")
-    # This run is now tagged with:
-    #   feast.training_run_id → points to train_run_id
-    #   feast.model_name → "driver_model"
-    #   feast.model_version → "1"
-    #   feast.feature_service → copied from training run
+# Prediction (Feast-enhanced: auto-links to training run)
+with feast.mlflow.start_run(run_name="prediction"):
+    model = feast.mlflow.load_model("models:/driver_model/1")
     online_features = store.get_online_features(...).to_dict()
     predictions = model.predict(...)
+
+# Raw mlflow is always accessible — no escape hatch needed
+client = feast.mlflow.MlflowClient()
+feast.mlflow.set_tag("custom_key", "value")
 ```
 
-### FeastMlflowClient API reference
+#### Store resolution
 
-| Method | Description |
-|--------|-------------|
-| `store.get_mlflow_client()` | Create a client from the FeatureStore |
-| `client.start_run(run_name, tags)` | Context manager; auto-tags run with `feast.project` |
-| `client.log_params(params)` | Log parameters to the active run |
-| `client.log_metrics(metrics, step)` | Log metrics to the active run |
-| `client.log_metric(key, value, step)` | Log a single metric |
-| `client.log_model(model, path, flavor)` | Log model + auto-attach `required_features.json` |
-| `client.load_model(model_uri)` | Load model + auto-tag prediction run with training lineage |
-| `client.register_model(model_uri, name)` | Register model + auto-tag version with `feast.feature_service` |
-| `client.resolve_features(model_uri)` | Resolve model URI to Feast feature service name |
-| `client.get_training_entity_df(run_id, timestamp_column, max_rows)` | Recover entity DataFrame from a past MLflow run |
-| `client.mlflow` | Escape hatch: access the raw `mlflow` module |
-| `client.active_run_id` | Current active MLflow run ID (or `None`) |
+`feast.mlflow` resolves its `FeatureStore` in this order:
+
+1. **Explicit `feast.mlflow.init(store)`** — if called, overrides everything
+2. **Auto-registered** — the most recently created `FeatureStore` with `mlflow.enabled=true` registers itself automatically
+3. **Auto-discovery** — falls back to `FeatureStore(".")` from the current directory
+
+In most cases, simply creating a `FeatureStore(...)` is enough — no `init()` needed.
+
+#### Error handling
+
+`feast.mlflow` raises clear errors on first use if something is misconfigured:
+
+| Condition | Error |
+|-----------|-------|
+| No `feature_store.yaml` in cwd and no store created | `RuntimeError` with guidance to call `feast.mlflow.init(store)` |
+| `mlflow.enabled` is `false` or missing | `RuntimeError` with guidance to set `mlflow.enabled=true` |
+| `mlflow` pip package not installed | `ImportError` with guidance to run `pip install feast[mlflow]` |
+
+### Feast-enhanced functions
+
+These functions add automatic Feast tagging and lineage on top of their MLflow counterparts:
+
+| Function | Enhancement |
+|----------|-------------|
+| `feast.mlflow.start_run(run_name, tags)` | Auto-tags run with `feast.project` |
+| `feast.mlflow.log_model(model, path, flavor)` | Auto-attaches `required_features.json` artifact |
+| `feast.mlflow.register_model(model_uri, name)` | Auto-tags model version with `feast.feature_service` |
+| `feast.mlflow.load_model(model_uri)` | Auto-tags prediction run with training lineage |
 
 **Supported model flavors for `log_model()`:** `sklearn`, `pytorch`, `xgboost`, `lightgbm`, `tensorflow`, `keras`, `pyfunc`.
+
+### Feast-only functions
+
+These are unique to `feast.mlflow` and have no `mlflow` equivalent:
+
+| Function | Description |
+|----------|-------------|
+| `feast.mlflow.init(store)` | Explicitly bind to a `FeatureStore` (optional) |
+| `feast.mlflow.resolve_features(model_uri)` | Resolve model URI to Feast feature service name |
+| `feast.mlflow.get_training_entity_df(run_id, ...)` | Recover entity DataFrame from a past MLflow run |
+| `feast.mlflow.get_active_run_id()` | Current active MLflow run ID (or `None`) |
+| `feast.mlflow.active_run_id` | Property shorthand for `get_active_run_id()` |
+
+### Passthrough behavior
+
+Any attribute not listed above delegates to the raw `mlflow` module. This means you can use `feast.mlflow` everywhere you previously used `import mlflow`:
+
+```python
+feast.mlflow.log_params(params)
+feast.mlflow.log_metrics(metrics)
+feast.mlflow.log_metric("rmse", 0.42)
+feast.mlflow.set_tag("env", "staging")
+feast.mlflow.log_artifact("data.csv")
+feast.mlflow.MlflowClient()
+feast.mlflow.sklearn.log_model(model, "model")
+```
 
 ### Resolve a model back to its feature service
 
 ```python
-client = store.get_mlflow_client()
-fs_name = client.resolve_features("models:/driver_model/1")
+import feast.mlflow
+
+fs_name = feast.mlflow.resolve_features("models:/driver_model/1")
 # Returns: "driver_activity_v1"
 ```
 
@@ -248,16 +288,17 @@ Resolution order:
 ### Reproduce training from a past run
 
 ```python
-client = store.get_mlflow_client()
-entity_df = client.get_training_entity_df(run_id="abc123")
+import feast.mlflow
 
-with client.start_run(run_name="retrain_v2"):
+entity_df = feast.mlflow.get_training_entity_df(run_id="abc123")
+
+with feast.mlflow.start_run(run_name="retrain_v2"):
     new_df = store.get_historical_features(
         features=store.get_feature_service("driver_activity_v1"),
         entity_df=entity_df,
     ).to_df()
     model = train(new_df)
-    client.log_model(model, "model")
+    feast.mlflow.log_model(model, "model")
 ```
 
 This requires `auto_log_entity_df: true` to have been enabled when the original run was recorded.
@@ -281,4 +322,3 @@ Start the Feast UI with:
 ```bash
 feast ui --host 127.0.0.1 --port 8888
 ```
-

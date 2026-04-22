@@ -26,7 +26,6 @@ Usage:
       from a previous MLflow run's artifacts.
 """
 
-from feast.mlflow_integration.client import FeastMlflowClient
 from feast.mlflow_integration.config import MlflowConfig
 from feast.mlflow_integration.entity_df_builder import (
     FeastMlflowEntityDfError,
@@ -44,7 +43,6 @@ from feast.mlflow_integration.model_resolver import (
 )
 
 __all__ = [
-    "FeastMlflowClient",
     "MlflowConfig",
     "log_feature_retrieval_to_mlflow",
     "log_training_dataset_to_mlflow",

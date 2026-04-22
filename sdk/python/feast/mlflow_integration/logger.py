@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -176,11 +176,22 @@ def log_apply_to_mlflow(
     project: str,
     tracking_uri: Optional[str] = None,
     ops_experiment_suffix: str = "-feast-ops",
+    transition_types: Optional[Dict[str, str]] = None,
 ) -> bool:
     """Log a feast apply operation to a dedicated MLflow experiment.
 
     Uses ``MlflowClient`` with explicit experiment IDs so that global
     MLflow state (tracking URI, active experiment) is never mutated.
+
+    Args:
+        changed_objects: Feast objects that were affected by the apply.
+        project: Feast project name.
+        tracking_uri: MLflow tracking URI.
+        ops_experiment_suffix: Suffix for the ops experiment name.
+        transition_types: Optional mapping of object name to transition
+            type string (``"CREATE"``, ``"UPDATE"``, ``"DELETE"``).
+            When provided, per-transition tags are logged alongside
+            the aggregate ``*_changed`` tags.
     """
     mlflow = _get_mlflow()
     if mlflow is None:
@@ -196,9 +207,9 @@ def log_apply_to_mlflow(
         experiment_name = f"{project}{ops_experiment_suffix}"
         experiment_id = _get_or_create_experiment(client, experiment_name)
 
-        fv_names = []
-        fs_names = []
-        entity_names = []
+        fv_names: List[str] = []
+        fs_names: List[str] = []
+        entity_names: List[str] = []
         for obj in changed_objects:
             if isinstance(obj, FeatureView):
                 fv_names.append(obj.name)
@@ -235,6 +246,16 @@ def log_apply_to_mlflow(
                 run_id, "feast.apply.feature_services_count", len(fs_names)
             )
             client.log_metric(run_id, "feast.apply.entities_count", len(entity_names))
+
+            if transition_types:
+                _log_transition_tags(
+                    client,
+                    run_id,
+                    transition_types,
+                    fv_names,
+                    fs_names,
+                    entity_names,
+                )
         finally:
             client.set_terminated(run_id)
 
@@ -243,6 +264,46 @@ def log_apply_to_mlflow(
     except Exception as e:
         _report_failure("Failed to log apply to MLflow", e)
         return False
+
+
+def _log_transition_tags(
+    client: Any,
+    run_id: str,
+    transition_types: Dict[str, str],
+    fv_names: List[str],
+    fs_names: List[str],
+    entity_names: List[str],
+) -> None:
+    """Write per-transition-type tags (created/updated/deleted) to the run."""
+    buckets: Dict[str, Dict[str, List[str]]] = {
+        "feature_views": {"created": [], "updated": [], "deleted": []},
+        "feature_services": {"created": [], "updated": [], "deleted": []},
+        "entities": {"created": [], "updated": [], "deleted": []},
+    }
+
+    for name in fv_names:
+        tt = transition_types.get(name, "").upper()
+        if tt in ("CREATE", "UPDATE", "DELETE"):
+            buckets["feature_views"][tt.lower() + "d"].append(name)
+
+    for name in fs_names:
+        tt = transition_types.get(name, "").upper()
+        if tt in ("CREATE", "UPDATE", "DELETE"):
+            buckets["feature_services"][tt.lower() + "d"].append(name)
+
+    for name in entity_names:
+        tt = transition_types.get(name, "").upper()
+        if tt in ("CREATE", "UPDATE", "DELETE"):
+            buckets["entities"][tt.lower() + "d"].append(name)
+
+    for obj_type, transitions in buckets.items():
+        for transition, names in transitions.items():
+            if names:
+                client.set_tag(
+                    run_id,
+                    f"feast.{obj_type}_{transition}",
+                    _truncate_for_tag(",".join(names)),
+                )
 
 
 def log_materialize_to_mlflow(

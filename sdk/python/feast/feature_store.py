@@ -225,16 +225,18 @@ class FeatureStore:
         self._fs_name_index_ts: float = 0.0
 
         self._init_mlflow_tracking()
+        self._register_with_mlflow_module()
 
-    def get_mlflow_client(self):
-        """Return a :class:`~feast.mlflow_integration.client.FeastMlflowClient`.
+    def _register_with_mlflow_module(self):
+        """Let ``feast.mlflow`` auto-discover this store without explicit init()."""
+        try:
+            mlflow_cfg = getattr(self.config, "mlflow", None)
+            if mlflow_cfg and mlflow_cfg.enabled:
+                from feast.mlflow import _register_store
 
-        The client wraps MLflow so that ``import mlflow`` is never needed
-        in user code.  Configuration is inherited from ``feature_store.yaml``.
-        """
-        from feast.mlflow_integration.client import FeastMlflowClient
-
-        return FeastMlflowClient(self)
+                _register_store(self)
+        except Exception:
+            pass
 
     def _init_mlflow_tracking(self):
         """Configure the global MLflow tracking URI and experiment from feature_store.yaml.
@@ -1229,12 +1231,24 @@ class FeatureStore:
                 or not mlflow_cfg.log_operations
             ):
                 return
+            from feast.diff.property_diff import TransitionType
+
             objects: List[Any] = []
+            transition_types: Dict[str, str] = {}
             for feast_object_diff in registry_diff.feast_object_diffs:
-                if feast_object_diff.new_feast_object is not None:
-                    objects.append(feast_object_diff.new_feast_object)
+                obj = (
+                    feast_object_diff.new_feast_object
+                    or feast_object_diff.current_feast_object
+                )
+                if obj is None:
+                    continue
+                tt = feast_object_diff.transition_type
+                if tt == TransitionType.UNCHANGED:
+                    continue
+                objects.append(obj)
+                transition_types[feast_object_diff.name] = tt.name
             if objects:
-                self._mlflow_log_apply(objects)
+                self._mlflow_log_apply(objects, transition_types=transition_types)
         except Exception as e:
             _logger.debug("MLflow apply logging failed: %s", e)
 
@@ -1536,7 +1550,11 @@ class FeatureStore:
         # Emit MLflow events for applied objects (Phase 7)
         self._mlflow_log_apply(objects)
 
-    def _mlflow_log_apply(self, objects: List[Any]):
+    def _mlflow_log_apply(
+        self,
+        objects: List[Any],
+        transition_types: Optional[Dict[str, str]] = None,
+    ):
         """Log applied objects to MLflow ops experiment."""
         try:
             mlflow_cfg = self.config.mlflow
@@ -1553,6 +1571,7 @@ class FeatureStore:
                 project=self.project,
                 tracking_uri=mlflow_cfg.get_tracking_uri(),
                 ops_experiment_suffix=mlflow_cfg.ops_experiment_suffix,
+                transition_types=transition_types,
             )
         except Exception as e:
             _logger.debug("MLflow apply logging failed: %s", e)
