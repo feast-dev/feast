@@ -206,7 +206,7 @@ class SnowflakeRegistry(BaseRegistry):
         self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = _utc_now()
 
-    def _refresh_cached_registry_if_necessary(self):
+    def _refresh_cached_registry_if_necessary(self) -> RegistryProto:
         with self._refresh_lock:
             expired = (
                 self.cached_registry_proto is None
@@ -226,6 +226,10 @@ class SnowflakeRegistry(BaseRegistry):
             if expired:
                 logger.info("Registry cache expired, so refreshing")
                 self.refresh()
+
+        if self.cached_registry_proto is None:
+            raise RuntimeError("Registry cache is unexpectedly empty after refresh")
+        return self.cached_registry_proto
 
     def teardown(self):
         with GetSnowflakeConnection(self.registry_config) as conn:
@@ -527,10 +531,8 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> DataSource:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.get_data_source(
-                self.cached_registry_proto, name, project
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_data_source(registry_proto, name, project)
         return self._get_object(
             "DATA_SOURCES",
             name,
@@ -544,10 +546,8 @@ class SnowflakeRegistry(BaseRegistry):
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.get_entity(
-                self.cached_registry_proto, name, project
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_entity(registry_proto, name, project)
         return self._get_object(
             "ENTITIES",
             name,
@@ -563,9 +563,9 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureService:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.get_feature_service(
-                self.cached_registry_proto, name, project
+                registry_proto, name, project
             )
         return self._get_object(
             "FEATURE_SERVICES",
@@ -582,10 +582,8 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureView:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.get_feature_view(
-                self.cached_registry_proto, name, project
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_feature_view(registry_proto, name, project)
         return self._get_object(
             "FEATURE_VIEWS",
             name,
@@ -601,9 +599,9 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> BaseFeatureView:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.get_any_feature_view(
-                self.cached_registry_proto, name, project
+                registry_proto, name, project
             )
         fv = self._get_object(
             "FEATURE_VIEWS",
@@ -647,9 +645,9 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[BaseFeatureView]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_all_feature_views(
-                self.cached_registry_proto, project, tags
+                registry_proto, project, tags
             )
 
         return (
@@ -685,9 +683,9 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> OnDemandFeatureView:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.get_on_demand_feature_view(
-                self.cached_registry_proto, name, project
+                registry_proto, name, project
             )
         return self._get_object(
             "ON_DEMAND_FEATURE_VIEWS",
@@ -704,10 +702,8 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> SavedDataset:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.get_saved_dataset(
-                self.cached_registry_proto, name, project
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_saved_dataset(registry_proto, name, project)
         return self._get_object(
             "SAVED_DATASETS",
             name,
@@ -723,9 +719,9 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ):
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.get_stream_feature_view(
-                self.cached_registry_proto, name, project
+                registry_proto, name, project
             )
         return self._get_object(
             "STREAM_FEATURE_VIEWS",
@@ -742,9 +738,9 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.get_validation_reference(
-                self.cached_registry_proto, name, project
+                registry_proto, name, project
             )
         return self._get_object(
             "VALIDATION_REFERENCES",
@@ -793,10 +789,8 @@ class SnowflakeRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> Permission:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.get_permission(
-                self.cached_registry_proto, name, project
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_permission(registry_proto, name, project)
         return self._get_object(
             "PERMISSIONS",
             name,
@@ -816,10 +810,8 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_data_sources(
-                self.cached_registry_proto, project, tags
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_data_sources(registry_proto, project, tags)
         return self._list_objects(
             "DATA_SOURCES",
             project,
@@ -836,10 +828,8 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[Entity]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_entities(
-                self.cached_registry_proto, project, tags
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_entities(registry_proto, project, tags)
         return self._list_objects(
             "ENTITIES", project, EntityProto, Entity, "ENTITY_PROTO", tags=tags
         )
@@ -851,9 +841,9 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_services(
-                self.cached_registry_proto, project, tags
+                registry_proto, project, tags
             )
         return self._list_objects(
             "FEATURE_SERVICES",
@@ -871,9 +861,9 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_views(
-                self.cached_registry_proto, project, tags
+                registry_proto, project, tags
             )
         return self._list_objects(
             "FEATURE_VIEWS",
@@ -891,9 +881,9 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_on_demand_feature_views(
-                self.cached_registry_proto, project, tags
+                registry_proto, project, tags
             )
         return self._list_objects(
             "ON_DEMAND_FEATURE_VIEWS",
@@ -911,9 +901,9 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_saved_datasets(
-                self.cached_registry_proto, project, tags
+                registry_proto, project, tags
             )
         return self._list_objects(
             "SAVED_DATASETS",
@@ -931,9 +921,9 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_stream_feature_views(
-                self.cached_registry_proto, project, tags
+                registry_proto, project, tags
             )
         return self._list_objects(
             "STREAM_FEATURE_VIEWS",
@@ -996,10 +986,8 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[Permission]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_permissions(
-                self.cached_registry_proto, project
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_permissions(registry_proto, project)
         return self._list_objects(
             "PERMISSIONS",
             project,
@@ -1048,10 +1036,8 @@ class SnowflakeRegistry(BaseRegistry):
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_project_metadata(
-                self.cached_registry_proto, project
-            )
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_project_metadata(registry_proto, project)
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
@@ -1350,8 +1336,8 @@ class SnowflakeRegistry(BaseRegistry):
         allow_cache: bool = False,
     ) -> Project:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.get_project(self.cached_registry_proto, name)
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_project(registry_proto, name)
         return self._get_project(name)
 
     def _list_projects(
@@ -1380,8 +1366,8 @@ class SnowflakeRegistry(BaseRegistry):
         tags: Optional[dict[str, str]] = None,
     ) -> List[Project]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_projects(self.cached_registry_proto, tags)
+            registry_proto = self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_projects(registry_proto, tags)
         return self._list_projects(tags)
 
     def set_project_metadata(self, project: str, key: str, value: str):
