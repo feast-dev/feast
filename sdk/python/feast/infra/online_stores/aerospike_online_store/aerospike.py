@@ -135,13 +135,27 @@ class AerospikeOnlineStoreConfig(FeastConfigBaseModel):
     No per-feature-view override in v1."""
 
     write_timeout_ms: int = 1_000
-    """Per-call write timeout in milliseconds."""
+    """Per-call write total timeout in milliseconds. This is the hard deadline
+    the client gives a single ``put`` / ``operate`` — including any retries —
+    to return a response, after which the call fails."""
 
     read_timeout_ms: int = 250
-    """Per-call read timeout in milliseconds."""
+    """Per-call read total timeout in milliseconds. Hard deadline for a
+    single-record ``get`` — including any retries — after which the call
+    fails."""
 
-    total_timeout_ms: int = 2_000
-    """Total (including retries) timeout in milliseconds."""
+    batch_total_timeout_ms: int = 2_000
+    """Total timeout in milliseconds for a whole ``batch_write`` /
+    ``batch_operate`` call, including retries. Applies to every batch
+    operation ``online_read`` and ``online_write_batch`` issue."""
+
+    socket_timeout_ms: Optional[int] = None
+    """Per-attempt socket timeout in milliseconds. This is the per-retry
+    trigger that lets ``max_retries`` actually fire within the caller's
+    overall ``*_timeout_ms`` budget — without it, a single attempt can
+    consume the whole deadline and retries never run. Applied uniformly
+    to ``read``, ``write`` and ``batch`` policies. ``None`` leaves the
+    client default in place."""
 
     max_retries: int = 2
     """Maximum number of automatic retries on transient errors."""
@@ -188,18 +202,30 @@ class AerospikeOnlineStore(OnlineStore):
             raise RuntimeError(f"{config.online_store.type = }. It must be aerospike.")
         store_cfg = config.online_store
 
+        read_policy: Dict[str, Any] = {
+            "total_timeout": store_cfg.read_timeout_ms,
+            "max_retries": store_cfg.max_retries,
+        }
+        write_policy: Dict[str, Any] = {
+            "total_timeout": store_cfg.write_timeout_ms,
+            "max_retries": store_cfg.max_retries,
+        }
+        batch_policy: Dict[str, Any] = {
+            "total_timeout": store_cfg.batch_total_timeout_ms,
+        }
+        if store_cfg.socket_timeout_ms is not None:
+            # socket_timeout is the per-attempt deadline; without it,
+            # total_timeout is the whole budget and retries never fire.
+            read_policy["socket_timeout"] = store_cfg.socket_timeout_ms
+            write_policy["socket_timeout"] = store_cfg.socket_timeout_ms
+            batch_policy["socket_timeout"] = store_cfg.socket_timeout_ms
+
         client_config: Dict[str, Any] = {
             "hosts": [tuple(h) for h in store_cfg.hosts],
             "policies": {
-                "read": {
-                    "total_timeout": store_cfg.read_timeout_ms,
-                    "max_retries": store_cfg.max_retries,
-                },
-                "write": {
-                    "total_timeout": store_cfg.write_timeout_ms,
-                    "max_retries": store_cfg.max_retries,
-                },
-                "batch": {"total_timeout": store_cfg.total_timeout_ms},
+                "read": read_policy,
+                "write": write_policy,
+                "batch": batch_policy,
             },
             **store_cfg.client_kwargs,
         }

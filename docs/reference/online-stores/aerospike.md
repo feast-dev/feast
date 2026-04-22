@@ -58,13 +58,21 @@ online_store:
     - ["aerospike-2.internal", 3000]
     - ["aerospike-3.internal", 3000]
   namespace: feast
-  ttl_seconds: 86400            # 24h record-level TTL
-  read_timeout_ms: 50
-  write_timeout_ms: 200
-  total_timeout_ms: 500
+  ttl_seconds: 86400             # 24h record-level TTL
+  read_timeout_ms: 150            # hard deadline for a single-record get
+  write_timeout_ms: 300           # hard deadline for a single-record put/operate
+  batch_total_timeout_ms: 500     # hard deadline for online_read / online_write_batch
+  socket_timeout_ms: 50           # per-attempt deadline so max_retries can fire
   max_retries: 2
 ```
 {% endcode %}
+
+> **Timeout semantics.** The Aerospike client distinguishes per-attempt
+> (`socket_timeout`) from total (`total_timeout`) deadlines. `*_timeout_ms` map
+> to `total_timeout` — the overall budget for a call including retries. Set
+> `socket_timeout_ms` as well so each individual attempt has its own (shorter)
+> deadline; without it, `max_retries` effectively never fires because the
+> first attempt is allowed to consume the entire total deadline.
 
 ### Aerospike Enterprise with authentication
 

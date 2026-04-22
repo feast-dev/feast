@@ -480,18 +480,19 @@ online_store:
     - ["aerospike-1.internal", 3000]
     - ["aerospike-2.internal", 3000]
   namespace: feast
-  read_timeout_ms: 50
-  write_timeout_ms: 200
-  total_timeout_ms: 500
+  read_timeout_ms: 150           # hard deadline for a single-record get
+  write_timeout_ms: 300           # hard deadline for a single-record put/operate
+  batch_total_timeout_ms: 500     # hard deadline for online_read / online_write_batch
+  socket_timeout_ms: 50           # per-attempt deadline so max_retries can actually fire
   max_retries: 2
-  ttl_seconds: 86400            # record-level TTL; omit to use the namespace default
-  client_kwargs:                # escape hatch for any client-config field not surfaced above
+  ttl_seconds: 86400              # record-level TTL; omit to use the namespace default
+  client_kwargs:                  # escape hatch for any client-config field not surfaced above
     policies:
       batch:
-        concurrent_nodes: 0     # 0 = parallel to every node (lowest latency on multi-node clusters)
+        concurrent_nodes: 0       # 0 = parallel to every node (lowest latency on multi-node clusters)
 ```
 
-- **`read_timeout_ms` / `write_timeout_ms` / `total_timeout_ms`**: Per-call deadlines (in milliseconds). Tighter deadlines improve p99 by failing fast on misbehaving nodes; pair with `max_retries`.
+- **`*_timeout_ms` (total)** vs **`socket_timeout_ms` (per-attempt)**: `*_timeout_ms` is the hard deadline for a whole call *including* retries; `socket_timeout_ms` is the per-attempt deadline that allows `max_retries` to actually fire within that budget. Without `socket_timeout_ms`, a single slow attempt can consume the entire total deadline and retries never run.
 - **`hosts`**: List every seed node. The Aerospike client discovers the rest of the cluster automatically and opens one connection pool per node.
 - **`ttl_seconds: 0`** means "never expire"; omit the key to inherit the namespace's `default-ttl`. Expiry is enforced by the server's `nsup` thread — nothing to delete on the client side.
 - Co-locate the feature server in the **same availability zone / rack** as the Aerospike cluster; sub-millisecond reads are bandwidth- and RTT-sensitive.

@@ -120,6 +120,61 @@ def test_resolve_ttl_sentinels():
     assert _resolve_ttl(3600) == 3600
 
 
+def test_socket_timeout_ms_propagates_to_read_write_and_batch_policies(monkeypatch):
+    """``socket_timeout_ms`` must apply uniformly to read, write and batch
+    policies — otherwise ``max_retries`` can't fire within the total budget
+    (the first attempt alone consumes the whole deadline)."""
+    captured: dict = {}
+
+    def fake_client(cfg):
+        captured["cfg"] = cfg
+        fake = MagicMock()
+        fake.connect.return_value = fake
+        return fake
+
+    monkeypatch.setattr(aerospike, "client", fake_client)
+
+    config = _aerospike_repo_config(
+        batch_total_timeout_ms=1500,
+        socket_timeout_ms=40,
+        read_timeout_ms=100,
+        write_timeout_ms=200,
+    )
+    store = AerospikeOnlineStore()
+    store._get_client(config)
+
+    policies = captured["cfg"]["policies"]
+    assert policies["read"]["total_timeout"] == 100
+    assert policies["read"]["socket_timeout"] == 40
+    assert policies["write"]["total_timeout"] == 200
+    assert policies["write"]["socket_timeout"] == 40
+    assert policies["batch"]["total_timeout"] == 1500
+    assert policies["batch"]["socket_timeout"] == 40
+
+
+def test_socket_timeout_ms_omitted_when_not_set(monkeypatch):
+    """Unset ``socket_timeout_ms`` must leave the client's default in place,
+    not inject ``None`` into the policy dicts."""
+    captured: dict = {}
+
+    def fake_client(cfg):
+        captured["cfg"] = cfg
+        fake = MagicMock()
+        fake.connect.return_value = fake
+        return fake
+
+    monkeypatch.setattr(aerospike, "client", fake_client)
+
+    store = AerospikeOnlineStore()
+    store._get_client(_aerospike_repo_config())
+
+    policies = captured["cfg"]["policies"]
+    for scope in ("read", "write", "batch"):
+        assert "socket_timeout" not in policies[scope], (
+            f"socket_timeout leaked into {scope} policy with no config override"
+        )
+
+
 # ---------------------------------------------------------------------------
 # _convert_raw_docs_to_proto — same contract as MongoDB's helper
 # ---------------------------------------------------------------------------
