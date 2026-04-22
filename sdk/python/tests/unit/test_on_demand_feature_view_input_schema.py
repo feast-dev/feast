@@ -154,7 +154,7 @@ def test_input_schema_copy():
 def test_sources_required_without_input_schema():
     """Constructor raises if neither sources nor input_schema is provided."""
     with pytest.raises(
-        (ValueError, TypeError),
+        (ValueError),
     ):
 
         def dummy(df):
