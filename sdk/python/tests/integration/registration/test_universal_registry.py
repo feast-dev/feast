@@ -898,6 +898,7 @@ def test_apply_data_source_with_timestamps(test_registry):
 
     test_registry.teardown()
 
+
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
