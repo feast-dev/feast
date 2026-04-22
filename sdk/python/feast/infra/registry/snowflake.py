@@ -170,8 +170,8 @@ class SnowflakeRegistry(BaseRegistry):
         self.cached_registry_proto_created = _utc_now()
 
     def _sync_feast_metadata_to_projects_table(self):
-        feast_metadata_projects: set = set()
-        projects_set: set = set()
+        feast_metadata_projects: set[str] = set()
+        projects_set: set[str] = set()
 
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = (
@@ -191,7 +191,7 @@ class SnowflakeRegistry(BaseRegistry):
                     projects_set.add(row[1]["PROJECT_ID"])
 
             # Find object in feast_metadata_projects but not in projects
-            projects_to_sync = set(feast_metadata_projects) - set(projects_set)
+            projects_to_sync = feast_metadata_projects - projects_set
             for project_name in projects_to_sync:
                 self.apply_project(Project(name=project_name), commit=True)
 
