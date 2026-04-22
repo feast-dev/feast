@@ -185,9 +185,11 @@ class OnDemandFeatureView(BaseFeatureView):
             sources: A map from input source names to the actual input sources, which may be
                 feature views, or request data sources. These sources serve as inputs to the udf,
                 which will refer to them by name.
-            input_schema (optional): A list of Fields describing the schema of the input data
-                for aggregation-based views. When provided, sources is not required — an
-                internal RequestSource will be created automatically.
+            input_schema (optional): A list of Fields describing data that is accepted as input
+                but not stored directly as features — e.g. aggregation columns, normalization
+                parameters, thresholds, or other contextual values passed at request time.
+                When provided, sources is not required — an internal RequestSource will be
+                created automatically.
             udf: The user defined transformation function, which must take pandas
                 dataframes as inputs.
             udf_string: The source code version of the udf (for diffing and displaying in Web UI)
@@ -225,6 +227,7 @@ class OnDemandFeatureView(BaseFeatureView):
         self.udf_string = udf_string
         self.source_feature_view_projections: dict[str, FeatureViewProjection] = {}
         self.source_request_sources: dict[str, RequestSource] = {}
+        self._input_schema_sentinel: Optional[RequestSource] = None
 
         # Strip any existing sentinel from sources (handles __copy__ round-trip)
         effective_sources: List[OnDemandSourceType] = [
@@ -237,12 +240,13 @@ class OnDemandFeatureView(BaseFeatureView):
         ]
 
         if input_schema is not None:
-            # Automatically create an internal RequestSource from input_schema
-            sentinel = RequestSource(
+            # Automatically create an internal RequestSource from input_schema.
+            # Stored privately so it does not appear in source_request_sources for
+            # external consumers (e.g. the feature server, apply(), utils.py).
+            self._input_schema_sentinel = RequestSource(
                 name=f"{self._INPUT_SCHEMA_SOURCE_PREFIX}{name}",
                 schema=input_schema,
             )
-            self.source_request_sources[sentinel.name] = sentinel
         elif not effective_sources:
             raise ValueError(
                 "Either 'sources' or 'input_schema' must be provided for OnDemandFeatureView."
@@ -302,6 +306,20 @@ class OnDemandFeatureView(BaseFeatureView):
             )
         self.track_metrics = track_metrics
         self.aggregations = aggregations or []
+
+        if input_schema is not None and self.aggregations:
+            input_field_names = {f.name for f in input_schema}
+            unknown = [
+                agg.column
+                for agg in self.aggregations
+                if agg.column and agg.column not in input_field_names
+            ]
+            if unknown:
+                raise ValueError(
+                    f"Aggregation column(s) {unknown} not found in input_schema "
+                    f"for OnDemandFeatureView '{name}'. "
+                    f"Available fields: {sorted(input_field_names)}"
+                )
 
     def _add_source_to_collections(self, odfv_source: OnDemandSourceType) -> None:
         """
@@ -565,6 +583,14 @@ class OnDemandFeatureView(BaseFeatureView):
         ) in self.source_request_sources.items():
             sources[source_name] = OnDemandSource(
                 request_data_source=request_sources.to_proto()
+            )
+
+        # Serialize the input_schema sentinel so that from_proto() can reconstruct
+        # input_schema correctly; it is excluded from source_request_sources so that
+        # external consumers never see it as a real data source.
+        if self._input_schema_sentinel is not None:
+            sources[self._input_schema_sentinel.name] = OnDemandSource(
+                request_data_source=self._input_schema_sentinel.to_proto()
             )
 
         feature_transformation = transformation_to_proto(self.feature_transformation)
@@ -861,6 +887,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 raise TypeError(
                     f"Request source schema is not correct type: ${str(type(request_source.schema))}"
                 )
+        # Include fields from the input_schema sentinel (stored privately)
+        if self._input_schema_sentinel is not None:
+            for field in self._input_schema_sentinel.schema:
+                schema[field.name] = field.dtype.to_value_type()
         return schema
 
     def _get_projected_feature_name(self, feature: str) -> str:
@@ -1181,6 +1211,13 @@ class OnDemandFeatureView(BaseFeatureView):
                 sample_value = sample_values.get(value_type, default_value)
                 feature_dict[field.name] = sample_value
 
+        # Add input_schema fields (stored privately outside source_request_sources)
+        if self._input_schema_sentinel is not None:
+            for field in self._input_schema_sentinel.schema:
+                value_type = field.dtype.to_value_type()
+                sample_value = sample_values.get(value_type, default_value)
+                feature_dict[field.name] = sample_value
+
         return feature_dict
 
     def _get_sample_values_by_type(self) -> dict[ValueType, list[Any]]:
@@ -1300,8 +1337,10 @@ def on_demand_feature_view(
         sources: A map from input source names to the actual input sources, which may be
             feature views, or request data sources. These sources serve as inputs to the udf,
             which will refer to them by name.
-        input_schema (optional): A list of Fields describing the schema of the input data
-            for aggregation-based views. When provided, sources is not required.
+        input_schema (optional): A list of Fields describing data that is accepted as input
+            but not stored directly as features — e.g. aggregation columns, normalization
+            parameters, thresholds, or other contextual values passed at request time.
+            When provided, sources is not required.
         mode: The mode of execution (e.g,. Pandas or Python Native)
         description (optional): A human-readable description.
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
