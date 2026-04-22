@@ -703,7 +703,7 @@ class Registry(BaseRegistry):
             record = self._get_version_record(feature_view.name, project, pin_version)
 
             if record is not None:
-                # Version exists â pin/revert to that snapshot
+                # Version exists → pin/revert to that snapshot
                 # Check that the user hasn't also modified the definition.
                 # Compare user's FV (with version="latest") against active FV.
                 self._prepare_registry_for_changes(project)
@@ -744,7 +744,7 @@ class Registry(BaseRegistry):
                 # Apply the restored FV using the standard path below
                 feature_view = restored_fv
             else:
-                # Version doesn't exist â forward declaration: create it
+                # Version doesn't exist → forward declaration: create it
                 feature_view.current_version_number = pin_version
                 feature_view_proto = feature_view.to_proto()
                 feature_view_proto.spec.project = project
