@@ -386,6 +386,12 @@ class Registry(BaseRegistry):
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
+        """Apply a data source to the registry with project-scoped deduplication.
+
+        Filters existing data sources by both name and project (fixes feast-dev/feast#6206),
+        preserving the original created_timestamp if the source already exists in the
+        target project.
+        """
         now = _utc_now()
         if not data_source.created_timestamp:
             data_source.created_timestamp = now
