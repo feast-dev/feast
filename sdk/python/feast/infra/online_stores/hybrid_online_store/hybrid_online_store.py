@@ -294,32 +294,34 @@ class HybridOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
-        registry=None,
     ):
-        """Teardown all managed online stores for the given FeatureViews and Entities."""
+        """
+        Teardown all managed online stores for the given FeatureViews and Entities.
 
-        self._initialize_online_stores(config)
-        tables_by_tribe: Dict[str, List[FeatureView]] = {}
+        Args:
+            config: Feast RepoConfig.
+            tables: Sequence of FeatureViews to teardown.
+            entities: Sequence of Entities to teardown.
+        """
+        # Use a set of (tribe, store_type, conf_id) to avoid duplicate teardowns for the same instance
+        tribes_seen = set()
+        online_stores_cfg = getattr(config.online_store, "online_stores", [])
+        tag_name = getattr(config.online_store, "routing_tag", "tribe")
         for table in tables:
-            tribe = self._get_routing_tag_value(table, config)
+            tribe = table.tags.get(tag_name)
             if not tribe:
-                tag_name = getattr(config.online_store, "routing_tag", "tribe")
-                raise ValueError(
-                    f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore."
-                )
-            tables_by_tribe.setdefault(tribe, []).append(table)
-
-        for tribe, tribe_tables in tables_by_tribe.items():
-            online_store = self._get_online_store(tribe, config)
-            if not online_store:
-                raise NotImplementedError(
-                    f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration."
-                )
-
-            tribe_config = RepoConfig(**self._prepare_repo_conf(config, tribe))
-            online_store.teardown(
-                tribe_config,
-                tribe_tables,
-                entities,
-                registry=registry,
-            )
+                continue
+            # Find all store configs matching this tribe (supporting multiple instances of the same type)
+            for store_cfg in online_stores_cfg:
+                store_type = store_cfg.type
+                # Use id(store_cfg.conf) to distinguish different configs of the same type
+                key = (tribe, store_type, id(store_cfg.conf))
+                if key in tribes_seen:
+                    continue
+                tribes_seen.add(key)
+                # Only select the online store if tribe matches the type (or you can add a mapping in config for more flexibility)
+                if tribe.lower() == store_type.split(".")[-1].lower():
+                    online_store = self._get_online_store(tribe, config)
+                    if online_store:
+                        config = RepoConfig(**self._prepare_repo_conf(config, tribe))
+                        online_store.teardown(config, tables, entities)

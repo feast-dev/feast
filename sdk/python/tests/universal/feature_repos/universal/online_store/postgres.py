@@ -1,8 +1,6 @@
 import os
-import time
 from typing import Any, Dict
 
-import psycopg
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.postgres import PostgresContainer
@@ -57,47 +55,20 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
         self.container.start()
         log_string_to_wait_for = "database system is ready to accept connections"
         wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=60
+            container=self.container, predicate=log_string_to_wait_for, timeout=10
         )
         init_log_string_to_wait_for = "PostgreSQL init process complete"
         wait_for_logs(
-            container=self.container, predicate=init_log_string_to_wait_for, timeout=60
+            container=self.container, predicate=init_log_string_to_wait_for, timeout=10
         )
-
-        host = "localhost"
-        port = int(self.container.get_exposed_port(5432))
-
-        deadline = time.time() + 60
-        last_exc: Exception | None = None
-        while time.time() < deadline:
-            try:
-                conn = psycopg.connect(
-                    host=host,
-                    port=port,
-                    user="root",
-                    password="test!@#$%",
-                    dbname="test",
-                    connect_timeout=2,
-                    sslmode="disable",
-                )
-                conn.close()
-                last_exc = None
-                break
-            except psycopg.OperationalError as e:
-                last_exc = e
-                time.sleep(1)
-
-        if last_exc is not None:
-            raise last_exc
-
         return {
-            "host": host,
+            "host": "localhost",
             "type": "postgres",
             "user": "root",
             "password": "test!@#$%",
             "database": "test",
             "vector_enabled": True,
-            "port": port,
+            "port": self.container.get_exposed_port(5432),
             "sslmode": "disable",
         }
 

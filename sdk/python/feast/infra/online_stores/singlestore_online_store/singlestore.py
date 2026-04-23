@@ -110,7 +110,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 current_batch = insert_values[i : i + batch_size]
                 cur.executemany(
                     f"""
-                    INSERT INTO {_quote_identifier(online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
+                    INSERT INTO {_quote_identifier(_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
                     (entity_key, feature_name, value, event_ts, created_ts)
                     values (%s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
@@ -146,7 +146,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 entity_key_placeholders = ",".join(["%s" for _ in keys])
                 cur.execute(
                     f"""
-                    SELECT entity_key, feature_name, value, event_ts FROM {_quote_identifier(online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
+                    SELECT entity_key, feature_name, value, event_ts FROM {_quote_identifier(_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
                     WHERE entity_key IN ({entity_key_placeholders})
                     ORDER BY event_ts;
                     """,
@@ -159,7 +159,7 @@ class SingleStoreOnlineStore(OnlineStore):
                 )
                 cur.execute(
                     f"""
-                    SELECT entity_key, feature_name, value, event_ts FROM {_quote_identifier(online_store_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
+                    SELECT entity_key, feature_name, value, event_ts FROM {_quote_identifier(_table_id(project, table, config.registry.enable_online_feature_view_versioning))}
                     WHERE entity_key IN ({entity_key_placeholders}) and feature_name IN ({requested_features_placeholders})
                     ORDER BY event_ts;
                     """,
@@ -203,7 +203,7 @@ class SingleStoreOnlineStore(OnlineStore):
         with self._get_cursor(config) as cur:
             # We don't create any special state for the entities in this implementation.
             for table in tables_to_keep:
-                table_name = online_store_table_id(project, table, versioning)
+                table_name = _table_id(project, table, versioning)
                 cur.execute(
                     f"""CREATE TABLE IF NOT EXISTS {_quote_identifier(table_name)} (entity_key VARCHAR(512),
                     feature_name VARCHAR(256),
@@ -266,6 +266,15 @@ def _drop_all_version_tables(cur: Cursor, project: str, table: FeatureView) -> N
 def _quote_identifier(identifier: str) -> str:
     escaped = identifier.replace("`", "``")
     return f"`{escaped}`"
+
+
+def _table_id(
+    project: str,
+    table: FeatureView,
+    enable_versioning: bool = False,
+    version: Optional[int] = None,
+) -> str:
+    return online_store_table_id(project, table, enable_versioning, version)
 
 
 def _drop_discovered_versioned_tables(
