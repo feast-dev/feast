@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-MongoDB Offline Store — Aggregation Implementation (mongodb_agg).
+MongoDB Offline Store.
 
 Single-collection schema identical to mongodb_one.  The query core differs
 in two ways:
@@ -30,7 +30,7 @@ in two ways:
 
    For training data (repeated entity IDs at different timestamps) the
    ``$group`` optimisation is skipped and ``merge_asof`` is used instead,
-   matching mongodb_one behaviour.
+
 
 Index (created lazily on first use)::
 
@@ -91,16 +91,20 @@ from feast.value_type import ValueType
 # Cache: avoid re-creating the compound index on every call
 _indexes_ensured: Set[str] = set()
 
+# Chunk sizes — exposed at module level so tests can patch them.
+_CHUNK_SIZE = 50_000
+_MONGO_BATCH_SIZE = 10_000
+
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
 
-class MongoDBOfflineStoreAggConfig(FeastConfigBaseModel):
+class MongoDBOfflineStoreConfig(FeastConfigBaseModel):
     """Configuration for the MongoDB agg offline store (single shared collection)."""
 
-    type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_agg.MongoDBOfflineStoreAgg"
+    type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb.MongoDBOfflineStore"
 
     connection_string: StrictStr = "mongodb://localhost:27017"
     """MongoDB connection URI"""
@@ -117,7 +121,7 @@ class MongoDBOfflineStoreAggConfig(FeastConfigBaseModel):
 # ---------------------------------------------------------------------------
 
 
-class MongoDBSourceAgg(DataSource):
+class MongoDBSource(DataSource):
     """Data source for the aggregation offline store.
 
     Identical semantics to MongoDBSourceOne: the ``name`` field is used as
@@ -157,9 +161,9 @@ class MongoDBSourceAgg(DataSource):
         pass
 
     @staticmethod
-    def from_proto(data_source: DataSourceProto) -> "MongoDBSourceAgg":
+    def from_proto(data_source: DataSourceProto) -> "MongoDBSource":
         assert data_source.HasField("custom_options")
-        return MongoDBSourceAgg(
+        return MongoDBSource(
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
@@ -175,7 +179,7 @@ class MongoDBSourceAgg(DataSource):
         return DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
-            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_agg.MongoDBSourceAgg",
+            data_source_class_type="feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb.MongoDBSource",
             field_mapping=self.field_mapping,
             custom_options=DataSourceProto.CustomSourceOptions(
                 configuration=json.dumps({"feature_view": self.name}).encode()
@@ -200,7 +204,7 @@ class MongoDBSourceAgg(DataSource):
 # ---------------------------------------------------------------------------
 
 
-class MongoDBAggRetrievalJob(RetrievalJob):
+class MongoDBRetrievalJob(RetrievalJob):
     def __init__(
         self,
         query_fn: Callable[[], pyarrow.Table],
@@ -218,6 +222,10 @@ class MongoDBAggRetrievalJob(RetrievalJob):
         return self._full_feature_names
 
     @property
+    def on_demand_feature_views(self) -> List[Any]:
+        return []
+
+    @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
 
@@ -230,15 +238,23 @@ class MongoDBAggRetrievalJob(RetrievalJob):
         allow_overwrite: bool = False,
         timeout: Optional[int] = None,
     ) -> None:
-        if isinstance(storage, SavedDatasetStorage):
-            if hasattr(storage, "path"):
-                path = storage.path
-                if not allow_overwrite:
-                    import os
+        import os
 
-                    if os.path.exists(path):
-                        raise SavedDatasetLocationAlreadyExists(location=path)
-                self.to_df().to_parquet(path)
+        from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+
+        if isinstance(storage, SavedDatasetFileStorage):
+            path = storage.file_options.uri
+        elif hasattr(storage, "path"):
+            path = storage.path  # type: ignore[union-attr]
+        else:
+            raise ValueError(
+                f"MongoDBRetrievalJob.persist does not support "
+                f"{type(storage).__name__!r}. Use SavedDatasetFileStorage."
+            )
+
+        if not allow_overwrite and os.path.exists(path):
+            raise SavedDatasetLocationAlreadyExists(location=path)
+        self.to_df().to_parquet(path)
 
 
 # ---------------------------------------------------------------------------
@@ -265,9 +281,11 @@ def _serialize_entity_key_from_row(
         entity_key.join_keys.append(jk)
         proto_val = ValueProto()
         vtype = join_key_types.get(jk, ValueType.UNKNOWN)
-        if vtype in (ValueType.INT32, ValueType.INT64) or isinstance(val, int):
+        if vtype == ValueType.INT32:
+            proto_val.int32_val = int(val)
+        elif vtype == ValueType.INT64 or isinstance(val, int):
             proto_val.int64_val = int(val)
-        elif vtype in (ValueType.STRING,) or isinstance(val, str):
+        elif vtype == ValueType.STRING or isinstance(val, str):
             proto_val.string_val = str(val)
         elif isinstance(val, float):
             proto_val.double_val = float(val)
@@ -282,7 +300,7 @@ def _serialize_entity_key_from_row(
 # ---------------------------------------------------------------------------
 
 
-class MongoDBOfflineStoreAgg(OfflineStore):
+class MongoDBOfflineStore(OfflineStore):
     """MongoDB offline store using a single collection and grouped aggregation.
 
     Improves on MongoDBOfflineStoreOne by:
@@ -316,7 +334,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         cache_key = f"{conn_str}/{db_name}/{collection}"
         client: Any = MongoClient(conn_str)
         if cache_key not in _indexes_ensured:
-            MongoDBOfflineStoreAgg._ensure_indexes(client, db_name, collection)
+            MongoDBOfflineStore._ensure_indexes(client, db_name, collection)
             _indexes_ensured.add(cache_key)
         return client
 
@@ -331,13 +349,13 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        if not isinstance(data_source, MongoDBSourceAgg):
+        if not isinstance(data_source, MongoDBSource):
             raise ValueError(
-                f"MongoDBOfflineStoreAgg expected MongoDBSourceAgg, "
+                f"MongoDBOfflineStore expected MongoDBSource, "
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
-            "MongoDB offline store (agg) is in preview. API may change without notice.",
+            "MongoDB offline store is in preview. API may change without notice.",
             RuntimeWarning,
         )
         db_name = config.offline_store.database
@@ -369,7 +387,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         ]
 
         def _run() -> pyarrow.Table:
-            client = MongoDBOfflineStoreAgg._get_client_and_ensure_indexes(config)
+            client = MongoDBOfflineStore._get_client_and_ensure_indexes(config)
             try:
                 docs = _fetch_documents(client, db_name, collection, pipeline)
                 if not docs:
@@ -384,7 +402,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
             finally:
                 client.close()
 
-        return MongoDBAggRetrievalJob(
+        return MongoDBRetrievalJob(
             query_fn=_run, full_feature_names=False, config=config
         )
 
@@ -399,13 +417,13 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
-        if not isinstance(data_source, MongoDBSourceAgg):
+        if not isinstance(data_source, MongoDBSource):
             raise ValueError(
-                f"MongoDBOfflineStoreAgg expected MongoDBSourceAgg, "
+                f"MongoDBOfflineStore expected MongoDBSource, "
                 f"got {type(data_source).__name__!r}."
             )
         warnings.warn(
-            "MongoDB offline store (agg) is in preview. API may change without notice.",
+            "MongoDB offline store is in preview. API may change without notice.",
             RuntimeWarning,
         )
         db_name = config.offline_store.database
@@ -427,7 +445,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         pipeline = [{"$match": match_filter}, {"$project": project_stage}]
 
         def _run() -> pyarrow.Table:
-            client = MongoDBOfflineStoreAgg._get_client_and_ensure_indexes(config)
+            client = MongoDBOfflineStore._get_client_and_ensure_indexes(config)
             try:
                 docs = _fetch_documents(client, db_name, collection, pipeline)
                 if not docs:
@@ -442,7 +460,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
             finally:
                 client.close()
 
-        return MongoDBAggRetrievalJob(
+        return MongoDBRetrievalJob(
             query_fn=_run, full_feature_names=False, config=config
         )
 
@@ -455,6 +473,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        strict_pit: bool = True,
     ) -> RetrievalJob:
         """Fetch historical features using grouped aggregation.
 
@@ -470,13 +489,20 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         Training path (repeated entity IDs at different timestamps):
             Omits ``$group`` and uses ``merge_asof`` in Python, matching
             mongodb_one behaviour but still with K-collapsed queries.
+
+        Args:
+            strict_pit: When True (default) features whose document timestamp
+                is strictly after the entity request timestamp are returned as
+                NULL — this is the safe training/evaluation default.  Set to
+                False for real-time scoring where you want the most recent
+                observation even if it post-dates the nominal request time.
         """
         if isinstance(entity_df, str):
             raise ValueError(
-                "MongoDBOfflineStoreAgg does not support SQL entity_df strings."
+                "MongoDBOfflineStore does not support SQL entity_df strings."
             )
         warnings.warn(
-            "MongoDB offline store (agg) is in preview. API may change without notice.",
+            "MongoDB offline store is in preview. API may change without notice.",
             RuntimeWarning,
         )
 
@@ -507,8 +533,8 @@ class MongoDBOfflineStoreAgg(OfflineStore):
             for fv in feature_views
         }
 
-        CHUNK_SIZE = 50_000
-        MONGO_BATCH_SIZE = 10_000
+        CHUNK_SIZE = _CHUNK_SIZE
+        MONGO_BATCH_SIZE = _MONGO_BATCH_SIZE
 
         def _chunk_dataframe(
             df: pd.DataFrame, size: int
@@ -680,9 +706,17 @@ class MongoDBOfflineStoreAgg(OfflineStore):
                             fv_join, on="_fv_entity_id", how="left"
                         )
 
-                        # Mask: fv doc is in the future relative to entity request
-                        # time (max_ts overshoot) or outside TTL window.
-                        future_mask = merged["_fv_ts"] > merged[event_timestamp_col]
+                        # Mask: fv doc is outside valid window for entity request.
+                        # strict_pit=True (default): null out docs from the future
+                        # relative to the entity request timestamp (max_ts overshoot).
+                        # strict_pit=False: accept the most recent doc regardless of
+                        # whether it post-dates the request (real-time inference).
+                        if strict_pit:
+                            future_mask = merged["_fv_ts"] > merged[event_timestamp_col]
+                        else:
+                            future_mask = pd.Series(
+                                [False] * len(merged), index=merged.index
+                            )
                         if fv and fv.ttl:
                             ttl_mask = merged["_fv_ts"] < (
                                 merged[event_timestamp_col] - fv.ttl
@@ -760,7 +794,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
             working_df = entity_df.copy()
             working_df["_row_idx"] = range(len(working_df))
 
-            client = MongoDBOfflineStoreAgg._get_client_and_ensure_indexes(config)
+            client = MongoDBOfflineStore._get_client_and_ensure_indexes(config)
             try:
                 coll = client[db_name][feature_collection]
                 if len(working_df) <= CHUNK_SIZE:
@@ -785,7 +819,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
 
             return pyarrow.Table.from_pandas(result_df, preserve_index=False)
 
-        return MongoDBAggRetrievalJob(
+        return MongoDBRetrievalJob(
             query_fn=_run,
             full_feature_names=full_feature_names,
             config=config,
@@ -817,15 +851,15 @@ class MongoDBOfflineStoreAgg(OfflineStore):
         Args:
             config: Feast repo configuration.
             feature_view: The feature view being written; must have a
-                MongoDBSourceAgg batch source.
+                MongoDBSource batch source.
             table: Arrow table with join key columns, feature columns,
                 ``event_timestamp``, and optionally ``created_at``.
             progress: Optional callback invoked with the row count after each
                 batch insert.
         """
-        if not isinstance(feature_view.batch_source, MongoDBSourceAgg):
+        if not isinstance(feature_view.batch_source, MongoDBSource):
             raise ValueError(
-                f"MongoDBOfflineStoreAgg.offline_write_batch expected a MongoDBSourceAgg "
+                f"MongoDBOfflineStore.offline_write_batch expected a MongoDBSource "
                 f"batch source, got {type(feature_view.batch_source).__name__!r}."
             )
 
@@ -902,7 +936,7 @@ class MongoDBOfflineStoreAgg(OfflineStore):
                 }
             )
 
-        client = MongoDBOfflineStoreAgg._get_client_and_ensure_indexes(config)
+        client = MongoDBOfflineStore._get_client_and_ensure_indexes(config)
         try:
             coll = client[db_name][collection_name]
             BATCH_SIZE = 10_000

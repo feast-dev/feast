@@ -1,161 +1,72 @@
 # MongoDB Offline Store
 
-Two MongoDB offline store implementations optimized for different use cases.
+This offline store lets you train models and run batch scoring directly from it.
+All feature views share a single collection (`feature_history`). Reads use
+MongoDB aggregation pipelines with a compound index, so per-entity cost is
+O(log n_observations) regardless of collection size, and K feature views with the same
+entity key collapse into one round-trip instead of K (1 if your data shares a unique id.)
 
-## Overview
+## Schema
 
-| Aspect | `MongoDBOfflineStoreMany` | `MongoDBOfflineStoreOne` |
-|--------|---------------------------|--------------------------|
-| Collections | One per FeatureView | Single shared collection |
-| Schema | Flat documents | Nested `features` subdoc |
-| Entity ID | Separate columns | Serialized bytes |
-| Best for | Small-medium feature stores | Large feature stores |
-
-## MongoDBOfflineStoreMany (mongodb_many.py)
-
-**One collection per FeatureView** — each FeatureView maps to its own MongoDB collection.
-
-### Schema
+All feature views share one collection (default: `feature_history`), discriminated by the `feature_view` field.
 
 ```javascript
-// Collection: driver_stats
+// Collection: feature_history
 {
-  "driver_id": 1001,
-  "event_timestamp": ISODate("2024-01-15T10:00:00Z"),
-  "created_at": ISODate("2024-01-15T10:00:01Z"),  // Optional tie-breaker
-  "trips_today": 5,
-  "rating": 4.8
-}
-```
-
-Ties (same `event_timestamp`) are broken by `created_timestamp_column` if configured.
-
-### Configuration
-
-```yaml
-offline_store:
-  type: feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_many.MongoDBOfflineStoreMany
-  connection_string: mongodb://localhost:27017
-  database: feast
-```
-
-### When to Use
-
-✅ **Small to medium feature stores** — loads entire collection into memory  
-✅ **Fast PIT joins** — Ibis memtables are highly optimized  
-✅ **Simple schema** — flat documents, easy to query directly  
-✅ **Per-collection indexes** — each FV can have tailored indexes  
-
-⚠️ **Caution**: Loads ALL documents from each collection. May OOM on very large collections.
-
-## MongoDBOfflineStoreOne (mongodb_one.py)
-
-**Single shared collection** — all FeatureViews store data in one collection with a discriminator field.
-
-### Schema
-
-```javascript
-// Collection: feature_history (shared by all FVs)
-{
-  "entity_id": Binary("..."),           // Serialized entity key
-  "feature_view": "driver_stats",       // Discriminator
-  "features": {                         // Nested subdocument
-    "trips_today": 5,
-    "rating": 4.8
+  "entity_id":       Binary("..."),           // Serialized entity key (bytes)
+  "feature_view":    "driver_stats",          // Discriminator
+  "features": {                               // Nested subdocument
+    "trips_today":   5,
+    "rating":        4.8
   },
   "event_timestamp": ISODate("2024-01-15T10:00:00Z"),
-  "created_at": ISODate("2024-01-15T10:00:01Z")
+  "created_at":      ISODate("2024-01-15T10:00:01Z")
 }
 ```
+## Index
 
-### Configuration
-
-```yaml
-offline_store:
-  type: feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_one.MongoDBOfflineStoreOne
-  connection_string: mongodb://localhost:27017
-  database: feast
-  collection: feature_history
-```
-
-### When to Use
-
-✅ **Large feature stores** — filters by entity_id, doesn't load entire collection  
-✅ **Memory-safe** — processes in chunks, bounded memory usage  
-✅ **Schema consistency** — matches online store pattern  
-✅ **Efficient materialization** — MQL aggregation pipeline  
-
-⚠️ **Trade-off**: Slightly slower than Many for small workloads due to serialization overhead.
-
-## Performance Comparison
-
-Benchmarks with 10 features, 3 historical rows per entity:
-
-| Entity Rows | Many (time) | One (time) | Winner |
-|-------------|-------------|------------|--------|
-| 1,000 | 0.30s | 0.06s | One |
-| 10,000 | 0.20s | 0.31s | Many |
-| 100,000 | 1.51s | 5.22s | Many |
-| 1,000,000 | 16.08s | 212s | Many |
-
-### Memory Behavior
-
-| Scenario | Many | One |
-|----------|------|-----|
-| Large feature collection, small entity_df | ❌ Loads all | ✅ Filters |
-| Small feature collection, large entity_df | ✅ Fast | ⚠️ Slower |
-
-## Choosing an Implementation
-
-```
-                    ┌─────────────────────────────┐
-                    │ Is your feature collection  │
-                    │ larger than available RAM?  │
-                    └─────────────────────────────┘
-                               │
-                    ┌──────────┴──────────┐
-                    ▼                     ▼
-                   YES                    NO
-                    │                     │
-                    ▼                     ▼
-            ┌───────────────┐     ┌───────────────┐
-            │ Use ONE       │     │ Use MANY      │
-            │ (memory-safe) │     │ (faster)      │
-            └───────────────┘     └───────────────┘
-```
-
-## Index Recommendations
-
-### Many (per-collection)
-
-Each collection should have an index on the join keys + timestamp:
-
-```javascript
-// For a FeatureView with join key "driver_id"
-db.driver_stats.createIndex({
-  "driver_id": 1,           // Join key(s)
-  "event_timestamp": -1
-})
-
-// For a FeatureView with compound join keys
-db.order_stats.createIndex({
-  "customer_id": 1,
-  "order_id": 1,
-  "event_timestamp": -1
-})
-```
-
-**Note**: The Many implementation auto-creates indexes during `pull_latest_from_table_or_query` (materialization).
-
-### One (shared collection)
+The store creates one compound index lazily on first use. This index supports every query issued..
 
 ```javascript
 db.feature_history.createIndex({
-  "entity_id": 1,
-  "feature_view": 1,
-  "event_timestamp": -1
+  "entity_id":       1,
+  "feature_view":    1,
+  "event_timestamp": -1,
+  "created_at":      -1
 })
+
+```
+## Configuration
+
+```yaml
+offline_store:
+  type: feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb.MongoDBOfflineStore
+  connection_string: mongodb://localhost:27017
+  database: feast
+  collection: feature_history  # optional, default: feature_history
 ```
 
-The One implementation creates this index automatically on first use.
+## Key Features
 
+**Query-collapse** — Feature views that share the same join key set are grouped into a single MongoDB aggregation round-trip instead of one per feature view. Reduces round-trips from K to the number of unique join key signatures, often one.
+
+**Scoring path** — When `entity_df` contains unique entity IDs, a `$match + $sort + $group` pipeline performs server-side deduplication returning at most one document per `(entity_id, feature_view)`. The compound index makes per-entity cost O(log n_obs).
+
+**Training path** — When `entity_df` contains repeated entity IDs at different timestamps, the `$group` stage is omitted and `pandas.merge_asof` performs per-row point-in-time joins optimized in C.
+
+**`strict_pit`** — `get_historical_features` accepts a `strict_pit` keyword argument (default `True`). With `strict_pit=True` (default, safe for training), documents whose timestamp is strictly after the entity request timestamp are returned as `NULL`. Set `strict_pit=False` for real-time inference where you always want the most recent observation.
+
+
+## Writing Data
+
+Use `offline_write_batch` (called automatically by `feast materialize`) to write feature observations:
+
+```python
+store.write_to_offline_store(feature_view_name, df)
+```
+
+Documents are appended; `pull_latest` and the scoring path select the highest `created_at` at read time.
+
+## Memory Behaviour
+
+The store filters by entity key in `$match` rather than loading the entire collection. Memory usage is bounded by the number of unique entity IDs × documents per entity, not the total collection size.

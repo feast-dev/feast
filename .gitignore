@@ -1,9 +1,6 @@
 ### Scratch files ###
 scratch*
 
-### Design / notes directory (local only) ###
-design/
-
 ### Local Environment ###
 *local*.env
 tools

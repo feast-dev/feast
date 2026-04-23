@@ -108,30 +108,22 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
         ]
     )
 
-# MongoDB offline stores (require testcontainers and pymongo)
+# MongoDB offline store (requires testcontainers and pymongo)
 if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False") == "True":
     try:
         from tests.universal.feature_repos.universal.data_sources.mongodb import (
-            MongoDBManyDataSourceCreator,
-            # MongoDBOneDataSourceCreator,  # TODO: Not registered - see TODO in mongodb.py
+            MongoDBDataSourceCreator,
         )
 
         AVAILABLE_OFFLINE_STORES.extend(
             [
-                ("local", MongoDBManyDataSourceCreator),
-                # TODO: MongoDBOneDataSourceCreator requires DataSourceCreator interface
-                # changes to pass entity/join key info. See mongodb.py for details.
-                # ("local", MongoDBOneDataSourceCreator),
+                ("local", MongoDBDataSourceCreator),
             ]
         )
-        OFFLINE_STORE_TO_PROVIDER_CONFIG["mongodb_many"] = (
+        OFFLINE_STORE_TO_PROVIDER_CONFIG["mongodb"] = (
             "local",
-            MongoDBManyDataSourceCreator,
+            MongoDBDataSourceCreator,
         )
-        # OFFLINE_STORE_TO_PROVIDER_CONFIG["mongodb_one"] = (
-        #     "local",
-        #     MongoDBOneDataSourceCreator,
-        # )
     except ImportError:
         pass  # pymongo or testcontainers not installed
 
