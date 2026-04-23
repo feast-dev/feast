@@ -520,14 +520,17 @@ class FeatureView(BaseFeatureView):
         return ttl_duration
 
     @classmethod
-    def from_proto(cls, feature_view_proto: FeatureViewProto) -> "FeatureView":
-        return cls._from_proto_internal(feature_view_proto, seen={})
+    def from_proto(
+        cls, feature_view_proto: FeatureViewProto, skip_udf: bool = False
+    ) -> "FeatureView":
+        return cls._from_proto_internal(feature_view_proto, seen={}, skip_udf=skip_udf)
 
     @classmethod
     def _from_proto_internal(
         cls,
         feature_view_proto: FeatureViewProto,
         seen: Dict[str, Union[None, "FeatureView"]],
+        skip_udf: bool = False,
     ) -> "FeatureView":
         """
         Creates a feature view from a protobuf representation of a feature view.
@@ -561,7 +564,7 @@ class FeatureView(BaseFeatureView):
         )
         source_views = [
             FeatureView._from_proto_internal(
-                FeatureViewProto(spec=view_spec, meta=None), seen
+                FeatureViewProto(spec=view_spec, meta=None), seen, skip_udf=skip_udf
             )
             for view_spec in feature_view_proto.spec.source_views
         ]
@@ -581,22 +584,23 @@ class FeatureView(BaseFeatureView):
             )
             transformation = None
 
-            if feature_transformation_proto.HasField("user_defined_function"):
-                udf_proto = feature_transformation_proto.user_defined_function
-                if udf_proto.mode:
-                    try:
-                        transformation_class = get_transformation_class_from_type(
-                            udf_proto.mode
-                        )
-                        transformation = transformation_class.from_proto(udf_proto)
-                    except (ValueError, KeyError):
+            if not skip_udf:
+                if feature_transformation_proto.HasField("user_defined_function"):
+                    udf_proto = feature_transformation_proto.user_defined_function
+                    if udf_proto.mode:
+                        try:
+                            transformation_class = get_transformation_class_from_type(
+                                udf_proto.mode
+                            )
+                            transformation = transformation_class.from_proto(udf_proto)
+                        except (ValueError, KeyError):
+                            transformation = PythonTransformation.from_proto(udf_proto)
+                    else:
                         transformation = PythonTransformation.from_proto(udf_proto)
-                else:
-                    transformation = PythonTransformation.from_proto(udf_proto)
-            elif feature_transformation_proto.HasField("substrait_transformation"):
-                transformation = SubstraitTransformation.from_proto(
-                    feature_transformation_proto.substrait_transformation
-                )
+                elif feature_transformation_proto.HasField("substrait_transformation"):
+                    transformation = SubstraitTransformation.from_proto(
+                        feature_transformation_proto.substrait_transformation
+                    )
 
             mode: Union[TransformationMode, str]
             if feature_view_proto.spec.mode:
