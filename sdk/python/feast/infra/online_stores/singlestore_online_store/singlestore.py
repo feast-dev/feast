@@ -228,45 +228,10 @@ class SingleStoreOnlineStore(OnlineStore):
         versioning = config.registry.enable_online_feature_view_versioning
         with self._get_cursor(config) as cur:
             for table in tables:
-                if not versioning:
+                if versioning:
+                    _drop_all_version_tables(cur, project, table)
+                else:
                     _drop_table_and_index(cur, project, table, enable_versioning=False)
-                    continue
-
-                versions = []
-                if registry is not None:
-                    try:
-                        versions = registry.list_feature_view_versions(
-                            name=table.name, project=project
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to list feature view versions for %s during teardown; will fall back to dropping discovered versioned tables. Error: %s",
-                            table.name,
-                            e,
-                        )
-                        versions = []
-
-                if not versions:
-                    _drop_table_and_index(cur, project, table, enable_versioning=False)
-                    _drop_table_and_index(cur, project, table, enable_versioning=True)
-                    _drop_discovered_versioned_tables(cur, project, table)
-                    continue
-
-                for record in versions:
-                    version_number = record.get("version_number")
-                    if version_number is None:
-                        continue
-                    _drop_table_and_index(
-                        cur,
-                        project,
-                        table,
-                        enable_versioning=True,
-                        version=version_number,
-                    )
-
-                # Always drop the base (unversioned) table as well
-                _drop_table_and_index(cur, project, table, enable_versioning=False)
-                _drop_discovered_versioned_tables(cur, project, table)
 
 
 def _drop_table_and_index(
@@ -281,6 +246,21 @@ def _drop_table_and_index(
     index_name_quoted = _quote_identifier(f"{table_name}_ek")
     cur.execute(f"DROP INDEX IF EXISTS {index_name_quoted} ON {table_name_quoted};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name_quoted}")
+
+
+def _drop_all_version_tables(cur: Cursor, project: str, table: FeatureView) -> None:
+    base = online_store_table_id(project, table, enable_versioning=False)
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = DATABASE() AND (table_name = %s OR table_name REGEXP %s)",
+        (base, f"^{base}_v[0-9]+$"),
+    )
+    for (name,) in cur.fetchall() or []:
+        index_name = f"{name}_ek"
+        cur.execute(
+            f"DROP INDEX IF EXISTS {_quote_identifier(index_name)} ON {_quote_identifier(name)};"
+        )
+        cur.execute(f"DROP TABLE IF EXISTS {_quote_identifier(name)}")
 
 
 def _quote_identifier(identifier: str) -> str:
