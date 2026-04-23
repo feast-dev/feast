@@ -2,7 +2,6 @@ import logging
 import os
 import warnings
 from datetime import timedelta
-from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -209,17 +208,6 @@ class RegistryConfig(FeastBaseModel):
         return path
 
 
-class ChunkFailureStrategy(str, Enum):
-    """Strategy for handling chunk failures during chunked materialization."""
-
-    STOP = "stop"
-    """ Stop materialization immediately on the first chunk failure (default). """
-
-    CONTINUE = "continue"
-    """ Log the failure and continue processing remaining chunks.
-        A summary warning is emitted at the end listing all failed chunks. """
-
-
 class MaterializationConfig(BaseModel):
     """Configuration options for feature materialization behavior."""
 
@@ -250,11 +238,11 @@ class MaterializationConfig(BaseModel):
               chunk_size: 21600  # 6 hours expressed as seconds
     """
 
-    chunk_failure_strategy: ChunkFailureStrategy = ChunkFailureStrategy.STOP
-    """ ChunkFailureStrategy: Controls what happens when a chunk fails during chunked
-        materialization.  ``STOP`` (default) re-raises the exception immediately.  ``CONTINUE``
-        logs the failure and proceeds with the remaining chunks, emitting a summary warning
-        at the end.  Only meaningful when ``chunk_size`` is set.
+    chunk_failure_strategy: StrictStr = "stop"
+    """ str: Controls what happens when a chunk fails during chunked materialization.
+        ``'stop'`` (default) re-raises the exception immediately.
+        ``'continue'`` logs the failure and proceeds with the remaining chunks, emitting
+        a summary warning at the end.  Only meaningful when ``chunk_size`` is set.
     """
 
 

@@ -93,7 +93,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import ChunkFailureStrategy, RepoConfig, load_repo_config
+from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
@@ -1872,7 +1872,7 @@ class FeatureStore:
                             if (
                                 total_chunks > 1
                                 and self.config.materialization_config.chunk_failure_strategy
-                                == ChunkFailureStrategy.CONTINUE
+                                == "continue"
                             ):
                                 failed_chunks.append(
                                     (chunk_idx, chunk_start, chunk_end, chunk_exc)
@@ -2073,7 +2073,7 @@ class FeatureStore:
                             if (
                                 total_chunks > 1
                                 and self.config.materialization_config.chunk_failure_strategy
-                                == ChunkFailureStrategy.CONTINUE
+                                == "continue"
                             ):
                                 failed_chunks.append(
                                     (chunk_idx, chunk_start, chunk_end, chunk_exc)

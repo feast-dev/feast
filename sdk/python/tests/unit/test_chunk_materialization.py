@@ -5,7 +5,7 @@ These tests verify:
 * ``FeatureStore.materialize()`` dispatches N chunk calls when chunked
 * ``FeatureStore.materialize_incremental()`` dispatches N chunk calls when chunked
 * Chunk boundaries are contiguous and cover the full requested time range
-* ``ChunkFailureStrategy.CONTINUE`` skips failed chunks instead of raising
+* ``chunk_failure_strategy="continue"`` skips failed chunks instead of raising
 * Single-pass behaviour is preserved when ``chunk_size=None``
 """
 
@@ -23,7 +23,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.repo_config import ChunkFailureStrategy, MaterializationConfig, RepoConfig
+from feast.repo_config import MaterializationConfig, RepoConfig
 from feast.types import Int64
 from feast.value_type import ValueType
 
@@ -238,7 +238,7 @@ class TestMaterializeChunking:
             assert mock_mat.call_count == 2
 
     # -----------------------------------------------------------------------
-    # ChunkFailureStrategy.CONTINUE
+    # chunk_failure_strategy="continue"
     # -----------------------------------------------------------------------
 
     def test_continue_strategy_skips_failed_chunks(self):
@@ -249,7 +249,7 @@ class TestMaterializeChunking:
         store, _, _ = self._setup(
             MaterializationConfig(
                 chunk_size=timedelta(hours=12),
-                chunk_failure_strategy=ChunkFailureStrategy.CONTINUE,
+                chunk_failure_strategy="continue",
             )
         )
         start = _utc(datetime(2024, 1, 1))
@@ -292,7 +292,7 @@ class TestMaterializeChunking:
         store, _, _ = self._setup(
             MaterializationConfig(
                 chunk_size=timedelta(hours=12),
-                chunk_failure_strategy=ChunkFailureStrategy.CONTINUE,
+                chunk_failure_strategy="continue",
             )
         )
         start = _utc(datetime(2024, 1, 1))
@@ -434,7 +434,7 @@ class TestMaterializeIncrementalChunking:
         store, _, fv = self._setup(
             materialization_config=MaterializationConfig(
                 chunk_size=timedelta(hours=6),
-                chunk_failure_strategy=ChunkFailureStrategy.CONTINUE,
+                chunk_failure_strategy="continue",
             )
         )
         # Seed: watermark starts at midnight
