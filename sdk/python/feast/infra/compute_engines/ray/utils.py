@@ -5,6 +5,7 @@ Utility functions for Ray compute engine.
 import logging
 from typing import Callable, Dict, Union
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 
@@ -79,22 +80,54 @@ def write_to_online_store(
         logger.error(f"Failed to write to online store for {feature_view.name}: {e}")
 
 
-def safe_batch_processor(
-    func: Callable[[pd.DataFrame], pd.DataFrame],
-) -> Callable[[pd.DataFrame], pd.DataFrame]:
+# Ray Data batch type: pandas DataFrame, numpy dict, or pyarrow Table
+BatchType = Union[pd.DataFrame, Dict[str, np.ndarray], pa.Table]
+
+
+def _is_empty_batch(batch: BatchType) -> bool:
+    """Return True if the batch contains no rows, regardless of Ray Data batch format.
+
+    Ray Data delivers batches in three formats depending on the batch_format
+    argument passed to map_batches:
+      - "pandas"  → pd.DataFrame   (.empty attribute)
+      - "numpy"   → Dict[str, np.ndarray]  (check length of first array)
+      - "pyarrow" → pa.Table       (.num_rows attribute)
     """
-    Decorator for batch processing functions that handles empty batches and errors gracefully.
+    if isinstance(batch, pd.DataFrame):
+        return batch.empty
+    if isinstance(batch, dict):
+        if not batch:
+            return True
+        first = next(iter(batch.values()))
+        return len(first) == 0
+    if isinstance(batch, pa.Table):
+        return batch.num_rows == 0
+    return False
+
+
+def safe_batch_processor(
+    func: Callable[[BatchType], BatchType],
+) -> Callable[[BatchType], BatchType]:
+    """
+    Decorator for batch processing functions that handles empty batches and
+    exceptions gracefully across all Ray Data batch formats.
+
+    Ray Data can deliver batches as a pandas DataFrame (batch_format="pandas"),
+    a Dict[str, np.ndarray] (batch_format="numpy"), or a pa.Table
+    (batch_format="pyarrow"). The decorator handles all three so that callers
+    using gpu_batch_format="numpy" or "pyarrow" do not crash on the empty-batch
+    check.
 
     Args:
-        func: Function that processes a pandas DataFrame batch
+        func: Batch processing function. Receives and returns the same batch
+            type that Ray Data passes (pandas, numpy dict, or pyarrow Table).
 
     Returns:
-        Wrapped function that handles empty batches and exceptions
+        Wrapped function that skips empty batches and swallows exceptions.
     """
 
-    def wrapper(batch: pd.DataFrame) -> pd.DataFrame:
-        # Handle empty batches
-        if batch.empty:
+    def wrapper(batch: BatchType) -> BatchType:
+        if _is_empty_batch(batch):
             return batch
 
         try:

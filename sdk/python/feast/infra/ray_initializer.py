@@ -239,6 +239,8 @@ class CodeFlareRayWrapper:
         auth_server: str,
         skip_tls: bool = False,
         enable_logging: bool = False,
+        num_gpus: float = 0,
+        worker_task_options: Optional[Dict[str, Any]] = None,
     ):
         """Initialize CodeFlare Ray wrapper with cluster connection parameters."""
         self.cluster_name = cluster_name
@@ -247,6 +249,8 @@ class CodeFlareRayWrapper:
         self.auth_server = auth_server
         self.skip_tls = skip_tls
         self.enable_logging = enable_logging
+        self.num_gpus = num_gpus
+        self.worker_task_options = worker_task_options or {}
         self.cluster = None
 
         # Authenticate and setup Ray connection
@@ -307,6 +311,24 @@ class CodeFlareRayWrapper:
             logger.error(f"Ray connection failed: {e}")
             raise
 
+    def _get_task_options(self, include_gpu: bool = False) -> Dict[str, Any]:
+        """Build Ray .options() kwargs for a remote task dispatch.
+
+        Always includes the full worker_task_options passthrough dict.
+        num_gpus is merged in only when include_gpu=True, because I/O
+        operations (read_parquet, read_csv, from_pandas, from_arrow) are
+        pure data-movement and must not consume GPU slots.  Pass
+        include_gpu=True only for compute/transformation tasks.
+        """
+        opts: Dict[str, Any] = dict(self.worker_task_options)
+        if include_gpu and self.num_gpus:
+            opts["num_gpus"] = self.num_gpus
+        else:
+            # Guarantee no GPU slot is consumed for I/O tasks even if the
+            # caller placed num_gpus inside worker_task_options directly.
+            opts.pop("num_gpus", None)
+        return opts
+
     # Ray Data API methods - wrapped in @ray.remote to execute on cluster workers
     def read_parquet(self, path: Union[str, List[str]], **kwargs) -> Any:
         """Read parquet files - runs remotely on KubeRay cluster workers."""
@@ -318,7 +340,11 @@ class CodeFlareRayWrapper:
 
             return ray.data.read_parquet(file_path, **read_kwargs)
 
-        return RemoteDatasetProxy(_remote_read_parquet.remote(path, kwargs))
+        opts = self._get_task_options()
+        remote_fn = (
+            _remote_read_parquet.options(**opts) if opts else _remote_read_parquet
+        )
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
 
     def read_csv(self, path: Union[str, List[str]], **kwargs) -> Any:
         """Read CSV files - runs remotely on KubeRay cluster workers."""
@@ -330,7 +356,9 @@ class CodeFlareRayWrapper:
 
             return ray.data.read_csv(file_path, **read_kwargs)
 
-        return RemoteDatasetProxy(_remote_read_csv.remote(path, kwargs))
+        opts = self._get_task_options()
+        remote_fn = _remote_read_csv.options(**opts) if opts else _remote_read_csv
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
 
     def from_pandas(self, df: Any) -> Any:
         """Create dataset from pandas DataFrame - runs remotely on KubeRay cluster workers."""
@@ -342,7 +370,9 @@ class CodeFlareRayWrapper:
 
             return ray.data.from_pandas(dataframe)
 
-        return RemoteDatasetProxy(_remote_from_pandas.remote(df))
+        opts = self._get_task_options()
+        remote_fn = _remote_from_pandas.options(**opts) if opts else _remote_from_pandas
+        return RemoteDatasetProxy(remote_fn.remote(df))
 
     def from_arrow(self, table: Any) -> Any:
         """Create dataset from Arrow table - runs remotely on KubeRay cluster workers."""
@@ -354,7 +384,9 @@ class CodeFlareRayWrapper:
 
             return ray.data.from_arrow(arrow_table)
 
-        return RemoteDatasetProxy(_remote_from_arrow.remote(table))
+        opts = self._get_task_options()
+        remote_fn = _remote_from_arrow.options(**opts) if opts else _remote_from_arrow
+        return RemoteDatasetProxy(remote_fn.remote(table))
 
 
 # Global state tracking
@@ -551,6 +583,8 @@ def _initialize_kuberay(config: Any, enable_logging: bool = False) -> None:
         auth_server=kuberay_config["auth_server"],
         skip_tls=kuberay_config.get("skip_tls", False),
         enable_logging=enable_logging,
+        num_gpus=getattr(config, "num_gpus", 0) or 0,
+        worker_task_options=getattr(config, "worker_task_options", None),
     )
 
     logger.info("KubeRay cluster connection established via CodeFlare SDK")
