@@ -591,9 +591,14 @@ class MongoDBOfflineStore(OfflineStore):
                     for n in group_fv_names
                     if fv_by_name.get(n) and (ttl := fv_by_name[n].ttl) is not None
                 ]
-                ts_filter: Dict[str, Any] = {"$lte": max_ts}
+                # strict_pit=True: server upper bound is the chunk's max request time,
+                # preventing the server from returning future documents.
+                # strict_pit=False: no upper bound — the $group $first (sort DESC) will
+                # return the most recent doc regardless of when it was written.
+                ts_filter: Dict[str, Any] = {"$lte": max_ts} if strict_pit else {}
                 if ttls:
-                    ts_filter["$gte"] = max_ts - min(ttls)
+                    ref_ts = max_ts if strict_pit else datetime.now(tz=timezone.utc)
+                    ts_filter["$gte"] = ref_ts - min(ttls)
 
                 all_docs: List[Dict] = []
                 for i in range(0, len(unique_entity_ids), MONGO_BATCH_SIZE):
