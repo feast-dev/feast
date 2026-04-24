@@ -218,14 +218,14 @@ class MongoDBSource(DataSource):
             features = doc.get("features", {})
             if isinstance(features, dict):
                 for k, v in features.items():
-                    if isinstance(v, int):
+                    if isinstance(v, bool):
+                        result.append((k, "bool"))
+                    elif isinstance(v, int):
                         result.append((k, "int64"))
                     elif isinstance(v, float):
                         result.append((k, "float64"))
                     elif isinstance(v, str):
                         result.append((k, "string"))
-                    elif isinstance(v, bool):
-                        result.append((k, "bool"))
                     elif isinstance(v, list):
                         result.append((k, "list"))
                     elif isinstance(v, dict):
