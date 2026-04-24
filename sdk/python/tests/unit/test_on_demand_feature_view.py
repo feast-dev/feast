@@ -675,3 +675,31 @@ def test_aggregations_only_odfv_infer_features():
     )
     # Must not raise; features are taken from schema, no transformation execution needed
     odfv.infer_features()
+
+
+def test_input_schema_aggregation_no_udf():
+    """ODFV with input_schema, no sources, aggregations, and no udf must validate and round-trip."""
+    from datetime import timedelta
+
+    odfv = OnDemandFeatureView(
+        name="input-schema-agg-odfv",
+        sources=None,
+        input_schema=[Field(name="purchase_count", dtype=Float32)],
+        schema=[Field(name="purchase_sum_30d", dtype=Float32)],
+        aggregations=[
+            Aggregation(
+                column="purchase_count",
+                function="sum",
+                time_window=timedelta(days=30),
+            )
+        ],
+    )
+
+    odfv.ensure_valid()
+    odfv.infer_features()
+
+    proto = odfv.to_proto()
+    restored = OnDemandFeatureView.from_proto(proto)
+    assert restored.feature_transformation is None
+    assert len(restored.aggregations) == 1
+    assert restored.input_schema == [Field(name="purchase_count", dtype=Float32)]
