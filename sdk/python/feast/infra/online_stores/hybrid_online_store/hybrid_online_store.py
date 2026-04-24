@@ -47,6 +47,7 @@ from pydantic import StrictStr
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, get_online_config_from_type
@@ -294,6 +295,7 @@ class HybridOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         """
         Teardown all managed online stores for the given FeatureViews and Entities.
@@ -324,4 +326,6 @@ class HybridOnlineStore(OnlineStore):
                     online_store = self._get_online_store(tribe, config)
                     if online_store:
                         config = RepoConfig(**self._prepare_repo_conf(config, tribe))
-                        online_store.teardown(config, tables, entities)
+                        online_store.teardown(
+                            config, tables, entities, registry=registry
+                        )
