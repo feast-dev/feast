@@ -6,7 +6,7 @@ import builtins
 import collections.abc
 import feast.serving.ServingService_pb2
 import feast.types.EntityKey_pb2
-import feast.types.Value_pb2
+from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
@@ -31,13 +31,13 @@ class ConnectorFeature(google.protobuf.message.Message):
     @property
     def timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
     @property
-    def value(self) -> feast.types.Value_pb2.Value: ...
+    def value(self) -> _feast_types_Value_pb2.Value: ...
     def __init__(
         self,
         *,
         reference: feast.serving.ServingService_pb2.FeatureReferenceV2 | None = ...,
         timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        value: feast.types.Value_pb2.Value | None = ...,
+        value: _feast_types_Value_pb2.Value | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["reference", b"reference", "timestamp", b"timestamp", "value", b"value"]) -> builtins.bool: ...
     def ClearField(self, field_name: typing_extensions.Literal["reference", b"reference", "timestamp", b"timestamp", "value", b"value"]) -> None: ...
