@@ -361,10 +361,11 @@ class LocalOutputNode(LocalNode):
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
-        context.node_outputs[self.name] = input_table
+        output = ArrowTableValue(data=input_table)
+        context.node_outputs[self.name] = output
 
         if input_table.num_rows == 0:
-            return input_table
+            return output
 
         if self.feature_view.online:
             online_store = context.online_store
@@ -374,16 +375,25 @@ class LocalOutputNode(LocalNode):
                 for entity in self.feature_view.entity_columns
             }
 
-            rows_to_write = _convert_arrow_to_proto(
-                input_table, self.feature_view, join_key_to_value_type
+            batch_size = (
+                context.repo_config.materialization_config.online_write_batch_size
             )
-
-            online_store.online_write_batch(
-                config=context.repo_config,
-                table=self.feature_view,
-                data=rows_to_write,
-                progress=lambda x: None,
+            # Single batch if None (backward compatible), otherwise use configured batch_size
+            batches = (
+                [input_table]
+                if batch_size is None
+                else input_table.to_batches(max_chunksize=batch_size)
             )
+            for batch in batches:
+                rows_to_write = _convert_arrow_to_proto(
+                    batch, self.feature_view, join_key_to_value_type
+                )
+                online_store.online_write_batch(
+                    config=context.repo_config,
+                    table=self.feature_view,
+                    data=rows_to_write,
+                    progress=lambda x: None,
+                )
 
         if self.feature_view.offline:
             offline_store = context.offline_store
@@ -394,4 +404,4 @@ class LocalOutputNode(LocalNode):
                 progress=lambda x: None,
             )
 
-        return input_table
+        return output

@@ -45,19 +45,32 @@ def write_to_online_store(
                 for entity in feature_view.entity_columns
             }
 
-        rows_to_write = _convert_arrow_to_proto(
-            arrow_table, feature_view, join_key_to_value_type
+        batch_size = repo_config.materialization_config.online_write_batch_size
+        # Single batch if None (backward compatible), otherwise use configured batch_size
+        batches = (
+            [arrow_table]
+            if batch_size is None
+            else arrow_table.to_batches(max_chunksize=batch_size)
         )
 
-        if rows_to_write:
-            online_store.online_write_batch(
-                config=repo_config,
-                table=feature_view,
-                data=rows_to_write,
-                progress=lambda x: None,
+        total_rows = 0
+        for batch in batches:
+            rows_to_write = _convert_arrow_to_proto(
+                batch, feature_view, join_key_to_value_type
             )
+
+            if rows_to_write:
+                online_store.online_write_batch(
+                    config=repo_config,
+                    table=feature_view,
+                    data=rows_to_write,
+                    progress=lambda x: None,
+                )
+                total_rows += len(rows_to_write)
+
+        if total_rows > 0:
             logger.debug(
-                f"Successfully wrote {len(rows_to_write)} rows to online store for {feature_view.name}"
+                f"Successfully wrote {total_rows} rows to online store for {feature_view.name}"
             )
         else:
             logger.warning(f"No rows to write for {feature_view.name}")

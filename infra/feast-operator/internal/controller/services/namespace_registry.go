@@ -163,42 +163,38 @@ func (feast *FeastServices) createNamespaceRegistryRoleBinding(targetNamespace s
 
 // setNamespaceRegistryRoleBinding sets the RoleBinding for namespace registry access
 func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBinding) error {
-	// Create a Role that allows reading the ConfigMap
+	roleName := NamespaceRegistryConfigMapName + "-reader"
+
+	desiredRules := []rbacv1.PolicyRule{
+		{
+			APIGroups:     []string{""},
+			Resources:     []string{"configmaps"},
+			ResourceNames: []string{NamespaceRegistryConfigMapName},
+			Verbs:         []string{"get", "list"},
+		},
+	}
+
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      NamespaceRegistryConfigMapName + "-reader",
+			Name:      roleName,
 			Namespace: rb.Namespace,
 		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"configmaps"},
-				ResourceNames: []string{NamespaceRegistryConfigMapName},
-				Verbs:         []string{"get", "list"},
-			},
-		},
 	}
+	role.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("Role"))
 
-	// Create or update the Role
-	if _, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, role, controllerutil.MutateFn(func() error {
-		role.Rules = []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"configmaps"},
-				ResourceNames: []string{NamespaceRegistryConfigMapName},
-				Verbs:         []string{"get", "list"},
-			},
-		}
+	if _, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, role, func() error {
+		role.Labels = feast.getLabels()
+		role.Rules = desiredRules
 		return nil
-	})); err != nil {
-		return err
+	}); err != nil {
+		return fmt.Errorf("failed to reconcile namespace registry Role: %w", err)
 	}
 
-	// Set the RoleBinding
+	rb.Labels = feast.getLabels()
 	rb.RoleRef = rbacv1.RoleRef{
 		APIGroup: "rbac.authorization.k8s.io",
 		Kind:     "Role",
-		Name:     role.Name,
+		Name:     roleName,
 	}
 
 	rb.Subjects = []rbacv1.Subject{

@@ -4,6 +4,14 @@ feast.diff package
 Submodules
 ----------
 
+feast.diff.apply\_progress module
+----------------------------------
+
+.. automodule:: feast.diff.apply_progress
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.diff.infra\_diff module
 -----------------------------
 

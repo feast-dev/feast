@@ -1,5 +1,6 @@
 import copy
 import functools
+import uuid
 import warnings
 from types import FunctionType
 from typing import Any, List, Optional, Union, cast
@@ -133,13 +134,14 @@ class OnDemandFeatureView(BaseFeatureView):
     """
 
     _TRACK_METRICS_TAG = "feast:track_metrics"
+    _INPUT_SCHEMA_SOURCE_PREFIX = "__input_schema__"
 
     name: str
     entities: Optional[List[str]]
     features: List[Field]
     source_feature_view_projections: dict[str, FeatureViewProjection]
     source_request_sources: dict[str, RequestSource]
-    feature_transformation: Transformation
+    feature_transformation: Optional[Transformation]
     mode: str
     description: str
     tags: dict[str, str]
@@ -157,7 +159,8 @@ class OnDemandFeatureView(BaseFeatureView):
         name: str,
         entities: Optional[List[Entity]] = None,
         schema: Optional[List[Field]] = None,
-        sources: List[OnDemandSourceType],
+        sources: Optional[List[OnDemandSourceType]] = None,
+        input_schema: Optional[List[Field]] = None,
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
@@ -182,6 +185,11 @@ class OnDemandFeatureView(BaseFeatureView):
             sources: A map from input source names to the actual input sources, which may be
                 feature views, or request data sources. These sources serve as inputs to the udf,
                 which will refer to them by name.
+            input_schema (optional): A list of Fields describing data that is accepted as input
+                but not stored directly as features — e.g. aggregation columns, normalization
+                parameters, thresholds, or other contextual values passed at request time.
+                When provided, sources is not required — an internal RequestSource will be
+                created automatically.
             udf: The user defined transformation function, which must take pandas
                 dataframes as inputs.
             udf_string: The source code version of the udf (for diffing and displaying in Web UI)
@@ -213,15 +221,44 @@ class OnDemandFeatureView(BaseFeatureView):
         self.version = version
         schema = schema or []
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
-        self.sources = sources
+        self.input_schema = input_schema
         self.mode = mode.lower()
         self.udf = udf
         self.udf_string = udf_string
         self.source_feature_view_projections: dict[str, FeatureViewProjection] = {}
         self.source_request_sources: dict[str, RequestSource] = {}
+        self._input_schema_sentinel: Optional[RequestSource] = None
+
+        # Strip any existing sentinel from sources (handles __copy__ round-trip)
+        effective_sources: List[OnDemandSourceType] = [
+            s
+            for s in (sources or [])
+            if not (
+                isinstance(s, RequestSource)
+                and s.name.startswith(self._INPUT_SCHEMA_SOURCE_PREFIX)
+            )
+        ]
+
+        if input_schema is not None:
+            # Automatically create an internal RequestSource from input_schema.
+            # Stored privately so it does not appear in source_request_sources for
+            # external consumers (e.g. the feature server, apply(), utils.py).
+            self._input_schema_sentinel = RequestSource(
+                name=f"{self._INPUT_SCHEMA_SOURCE_PREFIX}{name}",
+                schema=input_schema,
+            )
+            self.source_request_sources[self._input_schema_sentinel.name] = (
+                self._input_schema_sentinel
+            )
+        elif not effective_sources:
+            raise ValueError(
+                "Either 'sources' or 'input_schema' must be provided for OnDemandFeatureView."
+            )
+
+        self.sources = effective_sources
 
         # Process each source with explicit type handling
-        for odfv_source in sources:
+        for odfv_source in effective_sources:
             self._add_source_to_collections(odfv_source)
 
         features: List[Field] = []
@@ -258,9 +295,12 @@ class OnDemandFeatureView(BaseFeatureView):
                 features.append(field)
 
         self.features = features
-        self.feature_transformation = (
-            feature_transformation or self.get_feature_transformation()
-        )
+        if feature_transformation is not None:
+            self.feature_transformation = feature_transformation
+        elif self.udf is not None:
+            self.feature_transformation = self.get_feature_transformation()
+        else:
+            self.feature_transformation = None
         self.write_to_online_store = write_to_online_store
         self.singleton = singleton
         if self.singleton and self.mode != "python":
@@ -269,6 +309,20 @@ class OnDemandFeatureView(BaseFeatureView):
             )
         self.track_metrics = track_metrics
         self.aggregations = aggregations or []
+
+        if input_schema is not None and self.aggregations:
+            input_field_names = {f.name for f in input_schema}
+            unknown = [
+                agg.column
+                for agg in self.aggregations
+                if agg.column and agg.column not in input_field_names
+            ]
+            if unknown:
+                raise ValueError(
+                    f"Aggregation column(s) {unknown} not found in input_schema "
+                    f"for OnDemandFeatureView '{name}'. "
+                    f"Available fields: {sorted(input_field_names)}"
+                )
 
     def _add_source_to_collections(self, odfv_source: OnDemandSourceType) -> None:
         """
@@ -324,6 +378,7 @@ class OnDemandFeatureView(BaseFeatureView):
             schema=self.features,
             sources=list(self.source_feature_view_projections.values())
             + list(self.source_request_sources.values()),
+            input_schema=self.input_schema,
             feature_transformation=self.feature_transformation,
             mode=self.mode,
             description=self.description,
@@ -333,6 +388,7 @@ class OnDemandFeatureView(BaseFeatureView):
             singleton=self.singleton,
             version=self.version,
             track_metrics=self.track_metrics,
+            aggregations=self.aggregations,
         )
         fv.entities = self.entities
         fv.features = self.features
@@ -532,6 +588,14 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
+        # Serialize the input_schema sentinel so that from_proto() can reconstruct
+        # input_schema correctly; it is excluded from source_request_sources so that
+        # external consumers never see it as a real data source.
+        if self._input_schema_sentinel is not None:
+            sources[self._input_schema_sentinel.name] = OnDemandSource(
+                request_data_source=self._input_schema_sentinel.to_proto()
+            )
+
         feature_transformation = transformation_to_proto(self.feature_transformation)
 
         tags = dict(self.tags) if self.tags else {}
@@ -555,7 +619,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton or False,
-            aggregations=self.aggregations,
+            aggregations=[agg.to_proto() for agg in self.aggregations],
             version=self.version,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
@@ -577,11 +641,25 @@ class OnDemandFeatureView(BaseFeatureView):
             A OnDemandFeatureView object based on the on-demand feature view protobuf.
         """
         # Parse sources from proto
-        sources = cls._parse_sources_from_proto(on_demand_feature_view_proto)
+        sources = cls._parse_sources_from_proto(
+            on_demand_feature_view_proto, skip_udf=skip_udf
+        )
 
-        # Parse transformation from proto
+        # Detect and strip input_schema sentinel from sources
+        input_schema: Optional[List[Field]] = None
+        sources_without_sentinel: List[OnDemandSourceType] = []
+        for source in sources:
+            if isinstance(source, RequestSource) and source.name.startswith(
+                cls._INPUT_SCHEMA_SOURCE_PREFIX
+            ):
+                input_schema = source.schema
+            else:
+                sources_without_sentinel.append(source)
+        sources = sources_without_sentinel
+
+        # Parse transformation from proto (skip UDF deserialization if requested)
         transformation = cls._parse_transformation_from_proto(
-            on_demand_feature_view_proto
+            on_demand_feature_view_proto, skip_udf=skip_udf
         )
 
         # Parse optional fields with defaults
@@ -601,6 +679,7 @@ class OnDemandFeatureView(BaseFeatureView):
             name=on_demand_feature_view_proto.spec.name,
             schema=cls._parse_features_from_proto(on_demand_feature_view_proto),
             sources=cast(List[OnDemandSourceType], sources),
+            input_schema=input_schema,
             feature_transformation=transformation,
             mode=on_demand_feature_view_proto.spec.mode or "pandas",
             description=on_demand_feature_view_proto.spec.description,
@@ -642,7 +721,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @classmethod
     def _parse_sources_from_proto(
-        cls, proto: OnDemandFeatureViewProto
+        cls, proto: OnDemandFeatureViewProto, skip_udf: bool = False
     ) -> List[OnDemandSourceType]:
         """Parse and convert sources from the protobuf representation."""
         sources: List[OnDemandSourceType] = []
@@ -651,7 +730,9 @@ class OnDemandFeatureView(BaseFeatureView):
 
             if source_type == "feature_view":
                 sources.append(
-                    FeatureView.from_proto(on_demand_source.feature_view).projection
+                    FeatureView.from_proto(
+                        on_demand_source.feature_view, skip_udf=skip_udf
+                    ).projection
                 )
             elif source_type == "feature_view_projection":
                 sources.append(
@@ -672,9 +753,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @classmethod
     def _parse_transformation_from_proto(
-        cls, proto: OnDemandFeatureViewProto
-    ) -> Transformation:
+        cls, proto: OnDemandFeatureViewProto, skip_udf: bool = False
+    ) -> Optional[Transformation]:
         """Parse and convert the transformation from the protobuf representation."""
+        if skip_udf:
+            return None
+
         feature_transformation = proto.spec.feature_transformation
         transformation_type = feature_transformation.WhichOneof("transformation")
         mode = proto.spec.mode
@@ -806,6 +890,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 raise TypeError(
                     f"Request source schema is not correct type: ${str(type(request_source.schema))}"
                 )
+        # Include fields from the input_schema sentinel (stored privately)
+        if self._input_schema_sentinel is not None:
+            for field in self._input_schema_sentinel.schema:
+                schema[field.name] = field.dtype.to_value_type()
         return schema
 
     def _get_projected_feature_name(self, feature: str) -> str:
@@ -897,6 +985,7 @@ class OnDemandFeatureView(BaseFeatureView):
         pa_table, columns_to_cleanup = self._preprocess_arrow_table(pa_table)
 
         # Apply the transformation
+        assert self.feature_transformation is not None
         transformed_table = self.feature_transformation.transform_arrow(
             pa_table, self.features
         )
@@ -982,6 +1071,7 @@ class OnDemandFeatureView(BaseFeatureView):
         )
 
         # Apply the appropriate transformation based on mode
+        assert self.feature_transformation is not None
         if self.singleton and self.mode == "python":
             output_dict = self.feature_transformation.transform_singleton(
                 preprocessed_dict
@@ -1023,6 +1113,7 @@ class OnDemandFeatureView(BaseFeatureView):
         return preprocessed_dict, columns_to_cleanup
 
     def infer_features(self) -> None:
+        assert self.feature_transformation is not None
         random_input = self._construct_random_input(singleton=self.singleton)
         inferred_features = self.feature_transformation.infer_features(
             random_input=random_input, singleton=self.singleton
@@ -1078,7 +1169,7 @@ class OnDemandFeatureView(BaseFeatureView):
         """Check if the dtype represents an array type."""
         # Use proper type checking instead of string comparison
         dtype_str = str(dtype)
-        return "Array" in dtype_str or "List" in dtype_str
+        return "Array" in dtype_str or "List" in dtype_str or "Set" in dtype_str
 
     def _construct_random_input(
         self, singleton: bool = False
@@ -1123,6 +1214,13 @@ class OnDemandFeatureView(BaseFeatureView):
                 sample_value = sample_values.get(value_type, default_value)
                 feature_dict[field.name] = sample_value
 
+        # Add input_schema fields (stored privately outside source_request_sources)
+        if self._input_schema_sentinel is not None:
+            for field in self._input_schema_sentinel.schema:
+                value_type = field.dtype.to_value_type()
+                sample_value = sample_values.get(value_type, default_value)
+                feature_dict[field.name] = sample_value
+
         return feature_dict
 
     def _get_sample_values_by_type(self) -> dict[ValueType, list[Any]]:
@@ -1162,6 +1260,9 @@ class OnDemandFeatureView(BaseFeatureView):
             # Special binary types
             ValueType.PDF_BYTES: [pdf_sample],
             ValueType.IMAGE_BYTES: [image_sample],
+            # UUID types
+            ValueType.UUID: [uuid.uuid4()],
+            ValueType.TIME_UUID: [uuid.uuid1()],
             # List types
             ValueType.BYTES_LIST: [[b"hello world"]],
             ValueType.STRING_LIST: [["hello world"]],
@@ -1171,6 +1272,19 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.FLOAT_LIST: [[1.0]],
             ValueType.BOOL_LIST: [[True]],
             ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
+            ValueType.UUID_LIST: [[uuid.uuid4(), uuid.uuid4()]],
+            ValueType.TIME_UUID_LIST: [[uuid.uuid1(), uuid.uuid1()]],
+            # Set types
+            ValueType.BYTES_SET: [{b"hello world", b"foo bar"}],
+            ValueType.STRING_SET: [{"hello world", "foo bar"}],
+            ValueType.INT32_SET: [{1, 2}],
+            ValueType.INT64_SET: [{1, 2}],
+            ValueType.DOUBLE_SET: [{1.0, 2.0}],
+            ValueType.FLOAT_SET: [{1.0, 2.0}],
+            ValueType.BOOL_SET: [{True, False}],
+            ValueType.UNIX_TIMESTAMP_SET: [{_utc_now()}],
+            ValueType.UUID_SET: [{uuid.uuid4(), uuid.uuid4()}],
+            ValueType.TIME_UUID_SET: [{uuid.uuid1(), uuid.uuid1()}],
         }
 
     @staticmethod
@@ -1194,13 +1308,17 @@ def on_demand_feature_view(
     name: Optional[str] = None,
     entities: Optional[List[Entity]] = None,
     schema: list[Field],
-    sources: list[
-        Union[
-            FeatureView,
-            RequestSource,
-            FeatureViewProjection,
+    sources: Optional[
+        list[
+            Union[
+                FeatureView,
+                RequestSource,
+                FeatureViewProjection,
+            ]
         ]
-    ],
+    ] = None,
+    input_schema: Optional[list[Field]] = None,
+    aggregations: Optional[List[Aggregation]] = None,
     mode: str = "pandas",
     description: str = "",
     tags: Optional[dict[str, str]] = None,
@@ -1222,6 +1340,10 @@ def on_demand_feature_view(
         sources: A map from input source names to the actual input sources, which may be
             feature views, or request data sources. These sources serve as inputs to the udf,
             which will refer to them by name.
+        input_schema (optional): A list of Fields describing data that is accepted as input
+            but not stored directly as features — e.g. aggregation columns, normalization
+            parameters, thresholds, or other contextual values passed at request time.
+            When provided, sources is not required.
         mode: The mode of execution (e.g,. Pandas or Python Native)
         description (optional): A human-readable description.
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
@@ -1249,6 +1371,7 @@ def on_demand_feature_view(
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=name if name is not None else user_function.__name__,
             sources=sources,
+            input_schema=input_schema,
             schema=schema,
             mode=mode,
             description=description,
@@ -1258,6 +1381,7 @@ def on_demand_feature_view(
             entities=entities,
             singleton=singleton,
             track_metrics=track_metrics,
+            aggregations=aggregations,
             udf=user_function,
             udf_string=udf_string,
             version=version,

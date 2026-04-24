@@ -56,6 +56,53 @@ The transformation workflow typically involves:
 3. **Chunking**: Split documents into smaller, semantically meaningful chunks
 4. **Embedding Generation**: Convert text chunks into vector embeddings
 5. **Storage**: Store embeddings and metadata in Feast's feature store
+
+### DocEmbedder: End-to-End Document Ingestion Pipeline
+
+The `DocEmbedder` class provides an end-to-end pipeline for ingesting documents into Feast's online vector store. It handles chunking, embedding generation, and writing results -- all in a single step.
+
+#### Key Components
+
+* **`DocEmbedder`**: High-level orchestrator that runs the full pipeline: chunk → embed → schema transform → write to online store
+* **`BaseChunker` / `TextChunker`**: Pluggable chunking layer. `TextChunker` splits text by word count with configurable `chunk_size`, `chunk_overlap`, `min_chunk_size`, and `max_chunk_chars`
+* **`BaseEmbedder` / `MultiModalEmbedder`**: Pluggable embedding layer with modality routing. `MultiModalEmbedder` supports text (via sentence-transformers) and image (via CLIP) with lazy model loading
+* **`SchemaTransformFn`**: A user-defined function that transforms the chunked + embedded DataFrame into the format expected by the FeatureView schema
+
+#### Quick Example
+
+```python
+from feast import DocEmbedder
+import pandas as pd
+
+# Prepare your documents
+df = pd.DataFrame({
+    "id": ["doc1", "doc2"],
+    "text": ["First document content...", "Second document content..."],
+})
+
+# Create DocEmbedder -- automatically generates a FeatureView and applies the repo
+embedder = DocEmbedder(
+    repo_path="feature_repo/",
+    feature_view_name="text_feature_view",
+)
+
+# Embed and ingest documents in one step
+result = embedder.embed_documents(
+    documents=df,
+    id_column="id",
+    source_column="text",
+    column_mapping=("text", "text_embedding"),
+)
+```
+
+#### Features
+
+* **Auto-generates FeatureView**: Creates a Python file with Entity and FeatureView definitions compatible with `feast apply`
+* **Auto-applies repo**: Registers the generated FeatureView in the registry automatically
+* **Custom schema transform**: Provide your own `SchemaTransformFn` to control how chunked + embedded data maps to your FeatureView schema
+* **Extensible**: Subclass `BaseChunker` or `BaseEmbedder` to plug in your own chunking or embedding strategies
+
+For a complete walkthrough, see the [DocEmbedder tutorial notebook](../../examples/rag-retriever/rag_feast_docembedder.ipynb).
 ### Feature Transformation for LLMs
 
 Feast supports transformations that can be used to:
@@ -88,6 +135,17 @@ Implement semantic search by:
 1. Storing document embeddings in Feast
 2. Converting search queries to embeddings
 3. Finding semantically similar documents using vector search
+
+### AI Agents with Context and Memory
+
+Feast can serve as both the **context provider** and **persistent memory layer** for AI agents. Unlike stateless RAG pipelines, agents make autonomous decisions about which tools to call and can write state back to the feature store:
+
+1. **Structured context**: Retrieve customer profiles, account data, and other entity-keyed features
+2. **Knowledge retrieval**: Search vector embeddings for relevant documents
+3. **Persistent memory**: Store and recall per-entity interaction history (last topic, resolution, preferences) using `write_to_online_store`
+4. **Governed access**: All reads and writes are subject to the same RBAC, TTL, and audit policies as any other feature
+
+With MCP enabled, agents built with any framework (LangChain, LlamaIndex, CrewAI, AutoGen, or custom) can discover and call Feast tools dynamically. See the [Feast-Powered AI Agent example](../../examples/agent_feature_store/) and the blog post [Building AI Agents with Feast](https://feast.dev/blog/feast-agents-mcp/) for a complete walkthrough.
 
 ### Scaling with Spark Integration
 
@@ -146,9 +204,12 @@ Feast supports the Model Context Protocol (MCP), which enables AI agents and app
      type: mcp
      enabled: true
      mcp_enabled: true
+     mcp_transport: http
      mcp_server_name: "feast-feature-store"
      mcp_server_version: "1.0.0"
    ```
+
+By default, Feast uses the SSE-based MCP transport (`mcp_transport: sse`). Streamable HTTP (`mcp_transport: http`) is recommended for improved compatibility with some MCP clients.
 
 ### How It Works
 
@@ -164,9 +225,11 @@ The MCP integration uses the `fastapi_mcp` library to automatically transform yo
 The fastapi_mcp integration automatically exposes your Feast feature server's FastAPI endpoints as MCP tools. This means AI assistants can:
 
 * **Call `/get-online-features`** to retrieve features from the feature store
+* **Call `/retrieve-online-documents`** to perform vector similarity search
+* **Call `/write-to-online-store`** to persist agent state (memory, notes, interaction history)
 * **Use `/health`** to check server status  
 
-For a complete example, see the [MCP Feature Store Example](../../examples/mcp_feature_store/).
+For a basic MCP example, see the [MCP Feature Store Example](../../examples/mcp_feature_store/). For a full agent with persistent memory, see the [Feast-Powered AI Agent Example](../../examples/agent_feature_store/).
 
 ## Learn More
 
@@ -174,10 +237,13 @@ For more detailed information and examples:
 
 * [Vector Database Reference](../reference/alpha-vector-database.md)
 * [RAG Tutorial with Docling](../tutorials/rag-with-docling.md)
+* [DocEmbedder Tutorial Notebook](../../examples/rag-retriever/rag_feast_docembedder.ipynb)
 * [RAG Fine Tuning with Feast and Milvus](../../examples/rag-retriever/README.md)
 * [Milvus Quickstart Example](https://github.com/feast-dev/feast/tree/master/examples/rag/milvus-quickstart.ipynb)
 * [Feast + Ray: Distributed Processing for RAG Applications](https://feast.dev/blog/feast-ray-distributed-processing/)
 * [MCP Feature Store Example](../../examples/mcp_feature_store/)
+* [Feast-Powered AI Agent Example (with Memory)](../../examples/agent_feature_store/)
+* [Blog: Building AI Agents with Feast](https://feast.dev/blog/feast-agents-mcp/)
 * [MCP Feature Server Reference](../reference/feature-servers/mcp-feature-server.md)
 * [Spark Data Source](../reference/data-sources/spark.md)
 * [Spark Offline Store](../reference/offline-stores/spark.md)

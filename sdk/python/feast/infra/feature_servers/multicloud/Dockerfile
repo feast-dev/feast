@@ -1,4 +1,8 @@
-FROM registry.access.redhat.com/ubi9/python-312:1
+FROM registry.access.redhat.com/ubi9/python-312-minimal:1
+
+USER 0
+RUN microdnf install -y git gcc libpq-devel python3.12-devel && microdnf clean all
+USER 1001
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 ENV UV_CACHE_DIR=/tmp/uv-cache

@@ -11,10 +11,12 @@ spec:
       {{- include "feast-feature-server.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-    {{- with .Values.podAnnotations }}
+    {{- if or .Values.podAnnotations .Values.metrics.enabled }}
       annotations:
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-        {{- if .Values.metrics.enabled }}
+        {{- end }}
+        {{- if $.Values.metrics.enabled }}
         instrumentation.opentelemetry.io/inject-python: "true"
         {{- end }}
     {{- end }}

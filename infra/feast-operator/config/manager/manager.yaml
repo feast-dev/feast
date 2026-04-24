@@ -73,10 +73,16 @@ spec:
             drop:
             - "ALL"
         env:
+        - name: GOMEMLIMIT
+          value: "230MiB"
         - name: RELATED_IMAGE_FEATURE_SERVER
           value: feast:latest
         - name: RELATED_IMAGE_CRON_JOB
           value: origin-cli:latest
+        # Injected from params.env via kustomize replacements (ODH/RHOAI overlays).
+        # Open Data Hub operator sets this from GatewayConfig when the cluster uses external OIDC.
+        - name: OIDC_ISSUER_URL
+          value: ""
         livenessProbe:
           httpGet:
             path: /healthz

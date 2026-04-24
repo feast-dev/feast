@@ -644,10 +644,12 @@ class FeastOpenLineageEmitter:
         1. feast_feature_views_{project}: DataSources + Entities → FeatureViews
         2. feast_feature_services_{project}: FeatureViews → FeatureServices
 
-        This creates a lineage graph matching Feast UI:
+        This creates a lineage graph matching Feast UI::
+
             DataSource ──→ FeatureView ──→ FeatureService
                  ↑
               Entity
+
 
         Args:
             objects: List of Feast objects being applied

@@ -210,6 +210,10 @@ func (feast *FeastServices) mountTlsConfigs(podSpec *corev1.PodSpec) {
 	feast.mountTlsConfig(OnlineFeastType, podSpec)
 	feast.mountTlsConfig(UIFeastType, podSpec)
 	feast.mountCustomCABundle(podSpec)
+	appliedSpec := feast.Handler.FeatureStore.Status.Applied
+	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
+		feast.mountOidcCACert(podSpec, appliedSpec.AuthzConfig.OidcAuthz)
+	}
 }
 
 func (feast *FeastServices) mountTlsConfig(feastType FeastServiceType, podSpec *corev1.PodSpec) {
@@ -224,12 +228,16 @@ func (feast *FeastServices) mountTlsConfig(feastType FeastServiceType, podSpec *
 				},
 			},
 		})
+		tlsMount := corev1.VolumeMount{
+			Name:      volName,
+			MountPath: GetTlsPath(feastType),
+			ReadOnly:  true,
+		}
 		if i, container := getContainerByType(feastType, *podSpec); container != nil {
-			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
-				Name:      volName,
-				MountPath: GetTlsPath(feastType),
-				ReadOnly:  true,
-			})
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, tlsMount)
+		}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, tlsMount)
 		}
 	}
 }
@@ -245,12 +253,16 @@ func mountTlsRemoteRegistryConfig(podSpec *corev1.PodSpec, tls *feastdevv1.TlsRe
 				},
 			},
 		})
+		tlsMount := corev1.VolumeMount{
+			Name:      volName,
+			MountPath: GetTlsPath(RegistryFeastType),
+			ReadOnly:  true,
+		}
 		for i := range podSpec.Containers {
-			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
-				Name:      volName,
-				MountPath: GetTlsPath(RegistryFeastType),
-				ReadOnly:  true,
-			})
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, tlsMount)
+		}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, tlsMount)
 		}
 	}
 }
@@ -267,17 +279,62 @@ func (feast *FeastServices) mountCustomCABundle(podSpec *corev1.PodSpec) {
 			},
 		})
 
+		caMount := corev1.VolumeMount{
+			Name:      customCaBundle.VolumeName,
+			MountPath: tlsPathCustomCABundle,
+			ReadOnly:  true,
+			SubPath:   "ca-bundle.crt",
+		}
+		odhCaMount := corev1.VolumeMount{
+			Name:      customCaBundle.VolumeName,
+			MountPath: tlsPathOdhCABundle,
+			ReadOnly:  true,
+			SubPath:   odhCaBundleKey,
+		}
 		for i := range podSpec.Containers {
-			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
-				Name:      customCaBundle.VolumeName,
-				MountPath: tlsPathCustomCABundle,
-				ReadOnly:  true,
-				SubPath:   "ca-bundle.crt",
-			})
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, caMount, odhCaMount)
+		}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, caMount, odhCaMount)
 		}
 
 		log.FromContext(feast.Handler.Context).Info("Mounted custom CA bundle ConfigMap to Feast pods.")
 	}
+}
+
+func (feast *FeastServices) mountOidcCACert(podSpec *corev1.PodSpec, oidcAuthz *feastdevv1.OidcAuthz) {
+	if oidcAuthz.CACertConfigMap == nil {
+		return
+	}
+	cmName := oidcAuthz.CACertConfigMap.Name
+	cmKey := oidcAuthz.CACertConfigMap.Key
+	if cmKey == "" {
+		cmKey = defaultCACertKey
+	}
+
+	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+		Name: oidcCaVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
+			},
+		},
+	})
+
+	mount := corev1.VolumeMount{
+		Name:      oidcCaVolumeName,
+		MountPath: tlsPathOidcCA,
+		ReadOnly:  true,
+		SubPath:   cmKey,
+	}
+	for i := range podSpec.Containers {
+		podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, mount)
+	}
+	for i := range podSpec.InitContainers {
+		podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, mount)
+	}
+
+	log.FromContext(feast.Handler.Context).Info("Mounted OIDC CA certificate ConfigMap to Feast pods.", "configMap", cmName, "key", cmKey)
 }
 
 // GetCustomCertificatesBundle retrieves the custom CA bundle ConfigMap if it exists when deployed with RHOAI or ODH

@@ -249,6 +249,10 @@ class RemoteOfflineStore(OfflineStore):
         if end_date is not None:
             api_parameters["end_date"] = end_date.isoformat()
 
+        if isinstance(entity_df, str):
+            api_parameters["entity_df_sql"] = entity_df
+            entity_df = None
+
         return RemoteRetrievalJob(
             client=client,
             api=OfflineStore.get_historical_features.__name__,
@@ -470,12 +474,12 @@ class RemoteOfflineStore(OfflineStore):
 
 
 def _create_retrieval_metadata(
-    feature_refs: List[str], entity_df: Optional[pd.DataFrame] = None
+    feature_refs: List[str], entity_df: Optional[Union[pd.DataFrame, str]] = None
 ):
-    if entity_df is None:
+    if entity_df is None or isinstance(entity_df, str):
         return RetrievalMetadata(
             features=feature_refs,
-            keys=[],  # No entity keys when no entity_df provided
+            keys=[],
             min_event_timestamp=None,
             max_event_timestamp=None,
         )

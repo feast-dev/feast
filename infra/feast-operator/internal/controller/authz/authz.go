@@ -25,12 +25,27 @@ func (authz *FeastAuthorization) Deploy() error {
 	_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRole())
 	_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRoleBinding())
 	apimeta.RemoveStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, feastKubernetesAuthConditions[metav1.ConditionTrue].Type)
+
+	if authz.isOidcAuth() {
+		if err := authz.createFeastClusterRole(); err != nil {
+			return err
+		}
+		if err := authz.createFeastClusterRoleBinding(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (authz *FeastAuthorization) isKubernetesAuth() bool {
 	authzConfig := authz.Handler.FeatureStore.Status.Applied.AuthzConfig
 	return authzConfig != nil && authzConfig.KubernetesAuthz != nil
+}
+
+func (authz *FeastAuthorization) isOidcAuth() bool {
+	authzConfig := authz.Handler.FeatureStore.Status.Applied.AuthzConfig
+	return authzConfig != nil && authzConfig.OidcAuthz != nil
 }
 
 func (authz *FeastAuthorization) deployKubernetesAuth() error {
@@ -316,6 +331,7 @@ func (authz *FeastAuthorization) getLabels() map[string]string {
 	return map[string]string{
 		services.NameLabelKey:        authz.Handler.FeatureStore.Name,
 		services.ServiceTypeLabelKey: string(services.AuthzFeastType),
+		services.ManagedByLabelKey:   services.ManagedByLabelValue,
 	}
 }
 

@@ -139,8 +139,9 @@ class SnowflakeRegistry(BaseRegistry):
         with GetSnowflakeConnection(self.registry_config) as conn:
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_creation.sql"
             with open(sql_function_file, "r") as file:
-                sql_file = file.read()
-                sql_cmds = sql_file.split(";")
+                sql_cmds = [
+                    cmd.strip() for cmd in file.read().split(";") if cmd.strip()
+                ]
                 for command in sql_cmds:
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
                     execute_snowflake_statement(conn, query)
@@ -224,9 +225,10 @@ class SnowflakeRegistry(BaseRegistry):
         with GetSnowflakeConnection(self.registry_config) as conn:
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_deletion.sql"
             with open(sql_function_file, "r") as file:
-                sqlFile = file.read()
-                sqlCommands = sqlFile.split(";")
-                for command in sqlCommands:
+                sql_cmds = [
+                    cmd.strip() for cmd in file.read().split(";") if cmd.strip()
+                ]
+                for command in sql_cmds:
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
                     execute_snowflake_statement(conn, query)
 
@@ -373,7 +375,8 @@ class SnowflakeRegistry(BaseRegistry):
                             {proto_field_name} = TO_BINARY({proto}),
                             last_updated_timestamp = CURRENT_TIMESTAMP()
                         WHERE
-                            {id_field_name.lower()} = '{name}'
+                            project_id = '{project}'
+                            AND {id_field_name.lower()} = '{name}'
                 """
                 execute_snowflake_statement(conn, query)
 
@@ -1116,7 +1119,8 @@ class SnowflakeRegistry(BaseRegistry):
                 FROM
                     {self.registry_path}."{fv_table_str}"
                 WHERE
-                    {fv_column_name}_name = '{feature_view.name}'
+                    project_id = '{project}'
+                    AND {fv_column_name}_name = '{feature_view.name}'
                 LIMIT 1
             """
             df = execute_snowflake_statement(conn, query).fetch_pandas_all()
@@ -1322,7 +1326,7 @@ class SnowflakeRegistry(BaseRegistry):
                     query = f"""
                         DELETE FROM {self.registry_path}."{table}"
                         WHERE
-                            project_id = '{project}'
+                            project_id = '{name}'
                     """
                     execute_snowflake_statement(conn, query)
             return

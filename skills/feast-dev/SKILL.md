@@ -71,6 +71,12 @@ cd sdk/python && python -m mypy feast
 - Add a GitHub label to PRs (e.g. `kind/bug`, `kind/feature`, `kind/housekeeping`)
 - Sign off commits with `git commit -s` (DCO requirement)
 
+## Documentation and Blog Posts
+
+- **Blog posts must be placed in `/infra/website/docs/blog/`** — do NOT place them under `docs/blog/` or elsewhere.
+- Blog post files must include YAML frontmatter with `title`, `description`, `date`, and `authors` fields matching the format of existing posts in that directory.
+- All other reference documentation (concepts, how-tos, reference pages) goes under `docs/`.
+
 ## Project Structure
 
 ```

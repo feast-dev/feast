@@ -150,7 +150,6 @@ time for any reason.  Missed jobs executions will be counted as failed ones. |
 | `concurrencyPolicy` _[ConcurrencyPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#concurrencypolicy-v1-batch)_ | Specifies how to treat concurrent executions of a Job.
 Valid values are:
 
-
 - "Allow" (default): allows CronJobs to run concurrently;
 - "Forbid": forbids concurrent runs, skipping next run if previous run hasn't finished yet;
 - "Replace": cancels currently running job and replaces it with a new one |
@@ -239,6 +238,9 @@ _Appears in:_
 | `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `podAnnotations` _object (keys:string, values:string)_ | PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
+This enables annotation-driven integrations like OpenTelemetry auto-instrumentation,
+Istio sidecar injection, Vault agent injection, etc. |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
 | `runFeastApplyOnInit` _boolean_ | Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true. |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
@@ -359,7 +361,6 @@ represented by the jobs's .status.failed field, is incremented and it is
 checked against the backoffLimit. This field cannot be used in combination
 with restartPolicy=OnFailure.
 
-
 This field is beta-level. It can be used when the `JobPodFailurePolicy`
 feature gate is enabled (enabled by default). |
 | `backoffLimit` _integer_ | Specifies the number of retries before marking this job failed. |
@@ -391,11 +392,9 @@ the Job becomes eligible to be deleted immediately after it finishes. |
 | `completionMode` _[CompletionMode](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#completionmode-v1-batch)_ | completionMode specifies how Pod completions are tracked. It can be
 `NonIndexed` (default) or `Indexed`.
 
-
 `NonIndexed` means that the Job is considered complete when there have
 been .spec.completions successfully completed Pods. Each Pod completion is
 homologous to each other.
-
 
 `Indexed` means that the Pods of a
 Job get an associated completion index from 0 to (.spec.completions - 1),
@@ -407,7 +406,6 @@ When value is `Indexed`, .spec.completions must be specified and
 In addition, The Pod name takes the form
 `$(job-name)-$(index)-$(random-string)`,
 the Pod hostname takes the form `$(job-name)-$(index)`.
-
 
 More completion modes can be added in the future.
 If the Job controller observes a mode that it doesn't recognize, which
@@ -426,7 +424,6 @@ Possible values are:
   when they are terminating (has a metadata.deletionTimestamp) or failed.
 - Failed means to wait until a previously created Pod is fully terminated (has phase
   Failed or Succeeded) before creating a replacement Pod.
-
 
 When using podFailurePolicy, Failed is the the only allowed value.
 TerminatingOrFailed and Failed are allowed values when podFailurePolicy is not in use.
@@ -542,7 +539,27 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ |  |
+| `issuerUrl` _string_ | OIDC issuer URL. The operator appends /.well-known/openid-configuration to derive the discovery endpoint. |
+| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Secret with OIDC properties (auth_discovery_url, client_id, client_secret). issuerUrl takes precedence. |
+| `secretKeyName` _string_ | Key in the Secret containing all OIDC properties as a YAML value. If unset, each key is a property. |
+| `tokenEnvVar` _string_ | Env var name for client pods to read an OIDC token from. Sets token_env_var in client config. |
+| `verifySSL` _boolean_ | Verify SSL certificates for the OIDC provider. Defaults to true. |
+| `caCertConfigMap` _[OidcCACertConfigMap](#oidccacertconfigmap)_ | ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH. |
+
+
+#### OidcCACertConfigMap
+
+
+
+OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS.
+
+_Appears in:_
+- [OidcAuthz](#oidcauthz)
+
+| Field | Description |
+| --- | --- |
+| `name` _string_ | ConfigMap name. |
+| `key` _string_ | Key in the ConfigMap holding the PEM certificate. Defaults to "ca-bundle.crt". |
 
 
 #### OnlineStore

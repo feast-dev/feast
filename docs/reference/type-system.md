@@ -24,6 +24,9 @@ Feast supports the following data types:
 | `Bytes` | `bytes` | Binary data |
 | `Bool` | `bool` | Boolean value |
 | `UnixTimestamp` | `datetime` | Unix timestamp (nullable) |
+| `Uuid` | `uuid.UUID` | UUID (any version) |
+| `TimeUuid` | `uuid.UUID` | Time-based UUID (version 1) |
+| `Decimal` | `decimal.Decimal` | Arbitrary-precision decimal number |
 
 ### Domain-Specific Primitive Types
 
@@ -52,6 +55,9 @@ All primitive types have corresponding array (list) types:
 | `Array(Bytes)` | `List[bytes]` | List of binary data |
 | `Array(Bool)` | `List[bool]` | List of booleans |
 | `Array(UnixTimestamp)` | `List[datetime]` | List of timestamps |
+| `Array(Uuid)` | `List[uuid.UUID]` | List of UUIDs |
+| `Array(TimeUuid)` | `List[uuid.UUID]` | List of time-based UUIDs |
+| `Array(Decimal)` | `List[decimal.Decimal]` | List of arbitrary-precision decimals |
 
 ### Set Types
 
@@ -67,6 +73,9 @@ All primitive types (except `Map` and `Json`) have corresponding set types for s
 | `Set(Bytes)` | `Set[bytes]` | Set of unique binary data |
 | `Set(Bool)` | `Set[bool]` | Set of unique booleans |
 | `Set(UnixTimestamp)` | `Set[datetime]` | Set of unique timestamps |
+| `Set(Uuid)` | `Set[uuid.UUID]` | Set of unique UUIDs |
+| `Set(TimeUuid)` | `Set[uuid.UUID]` | Set of unique time-based UUIDs |
+| `Set(Decimal)` | `Set[decimal.Decimal]` | Set of unique arbitrary-precision decimals |
 
 **Note:** Set types automatically remove duplicate values. When converting from lists or other iterables to sets, duplicates are eliminated.
 
@@ -79,6 +88,25 @@ All primitive types (except `Map` and `Json`) have corresponding set types for s
 - **Offline stores** may not handle Set types correctly during retrieval. For example, the Ray offline store only special-cases `_LIST` types, not `_SET`.
 - Set types are best suited for **online serving** use cases where feature values are written as Python sets and retrieved via `get_online_features`.
 {% endhint %}
+
+### Nested Collection Types
+
+Feast supports arbitrarily nested collections using a recursive `VALUE_LIST` / `VALUE_SET` design. The outer container determines the proto enum (`VALUE_LIST` for `Array(…)`, `VALUE_SET` for `Set(…)`), while the full inner type structure is persisted via a mandatory `feast:nested_inner_type` Field tag.
+
+| Feast Type | Python Type | ValueType | Description |
+|------------|-------------|-----------|-------------|
+| `Array(Array(T))` | `List[List[T]]` | `VALUE_LIST` | List of lists |
+| `Array(Set(T))` | `List[List[T]]` | `VALUE_LIST` | List of sets |
+| `Set(Array(T))` | `List[List[T]]` | `VALUE_SET` | Set of lists |
+| `Set(Set(T))` | `List[List[T]]` | `VALUE_SET` | Set of sets |
+| `Array(Array(Array(T)))` | `List[List[List[T]]]` | `VALUE_LIST` | 3-level nesting |
+
+Where `T` is any supported primitive type (Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp) or another nested collection type.
+
+**Notes:**
+- Nesting depth is **unlimited**. `Array(Array(Array(T)))`, `Set(Array(Set(T)))`, etc. are all supported.
+- Inner type information is preserved via Field tags (`feast:nested_inner_type`) and restored during deserialization. This tag is mandatory for nested collection types.
+- Empty inner collections (`[]`) are stored as empty proto values and round-trip as `None`. For example, `[[1, 2], [], [3]]` becomes `[[1, 2], None, [3]]` after a write-read cycle.
 
 ### Map Types
 
@@ -169,7 +197,7 @@ from datetime import timedelta
 from feast import Entity, FeatureView, Field, FileSource
 from feast.types import (
     Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp,
-    Array, Set, Map, Json, Struct
+    Uuid, TimeUuid, Decimal, Array, Set, Map, Json, Struct
 )
 
 # Define a data source
@@ -199,6 +227,9 @@ user_features = FeatureView(
         Field(name="profile_picture", dtype=Bytes),
         Field(name="is_active", dtype=Bool),
         Field(name="last_login", dtype=UnixTimestamp),
+        Field(name="session_id", dtype=Uuid),
+        Field(name="event_id", dtype=TimeUuid),
+        Field(name="price", dtype=Decimal),
 
         # Array types
         Field(name="daily_steps", dtype=Array(Int32)),
@@ -209,17 +240,27 @@ user_features = FeatureView(
         Field(name="document_hashes", dtype=Array(Bytes)),
         Field(name="notification_settings", dtype=Array(Bool)),
         Field(name="login_timestamps", dtype=Array(UnixTimestamp)),
+        Field(name="related_session_ids", dtype=Array(Uuid)),
+        Field(name="event_chain", dtype=Array(TimeUuid)),
+        Field(name="historical_prices", dtype=Array(Decimal)),
 
         # Set types (unique values only — see backend caveats above)
         Field(name="visited_pages", dtype=Set(String)),
         Field(name="unique_categories", dtype=Set(Int32)),
         Field(name="tag_ids", dtype=Set(Int64)),
         Field(name="preferred_languages", dtype=Set(String)),
+        Field(name="unique_device_ids", dtype=Set(Uuid)),
+        Field(name="unique_event_ids", dtype=Set(TimeUuid)),
+        Field(name="unique_prices", dtype=Set(Decimal)),
 
         # Map types
         Field(name="user_preferences", dtype=Map),
         Field(name="metadata", dtype=Map),
         Field(name="activity_log", dtype=Array(Map)),
+
+        # Nested collection types
+        Field(name="weekly_scores", dtype=Array(Array(Float64))),
+        Field(name="unique_tags_per_category", dtype=Array(Set(String))),
 
         # JSON type
         Field(name="raw_event", dtype=Json),
@@ -248,6 +289,93 @@ unique_categories = {1, 2, 3, 2, 1}  # duplicates will be removed
 # Converting a list with duplicates to a set
 tag_list = [100, 200, 300, 100, 200]
 tag_ids = set(tag_list)  # {100, 200, 300}
+```
+
+### UUID Type Usage Examples
+
+UUID types store universally unique identifiers natively, with support for both random UUIDs and time-based UUIDs:
+
+```python
+import uuid
+
+# Random UUID (version 4) — use Uuid type
+session_id = uuid.uuid4()  # e.g., UUID('a8098c1a-f86e-11da-bd1a-00112444be1e')
+
+# Time-based UUID (version 1) — use TimeUuid type
+event_id = uuid.uuid1()  # e.g., UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')
+
+# UUID values are returned as uuid.UUID objects from get_online_features()
+response = store.get_online_features(
+    features=["user_features:session_id"],
+    entity_rows=[{"user_id": 1}],
+)
+result = response.to_dict()
+# result["session_id"][0] is a uuid.UUID object
+
+# UUID lists
+related_sessions = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
+
+# UUID sets (unique values)
+unique_devices = {uuid.uuid4(), uuid.uuid4()}
+```
+
+### Decimal Type Usage Examples
+
+The `Decimal` type stores arbitrary-precision decimal numbers using Python's `decimal.Decimal`.
+Values are stored as strings in the proto to preserve full precision — no floating-point rounding occurs.
+
+```python
+import decimal
+
+# Scalar decimal — e.g., a financial price
+price = decimal.Decimal("19.99")
+
+# High-precision value — all digits preserved
+tax_rate = decimal.Decimal("0.08750000000000000000")
+
+# Decimal values are returned as decimal.Decimal objects from get_online_features()
+response = store.get_online_features(
+    features=["product_features:price"],
+    entity_rows=[{"product_id": 42}],
+)
+result = response.to_dict()
+# result["price"][0] is a decimal.Decimal object
+
+# Decimal lists — e.g., a history of prices
+historical_prices = [
+    decimal.Decimal("18.50"),
+    decimal.Decimal("19.00"),
+    decimal.Decimal("19.99"),
+]
+
+# Decimal sets — unique price points seen
+unique_prices = {decimal.Decimal("9.99"), decimal.Decimal("19.99"), decimal.Decimal("29.99")}
+```
+
+{% hint style="warning" %}
+`Decimal` is **not** inferred from any backend schema. You must declare it explicitly in your feature view schema. The pandas dtype for `Decimal` columns is `object` (holding `decimal.Decimal` instances), not a numeric dtype.
+{% endhint %}
+
+### Nested Collection Type Usage Examples
+
+```python
+# List of lists — e.g., weekly score history per user
+weekly_scores = [[85.0, 90.5, 78.0], [92.0, 88.5], [95.0, 91.0, 87.5]]
+
+# List of sets — e.g., unique tags assigned per category
+unique_tags_per_category = [["python", "ml"], ["rust", "systems"], ["python", "web"]]
+
+# 3-level nesting — e.g., multi-dimensional matrices
+Field(name="tensor", dtype=Array(Array(Array(Float64))))
+
+# Mixed nesting
+Field(name="grouped_tags", dtype=Array(Set(Array(String))))
+```
+
+**Limitation:** Empty inner collections round-trip as `None`:
+```python
+# Input:  [[1, 2], [], [3]]
+# Output: [[1, 2], None, [3]]  (empty [] becomes None after write-read cycle)
 ```
 
 ### Map Type Usage Examples
@@ -333,7 +461,7 @@ Each of these columns must be associated with a Feast type, which requires conve
 * `source_datatype_to_feast_value_type` calls the appropriate method in `type_map.py`. For example, if a `SnowflakeSource` is being examined, `snowflake_python_type_to_feast_value_type` from `type_map.py` will be called.
 
 {% hint style="info" %}
-**Types that cannot be inferred:** `Set`, `Json`, `Struct`, `PdfBytes`, and `ImageBytes` types are never inferred from backend schemas. If you use these types, you must declare them explicitly in your feature view schema.
+**Types that cannot be inferred:** `Set`, `Json`, `Struct`, `Decimal`, `PdfBytes`, and `ImageBytes` types are never inferred from backend schemas. If you use these types, you must declare them explicitly in your feature view schema.
 {% endhint %}
 
 ### Materialization

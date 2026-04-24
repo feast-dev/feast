@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import StrictBool, StrictStr
 
@@ -20,8 +20,7 @@ class McpFeatureServerConfig(BaseFeatureServerConfig):
     # MCP server version
     mcp_server_version: StrictStr = "1.0.0"
 
-    # Optional MCP transport configuration
-    mcp_transport: Optional[StrictStr] = None
+    mcp_transport: Literal["sse", "http"] = "sse"
 
     # The endpoint definition for transformation_service (inherited from base)
     transformation_service_endpoint: StrictStr = "localhost:6566"

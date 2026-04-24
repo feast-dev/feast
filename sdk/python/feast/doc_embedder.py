@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class LogicalLayerFn(Protocol):
+class SchemaTransformFn(Protocol):
     """
-    Protocol defining the structure for logical layer functions.
+    Protocol defining the structure for schema transform functions.
 
-    The logical layer transforms the output of Chunker + Embedder
+    The schema transform converts the output of Chunker + Embedder
     into the format expected by the FeatureView schema.
     """
 
@@ -35,9 +35,9 @@ class LogicalLayerFn(Protocol):
         ...
 
 
-def default_logical_layer_fn(df: pd.DataFrame) -> pd.DataFrame:
+def default_schema_transform_fn(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Default logical layer function that transforms the output of Chunker + Embedder
+    Default schema transform function that transforms the output of Chunker + Embedder
     into the format expected by the FeatureView schema.
     """
     from datetime import datetime, timezone
@@ -156,7 +156,7 @@ class DocEmbedder:
         feature_view_name: Name of the feature view to create.
         chunker: Chunker to use for chunking the documents.
         embedder: Embedder to use for embedding the documents.
-        logical_layer_fn: Logical layer function to use for transforming the output of the chunker and embedder into the format expected by the FeatureView schema.
+        schema_transform_fn: Schema transform function to use for transforming the output of the chunker and embedder into the format expected by the FeatureView schema.
         create_feature_view: Whether to create a feature view in the feature repo. By default it will generate a Python file with the FeatureView definition.
         vector_length: Explicit embedding dimension for the generated FeatureView schema.
             If None (default), the dimension is auto-detected from the embedder
@@ -172,7 +172,7 @@ class DocEmbedder:
         feature_view_name: str = "text_feature_view",
         chunker: Optional[BaseChunker] = None,
         embedder: Optional[BaseEmbedder] = None,
-        logical_layer_fn: LogicalLayerFn = default_logical_layer_fn,
+        schema_transform_fn: SchemaTransformFn = default_schema_transform_fn,
         create_feature_view: bool = True,
         vector_length: Optional[int] = None,
         auto_apply_repo: bool = True,
@@ -184,7 +184,7 @@ class DocEmbedder:
         self.embedder = embedder or MultiModalEmbedder()
         self.store: Optional[FeatureStore] = None
 
-        sig = inspect.signature(logical_layer_fn)
+        sig = inspect.signature(schema_transform_fn)
         params = list(sig.parameters.values())
         if (
             len(params) != 1
@@ -192,9 +192,9 @@ class DocEmbedder:
             or sig.return_annotation != pd.DataFrame
         ):
             raise ValueError(
-                "logical_layer_fn must be a function that takes a DataFrame and returns a DataFrame"
+                "schema_transform_fn must be a function that takes a DataFrame and returns a DataFrame"
             )
-        self.logical_layer_fn = logical_layer_fn
+        self.schema_transform_fn = schema_transform_fn
         if create_feature_view:
             resolved_vector_length = self._resolve_vector_length(vector_length, "text")
             generate_repo_file(
@@ -287,7 +287,7 @@ class DocEmbedder:
         source_column: str,
         type_column: Optional[str] = None,
         column_mapping: Optional[tuple[str, str]] = None,
-        custom_logical_layer_fn: Optional[
+        custom_schema_transform_fn: Optional[
             Callable[[pd.DataFrame], pd.DataFrame]
         ] = None,
     ) -> pd.DataFrame:
@@ -300,7 +300,7 @@ class DocEmbedder:
             source_column: Column name containing the document sources.
             type_column: Column name containing the document types.
             column_mapping: Tuple mapping source columns to (modality, output column).
-            custom_logical_layer_fn: Custom logical layer function to use for transforming the output of the chunker and embedder into the format expected by the FeatureView schema.
+            custom_schema_transform_fn: Custom schema transform function to use for transforming the output of the chunker and embedder into the format expected by the FeatureView schema.
         Returns:
             DataFrame with the embedded documents.
 
@@ -315,8 +315,8 @@ class DocEmbedder:
             df = embed_documents(documents=documents, id_column="id", source_column="source", type_column="type", column_mapping=column_mapping)
 
         """
-        if custom_logical_layer_fn is not None:
-            sig = inspect.signature(custom_logical_layer_fn)
+        if custom_schema_transform_fn is not None:
+            sig = inspect.signature(custom_schema_transform_fn)
             params = list(sig.parameters.values())
             if (
                 len(params) != 1
@@ -324,27 +324,27 @@ class DocEmbedder:
                 or sig.return_annotation != pd.DataFrame
             ):
                 raise ValueError(
-                    "custom_logical_layer_fn must be a function that takes a DataFrame and returns a DataFrame"
+                    "custom_schema_transform_fn must be a function that takes a DataFrame and returns a DataFrame"
                 )
-        current_logical_layer_fn = (
-            custom_logical_layer_fn
-            if custom_logical_layer_fn is not None
-            else self.logical_layer_fn
+        current_schema_transform_fn = (
+            custom_schema_transform_fn
+            if custom_schema_transform_fn is not None
+            else self.schema_transform_fn
         )
 
         if column_mapping is None:
             column_mapping = ("text", "text_embedding")
 
         if (
-            current_logical_layer_fn is default_logical_layer_fn
+            current_schema_transform_fn is default_schema_transform_fn
             and column_mapping[0] == "text"
             and (source_column != "text" or column_mapping[1] != "text_embedding")
         ):
             raise ValueError(
                 f"source_column='{source_column}' with output column='{column_mapping[1]}' "
-                f"is not compatible with default_logical_layer_fn, which expects "
+                f"is not compatible with default_schema_transform_fn, which expects "
                 f"source_column='text' and column_mapping=('text', 'text_embedding'). "
-                f"Provide a custom logical_layer_fn."
+                f"Provide a custom schema_transform_fn."
             )
 
         if column_mapping[0] == "text":
@@ -363,15 +363,15 @@ class DocEmbedder:
 
         if (
             column_mapping[0] == "text"
-            or current_logical_layer_fn is not default_logical_layer_fn
+            or current_schema_transform_fn is not default_schema_transform_fn
         ):
-            df = current_logical_layer_fn(df)
+            df = current_schema_transform_fn(df)
         else:
             warnings.warn(
-                f"Modality '{column_mapping[0]}' is not supported by the default logical layer function. "
+                f"Modality '{column_mapping[0]}' is not supported by the default schema transform function. "
                 f"The output DataFrame will be passed directly to the online store. "
                 f"Ensure your FeatureView schema matches the output columns. "
-                f"You can provide a custom logical layer function to handle this.",
+                f"You can provide a custom schema transform function to handle this.",
                 UserWarning,
                 stacklevel=2,
             )

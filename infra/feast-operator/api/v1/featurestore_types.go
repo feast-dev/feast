@@ -308,6 +308,11 @@ type FeatureStoreServices struct {
 	UI                 *ServerConfigs             `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+	// PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
+	// This enables annotation-driven integrations like OpenTelemetry auto-instrumentation,
+	// Istio sidecar injection, Vault agent injection, etc.
+	// +optional
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
 	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
@@ -708,7 +713,34 @@ type KubernetesAuthz struct {
 // OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
 // https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
 type OidcAuthz struct {
-	SecretRef corev1.LocalObjectReference `json:"secretRef"`
+	// OIDC issuer URL. The operator appends /.well-known/openid-configuration to derive the discovery endpoint.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^https://\S+$`
+	IssuerUrl string `json:"issuerUrl,omitempty"`
+	// Secret with OIDC properties (auth_discovery_url, client_id, client_secret). issuerUrl takes precedence.
+	// +optional
+	SecretRef *corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	// Key in the Secret containing all OIDC properties as a YAML value. If unset, each key is a property.
+	// +optional
+	SecretKeyName string `json:"secretKeyName,omitempty"`
+	// Env var name for client pods to read an OIDC token from. Sets token_env_var in client config.
+	// +optional
+	TokenEnvVar *string `json:"tokenEnvVar,omitempty"`
+	// Verify SSL certificates for the OIDC provider. Defaults to true.
+	// +optional
+	VerifySSL *bool `json:"verifySSL,omitempty"`
+	// ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH.
+	// +optional
+	CACertConfigMap *OidcCACertConfigMap `json:"caCertConfigMap,omitempty"`
+}
+
+// OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS.
+type OidcCACertConfigMap struct {
+	// ConfigMap name.
+	Name string `json:"name"`
+	// Key in the ConfigMap holding the PEM certificate. Defaults to "ca-bundle.crt".
+	// +optional
+	Key string `json:"key,omitempty"`
 }
 
 // TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.

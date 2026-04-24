@@ -128,8 +128,7 @@ var _ = Describe("TLS Config", func() {
 			err = feast.ApplyDefaults()
 			Expect(err).ToNot(HaveOccurred())
 
-			repoConfig, err := getClientRepoConfig(feast.Handler.FeatureStore, emptyMockExtractConfigFromSecret, &feast)
-			Expect(err).NotTo(HaveOccurred())
+			repoConfig := getClientRepoConfig(feast.Handler.FeatureStore, &feast)
 			Expect(repoConfig.OfflineStore.Port).To(Equal(HttpsPort))
 			Expect(repoConfig.OfflineStore.Scheme).To(Equal(HttpsScheme))
 			Expect(repoConfig.OfflineStore.Cert).To(ContainSubstring(string(OfflineFeastType)))
@@ -180,6 +179,19 @@ var _ = Describe("TLS Config", func() {
 			Expect(feastDeploy.Spec.Template.Spec.Containers[2].Command).To(ContainElements(ContainSubstring("--key")))
 			Expect(feastDeploy.Spec.Template.Spec.Containers[3].Command).To(ContainElements(ContainSubstring("--key")))
 			Expect(feastDeploy.Spec.Template.Spec.Volumes).To(HaveLen(5))
+
+			// verify init containers receive TLS volume mounts when all services have TLS
+			for _, initContainer := range feastDeploy.Spec.Template.Spec.InitContainers {
+				Expect(initContainer.VolumeMounts).To(ContainElement(
+					HaveField("MountPath", GetTlsPath(RegistryFeastType)),
+				), "init container %s should have registry TLS mount", initContainer.Name)
+				Expect(initContainer.VolumeMounts).To(ContainElement(
+					HaveField("MountPath", GetTlsPath(OnlineFeastType)),
+				), "init container %s should have online TLS mount", initContainer.Name)
+				Expect(initContainer.VolumeMounts).To(ContainElement(
+					HaveField("MountPath", GetTlsPath(OfflineFeastType)),
+				), "init container %s should have offline TLS mount", initContainer.Name)
+			}
 
 			// registry service w/ tls and in an openshift cluster
 			feast.Handler.FeatureStore = minimalFeatureStore()
@@ -262,8 +274,7 @@ var _ = Describe("TLS Config", func() {
 			err = feast.ApplyDefaults()
 			Expect(err).ToNot(HaveOccurred())
 
-			repoConfig, err = getClientRepoConfig(feast.Handler.FeatureStore, emptyMockExtractConfigFromSecret, &feast)
-			Expect(err).NotTo(HaveOccurred())
+			repoConfig = getClientRepoConfig(feast.Handler.FeatureStore, &feast)
 			Expect(repoConfig.OfflineStore.Port).To(Equal(HttpsPort))
 			Expect(repoConfig.OfflineStore.Scheme).To(Equal(HttpsScheme))
 			Expect(repoConfig.OfflineStore.Cert).To(ContainSubstring(string(OfflineFeastType)))
@@ -335,6 +346,19 @@ var _ = Describe("TLS Config", func() {
 			Expect(GetOnlineContainer(*feastDeploy).VolumeMounts).To(HaveLen(1))
 			Expect(GetUIContainer(*feastDeploy).Command).NotTo(ContainElements(ContainSubstring("--key")))
 			Expect(GetUIContainer(*feastDeploy).VolumeMounts).To(HaveLen(1))
+
+			// verify init containers receive only the offline TLS mount when only offline has TLS
+			for _, initContainer := range feastDeploy.Spec.Template.Spec.InitContainers {
+				Expect(initContainer.VolumeMounts).To(ContainElement(
+					HaveField("MountPath", GetTlsPath(OfflineFeastType)),
+				), "init container %s should have offline TLS mount", initContainer.Name)
+				Expect(initContainer.VolumeMounts).NotTo(ContainElement(
+					HaveField("MountPath", GetTlsPath(RegistryFeastType)),
+				), "init container %s should not have registry TLS mount when registry TLS is disabled", initContainer.Name)
+				Expect(initContainer.VolumeMounts).NotTo(ContainElement(
+					HaveField("MountPath", GetTlsPath(OnlineFeastType)),
+				), "init container %s should not have online TLS mount when online TLS is disabled", initContainer.Name)
+			}
 
 			// Test REST registry server TLS configuration
 			feast.Handler.FeatureStore = minimalFeatureStore()

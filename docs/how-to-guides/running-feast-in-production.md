@@ -18,6 +18,10 @@ For example, you might not have a stream source and, thus, no need to write feat
 Additionally, please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md).
 {% endhint %}
 
+{% hint style="info" %}
+**Looking for production deployment patterns?** See the [Feast Production Deployment Topologies](./production-deployment-topologies.md) guide for three Kubernetes-ready topologies (Minimal, Standard, Enterprise), sample FeatureStore CRs, RBAC policies, infrastructure recommendations, and scaling best practices.
+{% endhint %}
+
 In this guide we will show you how to:
 
 1. Deploy your feature store and keep your infrastructure in sync with your feature repository

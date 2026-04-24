@@ -32,7 +32,12 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig, utils
-from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
+from feast.infra.online_stores.helpers import (
+    _mmh3,
+    _redis_key,
+    _redis_key_prefix,
+    compute_versioned_name,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -49,6 +54,13 @@ except ImportError as e:
     raise FeastExtrasDependencyImportError("redis", str(e))
 
 logger = logging.getLogger(__name__)
+
+
+def _versioned_fv_name(table: FeatureView, config: RepoConfig) -> str:
+    """Return the feature view name with version suffix when versioning is enabled."""
+    return compute_versioned_name(
+        table, config.registry.enable_online_feature_view_versioning
+    )
 
 
 class RedisType(str, Enum):
@@ -123,8 +135,9 @@ class RedisOnlineStore(OnlineStore):
         deleted_count = 0
         prefix = _redis_key_prefix(table.join_keys)
 
-        redis_hash_keys = [_mmh3(f"{table.name}:{f.name}") for f in table.features]
-        redis_hash_keys.append(bytes(f"_ts:{table.name}", "utf8"))
+        fv_name = _versioned_fv_name(table, config)
+        redis_hash_keys = [_mmh3(f"{fv_name}:{f.name}") for f in table.features]
+        redis_hash_keys.append(bytes(f"_ts:{fv_name}", "utf8"))
 
         with client.pipeline(transaction=False) as pipe:
             for _k in client.scan_iter(
@@ -133,7 +146,7 @@ class RedisOnlineStore(OnlineStore):
                 _tables = {
                     _hk[4:] for _hk in client.hgetall(_k) if _hk.startswith(b"_ts:")
                 }
-                if bytes(table.name, "utf8") not in _tables:
+                if bytes(fv_name, "utf8") not in _tables:
                     continue
                 if len(_tables) == 1:
                     pipe.delete(_k)
@@ -142,7 +155,7 @@ class RedisOnlineStore(OnlineStore):
                 deleted_count += 1
             pipe.execute()
 
-        logger.debug(f"Deleted {deleted_count} rows for feature view {table.name}")
+        logger.debug(f"Deleted {deleted_count} rows for feature view {fv_name}")
 
     def update(
         self,
@@ -281,7 +294,7 @@ class RedisOnlineStore(OnlineStore):
         client = self._get_client(online_store_config)
         project = config.project
 
-        feature_view = table.name
+        feature_view = _versioned_fv_name(table, config)
         ts_key = f"_ts:{feature_view}"
         keys = []
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
@@ -355,13 +368,15 @@ class RedisOnlineStore(OnlineStore):
         self,
         feature_view: FeatureView,
         requested_features: Optional[List[str]] = None,
+        fv_name_override: Optional[str] = None,
     ) -> Tuple[List[str], List[str]]:
         if not requested_features:
             requested_features = [f.name for f in feature_view.features]
 
-        hset_keys = [_mmh3(f"{feature_view.name}:{k}") for k in requested_features]
+        fv_name = fv_name_override or feature_view.name
+        hset_keys = [_mmh3(f"{fv_name}:{k}") for k in requested_features]
 
-        ts_key = f"_ts:{feature_view.name}"
+        ts_key = f"_ts:{fv_name}"
         hset_keys.append(ts_key)
         requested_features.append(ts_key)
 
@@ -390,9 +405,10 @@ class RedisOnlineStore(OnlineStore):
 
         client = self._get_client(online_store_config)
         feature_view = table
+        fv_name = _versioned_fv_name(table, config)
 
         requested_features, hset_keys = self._generate_hset_keys_for_features(
-            feature_view, requested_features
+            feature_view, requested_features, fv_name_override=fv_name
         )
         keys = self._generate_redis_keys_for_entities(config, entity_keys)
 
@@ -403,7 +419,7 @@ class RedisOnlineStore(OnlineStore):
             redis_values = pipe.execute()
 
         return self._convert_redis_values_to_protobuf(
-            redis_values, feature_view.name, requested_features
+            redis_values, fv_name, requested_features
         )
 
     async def online_read_async(
@@ -418,9 +434,10 @@ class RedisOnlineStore(OnlineStore):
 
         client = await self._get_client_async(online_store_config)
         feature_view = table
+        fv_name = _versioned_fv_name(table, config)
 
         requested_features, hset_keys = self._generate_hset_keys_for_features(
-            feature_view, requested_features
+            feature_view, requested_features, fv_name_override=fv_name
         )
         keys = self._generate_redis_keys_for_entities(config, entity_keys)
 
@@ -430,7 +447,7 @@ class RedisOnlineStore(OnlineStore):
             redis_values = await pipe.execute()
 
         return self._convert_redis_values_to_protobuf(
-            redis_values, feature_view.name, requested_features
+            redis_values, fv_name, requested_features
         )
 
     def _get_features_for_entity(

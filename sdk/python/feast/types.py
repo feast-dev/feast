@@ -25,6 +25,9 @@ PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
     "BYTES": "BYTES",
     "PDF_BYTES": "PDF_BYTES",
     "IMAGE_BYTES": "IMAGE_BYTES",
+    "UUID": "UUID",
+    "TIME_UUID": "TIME_UUID",
+    "DECIMAL": "DECIMAL",
     "STRING": "STRING",
     "INT32": "INT32",
     "INT64": "INT64",
@@ -87,6 +90,9 @@ class PrimitiveFeastType(Enum):
     IMAGE_BYTES = 10
     MAP = 11
     JSON = 12
+    UUID = 13
+    TIME_UUID = 14
+    DECIMAL = 15
 
     def to_value_type(self) -> ValueType:
         """
@@ -121,6 +127,9 @@ Float64 = PrimitiveFeastType.FLOAT64
 UnixTimestamp = PrimitiveFeastType.UNIX_TIMESTAMP
 Map = PrimitiveFeastType.MAP
 Json = PrimitiveFeastType.JSON
+Uuid = PrimitiveFeastType.UUID
+TimeUuid = PrimitiveFeastType.TIME_UUID
+Decimal = PrimitiveFeastType.DECIMAL
 
 SUPPORTED_BASE_TYPES = [
     Invalid,
@@ -136,6 +145,9 @@ SUPPORTED_BASE_TYPES = [
     UnixTimestamp,
     Map,
     Json,
+    Uuid,
+    TimeUuid,
+    Decimal,
 ]
 
 PRIMITIVE_FEAST_TYPES_TO_STRING = {
@@ -152,6 +164,9 @@ PRIMITIVE_FEAST_TYPES_TO_STRING = {
     "UNIX_TIMESTAMP": "UnixTimestamp",
     "MAP": "Map",
     "JSON": "Json",
+    "UUID": "Uuid",
+    "TIME_UUID": "TimeUuid",
+    "DECIMAL": "Decimal",
 }
 
 
@@ -166,8 +181,11 @@ class Array(ComplexFeastType):
     base_type: Union[PrimitiveFeastType, ComplexFeastType]
 
     def __init__(self, base_type: Union[PrimitiveFeastType, "ComplexFeastType"]):
-        # Allow Struct as a base type for Array(Struct(...))
-        if not isinstance(base_type, Struct) and base_type not in SUPPORTED_BASE_TYPES:
+        # Allow Struct, Array, and Set as base types for nested collections
+        if (
+            not isinstance(base_type, (Struct, Array, Set))
+            and base_type not in SUPPORTED_BASE_TYPES
+        ):
             raise ValueError(
                 f"Type {type(base_type)} is currently not supported as a base type for Array."
             )
@@ -177,10 +195,20 @@ class Array(ComplexFeastType):
     def to_value_type(self) -> ValueType:
         if isinstance(self.base_type, Struct):
             return ValueType.STRUCT_LIST
+        if isinstance(self.base_type, (Array, Set)):
+            return ValueType.VALUE_LIST
         assert isinstance(self.base_type, PrimitiveFeastType)
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
         value_type_list_name = value_type_name + "_LIST"
         return ValueType[value_type_list_name]
+
+    def __eq__(self, other):
+        if isinstance(other, Array):
+            return self.base_type == other.base_type
+        return False
+
+    def __hash__(self):
+        return hash(("Array", hash(self.base_type)))
 
     def __str__(self):
         return f"Array({self.base_type})"
@@ -197,20 +225,32 @@ class Set(ComplexFeastType):
     base_type: Union[PrimitiveFeastType, ComplexFeastType]
 
     def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
-        # Sets do not support MAP as a base type
-        supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t != Map]
-        if base_type not in supported_set_types:
-            raise ValueError(
-                f"Type {type(base_type)} is currently not supported as a base type for Set."
-            )
+        # Allow Array and Set as base types for nested collections
+        if not isinstance(base_type, (Array, Set)):
+            # Sets do not support MAP as a base type
+            supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t not in (Map,)]
+            if base_type not in supported_set_types:
+                raise ValueError(
+                    f"Type {type(base_type)} is currently not supported as a base type for Set."
+                )
 
         self.base_type = base_type
 
     def to_value_type(self) -> ValueType:
+        if isinstance(self.base_type, (Array, Set)):
+            return ValueType.VALUE_SET
         assert isinstance(self.base_type, PrimitiveFeastType)
         value_type_name = PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES[self.base_type.name]
         value_type_set_name = value_type_name + "_SET"
         return ValueType[value_type_set_name]
+
+    def __eq__(self, other):
+        if isinstance(other, Set):
+            return self.base_type == other.base_type
+        return False
+
+    def __hash__(self):
+        return hash(("Set", hash(self.base_type)))
 
     def __str__(self):
         return f"Set({self.base_type})"
@@ -297,6 +337,15 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.FLOAT_SET: Set(Float32),
     ValueType.BOOL_SET: Set(Bool),
     ValueType.UNIX_TIMESTAMP_SET: Set(UnixTimestamp),
+    ValueType.UUID: Uuid,
+    ValueType.TIME_UUID: TimeUuid,
+    ValueType.UUID_LIST: Array(Uuid),
+    ValueType.TIME_UUID_LIST: Array(TimeUuid),
+    ValueType.UUID_SET: Set(Uuid),
+    ValueType.TIME_UUID_SET: Set(TimeUuid),
+    ValueType.DECIMAL: Decimal,
+    ValueType.DECIMAL_LIST: Array(Decimal),
+    ValueType.DECIMAL_SET: Set(Decimal),
 }
 
 FEAST_TYPES_TO_PYARROW_TYPES = {
@@ -310,6 +359,9 @@ FEAST_TYPES_TO_PYARROW_TYPES = {
     UnixTimestamp: pyarrow.timestamp("us", tz=_utc_now().tzname()),
     Map: pyarrow.map_(pyarrow.string(), pyarrow.string()),
     Json: pyarrow.large_string(),
+    Uuid: pyarrow.string(),
+    TimeUuid: pyarrow.string(),
+    Decimal: pyarrow.string(),
 }
 
 FEAST_VECTOR_TYPES: List[Union[ValueType, PrimitiveFeastType, ComplexFeastType]] = [
@@ -347,6 +399,8 @@ def from_feast_to_pyarrow_type(feast_type: FeastType) -> pyarrow.DataType:
         base_type = feast_type.base_type
         if isinstance(base_type, Struct):
             return pyarrow.list_(base_type.to_pyarrow_type())
+        if isinstance(base_type, (Array, Set)):
+            return pyarrow.list_(from_feast_to_pyarrow_type(base_type))
         if isinstance(base_type, PrimitiveFeastType):
             if base_type == Map:
                 return pyarrow.list_(pyarrow.map_(pyarrow.string(), pyarrow.string()))
@@ -354,6 +408,8 @@ def from_feast_to_pyarrow_type(feast_type: FeastType) -> pyarrow.DataType:
                 return pyarrow.list_(FEAST_TYPES_TO_PYARROW_TYPES[base_type])
     elif isinstance(feast_type, Set):
         base_type = feast_type.base_type
+        if isinstance(base_type, (Array, Set)):
+            return pyarrow.list_(from_feast_to_pyarrow_type(base_type))
         if isinstance(base_type, PrimitiveFeastType):
             if base_type in FEAST_TYPES_TO_PYARROW_TYPES:
                 return pyarrow.list_(FEAST_TYPES_TO_PYARROW_TYPES[base_type])
@@ -384,6 +440,13 @@ def from_value_type(
     if value_type == ValueType.STRUCT_LIST:
         return Array(Struct({"_value": String}))
 
+    # Nested collection types use placeholder inner types.
+    # Real inner type is restored from Field tags during deserialization.
+    if value_type == ValueType.VALUE_LIST:
+        return Array(Array(String))
+    if value_type == ValueType.VALUE_SET:
+        return Set(Array(String))
+
     raise ValueError(f"Could not convert value type {value_type} to FeastType.")
 
 
@@ -407,6 +470,12 @@ def from_feast_type(
         return ValueType.STRUCT
     if isinstance(feast_type, Array) and isinstance(feast_type.base_type, Struct):
         return ValueType.STRUCT_LIST
+
+    # Handle nested collection types
+    if isinstance(feast_type, Array) and isinstance(feast_type.base_type, (Array, Set)):
+        return ValueType.VALUE_LIST
+    if isinstance(feast_type, Set) and isinstance(feast_type.base_type, (Array, Set)):
+        return ValueType.VALUE_SET
 
     if feast_type in VALUE_TYPES_TO_FEAST_TYPES.values():
         return list(VALUE_TYPES_TO_FEAST_TYPES.keys())[

@@ -63,6 +63,12 @@ def _patch_feast_value_json_encoding():
         # to JSON. The parse back result will be different from original message.
         if which is None or which == "null_val":
             return None
+        elif which in ("list_val", "set_val"):
+            # Nested collection: RepeatedValue containing Values
+            repeated = getattr(message, which)
+            value = [
+                printer._MessageToJsonObject(inner_val) for inner_val in repeated.val
+            ]
         elif "_list_" in which:
             value = list(getattr(message, which).val)
         else:
@@ -86,6 +92,19 @@ def _patch_feast_value_json_encoding():
             if len(value) == 0:
                 # Clear will mark the struct as modified so it will be created even if there are no values
                 message.int64_list_val.Clear()
+            elif isinstance(value[0], list) or (
+                value[0] is None and any(isinstance(v, list) for v in value)
+            ):
+                # Nested collection (list of lists).
+                # Check any() to handle cases where the first element is None
+                # (empty inner collections round-trip through proto as None).
+                # Default to list_val since JSON transport loses the
+                # outer/inner set distinction.
+                rv = RepeatedValue()
+                for inner in value:
+                    inner_val = rv.val.add()
+                    from_json_object(parser, inner, inner_val)
+                message.list_val.CopyFrom(rv)
             elif isinstance(value[0], bool):
                 message.bool_list_val.val.extend(value)
             elif isinstance(value[0], str):

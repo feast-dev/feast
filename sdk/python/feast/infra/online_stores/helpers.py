@@ -70,3 +70,20 @@ def _to_naive_utc(ts: datetime) -> datetime:
         return ts
     else:
         return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
+
+
+def compute_versioned_name(table: Any, enable_versioning: bool = False) -> str:
+    """Return the table name with a ``_v{N}`` suffix when versioning is enabled."""
+    name = table.name
+    if enable_versioning:
+        version = getattr(table.projection, "version_tag", None)
+        if version is None:
+            version = getattr(table, "current_version_number", None)
+        if version is not None and version > 0:
+            name = f"{table.name}_v{version}"
+    return name
+
+
+def compute_table_id(project: str, table: Any, enable_versioning: bool = False) -> str:
+    """Build the online-store table name, appending a version suffix when versioning is enabled."""
+    return f"{project}_{compute_versioned_name(table, enable_versioning)}"

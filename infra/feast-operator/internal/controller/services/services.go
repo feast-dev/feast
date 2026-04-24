@@ -384,10 +384,13 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType
 	}
 
 	// PVCs are immutable, so we only create... we don't update an existing one.
+	// Treat AlreadyExists as success: a pre-existing PVC without the managed-by label
+	// won't appear in the filtered cache (Client.Get returns NotFound), but Create
+	// will hit AlreadyExists on the API server — both cases mean the PVC is present.
 	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKeyFromObject(pvc), pvc)
 	if err != nil && apierrors.IsNotFound(err) {
 		err = feast.Handler.Client.Create(feast.Handler.Context, pvc)
-		if err != nil {
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 		logger.Info("Successfully created", "PersistentVolumeClaim", pvc.Name)
@@ -408,13 +411,15 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 	}
 
 	deploy.Labels = feast.getLabels()
+	selectorLabels := feast.getSelectorLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
 		Replicas: replicas,
-		Selector: metav1.SetAsLabelSelector(deploy.GetLabels()),
+		Selector: metav1.SetAsLabelSelector(selectorLabels),
 		Strategy: feast.getDeploymentStrategy(),
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: deploy.GetLabels(),
+				Labels:      deploy.GetLabels(),
+				Annotations: cr.Status.Applied.Services.PodAnnotations,
 			},
 			Spec: corev1.PodSpec{
 				ServiceAccountName: feast.initFeastSA().Name,
@@ -817,7 +822,7 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	}
 
 	svc.Spec = corev1.ServiceSpec{
-		Selector: feast.getLabels(),
+		Selector: feast.getSelectorLabels(),
 		Type:     corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
@@ -867,6 +872,7 @@ func (feast *FeastServices) setServiceAccount(sa *corev1.ServiceAccount) error {
 
 func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1.PvcCreate, feastType FeastServiceType) (*corev1.PersistentVolumeClaim, error) {
 	pvc := feast.initPVC(feastType)
+	pvc.Labels = feast.getFeastTypeLabels(feastType)
 
 	pvc.Spec = corev1.PersistentVolumeClaimSpec{
 		AccessModes: pvcCreate.AccessModes,
@@ -975,7 +981,7 @@ func (feast *FeastServices) applyTopologySpread(podSpec *corev1.PodSpec) {
 		MaxSkew:           1,
 		TopologyKey:       "topology.kubernetes.io/zone",
 		WhenUnsatisfiable: corev1.ScheduleAnyway,
-		LabelSelector:     metav1.SetAsLabelSelector(feast.getLabels()),
+		LabelSelector:     metav1.SetAsLabelSelector(feast.getSelectorLabels()),
 	}}
 }
 
@@ -998,7 +1004,7 @@ func (feast *FeastServices) applyAffinity(podSpec *corev1.PodSpec) {
 				Weight: 100,
 				PodAffinityTerm: corev1.PodAffinityTerm{
 					TopologyKey:   "kubernetes.io/hostname",
-					LabelSelector: metav1.SetAsLabelSelector(feast.getLabels()),
+					LabelSelector: metav1.SetAsLabelSelector(feast.getSelectorLabels()),
 				},
 			}},
 		},
@@ -1059,9 +1065,21 @@ func (feast *FeastServices) getFeastTypeLabels(feastType FeastServiceType) map[s
 	return labels
 }
 
-func (feast *FeastServices) getLabels() map[string]string {
+// getSelectorLabels returns the minimal label set used for immutable selectors
+// (Deployment spec.selector, Service spec.selector, TopologySpreadConstraints, PodAffinity).
+// This must NOT change after initial resource creation.
+func (feast *FeastServices) getSelectorLabels() map[string]string {
 	return map[string]string{
 		NameLabelKey: feast.Handler.FeatureStore.Name,
+	}
+}
+
+// getLabels returns the full label set for mutable metadata (ObjectMeta.Labels).
+// Includes the managed-by label used by the informer cache filter.
+func (feast *FeastServices) getLabels() map[string]string {
+	return map[string]string{
+		NameLabelKey:      feast.Handler.FeatureStore.Name,
+		ManagedByLabelKey: ManagedByLabelValue,
 	}
 }
 
@@ -1153,9 +1171,6 @@ func (feast *FeastServices) getRemoteRegistryFeastHandler() (*FeastServices, err
 				return nil, errors.New("Referenced FeatureStore '" + feastRemoteRef.Name + "' was not found")
 			}
 			return nil, err
-		}
-		if feast.Handler.FeatureStore.Status.Applied.FeastProject != remoteFeastObj.Status.Applied.FeastProject {
-			return nil, errors.New("FeatureStore '" + remoteFeastObj.Name + "' is using a different feast project than '" + feast.Handler.FeatureStore.Status.Applied.FeastProject + "'. Project names must match.")
 		}
 		return &FeastServices{
 			Handler: handler.FeastHandler{
@@ -1314,13 +1329,11 @@ func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *f
 				},
 			},
 		})
-		if feastType == OfflineFeastType {
-			for i := range podSpec.InitContainers {
-				podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
-					Name:      volName,
-					MountPath: pvcConfig.MountPath,
-				})
-			}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      volName,
+				MountPath: pvcConfig.MountPath,
+			})
 		}
 		for i := range podSpec.Containers {
 			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
@@ -1442,10 +1455,10 @@ func IsDeploymentAvailable(conditions []appsv1.DeploymentCondition) bool {
 // container that is in a failing state. Returns empty string if no failure found.
 func (feast *FeastServices) GetPodContainerFailureMessage(deploy appsv1.Deployment) string {
 	podList := corev1.PodList{}
-	labels := feast.getLabels()
+	selectorLabels := feast.getSelectorLabels()
 	if err := feast.Handler.Client.List(feast.Handler.Context, &podList,
 		client.InNamespace(deploy.Namespace),
-		client.MatchingLabels(labels),
+		client.MatchingLabels(selectorLabels),
 	); err != nil {
 		return ""
 	}
