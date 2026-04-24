@@ -17,6 +17,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import pytest
 
+from feast.aggregation import Aggregation
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
@@ -26,7 +27,6 @@ from feast.on_demand_feature_view import (
     PythonTransformation,
     on_demand_feature_view,
 )
-from feast.aggregation import Aggregation
 from feast.types import Float32
 
 
