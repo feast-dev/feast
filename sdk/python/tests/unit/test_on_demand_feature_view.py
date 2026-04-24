@@ -618,3 +618,33 @@ def test_aggregations_valid_without_udf():
     )
     # Must not raise
     odfv.ensure_valid()
+
+
+def test_aggregations_only_odfv_proto_roundtrip():
+    """Aggregation-only ODFV must survive a proto round-trip without crashing on dill.loads(b'')."""
+    from datetime import timedelta
+
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[Field(name="purchase_count", dtype=Float32)],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="agg-odfv",
+        sources=[feature_view],
+        schema=[Field(name="purchase_sum_30d", dtype=Float32)],
+        aggregations=[
+            Aggregation(
+                column="purchase_count",
+                function="sum",
+                time_window=timedelta(days=30),
+            )
+        ],
+    )
+    proto = odfv.to_proto()
+    restored = OnDemandFeatureView.from_proto(proto)
+    assert restored.feature_transformation is None
+    assert len(restored.aggregations) == 1
+    assert restored.aggregations[0].column == "purchase_count"

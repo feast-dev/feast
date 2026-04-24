@@ -787,6 +787,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 feature_transformation.substrait_transformation
             )
         elif transformation_type is None:
+            if proto.spec.aggregations:
+                return None
             # Handle backward compatibility case where feature_transformation is cleared
             return cls._handle_backward_compatible_udf(proto)
         else:
