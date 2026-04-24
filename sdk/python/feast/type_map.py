@@ -2060,11 +2060,16 @@ def mongodb_to_feast_value_type(type_str: str) -> ValueType:
     """
     type_map: Dict[str, ValueType] = {
         "str": ValueType.STRING,
+        "string": ValueType.STRING,
         "int": ValueType.INT64,
+        "int64": ValueType.INT64,
         "float": ValueType.DOUBLE,
+        "float64": ValueType.DOUBLE,
         "bool": ValueType.BOOL,
         "bytes": ValueType.BYTES,
         "datetime": ValueType.UNIX_TIMESTAMP,
+        "list": ValueType.UNKNOWN,
+        "dict": ValueType.UNKNOWN,
         "list[str]": ValueType.STRING_LIST,
         "list[int]": ValueType.INT64_LIST,
         "list[float]": ValueType.DOUBLE_LIST,
