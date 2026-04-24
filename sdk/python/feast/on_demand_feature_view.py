@@ -527,6 +527,10 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def _validate_transformation_config(self) -> None:
         """Validate transformation configuration."""
+        # Aggregations provide their own transformation; no udf/feature_transformation required.
+        if self.aggregations:
+            return
+
         if not self.feature_transformation:
             raise ValueError(ODFVErrorMessages.no_transformation_provided())
 

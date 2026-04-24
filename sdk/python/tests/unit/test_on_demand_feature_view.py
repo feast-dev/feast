@@ -26,6 +26,7 @@ from feast.on_demand_feature_view import (
     PythonTransformation,
     on_demand_feature_view,
 )
+from feast.aggregation import Aggregation
 from feast.types import Float32
 
 
@@ -590,3 +591,30 @@ def test_eq_considers_track_metrics():
     odfv_untracked = OnDemandFeatureView(**common, track_metrics=False)
 
     assert odfv_tracked != odfv_untracked
+
+
+def test_aggregations_valid_without_udf():
+    """An ODFV with aggregations must pass ensure_valid() without a udf or feature_transformation."""
+    from datetime import timedelta
+
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[Field(name="purchase_count", dtype=Float32)],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="agg-odfv",
+        sources=[feature_view],
+        schema=[Field(name="purchase_sum_30d", dtype=Float32)],
+        aggregations=[
+            Aggregation(
+                column="purchase_count",
+                function="sum",
+                time_window=timedelta(days=30),
+            )
+        ],
+    )
+    # Must not raise
+    odfv.ensure_valid()
