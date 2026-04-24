@@ -11,6 +11,13 @@ from pyspark.sql import SparkSession
 from feast.infra.common.serde import SerializedArtifacts
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
 
+try:
+    import boto3
+    from botocore.client import Config as BotoConfig
+except ImportError:
+    boto3 = None  # type: ignore[assignment]
+    BotoConfig = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,26 +42,38 @@ def _ensure_s3a_event_log_dir(spark_config: Dict[str, str]) -> None:
 
     path = event_dir[len("s3a://") :]
     bucket, _, prefix = path.partition("/")
-    prefix = prefix.rstrip("/") + "/"
+    prefix = prefix.rstrip("/")
+    prefix = (prefix + "/") if prefix else prefix
     placeholder_key = prefix + ".keep"
 
     endpoint = spark_config.get(
         "spark.hadoop.fs.s3a.endpoint",
         os.environ.get("FEAST_S3A_ENDPOINT", ""),
     )
-    access_key = os.environ.get("AWS_ACCESS_KEY_ID", "")
-    secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+    access_key = spark_config.get(
+        "spark.hadoop.fs.s3a.access.key",
+        os.environ.get("AWS_ACCESS_KEY_ID", ""),
+    )
+    secret_key = spark_config.get(
+        "spark.hadoop.fs.s3a.secret.key",
+        os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
+    )
+    session_token = spark_config.get(
+        "spark.hadoop.fs.s3a.session.token",
+        os.environ.get("AWS_SESSION_TOKEN", ""),
+    ) or None
 
     try:
-        import boto3
-        from botocore.client import Config
+        if boto3 is None:
+            raise ImportError("boto3 is not installed")
 
         s3 = boto3.client(
             "s3",
             endpoint_url=endpoint if endpoint else None,
             aws_access_key_id=access_key or None,
             aws_secret_access_key=secret_key or None,
-            config=Config(signature_version="s3v4"),
+            aws_session_token=session_token,
+            config=BotoConfig(signature_version="s3v4"),
         )
         resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=1)
         if resp.get("KeyCount", 0) == 0:
@@ -81,9 +100,6 @@ def get_or_create_new_spark_session(
     if not spark_session:
         spark_builder = SparkSession.builder
         if spark_config:
-            # Spark's EventLogFileWriter.requireLogBaseDirAsDirectory() is called
-            # during SparkContext.__init__ and will crash if the S3A event log
-            # prefix doesn't exist yet. Ensure the prefix exists first.
             _ensure_s3a_event_log_dir(spark_config)
             spark_builder = spark_builder.config(
                 conf=SparkConf().setAll([(k, v) for k, v in spark_config.items()])
