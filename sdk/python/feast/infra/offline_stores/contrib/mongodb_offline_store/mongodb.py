@@ -982,8 +982,12 @@ class MongoDBOfflineStore(OfflineStore):
             features: Dict[str, Any] = {}
             for col in feature_cols:
                 val = row[col]
-                if pd.isna(val):
-                    continue
+                try:
+                    is_na = pd.isna(val)
+                    if isinstance(is_na, bool) and is_na:
+                        continue
+                except (ValueError, TypeError):
+                    pass  # non-scalar (list/array) — not NA
                 if hasattr(val, "item"):
                     val = val.item()
                 features[col] = val
