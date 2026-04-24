@@ -318,7 +318,7 @@ def _serialize_entity_key_from_row(
     join_key_types: Dict[str, ValueType],
 ) -> bytes:
     entity_key = EntityKeyProto()
-    for jk in join_keys:
+    for jk in sorted(join_keys):
         val = row[jk]
         entity_key.join_keys.append(jk)
         proto_val = ValueProto()
