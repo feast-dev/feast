@@ -876,7 +876,7 @@ def _convert_list_values_to_proto(
         ValueType.FLOAT_LIST: 0.0,
         ValueType.DOUBLE_LIST: 0.0,
         ValueType.BOOL_LIST: False,
-        ValueType.UNIX_TIMESTAMP_LIST: 0,
+        ValueType.UNIX_TIMESTAMP_LIST: NULL_TIMESTAMP_INT_VALUE,
         ValueType.UUID_LIST: "",
         ValueType.TIME_UUID_LIST: "",
         ValueType.DECIMAL_LIST: "",
