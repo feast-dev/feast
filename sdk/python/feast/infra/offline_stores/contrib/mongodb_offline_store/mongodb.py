@@ -39,7 +39,7 @@ Index (created lazily on first use)::
 
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import (
     Any,
     Callable,
@@ -193,6 +193,48 @@ class MongoDBSource(DataSource):
 
     def get_table_query_string(self) -> str:
         return self.name
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> List[Tuple[str, str]]:
+        """Infer column names and types by reading a sample document from MongoDB."""
+        if MongoClient is None:
+            raise FeastExtrasDependencyImportError("pymongo", "mongodb")
+        client: Any = MongoClient(config.offline_store.connection_string)
+        try:
+            coll = client[config.offline_store.database][
+                config.offline_store.collection
+            ]
+            doc = coll.find_one({"feature_view": self.feature_view_name})
+            if doc is None:
+                return []
+            result: List[Tuple[str, str]] = []
+            # Entity key is binary — join keys are inferred from the FeatureView,
+            # not from the document.  Expose event_timestamp and created_at.
+            if "event_timestamp" in doc:
+                result.append(("event_timestamp", "datetime"))
+            if "created_at" in doc:
+                result.append(("created_at", "datetime"))
+            features = doc.get("features", {})
+            if isinstance(features, dict):
+                for k, v in features.items():
+                    if isinstance(v, int):
+                        result.append((k, "int64"))
+                    elif isinstance(v, float):
+                        result.append((k, "float64"))
+                    elif isinstance(v, str):
+                        result.append((k, "string"))
+                    elif isinstance(v, bool):
+                        result.append((k, "bool"))
+                    elif isinstance(v, list):
+                        result.append((k, "list"))
+                    elif isinstance(v, dict):
+                        result.append((k, "dict"))
+                    else:
+                        result.append((k, "object"))
+            return result
+        finally:
+            client.close()
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
@@ -513,25 +555,60 @@ class MongoDBOfflineStore(OfflineStore):
         entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
         event_timestamp_col = infer_event_timestamp_from_entity_df(entity_schema)
 
+        # Feature refs use projection names (e.g. "origin:temperature")
         fv_to_features: Dict[str, List[str]] = defaultdict(list)
         for ref in feature_refs:
             fv_name, feat_name = ref.split(":", 1)
             fv_to_features[fv_name].append(feat_name)
 
-        fv_by_name = {fv.name: fv for fv in feature_views}
-        fv_join_keys_by_name: Dict[str, List[str]] = {
-            fv.name: list(get_expected_join_keys(project, [fv], registry))
+        # All dicts keyed by projection name (name_to_use), not fv.name,
+        # because entity mapping creates multiple projections of the same FV.
+        fv_by_proj: Dict[str, FeatureView] = {
+            fv.projection.name_to_use(): fv for fv in feature_views
+        }
+
+        # projection_name → MongoDB feature_view discriminator value
+        # (the data source name, NOT the FeatureView name)
+        fv_mongo_name: Dict[str, str] = {}
+        for fv in feature_views:
+            proj = fv.projection.name_to_use()
+            src = fv.batch_source
+            fv_mongo_name[proj] = (
+                src.feature_view_name
+                if isinstance(src, MongoDBSource)
+                else getattr(src, "name", fv.name)
+            )
+
+        # projection_name → mapped join keys (as in entity_df columns)
+        fv_mapped_join_keys: Dict[str, List[str]] = {
+            fv.projection.name_to_use(): list(
+                get_expected_join_keys(project, [fv], registry)
+            )
             for fv in feature_views
         }
-        fv_join_key_types_by_name: Dict[str, Dict[str, ValueType]] = {
-            fv.name: {
-                fv.projection.join_key_map.get(
-                    ec.name, ec.name
-                ): ec.dtype.to_value_type()
-                for ec in fv.entity_columns
+
+        # projection_name → {mapped_key → original_key}
+        fv_reverse_jk: Dict[str, Dict[str, str]] = {
+            fv.projection.name_to_use(): {
+                v: k for k, v in fv.projection.join_key_map.items()
             }
             for fv in feature_views
         }
+
+        # projection_name → original join key types (keyed by original name)
+        fv_jk_types_original: Dict[str, Dict[str, ValueType]] = {
+            fv.projection.name_to_use(): {
+                ec.name: ec.dtype.to_value_type() for ec in fv.entity_columns
+            }
+            for fv in feature_views
+        }
+
+        # projection_name → reverse field_mapping (feast_name → source_col_name)
+        fv_reverse_fm: Dict[str, Dict[str, str]] = {}
+        for fv in feature_views:
+            proj = fv.projection.name_to_use()
+            fm = fv.batch_source.field_mapping if fv.batch_source else {}
+            fv_reverse_fm[proj] = {v: k for k, v in fm.items()} if fm else {}
 
         CHUNK_SIZE = _CHUNK_SIZE
         MONGO_BATCH_SIZE = _MONGO_BATCH_SIZE
@@ -554,92 +631,110 @@ class MongoDBOfflineStore(OfflineStore):
                 )
 
             max_ts = result[event_timestamp_col].max()
+            min_ts = result[event_timestamp_col].min()
 
             # Detect scoring vs training path once per chunk.
-            # Scoring: unique entity IDs across ALL join key combinations.
-            # Training: repeated entity IDs → must use merge_asof.
             all_entity_id_cols = list(
-                {jk for jks in fv_join_keys_by_name.values() for jk in jks}
+                {jk for jks in fv_mapped_join_keys.values() for jk in jks}
                 & set(result.columns)
             )
             scoring_path = result[all_entity_id_cols].drop_duplicates().shape[0] == len(
                 result
             )
 
-            # Group FVs by join key signature to collapse K → |unique key sets|
-            fv_groups: Dict[Tuple[str, ...], List[str]] = defaultdict(list)
-            for fv_name in fv_to_features:
-                sig = tuple(sorted(fv_join_keys_by_name[fv_name]))
-                fv_groups[sig].append(fv_name)
+            # Process each feature view projection independently.
+            # (Different projections of the same FV have different
+            #  entity key mappings and must be handled separately.)
+            for proj_name, features in fv_to_features.items():
+                fv = fv_by_proj.get(proj_name)
+                if fv is None:
+                    for feat in features:
+                        col = f"{proj_name}__{feat}" if full_feature_names else feat
+                        result[col] = None
+                    continue
 
-            for join_key_sig, group_fv_names in fv_groups.items():
-                join_keys = list(join_key_sig)
-                # Use the type map from the first FV in the group (keys are shared)
-                key_types = fv_join_key_types_by_name[group_fv_names[0]]
+                mongo_fv_name = fv_mongo_name[proj_name]
+                mapped_keys = fv_mapped_join_keys[proj_name]
+                reverse_jk = fv_reverse_jk[proj_name]
+                orig_key_types = fv_jk_types_original[proj_name]
+                reverse_fm = fv_reverse_fm[proj_name]
 
-                result["_fv_entity_id"] = result.apply(
-                    lambda row: _serialize_entity_key_from_row(
-                        row, join_keys, entity_key_version, key_types
-                    ),
-                    axis=1,
-                )
-                unique_entity_ids = result["_fv_entity_id"].unique().tolist()
+                # Serialize entity keys: read values from MAPPED columns in
+                # entity_df, but serialize with ORIGINAL join key names to
+                # match the bytes stored in MongoDB.
+                _mk = mapped_keys
+                _rjk = reverse_jk
+                _okt = orig_key_types
 
-                # Use the most conservative TTL across the group for the lower bound
-                ttls: List[timedelta] = [
-                    ttl
-                    for n in group_fv_names
-                    if fv_by_name.get(n) and (ttl := fv_by_name[n].ttl) is not None
-                ]
-                # strict_pit=True: server upper bound is the chunk's max request time,
-                # preventing the server from returning future documents.
-                # strict_pit=False: no upper bound — the $group $first (sort DESC) will
-                # return the most recent doc regardless of when it was written.
+                def _ser(row, __mk=_mk, __rjk=_rjk, __okt=_okt):
+                    ek = EntityKeyProto()
+                    orig_keys = sorted([__rjk.get(m, m) for m in __mk])
+                    o2m = {__rjk.get(m, m): m for m in __mk}
+                    for ok in orig_keys:
+                        mk = o2m[ok]
+                        val = row[mk]
+                        ek.join_keys.append(ok)
+                        pv = ValueProto()
+                        vt = __okt.get(ok, ValueType.UNKNOWN)
+                        if vt == ValueType.INT32:
+                            pv.int32_val = int(val)
+                        elif vt == ValueType.INT64 or isinstance(val, int):
+                            pv.int64_val = int(val)
+                        elif vt == ValueType.STRING or isinstance(val, str):
+                            pv.string_val = str(val)
+                        elif isinstance(val, float):
+                            pv.double_val = float(val)
+                        else:
+                            pv.int64_val = int(val)
+                        ek.entity_values.append(pv)
+                    return serialize_entity_key(ek, entity_key_version)
+
+                eid_col = f"_eid_{proj_name}"
+                result[eid_col] = result.apply(_ser, axis=1)
+                unique_eids = result[eid_col].unique().tolist()
+
+                # TTL filter — use min_ts for the lower bound so that
+                # documents needed for early entity rows are included.
+                # Per-row TTL enforcement happens in the merge_asof path.
+                fv_ttl = fv.ttl if fv else None
                 ts_filter: Dict[str, Any] = {"$lte": max_ts} if strict_pit else {}
-                if ttls:
-                    ref_ts = max_ts if strict_pit else datetime.now(tz=timezone.utc)
-                    ts_filter["$gte"] = ref_ts - min(ttls)
+                if fv_ttl:
+                    lower_ref = min_ts if strict_pit else datetime.now(tz=timezone.utc)
+                    ts_filter["$gte"] = lower_ref - fv_ttl
 
+                # Query MongoDB
                 all_docs: List[Dict] = []
-                for i in range(0, len(unique_entity_ids), MONGO_BATCH_SIZE):
-                    batch_ids = unique_entity_ids[i : i + MONGO_BATCH_SIZE]
+                for i in range(0, len(unique_eids), MONGO_BATCH_SIZE):
+                    batch_ids = unique_eids[i : i + MONGO_BATCH_SIZE]
+                    match_q: Dict[str, Any] = {
+                        "entity_id": {"$in": batch_ids},
+                        "feature_view": mongo_fv_name,
+                    }
+                    if ts_filter:
+                        match_q["event_timestamp"] = ts_filter
 
                     if scoring_path:
-                        # Server-side dedup: one doc per (entity_id, feature_view).
-                        # The compound index backs $match→$sort→$group entirely.
                         pipeline: List[Dict] = [
-                            {
-                                "$match": {
-                                    "entity_id": {"$in": batch_ids},
-                                    "feature_view": {"$in": group_fv_names},
-                                    "event_timestamp": ts_filter,
-                                }
-                            },
+                            {"$match": match_q},
                             {
                                 "$sort": {
                                     "entity_id": 1,
-                                    "feature_view": 1,
                                     "event_timestamp": -1,
                                     "created_at": -1,
                                 }
                             },
                             {
                                 "$group": {
-                                    "_id": {
-                                        "eid": "$entity_id",
-                                        "fv": "$feature_view",
-                                    },
+                                    "_id": "$entity_id",
                                     "event_timestamp": {"$first": "$event_timestamp"},
                                     "features": {"$first": "$features"},
                                     "created_at": {"$first": "$created_at"},
                                 }
                             },
-                            # Reshape to flat document matching the training-path schema
                             {
                                 "$project": {
                                     "_id": 0,
-                                    "entity_id": "$_id.eid",
-                                    "feature_view": "$_id.fv",
+                                    "entity_id": "$_id",
                                     "event_timestamp": 1,
                                     "features": 1,
                                     "created_at": 1,
@@ -647,151 +742,120 @@ class MongoDBOfflineStore(OfflineStore):
                             },
                         ]
                     else:
-                        # Training path: fetch all docs in window; merge_asof
-                        # handles per-row PIT precision.
-                        pipeline = [
-                            {
-                                "$match": {
-                                    "entity_id": {"$in": batch_ids},
-                                    "feature_view": {"$in": group_fv_names},
-                                    "event_timestamp": ts_filter,
-                                }
-                            },
-                        ]
+                        pipeline = [{"$match": match_q}]
 
                     all_docs.extend(list(coll.aggregate(pipeline)))
 
-                # Split returned docs by feature_view, then process per FV
-                docs_by_fv: Dict[str, List[Dict]] = defaultdict(list)
-                for doc in all_docs:
-                    docs_by_fv[doc["feature_view"]].append(doc)
+                if not all_docs:
+                    for feat in features:
+                        col = f"{proj_name}__{feat}" if full_feature_names else feat
+                        result[col] = None
+                    result = result.drop(columns=[eid_col], errors="ignore")
+                    continue
 
-                for fv_name in group_fv_names:
-                    features = fv_to_features[fv_name]
-                    fv = fv_by_name.get(fv_name)
-                    fv_docs = docs_by_fv.get(fv_name, [])
+                fv_df = pd.DataFrame(all_docs)
+                fv_df = fv_df.rename(columns={"entity_id": eid_col})
 
-                    if not fv_docs:
-                        for feat in features:
-                            col = f"{fv_name}__{feat}" if full_feature_names else feat
-                            result[col] = None
-                        continue
-
-                    fv_df = pd.DataFrame(fv_docs)
-                    fv_df = fv_df.rename(columns={"entity_id": "_fv_entity_id"})
-
-                    if "features" in fv_df.columns:
-                        # Expand features dict in one vectorized pass
-                        feat_expanded = pd.json_normalize(fv_df["features"].tolist())
-                        for feat in features:
-                            fv_df[feat] = (
-                                feat_expanded[feat].values
-                                if feat in feat_expanded.columns
-                                else None
+                # Extract features from nested dict, applying reverse field_mapping.
+                # Using .apply() instead of json_normalize preserves complex types
+                # (dicts for Map/Struct, lists for Array).
+                if "features" in fv_df.columns:
+                    for feat in features:
+                        src_col = reverse_fm.get(feat, feat)
+                        fv_df[feat] = fv_df["features"].apply(
+                            lambda d, _s=src_col: (
+                                d.get(_s) if isinstance(d, dict) else None
                             )
-                        fv_df = fv_df.drop(columns=["features"])
-
-                    if fv_df["event_timestamp"].dt.tz is None:
-                        fv_df["event_timestamp"] = pd.to_datetime(
-                            fv_df["event_timestamp"], utc=True
                         )
+                    fv_df = fv_df.drop(columns=["features"])
 
-                    if scoring_path:
-                        # Vectorized join: merge fv_df onto result by entity_id,
-                        # then null out rows where the server returned a doc that
-                        # is too recent (max_ts approximation) or TTL-stale.
-                        fv_join_cols = ["_fv_entity_id", "event_timestamp"] + [
-                            f for f in features if f in fv_df.columns
-                        ]
-                        fv_join = fv_df[fv_join_cols].rename(
-                            columns={"event_timestamp": "_fv_ts"}
-                        )
-                        # left merge: entities with no match get NaN features
-                        merged = result[["_fv_entity_id", event_timestamp_col]].merge(
-                            fv_join, on="_fv_entity_id", how="left"
-                        )
+                if fv_df["event_timestamp"].dt.tz is None:
+                    fv_df["event_timestamp"] = pd.to_datetime(
+                        fv_df["event_timestamp"], utc=True
+                    )
 
-                        # Mask: fv doc is outside valid window for entity request.
-                        # strict_pit=True (default): null out docs from the future
-                        # relative to the entity request timestamp (max_ts overshoot).
-                        # strict_pit=False: accept the most recent doc regardless of
-                        # whether it post-dates the request (real-time inference).
-                        if strict_pit:
-                            future_mask = merged["_fv_ts"] > merged[event_timestamp_col]
-                        else:
-                            future_mask = pd.Series(
-                                [False] * len(merged), index=merged.index
-                            )
-                        if fv and fv.ttl:
-                            ttl_mask = merged["_fv_ts"] < (
-                                merged[event_timestamp_col] - fv.ttl
-                            )
-                            bad_mask = future_mask | ttl_mask
-                        else:
-                            bad_mask = future_mask
-
-                        for feat in features:
-                            col = f"{fv_name}__{feat}" if full_feature_names else feat
-                            vals = (
-                                merged[feat].copy()
-                                if feat in merged.columns
-                                else pd.Series([None] * len(merged), dtype=object)
-                            )
-                            vals[bad_mask | merged["_fv_ts"].isna()] = None
-                            result[col] = vals.values
+                if scoring_path:
+                    fv_join_cols = [eid_col, "event_timestamp"] + [
+                        f for f in features if f in fv_df.columns
+                    ]
+                    fv_join = fv_df[fv_join_cols].rename(
+                        columns={"event_timestamp": "_fv_ts"}
+                    )
+                    merged = result[[eid_col, event_timestamp_col]].merge(
+                        fv_join, on=eid_col, how="left"
+                    )
+                    if strict_pit:
+                        future_mask = merged["_fv_ts"] > merged[event_timestamp_col]
                     else:
-                        # merge_asof path (training data)
-                        result = result.sort_values(event_timestamp_col).reset_index(
-                            drop=True
+                        future_mask = pd.Series(
+                            [False] * len(merged), index=merged.index
                         )
-                        fv_df = fv_df.sort_values("event_timestamp").reset_index(
-                            drop=True
+                    if fv_ttl:
+                        ttl_mask = merged["_fv_ts"] < (
+                            merged[event_timestamp_col] - fv_ttl
                         )
-                        merge_cols = ["_fv_entity_id", "event_timestamp"] + [
-                            f for f in features if f in fv_df.columns
-                        ]
-                        fv_df_subset = fv_df[
-                            [c for c in merge_cols if c in fv_df.columns]
-                        ].copy()
-                        fv_df_subset = fv_df_subset.rename(
-                            columns={"event_timestamp": "_fv_ts"}
+                        bad_mask = future_mask | ttl_mask
+                    else:
+                        bad_mask = future_mask
+                    for feat in features:
+                        col = f"{proj_name}__{feat}" if full_feature_names else feat
+                        vals = (
+                            merged[feat].copy()
+                            if feat in merged.columns
+                            else pd.Series([None] * len(merged), dtype=object)
                         )
-                        fv_prefix = f"__fv_{fv_name}__"
-                        fv_df_subset = fv_df_subset.rename(
-                            columns={
-                                f: f"{fv_prefix}{f}"
-                                for f in features
-                                if f in fv_df_subset.columns
-                            }
-                        )
-                        result = pd.merge_asof(
-                            result,
-                            fv_df_subset,
-                            left_on=event_timestamp_col,
-                            right_on="_fv_ts",
-                            by="_fv_entity_id",
-                            direction="backward",
-                        )
-                        if fv and fv.ttl:
-                            cutoff = result[event_timestamp_col] - fv.ttl
-                            stale = result["_fv_ts"] < cutoff
-                            for feat in features:
-                                tc = f"{fv_prefix}{feat}"
-                                if tc in result.columns:
-                                    result.loc[stale, tc] = None
+                        vals[bad_mask | merged["_fv_ts"].isna()] = None
+                        result[col] = vals.values
+                else:
+                    # merge_asof path (training data)
+                    result = result.sort_values(event_timestamp_col).reset_index(
+                        drop=True
+                    )
+                    fv_df = fv_df.sort_values("event_timestamp").reset_index(drop=True)
+                    merge_cols = [eid_col, "event_timestamp"] + [
+                        f for f in features if f in fv_df.columns
+                    ]
+                    fv_df_subset = fv_df[
+                        [c for c in merge_cols if c in fv_df.columns]
+                    ].copy()
+                    fv_df_subset = fv_df_subset.rename(
+                        columns={"event_timestamp": "_fv_ts"}
+                    )
+                    fv_prefix = f"__fv_{proj_name}__"
+                    fv_df_subset = fv_df_subset.rename(
+                        columns={
+                            f: f"{fv_prefix}{f}"
+                            for f in features
+                            if f in fv_df_subset.columns
+                        }
+                    )
+                    result = pd.merge_asof(
+                        result,
+                        fv_df_subset,
+                        left_on=event_timestamp_col,
+                        right_on="_fv_ts",
+                        by=eid_col,
+                        direction="backward",
+                    )
+                    if fv_ttl:
+                        cutoff = result[event_timestamp_col] - fv_ttl
+                        stale = result["_fv_ts"] < cutoff
                         for feat in features:
                             tc = f"{fv_prefix}{feat}"
-                            col = f"{fv_name}__{feat}" if full_feature_names else feat
                             if tc in result.columns:
-                                if col in result.columns:
-                                    result = result.drop(columns=[col])
-                                result = result.rename(columns={tc: col})
-                            elif col not in result.columns:
-                                result[col] = None
-                        result = result.drop(columns=["_fv_ts"], errors="ignore")
+                                result.loc[stale, tc] = None
+                    for feat in features:
+                        tc = f"{fv_prefix}{feat}"
+                        col = f"{proj_name}__{feat}" if full_feature_names else feat
+                        if tc in result.columns:
+                            if col in result.columns:
+                                result = result.drop(columns=[col])
+                            result = result.rename(columns={tc: col})
+                        elif col not in result.columns:
+                            result[col] = None
+                    result = result.drop(columns=["_fv_ts"], errors="ignore")
 
-                # Drop the group's shared entity key column after all FVs processed
-                result = result.drop(columns=["_fv_entity_id"], errors="ignore")
+                result = result.drop(columns=[eid_col], errors="ignore")
 
             return result
 
@@ -908,6 +972,11 @@ class MongoDBOfflineStore(OfflineStore):
 
         now = datetime.now(tz=timezone.utc)
 
+        # Use the batch source name as the MongoDB discriminator so that
+        # data written via push/write_to_offline_store lands in the same
+        # collection partition as the initial ingest from create_data_source.
+        mongo_fv_name = feature_view.batch_source.feature_view_name
+
         docs = []
         for _, row in df.iterrows():
             features: Dict[str, Any] = {}
@@ -930,7 +999,7 @@ class MongoDBOfflineStore(OfflineStore):
             docs.append(
                 {
                     "entity_id": row["_entity_id"],
-                    "feature_view": feature_view.name,
+                    "feature_view": mongo_fv_name,
                     "features": features,
                     "event_timestamp": (
                         row[timestamp_field].to_pydatetime()
