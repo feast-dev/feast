@@ -648,3 +648,30 @@ def test_aggregations_only_odfv_proto_roundtrip():
     assert restored.feature_transformation is None
     assert len(restored.aggregations) == 1
     assert restored.aggregations[0].column == "purchase_count"
+
+
+def test_aggregations_only_odfv_infer_features():
+    """infer_features must not crash for aggregation-only ODFVs with explicit schema."""
+    from datetime import timedelta
+
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[Field(name="purchase_count", dtype=Float32)],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="agg-odfv",
+        sources=[feature_view],
+        schema=[Field(name="purchase_sum_30d", dtype=Float32)],
+        aggregations=[
+            Aggregation(
+                column="purchase_count",
+                function="sum",
+                time_window=timedelta(days=30),
+            )
+        ],
+    )
+    # Must not raise; features are taken from schema, no transformation execution needed
+    odfv.infer_features()

@@ -1119,6 +1119,13 @@ class OnDemandFeatureView(BaseFeatureView):
         return preprocessed_dict, columns_to_cleanup
 
     def infer_features(self) -> None:
+        if self.aggregations and not self.feature_transformation:
+            if not self.features:
+                raise RegistryInferenceFailure(
+                    "OnDemandFeatureView",
+                    f"Could not infer Features for the feature view '{self.name}'.",
+                )
+            return
         assert self.feature_transformation is not None
         random_input = self._construct_random_input(singleton=self.singleton)
         inferred_features = self.feature_transformation.infer_features(
