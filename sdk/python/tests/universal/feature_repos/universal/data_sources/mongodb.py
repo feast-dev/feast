@@ -17,7 +17,10 @@ from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb import (
     MongoDBOfflineStoreConfig,
     MongoDBSource,
 )
-from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+from feast.infra.offline_stores.file_source import (
+    FileLoggingDestination,
+    SavedDatasetFileStorage,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
@@ -173,7 +176,8 @@ class MongoDBDataSourceCreator(DataSourceCreator):
         return SavedDatasetFileStorage(path=path)
 
     def create_logged_features_destination(self) -> LoggingDestination:
-        raise NotImplementedError("MongoDB LoggingDestination not implemented.")
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        return FileLoggingDestination(path=d)
 
     def teardown(self):
         try:
