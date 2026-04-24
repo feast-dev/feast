@@ -694,7 +694,7 @@ def _validate_collection_item_types(
     """
     if sample is None:
         return
-    if all(type(item) in valid_types for item in sample):
+    if all(item is None or type(item) in valid_types for item in sample):
         return
 
     # to_numpy() upcasts INT32/INT64 with NULL to Float64 automatically
@@ -863,6 +863,38 @@ def _convert_list_values_to_proto(
             ]
         raise _type_err(sample, valid_types[0])
 
+    # Arrow/Athena may deserialize array columns as numpy.ndarray with
+    # object dtype instead of plain Python lists.  Normalise every value
+    # to a Python list so that protobuf constructors accept them, and
+    # replace None elements with a type-appropriate default (protobuf
+    # repeated fields do not accept None).
+    _LIST_NONE_DEFAULTS: Dict[ValueType, Any] = {
+        ValueType.STRING_LIST: "",
+        ValueType.BYTES_LIST: b"",
+        ValueType.INT32_LIST: 0,
+        ValueType.INT64_LIST: 0,
+        ValueType.FLOAT_LIST: 0.0,
+        ValueType.DOUBLE_LIST: 0.0,
+        ValueType.BOOL_LIST: False,
+        ValueType.UNIX_TIMESTAMP_LIST: 0,
+        ValueType.UUID_LIST: "",
+        ValueType.TIME_UUID_LIST: "",
+        ValueType.DECIMAL_LIST: "",
+    }
+    none_default = _LIST_NONE_DEFAULTS.get(feast_value_type)
+
+    def _sanitize(value: Any) -> Any:
+        """Convert ndarray to list and replace None elements."""
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        if none_default is not None and isinstance(value, list):
+            value = [none_default if v is None else v for v in value]
+        return value
+
+    values = [_sanitize(v) if v is not None else v for v in values]
+    if sample is not None:
+        sample = _sanitize(sample)
+
     # Validate item types using shared helper
     _validate_collection_item_types(sample, valid_types, feast_value_type)
 
@@ -875,7 +907,6 @@ def _convert_list_values_to_proto(
         return _convert_bool_collection_to_proto(values, field_name, proto_type)
 
     if feast_value_type in (ValueType.UUID_LIST, ValueType.TIME_UUID_LIST):
-        # uuid.UUID objects must be converted to str for StringList proto.
         return [
             (
                 ProtoValue(
@@ -888,7 +919,6 @@ def _convert_list_values_to_proto(
         ]
 
     if feast_value_type == ValueType.DECIMAL_LIST:
-        # decimal.Decimal objects must be converted to str for StringList proto.
         return [
             (
                 ProtoValue(
