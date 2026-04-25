@@ -19,6 +19,7 @@ from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     serialize_entity_key,
 )
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -164,7 +165,7 @@ class MilvusOnlineStore(OnlineStore):
     ) -> Dict[str, Any]:
         self.client = self._connect(config)
         vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(config.project, table, config.registry.enable_online_feature_view_versioning)
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
             composite_key_name = _get_composite_key_name(table)
@@ -346,7 +347,7 @@ class MilvusOnlineStore(OnlineStore):
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(config.project, table, config.registry.enable_online_feature_view_versioning)
         collection = self._get_or_create_collection(config, table)
 
         composite_key_name = _get_composite_key_name(table)
@@ -494,7 +495,7 @@ class MilvusOnlineStore(OnlineStore):
             self._get_or_create_collection(config, table)
 
         for table in tables_to_delete:
-            collection_name = _table_id(config.project, table)
+            collection_name = _table_id(config.project, table, config.registry.enable_online_feature_view_versioning)
             if self._collections.get(collection_name, None):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
@@ -512,7 +513,7 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self.client = self._connect(config)
         for table in tables:
-            collection_name = _table_id(config.project, table)
+            collection_name = _table_id(config.project, table, config.registry.enable_online_feature_view_versioning)
             if self._collections.get(collection_name, None):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
@@ -551,7 +552,7 @@ class MilvusOnlineStore(OnlineStore):
             k.name: k.dtype for k in table.entity_columns
         }
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(config.project, table, config.registry.enable_online_feature_view_versioning)
         collection = self._get_or_create_collection(config, table)
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
@@ -749,8 +750,8 @@ class MilvusOnlineStore(OnlineStore):
         return result_list
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 def _get_composite_key_name(table: FeatureView) -> str:

@@ -292,6 +292,14 @@ class OnlineStore(ABC):
             supported_types.append(DynamoDBOnlineStore)
         except Exception:
             pass
+        try:
+            from feast.infra.online_stores.milvus_online_store.milvus import (
+                MilvusOnlineStore,
+            )
+
+            supported_types.append(MilvusOnlineStore)
+        except ImportError:
+            pass
 
         if isinstance(self, tuple(supported_types)):
             return
