@@ -527,6 +527,10 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def _validate_transformation_config(self) -> None:
         """Validate transformation configuration."""
+        # Aggregations provide their own transformation; no udf/feature_transformation required.
+        if self.aggregations:
+            return
+
         if not self.feature_transformation:
             raise ValueError(ODFVErrorMessages.no_transformation_provided())
 
@@ -783,6 +787,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 feature_transformation.substrait_transformation
             )
         elif transformation_type is None:
+            if proto.spec.aggregations:
+                return None
             # Handle backward compatibility case where feature_transformation is cleared
             return cls._handle_backward_compatible_udf(proto)
         else:
@@ -1113,6 +1119,13 @@ class OnDemandFeatureView(BaseFeatureView):
         return preprocessed_dict, columns_to_cleanup
 
     def infer_features(self) -> None:
+        if self.aggregations and not self.feature_transformation:
+            if not self.features:
+                raise RegistryInferenceFailure(
+                    "OnDemandFeatureView",
+                    f"Could not infer Features for the feature view '{self.name}'.",
+                )
+            return
         assert self.feature_transformation is not None
         random_input = self._construct_random_input(singleton=self.singleton)
         inferred_features = self.feature_transformation.infer_features(
