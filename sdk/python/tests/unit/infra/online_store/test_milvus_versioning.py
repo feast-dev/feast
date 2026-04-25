@@ -51,28 +51,40 @@ class TestTableId:
 
         fv = _make_feature_view(version_number=2)
         config = _make_config(versioning=True)
-        assert _table_id(config.project, fv, enable_versioning=True) == "test_project_driver_stats_v2"
+        assert (
+            _table_id(config.project, fv, enable_versioning=True)
+            == "test_project_driver_stats_v2"
+        )
 
     def test_projection_version_tag_takes_priority(self):
         from feast.infra.online_stores.milvus_online_store.milvus import _table_id
 
         fv = _make_feature_view(version_number=1, version_tag=3)
         config = _make_config(versioning=True)
-        assert _table_id(config.project, fv, enable_versioning=True) == "test_project_driver_stats_v3"
+        assert (
+            _table_id(config.project, fv, enable_versioning=True)
+            == "test_project_driver_stats_v3"
+        )
 
     def test_version_zero_no_suffix(self):
         from feast.infra.online_stores.milvus_online_store.milvus import _table_id
 
         fv = _make_feature_view(version_number=0)
         config = _make_config(versioning=True)
-        assert _table_id(config.project, fv, enable_versioning=True) == "test_project_driver_stats"
+        assert (
+            _table_id(config.project, fv, enable_versioning=True)
+            == "test_project_driver_stats"
+        )
 
     def test_versioning_enabled_no_version_set(self):
         from feast.infra.online_stores.milvus_online_store.milvus import _table_id
 
         fv = _make_feature_view()
         config = _make_config(versioning=True)
-        assert _table_id(config.project, fv, enable_versioning=True) == "test_project_driver_stats"
+        assert (
+            _table_id(config.project, fv, enable_versioning=True)
+            == "test_project_driver_stats"
+        )
 
     def test_versioning_disabled_ignores_version(self):
         from feast.infra.online_stores.milvus_online_store.milvus import _table_id
@@ -86,7 +98,9 @@ class TestMilvusVersionedReadSupport:
     """Test that MilvusOnlineStore passes _check_versioned_read_support."""
 
     def test_allowed_with_version_tag(self):
-        from feast.infra.online_stores.milvus_online_store.milvus import MilvusOnlineStore
+        from feast.infra.online_stores.milvus_online_store.milvus import (
+            MilvusOnlineStore,
+        )
 
         store = MilvusOnlineStore()
         fv = _make_feature_view()
@@ -94,8 +108,73 @@ class TestMilvusVersionedReadSupport:
         store._check_versioned_read_support([(fv, ["trips_today"])])
 
     def test_allowed_without_version_tag(self):
-        from feast.infra.online_stores.milvus_online_store.milvus import MilvusOnlineStore
+        from feast.infra.online_stores.milvus_online_store.milvus import (
+            MilvusOnlineStore,
+        )
 
         store = MilvusOnlineStore()
         fv = _make_feature_view()
         store._check_versioned_read_support([(fv, ["trips_today"])])
+
+
+class TestTeardownDropsAllVersions:
+    """Teardown should drop the base collection AND all versioned collections."""
+
+    def _build_store_with_collections(self, existing_collections):
+        from feast.infra.online_stores.milvus_online_store.milvus import (
+            MilvusOnlineStore,
+        )
+
+        store = MilvusOnlineStore()
+        store.client = MagicMock()
+        store.client.list_collections.return_value = existing_collections
+        store._connect = MagicMock(return_value=store.client)
+        store._collections = {name: MagicMock() for name in existing_collections}
+        return store
+
+    def test_teardown_drops_base_and_all_versioned_collections(self):
+        fv = _make_feature_view()
+        config = _make_config(versioning=True)
+        existing = [
+            "test_project_driver_stats",
+            "test_project_driver_stats_v1",
+            "test_project_driver_stats_v2",
+            "test_project_other_view",  # unrelated, must not be dropped
+        ]
+        store = self._build_store_with_collections(existing)
+
+        store.teardown(config, [fv], [])
+
+        dropped = {call.args[0] for call in store.client.drop_collection.call_args_list}
+        assert dropped == {
+            "test_project_driver_stats",
+            "test_project_driver_stats_v1",
+            "test_project_driver_stats_v2",
+        }
+        assert "test_project_other_view" not in dropped
+
+    def test_update_drops_all_versions_for_deleted_table(self):
+        fv = _make_feature_view()
+        config = _make_config(versioning=True)
+        existing = [
+            "test_project_driver_stats",
+            "test_project_driver_stats_v3",
+            "test_project_driver_stats_v4",
+        ]
+        store = self._build_store_with_collections(existing)
+
+        store.update(
+            config=config,
+            tables_to_delete=[fv],
+            tables_to_keep=[],
+            entities_to_delete=[],
+            entities_to_keep=[],
+            partial=False,
+        )
+
+        dropped = {call.args[0] for call in store.client.drop_collection.call_args_list}
+        assert dropped == {
+            "test_project_driver_stats",
+            "test_project_driver_stats_v3",
+            "test_project_driver_stats_v4",
+        }

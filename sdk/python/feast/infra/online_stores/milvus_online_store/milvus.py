@@ -498,15 +498,12 @@ class MilvusOnlineStore(OnlineStore):
         for table in tables_to_keep:
             self._get_or_create_collection(config, table)
 
+        # Always drop the base collection plus any "_v{N}" siblings, regardless of
+        # the current versioning flag. This handles mixed-state repos where
+        # versioning was toggled on/off across applies and would otherwise leave
+        # orphan collections behind in Milvus.
         for table in tables_to_delete:
-            collection_name = _table_id(
-                config.project,
-                table,
-                config.registry.enable_online_feature_view_versioning,
-            )
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
@@ -520,15 +517,9 @@ class MilvusOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         self.client = self._connect(config)
+        # See update(): drop base + all "_v{N}" siblings to handle mixed-state repos.
         for table in tables:
-            collection_name = _table_id(
-                config.project,
-                table,
-                config.registry.enable_online_feature_view_versioning,
-            )
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def retrieve_online_documents_v2(
         self,
@@ -762,6 +753,24 @@ class MilvusOnlineStore(OnlineStore):
                 )
                 result_list.append((res_ts, entity_key_proto, res if res else None))
         return result_list
+
+    def _drop_all_version_collections(self, project: str, table: FeatureView) -> None:
+        """Drop the base collection and every ``_v{N}`` versioned sibling.
+
+        Mirrors the ``_drop_all_version_tables`` helpers in the MySQL/PostgreSQL
+        online stores. Always called from ``update`` and ``teardown`` so a
+        repo that toggles versioning on and off does not leave orphan
+        collections behind in Milvus.
+        """
+        base = f"{project}_{table.name}"
+        versioned_prefix = f"{base}_v"
+        for collection_name in self.client.list_collections():
+            if collection_name == base or (
+                collection_name.startswith(versioned_prefix)
+                and collection_name[len(versioned_prefix) :].isdigit()
+            ):
+                self.client.drop_collection(collection_name)
+                self._collections.pop(collection_name, None)
 
 
 def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
