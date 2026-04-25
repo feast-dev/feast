@@ -694,7 +694,7 @@ def _validate_collection_item_types(
     """
     if sample is None:
         return
-    if all(item is None or type(item) in valid_types for item in sample):
+    if all(type(item) in valid_types for item in sample):
         return
 
     # to_numpy() upcasts INT32/INT64 with NULL to Float64 automatically
@@ -887,6 +887,8 @@ def _convert_list_values_to_proto(
         """Convert ndarray to list and replace None elements."""
         if isinstance(value, np.ndarray):
             value = value.tolist()
+        if isinstance(value, list) and len(value) == 0:
+            return None
         if none_default is not None and isinstance(value, list):
             value = [none_default if v is None else v for v in value]
         return value
