@@ -1977,12 +1977,11 @@ class TestNdarrayListConversion:
         assert converted == ["tag1", "", "tag3"]
 
     def test_ndarray_empty_string_list(self):
-        """An empty ndarray in a list column produces an empty ProtoValue (null)."""
-        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
-
+        """An empty ndarray in a list column round-trips as an empty list."""
         values = [np.array([], dtype=object)]
         protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
-        assert protos[0] == ProtoValue()
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == []
 
     def test_ndarray_string_list_mixed_batch(self):
         """Batch with populated ndarray, None, and empty ndarray."""
@@ -1996,7 +1995,7 @@ class TestNdarrayListConversion:
         protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
         assert feast_value_type_to_python_type(protos[0]) == ["a", "b"]
         assert protos[1] == ProtoValue()
-        assert protos[2] == ProtoValue()
+        assert feast_value_type_to_python_type(protos[2]) == []
 
     def test_ndarray_int64_list_roundtrip(self):
         """ndarray of ints converts to INT64_LIST proto and back."""
