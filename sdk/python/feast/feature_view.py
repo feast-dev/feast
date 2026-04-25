@@ -89,6 +89,8 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
+        org: The organizational unit that owns this feature view (e.g. "ads", "search").
+            Defaults to empty string.
         mode: The transformation mode for feature transformations. Only meaningful when
             transformations are applied. Choose from TransformationMode enum values
             (e.g., PYTHON, PANDAS, RAY, SQL, SPARK, SUBSTRAIT).

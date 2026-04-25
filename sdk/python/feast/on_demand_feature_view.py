@@ -131,6 +131,8 @@ class OnDemandFeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the on demand feature view, typically the email of the primary
             maintainer.
+        org: The organizational unit that owns this on demand feature view (e.g. "ads",
+            "search"). Defaults to empty string.
     """
 
     _TRACK_METRICS_TAG = "feast:track_metrics"

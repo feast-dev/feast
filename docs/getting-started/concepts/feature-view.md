@@ -23,6 +23,8 @@ Feature views consist of:
 * a name to uniquely identify this feature view in the project.
 * (optional, but recommended) a schema specifying one or more [features](feature-view.md#field) (without this, Feast will infer the schema by reading from the data source)
 * (optional, but recommended) metadata (for example, description, or other free-form metadata via `tags`)
+* (optional) `owner`: the email of the primary maintainer
+* (optional) `org`: the organizational unit that owns the feature view (e.g. `"ads"`, `"search"`); useful for grouping feature views by team or product area
 * (optional) a TTL, which limits how far back Feast will look when generating historical datasets
 * (optional) `enable_validation=True`, which enables schema validation during materialization (see [Schema Validation](#schema-validation) below)
 
