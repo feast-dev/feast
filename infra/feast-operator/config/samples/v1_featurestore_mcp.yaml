@@ -1,0 +1,19 @@
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-mcp
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      server: {}
+      # serving.mcp switches the feature server to MCP (Model Context Protocol) mode.
+      # When mcp is set, the feature_server type in feature_store.yaml is "mcp".
+      # MCP enables LLM-friendly tool-based access to Feast feature views.
+      serving:
+        mcp:
+          enabled: true
+          serverName: feast-mcp-server
+          serverVersion: "1.0.0"
+          # transport can be "sse" (default) or "http"
+          transport: sse
