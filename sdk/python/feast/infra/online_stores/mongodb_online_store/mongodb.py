@@ -260,6 +260,7 @@ class MongoDBOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         """
         Drop the backing collection and close the client.

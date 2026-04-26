@@ -51,6 +51,8 @@ def _table_id(project: str, table: FeatureView, enable_versioning: bool = False)
 class FaissOnlineStore(OnlineStore):
     _logger: logging.Logger = logging.getLogger(__name__)
 
+    supports_versioned_online_reads = True
+
     def __init__(self):
         super().__init__()
         self._indices: Dict[str, faiss.IndexIVFFlat] = {}
@@ -100,6 +102,7 @@ class FaissOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         versioning = config.registry.enable_online_feature_view_versioning
         for table in tables:

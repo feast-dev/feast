@@ -247,6 +247,7 @@ class QdrantOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         project = config.project
         try:

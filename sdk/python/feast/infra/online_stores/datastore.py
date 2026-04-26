@@ -139,6 +139,7 @@ class DatastoreOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)

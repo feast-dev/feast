@@ -10,6 +10,7 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.snowflake.snowflake_utils import (
     GetSnowflakeConnection,
     execute_snowflake_statement,
@@ -253,6 +254,7 @@ class SnowflakeOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 

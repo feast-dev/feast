@@ -39,6 +39,7 @@ from feast.infra.online_stores.helpers import (
     compute_versioned_name,
 )
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
@@ -107,6 +108,8 @@ class RedisOnlineStore(OnlineStore):
     _client_async: Optional[Union[redis_asyncio.Redis, redis_asyncio.RedisCluster]] = (
         None
     )
+
+    supports_versioned_online_reads = True
 
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
@@ -190,6 +193,7 @@ class RedisOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         """
         We delete the keys in redis for tables/views being removed.

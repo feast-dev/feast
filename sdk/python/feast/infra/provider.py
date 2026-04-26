@@ -109,6 +109,7 @@ class Provider(ABC):
         project: str,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         """
         Tears down all cloud resources for the specified set of Feast objects.

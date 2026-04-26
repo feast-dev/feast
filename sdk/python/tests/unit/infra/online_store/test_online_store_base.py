@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.supported_async_methods import SupportedAsyncMethods
 
 
@@ -26,7 +27,7 @@ class ConcreteOnlineStore(OnlineStore):
     ):
         pass
 
-    def teardown(self, config, tables, entities):
+    def teardown(self, config, tables, entities, registry: BaseRegistry = None):
         pass
 
 

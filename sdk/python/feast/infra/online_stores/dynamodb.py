@@ -124,6 +124,8 @@ class DynamoDBOnlineStore(OnlineStore):
         _type_deserializer: Cached TypeDeserializer instance for performance.
     """
 
+    supports_versioned_online_reads = True
+
     _dynamodb_client = None
     _dynamodb_resource = None
     # Class-level cached TypeDeserializer to avoid per-request instantiation
@@ -359,6 +361,7 @@ class DynamoDBOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         """
         Delete tables from the DynamoDB Online Store.

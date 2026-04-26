@@ -1,9 +1,10 @@
 import struct
 from datetime import datetime, timezone
-from typing import Any, List
+from typing import Any, List, Optional
 
 import mmh3
 
+from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.key_encoding_utils import (
     serialize_entity_key,
@@ -72,8 +73,25 @@ def _to_naive_utc(ts: datetime) -> datetime:
         return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
 
 
-def compute_versioned_name(table: Any, enable_versioning: bool = False) -> str:
-    """Return the table name with a ``_v{N}`` suffix when versioning is enabled."""
+def online_store_table_id(
+    project: str,
+    table: FeatureView,
+    enable_versioning: bool = False,
+    version: Optional[int] = None,
+) -> str:
+    name = table.name
+    if enable_versioning:
+        resolved_version = version
+        if resolved_version is None:
+            resolved_version = getattr(table.projection, "version_tag", None)
+            if resolved_version is None:
+                resolved_version = getattr(table, "current_version_number", None)
+        if resolved_version is not None and resolved_version > 0:
+            name = f"{table.name}_v{resolved_version}"
+    return f"{project}_{name}"
+
+
+def compute_versioned_name(table: FeatureView, enable_versioning: bool = False) -> str:
     name = table.name
     if enable_versioning:
         version = getattr(table.projection, "version_tag", None)
@@ -85,5 +103,4 @@ def compute_versioned_name(table: Any, enable_versioning: bool = False) -> str:
 
 
 def compute_table_id(project: str, table: Any, enable_versioning: bool = False) -> str:
-    """Build the online-store table name, appending a version suffix when versioning is enabled."""
-    return f"{project}_{compute_versioned_name(table, enable_versioning)}"
+    return online_store_table_id(project, table, enable_versioning)

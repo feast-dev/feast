@@ -178,9 +178,12 @@ class PassthroughProvider(Provider):
         project: str,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ) -> None:
         if self.online_store:
-            self.online_store.teardown(self.repo_config, tables, entities)
+            self.online_store.teardown(
+                self.repo_config, tables, entities, registry=registry
+            )
         if self.batch_engine:
             self.batch_engine.teardown_infra(project, tables, entities)
 

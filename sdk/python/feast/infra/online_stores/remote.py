@@ -24,6 +24,7 @@ from pydantic import StrictStr
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -617,6 +618,7 @@ class RemoteOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         pass
 

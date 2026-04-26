@@ -1335,7 +1335,9 @@ class FeatureStore:
 
         entities = self.list_entities()
 
-        self._get_provider().teardown_infra(self.project, tables, entities)
+        self._get_provider().teardown_infra(
+            self.project, tables, entities, registry=self.registry
+        )
         self.registry.teardown()
 
     def get_historical_features(

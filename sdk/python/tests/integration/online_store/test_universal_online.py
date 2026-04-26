@@ -283,6 +283,77 @@ def test_write_to_online_store(environment, universal_data_sources):
     assertpy.assert_that(df["conv_rate"].iloc[0]).is_close_to(0.85, 1e-6)
 
 
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["singlestore"])
+def test_singlestore_versioned_online_reads(environment, universal_data_sources):
+    fs = environment.feature_store
+    fs.config.registry.enable_online_feature_view_versioning = True
+
+    entities, datasets, data_sources = universal_data_sources
+    driver_entity = driver()
+
+    # Apply v0
+    driver_hourly_stats_v0 = create_driver_hourly_stats_feature_view(
+        data_sources.driver
+    )
+    fs.apply([driver_hourly_stats_v0, driver_entity])
+
+    # Write v0 data
+    df_v0 = pd.DataFrame(
+        {
+            "driver_id": [1],
+            "conv_rate": [0.1],
+            "acc_rate": [0.2],
+            "avg_daily_trips": [10],
+            "driver_metadata": [None],
+            "driver_config": [None],
+            "driver_profile": [None],
+            "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
+            "created": [pd.Timestamp(_utc_now()).round("ms")],
+        }
+    )
+    fs.write_to_online_store("driver_stats", df_v0)
+
+    # Apply a schema change to create v1
+    driver_hourly_stats_v1 = FeatureView(
+        name="driver_stats",
+        entities=[driver_entity],
+        schema=driver_hourly_stats_v0.schema
+        + [Field(name="new_feature", dtype=Float32)],
+        source=data_sources.driver,
+        ttl=driver_hourly_stats_v0.ttl,
+        tags=TAGS,
+    )
+    fs.apply([driver_hourly_stats_v1, driver_entity])
+
+    # Write v1 data
+    df_v1 = pd.DataFrame(
+        {
+            "driver_id": [1],
+            "conv_rate": [0.1],
+            "acc_rate": [0.2],
+            "avg_daily_trips": [20],
+            "new_feature": [1.0],
+            "driver_metadata": [None],
+            "driver_config": [None],
+            "driver_profile": [None],
+            "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
+            "created": [pd.Timestamp(_utc_now()).round("ms")],
+        }
+    )
+    fs.write_to_online_store("driver_stats", df_v1)
+
+    # Read v0 and v1 explicitly
+    df = fs.get_online_features(
+        features=["driver_stats@v0:avg_daily_trips", "driver_stats@v1:avg_daily_trips"],
+        entity_rows=[{"driver_id": 1}],
+        full_feature_names=True,
+    ).to_df()
+
+    assertpy.assert_that(df["driver_stats@v0__avg_daily_trips"].iloc[0]).is_equal_to(10)
+    assertpy.assert_that(df["driver_stats@v1__avg_daily_trips"].iloc[0]).is_equal_to(20)
+
+
 def _get_online_features_dict_remotely(
     endpoint: str,
     features: Union[List[str], FeatureService],

@@ -56,6 +56,10 @@ class PostgreSQLOnlineStore(OnlineStore):
     _conn_async: Optional[AsyncConnection] = None
     _conn_pool_async: Optional[AsyncConnectionPool] = None
 
+    @property
+    def supports_versioned_online_reads(self) -> bool:
+        return True
+
     @contextlib.contextmanager
     def _get_conn(
         self, config: RepoConfig, autocommit: bool = False
@@ -385,6 +389,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         project = config.project
         schema_name = config.online_store.db_schema or config.online_store.user

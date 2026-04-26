@@ -274,6 +274,7 @@ class CouchbaseOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry=None,
     ):
         """
         Delete tables from the database.

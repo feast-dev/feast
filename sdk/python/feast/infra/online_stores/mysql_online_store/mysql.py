@@ -12,6 +12,7 @@ from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
@@ -42,6 +43,10 @@ class MySQLOnlineStore(OnlineStore):
     """
 
     _conn: Optional[Connection] = None
+
+    @property
+    def supports_versioned_online_reads(self) -> bool:
+        return True
 
     def _get_conn(self, config: RepoConfig) -> Connection:
         online_store_config = config.online_store
@@ -78,7 +83,7 @@ class MySQLOnlineStore(OnlineStore):
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=3,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 ).hex()
                 timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
@@ -100,14 +105,14 @@ class MySQLOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
         else:
-            batch_size = config.online_store.bacth_size
+            batch_size = config.online_store.batch_size
             if not batch_size or batch_size < 2:
                 raise ValueError("Batch size must be at least 2")
             insert_values = []
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=2,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 ).hex()
                 timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
@@ -223,7 +228,7 @@ class MySQLOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
                 entity_key,
-                entity_key_serialization_version=3,
+                entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
 
             cur.execute(
@@ -296,6 +301,7 @@ class MySQLOnlineStore(OnlineStore):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ) -> None:
         conn = self._get_conn(config)
         cur = conn.cursor()

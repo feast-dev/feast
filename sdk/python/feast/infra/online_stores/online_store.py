@@ -40,6 +40,10 @@ class OnlineStore(ABC):
     """
 
     @property
+    def supports_versioned_online_reads(self) -> bool:
+        return False
+
+    @property
     def async_supported(self) -> SupportedAsyncMethods:
         return SupportedAsyncMethods()
 
@@ -189,7 +193,7 @@ class OnlineStore(ABC):
         )
 
         # Check for versioned reads on unsupported stores
-        self._check_versioned_read_support(grouped_refs)
+        self._check_versioned_read_support(grouped_refs, config)
         _track_read = False
         try:
             from feast.metrics import _config as _metrics_config
@@ -253,54 +257,34 @@ class OnlineStore(ABC):
         )
         return OnlineResponse(online_features_response, feature_types=feature_types)
 
-    def _check_versioned_read_support(self, grouped_refs):
+    def _check_versioned_read_support(
+        self, grouped_refs, config: Optional[RepoConfig] = None
+    ):
         """Raise an error if versioned reads are attempted on unsupported stores."""
         from feast.infra.online_stores.sqlite import SqliteOnlineStore
 
-        supported_types: list[type] = [SqliteOnlineStore]
-        try:
-            from feast.infra.online_stores.mysql_online_store.mysql import (
-                MySQLOnlineStore,
-            )
-
-            supported_types.append(MySQLOnlineStore)
-        except ImportError:
-            pass
-        try:
-            from feast.infra.online_stores.postgres_online_store.postgres import (
-                PostgreSQLOnlineStore,
-            )
-
-            supported_types.append(PostgreSQLOnlineStore)
-        except ImportError:
-            pass
-        try:
-            from feast.infra.online_stores.faiss_online_store import FaissOnlineStore
-
-            supported_types.append(FaissOnlineStore)
-        except ImportError:
-            pass
-        try:
-            from feast.infra.online_stores.redis import RedisOnlineStore
-
-            supported_types.append(RedisOnlineStore)
-        except Exception:
-            pass
-        try:
-            from feast.infra.online_stores.dynamodb import DynamoDBOnlineStore
-
-            supported_types.append(DynamoDBOnlineStore)
-        except Exception:
-            pass
-
-        if isinstance(self, tuple(supported_types)):
+        if config is None:
             return
         for table, _ in grouped_refs:
             version_tag = getattr(table.projection, "version_tag", None)
-            if version_tag is not None:
+            if version_tag is None:
+                continue
+
+            # Version-qualified refs (e.g. @v2) are only supported when online versioning is enabled.
+            if not config.registry.enable_online_feature_view_versioning:
                 raise VersionedOnlineReadNotSupported(
                     self.__class__.__name__, version_tag
                 )
+
+            # Online versioning enabled: allow stores that implement versioned routing.
+            if self.supports_versioned_online_reads:
+                continue
+
+            # SQLite is always allowed, since it is the reference implementation.
+            if isinstance(self, SqliteOnlineStore):
+                continue
+
+            raise VersionedOnlineReadNotSupported(self.__class__.__name__, version_tag)
 
     async def get_online_features_async(
         self,
@@ -346,7 +330,7 @@ class OnlineStore(ABC):
         )
 
         # Check for versioned reads on unsupported stores
-        self._check_versioned_read_support(grouped_refs)
+        self._check_versioned_read_support(grouped_refs, config)
 
         async def query_table(table, requested_features):
             # Get the correct set of entity values with the correct join keys.
@@ -488,6 +472,7 @@ class OnlineStore(ABC):
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
+        registry: Optional[BaseRegistry] = None,
     ):
         """
         Tears down all cloud resources for the specified set of Feast objects.
