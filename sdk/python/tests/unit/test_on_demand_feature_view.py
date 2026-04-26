@@ -17,6 +17,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import pytest
 
+from feast.aggregation import Aggregation
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
@@ -590,3 +591,115 @@ def test_eq_considers_track_metrics():
     odfv_untracked = OnDemandFeatureView(**common, track_metrics=False)
 
     assert odfv_tracked != odfv_untracked
+
+
+def test_aggregations_valid_without_udf():
+    """An ODFV with aggregations must pass ensure_valid() without a udf or feature_transformation."""
+    from datetime import timedelta
+
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[Field(name="purchase_count", dtype=Float32)],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="agg-odfv",
+        sources=[feature_view],
+        schema=[Field(name="purchase_sum_30d", dtype=Float32)],
+        aggregations=[
+            Aggregation(
+                column="purchase_count",
+                function="sum",
+                time_window=timedelta(days=30),
+            )
+        ],
+    )
+    # Must not raise
+    odfv.ensure_valid()
+
+
+def test_aggregations_only_odfv_proto_roundtrip():
+    """Aggregation-only ODFV must survive a proto round-trip without crashing on dill.loads(b'')."""
+    from datetime import timedelta
+
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[Field(name="purchase_count", dtype=Float32)],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="agg-odfv",
+        sources=[feature_view],
+        schema=[Field(name="purchase_sum_30d", dtype=Float32)],
+        aggregations=[
+            Aggregation(
+                column="purchase_count",
+                function="sum",
+                time_window=timedelta(days=30),
+            )
+        ],
+    )
+    proto = odfv.to_proto()
+    restored = OnDemandFeatureView.from_proto(proto)
+    assert restored.feature_transformation is None
+    assert len(restored.aggregations) == 1
+    assert restored.aggregations[0].column == "purchase_count"
+
+
+def test_aggregations_only_odfv_infer_features():
+    """infer_features must not crash for aggregation-only ODFVs with explicit schema."""
+    from datetime import timedelta
+
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[Field(name="purchase_count", dtype=Float32)],
+        source=file_source,
+    )
+    odfv = OnDemandFeatureView(
+        name="agg-odfv",
+        sources=[feature_view],
+        schema=[Field(name="purchase_sum_30d", dtype=Float32)],
+        aggregations=[
+            Aggregation(
+                column="purchase_count",
+                function="sum",
+                time_window=timedelta(days=30),
+            )
+        ],
+    )
+    # Must not raise; features are taken from schema, no transformation execution needed
+    odfv.infer_features()
+
+
+def test_input_schema_aggregation_no_udf():
+    """ODFV with input_schema, no sources, aggregations, and no udf must validate and round-trip."""
+    from datetime import timedelta
+
+    odfv = OnDemandFeatureView(
+        name="input-schema-agg-odfv",
+        sources=None,
+        input_schema=[Field(name="purchase_count", dtype=Float32)],
+        schema=[Field(name="purchase_sum_30d", dtype=Float32)],
+        aggregations=[
+            Aggregation(
+                column="purchase_count",
+                function="sum",
+                time_window=timedelta(days=30),
+            )
+        ],
+    )
+
+    odfv.ensure_valid()
+    odfv.infer_features()
+
+    proto = odfv.to_proto()
+    restored = OnDemandFeatureView.from_proto(proto)
+    assert restored.feature_transformation is None
+    assert len(restored.aggregations) == 1
+    assert restored.input_schema == [Field(name="purchase_count", dtype=Float32)]
