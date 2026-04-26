@@ -1009,7 +1009,6 @@ def test_delete_data_source_project_scoped(test_registry):
     "test_registry",
     all_fixtures,
 )
-
 def test_modify_feature_views_success(test_registry):
     # Create Feature Views
     batch_source = FileSource(
