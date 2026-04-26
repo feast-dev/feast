@@ -68,10 +68,12 @@ precommit-check: format-python lint-python ## Run all precommit checks
 	@echo "✅ All precommit checks passed"
 
 # Install precommit hooks with correct stages
-install-precommit: ## Install precommit hooks (runs on commit, not push)
+install-precommit: ## Install precommit hooks (runs on commit + commit-msg + pre-push)
 	uv pip install pre-commit
 	pre-commit install --hook-type pre-commit
-	@echo "✅ Precommit hooks installed (will run on commit, not push)"
+	pre-commit install --hook-type commit-msg
+	pre-commit install --hook-type pre-push
+	@echo "✅ Precommit hooks installed (lint on commit, commitlint on commit-msg, lint on push)"
 
 # Manual full type check
 mypy-full: ## Full MyPy type checking with all files
@@ -91,6 +93,7 @@ setup-scripts: ## Make helper scripts executable
 install-python-dependencies-dev: ## Install Python dev dependencies using uv (editable install)
 	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
+	$(MAKE) install-precommit
 
 install-python-dependencies-minimal: ## Install minimal Python dependencies using uv (editable install)
 	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-minimal-requirements.txt
