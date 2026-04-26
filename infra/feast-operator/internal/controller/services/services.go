@@ -604,7 +604,10 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 
 	deploySettings := FeastServiceConstants[feastType]
 	deploySettings.Args = append([]string{}, deploySettings.Args...)
-	if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
+	// Only inject --metrics CLI flag for the server.metrics bool path.
+	// When serving.metrics.enabled is used, Python reads it from feature_store.yaml
+	// and starts the metrics server itself — no CLI flag needed.
+	if feastType == OnlineFeastType && feast.isMetricsEnabledViaCLI(feastType) {
 		deploySettings.Args = append([]string{deploySettings.Args[0], "--metrics"}, deploySettings.Args[1:]...)
 	}
 	targetPort := deploySettings.TargetHttpPort
@@ -919,13 +922,41 @@ func (feast *FeastServices) getWorkerConfigs(feastType FeastServiceType) *feastd
 	return nil
 }
 
+// isMetricsEnabledViaCLI returns true only when metrics are enabled via the
+// server.metrics bool flag, which requires the --metrics CLI argument to be
+// injected into the feast serve command.
+func (feast *FeastServices) isMetricsEnabledViaCLI(feastType FeastServiceType) bool {
+	if feastType != OnlineFeastType {
+		return false
+	}
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil && serviceConfigs.Metrics != nil {
+		return *serviceConfigs.Metrics
+	}
+	return false
+}
+
 func (feast *FeastServices) isMetricsEnabled(feastType FeastServiceType) bool {
 	if feastType != OnlineFeastType {
 		return false
 	}
 
-	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil && serviceConfigs.Metrics != nil {
-		return *serviceConfigs.Metrics
+	// CLI flag path: server.metrics: true → adds --metrics arg + exposes port 8000.
+	// Only return true immediately; an explicit false must not suppress the YAML path.
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil &&
+		serviceConfigs.Metrics != nil && *serviceConfigs.Metrics {
+		return true
+	}
+
+	// YAML config path: serving.metrics.enabled: true → written into feature_store.yaml;
+	// Python reads it and starts the metrics server on port 8000 automatically.
+	// We still need to expose the port and Service so Prometheus can scrape it.
+	appliedSpec := feast.Handler.FeatureStore.Status.Applied
+	if appliedSpec.Services != nil &&
+		appliedSpec.Services.OnlineStore != nil &&
+		appliedSpec.Services.OnlineStore.Serving != nil &&
+		appliedSpec.Services.OnlineStore.Serving.Metrics != nil &&
+		appliedSpec.Services.OnlineStore.Serving.Metrics.Enabled {
+		return true
 	}
 
 	return false
