@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Copyright 2019 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +18,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
 from google.protobuf.message import Message
@@ -51,10 +53,16 @@ from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatase
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
-from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.substrait_transformation import SubstraitTransformation
+
+if TYPE_CHECKING:
+    from feast.saved_dataset import SavedDataset, ValidationReference
+
+
+def _get_saved_dataset_classes():
+    from feast.saved_dataset import SavedDataset, ValidationReference
+
+    return SavedDataset, ValidationReference
 
 
 class BaseRegistry(ABC):
@@ -1106,6 +1114,13 @@ class BaseRegistry(ABC):
                 DeprecationWarning,
             )
             if on_demand_feature_view.feature_transformation:
+                from feast.transformation.pandas_transformation import (
+                    PandasTransformation,
+                )
+                from feast.transformation.substrait_transformation import (
+                    SubstraitTransformation,
+                )
+
                 if isinstance(
                     on_demand_feature_view.feature_transformation, PandasTransformation
                 ):
@@ -1164,6 +1179,8 @@ class BaseRegistry(ABC):
 
     @staticmethod
     def deserialize_registry_values(serialized_proto, feast_obj_type) -> Any:
+        SavedDataset, _ = _get_saved_dataset_classes()
+
         if feast_obj_type == Entity:
             return EntityProto.FromString(serialized_proto)
         if feast_obj_type == SavedDataset:

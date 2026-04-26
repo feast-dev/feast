@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -14,11 +17,11 @@ from typing import (
     Union,
 )
 
-import pandas as pd
 import pyarrow
 from tqdm import tqdm
 
 from feast import FeatureService, errors
+from feast._lazy_pandas import pd
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -36,13 +39,16 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from feast.saved_dataset import SavedDataset
+
+if TYPE_CHECKING:
+    from feast.saved_dataset import SavedDataset
 
 PROVIDERS_CLASS_FOR_TYPE = {
     "gcp": "feast.infra.passthrough_provider.PassthroughProvider",
     "aws": "feast.infra.passthrough_provider.PassthroughProvider",
     "local": "feast.infra.passthrough_provider.PassthroughProvider",
     "azure": "feast.infra.passthrough_provider.PassthroughProvider",
+    "chronon": "feast.infra.chronon_provider.ChrononProvider",
 }
 
 

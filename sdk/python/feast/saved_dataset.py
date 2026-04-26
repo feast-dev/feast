@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 from abc import abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Type, cast
 
-import pandas as pd
 import pyarrow
 from google.protobuf.json_format import MessageToJson
 
+from feast._lazy_pandas import pd
 from feast.data_source import DataSource
 from feast.dqm.profilers.profiler import Profile, Profiler
 from feast.importer import import_class

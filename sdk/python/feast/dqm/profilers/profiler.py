@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import abc
 from typing import Any, List, Optional
 
-import pandas as pd
+from feast._lazy_pandas import pd
 
 
 class Profile:
