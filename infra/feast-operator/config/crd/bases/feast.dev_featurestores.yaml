@@ -741,6 +741,73 @@ spec:
                 x-kubernetes-validations:
                 - message: One selection required between init or git.
                   rule: '[has(self.git), has(self.init)].exists_one(c, c)'
+              materialization:
+                description: |-
+                  Materialization controls feature materialization behavior (batch size, pull strategy).
+                  Written into feature_store.
+                properties:
+                  extraConfig:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      ExtraConfig passes additional materialization key-value settings inline into
+                      feature_store.yaml.
+                    type: object
+                  onlineWriteBatchSize:
+                    description: |-
+                      Number of rows per batch when writing to the online store during materialization.
+                      Prevents OOM for large feature views.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                type: object
+              openlineage:
+                description: |-
+                  OpenLineage enables OpenLineage data lineage tracking for Feast operations.
+                  Written into feature_store.
+                properties:
+                  apiKeySecretRef:
+                    description: Reference to a Secret containing the key "api_key"
+                      for lineage server authentication.
+                    properties:
+                      name:
+                        default: ""
+                        description: |-
+                          Name of the referent.
+                          This field is effectively required, but due to backwards compatibility is
+                          allowed to be empty.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  enabled:
+                    description: Enable OpenLineage integration.
+                    type: boolean
+                  extraConfig:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      ExtraConfig holds additional OpenLineage key-value settings written inline into
+                      the openlineage block of feature_store.
+                    type: object
+                  transportEndpoint:
+                    description: API endpoint path appended to transportUrl. Defaults
+                      to "api/v1/lineage".
+                    type: string
+                  transportType:
+                    description: Transport type for lineage events.
+                    enum:
+                    - http
+                    - console
+                    - file
+                    - kafka
+                    type: string
+                  transportUrl:
+                    description: URL for HTTP transport (e.g. http://marquez:5000).
+                      Required when transportType is "http".
+                    type: string
+                required:
+                - enabled
+                type: object
               replicas:
                 default: 1
                 description: |-
@@ -2541,6 +2608,75 @@ spec:
                                 format: int32
                                 minimum: -1
                                 type: integer
+                            type: object
+                        type: object
+                      serving:
+                        description: Serving configures the Feast feature_server section
+                          written into feature_store.yaml for the online serve pod.
+                        properties:
+                          mcp:
+                            description: Mcp enables MCP (Model Context Protocol)
+                              server support. When set, feature server type is "mcp".
+                            properties:
+                              enabled:
+                                description: Enable the MCP server.
+                                type: boolean
+                              serverName:
+                                description: MCP server name for identification. Defaults
+                                  to "feast-mcp-server".
+                                type: string
+                              serverVersion:
+                                description: MCP server version string. Defaults to
+                                  "1.0.0".
+                                type: string
+                              transport:
+                                description: MCP transport protocol.
+                                enum:
+                                - sse
+                                - http
+                                type: string
+                            required:
+                            - enabled
+                            type: object
+                          metrics:
+                            description: |-
+                              Metrics configures per-category Prometheus metrics for the feature server.
+                              Coexists with the server.
+                            properties:
+                              categories:
+                                additionalProperties:
+                                  type: boolean
+                                description: Categories selectively enables or disables
+                                  individual Feast metric categories.
+                                type: object
+                              enabled:
+                                description: Enable the Prometheus metrics endpoint
+                                  on port 8000.
+                                type: boolean
+                            required:
+                            - enabled
+                            type: object
+                          offlinePushBatching:
+                            description: OfflinePushBatching batches writes to the
+                              offline store via the /push endpoint.
+                            properties:
+                              batchIntervalSeconds:
+                                description: Seconds between batch flushes to the
+                                  offline store.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              batchSize:
+                                description: Maximum number of rows per offline write
+                                  batch.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              enabled:
+                                description: Enable offline push batching.
+                                type: boolean
+                            required:
+                            - enabled
                             type: object
                         type: object
                     type: object
@@ -6538,6 +6674,73 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required between init or git.
                       rule: '[has(self.git), has(self.init)].exists_one(c, c)'
+                  materialization:
+                    description: |-
+                      Materialization controls feature materialization behavior (batch size, pull strategy).
+                      Written into feature_store.
+                    properties:
+                      extraConfig:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          ExtraConfig passes additional materialization key-value settings inline into
+                          feature_store.yaml.
+                        type: object
+                      onlineWriteBatchSize:
+                        description: |-
+                          Number of rows per batch when writing to the online store during materialization.
+                          Prevents OOM for large feature views.
+                        format: int32
+                        minimum: 1
+                        type: integer
+                    type: object
+                  openlineage:
+                    description: |-
+                      OpenLineage enables OpenLineage data lineage tracking for Feast operations.
+                      Written into feature_store.
+                    properties:
+                      apiKeySecretRef:
+                        description: Reference to a Secret containing the key "api_key"
+                          for lineage server authentication.
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      enabled:
+                        description: Enable OpenLineage integration.
+                        type: boolean
+                      extraConfig:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          ExtraConfig holds additional OpenLineage key-value settings written inline into
+                          the openlineage block of feature_store.
+                        type: object
+                      transportEndpoint:
+                        description: API endpoint path appended to transportUrl. Defaults
+                          to "api/v1/lineage".
+                        type: string
+                      transportType:
+                        description: Transport type for lineage events.
+                        enum:
+                        - http
+                        - console
+                        - file
+                        - kafka
+                        type: string
+                      transportUrl:
+                        description: URL for HTTP transport (e.g. http://marquez:5000).
+                          Required when transportType is "http".
+                        type: string
+                    required:
+                    - enabled
+                    type: object
                   replicas:
                     default: 1
                     description: |-
@@ -8363,6 +8566,77 @@ spec:
                                     format: int32
                                     minimum: -1
                                     type: integer
+                                type: object
+                            type: object
+                          serving:
+                            description: Serving configures the Feast feature_server
+                              section written into feature_store.yaml for the online
+                              serve pod.
+                            properties:
+                              mcp:
+                                description: Mcp enables MCP (Model Context Protocol)
+                                  server support. When set, feature server type is
+                                  "mcp".
+                                properties:
+                                  enabled:
+                                    description: Enable the MCP server.
+                                    type: boolean
+                                  serverName:
+                                    description: MCP server name for identification.
+                                      Defaults to "feast-mcp-server".
+                                    type: string
+                                  serverVersion:
+                                    description: MCP server version string. Defaults
+                                      to "1.0.0".
+                                    type: string
+                                  transport:
+                                    description: MCP transport protocol.
+                                    enum:
+                                    - sse
+                                    - http
+                                    type: string
+                                required:
+                                - enabled
+                                type: object
+                              metrics:
+                                description: |-
+                                  Metrics configures per-category Prometheus metrics for the feature server.
+                                  Coexists with the server.
+                                properties:
+                                  categories:
+                                    additionalProperties:
+                                      type: boolean
+                                    description: Categories selectively enables or
+                                      disables individual Feast metric categories.
+                                    type: object
+                                  enabled:
+                                    description: Enable the Prometheus metrics endpoint
+                                      on port 8000.
+                                    type: boolean
+                                required:
+                                - enabled
+                                type: object
+                              offlinePushBatching:
+                                description: OfflinePushBatching batches writes to
+                                  the offline store via the /push endpoint.
+                                properties:
+                                  batchIntervalSeconds:
+                                    description: Seconds between batch flushes to
+                                      the offline store.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  batchSize:
+                                    description: Maximum number of rows per offline
+                                      write batch.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  enabled:
+                                    description: Enable offline push batching.
+                                    type: boolean
+                                required:
+                                - enabled
                                 type: object
                             type: object
                         type: object

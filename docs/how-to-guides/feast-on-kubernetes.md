@@ -68,6 +68,12 @@ spec:
 
 > _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
 
+{% hint style="info" %}
+**Advanced configuration:** To configure persistence, metrics, MCP, OpenLineage, security,
+batch jobs, and more via the operator, see the
+[Operator Configuration Guides](feast-operator/README.md).
+{% endhint %}
+
 ## Upgrading the Operator
 
 ### OLM-managed installations
