@@ -2229,8 +2229,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.60.1.dev87+ge33047ba1
-  sha256: d7bc70f699b91a11b2fe3f88eb56144eca2156776247d94c40f658ab39caa4a8
+  version: 0.62.1.dev99+g2905b80ea
+  sha256: 3288a218a8fe35396a2be96fc68a282a0834eaf5bf0db5e90ac0a2e72d957e9e
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2345,7 +2345,7 @@ packages:
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0 ; extra == 'test'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
   - virtualenv==20.23.0 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
