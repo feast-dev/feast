@@ -123,8 +123,8 @@ ray = [
 'codeflare-sdk>=0.31.1; python_version > "3.10"'
 ]
 redis = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<8",
+    "hiredis>=2.0.0,<4",
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
