@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import cast
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from pyspark.sql import DataFrame

@@ -91,12 +91,8 @@ def test_ensure_s3a_event_log_dir_bucket_root_no_trailing_slash(mock_boto3):
 
     _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket"))
 
-    s3.list_objects_v2.assert_called_once_with(
-        Bucket="my-bucket", Prefix="", MaxKeys=1
-    )
-    s3.put_object.assert_called_once_with(
-        Bucket="my-bucket", Key=".keep", Body=b""
-    )
+    s3.list_objects_v2.assert_called_once_with(Bucket="my-bucket", Prefix="", MaxKeys=1)
+    s3.put_object.assert_called_once_with(Bucket="my-bucket", Key=".keep", Body=b"")
 
 
 @patch(BOTOCONFIG_PATH, MagicMock())
@@ -109,12 +105,8 @@ def test_ensure_s3a_event_log_dir_bucket_root_trailing_slash(mock_boto3):
 
     _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket/"))
 
-    s3.list_objects_v2.assert_called_once_with(
-        Bucket="my-bucket", Prefix="", MaxKeys=1
-    )
-    s3.put_object.assert_called_once_with(
-        Bucket="my-bucket", Key=".keep", Body=b""
-    )
+    s3.list_objects_v2.assert_called_once_with(Bucket="my-bucket", Prefix="", MaxKeys=1)
+    s3.put_object.assert_called_once_with(Bucket="my-bucket", Key=".keep", Body=b"")
 
 
 # ---------------------------------------------------------------------------
@@ -198,3 +190,85 @@ def test_ensure_s3a_event_log_dir_no_credentials_passes_none(mock_boto3):
     assert kwargs.kwargs["aws_access_key_id"] is None
     assert kwargs.kwargs["aws_secret_access_key"] is None
     assert kwargs.kwargs["aws_session_token"] is None
+
+
+# ---------------------------------------------------------------------------
+# Path-style addressing (MinIO / S3-compatible)
+# ---------------------------------------------------------------------------
+
+
+@patch(BOTOCONFIG_PATH)
+@patch(BOTO3_PATH)
+def test_ensure_s3a_event_log_dir_path_style_when_enabled(mock_boto3, mock_config_cls):
+    """spark.hadoop.fs.s3a.path.style.access=true -> addressing_style='path'."""
+    s3 = MagicMock()
+    mock_boto3.client.return_value = s3
+    s3.list_objects_v2.return_value = {"KeyCount": 1}
+
+    conf = {
+        **_base_conf("s3a://my-bucket/logs/"),
+        "spark.hadoop.fs.s3a.path.style.access": "true",
+    }
+    _ensure_s3a_event_log_dir(conf)
+
+    mock_config_cls.assert_called_once()
+    config_kwargs = mock_config_cls.call_args
+    assert config_kwargs.kwargs["s3"] == {"addressing_style": "path"}
+
+
+@patch(BOTOCONFIG_PATH)
+@patch(BOTO3_PATH)
+def test_ensure_s3a_event_log_dir_virtual_hosted_style_by_default(
+    mock_boto3, mock_config_cls
+):
+    """No path.style.access config -> addressing_style='auto'."""
+    s3 = MagicMock()
+    mock_boto3.client.return_value = s3
+    s3.list_objects_v2.return_value = {"KeyCount": 1}
+
+    _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket/logs/"))
+
+    mock_config_cls.assert_called_once()
+    config_kwargs = mock_config_cls.call_args
+    assert config_kwargs.kwargs["s3"] == {"addressing_style": "auto"}
+
+
+# ---------------------------------------------------------------------------
+# Endpoint env var fallback (AWS_ENDPOINT_URL)
+# ---------------------------------------------------------------------------
+
+
+@patch.dict("os.environ", {"AWS_ENDPOINT_URL": "http://localhost:9000"}, clear=True)
+@patch(BOTOCONFIG_PATH, MagicMock())
+@patch(BOTO3_PATH)
+def test_ensure_s3a_event_log_dir_endpoint_from_env(mock_boto3):
+    """AWS_ENDPOINT_URL env var is used when spark config has no endpoint."""
+    s3 = MagicMock()
+    mock_boto3.client.return_value = s3
+    s3.list_objects_v2.return_value = {"KeyCount": 1}
+
+    conf = {
+        "spark.eventLog.enabled": "true",
+        "spark.eventLog.dir": "s3a://my-bucket/logs/",
+    }
+    _ensure_s3a_event_log_dir(conf)
+
+    mock_boto3.client.assert_called_once()
+    kwargs = mock_boto3.client.call_args
+    assert kwargs.kwargs["endpoint_url"] == "http://localhost:9000"
+
+
+@patch.dict("os.environ", {"AWS_ENDPOINT_URL": "http://env-endpoint:9000"}, clear=True)
+@patch(BOTOCONFIG_PATH, MagicMock())
+@patch(BOTO3_PATH)
+def test_ensure_s3a_event_log_dir_spark_endpoint_over_env(mock_boto3):
+    """spark.hadoop.fs.s3a.endpoint takes precedence over AWS_ENDPOINT_URL."""
+    s3 = MagicMock()
+    mock_boto3.client.return_value = s3
+    s3.list_objects_v2.return_value = {"KeyCount": 1}
+
+    _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket/logs/"))
+
+    mock_boto3.client.assert_called_once()
+    kwargs = mock_boto3.client.call_args
+    assert kwargs.kwargs["endpoint_url"] == "http://minio:9000"

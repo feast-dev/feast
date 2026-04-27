@@ -48,7 +48,7 @@ def _ensure_s3a_event_log_dir(spark_config: Dict[str, str]) -> None:
 
     endpoint = spark_config.get(
         "spark.hadoop.fs.s3a.endpoint",
-        os.environ.get("FEAST_S3A_ENDPOINT", ""),
+        os.environ.get("AWS_ENDPOINT_URL", ""),
     )
     access_key = spark_config.get(
         "spark.hadoop.fs.s3a.access.key",
@@ -58,14 +58,26 @@ def _ensure_s3a_event_log_dir(spark_config: Dict[str, str]) -> None:
         "spark.hadoop.fs.s3a.secret.key",
         os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
     )
-    session_token = spark_config.get(
-        "spark.hadoop.fs.s3a.session.token",
-        os.environ.get("AWS_SESSION_TOKEN", ""),
-    ) or None
+    session_token = (
+        spark_config.get(
+            "spark.hadoop.fs.s3a.session.token",
+            os.environ.get("AWS_SESSION_TOKEN", ""),
+        )
+        or None
+    )
 
     try:
         if boto3 is None:
             raise ImportError("boto3 is not installed")
+
+        addressing_style = (
+            "path"
+            if spark_config.get(
+                "spark.hadoop.fs.s3a.path.style.access", "false"
+            ).lower()
+            == "true"
+            else "auto"
+        )
 
         s3 = boto3.client(
             "s3",
@@ -73,7 +85,10 @@ def _ensure_s3a_event_log_dir(spark_config: Dict[str, str]) -> None:
             aws_access_key_id=access_key or None,
             aws_secret_access_key=secret_key or None,
             aws_session_token=session_token,
-            config=BotoConfig(signature_version="s3v4"),
+            config=BotoConfig(
+                signature_version="s3v4",
+                s3={"addressing_style": addressing_style},
+            ),
         )
         resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=1)
         if resp.get("KeyCount", 0) == 0:
