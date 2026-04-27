@@ -123,8 +123,8 @@ ray = [
 'codeflare-sdk>=0.31.1; python_version > "3.10"'
 ]
 redis = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<8",
+    "hiredis>=2.0.0,<4",
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
@@ -245,7 +245,6 @@ packages = {find = {where = ["sdk/python"], exclude = ["java", "infra", "sdk/pyt
 # Regex modified from default tag regex in:
 # https://github.com/pypa/setuptools_scm/blob/2a1b46d38fb2b8aeac09853e660bcd0d7c1bc7be/src/setuptools_scm/config.py#L9
 tag_regex = "^(?:[\\/\\w-]+)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+.*)?$"
-
 
 [tool.ruff]
 line-length = 88
