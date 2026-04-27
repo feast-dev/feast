@@ -5,7 +5,7 @@ import logging
 import os
 import re
 import tempfile
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -26,27 +26,20 @@ _FLAVOR_MAP = {
 
 
 class FeastMlflowClient:
-    """Internal wrapper around MLflow — use ``feast.mlflow`` instead.
+    """Single integration client for all Feast–MLflow functionality.
 
-    Contains only **Feast-enhanced** methods (``start_run``, ``log_model``,
-    ``register_model``, ``load_model``, ``resolve_features``,
-    ``get_training_entity_df``).  All plain MLflow calls (``log_params``,
-    ``log_metrics``, ``set_tag``, ``MlflowClient``, etc.) are handled by
-    the open delegation in ``feast/mlflow.py``, which falls back to the
-    raw ``mlflow`` module automatically.
+    Composes :class:`FeastMlflowLogger`, :class:`FeastMlflowEntityDfBuilder`,
+    and :class:`FeastMlflowModelResolver` so that there is exactly **one**
+    ``mlflow`` import and **one** ``MlflowClient`` instance.
 
-    This class is not meant to be instantiated directly. Use the
-    ``feast.mlflow`` module-level API::
+    Access via ``store.mlflow`` or ``feast.mlflow``::
 
-        import feast.mlflow
-        from feast import FeatureStore
+        store = FeatureStore(".")
 
-        store = FeatureStore(".")      # auto-registers with feast.mlflow
-
-        with feast.mlflow.start_run(run_name="training"):
+        with store.mlflow.start_run(run_name="training"):
             df = store.get_historical_features(...).to_df()
             model = train(df)
-            feast.mlflow.log_model(model, "model")
+            store.mlflow.log_model(model, "model")
     """
 
     def __init__(self, store: "FeatureStore"):
@@ -61,6 +54,20 @@ class FeastMlflowClient:
             _mlflow_mod.set_tracking_uri(self._tracking_uri)
         _mlflow_mod.set_experiment(store.config.project)
 
+        from feast.mlflow_integration.entity_df_builder import (
+            FeastMlflowEntityDfBuilder,
+        )
+        from feast.mlflow_integration.logger import FeastMlflowLogger
+        from feast.mlflow_integration.model_resolver import FeastMlflowModelResolver
+
+        self._logger_impl = FeastMlflowLogger(store, _mlflow_mod, self._client)
+        self._entity_df_builder = FeastMlflowEntityDfBuilder(
+            store, _mlflow_mod, self._client
+        )
+        self._model_resolver = FeastMlflowModelResolver(
+            store, _mlflow_mod, self._client
+        )
+
     @property
     def mlflow(self):
         """Escape hatch: access the raw ``mlflow`` module."""
@@ -72,42 +79,40 @@ class FeastMlflowClient:
         run = self._mlflow.active_run()
         return run.info.run_id if run else None
 
+    # ------------------------------------------------------------------
+    # Run management
+    # ------------------------------------------------------------------
+
     def start_run(
         self,
         run_name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
-        """Context manager that starts an MLflow run pre-tagged with Feast metadata.
-
-        The ``feast.project`` tag is always set.  Additional tags can be
-        passed via *tags*.
-        """
+        """Context manager that starts an MLflow run pre-tagged with Feast metadata."""
         merged_tags = {"feast.project": self._store.project}
         if tags:
             merged_tags.update(tags)
         return self._mlflow.start_run(run_name=run_name, tags=merged_tags, **kwargs)
+
+    # ------------------------------------------------------------------
+    # Model lifecycle
+    # ------------------------------------------------------------------
 
     def log_model(
         self,
         model: Any,
         artifact_path: str,
         flavor: str = "sklearn",
-        **kwargs,
+        **kwargs: Any,
     ):
-        """Log a model and auto-attach ``required_features.json``.
-
-        Supported flavors: sklearn, pytorch, xgboost, lightgbm,
-        tensorflow, keras, pyfunc.  Unknown flavors fall back to pyfunc.
-        """
+        """Log a model and auto-attach ``required_features.json``."""
         flavor_name = _FLAVOR_MAP.get(flavor, "pyfunc")
         flavor_mod = getattr(self._mlflow, flavor_name, self._mlflow.pyfunc)
         flavor_mod.log_model(model, artifact_path, **kwargs)
-
         self._log_required_features()
 
-    def _log_required_features(self):
-        """If a retrieval happened in this session, log the feature list."""
+    def _log_required_features(self) -> None:
         try:
             run = self._mlflow.active_run()
             if run is None:
@@ -129,10 +134,7 @@ class FeastMlflowClient:
             _logger.debug("Failed to log required_features.json: %s", e)
 
     def register_model(self, model_uri: str, name: str):
-        """Register a model and auto-tag the version with ``feast.feature_service``.
-
-        Returns the ``ModelVersion`` object.
-        """
+        """Register a model and auto-tag the version with ``feast.feature_service``."""
         result = self._mlflow.register_model(model_uri, name)
 
         try:
@@ -147,18 +149,8 @@ class FeastMlflowClient:
 
         return result
 
-    def load_model(self, model_uri: str, **kwargs):
-        """Load a model and auto-tag the active prediction run with training lineage.
-
-        When called inside an active ``start_run()`` context, this sets:
-        - ``feast.training_run_id`` -- the run that produced the model
-        - ``feast.model_name`` -- registered model name
-        - ``feast.model_version`` -- model version number
-        - ``feast.feature_service`` -- copied from the training run
-
-        This creates an explicit bidirectional link between training and
-        prediction runs.
-        """
+    def load_model(self, model_uri: str, **kwargs: Any):
+        """Load a model and auto-tag the active prediction run with training lineage."""
         model = self._mlflow.pyfunc.load_model(model_uri, **kwargs)
 
         try:
@@ -182,33 +174,107 @@ class FeastMlflowClient:
             except Exception:
                 return model
 
-            if mv.run_id:
-                self._client.set_tag(run_id, "feast.training_run_id", mv.run_id)
             self._client.set_tag(run_id, "feast.model_name", model_name)
             self._client.set_tag(run_id, "feast.model_version", str(mv.version))
 
-            try:
-                training_run = self._client.get_run(mv.run_id)
-                fs_name = training_run.data.tags.get("feast.feature_service")
-                if fs_name:
-                    self._client.set_tag(run_id, "feast.feature_service", fs_name)
-            except Exception:
-                pass
+            if mv.run_id:
+                self._client.set_tag(run_id, "feast.training_run_id", mv.run_id)
+                try:
+                    training_run = self._client.get_run(mv.run_id)
+                    fs_name = training_run.data.tags.get("feast.feature_service")
+                    if fs_name:
+                        self._client.set_tag(run_id, "feast.feature_service", fs_name)
+                except Exception:
+                    pass
 
         except Exception as e:
             _logger.debug("Failed to tag prediction run with training lineage: %s", e)
 
         return model
 
-    def resolve_features(self, model_uri: str) -> str:
-        """Resolve which Feast feature service a registered model needs."""
-        from feast.mlflow_integration.model_resolver import (
-            resolve_feature_service_from_model_uri,
+    # ------------------------------------------------------------------
+    # Delegated to logger
+    # ------------------------------------------------------------------
+
+    def log_feature_retrieval(
+        self,
+        feature_refs: List[str],
+        entity_count: int,
+        duration_seconds: float,
+        retrieval_type: str = "historical",
+        feature_service: Optional[Any] = None,
+        feature_service_name: Optional[str] = None,
+    ) -> bool:
+        """Log feature retrieval metadata to the active MLflow run."""
+        return self._logger_impl.log_feature_retrieval(
+            feature_refs=feature_refs,
+            entity_count=entity_count,
+            duration_seconds=duration_seconds,
+            retrieval_type=retrieval_type,
+            feature_service=feature_service,
+            feature_service_name=feature_service_name,
         )
 
-        return resolve_feature_service_from_model_uri(
-            model_uri, store=self._store, tracking_uri=self._tracking_uri
+    def log_training_dataset(
+        self,
+        df: "pd.DataFrame",
+        dataset_name: str = "feast_training_data",
+        source: Optional[str] = None,
+    ) -> bool:
+        """Log a training DataFrame as an MLflow dataset input."""
+        return self._logger_impl.log_training_dataset(
+            df=df, dataset_name=dataset_name, source=source
         )
+
+    def log_apply(
+        self,
+        changed_objects: List[Any],
+        transition_types: Optional[Dict[str, str]] = None,
+    ) -> bool:
+        """Log a feast apply operation to MLflow."""
+        return self._logger_impl.log_apply(
+            changed_objects=changed_objects,
+            transition_types=transition_types,
+        )
+
+    def log_materialize(
+        self,
+        feature_view_names: List[str],
+        start_date: Any,
+        end_date: Any,
+        duration_seconds: float,
+        incremental: bool = False,
+    ) -> bool:
+        """Log a feast materialize operation to MLflow."""
+        return self._logger_impl.log_materialize(
+            feature_view_names=feature_view_names,
+            start_date=start_date,
+            end_date=end_date,
+            duration_seconds=duration_seconds,
+            incremental=incremental,
+        )
+
+    def log_entity_df_metadata(
+        self, entity_df: Any, start_date: Any = None, end_date: Any = None
+    ) -> None:
+        """Log lightweight entity_df metadata to MLflow."""
+        self._logger_impl.log_entity_df_metadata(entity_df, start_date, end_date)
+
+    def log_entity_df_artifact(self, entity_df: Any) -> None:
+        """Upload entity DataFrame as a parquet artifact to MLflow."""
+        self._logger_impl.log_entity_df_artifact(entity_df)
+
+    # ------------------------------------------------------------------
+    # Delegated to model resolver
+    # ------------------------------------------------------------------
+
+    def resolve_features(self, model_uri: str) -> str:
+        """Resolve which Feast feature service a registered model needs."""
+        return self._model_resolver.resolve(model_uri)
+
+    # ------------------------------------------------------------------
+    # Delegated to entity df builder
+    # ------------------------------------------------------------------
 
     def get_training_entity_df(
         self,
@@ -217,13 +283,8 @@ class FeastMlflowClient:
         max_rows: Optional[int] = None,
     ) -> "pd.DataFrame":
         """Pull the entity DataFrame from a past MLflow run."""
-        from feast.mlflow_integration.entity_df_builder import (
-            get_entity_df_from_mlflow_run,
-        )
-
-        return get_entity_df_from_mlflow_run(
+        return self._entity_df_builder.get_entity_df(
             run_id=run_id,
-            tracking_uri=self._tracking_uri,
             timestamp_column=timestamp_column,
             max_rows=max_rows,
         )

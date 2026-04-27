@@ -33,6 +33,8 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
+_MISSING = object()
+
 _client: Optional[Any] = None
 _registered_store: Optional["FeatureStore"] = None
 
@@ -47,11 +49,7 @@ def _register_store(store: "FeatureStore") -> None:
 
 
 def _build_client() -> Any:
-    """Create a ``FeastMlflowClient`` using the best available store.
-
-    Raises a clear error on each failure mode instead of letting raw
-    exceptions propagate.
-    """
+    """Create a ``FeastMlflowClient`` using the best available store."""
     from feast.mlflow_integration.client import FeastMlflowClient
 
     store = _registered_store
@@ -130,12 +128,12 @@ def __getattr__(name: str) -> Any:
 
     client = _ensure_client()
 
-    client_attr = getattr(client, name, None)
-    if client_attr is not None:
+    client_attr = getattr(client, name, _MISSING)
+    if client_attr is not _MISSING:
         return client_attr
 
-    mlflow_attr = getattr(client._mlflow, name, None)
-    if mlflow_attr is not None:
+    mlflow_attr = getattr(client._mlflow, name, _MISSING)
+    if mlflow_attr is not _MISSING:
         return mlflow_attr
 
     raise AttributeError(f"module 'feast.mlflow' has no attribute {name!r}")

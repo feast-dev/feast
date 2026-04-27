@@ -19,37 +19,21 @@ Usage:
     When ``tracking_uri`` is omitted, the ``MLFLOW_TRACKING_URI`` environment
     variable is used. If neither is set, MLflow falls back to its own default.
 
-    For advanced use cases, the module also provides:
-    - resolve_feature_service_from_model_uri: Map an MLflow model to its Feast
-      feature service.
-    - get_entity_df_from_mlflow_run: Reproduce training by pulling entity data
-      from a previous MLflow run's artifacts.
+    All functionality is accessed through ``store.mlflow``:
+
+    - ``store.mlflow.start_run()`` — start an MLflow run pre-tagged with Feast metadata
+    - ``store.mlflow.log_model()`` — log a model with ``required_features.json``
+    - ``store.mlflow.resolve_features()`` — map an MLflow model to its feature service
+    - ``store.mlflow.get_training_entity_df()`` — reproduce training by pulling entity
+      data from a previous MLflow run's artifacts
 """
 
 from feast.mlflow_integration.config import MlflowConfig
-from feast.mlflow_integration.entity_df_builder import (
-    FeastMlflowEntityDfError,
-    get_entity_df_from_mlflow_run,
-)
-from feast.mlflow_integration.logger import (
-    log_apply_to_mlflow,
-    log_feature_retrieval_to_mlflow,
-    log_materialize_to_mlflow,
-    log_training_dataset_to_mlflow,
-)
-from feast.mlflow_integration.model_resolver import (
-    FeastMlflowModelResolutionError,
-    resolve_feature_service_from_model_uri,
-)
+from feast.mlflow_integration.entity_df_builder import FeastMlflowEntityDfError
+from feast.mlflow_integration.model_resolver import FeastMlflowModelResolutionError
 
 __all__ = [
     "MlflowConfig",
-    "log_feature_retrieval_to_mlflow",
-    "log_training_dataset_to_mlflow",
-    "log_apply_to_mlflow",
-    "log_materialize_to_mlflow",
-    "resolve_feature_service_from_model_uri",
     "FeastMlflowModelResolutionError",
-    "get_entity_df_from_mlflow_run",
     "FeastMlflowEntityDfError",
 ]
