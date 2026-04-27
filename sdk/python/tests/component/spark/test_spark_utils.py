@@ -139,10 +139,10 @@ def test_ensure_s3a_event_log_dir_uses_spark_config_credentials(mock_boto3):
     _ensure_s3a_event_log_dir(conf)
 
     mock_boto3.client.assert_called_once()
-    kwargs = mock_boto3.client.call_args
-    assert kwargs.kwargs["aws_access_key_id"] == "spark-ak"
-    assert kwargs.kwargs["aws_secret_access_key"] == "spark-sk"  # pragma: allowlist secret
-    assert kwargs.kwargs["aws_session_token"] == "spark-st"
+    kw = mock_boto3.client.call_args.kwargs
+    assert kw["aws_access_key_id"] == "spark-ak"
+    assert kw["aws_secret_access_key"] == "spark-sk"  # pragma: allowlist secret
+    assert kw["aws_session_token"] == "spark-st"
 
 
 @patch.dict(
@@ -164,10 +164,10 @@ def test_ensure_s3a_event_log_dir_falls_back_to_env_credentials(mock_boto3):
     _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket/logs/"))
 
     mock_boto3.client.assert_called_once()
-    kwargs = mock_boto3.client.call_args
-    assert kwargs.kwargs["aws_access_key_id"] == "env-ak"
-    assert kwargs.kwargs["aws_secret_access_key"] == "env-sk"  # pragma: allowlist secret
-    assert kwargs.kwargs["aws_session_token"] == "env-st"
+    kw = mock_boto3.client.call_args.kwargs
+    assert kw["aws_access_key_id"] == "env-ak"
+    assert kw["aws_secret_access_key"] == "env-sk"  # pragma: allowlist secret
+    assert kw["aws_session_token"] == "env-st"
 
 
 @patch.dict("os.environ", {}, clear=True)
@@ -186,10 +186,10 @@ def test_ensure_s3a_event_log_dir_no_credentials_passes_none(mock_boto3):
     _ensure_s3a_event_log_dir(conf)
 
     mock_boto3.client.assert_called_once()
-    kwargs = mock_boto3.client.call_args
-    assert kwargs.kwargs["aws_access_key_id"] is None
-    assert kwargs.kwargs["aws_secret_access_key"] is None
-    assert kwargs.kwargs["aws_session_token"] is None
+    kw = mock_boto3.client.call_args.kwargs
+    assert kw["aws_access_key_id"] is None
+    assert kw["aws_secret_access_key"] is None
+    assert kw["aws_session_token"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -254,8 +254,8 @@ def test_ensure_s3a_event_log_dir_endpoint_from_env(mock_boto3):
     _ensure_s3a_event_log_dir(conf)
 
     mock_boto3.client.assert_called_once()
-    kwargs = mock_boto3.client.call_args
-    assert kwargs.kwargs["endpoint_url"] == "http://localhost:9000"
+    kw = mock_boto3.client.call_args.kwargs
+    assert kw["endpoint_url"] == "http://localhost:9000"
 
 
 @patch.dict("os.environ", {"AWS_ENDPOINT_URL": "http://env-endpoint:9000"}, clear=True)
@@ -270,5 +270,5 @@ def test_ensure_s3a_event_log_dir_spark_endpoint_over_env(mock_boto3):
     _ensure_s3a_event_log_dir(_base_conf("s3a://my-bucket/logs/"))
 
     mock_boto3.client.assert_called_once()
-    kwargs = mock_boto3.client.call_args
-    assert kwargs.kwargs["endpoint_url"] == "http://minio:9000"
+    kw = mock_boto3.client.call_args.kwargs
+    assert kw["endpoint_url"] == "http://minio:9000"
