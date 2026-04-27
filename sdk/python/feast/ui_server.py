@@ -129,12 +129,13 @@ def get_app(
             import mlflow
 
             tracking_uri = mlflow_cfg.get_tracking_uri()
+            mlflow_ui_base = tracking_uri or mlflow.get_tracking_uri() or ""
             client = mlflow.MlflowClient(tracking_uri=tracking_uri)
 
             project_name = store.config.project
             experiment = client.get_experiment_by_name(project_name)
             if experiment is None:
-                return {"runs": [], "mlflow_uri": tracking_uri}
+                return {"runs": [], "mlflow_uri": mlflow_ui_base or None}
             experiment_ids = [experiment.experiment_id]
 
             filter_str = (
@@ -161,7 +162,7 @@ def get_app(
                                     "version": mv.version,
                                     "stage": mv.current_stage,
                                     "mlflow_url": (
-                                        f"{tracking_uri}/#/models/"
+                                        f"{mlflow_ui_base}/#/models/"
                                         f"{rm.name}/versions/{mv.version}"
                                     ),
                                 }
@@ -170,7 +171,6 @@ def get_app(
                 pass
 
             result = []
-            mlflow_ui_base = tracking_uri
             for run in runs:
                 run_tags = run.data.tags
                 run_params = run.data.params
@@ -201,7 +201,7 @@ def get_app(
                     }
                 )
 
-            return {"runs": result, "mlflow_uri": tracking_uri}
+            return {"runs": result, "mlflow_uri": mlflow_ui_base or None}
         except ImportError:
             return {
                 "runs": [],
@@ -326,6 +326,7 @@ def get_app(
             import mlflow
 
             tracking_uri = mlflow_cfg.get_tracking_uri()
+            mlflow_ui_base = tracking_uri or mlflow.get_tracking_uri() or ""
             client = mlflow.MlflowClient(tracking_uri=tracking_uri)
             project_name = store.config.project
 
@@ -354,7 +355,7 @@ def get_app(
                         "version": mv.version,
                         "stage": mv.current_stage,
                         "mlflow_url": (
-                            f"{tracking_uri}/#/models/"
+                            f"{mlflow_ui_base}/#/models/"
                             f"{model_name}/versions/{mv.version}"
                         ),
                     }

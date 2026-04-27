@@ -753,7 +753,7 @@ class TestModelResolver:
             import tempfile
 
             with tempfile.TemporaryDirectory() as tmp_dir:
-                path = os.path.join(tmp_dir, "required_features.json")
+                path = os.path.join(tmp_dir, "feast_features.json")
                 with open(path, "w") as f:
                     json.dump(["driver_hourly_stats:nonexistent_feature"], f)
                 mlflow.log_artifact(path)

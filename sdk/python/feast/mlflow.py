@@ -6,7 +6,7 @@ via ``feast.mlflow.*``.  A subset of calls are **Feast-enhanced** with
 automatic tagging, lineage tracking, and feature resolution:
 
 - ``start_run()`` — auto-tags runs with ``feast.project``
-- ``log_model()`` — auto-saves ``required_features.json``
+- ``log_model()`` — auto-saves ``feast_features.json``
 - ``register_model()`` — auto-tags model versions with ``feast.feature_service``
 - ``load_model()`` — auto-links prediction runs to training runs
 - ``resolve_features()`` — Feast-only: model URI → feature service name

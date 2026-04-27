@@ -2965,25 +2965,41 @@ class FeatureStore:
 
         try:
             if self.mlflow is not None and self.config.mlflow.auto_log:
+                import asyncio
+
                 _duration = time.monotonic() - _retrieval_start
-                _feature_refs = utils._get_features(
-                    self.registry, self.project, features, allow_cache=True
-                )
-                _entity_count = self._count_entities(entity_rows)
-                _fs = features if isinstance(features, FeatureService) else None
-                _fs_name = (
-                    features.name
-                    if isinstance(features, FeatureService)
-                    else self._resolve_feature_service_name(_feature_refs)
-                )
-                self.mlflow.log_feature_retrieval(
-                    feature_refs=_feature_refs,
-                    entity_count=_entity_count,
-                    duration_seconds=_duration,
-                    retrieval_type="online",
-                    feature_service=_fs,
-                    feature_service_name=_fs_name,
-                )
+                _mlflow_client = self.mlflow
+                _registry = self.registry
+                _project = self.project
+
+                def _log_sync():
+                    try:
+                        _feature_refs = utils._get_features(
+                            _registry, _project, features, allow_cache=True
+                        )
+                        _entity_count = self._count_entities(entity_rows)
+                        _fs = features if isinstance(features, FeatureService) else None
+                        _fs_name = (
+                            features.name
+                            if isinstance(features, FeatureService)
+                            else self._resolve_feature_service_name(_feature_refs)
+                        )
+                        _mlflow_client.log_feature_retrieval(
+                            feature_refs=_feature_refs,
+                            entity_count=_entity_count,
+                            duration_seconds=_duration,
+                            retrieval_type="online",
+                            feature_service=_fs,
+                            feature_service_name=_fs_name,
+                        )
+                    except Exception as exc:
+                        _logger.debug(
+                            "MLflow auto-log failed for async online retrieval: %s",
+                            exc,
+                        )
+
+                loop = asyncio.get_running_loop()
+                loop.run_in_executor(None, _log_sync)
         except Exception as e:
             _logger.debug("MLflow auto-log failed for online retrieval: %s", e)
 

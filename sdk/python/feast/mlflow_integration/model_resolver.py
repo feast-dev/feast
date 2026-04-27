@@ -100,12 +100,12 @@ class FeastMlflowModelResolver:
                 f"Feature service '{fs_name}' not found in the Feast registry."
             )
 
-        if not self._has_artifact(model_version.run_id, "required_features.json"):
+        if not self._has_artifact(model_version.run_id, "feast_features.json"):
             return
 
         try:
             local_path = self._client.download_artifacts(
-                model_version.run_id, "required_features.json"
+                model_version.run_id, "feast_features.json"
             )
             with open(local_path) as f:
                 expected_features = json.load(f)
@@ -128,7 +128,7 @@ class FeastMlflowModelResolver:
         except FeastMlflowModelResolutionError:
             raise
         except Exception as e:
-            _logger.debug("Could not validate required_features.json: %s", e)
+            _logger.debug("Could not validate feast_features.json: %s", e)
 
     def _has_artifact(self, run_id: str, artifact_name: str) -> bool:
         try:

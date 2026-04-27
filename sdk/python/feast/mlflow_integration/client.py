@@ -106,7 +106,7 @@ class FeastMlflowClient:
         flavor: str = "sklearn",
         **kwargs: Any,
     ):
-        """Log a model and auto-attach ``required_features.json``."""
+        """Log a model and auto-attach ``feast_features.json``."""
         flavor_name = _FLAVOR_MAP.get(flavor, "pyfunc")
         flavor_mod = getattr(self._mlflow, flavor_name, self._mlflow.pyfunc)
         flavor_mod.log_model(model, artifact_path, **kwargs)
@@ -126,24 +126,25 @@ class FeastMlflowClient:
                 return
 
             with tempfile.TemporaryDirectory() as tmp_dir:
-                path = os.path.join(tmp_dir, "required_features.json")
+                path = os.path.join(tmp_dir, "feast_features.json")
                 with open(path, "w") as f:
                     json.dump(features, f)
                 self._client.log_artifact(run.info.run_id, path, artifact_path="")
         except Exception as e:
-            _logger.debug("Failed to log required_features.json: %s", e)
+            _logger.debug("Failed to log feast_features.json: %s", e)
 
     def register_model(self, model_uri: str, name: str):
         """Register a model and auto-tag the version with ``feast.feature_service``."""
         result = self._mlflow.register_model(model_uri, name)
 
         try:
-            run = self._client.get_run(result.run_id)
-            fs_name = run.data.tags.get("feast.feature_service")
-            if fs_name:
-                self._client.set_model_version_tag(
-                    name, result.version, "feast.feature_service", fs_name
-                )
+            if result.run_id:
+                run = self._client.get_run(result.run_id)
+                fs_name = run.data.tags.get("feast.feature_service")
+                if fs_name:
+                    self._client.set_model_version_tag(
+                        name, result.version, "feast.feature_service", fs_name
+                    )
         except Exception as e:
             _logger.debug("Failed to auto-tag model version: %s", e)
 

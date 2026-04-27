@@ -22,7 +22,7 @@ Usage:
     All functionality is accessed through ``store.mlflow``:
 
     - ``store.mlflow.start_run()`` — start an MLflow run pre-tagged with Feast metadata
-    - ``store.mlflow.log_model()`` — log a model with ``required_features.json``
+    - ``store.mlflow.log_model()`` — log a model with ``feast_features.json``
     - ``store.mlflow.resolve_features()`` — map an MLflow model to its feature service
     - ``store.mlflow.get_training_entity_df()`` — reproduce training by pulling entity
       data from a previous MLflow run's artifacts
