@@ -18,7 +18,7 @@ isort:skip_file
 """
 import builtins
 import collections.abc
-import feast.types.Value_pb2
+from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
@@ -83,7 +83,7 @@ class EntitySpecV2(google.protobuf.message.Message):
     """Name of the entity."""
     project: builtins.str
     """Name of Feast project that this feature table belongs to."""
-    value_type: feast.types.Value_pb2.ValueType.Enum.ValueType
+    value_type: _feast_types_Value_pb2.ValueType.Enum.ValueType
     """Type of the entity."""
     description: builtins.str
     """Description of the entity."""
@@ -99,7 +99,7 @@ class EntitySpecV2(google.protobuf.message.Message):
         *,
         name: builtins.str = ...,
         project: builtins.str = ...,
-        value_type: feast.types.Value_pb2.ValueType.Enum.ValueType = ...,
+        value_type: _feast_types_Value_pb2.ValueType.Enum.ValueType = ...,
         description: builtins.str = ...,
         join_key: builtins.str = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,

@@ -20,7 +20,7 @@ import builtins
 import collections.abc
 import feast.core.DataFormat_pb2
 import feast.core.Feature_pb2
-import feast.types.Value_pb2
+from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.duration_pb2
 import google.protobuf.internal.containers
@@ -424,26 +424,26 @@ class DataSource(google.protobuf.message.Message):
             KEY_FIELD_NUMBER: builtins.int
             VALUE_FIELD_NUMBER: builtins.int
             key: builtins.str
-            value: feast.types.Value_pb2.ValueType.Enum.ValueType
+            value: _feast_types_Value_pb2.ValueType.Enum.ValueType
             def __init__(
                 self,
                 *,
                 key: builtins.str = ...,
-                value: feast.types.Value_pb2.ValueType.Enum.ValueType = ...,
+                value: _feast_types_Value_pb2.ValueType.Enum.ValueType = ...,
             ) -> None: ...
             def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
         DEPRECATED_SCHEMA_FIELD_NUMBER: builtins.int
         SCHEMA_FIELD_NUMBER: builtins.int
         @property
-        def deprecated_schema(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, feast.types.Value_pb2.ValueType.Enum.ValueType]:
+        def deprecated_schema(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, _feast_types_Value_pb2.ValueType.Enum.ValueType]:
             """Mapping of feature name to type"""
         @property
         def schema(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]: ...
         def __init__(
             self,
             *,
-            deprecated_schema: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.ValueType.Enum.ValueType] | None = ...,
+            deprecated_schema: collections.abc.Mapping[builtins.str, _feast_types_Value_pb2.ValueType.Enum.ValueType] | None = ...,
             schema: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["deprecated_schema", b"deprecated_schema", "schema", b"schema"]) -> None: ...

@@ -18,7 +18,7 @@ limitations under the License.
 """
 import builtins
 import collections.abc
-import feast.types.Value_pb2
+from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
@@ -54,7 +54,7 @@ class Field(google.protobuf.message.Message):
     TAGS_FIELD_NUMBER: builtins.int
     DESCRIPTION_FIELD_NUMBER: builtins.int
     name: builtins.str
-    value: feast.types.Value_pb2.ValueType.Enum.ValueType
+    value: _feast_types_Value_pb2.ValueType.Enum.ValueType
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """Tags for user defined metadata on a field"""
@@ -64,7 +64,7 @@ class Field(google.protobuf.message.Message):
         self,
         *,
         name: builtins.str = ...,
-        value: feast.types.Value_pb2.ValueType.Enum.ValueType = ...,
+        value: _feast_types_Value_pb2.ValueType.Enum.ValueType = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         description: builtins.str = ...,
     ) -> None: ...
