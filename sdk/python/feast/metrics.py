@@ -42,6 +42,7 @@ of the in-process metric state.  To aggregate across workers we use
 """
 
 import atexit
+import json
 import logging
 import os
 import shutil
@@ -51,7 +52,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import psutil
 
@@ -123,6 +124,8 @@ class _MetricsFlags:
     push: bool = False
     materialization: bool = False
     freshness: bool = False
+    offline_features: bool = False
+    audit_logging: bool = False
 
 
 _config = _MetricsFlags()
@@ -144,6 +147,8 @@ def build_metrics_flags(metrics_config: Optional[object] = None) -> _MetricsFlag
             push=True,
             materialization=True,
             freshness=True,
+            offline_features=True,
+            audit_logging=False,
         )
     return _MetricsFlags(
         enabled=True,
@@ -153,6 +158,8 @@ def build_metrics_flags(metrics_config: Optional[object] = None) -> _MetricsFlag
         push=getattr(metrics_config, "push", True),
         materialization=getattr(metrics_config, "materialization", True),
         freshness=getattr(metrics_config, "freshness", True),
+        offline_features=getattr(metrics_config, "offline_features", True),
+        audit_logging=getattr(metrics_config, "audit_logging", False),
     )
 
 
@@ -259,6 +266,33 @@ feature_freshness_seconds = Gauge(
     ["feature_view", "project"],
     multiprocess_mode="max",
 )
+
+# ---------------------------------------------------------------------------
+# Offline store retrieval metrics
+# ---------------------------------------------------------------------------
+offline_store_request_total = Counter(
+    "feast_offline_store_request_total",
+    "Total offline store retrieval requests",
+    ["method", "status"],
+)
+offline_store_request_latency_seconds = Histogram(
+    "feast_offline_store_request_latency_seconds",
+    "Latency of offline store retrieval operations in seconds",
+    ["method"],
+    buckets=(0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0),
+)
+offline_store_row_count = Histogram(
+    "feast_offline_store_row_count",
+    "Number of rows returned by offline store retrieval",
+    ["method"],
+    buckets=(100, 1000, 10000, 100000, 500000, 1000000, 5000000),
+)
+
+# ---------------------------------------------------------------------------
+# Audit logger — separate from the main feast logger so operators can
+# route SOX-style audit entries to a dedicated sink.
+# ---------------------------------------------------------------------------
+audit_logger = logging.getLogger("feast.audit")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -388,6 +422,71 @@ def track_materialization(
     )
 
 
+def emit_online_audit_log(
+    *,
+    requestor_id: str,
+    entity_keys: List[str],
+    entity_count: int,
+    feature_views: List[str],
+    feature_count: int,
+    status: str,
+    latency_ms: float,
+):
+    """Emit a structured JSON audit log entry for an online feature request."""
+    if not _config.audit_logging:
+        return
+    audit_logger.info(
+        _json_dumps(
+            {
+                "event": "online_feature_request",
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "requestor_id": requestor_id,
+                "entity_keys": entity_keys,
+                "entity_count": entity_count,
+                "feature_views": feature_views,
+                "feature_count": feature_count,
+                "status": status,
+                "latency_ms": round(latency_ms, 2),
+            }
+        )
+    )
+
+
+def emit_offline_audit_log(
+    *,
+    method: str,
+    feature_views: List[str],
+    feature_count: int,
+    row_count: int,
+    status: str,
+    start_time: str,
+    end_time: str,
+    duration_ms: float,
+):
+    """Emit a structured JSON audit log entry for an offline feature retrieval."""
+    if not _config.audit_logging:
+        return
+    audit_logger.info(
+        _json_dumps(
+            {
+                "event": "offline_feature_retrieval",
+                "method": method,
+                "start_time": start_time,
+                "end_time": end_time,
+                "feature_views": feature_views,
+                "feature_count": feature_count,
+                "row_count": row_count,
+                "status": status,
+                "duration_ms": round(duration_ms, 2),
+            }
+        )
+    )
+
+
+def _json_dumps(obj: dict) -> str:
+    return json.dumps(obj, separators=(",", ":"))
+
+
 def update_feature_freshness(
     store: "FeatureStore",
 ) -> None:
@@ -507,6 +606,8 @@ def start_metrics_server(
             push=True,
             materialization=True,
             freshness=True,
+            offline_features=True,
+            audit_logging=False,
         )
 
     from prometheus_client import CollectorRegistry, make_wsgi_app

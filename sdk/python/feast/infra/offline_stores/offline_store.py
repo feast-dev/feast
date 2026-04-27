@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
+import time
 import warnings
 from abc import ABC
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -68,6 +70,21 @@ class RetrievalMetadata:
         self.keys = keys
         self.min_event_timestamp = min_event_timestamp
         self.max_event_timestamp = max_event_timestamp
+
+
+def _extract_retrieval_metadata(job: "RetrievalJob") -> tuple:
+    """Return ``(feature_view_names, feature_count)`` from a RetrievalJob's metadata."""
+    try:
+        meta = job.metadata
+        if meta:
+            feature_count = len(meta.features)
+            feature_views = list(
+                {ref.split(":")[0] for ref in meta.features if ":" in ref}
+            )
+            return feature_views, feature_count
+    except (NotImplementedError, AttributeError):
+        pass
+    return [], 0
 
 
 class RetrievalJob(ABC):
@@ -152,7 +169,51 @@ class RetrievalJob(ABC):
             validation_reference (optional): The validation to apply against the retrieved dataframe.
             timeout (optional): The query timeout if applicable.
         """
-        features_table = self._to_arrow_internal(timeout=timeout)
+        start_wall = time.monotonic()
+        status_label = "success"
+        row_count = 0
+        try:
+            features_table = self._to_arrow_internal(timeout=timeout)
+            row_count = features_table.num_rows
+        except Exception:
+            status_label = "error"
+            raise
+        finally:
+            try:
+                from feast import metrics as feast_metrics
+
+                elapsed = time.monotonic() - start_wall
+
+                if feast_metrics._config.offline_features:
+                    feast_metrics.offline_store_request_total.labels(
+                        method="to_arrow", status=status_label
+                    ).inc()
+                    feast_metrics.offline_store_request_latency_seconds.labels(
+                        method="to_arrow"
+                    ).observe(elapsed)
+                    if row_count > 0:
+                        feast_metrics.offline_store_row_count.labels(
+                            method="to_arrow"
+                        ).observe(row_count)
+
+                if feast_metrics._config.audit_logging:
+                    feature_views, feature_count = _extract_retrieval_metadata(self)
+                    now_iso = datetime.now(tz=timezone.utc).isoformat()
+                    feast_metrics.emit_offline_audit_log(
+                        method="to_arrow",
+                        feature_views=feature_views,
+                        feature_count=feature_count,
+                        row_count=row_count,
+                        status=status_label,
+                        start_time=now_iso,
+                        end_time=now_iso,
+                        duration_ms=elapsed * 1000,
+                    )
+            except Exception:
+                logging.getLogger(__name__).debug(
+                    "Failed to record offline store metrics", exc_info=True
+                )
+
         if self.on_demand_feature_views:
             # Build a mapping of ODFV name to requested feature names
             # This ensures we only return the features that were explicitly requested
