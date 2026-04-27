@@ -10,6 +10,7 @@ They exercise:
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
@@ -32,6 +33,33 @@ from tests.universal.feature_repos.universal.online_store.mongodb import (
 
 VECTOR_DIM = 3
 NUM_ROWS = 5
+INDEX_WAIT = 5  # seconds to wait for Atlas Search index eventual consistency
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_write_batch(
+    write_data: List[Dict[str, Any]], feature_view: FeatureView
+) -> list:
+    """Build a list of (entity_key, features, event_ts, created_ts) tuples."""
+    batch = []
+    now = datetime.utcnow()
+    for row in write_data:
+        entity_key = EntityKeyProto(
+            join_keys=["item_id"],
+            entity_values=[ValueProto(int64_val=row["item_id"])],
+        )
+        features: Dict[str, ValueProto] = {
+            "title": ValueProto(string_val=row["title"]),
+        }
+        emb_proto = ValueProto()
+        emb_proto.float_list_val.val.extend(row["embedding"])
+        features["embedding"] = emb_proto
+        batch.append((entity_key, features, now, now))
+    return batch
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +100,13 @@ def feature_view() -> FeatureView:
     )
     return FeatureView(
         name="item_embeddings",
-        entities=[Entity(name="item_id", join_keys=["item_id"])],
+        entities=[
+            Entity(
+                name="item_id",
+                join_keys=["item_id"],
+                value_type=ValueType.INT64,
+            )
+        ],
         schema=[
             Field(
                 name="embedding",
@@ -106,6 +140,35 @@ def write_data() -> List[Dict[str, Any]]:
     return rows
 
 
+@pytest.fixture(scope="module")
+def store() -> MongoDBOnlineStore:
+    """A single store instance shared across the module."""
+    return MongoDBOnlineStore()
+
+
+@pytest.fixture(scope="module")
+def _setup_index_and_data(store, repo_config, feature_view, item_entity, write_data):
+    """One-time setup: create index, write data. Runs once for the module."""
+    store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[feature_view],
+        entities_to_delete=[],
+        entities_to_keep=[item_entity],
+        partial=False,
+    )
+    batch = _build_write_batch(write_data, feature_view)
+    store.online_write_batch(
+        config=repo_config,
+        table=feature_view,
+        data=batch,
+        progress=None,
+    )
+    # Atlas Search indexes are eventually consistent — give the index time
+    # to pick up the newly written documents before running queries.
+    time.sleep(INDEX_WAIT)
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -115,22 +178,10 @@ def write_data() -> List[Dict[str, Any]]:
 class TestMongoDBVectorSearch:
     """Tests for MongoDB Atlas Vector Search integration."""
 
-    def _make_store(self) -> MongoDBOnlineStore:
-        return MongoDBOnlineStore()
-
     def test_vector_index_created_on_update(
-        self, repo_config, feature_view, item_entity
+        self, store, repo_config, feature_view, item_entity, _setup_index_and_data
     ):
         """Verify that update() creates an Atlas vector search index."""
-        store = self._make_store()
-        store.update(
-            config=repo_config,
-            tables_to_delete=[],
-            tables_to_keep=[feature_view],
-            entities_to_delete=[],
-            entities_to_keep=[item_entity],
-            partial=False,
-        )
         clxn = store._get_collection(repo_config)
         indexes = list(clxn.list_search_indexes())
         vs_index_names = [idx["name"] for idx in indexes]
@@ -140,44 +191,9 @@ class TestMongoDBVectorSearch:
         )
 
     def test_write_and_retrieve_round_trip(
-        self, repo_config, feature_view, item_entity, write_data
+        self, store, repo_config, feature_view, write_data, _setup_index_and_data
     ):
         """Write embeddings then retrieve via vector search."""
-
-        store = self._make_store()
-        store.update(
-            config=repo_config,
-            tables_to_delete=[],
-            tables_to_keep=[feature_view],
-            entities_to_delete=[],
-            entities_to_keep=[item_entity],
-            partial=False,
-        )
-
-        # Write data using online_write_batch
-        batch = []
-        now = datetime.utcnow()
-        for row in write_data:
-            entity_key = EntityKeyProto(
-                join_keys=["item_id"],
-                entity_values=[ValueProto(int64_val=row["item_id"])],
-            )
-            features: Dict[str, ValueProto] = {
-                "title": ValueProto(string_val=row["title"]),
-            }
-            emb_proto = ValueProto()
-            emb_proto.float_list_val.val.extend(row["embedding"])
-            features["embedding"] = emb_proto
-            batch.append((entity_key, features, now, now))
-
-        store.online_write_batch(
-            config=repo_config,
-            table=feature_view,
-            data=batch,
-            progress=None,
-        )
-
-        # Query using the first document's embedding
         query_embedding = write_data[0]["embedding"]
         results = store.retrieve_online_documents_v2(
             config=repo_config,
@@ -198,9 +214,10 @@ class TestMongoDBVectorSearch:
         _, _, best = results[0]
         assert best["title"].string_val == "Document 1"
 
-    def test_top_k_limiting(self, repo_config, feature_view, item_entity, write_data):
+    def test_top_k_limiting(
+        self, store, repo_config, feature_view, write_data, _setup_index_and_data
+    ):
         """Verify that top_k correctly limits the number of results."""
-        store = self._make_store()
         query_embedding = write_data[0]["embedding"]
 
         results_2 = store.retrieve_online_documents_v2(
@@ -221,9 +238,13 @@ class TestMongoDBVectorSearch:
         )
         assert len(results_all) == NUM_ROWS
 
-    def test_index_cleanup_on_teardown(self, repo_config, feature_view, item_entity):
-        """Verify teardown drops the collection (and thus all indexes)."""
-        store = self._make_store()
+    def test_index_cleanup_on_teardown(
+        self, store, repo_config, feature_view, item_entity, _setup_index_and_data
+    ):
+        """Verify teardown drops the collection (and thus all indexes).
+
+        This test must run last as it destroys the collection.
+        """
         store.teardown(
             config=repo_config,
             tables=[feature_view],

@@ -492,6 +492,10 @@ class MongoDBOnlineStore(OnlineStore):
         online_config: MongoDBOnlineStoreConfig,
     ) -> None:
         """Create Atlas vector search indexes for vector-indexed fields if they don't exist."""
+        db = collection.database
+        if collection.name not in db.list_collection_names():
+            db.create_collection(collection.name)
+
         existing = {idx["name"] for idx in collection.list_search_indexes()}
 
         for fv in tables:
