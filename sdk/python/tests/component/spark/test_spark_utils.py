@@ -118,7 +118,7 @@ def test_ensure_s3a_event_log_dir_bucket_root_trailing_slash(mock_boto3):
     "os.environ",
     {
         "AWS_ACCESS_KEY_ID": "env-ak",
-        "AWS_SECRET_ACCESS_KEY": "env-sk",
+        "AWS_SECRET_ACCESS_KEY": "env-sk",  # pragma: allowlist secret
         "AWS_SESSION_TOKEN": "env-st",
     },
 )
@@ -133,7 +133,7 @@ def test_ensure_s3a_event_log_dir_uses_spark_config_credentials(mock_boto3):
     conf = {
         **_base_conf("s3a://my-bucket/logs/"),
         "spark.hadoop.fs.s3a.access.key": "spark-ak",
-        "spark.hadoop.fs.s3a.secret.key": "spark-sk",
+        "spark.hadoop.fs.s3a.secret.key": "spark-sk",  # pragma: allowlist secret
         "spark.hadoop.fs.s3a.session.token": "spark-st",
     }
     _ensure_s3a_event_log_dir(conf)
@@ -141,7 +141,7 @@ def test_ensure_s3a_event_log_dir_uses_spark_config_credentials(mock_boto3):
     mock_boto3.client.assert_called_once()
     kwargs = mock_boto3.client.call_args
     assert kwargs.kwargs["aws_access_key_id"] == "spark-ak"
-    assert kwargs.kwargs["aws_secret_access_key"] == "spark-sk"
+    assert kwargs.kwargs["aws_secret_access_key"] == "spark-sk"  # pragma: allowlist secret
     assert kwargs.kwargs["aws_session_token"] == "spark-st"
 
 
@@ -149,7 +149,7 @@ def test_ensure_s3a_event_log_dir_uses_spark_config_credentials(mock_boto3):
     "os.environ",
     {
         "AWS_ACCESS_KEY_ID": "env-ak",
-        "AWS_SECRET_ACCESS_KEY": "env-sk",
+        "AWS_SECRET_ACCESS_KEY": "env-sk",  # pragma: allowlist secret
         "AWS_SESSION_TOKEN": "env-st",
     },
 )
@@ -166,7 +166,7 @@ def test_ensure_s3a_event_log_dir_falls_back_to_env_credentials(mock_boto3):
     mock_boto3.client.assert_called_once()
     kwargs = mock_boto3.client.call_args
     assert kwargs.kwargs["aws_access_key_id"] == "env-ak"
-    assert kwargs.kwargs["aws_secret_access_key"] == "env-sk"
+    assert kwargs.kwargs["aws_secret_access_key"] == "env-sk"  # pragma: allowlist secret
     assert kwargs.kwargs["aws_session_token"] == "env-st"
 
 
