@@ -16,36 +16,40 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
+
+from collections import abc as _abc
+from feast.protos.feast.types import Value_pb2 as _Value_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-class EntityKey(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class EntityKey(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    JOIN_KEYS_FIELD_NUMBER: builtins.int
-    ENTITY_VALUES_FIELD_NUMBER: builtins.int
-    @property
-    def join_keys(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
-    @property
-    def entity_values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[_feast_types_Value_pb2.Value]: ...
+    JOIN_KEYS_FIELD_NUMBER: _builtins.int
+    ENTITY_VALUES_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def join_keys(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
+    @_builtins.property
+    def entity_values(self) -> _containers.RepeatedCompositeFieldContainer[_Value_pb2.Value]: ...
     def __init__(
         self,
         *,
-        join_keys: collections.abc.Iterable[builtins.str] | None = ...,
-        entity_values: collections.abc.Iterable[_feast_types_Value_pb2.Value] | None = ...,
+        join_keys: _abc.Iterable[_builtins.str] | None = ...,
+        entity_values: _abc.Iterable[_Value_pb2.Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["entity_values", b"entity_values", "join_keys", b"join_keys"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["entity_values", b"entity_values", "join_keys", b"join_keys"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___EntityKey = EntityKey
+Global___EntityKey: _TypeAlias = EntityKey  # noqa: Y015

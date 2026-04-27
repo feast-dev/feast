@@ -16,72 +16,79 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
+
+from collections import abc as _abc
+from feast.protos.feast.types import Value_pb2 as _Value_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-class FeatureSpecV2(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class FeatureSpecV2(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class TagsEntry(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    @_typing.final
+    class TagsEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: builtins.int
-        VALUE_FIELD_NUMBER: builtins.int
-        key: builtins.str
-        value: builtins.str
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        value: _builtins.str
         def __init__(
             self,
             *,
-            key: builtins.str = ...,
-            value: builtins.str = ...,
+            key: _builtins.str = ...,
+            value: _builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    NAME_FIELD_NUMBER: builtins.int
-    VALUE_TYPE_FIELD_NUMBER: builtins.int
-    TAGS_FIELD_NUMBER: builtins.int
-    DESCRIPTION_FIELD_NUMBER: builtins.int
-    VECTOR_INDEX_FIELD_NUMBER: builtins.int
-    VECTOR_SEARCH_METRIC_FIELD_NUMBER: builtins.int
-    VECTOR_LENGTH_FIELD_NUMBER: builtins.int
-    name: builtins.str
+    NAME_FIELD_NUMBER: _builtins.int
+    VALUE_TYPE_FIELD_NUMBER: _builtins.int
+    TAGS_FIELD_NUMBER: _builtins.int
+    DESCRIPTION_FIELD_NUMBER: _builtins.int
+    VECTOR_INDEX_FIELD_NUMBER: _builtins.int
+    VECTOR_SEARCH_METRIC_FIELD_NUMBER: _builtins.int
+    VECTOR_LENGTH_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
     """Name of the feature. Not updatable."""
-    value_type: _feast_types_Value_pb2.ValueType.Enum.ValueType
+    value_type: _Value_pb2.ValueType.Enum.ValueType
     """Value type of the feature. Not updatable."""
-    @property
-    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
-        """Tags for user defined metadata on a feature"""
-    description: builtins.str
+    description: _builtins.str
     """Description of the feature."""
-    vector_index: builtins.bool
+    vector_index: _builtins.bool
     """Field indicating the vector will be indexed for vector similarity search"""
-    vector_search_metric: builtins.str
+    vector_search_metric: _builtins.str
     """Metric used for vector similarity search."""
-    vector_length: builtins.int
+    vector_length: _builtins.int
     """Field indicating the vector length"""
+    @_builtins.property
+    def tags(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
+        """Tags for user defined metadata on a feature"""
+
     def __init__(
         self,
         *,
-        name: builtins.str = ...,
-        value_type: _feast_types_Value_pb2.ValueType.Enum.ValueType = ...,
-        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
-        description: builtins.str = ...,
-        vector_index: builtins.bool = ...,
-        vector_search_metric: builtins.str = ...,
-        vector_length: builtins.int = ...,
+        name: _builtins.str = ...,
+        value_type: _Value_pb2.ValueType.Enum.ValueType = ...,
+        tags: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
+        description: _builtins.str = ...,
+        vector_index: _builtins.bool = ...,
+        vector_search_metric: _builtins.str = ...,
+        vector_length: _builtins.int = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "name", b"name", "tags", b"tags", "value_type", b"value_type", "vector_index", b"vector_index", "vector_length", b"vector_length", "vector_search_metric", b"vector_search_metric"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["description", b"description", "name", b"name", "tags", b"tags", "value_type", b"value_type", "vector_index", b"vector_index", "vector_length", b"vector_length", "vector_search_metric", b"vector_search_metric"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___FeatureSpecV2 = FeatureSpecV2
+Global___FeatureSpecV2: _TypeAlias = FeatureSpecV2  # noqa: Y015
