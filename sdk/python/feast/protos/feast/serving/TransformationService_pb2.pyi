@@ -16,26 +16,27 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import google.protobuf.descriptor
-import google.protobuf.internal.enum_type_wrapper
-import google.protobuf.message
+
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+import builtins as _builtins
 import sys
-import typing
+import typing as _typing
 
 if sys.version_info >= (3, 10):
-    import typing as typing_extensions
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
 class _TransformationServiceType:
-    ValueType = typing.NewType("ValueType", builtins.int)
-    V: typing_extensions.TypeAlias = ValueType
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
 
-class _TransformationServiceTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_TransformationServiceType.ValueType], builtins.type):  # noqa: F821
-    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+class _TransformationServiceTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_TransformationServiceType.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
     TRANSFORMATION_SERVICE_TYPE_INVALID: _TransformationServiceType.ValueType  # 0
     TRANSFORMATION_SERVICE_TYPE_PYTHON: _TransformationServiceType.ValueType  # 1
     TRANSFORMATION_SERVICE_TYPE_CUSTOM: _TransformationServiceType.ValueType  # 100
@@ -45,92 +46,106 @@ class TransformationServiceType(_TransformationServiceType, metaclass=_Transform
 TRANSFORMATION_SERVICE_TYPE_INVALID: TransformationServiceType.ValueType  # 0
 TRANSFORMATION_SERVICE_TYPE_PYTHON: TransformationServiceType.ValueType  # 1
 TRANSFORMATION_SERVICE_TYPE_CUSTOM: TransformationServiceType.ValueType  # 100
-global___TransformationServiceType = TransformationServiceType
+Global___TransformationServiceType: _TypeAlias = TransformationServiceType  # noqa: Y015
 
-class ValueType(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class ValueType(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    ARROW_VALUE_FIELD_NUMBER: builtins.int
-    arrow_value: builtins.bytes
+    ARROW_VALUE_FIELD_NUMBER: _builtins.int
+    arrow_value: _builtins.bytes
     """Having a oneOf provides forward compatibility if we need to support compound types
     that are not supported by arrow natively.
     """
     def __init__(
         self,
         *,
-        arrow_value: builtins.bytes = ...,
+        arrow_value: _builtins.bytes = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["arrow_value", b"arrow_value", "value", b"value"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["arrow_value", b"arrow_value", "value", b"value"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["value", b"value"]) -> typing_extensions.Literal["arrow_value"] | None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["arrow_value", b"arrow_value", "value", b"value"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["arrow_value", b"arrow_value", "value", b"value"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_value: _TypeAlias = _typing.Literal["arrow_value"]  # noqa: Y015
+    _WhichOneofArgType_value: _TypeAlias = _typing.Literal["value", b"value"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_value) -> _WhichOneofReturnType_value | None: ...
 
-global___ValueType = ValueType
+Global___ValueType: _TypeAlias = ValueType  # noqa: Y015
 
-class GetTransformationServiceInfoRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class GetTransformationServiceInfoRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
         self,
     ) -> None: ...
 
-global___GetTransformationServiceInfoRequest = GetTransformationServiceInfoRequest
+Global___GetTransformationServiceInfoRequest: _TypeAlias = GetTransformationServiceInfoRequest  # noqa: Y015
 
-class GetTransformationServiceInfoResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class GetTransformationServiceInfoResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    VERSION_FIELD_NUMBER: builtins.int
-    TYPE_FIELD_NUMBER: builtins.int
-    TRANSFORMATION_SERVICE_TYPE_DETAILS_FIELD_NUMBER: builtins.int
-    version: builtins.str
+    VERSION_FIELD_NUMBER: _builtins.int
+    TYPE_FIELD_NUMBER: _builtins.int
+    TRANSFORMATION_SERVICE_TYPE_DETAILS_FIELD_NUMBER: _builtins.int
+    version: _builtins.str
     """Feast version of this transformation service deployment."""
-    type: global___TransformationServiceType.ValueType
+    type: Global___TransformationServiceType.ValueType
     """Type of transformation service deployment. This is either Python, or custom"""
-    transformation_service_type_details: builtins.str
+    transformation_service_type_details: _builtins.str
     def __init__(
         self,
         *,
-        version: builtins.str = ...,
-        type: global___TransformationServiceType.ValueType = ...,
-        transformation_service_type_details: builtins.str = ...,
+        version: _builtins.str = ...,
+        type: Global___TransformationServiceType.ValueType = ...,
+        transformation_service_type_details: _builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["transformation_service_type_details", b"transformation_service_type_details", "type", b"type", "version", b"version"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["transformation_service_type_details", b"transformation_service_type_details", "type", b"type", "version", b"version"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___GetTransformationServiceInfoResponse = GetTransformationServiceInfoResponse
+Global___GetTransformationServiceInfoResponse: _TypeAlias = GetTransformationServiceInfoResponse  # noqa: Y015
 
-class TransformFeaturesRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class TransformFeaturesRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    ON_DEMAND_FEATURE_VIEW_NAME_FIELD_NUMBER: builtins.int
-    PROJECT_FIELD_NUMBER: builtins.int
-    TRANSFORMATION_INPUT_FIELD_NUMBER: builtins.int
-    on_demand_feature_view_name: builtins.str
-    project: builtins.str
-    @property
-    def transformation_input(self) -> global___ValueType: ...
+    ON_DEMAND_FEATURE_VIEW_NAME_FIELD_NUMBER: _builtins.int
+    PROJECT_FIELD_NUMBER: _builtins.int
+    TRANSFORMATION_INPUT_FIELD_NUMBER: _builtins.int
+    on_demand_feature_view_name: _builtins.str
+    project: _builtins.str
+    @_builtins.property
+    def transformation_input(self) -> Global___ValueType: ...
     def __init__(
         self,
         *,
-        on_demand_feature_view_name: builtins.str = ...,
-        project: builtins.str = ...,
-        transformation_input: global___ValueType | None = ...,
+        on_demand_feature_view_name: _builtins.str = ...,
+        project: _builtins.str = ...,
+        transformation_input: Global___ValueType | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["transformation_input", b"transformation_input"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["on_demand_feature_view_name", b"on_demand_feature_view_name", "project", b"project", "transformation_input", b"transformation_input"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["transformation_input", b"transformation_input"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["on_demand_feature_view_name", b"on_demand_feature_view_name", "project", b"project", "transformation_input", b"transformation_input"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___TransformFeaturesRequest = TransformFeaturesRequest
+Global___TransformFeaturesRequest: _TypeAlias = TransformFeaturesRequest  # noqa: Y015
 
-class TransformFeaturesResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class TransformFeaturesResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    TRANSFORMATION_OUTPUT_FIELD_NUMBER: builtins.int
-    @property
-    def transformation_output(self) -> global___ValueType: ...
+    TRANSFORMATION_OUTPUT_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def transformation_output(self) -> Global___ValueType: ...
     def __init__(
         self,
         *,
-        transformation_output: global___ValueType | None = ...,
+        transformation_output: Global___ValueType | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["transformation_output", b"transformation_output"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["transformation_output", b"transformation_output"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["transformation_output", b"transformation_output"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["transformation_output", b"transformation_output"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___TransformFeaturesResponse = TransformFeaturesResponse
+Global___TransformFeaturesResponse: _TypeAlias = TransformFeaturesResponse  # noqa: Y015
