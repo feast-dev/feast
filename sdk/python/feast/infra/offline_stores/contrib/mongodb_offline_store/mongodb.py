@@ -69,7 +69,7 @@ from feast.errors import (
     SavedDatasetLocationAlreadyExists,
 )
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.key_encoding_utils import deserialize_entity_key, serialize_entity_key
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
@@ -337,6 +337,38 @@ def _serialize_entity_key_from_row(
     return serialize_entity_key(entity_key, entity_key_version)
 
 
+def _expand_entity_id_column(
+    df: pd.DataFrame,
+    join_key_columns: List[str],
+    entity_key_version: int,
+) -> pd.DataFrame:
+    """Deserialize ``entity_id`` bytes into individual join key columns.
+
+    Each ``entity_id`` value is deserialized via ``deserialize_entity_key``
+    and the resulting join key names/values are added as new columns.
+    The ``entity_id`` column is then dropped.
+    """
+    if "entity_id" not in df.columns or df.empty:
+        return df
+
+    def _extract(eid_bytes: bytes) -> Dict[str, Any]:
+        ek = deserialize_entity_key(eid_bytes, entity_key_version)
+        row: Dict[str, Any] = {}
+        for key, val in zip(ek.join_keys, ek.entity_values):
+            which = val.WhichOneof("val")
+            row[key] = getattr(val, which) if which else None
+        return row
+
+    expanded = pd.DataFrame([_extract(eid) for eid in df["entity_id"]])
+    # Only keep the columns the caller asked for (in case the serialized
+    # key contains more keys than expected).
+    for col in join_key_columns:
+        if col in expanded.columns:
+            df[col] = expanded[col].values
+    df = df.drop(columns=["entity_id"], errors="ignore")
+    return df
+
+
 # ---------------------------------------------------------------------------
 # Offline store
 # ---------------------------------------------------------------------------
@@ -428,6 +460,8 @@ class MongoDBOfflineStore(OfflineStore):
             {"$project": project_stage},
         ]
 
+        entity_key_version = config.entity_key_serialization_version
+
         def _run() -> pyarrow.Table:
             client = MongoDBOfflineStore._get_client_and_ensure_indexes(config)
             try:
@@ -435,6 +469,7 @@ class MongoDBOfflineStore(OfflineStore):
                 if not docs:
                     return pyarrow.Table.from_pydict({})
                 df = pd.DataFrame(docs)
+                df = _expand_entity_id_column(df, join_key_columns, entity_key_version)
                 if not df.empty and "event_timestamp" in df.columns:
                     if df["event_timestamp"].dt.tz is None:
                         df["event_timestamp"] = pd.to_datetime(
@@ -485,6 +520,7 @@ class MongoDBOfflineStore(OfflineStore):
         for feat in feature_name_columns:
             project_stage[feat] = f"$features.{feat}"
         pipeline = [{"$match": match_filter}, {"$project": project_stage}]
+        entity_key_version = config.entity_key_serialization_version
 
         def _run() -> pyarrow.Table:
             client = MongoDBOfflineStore._get_client_and_ensure_indexes(config)
@@ -493,6 +529,7 @@ class MongoDBOfflineStore(OfflineStore):
                 if not docs:
                     return pyarrow.Table.from_pydict({})
                 df = pd.DataFrame(docs)
+                df = _expand_entity_id_column(df, join_key_columns, entity_key_version)
                 if not df.empty and "event_timestamp" in df.columns:
                     if df["event_timestamp"].dt.tz is None:
                         df["event_timestamp"] = pd.to_datetime(

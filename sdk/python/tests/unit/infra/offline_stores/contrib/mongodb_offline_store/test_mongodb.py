@@ -250,6 +250,11 @@ def test_pull_latest_from_table_or_query(
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 2  # Two unique entities
 
+    # Join key columns must be present in the output.
+    assert "driver_id" in df.columns, (
+        f"Expected 'driver_id' in output columns, got {list(df.columns)}"
+    )
+
     conv_rates = sorted(df["conv_rate"].tolist())
     assert conv_rates[0] == pytest.approx(0.3)  # Driver 2's only value
     assert conv_rates[1] == pytest.approx(0.7)  # Driver 1's latest
@@ -373,6 +378,11 @@ def test_pull_all_from_table_or_query(
     # 2 rows in window: driver 1 at 1h ago and driver 1 at now.
     # Excludes: driver 1 at 2h ago (before start_date) and driver 2 at 2h ago.
     assert len(df) == 2
+
+    # Join key columns must be present in the output.
+    assert "driver_id" in df.columns, (
+        f"Expected 'driver_id' in output columns, got {list(df.columns)}"
+    )
 
 
 # ---------------------------------------------------------------------------
