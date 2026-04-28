@@ -24,6 +24,7 @@
   * [Data ingestion](getting-started/concepts/data-ingestion.md)
   * [Entity](getting-started/concepts/entity.md)
   * [Feature view](getting-started/concepts/feature-view.md)
+  * [\[Alpha\] Label view](getting-started/concepts/label-view.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
   * [\[Alpha\] Saved dataset](getting-started/concepts/dataset.md)

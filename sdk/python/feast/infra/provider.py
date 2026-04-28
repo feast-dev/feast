@@ -69,8 +69,8 @@ class Provider(ABC):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[Union[FeatureView, OnDemandFeatureView]],
+        tables_to_delete: Sequence[BaseFeatureView],
+        tables_to_keep: Sequence[BaseFeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,

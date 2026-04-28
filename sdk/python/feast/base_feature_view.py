@@ -22,6 +22,7 @@ from feast.data_source import DataSource
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -109,7 +110,12 @@ class BaseFeatureView(ABC):
     @abstractmethod
     def to_proto(
         self,
-    ) -> Union[FeatureViewProto, OnDemandFeatureViewProto, StreamFeatureViewProto]:
+    ) -> Union[
+        FeatureViewProto,
+        OnDemandFeatureViewProto,
+        StreamFeatureViewProto,
+        LabelViewProto,
+    ]:
         pass
 
     @classmethod

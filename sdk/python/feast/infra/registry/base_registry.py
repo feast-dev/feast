@@ -31,6 +31,7 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -41,6 +42,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -299,7 +301,21 @@ class BaseRegistry(ABC):
 
         # Check StreamFeatureView before FeatureView since StreamFeatureView is a subclass
         # Note: All getters raise FeatureViewNotFoundException (not type-specific exceptions)
-        if isinstance(feature_view, StreamFeatureView):
+        if isinstance(feature_view, LabelView):
+            _check_conflict(
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+            )
+            _check_conflict(
+                self.get_stream_feature_view,
+                FeatureViewNotFoundException,
+                "StreamFeatureView",
+            )
+            _check_conflict(
+                self.get_on_demand_feature_view,
+                FeatureViewNotFoundException,
+                "OnDemandFeatureView",
+            )
+        elif isinstance(feature_view, StreamFeatureView):
             _check_conflict(
                 self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
             )
@@ -307,6 +323,9 @@ class BaseRegistry(ABC):
                 self.get_on_demand_feature_view,
                 FeatureViewNotFoundException,
                 "OnDemandFeatureView",
+            )
+            _check_conflict(
+                self.get_label_view, FeatureViewNotFoundException, "LabelView"
             )
         elif isinstance(feature_view, FeatureView):
             _check_conflict(
@@ -319,6 +338,9 @@ class BaseRegistry(ABC):
                 FeatureViewNotFoundException,
                 "OnDemandFeatureView",
             )
+            _check_conflict(
+                self.get_label_view, FeatureViewNotFoundException, "LabelView"
+            )
         elif isinstance(feature_view, OnDemandFeatureView):
             _check_conflict(
                 self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
@@ -327,6 +349,9 @@ class BaseRegistry(ABC):
                 self.get_stream_feature_view,
                 FeatureViewNotFoundException,
                 "StreamFeatureView",
+            )
+            _check_conflict(
+                self.get_label_view, FeatureViewNotFoundException, "LabelView"
             )
 
     @abstractmethod
@@ -418,6 +443,57 @@ class BaseRegistry(ABC):
 
         Returns:
             List of on demand feature views
+        """
+        raise NotImplementedError
+
+    # Label view operations
+    @abstractmethod
+    def get_label_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> LabelView:
+        """
+        Retrieves a label view.
+
+        Args:
+            name: Name of label view
+            project: Feast project that this label view belongs to
+            allow_cache: Whether to allow returning this label view from a cached registry
+
+        Returns:
+            Returns either the specified label view, or raises an exception if
+            none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_label_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[LabelView]:
+        """
+        Retrieve a list of label views from the registry
+
+        Args:
+            project: Filter label views based on project name
+            allow_cache: Whether to allow returning label views from a cached registry
+            tags: Filter by tags
+
+        Returns:
+            List of label views
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_label_view(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a label view or raises an exception if not found.
+
+        Args:
+            name: Name of label view
+            project: Feast project that this label view belongs to
+            commit: Whether the change should be persisted immediately
         """
         raise NotImplementedError
 
@@ -541,7 +617,7 @@ class BaseRegistry(ABC):
     @abstractmethod
     def apply_materialization(
         self,
-        feature_view: Union[FeatureView, OnDemandFeatureView],
+        feature_view: Union[FeatureView, OnDemandFeatureView, "LabelView"],
         project: str,
         start_date: datetime,
         end_date: datetime,
@@ -1040,6 +1116,11 @@ class BaseRegistry(ABC):
         for on_demand_feature_view in on_demand_feature_views:
             registry.on_demand_feature_views.append(on_demand_feature_view.to_proto())
 
+        # Add all label views
+        label_views = self.list_label_views(project=project, allow_cache=allow_cache)
+        for label_view in label_views:
+            registry.label_views.append(label_view.to_proto())
+
         # Add all feature services
         feature_services = self.list_feature_services(
             project=project, allow_cache=allow_cache
@@ -1143,6 +1224,13 @@ class BaseRegistry(ABC):
             )
             registry_dict["streamFeatureViews"].append(sfv_dict)
 
+        for label_view in sorted(
+            self.list_label_views(project=project),
+            key=lambda lv: lv.name,
+        ):
+            registry_dict["labelViews"].append(
+                self._message_to_sorted_dict(label_view.to_proto())
+            )
         for saved_dataset in sorted(
             self.list_saved_datasets(project=project), key=lambda item: item.name
         ):
@@ -1174,6 +1262,8 @@ class BaseRegistry(ABC):
             return StreamFeatureViewProto.FromString(serialized_proto)
         if feast_obj_type == OnDemandFeatureView:
             return OnDemandFeatureViewProto.FromString(serialized_proto)
+        if feast_obj_type == LabelView:
+            return LabelViewProto.FromString(serialized_proto)
         if feast_obj_type == FeatureService:
             return FeatureServiceProto.FromString(serialized_proto)
         if feast_obj_type == Permission:
