@@ -1347,6 +1347,7 @@ def on_demand_feature_view(
     description: str = "",
     tags: Optional[dict[str, str]] = None,
     owner: str = "",
+    org: str = "",
     write_to_online_store: bool = False,
     singleton: bool = False,
     track_metrics: bool = False,
@@ -1373,6 +1374,8 @@ def on_demand_feature_view(
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the on demand feature view, typically the email
             of the primary maintainer.
+        org (optional): The organizational unit that owns this on demand feature view
+            (e.g. "ads", "search"). Defaults to empty string.
         write_to_online_store (optional): A boolean that indicates whether to write the on demand feature view to
             the online store for faster retrieval.
         singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
@@ -1401,6 +1404,7 @@ def on_demand_feature_view(
             description=description,
             tags=tags,
             owner=owner,
+            org=org,
             write_to_online_store=write_to_online_store,
             entities=entities,
             singleton=singleton,
