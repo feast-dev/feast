@@ -559,6 +559,145 @@ def test_k_collapse_multiple_feature_views(
 
 
 # ---------------------------------------------------------------------------
+# Tests: mixed join key cardinality (scoring_path per-FV)
+# ---------------------------------------------------------------------------
+
+
+@_requires_docker
+def test_mixed_join_key_cardinality(
+    repo_config: RepoConfig, mongodb_connection_string: str
+) -> None:
+    """FVs with different join key sets must not lose data via $group.
+
+    FV_A uses (user_id), FV_B uses (user_id, device_id).
+    entity_df has two rows: (user=1, device=X, t=09:00) and (user=1, device=Y, t=10:00).
+    Unique on (user_id, device_id), but user_id=1 appears twice.
+
+    For FV_A, both rows map to the same entity_id.  The old code would use
+    the scoring path ($group) globally, discarding older docs for user_id=1.
+    The fix detects that FV_A's entity_id is non-unique and falls back to
+    merge_asof for FV_A while FV_B can still use the scoring path.
+    """
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    db = client["feast_test"]
+    collection = db["feature_history"]
+
+    now = datetime.now(tz=pytz.UTC)
+    t_0800 = now - timedelta(hours=2)  # 08:00
+    t_0900 = now - timedelta(hours=1)  # 09:00
+    t_0930 = now - timedelta(minutes=30)  # 09:30
+
+    user_entity = Entity(
+        name="user_id", join_keys=["user_id"], value_type=ValueType.INT64
+    )
+    device_entity = Entity(
+        name="device_id", join_keys=["device_id"], value_type=ValueType.STRING
+    )
+
+    # FV_A: keyed on user_id only
+    source_a = MongoDBSource(name="user_prefs")
+    fv_a = FeatureView(
+        name="user_prefs",
+        entities=[user_entity],
+        schema=[
+            Field(name="user_id", dtype=Int64),
+            Field(name="theme", dtype=String),
+        ],
+        source=source_a,
+        ttl=timedelta(days=1),
+    )
+
+    # FV_B: keyed on (user_id, device_id)
+    source_b = MongoDBSource(name="device_stats")
+    fv_b = FeatureView(
+        name="device_stats",
+        entities=[user_entity, device_entity],
+        schema=[
+            Field(name="user_id", dtype=Int64),
+            Field(name="device_id", dtype=String),
+            Field(name="battery", dtype=Float64),
+        ],
+        source=source_b,
+        ttl=timedelta(days=1),
+    )
+
+    # Insert docs for FV_A (user_id only key)
+    # Two docs for user 1: one at 08:00 ("dark") and one at 09:30 ("light")
+    docs = [
+        {
+            "entity_id": _make_entity_id({"user_id": 1}),
+            "feature_view": "user_prefs",
+            "features": {"theme": "dark"},
+            "event_timestamp": t_0800,
+            "created_at": t_0800,
+        },
+        {
+            "entity_id": _make_entity_id({"user_id": 1}),
+            "feature_view": "user_prefs",
+            "features": {"theme": "light"},
+            "event_timestamp": t_0930,
+            "created_at": t_0930,
+        },
+        # FV_B: keyed on (user_id, device_id)
+        {
+            "entity_id": _make_entity_id({"device_id": "X", "user_id": 1}),
+            "feature_view": "device_stats",
+            "features": {"battery": 0.8},
+            "event_timestamp": t_0800,
+            "created_at": t_0800,
+        },
+        {
+            "entity_id": _make_entity_id({"device_id": "Y", "user_id": 1}),
+            "feature_view": "device_stats",
+            "features": {"battery": 0.6},
+            "event_timestamp": t_0800,
+            "created_at": t_0800,
+        },
+    ]
+    collection.insert_many(docs)
+    client.close()
+
+    # entity_df: two rows, unique on (user_id, device_id) but NOT on user_id
+    entity_df = pd.DataFrame(
+        {
+            "user_id": [1, 1],
+            "device_id": ["X", "Y"],
+            "event_timestamp": [t_0900, now],  # 09:00 and 10:00
+        }
+    )
+
+    job = MongoDBOfflineStore.get_historical_features(
+        config=repo_config,
+        feature_views=[fv_a, fv_b],
+        feature_refs=["user_prefs:theme", "device_stats:battery"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+        strict_pit=True,
+    )
+
+    result_df = job.to_df().sort_values("device_id").reset_index(drop=True)
+
+    assert len(result_df) == 2
+
+    # Row 0: device=X, request at 09:00
+    # FV_A (user_id=1): 09:30 doc is AFTER 09:00 (strict_pit), 08:00 doc is valid → "dark"
+    # FV_B (user=1, device=X): 08:00 doc is before 09:00 → battery=0.8
+    assert result_df.loc[0, "theme"] == "dark", (
+        f"Expected 'dark' for row at 09:00 but got {result_df.loc[0, 'theme']!r}. "
+        "The scoring path $group may have discarded the 08:00 doc."
+    )
+    assert result_df.loc[0, "battery"] == pytest.approx(0.8)
+
+    # Row 1: device=Y, request at 10:00
+    # FV_A (user_id=1): 09:30 doc is before 10:00 → "light"
+    # FV_B (user=1, device=Y): 08:00 doc is before 10:00 → battery=0.6
+    assert result_df.loc[1, "theme"] == "light"
+    assert result_df.loc[1, "battery"] == pytest.approx(0.6)
+
+
+# ---------------------------------------------------------------------------
 # Tests: overlapping feature names
 # ---------------------------------------------------------------------------
 

@@ -633,15 +633,6 @@ class MongoDBOfflineStore(OfflineStore):
             max_ts = result[event_timestamp_col].max()
             min_ts = result[event_timestamp_col].min()
 
-            # Detect scoring vs training path once per chunk.
-            all_entity_id_cols = list(
-                {jk for jks in fv_mapped_join_keys.values() for jk in jks}
-                & set(result.columns)
-            )
-            scoring_path = result[all_entity_id_cols].drop_duplicates().shape[0] == len(
-                result
-            )
-
             # Process each feature view projection independently.
             # (Different projections of the same FV have different
             #  entity key mappings and must be handled separately.)
@@ -692,6 +683,14 @@ class MongoDBOfflineStore(OfflineStore):
                 eid_col = f"_eid_{proj_name}"
                 result[eid_col] = result.apply(_ser, axis=1)
                 unique_eids = result[eid_col].unique().tolist()
+
+                # Detect scoring vs training path per-FV.
+                # Scoring path ($group) is only safe when entity_ids for
+                # THIS feature view are unique in the chunk.  When FVs have
+                # different join key sets, entity_df may be unique on the
+                # union of all keys but have duplicates for a FV with fewer
+                # keys — using $group in that case would discard valid docs.
+                scoring_path = result[eid_col].nunique() == len(result)
 
                 # TTL filter — use min_ts for the lower bound so that
                 # documents needed for early entity rows are included.
