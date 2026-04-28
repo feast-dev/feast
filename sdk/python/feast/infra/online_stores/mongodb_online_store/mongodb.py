@@ -56,6 +56,8 @@ class MongoDBOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     # vector_enabled and similarity are inherited from VectorStoreConfig
     vector_index_wait_timeout: int = 60
     """Seconds to wait for a newly created Atlas Search index to become READY."""
+    vector_index_wait_poll_interval: float = 1.0
+    """Seconds between polls when waiting for an Atlas Search index to become READY."""
 
 
 class MongoDBOnlineStore(OnlineStore):
@@ -460,18 +462,23 @@ class MongoDBOnlineStore(OnlineStore):
         collection: Collection,
         index_name: str,
         timeout: int,
+        poll_interval: float = 1.0,
     ) -> None:
-        """Poll until the named Atlas Search index reaches READY status."""
+        """Poll until the named Atlas Search index reaches READY status.
+
+        Raises ``TimeoutError`` if the index does not become queryable
+        within *timeout* seconds.
+        """
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             for idx in collection.list_search_indexes(name=index_name):
                 if idx.get("status") == "READY" or idx.get("queryable") is True:
                     return
-            time.sleep(1)
-        logger.warning(
-            "Atlas search index '%s' did not reach READY within %ds",
-            index_name,
-            timeout,
+            time.sleep(poll_interval)
+        raise TimeoutError(
+            f"Atlas search index '{index_name}' did not reach READY "
+            f"within {timeout}s. Increase vector_index_wait_timeout in "
+            f"MongoDBOnlineStoreConfig if the index needs more time."
         )
 
     def _drop_vector_indexes_for_tables(
@@ -542,6 +549,7 @@ class MongoDBOnlineStore(OnlineStore):
                     collection,
                     idx_name,
                     online_config.vector_index_wait_timeout,
+                    online_config.vector_index_wait_poll_interval,
                 )
 
     # -- Connection helpers ---------------------------------------------
