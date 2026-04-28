@@ -271,13 +271,16 @@ class MongoDBOnlineStore(OnlineStore):
         path = f"features.{table.name}.{vector_field.name}"
         idx_name = self._vector_search_index_name(table.name, vector_field.name)
 
+        # BSON cannot encode numpy float types — ensure native Python floats.
+        query_vector = [float(v) for v in embedding]
+
         num_candidates = max(top_k * 10, 100)
         pipeline: List[Dict[str, Any]] = [
             {
                 "$vectorSearch": {
                     "index": idx_name,
                     "path": path,
-                    "queryVector": embedding,
+                    "queryVector": query_vector,
                     "numCandidates": num_candidates,
                     "limit": top_k,
                 }
