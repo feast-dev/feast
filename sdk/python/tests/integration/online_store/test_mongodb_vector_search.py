@@ -133,7 +133,7 @@ def write_data() -> List[Dict[str, Any]]:
         rows.append(
             {
                 "item_id": i,
-                "embedding": list(np.random.rand(VECTOR_DIM).astype(float)),
+                "embedding": list(np.random.rand(VECTOR_DIM).astype(np.float32)),
                 "title": f"Document {i}",
             }
         )
