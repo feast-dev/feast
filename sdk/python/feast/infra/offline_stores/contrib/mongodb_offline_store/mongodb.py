@@ -935,11 +935,11 @@ class MongoDBOfflineStore(OfflineStore):
         db_name = config.offline_store.database
         collection_name = config.offline_store.collection
 
+        # Use original (unmapped) join key names so that the serialized
+        # entity_id bytes match those produced by get_historical_features,
+        # which also serializes with original names (see _ser at line ~662).
         join_key_types: Dict[str, ValueType] = {
-            feature_view.projection.join_key_map.get(
-                ec.name, ec.name
-            ): ec.dtype.to_value_type()
-            for ec in feature_view.entity_columns
+            ec.name: ec.dtype.to_value_type() for ec in feature_view.entity_columns
         }
         join_keys = list(join_key_types.keys())
 
