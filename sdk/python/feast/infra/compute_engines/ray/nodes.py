@@ -577,39 +577,31 @@ class RayDedupNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
-        @safe_batch_processor
-        def deduplicate_batch(batch: pd.DataFrame) -> pd.DataFrame:
-            """Remove duplicates from the batch."""
-            # Get deduplication keys
-            join_keys = self.column_info.join_keys
-            timestamp_col = self.column_info.timestamp_column
+        join_keys = self.column_info.join_keys
+        timestamp_col = self.column_info.timestamp_column
 
-            if join_keys:
-                # Sort by join keys and timestamp (most recent first)
-                sort_columns = join_keys + [timestamp_col]
-                available_columns = [
-                    col for col in sort_columns if col in batch.columns
-                ]
+        if join_keys:
+            available_join_keys = [k for k in join_keys if k in dataset.schema().names]
+            available_ts_col = (
+                timestamp_col if timestamp_col in dataset.schema().names else None
+            )
 
-                if available_columns:
-                    # Sort and deduplicate
-                    sorted_batch = batch.sort_values(
-                        available_columns,
-                        ascending=[True] * len(join_keys)
-                        + [False],  # Recent timestamps first
-                    )
+            if available_join_keys:
+                # groupby().map_groups() co-locates ALL rows for the same entity
+                # in a single call, so deduplication is always correct regardless
+                # of how Ray splits the dataset into partitions.  sort + map_batches
+                # is NOT safe: Ray can place the same entity's rows in different
+                # partitions after a sort, causing surviving duplicates.
+                def _keep_latest_in_group(group: pd.DataFrame) -> pd.DataFrame:
+                    if available_ts_col and available_ts_col in group.columns:
+                        group = group.sort_values(available_ts_col, ascending=False)
+                    return group.head(1)
 
-                    # Keep first occurrence (most recent) for each join key combination
-                    deduped_batch = sorted_batch.drop_duplicates(
-                        subset=join_keys,
-                        keep="first",
-                    )
+                dataset = dataset.groupby(available_join_keys).map_groups(
+                    _keep_latest_in_group, batch_format="pandas"
+                )
 
-                    return deduped_batch
-
-            return batch
-
-        deduped_dataset = dataset.map_batches(deduplicate_batch, batch_format="pandas")
+        deduped_dataset = dataset
 
         return DAGValue(
             data=deduped_dataset,
