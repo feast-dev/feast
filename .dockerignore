@@ -6,3 +6,5 @@ env
 offline_build/
 !offline_build/arrow
 !offline_build/ibis
+ui/node_modules
+sdk/python/feast/ui/node_modules

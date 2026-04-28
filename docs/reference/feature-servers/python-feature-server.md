@@ -53,6 +53,32 @@ Key performance options:
 - Use HTTP health checks instead of TCP for better application-level monitoring
 - Consider horizontal pod autoscaling based on request latency metrics
 
+### Experimental Python 3.14 Free-Threaded Container
+
+Feast also ships an experimental feature-server container build for Python 3.14 free-threaded (`3.14t`) runtimes. This image is intended for benchmarking and early compatibility validation, not as the default production image.
+
+Today, the experimental image is best treated as a SQLite-oriented serving experiment. The online-serving startup path has been trimmed to avoid eagerly importing `pandas`, which makes it a better fit for free-threaded serving benchmarks, but the broader Feast runtime and some offline-oriented paths still rely on dependencies that are not fully optimized for no-GIL execution yet.
+
+```bash
+# Build the stable image
+make build-feature-server-docker
+
+# Build the experimental no-GIL image
+make build-feature-server-experimental-docker
+
+# Compare the two images against the same sample feature repo
+make benchmark-feature-server-experimental
+```
+
+The benchmark target writes a JSON report to `feature-server-experimental-benchmark.json` with throughput and latency comparisons for the stable and experimental containers. The current harness uses the sample local feature repo and is most useful for side-by-side SQLite serving comparisons. Because the free-threaded Python ecosystem is still evolving, treat the result as a workload-specific experiment and validate dependency compatibility before promoting it further.
+
+On the current SQLite benchmark run that seeded this experiment, the experimental `3.14t` image delivered lower throughput but slightly better tail latency than the stable image:
+
+- Stable image: `187.65 req/s`, `152.17 ms` mean latency, `274.72 ms` p95 latency, `35` failed requests
+- Experimental image: `157.01 req/s`, `183.21 ms` mean latency, `262.61 ms` p95 latency, `31` failed requests
+
+That works out to about `16%` lower throughput for the experimental image, alongside about `4.6%` better p95 latency on this workload. In other words, the current no-GIL image is not yet a clear performance win for SQLite online serving, but it is now easy to benchmark and iterate on as dependencies improve.
+
 ## Deploying as a service
 
 See [this](../../how-to-guides/running-feast-in-production.md#id-4.2.-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.

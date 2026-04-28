@@ -683,6 +683,15 @@ build-feature-server-docker: ## Build Feature Server Docker image
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile \
 		$(if $(filter true,$(DOCKER_PUSH)),--push,--load) sdk/python/feast/infra/feature_servers/multicloud
 
+push-feature-server-experimental-docker: ## Push experimental Python 3.14 free-threaded Feature Server Docker image
+	docker push $(REGISTRY)/feature-server:$(VERSION)-python314t-experimental
+
+build-feature-server-experimental-docker: ## Build experimental Python 3.14 free-threaded Feature Server Docker image
+	docker buildx build $(if $(DOCKER_PLATFORMS),--platform $(DOCKER_PLATFORMS),) \
+		-t $(REGISTRY)/feature-server:$(VERSION)-python314t-experimental \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.experimental \
+		$(if $(filter true,$(DOCKER_PUSH)),--push,--load) .
+
 push-feature-transformation-server-docker: ## Push Feature Transformation Server Docker image
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
 
@@ -732,6 +741,11 @@ build-feature-server-dev: ## Build Feature Server Dev Docker image
 	docker buildx build \
 		-t feastdev/feature-server:dev \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
+benchmark-feature-server-experimental: ## Benchmark stable vs experimental feature server containers
+	uv run python infra/scripts/benchmark_feature_server_experimental.py \
+		--baseline-image $(REGISTRY)/feature-server:$(VERSION) \
+		--experimental-image $(REGISTRY)/feature-server:$(VERSION)-python314t-experimental
 
 build-feature-server-dev-docker: ## Build Feature Server Dev Docker image
 	docker buildx build $(if $(DOCKER_PLATFORMS),--platform $(DOCKER_PLATFORMS),) \

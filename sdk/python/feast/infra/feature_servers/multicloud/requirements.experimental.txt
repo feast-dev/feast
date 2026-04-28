@@ -1,0 +1,5 @@
+# Experimental no-GIL image:
+# keep this benchmark profile focused on the local SQLite feature-server path.
+# Optional cloud and warehouse extras stay out of this image until their native
+# dependencies are confirmed to work on cp314t.
+feast == 0.61.0

@@ -1,6 +1,5 @@
 import copy
 import functools
-import uuid
 import warnings
 from types import FunctionType
 from typing import Any, List, Optional, Union, cast
@@ -31,9 +30,6 @@ from feast.protos.feast.core.Transformation_pb2 import (
 )
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.python_transformation import PythonTransformation
-from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.utils import _utc_now
 from feast.value_type import ValueType
 from feast.version_utils import normalize_version_string
@@ -369,6 +365,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )
         elif self.mode == TransformationMode.SUBSTRAIT or self.mode == "substrait":
+            from feast.transformation.substrait_transformation import (
+                SubstraitTransformation,
+            )
+
             return SubstraitTransformation.from_ibis(self.udf, self.sources)
         else:
             raise ValueError(
@@ -784,8 +784,16 @@ class OnDemandFeatureView(BaseFeatureView):
             # Check for non-empty UDF body
             if udf_proto.body_text:
                 if mode == "pandas":
+                    from feast.transformation.pandas_transformation import (
+                        PandasTransformation,
+                    )
+
                     return PandasTransformation.from_proto(udf_proto)
                 elif mode == "python":
+                    from feast.transformation.python_transformation import (
+                        PythonTransformation,
+                    )
+
                     return PythonTransformation.from_proto(udf_proto)
                 else:
                     raise ValueError(ODFVErrorMessages.unsupported_mode_for_udf(mode))
@@ -794,6 +802,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 return cls._handle_backward_compatible_udf(proto)
 
         elif transformation_type == "substrait_transformation":
+            from feast.transformation.substrait_transformation import (
+                SubstraitTransformation,
+            )
+
             return SubstraitTransformation.from_proto(
                 feature_transformation.substrait_transformation
             )
@@ -821,6 +833,8 @@ class OnDemandFeatureView(BaseFeatureView):
             body=old_udf.body,
             body_text=old_udf.body_text,
         )
+        from feast.transformation.pandas_transformation import PandasTransformation
+
         return PandasTransformation.from_proto(
             user_defined_function_proto=backwards_compatible_udf,
         )
@@ -922,6 +936,10 @@ class OnDemandFeatureView(BaseFeatureView):
         full_feature_names: bool = False,
     ):
         from ibis.expr.types import Table
+
+        from feast.transformation.substrait_transformation import (
+            SubstraitTransformation,
+        )
 
         if not isinstance(ibis_table, Table):
             raise TypeError("transform_ibis only accepts ibis.expr.types.Table")
@@ -1284,9 +1302,6 @@ class OnDemandFeatureView(BaseFeatureView):
             # Special binary types
             ValueType.PDF_BYTES: [pdf_sample],
             ValueType.IMAGE_BYTES: [image_sample],
-            # UUID types
-            ValueType.UUID: [uuid.uuid4()],
-            ValueType.TIME_UUID: [uuid.uuid1()],
             # List types
             ValueType.BYTES_LIST: [[b"hello world"]],
             ValueType.STRING_LIST: [["hello world"]],
@@ -1296,19 +1311,6 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.FLOAT_LIST: [[1.0]],
             ValueType.BOOL_LIST: [[True]],
             ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
-            ValueType.UUID_LIST: [[uuid.uuid4(), uuid.uuid4()]],
-            ValueType.TIME_UUID_LIST: [[uuid.uuid1(), uuid.uuid1()]],
-            # Set types
-            ValueType.BYTES_SET: [{b"hello world", b"foo bar"}],
-            ValueType.STRING_SET: [{"hello world", "foo bar"}],
-            ValueType.INT32_SET: [{1, 2}],
-            ValueType.INT64_SET: [{1, 2}],
-            ValueType.DOUBLE_SET: [{1.0, 2.0}],
-            ValueType.FLOAT_SET: [{1.0, 2.0}],
-            ValueType.BOOL_SET: [{True, False}],
-            ValueType.UNIX_TIMESTAMP_SET: [{_utc_now()}],
-            ValueType.UUID_SET: [{uuid.uuid4(), uuid.uuid4()}],
-            ValueType.TIME_UUID_SET: [{uuid.uuid1(), uuid.uuid1()}],
         }
 
     @staticmethod
