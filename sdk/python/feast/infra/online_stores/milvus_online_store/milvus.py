@@ -764,6 +764,7 @@ class MilvusOnlineStore(OnlineStore):
         """
         base = f"{project}_{table.name}"
         versioned_prefix = f"{base}_v"
+        assert self.client is not None, "Milvus client is not initialized"
         for collection_name in self.client.list_collections():
             if collection_name == base or (
                 collection_name.startswith(versioned_prefix)
