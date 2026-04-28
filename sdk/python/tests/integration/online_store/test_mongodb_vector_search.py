@@ -238,6 +238,28 @@ class TestMongoDBVectorSearch:
         )
         assert len(results_all) == NUM_ROWS
 
+    def test_update_idempotent(
+        self, store, repo_config, feature_view, item_entity, _setup_index_and_data
+    ):
+        """Calling update() a second time should not error (index already exists)."""
+        # _setup_index_and_data already called update() once.
+        # A second call must be a no-op for the existing index.
+        store.update(
+            config=repo_config,
+            tables_to_delete=[],
+            tables_to_keep=[feature_view],
+            entities_to_delete=[],
+            entities_to_keep=[item_entity],
+            partial=False,
+        )
+        clxn = store._get_collection(repo_config)
+        indexes = list(clxn.list_search_indexes())
+        vs_index_names = [idx["name"] for idx in indexes]
+        expected = "item_embeddings__embedding__vs_index"
+        assert vs_index_names.count(expected) == 1, (
+            f"Expected exactly one '{expected}' index, got: {vs_index_names}"
+        )
+
     def test_index_cleanup_on_teardown(
         self, store, repo_config, feature_view, item_entity, _setup_index_and_data
     ):
