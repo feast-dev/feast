@@ -102,7 +102,7 @@ _MONGO_BATCH_SIZE = 10_000
 
 
 class MongoDBOfflineStoreConfig(FeastConfigBaseModel):
-    """Configuration for the MongoDB agg offline store (single shared collection)."""
+    """Configuration for the MongoDB offline store (single shared collection)."""
 
     type: StrictStr = "feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb.MongoDBOfflineStore"
 
@@ -122,10 +122,10 @@ class MongoDBOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class MongoDBSource(DataSource):
-    """Data source for the aggregation offline store.
+    """Data source for the MongoDB offline store.
 
-    Identical semantics to MongoDBSourceOne: the ``name`` field is used as
-    the ``feature_view`` discriminator inside the single shared collection.
+    The ``name`` field is used as the ``feature_view`` discriminator inside
+    the single shared collection.
     """
 
     def __init__(
@@ -377,7 +377,7 @@ def _expand_entity_id_column(
 class MongoDBOfflineStore(OfflineStore):
     """MongoDB offline store using a single collection and grouped aggregation.
 
-    Improves on MongoDBOfflineStoreOne by:
+    Key optimizations:
     - Collapsing K feature-view queries into one aggregation per join-key group
     - Using server-side ``$group`` (O(log P) with index) for the scoring path
     """
