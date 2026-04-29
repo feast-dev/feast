@@ -542,3 +542,58 @@ def test_mode_serialization_without_transformation():
         assert deserialized.feature_transformation is not None, (
             "Expected transformation to be present"
         )
+
+
+def test_feature_view_org_field():
+    """Test that the optional `org` field is stored, serialized, and round-trips correctly."""
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+
+    # org is optional — defaults to empty string
+    fv_no_org = FeatureView(
+        name="fv-no-org",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+    )
+    assert fv_no_org.org == ""
+
+    # org can be set explicitly
+    fv_with_org = FeatureView(
+        name="fv-with-org",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        org="ads",
+    )
+    assert fv_with_org.org == "ads"
+
+    # org is serialized to proto
+    proto = fv_with_org.to_proto()
+    assert proto.spec.org == "ads"
+
+    # org survives a proto round-trip
+    roundtripped = FeatureView.from_proto(proto)
+    assert roundtripped.org == "ads"
+
+    # a view without org round-trips to empty string
+    proto_no_org = fv_no_org.to_proto()
+    assert proto_no_org.spec.org == ""
+    roundtripped_no_org = FeatureView.from_proto(proto_no_org)
+    assert roundtripped_no_org.org == ""
+
+    # equality respects org
+    fv_org_a = FeatureView(
+        name="fv-eq",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        org="ads",
+    )
+    fv_org_b = FeatureView(
+        name="fv-eq",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        org="search",
+    )
+    assert fv_org_a != fv_org_b

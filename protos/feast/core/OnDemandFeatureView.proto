@@ -36,7 +36,7 @@ message OnDemandFeatureView {
     OnDemandFeatureViewMeta meta = 2;
 }
 
-// Next available id: 18
+// Next available id: 19
 message OnDemandFeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
@@ -77,6 +77,9 @@ message OnDemandFeatureViewSpec {
 
     // User-specified version pin (e.g. "latest", "v2", "version2")
     string version = 17;
+
+    // Organizational unit that owns this feature view (e.g. "ads", "search").
+    string org = 18;
 }
 
 message OnDemandFeatureViewMeta {

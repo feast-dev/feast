@@ -23,6 +23,8 @@ Feature views consist of:
 * a name to uniquely identify this feature view in the project.
 * (optional, but recommended) a schema specifying one or more [features](feature-view.md#field) (without this, Feast will infer the schema by reading from the data source)
 * (optional, but recommended) metadata (for example, description, or other free-form metadata via `tags`)
+* (optional) `owner`: the email of the primary maintainer
+* (optional) `org`: the organizational unit that owns the feature view (e.g. `"ads"`, `"search"`); useful for grouping feature views by team or product area
 * (optional) a TTL, which limits how far back Feast will look when generating historical datasets
 * (optional) `enable_validation=True`, which enables schema validation during materialization (see [Schema Validation](#schema-validation) below)
 
@@ -270,7 +272,7 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
 
 A stream feature view is an extension of a normal feature view. The primary difference is that stream feature views have both stream and batch data sources, whereas a normal feature view only has a batch data source.
 
-Stream feature views should be used instead of normal feature views when there are stream data sources (e.g. Kafka and Kinesis) available to provide fresh features in an online setting. Here is an example definition of a stream feature view with an attached transformation:
+Stream feature views should be used instead of normal feature views when there are stream data sources (e.g. Kafka and Kinesis) available to provide fresh features in an online setting. Like regular feature views, stream feature views support the optional `org` field for grouping by organizational unit. Here is an example definition of a stream feature view with an attached transformation:
 
 ```python
 from datetime import timedelta
@@ -308,6 +310,7 @@ driver_stats_stream_source = KafkaSource(
     timestamp_field="event_timestamp",
     online=True,
     source=driver_stats_stream_source,
+    org="ads",  # optional
 )
 def driver_hourly_stats_stream(df: DataFrame):
     from pyspark.sql.functions import col

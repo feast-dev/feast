@@ -36,7 +36,7 @@ message FeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 19
+// Next available id: 20
 // TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
 message FeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
@@ -97,6 +97,9 @@ message FeatureViewSpec {
 
     // User-specified version pin (e.g. "latest", "v2", "version2")
     string version = 18;
+
+    // Organizational unit that owns this feature view (e.g. "ads", "search").
+    string org = 19;
 }
 
 message FeatureViewMeta {
