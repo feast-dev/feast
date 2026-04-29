@@ -755,7 +755,10 @@ class Registry(BaseRegistry):
         self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
-        self._check_conflicting_feature_view_names(feature_view)
+        # allow_cache=True: _prepare_registry_for_changes (line above) already loaded the cache;
+        # using allow_cache=False would re-read from store and overwrite cached_registry_proto,
+        # discarding any uncommitted in-memory changes from prior commit=False calls.
+        self._ensure_feature_view_name_is_unique(feature_view, project, allow_cache=True)
         existing_feature_views_of_same_type: RepeatedCompositeFieldContainer
         if isinstance(feature_view, StreamFeatureView):
             existing_feature_views_of_same_type = (
@@ -1350,26 +1353,6 @@ class Registry(BaseRegistry):
                     pass
 
             return registry_proto
-
-    def _check_conflicting_feature_view_names(self, feature_view: BaseFeatureView):
-        name_to_fv_protos = self._existing_feature_view_names_to_fvs()
-        if feature_view.name in name_to_fv_protos:
-            if not isinstance(
-                name_to_fv_protos.get(feature_view.name), feature_view.proto_class
-            ):
-                raise ConflictingFeatureViewNames(feature_view.name)
-
-    def _existing_feature_view_names_to_fvs(self) -> Dict[str, Message]:
-        assert self.cached_registry_proto
-        odfvs = {
-            fv.spec.name: fv
-            for fv in self.cached_registry_proto.on_demand_feature_views
-        }
-        fvs = {fv.spec.name: fv for fv in self.cached_registry_proto.feature_views}
-        sfv = {
-            fv.spec.name: fv for fv in self.cached_registry_proto.stream_feature_views
-        }
-        return {**odfvs, **fvs, **sfv}
 
     def get_permission(
         self, name: str, project: str, allow_cache: bool = False
