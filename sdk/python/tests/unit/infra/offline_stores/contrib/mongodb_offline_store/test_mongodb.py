@@ -708,6 +708,112 @@ def test_mixed_join_key_cardinality(
 
 
 # ---------------------------------------------------------------------------
+# Tests: heterogeneous timestamps prevent scoring path
+# ---------------------------------------------------------------------------
+
+
+@_requires_docker
+def test_heterogeneous_timestamps_fall_back_to_training_path(
+    repo_config: RepoConfig, mongodb_connection_string: str
+) -> None:
+    """Unique entity IDs but different request timestamps must use training path.
+
+    Entity A requests at 09:00, Entity B at 10:00.
+    Doc for A: 08:00 (valid) and 09:30 (future for A's request).
+    Doc for B: 09:00 (valid).
+
+    If the scoring path were used, $group with $lte max_ts=10:00 would pick
+    the 09:30 doc for A.  future_mask would null it, but the valid 08:00 doc
+    was already discarded.  The training path (merge_asof) correctly returns
+    the 08:00 doc for A.
+    """
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    db = client["feast_test"]
+    collection = db["feature_history"]
+
+    now = datetime.now(tz=pytz.UTC)
+    t_0800 = now - timedelta(hours=2)
+    t_0900 = now - timedelta(hours=1)
+    t_0930 = now - timedelta(minutes=30)
+
+    driver_entity = Entity(
+        name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+    )
+    source = MongoDBSource(name="driver_stats_het")
+    fv = FeatureView(
+        name="driver_stats_het",
+        entities=[driver_entity],
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="conv_rate", dtype=Float64),
+        ],
+        source=source,
+        ttl=timedelta(days=1),
+    )
+
+    docs = [
+        # Driver 1: valid doc at 08:00
+        {
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats_het",
+            "features": {"conv_rate": 0.5},
+            "event_timestamp": t_0800,
+            "created_at": t_0800,
+        },
+        # Driver 1: doc at 09:30 (future relative to driver 1's request at 09:00)
+        {
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats_het",
+            "features": {"conv_rate": 0.9},
+            "event_timestamp": t_0930,
+            "created_at": t_0930,
+        },
+        # Driver 2: valid doc at 09:00
+        {
+            "entity_id": _make_entity_id({"driver_id": 2}),
+            "feature_view": "driver_stats_het",
+            "features": {"conv_rate": 0.7},
+            "event_timestamp": t_0900,
+            "created_at": t_0900,
+        },
+    ]
+    collection.insert_many(docs)
+    client.close()
+
+    # Different request timestamps: driver 1 at 09:00, driver 2 at 10:00
+    entity_df = pd.DataFrame(
+        {
+            "driver_id": [1, 2],
+            "event_timestamp": [t_0900, now],
+        }
+    )
+
+    job = MongoDBOfflineStore.get_historical_features(
+        config=repo_config,
+        feature_views=[fv],
+        feature_refs=["driver_stats_het:conv_rate"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+        strict_pit=True,
+    )
+
+    result_df = job.to_df().sort_values("driver_id").reset_index(drop=True)
+    assert len(result_df) == 2
+
+    # Driver 1: request at 09:00, 09:30 doc is future → must return 08:00 doc (0.5)
+    assert result_df.loc[0, "conv_rate"] == pytest.approx(0.5), (
+        f"Expected 0.5 for driver 1 (08:00 doc) but got "
+        f"{result_df.loc[0, 'conv_rate']!r}. The scoring path may have "
+        f"discarded the valid older doc via $group."
+    )
+
+    # Driver 2: request at 10:00, 09:00 doc is valid → 0.7
+    assert result_df.loc[1, "conv_rate"] == pytest.approx(0.7)
+
+
+# ---------------------------------------------------------------------------
 # Tests: overlapping feature names
 # ---------------------------------------------------------------------------
 

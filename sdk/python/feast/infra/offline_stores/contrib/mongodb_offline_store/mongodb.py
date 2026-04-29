@@ -722,12 +722,28 @@ class MongoDBOfflineStore(OfflineStore):
                 unique_eids = result[eid_col].unique().tolist()
 
                 # Detect scoring vs training path per-FV.
-                # Scoring path ($group) is only safe when entity_ids for
-                # THIS feature view are unique in the chunk.  When FVs have
-                # different join key sets, entity_df may be unique on the
-                # union of all keys but have duplicates for a FV with fewer
-                # keys — using $group in that case would discard valid docs.
-                scoring_path = result[eid_col].nunique() == len(result)
+                #
+                # The scoring path ($group $first) requires unique entity
+                # IDs for THIS FV — otherwise $group discards rows that
+                # share an entity_id.
+                #
+                # When strict_pit=True, there is an additional constraint:
+                # all entity request timestamps must be identical.  The
+                # $match uses $lte: max_ts which is correct only when
+                # every entity shares the same request time.  When
+                # timestamps differ, $group may pick a doc that is after
+                # a specific entity's request time; the Python future_mask
+                # would null it, but the valid older doc was already
+                # discarded by $group.
+                #
+                # When strict_pit=False, there is no $lte filter and no
+                # future_mask — we want the globally latest doc per entity
+                # regardless of request time, so $group $first is always
+                # correct.
+                unique_entities = result[eid_col].nunique() == len(result)
+                scoring_path = unique_entities and (
+                    not strict_pit or result[event_timestamp_col].nunique() == 1
+                )
 
                 # TTL filter — use min_ts for the lower bound so that
                 # documents needed for early entity rows are included.
