@@ -421,6 +421,7 @@ func (authz *FeastAuthorization) getLabels() map[string]string {
 func (authz *FeastAuthorization) getSharedOidcClusterRoleLabels() map[string]string {
 	return map[string]string{
 		services.ServiceTypeLabelKey: string(services.AuthzFeastType),
+		services.ManagedByLabelKey:   services.ManagedByLabelValue,
 	}
 }
 
