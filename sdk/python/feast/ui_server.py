@@ -138,8 +138,9 @@ def get_app(
                 return {"runs": [], "mlflow_uri": mlflow_ui_base or None}
             experiment_ids = [experiment.experiment_id]
 
+            safe_project = project_name.replace("\\", "\\\\").replace("'", "\\'")
             filter_str = (
-                f"tags.`feast.project` = '{project_name}' "
+                f"tags.`feast.project` = '{safe_project}' "
                 f"AND tags.`feast.retrieval_type` != ''"
             )
 
@@ -251,8 +252,9 @@ def get_app(
                 _feature_usage_cache["timestamp"] = now
                 return result
 
+            safe_project = project_name.replace("\\", "\\\\").replace("'", "\\'")
             filter_str = (
-                f"tags.`feast.project` = '{project_name}' "
+                f"tags.`feast.project` = '{safe_project}' "
                 f"AND tags.`feast.retrieval_type` != ''"
             )
             runs = client.search_runs(

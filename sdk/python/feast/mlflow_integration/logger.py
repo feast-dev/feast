@@ -131,11 +131,14 @@ class FeastMlflowLogger:
             self._report_failure("Failed to log training dataset to MLflow", e)
             return False
 
-    def _get_or_create_experiment(self, experiment_name: str) -> str:
-        exp = self._client.get_experiment_by_name(experiment_name)
+    def _get_or_create_experiment(
+        self, experiment_name: str, client: Any = None
+    ) -> str:
+        c = client or self._client
+        exp = c.get_experiment_by_name(experiment_name)
         if exp is not None:
             return exp.experiment_id
-        return self._client.create_experiment(experiment_name)
+        return c.create_experiment(experiment_name)
 
     def log_apply(
         self,
@@ -155,7 +158,9 @@ class FeastMlflowLogger:
             client = self._mlflow.MlflowClient(tracking_uri=effective_uri)
 
             experiment_name = f"{project}{ops_suffix}"
-            experiment_id = self._get_or_create_experiment(experiment_name)
+            experiment_id = self._get_or_create_experiment(
+                experiment_name, client=client
+            )
 
             fv_names: List[str] = []
             fs_names: List[str] = []
@@ -276,7 +281,9 @@ class FeastMlflowLogger:
             client = self._mlflow.MlflowClient(tracking_uri=effective_uri)
 
             experiment_name = f"{project}{ops_suffix}"
-            experiment_id = self._get_or_create_experiment(experiment_name)
+            experiment_id = self._get_or_create_experiment(
+                experiment_name, client=client
+            )
 
             op_type = "materialize_incremental" if incremental else "materialize"
             run = client.create_run(experiment_id, run_name=f"{op_type}_{project}")
@@ -317,41 +324,41 @@ class FeastMlflowLogger:
     def log_entity_df_metadata(
         self, entity_df: Any, start_date: Any = None, end_date: Any = None
     ) -> None:
-        """Log lightweight entity_df metadata to MLflow."""
-        try:
-            from feast.mlflow_integration.config import (
-                MLFLOW_PARAM_TRUNCATION_LIMIT,
-                MLFLOW_PARAM_TRUNCATION_SLICE,
-            )
+        """Log lightweight entity_df metadata to MLflow.
 
+        Uses ``set_tag`` (not ``log_param``) so the metadata can safely be
+        updated when ``get_historical_features`` is called multiple times
+        within the same MLflow run.
+        """
+        try:
             if self._mlflow.active_run() is None:
                 return
             run_id = self._mlflow.active_run().info.run_id
 
             if isinstance(entity_df, str):
-                if len(entity_df) > MLFLOW_PARAM_TRUNCATION_LIMIT:
-                    query = entity_df[:MLFLOW_PARAM_TRUNCATION_SLICE] + "..."
+                if len(entity_df) > MLFLOW_TAG_TRUNCATION_LIMIT:
+                    query = entity_df[:MLFLOW_TAG_TRUNCATION_SLICE] + "..."
                 else:
                     query = entity_df
-                self._client.log_param(run_id, "feast.entity_df_query", query)
+                self._client.set_tag(run_id, "feast.entity_df_query", query)
                 self._client.set_tag(run_id, "feast.entity_df_type", "sql")
 
             elif isinstance(entity_df, pd.DataFrame):
                 self._client.set_tag(run_id, "feast.entity_df_type", "dataframe")
-                self._client.log_param(
+                self._client.set_tag(
                     run_id, "feast.entity_df_rows", str(len(entity_df))
                 )
                 cols = ",".join(entity_df.columns)
-                if len(cols) > MLFLOW_PARAM_TRUNCATION_LIMIT:
-                    cols = cols[:MLFLOW_PARAM_TRUNCATION_SLICE] + "..."
-                self._client.log_param(run_id, "feast.entity_df_columns", cols)
+                if len(cols) > MLFLOW_TAG_TRUNCATION_LIMIT:
+                    cols = cols[:MLFLOW_TAG_TRUNCATION_SLICE] + "..."
+                self._client.set_tag(run_id, "feast.entity_df_columns", cols)
 
             elif entity_df is None and (start_date or end_date):
                 self._client.set_tag(run_id, "feast.entity_df_type", "range")
                 if start_date:
-                    self._client.log_param(run_id, "feast.start_date", str(start_date))
+                    self._client.set_tag(run_id, "feast.start_date", str(start_date))
                 if end_date:
-                    self._client.log_param(run_id, "feast.end_date", str(end_date))
+                    self._client.set_tag(run_id, "feast.end_date", str(end_date))
 
         except Exception as e:
             _logger.debug("Failed to log entity_df metadata to MLflow: %s", e)

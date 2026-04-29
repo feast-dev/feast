@@ -49,10 +49,10 @@ class FeastMlflowClient:
         self._store = store
         self._tracking_uri = store.config.mlflow.get_tracking_uri()
         self._client = _mlflow_mod.MlflowClient(tracking_uri=self._tracking_uri)
+        self._default_experiment = store.config.project
 
         if self._tracking_uri:
             _mlflow_mod.set_tracking_uri(self._tracking_uri)
-        _mlflow_mod.set_experiment(store.config.project)
 
         from feast.mlflow_integration.entity_df_builder import (
             FeastMlflowEntityDfBuilder,
@@ -89,7 +89,16 @@ class FeastMlflowClient:
         tags: Optional[Dict[str, str]] = None,
         **kwargs: Any,
     ):
-        """Context manager that starts an MLflow run pre-tagged with Feast metadata."""
+        """Context manager that starts an MLflow run pre-tagged with Feast metadata.
+
+        Sets the default Feast experiment only when a run is actually started,
+        avoiding global side effects during ``FeatureStore.__init__``.  If the
+        caller already set an experiment (via ``kwargs["experiment_id"]`` or a
+        prior ``mlflow.set_experiment``), that choice is respected.
+        """
+        if "experiment_id" not in kwargs:
+            self._mlflow.set_experiment(self._default_experiment)
+
         merged_tags = {"feast.project": self._store.project}
         if tags:
             merged_tags.update(tags)

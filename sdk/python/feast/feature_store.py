@@ -200,7 +200,7 @@ class FeatureStore:
         # Cache for _resolve_feature_service_name lookups
         self._fs_name_cache: Dict[frozenset, Optional[str]] = {}
         self._fs_name_index: Dict[frozenset, str] = {}
-        self._fs_name_index_ts: float = 0.0
+        self._fs_name_index_ts: float = -self._FS_NAME_INDEX_TTL_SECONDS
 
         self._mlflow_client: Optional[Any] = None
         self._init_mlflow()
@@ -2998,8 +2998,15 @@ class FeatureStore:
                             exc,
                         )
 
+                def _on_done(fut):
+                    if not fut.cancelled() and fut.exception() is not None:
+                        _logger.debug(
+                            "MLflow auto-log executor failed: %s", fut.exception()
+                        )
+
                 loop = asyncio.get_running_loop()
-                loop.run_in_executor(None, _log_sync)
+                fut = loop.run_in_executor(None, _log_sync)
+                fut.add_done_callback(_on_done)
         except Exception as e:
             _logger.debug("MLflow auto-log failed for online retrieval: %s", e)
 
