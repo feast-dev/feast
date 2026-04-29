@@ -5,7 +5,8 @@ Utility functions for feature view operations including source resolution.
 import logging
 import typing
 from dataclasses import dataclass
-from typing import Callable, Optional, Union
+from datetime import datetime, timedelta
+from typing import Callable, Iterator, Optional, Tuple, Union
 
 from feast.errors import (
     FeastObjectNotFoundException,
@@ -299,3 +300,47 @@ def get_feature_view_from_registry(
                 raise FeastObjectNotFoundException(
                     f"Can't recognize feast object with a name {name}"
                 ) from e
+
+
+def generate_time_chunks(
+    start_date: datetime,
+    end_date: datetime,
+    chunk_size: timedelta,
+) -> Iterator[Tuple[datetime, datetime]]:
+    """Split a time range into consecutive, non-overlapping chunks.
+
+    Yields ``(chunk_start, chunk_end)`` pairs that together cover
+    ``[start_date, end_date)`` exactly.  The last chunk may be smaller than
+    ``chunk_size`` when the total range is not evenly divisible.
+
+    Args:
+        start_date: Inclusive start of the overall time range.
+        end_date:   Exclusive end of the overall time range.
+        chunk_size: Maximum width of each chunk.
+
+    Yields:
+        Tuples of ``(chunk_start, chunk_end)`` datetimes.
+
+    Raises:
+        ValueError: ``chunk_size`` is not a positive ``timedelta``.
+
+    Examples:
+        >>> from datetime import datetime, timedelta
+        >>> chunks = list(generate_time_chunks(
+        ...     start_date=datetime(2024, 1, 1),
+        ...     end_date=datetime(2024, 1, 1, 12),
+        ...     chunk_size=timedelta(hours=4),
+        ... ))
+        >>> len(chunks)
+        3
+        >>> chunks[0]
+        (datetime.datetime(2024, 1, 1, 0, 0), datetime.datetime(2024, 1, 1, 4, 0))
+    """
+    if chunk_size <= timedelta(0):
+        raise ValueError(f"chunk_size must be positive, got {chunk_size!r}")
+
+    current = start_date
+    while current < end_date:
+        chunk_end = min(current + chunk_size, end_date)
+        yield current, chunk_end
+        current = chunk_end
