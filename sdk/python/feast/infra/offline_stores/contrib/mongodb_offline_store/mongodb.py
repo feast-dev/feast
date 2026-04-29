@@ -863,7 +863,9 @@ class MongoDBOfflineStore(OfflineStore):
                     result = result.sort_values(event_timestamp_col).reset_index(
                         drop=True
                     )
-                    fv_df = fv_df.sort_values("event_timestamp").reset_index(drop=True)
+                    fv_df = fv_df.sort_values(
+                        ["event_timestamp", "created_at"]
+                    ).reset_index(drop=True)
                     merge_cols = [eid_col, "event_timestamp"] + [
                         f for f in features if f in fv_df.columns
                     ]

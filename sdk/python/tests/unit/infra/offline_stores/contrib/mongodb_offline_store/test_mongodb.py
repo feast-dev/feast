@@ -310,6 +310,97 @@ def test_get_historical_features_training_path(
 
 
 # ---------------------------------------------------------------------------
+# Tests: training path created_at tiebreaker
+# ---------------------------------------------------------------------------
+
+
+@_requires_docker
+def test_training_path_created_at_tiebreaker(
+    repo_config: RepoConfig, mongodb_connection_string: str
+) -> None:
+    """Training path must pick the highest created_at when event_timestamps tie.
+
+    Two docs for the same entity with identical event_timestamp but different
+    created_at values.  Without sorting fv_df on created_at, merge_asof would
+    pick whichever doc MongoDB returned first (undefined order).
+    """
+    client: MongoClient = MongoClient(mongodb_connection_string)
+    db = client["feast_test"]
+    collection = db["feature_history"]
+    collection.drop()
+
+    now = datetime.now(tz=pytz.UTC)
+    t_feature = now - timedelta(hours=1)
+    created_early = now - timedelta(minutes=30)
+    created_late = now - timedelta(minutes=10)
+
+    driver_entity = Entity(
+        name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+    )
+    source = MongoDBSource(name="driver_stats_tiebreak")
+    fv = FeatureView(
+        name="driver_stats_tiebreak",
+        entities=[driver_entity],
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="conv_rate", dtype=Float64),
+        ],
+        source=source,
+        ttl=timedelta(days=1),
+    )
+
+    docs = [
+        # Same entity, same event_timestamp, earlier created_at → stale
+        {
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats_tiebreak",
+            "features": {"conv_rate": 0.1},
+            "event_timestamp": t_feature,
+            "created_at": created_early,
+        },
+        # Same entity, same event_timestamp, later created_at → should win
+        {
+            "entity_id": _make_entity_id({"driver_id": 1}),
+            "feature_view": "driver_stats_tiebreak",
+            "features": {"conv_rate": 0.9},
+            "event_timestamp": t_feature,
+            "created_at": created_late,
+        },
+    ]
+    collection.insert_many(docs)
+    client.close()
+
+    # Repeated entity → forces training path (merge_asof)
+    entity_df = pd.DataFrame(
+        {
+            "driver_id": [1, 1],
+            "event_timestamp": [now, now],
+        }
+    )
+
+    job = MongoDBOfflineStore.get_historical_features(
+        config=repo_config,
+        feature_views=[fv],
+        feature_refs=["driver_stats_tiebreak:conv_rate"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project=repo_config.project,
+        full_feature_names=False,
+    )
+
+    result_df = job.to_df()
+    assert len(result_df) == 2
+
+    # Both rows should get conv_rate=0.9 (the doc with later created_at)
+    for idx in range(len(result_df)):
+        assert result_df.loc[idx, "conv_rate"] == pytest.approx(0.9), (
+            f"Row {idx}: expected 0.9 (latest created_at) but got "
+            f"{result_df.loc[idx, 'conv_rate']!r}. "
+            f"Training path may not be sorting by created_at."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Tests: get_historical_features (scoring path — unique entity IDs)
 # ---------------------------------------------------------------------------
 
