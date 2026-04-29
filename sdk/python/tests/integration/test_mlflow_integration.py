@@ -376,12 +376,10 @@ class TestHistoricalAutoLog:
         artifacts = [a.path for a in client.list_artifacts(run.info.run_id)]
         assert "entity_df.parquet" in artifacts
 
-        params = client.get_run(run.info.run_id).data.params
-        assert params["feast.entity_df_rows"] == str(len(entity_df))
-        assert "driver_id" in params["feast.entity_df_columns"]
-        assert "event_timestamp" in params["feast.entity_df_columns"]
-
         tags = client.get_run(run.info.run_id).data.tags
+        assert tags["feast.entity_df_rows"] == str(len(entity_df))
+        assert "driver_id" in tags["feast.entity_df_columns"]
+        assert "event_timestamp" in tags["feast.entity_df_columns"]
         assert tags["feast.entity_df_type"] == "dataframe"
 
     @pytest.mark.integration
@@ -410,8 +408,8 @@ class TestHistoricalAutoLog:
 
         artifacts = [a.path for a in client.list_artifacts(run.info.run_id)]
         assert "entity_df.parquet" not in artifacts
-        params = client.get_run(run.info.run_id).data.params
-        assert params["feast.entity_df_rows"] == "10"
+        tags = client.get_run(run.info.run_id).data.tags
+        assert tags["feast.entity_df_rows"] == "10"
 
     @pytest.mark.integration
     def test_no_tags_without_active_run(self, store_enabled, entity_df):
@@ -517,7 +515,7 @@ class TestDisabledIntegration:
         artifacts = [a.path for a in client.list_artifacts(run.info.run_id)]
         assert "entity_df.parquet" not in artifacts
 
-        assert "feast.entity_df_rows" in run_data.params
+        assert "feast.entity_df_rows" in run_data.tags
         assert run_data.tags["feast.entity_df_type"] == "dataframe"
         assert run_data.tags["feast.feature_service"] == "driver_activity_v1"
 
