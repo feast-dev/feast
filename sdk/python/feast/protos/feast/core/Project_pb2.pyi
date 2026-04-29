@@ -16,104 +16,121 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
-import builtins
-import collections.abc
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
-import google.protobuf.timestamp_pb2
+
+from collections import abc as _abc
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-class Project(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class Project(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SPEC_FIELD_NUMBER: builtins.int
-    META_FIELD_NUMBER: builtins.int
-    @property
-    def spec(self) -> global___ProjectSpec:
+    SPEC_FIELD_NUMBER: _builtins.int
+    META_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def spec(self) -> Global___ProjectSpec:
         """User-specified specifications of this entity."""
-    @property
-    def meta(self) -> global___ProjectMeta:
+
+    @_builtins.property
+    def meta(self) -> Global___ProjectMeta:
         """System-populated metadata for this entity."""
+
     def __init__(
         self,
         *,
-        spec: global___ProjectSpec | None = ...,
-        meta: global___ProjectMeta | None = ...,
+        spec: Global___ProjectSpec | None = ...,
+        meta: Global___ProjectMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Project = Project
+Global___Project: _TypeAlias = Project  # noqa: Y015
 
-class ProjectSpec(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class ProjectSpec(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class TagsEntry(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    @_typing.final
+    class TagsEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: builtins.int
-        VALUE_FIELD_NUMBER: builtins.int
-        key: builtins.str
-        value: builtins.str
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        value: _builtins.str
         def __init__(
             self,
             *,
-            key: builtins.str = ...,
-            value: builtins.str = ...,
+            key: _builtins.str = ...,
+            value: _builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-    NAME_FIELD_NUMBER: builtins.int
-    DESCRIPTION_FIELD_NUMBER: builtins.int
-    TAGS_FIELD_NUMBER: builtins.int
-    OWNER_FIELD_NUMBER: builtins.int
-    name: builtins.str
+    NAME_FIELD_NUMBER: _builtins.int
+    DESCRIPTION_FIELD_NUMBER: _builtins.int
+    TAGS_FIELD_NUMBER: _builtins.int
+    OWNER_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
     """Name of the Project"""
-    description: builtins.str
+    description: _builtins.str
     """Description of the Project"""
-    @property
-    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
-        """User defined metadata"""
-    owner: builtins.str
+    owner: _builtins.str
     """Owner of the Project"""
+    @_builtins.property
+    def tags(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
+        """User defined metadata"""
+
     def __init__(
         self,
         *,
-        name: builtins.str = ...,
-        description: builtins.str = ...,
-        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
-        owner: builtins.str = ...,
+        name: _builtins.str = ...,
+        description: _builtins.str = ...,
+        tags: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
+        owner: _builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "name", b"name", "owner", b"owner", "tags", b"tags"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["description", b"description", "name", b"name", "owner", b"owner", "tags", b"tags"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___ProjectSpec = ProjectSpec
+Global___ProjectSpec: _TypeAlias = ProjectSpec  # noqa: Y015
 
-class ProjectMeta(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class ProjectMeta(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    @property
-    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+    CREATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def created_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Time when the Project is created"""
-    @property
-    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+
+    @_builtins.property
+    def last_updated_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Time when the Project is last updated with registry changes (Apply stage)"""
+
     def __init__(
         self,
         *,
-        created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        created_timestamp: _timestamp_pb2.Timestamp | None = ...,
+        last_updated_timestamp: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___ProjectMeta = ProjectMeta
+Global___ProjectMeta: _TypeAlias = ProjectMeta  # noqa: Y015
