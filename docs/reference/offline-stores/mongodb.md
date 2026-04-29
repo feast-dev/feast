@@ -3,8 +3,8 @@
 ## Description
 
 The MongoDB offline store provides support for reading [MongoDBSource](../data-sources/mongodb.md).
-* Entity dataframes can be provided as a Pandas dataframe. The offline store converts entity identifiers into serialized entity keys for efficient lookup against the `feature_history` collection.
 * Uses a single shared `feature_history` collection with a compound index for all FeatureViews, distinguished by a `feature_view` discriminator field.
+* Entity dataframes can be provided as a Pandas dataframe. The offline store converts entity identifiers into serialized entity keys for efficient lookup against the `feature_history` collection.
 
 ## Getting started
 
@@ -26,6 +26,8 @@ online_store:
   type: mongodb
   connection_string: "mongodb+srv://user:pass@cluster.mongodb.net"
   database_name: feast_online_store
+  collection_suffix: latest
+  client_kwargs: {}
 ```
 {% endcode %}
 
@@ -66,8 +68,8 @@ This index enables efficient range scans over entities and feature views, while 
 ## Key Optimizations
 
 * **K-collapse**: Multiple FeatureViews that share the same join keys are queried in a single aggregation using `feature_view: {$in: [...]}`, reducing round trips.
-* **Scoring vs. training paths**: When `entity_df` has unique entity IDs (scoring), server-side `$group $first` is used for efficient retrieval. When entity IDs repeat (training), `pd.merge_asof` provides correct point-in-time joins.
-* **Two-level chunking**: Outer `CHUNK_SIZE` (50,000 rows) limits the entity DataFrame slice; inner `MONGO_BATCH_SIZE` (10,000 entity IDs) limits `$in` array size per aggregation call.
+* **Scoring vs. training paths**: When each entity appears only once in `entity_df` (scoring/inference — one feature lookup per entity), server-side `$group $first` efficiently returns the single latest value per entity. When the same entity appears at multiple timestamps (training — building a dataset with many historical snapshots per entity), the store retrieves all candidate rows and uses `pd.merge_asof` to select the correct point-in-time value for each request timestamp.
+* **Two-level chunking**: `CHUNK_SIZE` (50,000 rows) controls the size of intermediate DataFrames in memory; `MONGO_BATCH_SIZE` (10,000 entity IDs) limits the query size sent to MongoDB.
 
 ## Functionality Matrix
 
