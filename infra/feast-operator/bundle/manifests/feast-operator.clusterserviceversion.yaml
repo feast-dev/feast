@@ -50,7 +50,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-04-08T14:26:31Z"
+    createdAt: "2026-04-21T14:06:03Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.62.0
@@ -78,6 +78,36 @@ spec:
     spec:
       clusterPermissions:
       - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - persistentvolumeclaims
+          - serviceaccounts
+          - services
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          - pods
+          - secrets
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods/exec
+          verbs:
+          - create
         - apiGroups:
           - apps
           resources:
@@ -119,36 +149,6 @@ spec:
           - patch
           - update
           - watch
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - persistentvolumeclaims
-          - serviceaccounts
-          - services
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          - pods
-          - secrets
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - pods/exec
-          verbs:
-          - create
         - apiGroups:
           - feast.dev
           resources:

@@ -179,7 +179,10 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(cond.Message).To(Equal(feastdevv1.DeploymentNotAvailableMessage))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.AuthorizationReadyType)
-			Expect(cond).To(BeNil())
+			Expect(cond).ToNot(BeNil())
+			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
+			Expect(cond.Message).To(Equal(feastdevv1.OidcAuthzReadyMessage))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
