@@ -476,6 +476,7 @@ def materialize_incremental_command(
             "ray",
             "ray_rag",
             "pytorch_nlp",
+            "recommendation",
         ],
         case_sensitive=False,
     ),
