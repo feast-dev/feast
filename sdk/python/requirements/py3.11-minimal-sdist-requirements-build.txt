@@ -214,9 +214,9 @@ cython==3.2.4 \
     # via
     #   pyarrow
     #   uvloop
-dunamai==1.26.0 \
-    --hash=sha256:5396ac43aa20ed059040034e9f9798c7464cf4334c6fc3da3732e29273a2f97d \
-    --hash=sha256:f584edf0fda0d308cce0961f807bc90a8fe3d9ff4d62f94e72eca7b43f0ed5f6
+dunamai==1.26.1 \
+    --hash=sha256:2727d939c5b4257cb01ea404372803b477f5176e5a347c43beaf89cd5072e853 \
+    --hash=sha256:3b46007bd65b00b4824ead0a1aee365fd22d0ec2b9c219497d4fd48f52860c8b
     # via uv-dynamic-versioning
 expandvars==1.1.2 \
     --hash=sha256:6c5822b7b756a99a356b915dd1267f52ab8a4efaa135963bd7f4bd5d368f71d7 \
@@ -799,9 +799,9 @@ types-psutil==7.0.0.20250218 \
     --hash=sha256:1447a30c282aafefcf8941ece854e1100eee7b0296a9d9be9977292f0269b121 \
     --hash=sha256:1e642cdafe837b240295b23b1cbd4691d80b08a07d29932143cbbae30eb0db9c
     # via mypy
-types-setuptools==82.0.0.20260402 \
-    --hash=sha256:4b9a9f6c3c4c65107a3956ad6a6acbccec38e398ff6d5f78d5df7f103dadb8d6 \
-    --hash=sha256:63d2b10ba7958396ad79bbc24d2f6311484e452daad4637ffd40407983a27069
+types-setuptools==82.0.0.20260408 \
+    --hash=sha256:036c68caf7e672a699f5ebbf914708d40644c14e05298bc49f7272be91cf43d3 \
+    --hash=sha256:ece0a215cdfa6463a65fd6f68bd940f39e455729300ddfe61cab1147ed1d2462
     # via mypy
 typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
@@ -915,7 +915,6 @@ setuptools==80.10.2 \
     #   tqdm
     #   trove-classifiers
     #   typeguard
-    #   types-pymysql
     #   tzdata
     #   ujson
     #   uvloop
@@ -934,4 +933,5 @@ setuptools==82.0.1 \
     --hash=sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb
     # via
     #   python-dateutil
+    #   types-pymysql
     #   types-setuptools

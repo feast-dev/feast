@@ -14,6 +14,7 @@
 import asyncio
 import copy
 import itertools
+import logging
 import os
 import time
 import warnings
@@ -105,6 +106,8 @@ from feast.version_utils import parse_version
 _track_materialization = None  # Lazy-loaded on first materialization call
 _track_materialization_loaded = False
 
+_logger = logging.getLogger(__name__)
+
 
 def _get_track_materialization():
     """Lazy-import feast.metrics only when materialization tracking is needed.
@@ -193,6 +196,127 @@ class FeatureStore:
 
         # Initialize feature service cache for performance optimization
         self._feature_service_cache = {}
+
+        # Cache for _resolve_feature_service_name lookups
+        self._fs_name_cache: Dict[frozenset, Optional[str]] = {}
+        self._fs_name_index: Dict[frozenset, str] = {}
+        self._fs_name_index_ts: float = -self._FS_NAME_INDEX_TTL_SECONDS
+
+        self._mlflow_client: Optional[Any] = None
+        self._init_mlflow()
+
+    def _init_mlflow(self) -> None:
+        """Bootstrap MLflow integration: register with ``feast.mlflow`` module
+        and eagerly create the integration client so the tracking URI and
+        experiment are configured before user code runs.
+        """
+        try:
+            mlflow_cfg = getattr(self.config, "mlflow", None)
+            if mlflow_cfg is None or not mlflow_cfg.enabled:
+                return
+            from feast.mlflow import _register_store
+
+            _register_store(self)
+
+            from feast.mlflow_integration.client import FeastMlflowClient
+
+            self._mlflow_client = FeastMlflowClient(self)
+        except ImportError:
+            pass
+        except Exception as e:
+            warnings.warn(f"Failed to configure MLflow tracking: {e}")
+
+    @property
+    def mlflow(self) -> Any:
+        """Access the Feast–MLflow integration client.
+
+        Returns ``None`` when MLflow integration is not enabled, allowing
+        callers to guard with ``if store.mlflow:``.
+        """
+        return self._mlflow_client
+
+    @staticmethod
+    def _count_entities(entity_rows: Any) -> int:
+        """Count entities from either a list or columnar mapping."""
+        if isinstance(entity_rows, list):
+            return len(entity_rows)
+        if isinstance(entity_rows, Mapping):
+            try:
+                _first_col = next(iter(entity_rows.values()))
+                if isinstance(_first_col, RepeatedValue):
+                    return len(_first_col.val)
+                return len(_first_col)
+            except Exception:
+                return 0
+        return 0
+
+    _FS_NAME_INDEX_TTL_SECONDS = 300
+
+    def _rebuild_fs_name_index(self) -> None:
+        """Rebuild the {frozenset(refs) → service_name} index from the registry."""
+        index: Dict[frozenset, str] = {}
+        for fs in self.registry.list_feature_services(self.project, allow_cache=True):
+            fs_refs = frozenset(
+                f"{p.name_to_use()}:{f.name}"
+                for p in fs.feature_view_projections
+                for f in p.features
+            )
+            index[fs_refs] = fs.name
+        self._fs_name_index = index
+        self._fs_name_cache = {}
+        self._fs_name_index_ts = time.monotonic()
+
+    def _resolve_feature_service_name(self, feature_refs: List[str]) -> Optional[str]:
+        """Find the best-matching feature service for the given feature refs.
+
+        Resolution: exact match wins immediately; otherwise the smallest
+        superset (fewest extra features) is returned.  The full index is
+        rebuilt from the registry every _FS_NAME_INDEX_TTL_SECONDS and
+        per-query results are cached for O(1) repeated lookups.
+        """
+        try:
+            now = time.monotonic()
+            if (now - self._fs_name_index_ts) >= self._FS_NAME_INDEX_TTL_SECONDS:
+                self._rebuild_fs_name_index()
+
+            ref_key = frozenset(feature_refs)
+            if ref_key in self._fs_name_cache:
+                return self._fs_name_cache[ref_key]
+
+            if ref_key in self._fs_name_index:
+                self._fs_name_cache[ref_key] = self._fs_name_index[ref_key]
+                return self._fs_name_index[ref_key]
+
+            best_match = None
+            best_extra = float("inf")
+            for fs_refs, fs_name in self._fs_name_index.items():
+                if ref_key.issubset(fs_refs):
+                    extra = len(fs_refs) - len(ref_key)
+                    if extra < best_extra:
+                        best_match = fs_name
+                        best_extra = extra
+
+            self._fs_name_cache[ref_key] = best_match
+            return best_match
+        except Exception as e:
+            _logger.debug("Failed to resolve feature service name: %s", e)
+            return None
+
+    def _log_entity_df_metadata(self, entity_df, start_date=None, end_date=None):
+        """Log lightweight entity_df metadata to MLflow."""
+        try:
+            if self.mlflow is not None:
+                self.mlflow.log_entity_df_metadata(entity_df, start_date, end_date)
+        except Exception as e:
+            _logger.debug("Failed to log entity_df metadata to MLflow: %s", e)
+
+    def _log_entity_df_artifact(self, entity_df):
+        """Upload entity DataFrame as a parquet artifact to MLflow."""
+        try:
+            if self.mlflow is not None:
+                self.mlflow.log_entity_df_artifact(entity_df)
+        except Exception as e:
+            _logger.debug("Failed to log entity_df artifact to MLflow: %s", e)
 
     def _init_openlineage_emitter(self) -> Optional[Any]:
         """Initialize OpenLineage emitter if configured and enabled."""
@@ -1022,6 +1146,35 @@ class FeatureStore:
         # Emit OpenLineage events for applied objects
         self._emit_openlineage_apply_diffs(registry_diff)
 
+        # Emit MLflow events for applied objects (Phase 7)
+        self._mlflow_log_apply_diffs(registry_diff)
+
+    def _mlflow_log_apply_diffs(self, registry_diff: RegistryDiff):
+        """Log apply operation to MLflow ops experiment."""
+        try:
+            if self.mlflow is None or not self.config.mlflow.log_operations:
+                return
+            from feast.diff.property_diff import TransitionType
+
+            objects: List[Any] = []
+            transition_types: Dict[str, str] = {}
+            for feast_object_diff in registry_diff.feast_object_diffs:
+                obj = (
+                    feast_object_diff.new_feast_object
+                    or feast_object_diff.current_feast_object
+                )
+                if obj is None:
+                    continue
+                tt = feast_object_diff.transition_type
+                if tt == TransitionType.UNCHANGED:
+                    continue
+                objects.append(obj)
+                transition_types[feast_object_diff.name] = tt.name
+            if objects:
+                self._mlflow_log_apply(objects, transition_types=transition_types)
+        except Exception as e:
+            _logger.debug("MLflow apply logging failed: %s", e)
+
     def _emit_openlineage_apply_diffs(self, registry_diff: RegistryDiff):
         """Emit OpenLineage events for objects applied via diffs."""
         if self.openlineage_emitter is None:
@@ -1317,6 +1470,25 @@ class FeatureStore:
         # Emit OpenLineage events for applied objects
         self._emit_openlineage_apply(objects)
 
+        # Emit MLflow events for applied objects (Phase 7)
+        self._mlflow_log_apply(objects)
+
+    def _mlflow_log_apply(
+        self,
+        objects: List[Any],
+        transition_types: Optional[Dict[str, str]] = None,
+    ):
+        """Log applied objects to MLflow ops experiment."""
+        try:
+            if self.mlflow is None or not self.config.mlflow.log_operations:
+                return
+            self.mlflow.log_apply(
+                changed_objects=objects,
+                transition_types=transition_types,
+            )
+        except Exception as e:
+            _logger.debug("MLflow apply logging failed: %s", e)
+
     def _emit_openlineage_apply(self, objects: List[Any]):
         """Emit OpenLineage events for applied objects."""
         if self.openlineage_emitter is None:
@@ -1483,6 +1655,8 @@ class FeatureStore:
         if end_date is not None:
             kwargs["end_date"] = end_date
 
+        _retrieval_start = time.monotonic()
+
         job = provider.get_historical_features(
             self.config,
             feature_views,
@@ -1493,6 +1667,40 @@ class FeatureStore:
             full_feature_names,
             **kwargs,
         )
+
+        # Auto-log to MLflow if configured
+        try:
+            if self.mlflow is not None and self.config.mlflow.auto_log:
+                _duration = time.monotonic() - _retrieval_start
+                if isinstance(entity_df, pd.DataFrame):
+                    _entity_count = len(entity_df)
+                elif isinstance(entity_df, str):
+                    _entity_count = -1
+                else:
+                    _entity_count = 0
+                _fs = features if isinstance(features, FeatureService) else None
+                _fs_name = (
+                    features.name
+                    if isinstance(features, FeatureService)
+                    else self._resolve_feature_service_name(_feature_refs)
+                )
+                self.mlflow.log_feature_retrieval(
+                    feature_refs=_feature_refs,
+                    entity_count=_entity_count,
+                    duration_seconds=_duration,
+                    retrieval_type="historical",
+                    feature_service=_fs,
+                    feature_service_name=_fs_name,
+                )
+
+                self._log_entity_df_metadata(
+                    entity_df, start_date=start_date, end_date=end_date
+                )
+
+                if self.config.mlflow.auto_log_entity_df:
+                    self._log_entity_df_artifact(entity_df)
+        except Exception as e:
+            _logger.debug("MLflow auto-log failed for historical retrieval: %s", e)
 
         return job
 
@@ -1760,6 +1968,7 @@ class FeatureStore:
             feature_views_to_materialize, None, end_date
         )
 
+        _mat_start = time.monotonic()
         try:
             # TODO paging large loads
             for feature_view in feature_views_to_materialize:
@@ -1855,6 +2064,16 @@ class FeatureStore:
             self._emit_openlineage_materialize_complete(
                 ol_run_id, feature_views_to_materialize
             )
+
+            # Emit MLflow event for materialization (Phase 7)
+            _mat_duration = time.monotonic() - _mat_start
+            self._mlflow_log_materialize(
+                feature_views_to_materialize,
+                None,
+                end_date,
+                _mat_duration,
+                incremental=True,
+            )
         except Exception as e:
             # Emit OpenLineage FAIL event
             self._emit_openlineage_materialize_fail(ol_run_id, str(e))
@@ -1921,6 +2140,7 @@ class FeatureStore:
             feature_views_to_materialize, start_date, end_date
         )
 
+        _mat_start = time.monotonic()
         try:
             # TODO paging large loads
             for feature_view in feature_views_to_materialize:
@@ -1983,10 +2203,43 @@ class FeatureStore:
             self._emit_openlineage_materialize_complete(
                 ol_run_id, feature_views_to_materialize
             )
+
+            # Emit MLflow event for materialization (Phase 7)
+            _mat_duration = time.monotonic() - _mat_start
+            self._mlflow_log_materialize(
+                feature_views_to_materialize,
+                start_date,
+                end_date,
+                _mat_duration,
+                incremental=False,
+            )
         except Exception as e:
             # Emit OpenLineage FAIL event
             self._emit_openlineage_materialize_fail(ol_run_id, str(e))
             raise
+
+    def _mlflow_log_materialize(
+        self,
+        feature_views: List[Any],
+        start_date: Optional[datetime],
+        end_date: datetime,
+        duration_seconds: float,
+        incremental: bool = False,
+    ):
+        """Log materialization to MLflow ops experiment."""
+        try:
+            if self.mlflow is None or not self.config.mlflow.log_operations:
+                return
+            fv_names = [getattr(fv, "name", str(fv)) for fv in feature_views]
+            self.mlflow.log_materialize(
+                feature_view_names=fv_names,
+                start_date=start_date,
+                end_date=end_date,
+                duration_seconds=duration_seconds,
+                incremental=incremental,
+            )
+        except Exception as e:
+            _logger.debug("MLflow materialize logging failed: %s", e)
 
     def _emit_openlineage_materialize_start(
         self,
@@ -2621,6 +2874,8 @@ class FeatureStore:
         """
         provider = self._get_provider()
 
+        _retrieval_start = time.monotonic()
+
         response = provider.get_online_features(
             config=self.config,
             features=features,
@@ -2630,6 +2885,31 @@ class FeatureStore:
             full_feature_names=full_feature_names,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
+
+        # Auto-log to MLflow if configured
+        try:
+            if self.mlflow is not None and self.config.mlflow.auto_log:
+                _duration = time.monotonic() - _retrieval_start
+                _feature_refs = utils._get_features(
+                    self.registry, self.project, features, allow_cache=True
+                )
+                _entity_count = self._count_entities(entity_rows)
+                _fs = features if isinstance(features, FeatureService) else None
+                _fs_name = (
+                    features.name
+                    if isinstance(features, FeatureService)
+                    else self._resolve_feature_service_name(_feature_refs)
+                )
+                self.mlflow.log_feature_retrieval(
+                    feature_refs=_feature_refs,
+                    entity_count=_entity_count,
+                    duration_seconds=_duration,
+                    retrieval_type="online",
+                    feature_service=_fs,
+                    feature_service_name=_fs_name,
+                )
+        except Exception as e:
+            _logger.debug("MLflow auto-log failed for online retrieval: %s", e)
 
         return response
 
@@ -2671,7 +2951,9 @@ class FeatureStore:
         """
         provider = self._get_provider()
 
-        return await provider.get_online_features_async(
+        _retrieval_start = time.monotonic()
+
+        response = await provider.get_online_features_async(
             config=self.config,
             features=features,
             entity_rows=entity_rows,
@@ -2680,6 +2962,55 @@ class FeatureStore:
             full_feature_names=full_feature_names,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
+
+        try:
+            if self.mlflow is not None and self.config.mlflow.auto_log:
+                import asyncio
+
+                _duration = time.monotonic() - _retrieval_start
+                _mlflow_client = self.mlflow
+                _registry = self.registry
+                _project = self.project
+
+                def _log_sync():
+                    try:
+                        _feature_refs = utils._get_features(
+                            _registry, _project, features, allow_cache=True
+                        )
+                        _entity_count = self._count_entities(entity_rows)
+                        _fs = features if isinstance(features, FeatureService) else None
+                        _fs_name = (
+                            features.name
+                            if isinstance(features, FeatureService)
+                            else self._resolve_feature_service_name(_feature_refs)
+                        )
+                        _mlflow_client.log_feature_retrieval(
+                            feature_refs=_feature_refs,
+                            entity_count=_entity_count,
+                            duration_seconds=_duration,
+                            retrieval_type="online",
+                            feature_service=_fs,
+                            feature_service_name=_fs_name,
+                        )
+                    except Exception as exc:
+                        _logger.debug(
+                            "MLflow auto-log failed for async online retrieval: %s",
+                            exc,
+                        )
+
+                def _on_done(fut):
+                    if not fut.cancelled() and fut.exception() is not None:
+                        _logger.debug(
+                            "MLflow auto-log executor failed: %s", fut.exception()
+                        )
+
+                loop = asyncio.get_running_loop()
+                fut = loop.run_in_executor(None, _log_sync)
+                fut.add_done_callback(_on_done)
+        except Exception as e:
+            _logger.debug("MLflow auto-log failed for online retrieval: %s", e)
+
+        return response
 
     def retrieve_online_documents(
         self,
