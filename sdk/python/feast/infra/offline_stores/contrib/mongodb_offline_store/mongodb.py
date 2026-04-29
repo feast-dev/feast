@@ -15,8 +15,7 @@
 """
 MongoDB Offline Store.
 
-Single-collection schema identical to mongodb_one.  The query core differs
-in two ways:
+Single-collection schema.  Key optimizations:
 
 1. K-collapse: feature views that share the same join key set are batched
    into a single ``$match + $sort`` aggregation instead of K separate find
@@ -300,7 +299,7 @@ class MongoDBRetrievalJob(RetrievalJob):
 
 
 # ---------------------------------------------------------------------------
-# Helpers (copied from mongodb_one.py)
+# Helpers
 # ---------------------------------------------------------------------------
 
 
@@ -567,7 +566,7 @@ class MongoDBOfflineStore(OfflineStore):
 
         Training path (repeated entity IDs at different timestamps):
             Omits ``$group`` and uses ``merge_asof`` in Python, matching
-            mongodb_one behaviour but still with K-collapsed queries.
+            standard PIT behaviour but still with K-collapsed queries.
 
         Args:
             strict_pit: When True (default) features whose document timestamp
