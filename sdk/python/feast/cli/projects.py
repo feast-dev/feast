@@ -3,7 +3,7 @@ import yaml
 
 from feast import utils
 from feast.cli.cli_options import tagsOption
-from feast.errors import FeastObjectNotFoundException
+from feast.errors import FeastObjectNotFoundException, ProjectNotFoundException
 from feast.repo_operations import create_feature_store
 
 
@@ -78,3 +78,35 @@ def project_list(ctx: click.Context, tags: list[str]):
             table, headers=["NAME", "DESCRIPTION", "TAGS", "OWNER"], tablefmt="plain"
         )
     )
+
+
+@projects_cmd.command("delete")
+@click.argument("name", type=click.STRING)
+@click.option(
+    "-y",
+    "--yes",
+    is_flag=True,
+    default=False,
+    help="Skip confirmation prompt and delete immediately.",
+)
+@click.pass_context
+def project_delete(ctx: click.Context, name: str, yes: bool):
+    """
+    Delete a project and all its resources from the registry.
+    """
+    store = create_feature_store(ctx)
+
+    if not yes:
+        click.confirm(
+            f"Are you sure you want to delete project '{name}'? "
+            "This will remove all associated resources from the registry.",
+            abort=True,
+        )
+
+    try:
+        store.registry.delete_project(name, commit=True)
+    except (FeastObjectNotFoundException, ProjectNotFoundException) as e:
+        print(str(e))
+        raise SystemExit(1)
+
+    print(f"Project '{name}' deleted successfully.")
