@@ -239,6 +239,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = {find = {where = ["sdk/python"], exclude = ["java", "infra", "sdk/python/tests", "ui"]}}
+namespaces = false
 
 [tool.setuptools_scm]
 # Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
