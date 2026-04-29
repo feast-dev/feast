@@ -104,6 +104,7 @@
   * [Oracle (contrib)](reference/data-sources/oracle.md)
   * [Athena (contrib)](reference/data-sources/athena.md)
   * [Clickhouse (contrib)](reference/data-sources/clickhouse.md)
+  * [Ray (contrib)](reference/data-sources/ray.md)
 * [Offline stores](reference/offline-stores/README.md)
   * [Overview](reference/offline-stores/overview.md)
   * [Dask](reference/offline-stores/dask.md)

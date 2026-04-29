@@ -259,6 +259,49 @@ class RetrievalJob(ABC):
                 tensor_dict[column] = values
         return tensor_dict
 
+    def to_ray_dataset(self) -> Any:
+        """Convert the retrieval result to a Ray Dataset.
+
+        This is a first-class method on every ``RetrievalJob`` regardless of
+        the configured offline store backend:
+
+        * **Ray offline store** – ``RayRetrievalJob`` overrides this method and
+          returns the underlying ``ray.data.Dataset`` *without* materialising the
+          result to the driver, keeping the full computation on the cluster.
+        * **All other offline stores** – the default implementation here pulls
+          the result to an Arrow table on the driver and converts it via
+          ``ray.data.from_arrow()``.  This is less efficient than the native
+          Ray path but lets every backend participate in Ray pipelines.
+
+        Example::
+
+            from feast import FeatureStore
+
+            store = FeatureStore(".")
+            ds = store.get_historical_features(
+                entity_df=entity_df,
+                features=["driver_stats:conv_rate"],
+            ).to_ray_dataset()
+
+            # Chain Ray Data transforms directly
+            predictions = ds.map_batches(MyModel, num_gpus=1)
+
+        Returns:
+            ray.data.Dataset: Dataset containing the retrieved feature rows.
+
+        Raises:
+            ImportError: If ``ray`` is not installed.  Install via
+                ``pip install 'feast[ray]'``.
+        """
+        try:
+            import ray.data
+        except ImportError as e:
+            raise ImportError(
+                "Ray is required to call to_ray_dataset(). "
+                "Install it with: pip install 'feast[ray]'"
+            ) from e
+        return ray.data.from_arrow(self.to_arrow())
+
     def to_sql(self) -> str:
         """
         Return RetrievalJob generated SQL statement if applicable.
