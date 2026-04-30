@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import dill
 import pandas as pd
@@ -688,10 +688,36 @@ class RayTransformationNode(DAGNode):
 
                 return transformed_batch
 
+            num_gpus = getattr(self.config, "num_gpus", None) or None
+            task_options: Dict[str, Any] = dict(
+                getattr(self.config, "worker_task_options", None) or {}
+            )
+            if num_gpus:
+                task_options["num_gpus"] = num_gpus
+            batch_format = (
+                getattr(self.config, "gpu_batch_format", "pandas")
+                if num_gpus
+                else "pandas"
+            )
+            # Only the scheduling-relevant subset flows into map_batches
+            _MAP_BATCHES_RESOURCE_KEYS = {
+                "num_gpus",
+                "num_cpus",
+                "accelerator_type",
+                "resources",
+            }
+            map_kwargs: Dict[str, Any] = {
+                "batch_format": batch_format,
+                "concurrency": self.config.max_workers or 12,
+                **{
+                    k: v
+                    for k, v in task_options.items()
+                    if k in _MAP_BATCHES_RESOURCE_KEYS
+                },
+            }
             transformed_dataset = dataset.map_batches(
                 apply_transformation_with_serialized_udf,
-                batch_format="pandas",
-                concurrency=self.config.max_workers or 12,
+                **map_kwargs,
             )
 
         return DAGValue(

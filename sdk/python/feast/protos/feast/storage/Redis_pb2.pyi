@@ -16,39 +16,43 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-import feast.types.Value_pb2
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
+
+from collections import abc as _abc
+from feast.protos.feast.types import Value_pb2 as _Value_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-class RedisKeyV2(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class RedisKeyV2(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    PROJECT_FIELD_NUMBER: builtins.int
-    ENTITY_NAMES_FIELD_NUMBER: builtins.int
-    ENTITY_VALUES_FIELD_NUMBER: builtins.int
-    project: builtins.str
-    @property
-    def entity_names(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
-    @property
-    def entity_values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.types.Value_pb2.Value]: ...
+    PROJECT_FIELD_NUMBER: _builtins.int
+    ENTITY_NAMES_FIELD_NUMBER: _builtins.int
+    ENTITY_VALUES_FIELD_NUMBER: _builtins.int
+    project: _builtins.str
+    @_builtins.property
+    def entity_names(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
+    @_builtins.property
+    def entity_values(self) -> _containers.RepeatedCompositeFieldContainer[_Value_pb2.Value]: ...
     def __init__(
         self,
         *,
-        project: builtins.str = ...,
-        entity_names: collections.abc.Iterable[builtins.str] | None = ...,
-        entity_values: collections.abc.Iterable[feast.types.Value_pb2.Value] | None = ...,
+        project: _builtins.str = ...,
+        entity_names: _abc.Iterable[_builtins.str] | None = ...,
+        entity_values: _abc.Iterable[_Value_pb2.Value] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["entity_names", b"entity_names", "entity_values", b"entity_values", "project", b"project"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["entity_names", b"entity_names", "entity_values", b"entity_values", "project", b"project"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___RedisKeyV2 = RedisKeyV2
+Global___RedisKeyV2: _TypeAlias = RedisKeyV2  # noqa: Y015

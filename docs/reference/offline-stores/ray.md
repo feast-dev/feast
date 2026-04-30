@@ -31,6 +31,7 @@ The Ray offline store provides:
 - Efficient data filtering and column selection
 - Timestamp-based data processing with timezone awareness
 - Enterprise-ready KubeRay cluster support via CodeFlare SDK
+- **GPU support**: schedule worker tasks on GPU nodes via `num_gpus` config (all modes including KubeRay)
 
 
 ## Functionality Matrix
@@ -246,6 +247,9 @@ batch_engine:
 | `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
 | `target_partition_size_mb` | int | 64 | Target partition size (MB) |
 | `window_size_for_joins` | string | "1H" | Time window for distributed joins |
+| `num_gpus` | float | None | GPUs per worker task. Supported in all modes. See [Worker Resource Scheduling](../compute-engine/ray.md#worker-resource-scheduling). |
+| `gpu_batch_format` | string | `"pandas"` | Batch format for `map_batches` when `num_gpus` is set (`"numpy"` or `"pyarrow"` for GPU-native libs). |
+| `worker_task_options` | dict | None | Arbitrary Ray `.options()` kwargs (num_cpus, memory, accelerator_type, resources, runtime_env, …). See [Worker Resource Scheduling](../compute-engine/ray.md#worker-resource-scheduling) for the full reference. |
 
 #### Mode Detection Precedence
 
@@ -541,6 +545,12 @@ python your_feast_script.py
 - Namespace isolation
 - Secure communication between client and Ray cluster
 - Automatic cluster discovery
+
+### GPU Support
+
+The Ray offline store supports GPU scheduling via the `num_gpus` and `gpu_batch_format` config options. This works across all execution modes (local, remote, and KubeRay).
+
+For full configuration details, examples, and KubeRay GPU setup, see the [Ray Compute Engine GPU Support](../compute-engine/ray.md#gpu-support) section.
 
 ### Data Source Validation
 

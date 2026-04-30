@@ -131,6 +131,8 @@ class OnDemandFeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the on demand feature view, typically the email of the primary
             maintainer.
+        org: The organizational unit that owns this on demand feature view (e.g. "ads",
+            "search"). Defaults to empty string.
     """
 
     _TRACK_METRICS_TAG = "feast:track_metrics"
@@ -146,6 +148,7 @@ class OnDemandFeatureView(BaseFeatureView):
     description: str
     tags: dict[str, str]
     owner: str
+    org: str
     write_to_online_store: bool
     singleton: bool
     track_metrics: bool
@@ -168,6 +171,7 @@ class OnDemandFeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[dict[str, str]] = None,
         owner: str = "",
+        org: str = "",
         write_to_online_store: bool = False,
         singleton: bool = False,
         track_metrics: bool = False,
@@ -199,6 +203,8 @@ class OnDemandFeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the on demand feature view, typically the email
                 of the primary maintainer.
+            org (optional): The organizational unit that owns this feature view
+                (e.g. "ads", "search").
             write_to_online_store (optional): A boolean that indicates whether to write the on demand feature view to
             the online store for faster retrieval.
             singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
@@ -218,6 +224,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=owner,
         )
 
+        self.org = org
         self.version = version
         schema = schema or []
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
@@ -384,6 +391,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            org=self.org,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton,
             version=self.version,
@@ -463,6 +471,7 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.aggregations != other.aggregations
             or normalize_version_string(self.version)
             != normalize_version_string(other.version)
+            or self.org != other.org
         ):
             return False
 
@@ -527,6 +536,10 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def _validate_transformation_config(self) -> None:
         """Validate transformation configuration."""
+        # Aggregations provide their own transformation; no udf/feature_transformation required.
+        if self.aggregations:
+            return
+
         if not self.feature_transformation:
             raise ValueError(ODFVErrorMessages.no_transformation_provided())
 
@@ -617,6 +630,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=tags,
             owner=self.owner,
+            org=self.org,
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton or False,
             aggregations=[agg.to_proto() for agg in self.aggregations],
@@ -685,6 +699,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=on_demand_feature_view_proto.spec.description,
             tags=proto_tags,
             owner=on_demand_feature_view_proto.spec.owner,
+            org=on_demand_feature_view_proto.spec.org,
             write_to_online_store=optional_fields["write_to_online_store"],
             singleton=optional_fields["singleton"],
             track_metrics=track_metrics,
@@ -783,6 +798,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 feature_transformation.substrait_transformation
             )
         elif transformation_type is None:
+            if proto.spec.aggregations:
+                return None
             # Handle backward compatibility case where feature_transformation is cleared
             return cls._handle_backward_compatible_udf(proto)
         else:
@@ -1113,6 +1130,13 @@ class OnDemandFeatureView(BaseFeatureView):
         return preprocessed_dict, columns_to_cleanup
 
     def infer_features(self) -> None:
+        if self.aggregations and not self.feature_transformation:
+            if not self.features:
+                raise RegistryInferenceFailure(
+                    "OnDemandFeatureView",
+                    f"Could not infer Features for the feature view '{self.name}'.",
+                )
+            return
         assert self.feature_transformation is not None
         random_input = self._construct_random_input(singleton=self.singleton)
         inferred_features = self.feature_transformation.infer_features(
@@ -1323,6 +1347,7 @@ def on_demand_feature_view(
     description: str = "",
     tags: Optional[dict[str, str]] = None,
     owner: str = "",
+    org: str = "",
     write_to_online_store: bool = False,
     singleton: bool = False,
     track_metrics: bool = False,
@@ -1349,6 +1374,8 @@ def on_demand_feature_view(
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the on demand feature view, typically the email
             of the primary maintainer.
+        org (optional): The organizational unit that owns this on demand feature view
+            (e.g. "ads", "search"). Defaults to empty string.
         write_to_online_store (optional): A boolean that indicates whether to write the on demand feature view to
             the online store for faster retrieval.
         singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
@@ -1377,6 +1404,7 @@ def on_demand_feature_view(
             description=description,
             tags=tags,
             owner=owner,
+            org=org,
             write_to_online_store=write_to_online_store,
             entities=entities,
             singleton=singleton,
