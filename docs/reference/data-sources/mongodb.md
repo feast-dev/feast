@@ -9,7 +9,7 @@ MongoDB data sources are [MongoDB](https://www.mongodb.com/) collections that ca
 Defining a MongoDB source:
 
 ```python
-from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_source import (
+from feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb import (
     MongoDBSource,
 )
 
