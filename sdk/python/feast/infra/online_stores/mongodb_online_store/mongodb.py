@@ -501,7 +501,15 @@ class MongoDBOnlineStore(OnlineStore):
         tables: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
         online_config: MongoDBOnlineStoreConfig,
     ) -> None:
-        """Create Atlas vector search indexes for vector-indexed fields if they don't exist."""
+        """Create Atlas vector search indexes for vector-indexed fields if they don't exist.
+
+        Currently creates one index per (feature_view, vector_field) pair.
+        A future optimization could consolidate all vector fields into a
+        single composite index with multiple field definitions, reducing
+        cluster-wide index count and memory overhead.  See Atlas limits:
+        hard cap of 2,500 search indexes per cluster; smaller tiers (M10)
+        may degrade well before that.
+        """
         db = collection.database
         if collection.name not in db.list_collection_names():
             db.create_collection(collection.name)
