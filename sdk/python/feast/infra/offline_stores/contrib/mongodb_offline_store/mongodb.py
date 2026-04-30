@@ -36,7 +36,6 @@ Index (created lazily on first use)::
     (entity_id ASC, feature_view ASC, event_timestamp DESC, created_at DESC)
 """
 
-import warnings
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
@@ -431,10 +430,6 @@ class MongoDBOfflineStore(OfflineStore):
                 f"MongoDBOfflineStore expected MongoDBSource, "
                 f"got {type(data_source).__name__!r}."
             )
-        warnings.warn(
-            "MongoDB offline store is in preview. API may change without notice.",
-            RuntimeWarning,
-        )
         db_name = config.offline_store.database
         collection = config.offline_store.collection
         feature_view_name = data_source.feature_view_name
@@ -502,10 +497,6 @@ class MongoDBOfflineStore(OfflineStore):
                 f"MongoDBOfflineStore expected MongoDBSource, "
                 f"got {type(data_source).__name__!r}."
             )
-        warnings.warn(
-            "MongoDB offline store is in preview. API may change without notice.",
-            RuntimeWarning,
-        )
         db_name = config.offline_store.database
         collection = config.offline_store.collection
         feature_view_name = data_source.feature_view_name
@@ -583,10 +574,6 @@ class MongoDBOfflineStore(OfflineStore):
             raise ValueError(
                 "MongoDBOfflineStore does not support SQL entity_df strings."
             )
-        warnings.warn(
-            "MongoDB offline store is in preview. API may change without notice.",
-            RuntimeWarning,
-        )
 
         db_name = config.offline_store.database
         feature_collection = config.offline_store.collection
