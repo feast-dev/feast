@@ -2930,9 +2930,9 @@ nodeenv==1.10.0 \
     --hash=sha256:5bb13e3eed2923615535339b3c620e76779af4cb4c6a90deccc9e36b274d3827 \
     --hash=sha256:996c191ad80897d076bdfba80a41994c2b47c68e224c542b48feba42ba00f8bb
     # via pre-commit
-notebook==7.5.5 \
-    --hash=sha256:a7c14dbeefa6592e87f72290ca982e0c10f5bbf3786be2a600fda9da2764a2b8 \
-    --hash=sha256:dc0bfab0f2372c8278c457423d3256c34154ac2cc76bf20e9925260c461013c3
+notebook==7.5.6 \
+    --hash=sha256:4dde3f8fb55fa8fb7946d58c6e869ce9baf46d00fc070664f62604569d0faca0 \
+    --hash=sha256:621174aade80108f0020b0f00738000b215f75fa3cd90771ad7aa0f24536a4e1
     # via great-expectations
 notebook-shim==0.2.4 \
     --hash=sha256:411a5be4e9dc882a074ccbcae671eda64cceb068767e9a3419096986560e1cef \
