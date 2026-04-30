@@ -766,12 +766,12 @@ def _python_value_to_proto(value: Any) -> ValueProto:
     """Best-effort conversion of a single Python value to ValueProto."""
     if isinstance(value, float):
         return ValueProto(float_val=value)
+    elif isinstance(value, bool):
+        return ValueProto(bool_val=value)
     elif isinstance(value, int):
         return ValueProto(int64_val=value)
     elif isinstance(value, str):
         return ValueProto(string_val=value)
-    elif isinstance(value, bool):
-        return ValueProto(bool_val=value)
     elif isinstance(value, bytes):
         return ValueProto(bytes_val=value)
     elif isinstance(value, list) and all(isinstance(v, float) for v in value):
