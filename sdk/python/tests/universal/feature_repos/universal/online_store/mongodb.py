@@ -46,7 +46,7 @@ class MongoDBAtlasOnlineStoreCreator(OnlineStoreCreator):
 
     def create_online_store(self) -> Dict[str, Any]:
         self.container.start()
-        connection_string = self.container.get_connection_string()
+        connection_string = self.container.get_connection_url()
         return {
             "type": "mongodb",
             "connection_string": connection_string,
