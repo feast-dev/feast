@@ -87,6 +87,8 @@ from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import mongodb_to_feast_value_type
 from feast.value_type import ValueType
 
+from . import DRIVER_METADATA
+
 # Cache: avoid re-creating the compound index on every call
 _indexes_ensured: Set[str] = set()
 
@@ -199,7 +201,9 @@ class MongoDBSource(DataSource):
         """Infer column names and types by reading a sample document from MongoDB."""
         if MongoClient is None:
             raise FeastExtrasDependencyImportError("pymongo", "mongodb")
-        client: Any = MongoClient(config.offline_store.connection_string)
+        client: Any = MongoClient(
+            config.offline_store.connection_string, driver=DRIVER_METADATA
+        )
         try:
             coll = client[config.offline_store.database][
                 config.offline_store.collection
@@ -405,7 +409,7 @@ class MongoDBOfflineStore(OfflineStore):
         db_name = config.offline_store.database
         collection = config.offline_store.collection
         cache_key = f"{conn_str}/{db_name}/{collection}"
-        client: Any = MongoClient(conn_str)
+        client: Any = MongoClient(conn_str, driver=DRIVER_METADATA)
         if cache_key not in _indexes_ensured:
             MongoDBOfflineStore._ensure_indexes(client, db_name, collection)
             _indexes_ensured.add(cache_key)
