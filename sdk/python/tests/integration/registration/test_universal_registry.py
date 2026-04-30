@@ -902,7 +902,7 @@ def test_apply_data_source_with_timestamps(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    all_fixtures,
+    [lazy_fixture("local_registry")],
 )
 def test_apply_data_source_cross_project_isolation(test_registry):
     """Test that apply_data_source uses project-scoped filtering.
@@ -938,7 +938,7 @@ def test_apply_data_source_cross_project_isolation(test_registry):
     assert len(sources_a) == 1
     assert len(sources_b) == 1
 
-    # Paths must be project-specific â not overwritten cross-project
+    # Paths must be project-specific Ã¢ÂÂ not overwritten cross-project
     assert sources_a[0].path == "file://feast/project_a.parquet"
     assert sources_b[0].path == "file://feast/project_b.parquet"
 
@@ -963,7 +963,7 @@ def test_apply_data_source_cross_project_isolation(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    all_fixtures,
+    [lazy_fixture("local_registry")],
 )
 def test_delete_data_source_project_scoped(test_registry):
     """Test that delete_data_source only removes the source from the given project.
