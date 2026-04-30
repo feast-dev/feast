@@ -13,6 +13,8 @@ The Aerospike online store is currently in **preview**. Some functionality may b
 * Supports both synchronous and asynchronous read/write paths (`online_read` / `online_read_async`, `online_write_batch` / `online_write_batch_async`). Async methods wrap the blocking client in `run_in_executor`, keeping the event loop responsive in feature-server workloads.
 * Partial, server-side upserts via Aerospike Map CDT operations — writing one feature view never clobbers another feature view stored on the same entity.
 * Record-level TTL controlled by a single `ttl_seconds` config option (honours the namespace default, a "never expire" sentinel, or an explicit number of seconds).
+* Per-feature-view **namespace overrides** and **set overrides** — pin individual feature views to RAM-only or SSD-backed namespaces, or isolate one view in its own set, without splitting projects.
+* **Prewriting hook** — a configurable, import-string-resolved callable applied to every write batch for cross-cutting concerns like PII masking, encryption-at-rest or value coercion.
 * Authentication and TLS options for Aerospike Enterprise Edition passed straight through to the Aerospike Python client.
 * `client_kwargs` escape hatch for any advanced client-config field not surfaced on `AerospikeOnlineStoreConfig`.
 * Baseline: Aerospike Server **≥ 6.0** (uses batch-write / batch-operate APIs). The store has been developed against CE 8.x.
@@ -116,6 +118,176 @@ online_store:
 ```
 {% endcode %}
 
+### Per-feature-view namespace and set overrides
+
+Two `Dict[str, str]` config fields — `namespace_overrides` and `set_overrides` — let you place individual feature views on a different Aerospike namespace or set without splitting your project across stores. Anything not listed in either map falls back to the store-level default (`namespace` / `set_name_template`).
+
+Common reasons to reach for these:
+
+* A **hot, latency-sensitive view** belongs on a RAM-only namespace; a **wide, cold view** belongs on an SSD-backed namespace. Same project, different storage tiers.
+* You want `feast apply` deletions or `truncate` on one feature view to be O(1) without scanning records of the others — give that view its own set.
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: aerospike
+  hosts:
+    - ["aerospike.internal", 3000]
+  namespace: feast                # default namespace
+  set_name_template: "{project}_{collection_suffix}"
+  namespace_overrides:
+    driver_realtime_stats: feast_ram   # in-memory namespace
+    driver_history_lookup: feast_ssd   # device-backed namespace
+  set_overrides:
+    isolated_view: my_feature_repo_isolated
+```
+{% endcode %}
+
+> **Tradeoffs.**
+>
+> * Every namespace listed in `namespace_overrides` MUST already exist on the cluster — Aerospike cannot create namespaces at runtime, and a missing namespace surfaces as an opaque `AEROSPIKE_ERR_PARAM` on the first read or write.
+> * Putting feature views on different sets means a multi-feature-view read for the same entity becomes one Aerospike round trip per set, not one round trip total. Only opt in when the operational isolation is worth that cost. Reads that touch a single feature view are unaffected.
+> * Admin operations honour the overrides automatically: `update()` (called by `feast apply`) groups dropped feature views by their resolved `(namespace, set)` and issues one background scan per group; `teardown()` truncates every unique `(namespace, set)` pair the project may have written to (including the store-level default).
+
+### Prewriting hooks
+
+`prewriting_hook` is the import path of a callable that is invoked once per `online_write_batch` call, receives the rows about to be written, and returns the rows that actually go on the wire. Use it for cross-cutting write-side concerns that you don't want sprinkled through every materialization job — PII masking, application-side encryption, dual-write fan-out, value coercion, etc.
+
+Hooks are referenced by import string (rather than as a Python `Callable` value) so the config survives YAML/JSON serialisation and remote-feature-server transport. The resolved callable is cached on the store instance, so import cost is paid once per store lifetime.
+
+**Hook signature:**
+
+```python
+def hook(
+    config: RepoConfig,
+    table: FeatureView,
+    data: list[
+        tuple[
+            EntityKeyProto,
+            dict[str, ValueProto],
+            datetime,
+            datetime | None,
+        ]
+    ],
+) -> list[
+    tuple[
+        EntityKeyProto,
+        dict[str, ValueProto],
+        datetime,
+        datetime | None,
+    ]
+]:
+    ...
+```
+
+The hook MUST return a row list with the same schema as its input. Returning `[]` short-circuits the write — same path as an empty input, no wire call is issued. Hooks that raise will fail the whole batch; there is no per-row fallback.
+
+**1. Drop a hook function in your project.** Any module on the `PYTHONPATH` of every process that writes through Feast will do (the materialization workers, the registry CLI host, and the feature server, if you run one).
+
+{% code title="my_feature_repo/hooks.py" %}
+```python
+"""Prewriting hooks for the Aerospike online store."""
+from __future__ import annotations
+
+import hashlib
+import os
+from datetime import datetime
+from typing import Optional
+
+from feast import FeatureView
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.repo_config import RepoConfig
+
+# Names of features that must never reach the online store as plaintext.
+# Matched by exact feature name; tweak to your project's conventions.
+_SENSITIVE_FEATURES = {"email", "phone_number", "ssn"}
+
+
+def hash_pii_string_features(
+    config: RepoConfig,
+    table: FeatureView,
+    data: list[
+        tuple[
+            EntityKeyProto,
+            dict[str, ValueProto],
+            datetime,
+            Optional[datetime],
+        ]
+    ],
+) -> list[
+    tuple[
+        EntityKeyProto,
+        dict[str, ValueProto],
+        datetime,
+        Optional[datetime],
+    ]
+]:
+    """Replace any sensitive string feature with a salted SHA-256 hex digest.
+
+    The hash is deterministic (same input → same digest) so downstream lookups
+    that hash the candidate value the same way still hit. ``FEAST_PII_SALT``
+    must be set on every process that materialises features; an unset salt
+    raises rather than silently falling back to plaintext.
+    """
+    salt = os.environ.get("FEAST_PII_SALT")
+    if salt is None:
+        raise RuntimeError(
+            "FEAST_PII_SALT is not set; refusing to write feature batches "
+            "without a configured PII salt."
+        )
+    salt_bytes = salt.encode("utf-8")
+
+    def _digest(plaintext: str) -> str:
+        h = hashlib.sha256()
+        h.update(salt_bytes)
+        h.update(plaintext.encode("utf-8"))
+        return h.hexdigest()
+
+    transformed: list[
+        tuple[
+            EntityKeyProto,
+            dict[str, ValueProto],
+            datetime,
+            Optional[datetime],
+        ]
+    ] = []
+    for entity_key, values, event_ts, created_ts in data:
+        new_values = dict(values)
+        for feature_name in _SENSITIVE_FEATURES.intersection(new_values):
+            v = new_values[feature_name]
+            if v.HasField("string_val") and v.string_val:
+                new_values[feature_name] = ValueProto(string_val=_digest(v.string_val))
+        transformed.append((entity_key, new_values, event_ts, created_ts))
+    return transformed
+```
+{% endcode %}
+
+**2. Reference the hook from `feature_store.yaml`:**
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: aerospike
+  hosts:
+    - ["aerospike.internal", 3000]
+  namespace: feast
+  prewriting_hook: my_feature_repo.hooks.hash_pii_string_features
+```
+{% endcode %}
+
+> **Operational notes.**
+>
+> * The hook is **only invoked on the write path**; reads pass through the store untouched. If your hook is one-way (e.g. hashing) you have to apply the same transformation to the candidate value at read time yourself.
+> * Hooks run inside the same process as the writer — they're not RPCs and not sandboxed. They can read environment variables, open files, call out to KMS, etc. Treat them as part of your trusted code base.
+> * A misconfigured `prewriting_hook` (bad import path, missing function, non-callable target) raises `ValueError` / `TypeError` on the *first* `online_write_batch` call, not on store construction. Add a smoke test that writes one row at deploy time so misconfigurations surface before a real batch.
+
 The full set of configuration options is available in [`AerospikeOnlineStoreConfig`](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.aerospike_online_store.aerospike.AerospikeOnlineStoreConfig).
 
 ## Data Model
@@ -124,8 +296,8 @@ The Aerospike online store uses a **single set per project** with entity-key col
 
 | Aerospike concept | Feast mapping                                                                 |
 | :---------------- | :---------------------------------------------------------------------------- |
-| Namespace         | `online_store.namespace` (must be pre-configured on the cluster)              |
-| Set               | `online_store.set_name_template` → `"{project}_{collection_suffix}"` by default |
+| Namespace         | `online_store.namespace` (must be pre-configured on the cluster); per-feature-view override via `online_store.namespace_overrides` |
+| Set               | `online_store.set_name_template` → `"{project}_{collection_suffix}"` by default; per-feature-view override via `online_store.set_overrides` |
 | Key               | `serialize_entity_key(entity_key)` (raw bytes)                                |
 | Bin `features`    | Map CDT keyed by feature-view name, each value a map of `feature → native`   |
 | Bin `event_ts`    | Map CDT keyed by feature-view name, each value an int64 epoch-ms timestamp    |

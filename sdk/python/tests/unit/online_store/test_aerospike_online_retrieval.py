@@ -10,7 +10,7 @@ is marked with ``@_requires_docker`` and is skipped when Docker is unavailable.
 import time
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -292,7 +292,7 @@ def test_build_batch_writes_produces_three_ops_with_created_ts():
     )
 
     batch = AerospikeOnlineStore._build_batch_writes(
-        config, fv, [row], set_name="demo_latest"
+        config, fv, [row], namespace="feast", set_name="demo_latest"
     )
 
     assert len(batch.batch_records) == 1
@@ -329,7 +329,7 @@ def test_build_batch_writes_omits_created_ts_when_none():
     )
 
     batch = AerospikeOnlineStore._build_batch_writes(
-        config, fv, [row], set_name="demo_latest"
+        config, fv, [row], namespace="feast", set_name="demo_latest"
     )
 
     ops = batch.batch_records[0].ops
@@ -347,7 +347,9 @@ def test_build_batch_writes_ttl_sentinels():
         None,
     )
 
-    batch = AerospikeOnlineStore._build_batch_writes(config, fv, [row], "set")
+    batch = AerospikeOnlineStore._build_batch_writes(
+        config, fv, [row], namespace="feast", set_name="set"
+    )
     assert batch.batch_records[0].meta == {"ttl": aerospike.TTL_NEVER_EXPIRE}
 
 
@@ -741,6 +743,446 @@ def test_teardown_rejects_non_aerospike_config():
     store = AerospikeOnlineStore()
     with pytest.raises(RuntimeError):
         store.teardown(wrong_config, [], [])
+
+
+# ---------------------------------------------------------------------------
+# Per-feature-view namespace + set overrides
+# ---------------------------------------------------------------------------
+# These let a deployment pin individual feature views to RAM-only / SSD-backed
+# namespaces or isolate one view in its own set without splitting projects.
+# Coverage:
+#   * the ``_namespace_for_fv`` / ``_set_name`` resolvers
+#   * read + write paths actually use the resolved ns/set on the wire
+#   * ``update()`` issues one scan per (ns, set) group
+#   * ``teardown()`` truncates every unique (ns, set) pair
+
+
+def test_set_name_default_when_no_overrides():
+    config = _aerospike_repo_config()
+    store = AerospikeOnlineStore()
+    assert store._set_name(config) == "demo_latest"
+    assert store._set_name(config, "any_fv") == "demo_latest"
+
+
+def test_set_name_resolves_per_fv_override():
+    config = _aerospike_repo_config(
+        set_overrides={"hot_fv": "demo_hot", "cold_fv": "demo_cold"}
+    )
+    store = AerospikeOnlineStore()
+    assert store._set_name(config, "hot_fv") == "demo_hot"
+    assert store._set_name(config, "cold_fv") == "demo_cold"
+    # Unmapped FV still falls back to the project-level default.
+    assert store._set_name(config, "other_fv") == "demo_latest"
+    # Calling without an FV name explicitly asks for the project default.
+    assert store._set_name(config) == "demo_latest"
+
+
+def test_namespace_for_fv_default_when_no_overrides():
+    config = _aerospike_repo_config()
+    store = AerospikeOnlineStore()
+    assert store._namespace_for_fv(config) == "feast"
+    assert store._namespace_for_fv(config, "any_fv") == "feast"
+
+
+def test_namespace_for_fv_resolves_per_fv_override():
+    config = _aerospike_repo_config(
+        namespace_overrides={"hot_fv": "feast_ram", "cold_fv": "feast_ssd"}
+    )
+    store = AerospikeOnlineStore()
+    assert store._namespace_for_fv(config, "hot_fv") == "feast_ram"
+    assert store._namespace_for_fv(config, "cold_fv") == "feast_ssd"
+    assert store._namespace_for_fv(config, "other_fv") == "feast"
+
+
+def test_aerospike_key_honours_overrides_when_fv_passed():
+    """``_aerospike_key`` is the choke point for everything that builds an
+    Aerospike (ns, set, user_key) tuple — it must respect the overrides
+    when an FV name is provided, and stay backwards-compatible without."""
+    config = _aerospike_repo_config(
+        namespace_overrides={"hot_fv": "feast_ram"},
+        set_overrides={"hot_fv": "demo_hot"},
+    )
+    store = AerospikeOnlineStore()
+    ek = _entity_key("driver_id", 1)
+
+    default_ns, default_set, _ = store._aerospike_key(config, ek)
+    assert (default_ns, default_set) == ("feast", "demo_latest")
+
+    hot_ns, hot_set, _ = store._aerospike_key(config, ek, fv_name="hot_fv")
+    assert (hot_ns, hot_set) == ("feast_ram", "demo_hot")
+
+
+def test_online_write_batch_writes_to_per_fv_ns_and_set():
+    """The wire keys produced by online_write_batch must use the FV's
+    resolved ns + set, not the store-level defaults."""
+    config = _aerospike_repo_config(
+        namespace_overrides={"driver_stats": "feast_ram"},
+        set_overrides={"driver_stats": "demo_hot"},
+    )
+    fv = SimpleNamespace(name="driver_stats")
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    captured: dict = {}
+
+    def fake_batch_write(batch):
+        captured["batch"] = batch
+
+    fake_client.batch_write.side_effect = fake_batch_write
+    store._client = fake_client
+
+    row = (
+        _entity_key("id", 1),
+        {"x": ValueProto(int64_val=1)},
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+        None,
+    )
+    store.online_write_batch(config, fv, [row], progress=None)
+
+    bw = captured["batch"].batch_records[0]
+    assert bw.key[:2] == ("feast_ram", "demo_hot")
+
+
+def test_online_read_uses_per_fv_ns_and_set():
+    """The ``batch_operate`` keys must use the FV's resolved ns + set."""
+    config = _aerospike_repo_config(
+        namespace_overrides={"driver_stats": "feast_ram"},
+        set_overrides={"driver_stats": "demo_hot"},
+    )
+    fv = _read_feature_view()  # name="driver_stats"
+    store = AerospikeOnlineStore()
+    captured: dict = {}
+
+    def fake_batch_operate(keys, ops):
+        captured["keys"] = keys
+        return SimpleNamespace(batch_records=[_fake_batch_record(keys[0], None)])
+
+    fake_client = MagicMock()
+    fake_client.batch_operate.side_effect = fake_batch_operate
+    store._client = fake_client
+
+    store.online_read(config, fv, [_entity_key("driver_id", 1)])
+    assert len(captured["keys"]) == 1
+    assert captured["keys"][0][:2] == ("feast_ram", "demo_hot")
+
+
+def test_update_groups_dropped_fvs_by_resolved_ns_and_set():
+    """Dropped feature views in different (ns, set) buckets must produce
+    one background scan per bucket — a single combined scan would either
+    miss records or pointlessly scan unrelated namespaces."""
+    config = _aerospike_repo_config(
+        namespace_overrides={"a": "ns_x"},  # b, c land on default ns
+        set_overrides={"b": "set_y"},  # a, c land on default set
+    )
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+
+    fake_scans: list = []
+
+    def make_scan(ns, set_name):
+        s = MagicMock(name=f"scan_{ns}_{set_name}")
+        s._ns = ns
+        s._set = set_name
+        fake_scans.append(s)
+        return s
+
+    fake_client.scan.side_effect = make_scan
+    store._client = fake_client
+
+    tables = [
+        SimpleNamespace(name="a"),  # (ns_x, demo_latest)
+        SimpleNamespace(name="b"),  # (feast,  set_y)
+        SimpleNamespace(name="c"),  # (feast,  demo_latest)
+    ]
+    store.update(config, tables, [], [], [], partial=False)
+
+    targets = {(s._ns, s._set) for s in fake_scans}
+    assert targets == {
+        ("ns_x", "demo_latest"),
+        ("feast", "set_y"),
+        ("feast", "demo_latest"),
+    }
+    # Every group's scan must execute and ship the matching FVs' remove ops.
+    by_target = {(s._ns, s._set): s for s in fake_scans}
+    for tgt, fv_name in [
+        (("ns_x", "demo_latest"), "a"),
+        (("feast", "set_y"), "b"),
+        (("feast", "demo_latest"), "c"),
+    ]:
+        scan = by_target[tgt]
+        ops = scan.add_ops.call_args[0][0]
+        assert {op["bin"] for op in ops} == {"features", "event_ts"}
+        assert all(op["key"] == fv_name for op in ops)
+        scan.execute_background.assert_called_once()
+
+
+def test_update_coalesces_fvs_sharing_a_resolved_target():
+    """Two dropped FVs that resolve to the same (ns, set) must share one
+    scan — the per-FV grouping is "by target", not "by FV name"."""
+    config = _aerospike_repo_config(
+        namespace_overrides={"a": "ns_x", "b": "ns_x"},
+        set_overrides={"a": "set_y", "b": "set_y"},
+    )
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    fake_scan = MagicMock()
+    fake_client.scan.return_value = fake_scan
+    store._client = fake_client
+
+    store.update(
+        config,
+        [SimpleNamespace(name="a"), SimpleNamespace(name="b")],
+        [],
+        [],
+        [],
+        partial=False,
+    )
+
+    fake_client.scan.assert_called_once_with("ns_x", "set_y")
+    ops = fake_scan.add_ops.call_args[0][0]
+    # 4 ops total: features+event_ts for each of the 2 FVs.
+    assert len(ops) == 4
+    assert {op["key"] for op in ops} == {"a", "b"}
+
+
+def test_teardown_truncates_default_plus_every_overridden_pair():
+    config = _aerospike_repo_config(
+        namespace_overrides={"hot": "feast_ram"},
+        set_overrides={"isolated": "demo_iso"},
+    )
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    store._client = fake_client
+
+    tables = [
+        SimpleNamespace(name="hot"),  # (feast_ram, demo_latest)
+        SimpleNamespace(name="isolated"),  # (feast,    demo_iso)
+        SimpleNamespace(name="default"),  # (feast,    demo_latest)
+    ]
+    store.teardown(config, tables, [])
+
+    truncated = {tuple(call.args[:2]) for call in fake_client.truncate.call_args_list}
+    assert truncated == {
+        ("feast", "demo_latest"),
+        ("feast_ram", "demo_latest"),
+        ("feast", "demo_iso"),
+    }
+    # cutoff is always 0 ("drop everything regardless of last-update time")
+    for call in fake_client.truncate.call_args_list:
+        assert call.args[2] == 0
+    fake_client.close.assert_called_once()
+
+
+def test_teardown_with_empty_tables_still_clears_default_pair():
+    """A teardown call with an empty tables list (e.g. a bare ``feast
+    teardown`` on a repo whose registry is empty) must still clear the
+    store-default location, otherwise stale data lingers."""
+    config = _aerospike_repo_config(
+        namespace_overrides={"unused": "feast_ram"},
+    )
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    store._client = fake_client
+
+    store.teardown(config, [], [])
+
+    truncated = {tuple(call.args[:2]) for call in fake_client.truncate.call_args_list}
+    assert truncated == {("feast", "demo_latest")}
+
+
+# ---------------------------------------------------------------------------
+# Prewriting hook
+# ---------------------------------------------------------------------------
+# Hook-target functions must be module-level so the import-string resolver
+# can find them via importlib + getattr. They're referenced by f"{__name__}.X".
+
+
+def _hook_uppercase_string_features(config, table, data):  # noqa: ARG001
+    """Sample hook: uppercase every string ValueProto.string_val on every row."""
+    new_data = []
+    for entity_key, values, ts, created in data:
+        new_values = {}
+        for k, v in values.items():
+            if v.HasField("string_val"):
+                new_values[k] = ValueProto(string_val=v.string_val.upper())
+            else:
+                new_values[k] = v
+        new_data.append((entity_key, new_values, ts, created))
+    return new_data
+
+
+def _hook_drop_all_rows(config, table, data):  # noqa: ARG001
+    """Sample hook that filters every row — exercises the post-hook empty-batch path."""
+    return []
+
+
+def _hook_raises(config, table, data):  # noqa: ARG001
+    raise ValueError("hook intentionally failed")
+
+
+_NOT_A_FUNCTION = 42
+
+
+def test_prewriting_hook_unset_returns_none():
+    config = _aerospike_repo_config()  # no prewriting_hook
+    store = AerospikeOnlineStore()
+    assert store._resolve_prewriting_hook(config) is None
+    # Must clear any previously-cached value so a config swap takes effect.
+    store._prewriting_hook = lambda *a, **kw: None  # type: ignore[assignment]
+    store._prewriting_hook_spec = "stale.spec"
+    store._resolve_prewriting_hook(config)
+    assert store._prewriting_hook is None
+    assert store._prewriting_hook_spec is None
+
+
+def test_prewriting_hook_resolves_and_caches():
+    spec = f"{__name__}._hook_uppercase_string_features"
+    config = _aerospike_repo_config(prewriting_hook=spec)
+    store = AerospikeOnlineStore()
+
+    hook = store._resolve_prewriting_hook(config)
+    assert hook is _hook_uppercase_string_features
+
+    # Second call must hit the cache (no re-import).
+    with patch(
+        "feast.infra.online_stores.aerospike_online_store.aerospike.importlib"
+    ) as m:
+        again = store._resolve_prewriting_hook(config)
+        assert again is hook
+        assert not m.import_module.called
+
+
+def test_prewriting_hook_recompiles_after_spec_change():
+    """If the config is rebound to a new hook string, the resolver must
+    re-resolve instead of returning the cached old callable."""
+    store = AerospikeOnlineStore()
+
+    cfg1 = _aerospike_repo_config(
+        prewriting_hook=f"{__name__}._hook_uppercase_string_features"
+    )
+    assert store._resolve_prewriting_hook(cfg1) is _hook_uppercase_string_features
+
+    cfg2 = _aerospike_repo_config(prewriting_hook=f"{__name__}._hook_drop_all_rows")
+    assert store._resolve_prewriting_hook(cfg2) is _hook_drop_all_rows
+
+
+def test_prewriting_hook_bad_format_raises():
+    config = _aerospike_repo_config(prewriting_hook="no_dot_here")
+    store = AerospikeOnlineStore()
+    with pytest.raises(ValueError, match="fully qualified import path"):
+        store._resolve_prewriting_hook(config)
+
+
+def test_prewriting_hook_missing_module_raises():
+    config = _aerospike_repo_config(prewriting_hook="definitely_not_a_real.module.fn")
+    store = AerospikeOnlineStore()
+    with pytest.raises(ValueError, match="could not import module"):
+        store._resolve_prewriting_hook(config)
+
+
+def test_prewriting_hook_missing_attribute_raises():
+    config = _aerospike_repo_config(prewriting_hook=f"{__name__}._does_not_exist")
+    store = AerospikeOnlineStore()
+    with pytest.raises(ValueError, match="has no attribute"):
+        store._resolve_prewriting_hook(config)
+
+
+def test_prewriting_hook_non_callable_raises():
+    config = _aerospike_repo_config(prewriting_hook=f"{__name__}._NOT_A_FUNCTION")
+    store = AerospikeOnlineStore()
+    with pytest.raises(TypeError, match="non-callable"):
+        store._resolve_prewriting_hook(config)
+
+
+def test_prewriting_hook_transforms_data_before_write():
+    """End-to-end: the hook's output is what lands on the wire, not the
+    caller-supplied data."""
+    config = _aerospike_repo_config(
+        prewriting_hook=f"{__name__}._hook_uppercase_string_features"
+    )
+    fv = SimpleNamespace(name="fv")
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    captured: dict = {}
+
+    def fake_batch_write(batch):
+        captured["batch"] = batch
+
+    fake_client.batch_write.side_effect = fake_batch_write
+    store._client = fake_client
+
+    row = (
+        _entity_key("id", 1),
+        {"name": ValueProto(string_val="alice")},
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+        None,
+    )
+    store.online_write_batch(config, fv, [row], progress=None)
+
+    bw = captured["batch"].batch_records[0]
+    map_put_op = next(op for op in bw.ops if op["bin"] == "features")
+    # The hook upper-cases string features. ``map_put_items`` stores its
+    # payload under the ``val`` key (mapping FV name -> feature submap).
+    fv_map = map_put_op["val"]["fv"]
+    assert fv_map == {"name": "ALICE"}
+
+
+def test_prewriting_hook_returning_empty_short_circuits():
+    """A hook that filters every row must skip the wire call and report
+    progress=0 — same shape as the empty-input fast path."""
+    config = _aerospike_repo_config(prewriting_hook=f"{__name__}._hook_drop_all_rows")
+    fv = SimpleNamespace(name="fv")
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    store._client = fake_client
+
+    progress_calls: list[int] = []
+    row = (
+        _entity_key("id", 1),
+        {"x": ValueProto(int64_val=1)},
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+        None,
+    )
+    store.online_write_batch(config, fv, [row], progress=progress_calls.append)
+
+    assert not fake_client.batch_write.called
+    assert progress_calls == [0]
+
+
+def test_prewriting_hook_propagates_exceptions():
+    """A raising hook must fail the whole batch — there's no per-row
+    fallback. ``batch_write`` must never be called."""
+    config = _aerospike_repo_config(prewriting_hook=f"{__name__}._hook_raises")
+    fv = SimpleNamespace(name="fv")
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    store._client = fake_client
+
+    row = (
+        _entity_key("id", 1),
+        {"x": ValueProto(int64_val=1)},
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+        None,
+    )
+    with pytest.raises(ValueError, match="hook intentionally failed"):
+        store.online_write_batch(config, fv, [row], progress=None)
+    assert not fake_client.batch_write.called
+
+
+def test_prewriting_hook_skipped_for_empty_input():
+    """The hook resolver must not even be invoked when ``data`` is empty —
+    avoids paying the import cost for no-op writes."""
+    config = _aerospike_repo_config(
+        prewriting_hook="should.never.resolve"  # would raise if resolved
+    )
+    fv = SimpleNamespace(name="fv")
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    store._client = fake_client
+
+    progress_calls: list[int] = []
+    store.online_write_batch(config, fv, [], progress=progress_calls.append)
+    assert not fake_client.batch_write.called
+    assert progress_calls == [0]
 
 
 # ---------------------------------------------------------------------------

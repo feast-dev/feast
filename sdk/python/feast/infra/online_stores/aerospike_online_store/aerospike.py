@@ -2,9 +2,21 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import importlib
 from datetime import datetime, timezone
 from logging import getLogger
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 from pydantic import SecretStr
 
@@ -49,6 +61,23 @@ _AUTH_MODE_TO_CONSTANT: Dict[str, int] = {
     "external": aerospike.AUTH_EXTERNAL,
     "pki": aerospike.AUTH_PKI,
 }
+
+
+# Type alias for the prewriting-hook signature. Hooks receive the rows about
+# to be written and return a (possibly transformed) row list with the same
+# schema. Defined as ``Any`` in the value position to keep the public type
+# hint readable; the actual contract is documented on
+# ``AerospikeOnlineStoreConfig.prewriting_hook``.
+PrewritingHook = Callable[
+    [
+        "RepoConfig",
+        "FeatureView",
+        List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+    ],
+    List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
+]
 
 
 # Create every Map CDT bin with an ordered map. map_get_by_key /
@@ -113,16 +142,75 @@ class AerospikeOnlineStoreConfig(FeastConfigBaseModel):
     """
 
     namespace: str = "feast"
-    """Aerospike namespace. Must be pre-configured on the cluster — namespaces
-    cannot be created at runtime."""
+    """Default Aerospike namespace. Must be pre-configured on the cluster —
+    namespaces cannot be created at runtime. Used for any feature view not
+    listed in :attr:`namespace_overrides`."""
 
     set_name_template: str = "{project}_{collection_suffix}"
     """Template for the per-project Aerospike set name. Available substitutions:
-    ``{project}`` and ``{collection_suffix}``."""
+    ``{project}`` and ``{collection_suffix}``. Used for any feature view not
+    listed in :attr:`set_overrides`."""
 
     collection_suffix: str = "latest"
     """Suffix used by ``set_name_template`` to distinguish sets belonging to the
     same project (e.g. a future multi-version layout)."""
+
+    namespace_overrides: Dict[str, str] = {}
+    """Per-feature-view namespace overrides. Maps a feature view name to the
+    Aerospike namespace that view should be stored in. Falls back to
+    :attr:`namespace` for any feature view not listed.
+
+    Lets a deployment pin hot small views to a RAM-only namespace and wider
+    archival views to an SSD-backed one without having to split projects::
+
+        namespace_overrides = {
+            "driver_realtime_stats": "feast_ram",
+            "driver_history_lookup": "feast_ssd",
+        }
+
+    Every namespace listed here MUST already exist on the cluster — Aerospike
+    cannot create namespaces at runtime, and a missing namespace surfaces as
+    an opaque ``AEROSPIKE_ERR_PARAM`` on the first read or write.
+    """
+
+    set_overrides: Dict[str, str] = {}
+    """Per-feature-view set name overrides. Maps a feature view name to a
+    fully-qualified Aerospike set name. Falls back to the rendering of
+    :attr:`set_name_template` for any feature view not listed.
+
+    Useful when a deployment wants each feature view in its own set so admin
+    operations like ``truncate`` or the ``feast apply`` deletion path can
+    target one view without scanning the records of the others. Tradeoff:
+    multi-feature-view reads on the same entity become multiple round trips
+    instead of one — only set this when the operational isolation is worth
+    that cost.
+    """
+
+    prewriting_hook: Optional[str] = None
+    """Optional import path of a callable applied to every batch of rows
+    before they are written. Used for cross-cutting concerns like PII
+    masking, encryption-at-rest, value coercion or dual-write fan-out.
+
+    Format: ``"package.module.function_name"``. Resolved by import string
+    (rather than a Python ``Callable``) so the config survives YAML / JSON
+    serialisation and remote-feature-server transport.
+
+    The hook signature is :data:`PrewritingHook`::
+
+        def hook(
+            config: RepoConfig,
+            table: FeatureView,
+            data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
+        ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
+            ...
+
+    The hook MUST return a row list with the same shape as its input.
+    Hooks that raise will fail the whole batch — there is no per-row
+    fallback. The resolved callable is cached on the store instance, so
+    swapping the config to a different hook also requires a new
+    ``AerospikeOnlineStore`` instance (which Feast already does on
+    ``RepoConfig`` change).
+    """
 
     user: Optional[str] = None
     """Optional username for Aerospike Enterprise authentication."""
@@ -197,6 +285,12 @@ class AerospikeOnlineStore(OnlineStore):
         # Kept on the instance rather than the class so two ``AerospikeOnlineStore``
         # instances can't accidentally share a cached client through class state.
         self._client: Optional[aerospike.Client] = None
+        # Resolved prewriting hook, cached on the instance so the import
+        # cost is paid once. ``_prewriting_hook_spec`` records the import
+        # string the cache was built from so a config swap (re-binding the
+        # store to a different hook) re-resolves on next call.
+        self._prewriting_hook: Optional[PrewritingHook] = None
+        self._prewriting_hook_spec: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Lifecycle / connection management
@@ -255,18 +349,52 @@ class AerospikeOnlineStore(OnlineStore):
         self._client = aerospike.client(client_config).connect()
         return self._client
 
-    def _set_name(self, config: RepoConfig) -> str:
-        """Render the per-project Aerospike set name from the configured template."""
+    def _set_name(self, config: RepoConfig, fv_name: Optional[str] = None) -> str:
+        """Resolve the Aerospike set name for a feature view.
+
+        Without ``fv_name`` returns the project-level default rendered from
+        ``set_name_template``. With an ``fv_name`` returns the override from
+        :attr:`AerospikeOnlineStoreConfig.set_overrides` if present, falling
+        back to the project default. Calling without ``fv_name`` is preserved
+        for callers (and tests) that want the project's default set without
+        knowing which feature views might override it.
+        """
         store_cfg = config.online_store
+        overrides = getattr(store_cfg, "set_overrides", None) or {}
+        if fv_name is not None and fv_name in overrides:
+            return overrides[fv_name]
         return store_cfg.set_name_template.format(
             project=config.project,
             collection_suffix=store_cfg.collection_suffix,
         )
 
+    def _namespace_for_fv(
+        self, config: RepoConfig, fv_name: Optional[str] = None
+    ) -> str:
+        """Resolve the Aerospike namespace for a feature view.
+
+        Mirrors :meth:`_set_name` semantics: without ``fv_name`` returns the
+        store-default namespace; with one, returns the override from
+        :attr:`AerospikeOnlineStoreConfig.namespace_overrides` if present.
+        """
+        store_cfg = config.online_store
+        overrides = getattr(store_cfg, "namespace_overrides", None) or {}
+        if fv_name is not None and fv_name in overrides:
+            return overrides[fv_name]
+        return store_cfg.namespace
+
     def _aerospike_key(
-        self, config: RepoConfig, entity_key: EntityKeyProto
+        self,
+        config: RepoConfig,
+        entity_key: EntityKeyProto,
+        fv_name: Optional[str] = None,
     ) -> Tuple[str, str, bytearray]:
         """Build a ``(namespace, set, user_key)`` tuple for an entity.
+
+        When ``fv_name`` is provided, the namespace and set name honour the
+        per-feature-view overrides from
+        :class:`AerospikeOnlineStoreConfig`. Without ``fv_name`` the
+        store-level defaults are used.
 
         The user key is returned as a ``bytearray`` rather than ``bytes``:
         the Aerospike Python C client rejects ``bytes`` user keys
@@ -279,10 +407,59 @@ class AerospikeOnlineStore(OnlineStore):
             entity_key_serialization_version=config.entity_key_serialization_version,
         )
         return (
-            config.online_store.namespace,
-            self._set_name(config),
+            self._namespace_for_fv(config, fv_name),
+            self._set_name(config, fv_name),
             bytearray(user_key),
         )
+
+    def _resolve_prewriting_hook(self, config: RepoConfig) -> Optional[PrewritingHook]:
+        """Resolve and cache the configured prewriting hook, if any.
+
+        The hook is referenced by import string in the config (so it
+        survives YAML/JSON round-trips and remote-feature-server transport),
+        and resolved here on first use. The resolved callable is cached on
+        the store instance — and re-resolved automatically if a subsequent
+        config swap rebinds the store to a different hook.
+        """
+        spec = getattr(config.online_store, "prewriting_hook", None)
+        if not spec:
+            # A previously-set hook on this instance must be cleared if the
+            # caller has since unset it on the config; otherwise we'd keep
+            # applying a hook the user explicitly turned off.
+            self._prewriting_hook = None
+            self._prewriting_hook_spec = None
+            return None
+        if spec == self._prewriting_hook_spec and self._prewriting_hook is not None:
+            return self._prewriting_hook
+
+        module_path, _, fn_name = spec.rpartition(".")
+        if not module_path or not fn_name:
+            raise ValueError(
+                "AerospikeOnlineStoreConfig.prewriting_hook must be a fully "
+                f"qualified import path 'package.module.function', got: {spec!r}"
+            )
+        try:
+            module = importlib.import_module(module_path)
+        except ImportError as e:
+            raise ValueError(
+                f"prewriting_hook {spec!r}: could not import module "
+                f"{module_path!r}: {e}"
+            ) from e
+        try:
+            hook = getattr(module, fn_name)
+        except AttributeError:
+            raise ValueError(
+                f"prewriting_hook {spec!r}: module {module_path!r} has no "
+                f"attribute {fn_name!r}"
+            ) from None
+        if not callable(hook):
+            raise TypeError(
+                f"prewriting_hook {spec!r} resolved to a non-callable "
+                f"{type(hook).__name__}"
+            )
+        self._prewriting_hook = hook
+        self._prewriting_hook_spec = spec
+        return hook
 
     # ------------------------------------------------------------------
     # Write path
@@ -294,6 +471,7 @@ class AerospikeOnlineStore(OnlineStore):
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
+        namespace: str,
         set_name: str,
     ) -> BatchRecords:
         """Build a :class:`BatchRecords` with one :class:`BatchWrite` per row.
@@ -316,7 +494,6 @@ class AerospikeOnlineStore(OnlineStore):
         storage that the read path never consumes (result order is preserved
         by ``batch_operate`` and paired back via ``zip`` in ``online_read``).
         """
-        ns = config.online_store.namespace
         ttl_meta = {"ttl": _resolve_ttl(config.online_store.ttl_seconds)}
 
         batch = BatchRecords()
@@ -350,7 +527,7 @@ class AerospikeOnlineStore(OnlineStore):
                 )
             batch.batch_records.append(
                 BatchWrite(
-                    key=(ns, set_name, user_key),
+                    key=(namespace, set_name, user_key),
                     ops=operations,
                     meta=ttl_meta,
                 )
@@ -376,9 +553,22 @@ class AerospikeOnlineStore(OnlineStore):
                 progress(0)
             return
 
+        # Hook resolution happens before the early-data check to avoid wiring
+        # work, but after the empty-batch check so a "no rows" call doesn't
+        # pay the import cost. Hooks are allowed to mutate ``data`` in place
+        # or return a new list; we always rebind to whatever they return.
+        hook = self._resolve_prewriting_hook(config)
+        if hook is not None:
+            data = hook(config, table, data)
+            if not data:
+                if progress:
+                    progress(0)
+                return
+
         client = self._get_client(config)
-        set_name = self._set_name(config)
-        batch = self._build_batch_writes(config, table, data, set_name)
+        namespace = self._namespace_for_fv(config, table.name)
+        set_name = self._set_name(config, table.name)
+        batch = self._build_batch_writes(config, table, data, namespace, set_name)
         if batch.batch_records:
             client.batch_write(batch)
             # Per-record result codes must be inspected: client.batch_write
@@ -426,8 +616,8 @@ class AerospikeOnlineStore(OnlineStore):
             return []
 
         client = self._get_client(config)
-        ns = config.online_store.namespace
-        set_name = self._set_name(config)
+        ns = self._namespace_for_fv(config, table.name)
+        set_name = self._set_name(config, table.name)
 
         keys = [
             (
@@ -700,14 +890,20 @@ class AerospikeOnlineStore(OnlineStore):
         on first write, so there is nothing to do for ``tables_to_keep`` or
         either of the entity lists. For ``tables_to_delete`` we strip each
         feature-view's slot out of the ``features`` and ``event_ts`` Map
-        CDTs on every record in the project's set.
+        CDTs on every record that contains it.
 
-        This is issued as a single **background scan** with a combined op
-        list covering all feature views being removed, so the cost is a
-        single server-side pass regardless of how many feature views are
-        dropped. The scan runs asynchronously server-side and returns
-        immediately; this matches the intent of ``feast apply``, after
-        which the caller stops reading the dropped feature views anyway.
+        Dropped feature views are grouped by their resolved
+        ``(namespace, set)`` (per :attr:`namespace_overrides` /
+        :attr:`set_overrides`), and each group is issued as one
+        **background scan** with a combined op list — a single server-side
+        pass per (ns, set), regardless of how many feature views in that
+        group are being dropped. Without this grouping, a deployment that
+        spreads feature views across multiple namespaces or sets would
+        either issue blind cross-namespace scans (impossible) or scan one
+        per dropped FV (wasteful). The scans run asynchronously server-side
+        and return immediately; this matches the intent of ``feast apply``,
+        after which the caller stops reading the dropped feature views
+        anyway.
         """
         if not isinstance(config.online_store, AerospikeOnlineStoreConfig):
             raise RuntimeError(f"{config.online_store.type = }. It must be aerospike.")
@@ -715,25 +911,34 @@ class AerospikeOnlineStore(OnlineStore):
             return
 
         client = self._get_client(config)
-        ns = config.online_store.namespace
-        set_name = self._set_name(config)
 
-        remove_ops: List[Dict[str, Any]] = []
+        # Group dropped feature views by (namespace, set) so each scan only
+        # touches the records that could plausibly contain the dropped slot.
+        groups: Dict[Tuple[str, str], List[FeatureView]] = {}
         for fv in tables_to_delete:
-            remove_ops.append(
-                map_ops.map_remove_by_key(
-                    "features", fv.name, aerospike.MAP_RETURN_NONE
-                )
+            key = (
+                self._namespace_for_fv(config, fv.name),
+                self._set_name(config, fv.name),
             )
-            remove_ops.append(
-                map_ops.map_remove_by_key(
-                    "event_ts", fv.name, aerospike.MAP_RETURN_NONE
-                )
-            )
+            groups.setdefault(key, []).append(fv)
 
-        scan = client.scan(ns, set_name)
-        scan.add_ops(remove_ops)
-        scan.execute_background()
+        for (ns, set_name), fvs in groups.items():
+            remove_ops: List[Dict[str, Any]] = []
+            for fv in fvs:
+                remove_ops.append(
+                    map_ops.map_remove_by_key(
+                        "features", fv.name, aerospike.MAP_RETURN_NONE
+                    )
+                )
+                remove_ops.append(
+                    map_ops.map_remove_by_key(
+                        "event_ts", fv.name, aerospike.MAP_RETURN_NONE
+                    )
+                )
+
+            scan = client.scan(ns, set_name)
+            scan.add_ops(remove_ops)
+            scan.execute_background()
 
     def teardown(
         self,
@@ -741,23 +946,45 @@ class AerospikeOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ) -> None:
-        """Truncate the project's set and close the cached client.
+        """Truncate every (namespace, set) the project may have written to
+        and close the cached client.
 
         Uses Aerospike's ``truncate(namespace, set, 0)`` — a set-scoped
         metadata operation that clears every record in O(1) client time,
         cheaper than Mongo's ``collection.drop()``. Passing ``0`` as the
         cutoff means "drop everything regardless of last-update time".
 
+        Collects the unique ``(namespace, set)`` pairs from the project's
+        store-level default plus every feature view in ``tables`` (each
+        resolved through :attr:`namespace_overrides` /
+        :attr:`set_overrides`). The default is always included so a
+        teardown invoked with an empty ``tables`` list still clears the
+        store-default location.
+
         Truncate on a non-existent set is a no-op, so calling ``teardown``
-        on a project that never wrote data is safe.
+        on a project that never wrote data — or on a feature view that
+        was never written to — is safe.
         """
         if not isinstance(config.online_store, AerospikeOnlineStoreConfig):
             raise RuntimeError(f"{config.online_store.type = }. It must be aerospike.")
 
         client = self._get_client(config)
-        ns = config.online_store.namespace
-        set_name = self._set_name(config)
-        client.truncate(ns, set_name, 0)
+
+        pairs: Set[Tuple[str, str]] = {
+            (config.online_store.namespace, self._set_name(config))
+        }
+        for fv in tables:
+            pairs.add(
+                (
+                    self._namespace_for_fv(config, fv.name),
+                    self._set_name(config, fv.name),
+                )
+            )
+        # sort to keep the truncation order deterministic for tests; the
+        # operation is independent per (ns, set) so order has no semantic
+        # meaning.
+        for ns, set_name in sorted(pairs):
+            client.truncate(ns, set_name, 0)
         if self._client is not None:
             self._client.close()
             self._client = None
