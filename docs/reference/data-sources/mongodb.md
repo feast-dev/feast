@@ -84,17 +84,14 @@ Use `retrieve_online_documents_v2()` to perform similarity search:
 
 ```python
 results = store.retrieve_online_documents_v2(
-    config=repo_config,
-    table=item_embeddings,
-    requested_features=["embedding", "title"],
-    embedding=[0.1, 0.2, ...],  # query vector
+    features=["item_embeddings:embedding", "item_embeddings:title"],
+    query=[0.1, 0.2, ...],  # query vector
     top_k=5,
 )
-
-# Each result is a (event_timestamp, entity_key_proto, feature_dict) tuple.
-# feature_dict includes a synthetic "distance" key with the vector search score.
-for ts, entity_key, features in results:
-    print(features["title"].string_val, features["distance"].float_val)
+# Returns an OnlineResponse; to_dict() gives {feature_name: [values]}.
+response_dict = results.to_dict()
+for title, distance in zip(response_dict["title"], response_dict["distance"]):
+    print(title, distance)
 ```
 
 ### How It Works
