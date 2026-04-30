@@ -24,7 +24,7 @@ The `name` field becomes the `feature_view` discriminator stored in every docume
 
 Configuration options such as `connection_string`, `database`, and `collection` are inherited from the offline store configuration in `feature_store.yaml`.
 
-The full set of configuration options is available [here](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_source.MongoDBSource).
+The full set of configuration options is available [here](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb.MongoDBSource).
 
 ## Vector Search
 
