@@ -50,7 +50,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-04-21T14:06:03Z"
+    createdAt: "2026-04-30T09:51:36Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.62.0
@@ -266,12 +266,12 @@ spec:
                 command:
                 - /manager
                 env:
-                - name: GOMEMLIMIT
-                  value: "230MiB"
                 - name: RELATED_IMAGE_FEATURE_SERVER
                   value: quay.io/feastdev/feature-server:0.62.0
                 - name: RELATED_IMAGE_CRON_JOB
                   value: quay.io/openshift/origin-cli:4.17
+                - name: GOMEMLIMIT
+                  value: 230MiB
                 - name: OIDC_ISSUER_URL
                 image: quay.io/feastdev/feast-operator:0.62.0
                 livenessProbe:

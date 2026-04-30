@@ -399,6 +399,9 @@ func (authz *FeastAuthorization) cleanupOidcRbac() {
 func (authz *FeastAuthorization) cleanupKubernetesClusterRbac() {
 	crb := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: authz.getFeastClusterRoleBindingName()}}
 	crb.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"))
+	if err := authz.Handler.Client.Get(authz.Handler.Context, client.ObjectKeyFromObject(crb), crb); err != nil {
+		return
+	}
 	_ = authz.Handler.Client.Delete(authz.Handler.Context, crb)
 }
 
