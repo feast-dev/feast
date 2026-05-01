@@ -15,6 +15,7 @@ require (
 
 require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.75.0
+	github.com/prometheus/client_golang v1.22.0
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 )
 
@@ -55,7 +56,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.75.0 // indirect
-	github.com/prometheus/client_golang v1.22.0 // indirect
+	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
