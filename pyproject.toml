@@ -123,8 +123,8 @@ ray = [
 'codeflare-sdk>=0.31.1; python_version > "3.10"'
 ]
 redis = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<8",
+    "hiredis>=2.0.0,<4",
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
@@ -146,7 +146,7 @@ test = [
     "pytest-benchmark>=3.4.1,<4",
     "pytest-asyncio<=0.24.0",
     "py>=1.11.0",
-    "testcontainers==4.9.0",
+    "testcontainers>=4.15.0rc2",
     "minio==7.2.11",
     "python-keycloak==4.2.2",
     "cryptography>=43.0",
