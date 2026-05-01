@@ -17,11 +17,7 @@ MongoDB Offline Store.
 
 Single-collection schema.  Key optimizations:
 
-1. K-collapse: feature views that share the same join key set are batched
-   into a single ``$match + $sort`` aggregation instead of K separate find
-   queries.  Reduces round-trips from K to |unique join key signatures|.
-
-2. Server-side deduplication (scoring path): when entity_df has unique
+1. Server-side deduplication (scoring path): when entity_df has unique
    entity IDs the aggregation adds a ``$group`` stage that returns at most
    one document per (entity_id, feature_view) pair — O(N×K) transfer
    instead of O(N×P×K).  The compound index backs the entire pipeline,
@@ -561,7 +557,7 @@ class MongoDBOfflineStore(OfflineStore):
 
         Training path (repeated entity IDs at different timestamps):
             Omits ``$group`` and uses ``merge_asof`` in Python, matching
-            standard PIT behaviour but still with K-collapsed queries.
+            standard PIT behaviour.
 
         Args:
             strict_pit: When True (default) features whose document timestamp
