@@ -31,6 +31,7 @@ The Ray offline store provides:
 - Efficient data filtering and column selection
 - Timestamp-based data processing with timezone awareness
 - Enterprise-ready KubeRay cluster support via CodeFlare SDK
+- **GPU support**: schedule worker tasks on GPU nodes via `num_gpus` config (all modes including KubeRay)
 
 
 ## Functionality Matrix
@@ -246,6 +247,9 @@ batch_engine:
 | `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
 | `target_partition_size_mb` | int | 64 | Target partition size (MB) |
 | `window_size_for_joins` | string | "1H" | Time window for distributed joins |
+| `num_gpus` | float | None | GPUs per worker task. Supported in all modes. See [Worker Resource Scheduling](../compute-engine/ray.md#worker-resource-scheduling). |
+| `gpu_batch_format` | string | `"pandas"` | Batch format for `map_batches` when `num_gpus` is set (`"numpy"` or `"pyarrow"` for GPU-native libs). |
+| `worker_task_options` | dict | None | Arbitrary Ray `.options()` kwargs (num_cpus, memory, accelerator_type, resources, runtime_env, …). See [Worker Resource Scheduling](../compute-engine/ray.md#worker-resource-scheduling) for the full reference. |
 
 #### Mode Detection Precedence
 
@@ -542,6 +546,12 @@ python your_feast_script.py
 - Secure communication between client and Ray cluster
 - Automatic cluster discovery
 
+### GPU Support
+
+The Ray offline store supports GPU scheduling via the `num_gpus` and `gpu_batch_format` config options. This works across all execution modes (local, remote, and KubeRay).
+
+For full configuration details, examples, and KubeRay GPU setup, see the [Ray Compute Engine GPU Support](../compute-engine/ray.md#gpu-support) section.
+
 ### Data Source Validation
 
 The Ray offline store validates data sources to ensure compatibility:
@@ -557,14 +567,45 @@ except Exception as e:
     print(f"Data source validation failed: {e}")
 ```
 
+## Data Sources
+
+[`RaySource`](../data-sources/ray.md) is the recommended data source for the
+Ray offline store. It is a pure-metadata descriptor that tells Feast how to
+load a Ray Dataset from any source Ray Data supports — Parquet, CSV, JSON,
+HuggingFace datasets, MongoDB, binary files, images, TFRecords, WebDataset,
+SQL, and more.
+
+```python
+from feast.infra.offline_stores.contrib.ray_offline_store.ray_source import RaySource
+
+# Load directly from the HuggingFace Hub 
+cheque_source = RaySource(
+    name="cheque_images_hf",
+    reader_type="huggingface",
+    reader_options={
+        "dataset_name": "cheques_sample_data",
+        "split": "train",
+    },
+    timestamp_field="event_timestamp",
+)
+```
+
+See the [RaySource reference](../data-sources/ray.md) for a full list of
+`reader_type` values and configuration options.
+
+> **Note:** `FileSource` (Parquet) remains supported for backward compatibility
+> but `RaySource(reader_type="parquet")` is preferred for new projects.
+
 ## Limitations
 
-The Ray offline store has the following limitations:
+The Ray offline store has one known limitation:
 
-1. **File Sources Only**: Currently supports only `FileSource` data sources
-2. **No Direct SQL**: Does not support SQL query interfaces
-3. **No Online Writes**: Cannot write directly to online stores
-4. **No Complex Transformations**: The Ray offline store focuses on data I/O operations. For complex feature transformations (aggregations, joins, custom UDFs), use the [Ray Compute Engine](../compute-engine/ray.md) instead
+* **`online_write_batch` not implemented**: The `OfflineStore.online_write_batch()` interface
+  is not supported by the Ray offline store. This does **not** affect materialization —
+  `feast materialize` writes to the online store correctly via the
+  [Ray Compute Engine](../compute-engine/ray.md). The restriction only applies to callers
+  that invoke `online_write_batch` on the offline store object directly, which is an
+  uncommon pattern outside of custom tooling.
 
 ## Integration with Ray Compute Engine
 

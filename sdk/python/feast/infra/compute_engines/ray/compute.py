@@ -22,7 +22,10 @@ from feast.infra.compute_engines.ray.job import (
     RayDAGRetrievalJob,
     RayMaterializationJob,
 )
-from feast.infra.compute_engines.ray.utils import write_to_online_store
+from feast.infra.compute_engines.ray.utils import (
+    write_to_online_store,
+    write_to_online_store_from_ray_ds,
+)
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.ray_initializer import (
     ensure_ray_initialized,
@@ -172,43 +175,81 @@ class RayComputeEngine(ComputeEngine):
                 end_date=end_date,
             )
 
-            # Convert to Arrow Table and write to online/offline stores
-            arrow_table = retrieval_job.to_arrow()
-
-            # Write to online store if enabled
-            write_to_online_store(
-                arrow_table=arrow_table,
-                feature_view=feature_view,
-                online_store=self.online_store,
-                repo_config=self.repo_config,
+            # Prefer the distributed Ray path: keep data on the cluster and
+            # write each partition in parallel.  Fall back to the Arrow driver
+            # path for non-Ray retrieval jobs (e.g. Dask, DuckDB offline stores).
+            from feast.infra.offline_stores.contrib.ray_offline_store.ray import (
+                RayRetrievalJob,
             )
 
-            # Write to offline store if enabled (this handles sink_source automatically for derived views)
-            if getattr(feature_view, "offline", False):
-                self.offline_store.offline_write_batch(
-                    config=self.repo_config,
+            if isinstance(retrieval_job, RayRetrievalJob):
+                ray_ds = retrieval_job.to_ray_dataset()
+
+                # Distributed online store write — each Ray worker writes its shard
+                write_to_online_store_from_ray_ds(
+                    ray_ds=ray_ds,
                     feature_view=feature_view,
-                    table=arrow_table,
-                    progress=lambda x: None,
+                    online_store=self.online_store,
+                    repo_config=self.repo_config,
                 )
 
-            # For derived views, also ensure data is written to sink_source if it exists
-            # This is critical for feature view chaining to work properly
-            sink_source = getattr(feature_view, "sink_source", None)
-            if sink_source is not None:
-                logger.debug(
-                    f"Writing derived view {feature_view.name} to sink_source: {sink_source.path}"
-                )
+                # offline_write_batch and sink_source are independent — both can
+                # apply when a feature view has offline=True AND a sink_source.
+                if getattr(feature_view, "offline", False):
+                    import pyarrow as pa
+                    import ray as _ray
 
-                # Write to sink_source using Ray data
-                try:
-                    ray_wrapper = get_ray_wrapper()
-                    ray_dataset = ray_wrapper.from_arrow(arrow_table)
-                    ray_dataset.write_parquet(sink_source.path)
-                except Exception as e:
-                    logger.error(
-                        f"Failed to write to sink_source {sink_source.path}: {e}"
+                    arrow_table = pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
+                    self.offline_store.offline_write_batch(
+                        config=self.repo_config,
+                        feature_view=feature_view,
+                        table=arrow_table,
+                        progress=lambda x: None,
                     )
+
+                sink_source = getattr(feature_view, "sink_source", None)
+                if sink_source is not None:
+                    logger.debug(
+                        f"Writing derived view {feature_view.name} to sink_source: {sink_source.path}"
+                    )
+                    try:
+                        ray_ds.write_parquet(sink_source.path)
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to write to sink_source {sink_source.path}: {e}"
+                        )
+            else:
+                # Non-Ray offline store: collect on driver and write sequentially
+                arrow_table = retrieval_job.to_arrow()
+
+                write_to_online_store(
+                    arrow_table=arrow_table,
+                    feature_view=feature_view,
+                    online_store=self.online_store,
+                    repo_config=self.repo_config,
+                )
+
+                if getattr(feature_view, "offline", False):
+                    self.offline_store.offline_write_batch(
+                        config=self.repo_config,
+                        feature_view=feature_view,
+                        table=arrow_table,
+                        progress=lambda x: None,
+                    )
+
+                sink_source = getattr(feature_view, "sink_source", None)
+                if sink_source is not None:
+                    logger.debug(
+                        f"Writing derived view {feature_view.name} to sink_source: {sink_source.path}"
+                    )
+                    try:
+                        ray_wrapper = get_ray_wrapper()
+                        ray_dataset = ray_wrapper.from_arrow(arrow_table)
+                        ray_dataset.write_parquet(sink_source.path)
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to write to sink_source {sink_source.path}: {e}"
+                        )
             return RayMaterializationJob(
                 job_id=job_id,
                 status=MaterializationJobStatus.SUCCEEDED,

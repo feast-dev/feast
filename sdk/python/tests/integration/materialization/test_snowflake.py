@@ -20,6 +20,11 @@ from tests.universal.feature_repos.universal.data_sources.snowflake import (
 )
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
+pytestmark = pytest.mark.skipif(
+    not os.getenv("SNOWFLAKE_CI_DEPLOYMENT"),
+    reason="Snowflake account not configured in CI (SNOWFLAKE_CI_DEPLOYMENT not set)",
+)
+
 SNOWFLAKE_ENGINE_CONFIG = {
     "type": "snowflake.engine",
     "account": os.getenv("SNOWFLAKE_CI_DEPLOYMENT", ""),

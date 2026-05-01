@@ -18,7 +18,7 @@ limitations under the License.
 """
 import builtins
 import collections.abc
-from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
+import feast.types.Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
@@ -58,7 +58,7 @@ class FeatureSpecV2(google.protobuf.message.Message):
     VECTOR_LENGTH_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature. Not updatable."""
-    value_type: _feast_types_Value_pb2.ValueType.Enum.ValueType
+    value_type: feast.types.Value_pb2.ValueType.Enum.ValueType
     """Value type of the feature. Not updatable."""
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
@@ -75,7 +75,7 @@ class FeatureSpecV2(google.protobuf.message.Message):
         self,
         *,
         name: builtins.str = ...,
-        value_type: _feast_types_Value_pb2.ValueType.Enum.ValueType = ...,
+        value_type: feast.types.Value_pb2.ValueType.Enum.ValueType = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         description: builtins.str = ...,
         vector_index: builtins.bool = ...,

@@ -123,8 +123,8 @@ ray = [
 'codeflare-sdk>=0.31.1; python_version > "3.10"'
 ]
 redis = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<8",
+    "hiredis>=2.0.0,<4",
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
@@ -146,14 +146,14 @@ test = [
     "pytest-benchmark>=3.4.1,<4",
     "pytest-asyncio<=0.24.0",
     "py>=1.11.0",
-    "testcontainers==4.9.0",
+    "testcontainers>=4.15.0rc2",
     "minio==7.2.11",
     "python-keycloak==4.2.2",
     "cryptography>=43.0",
 ]
 
 ci = [
-    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, oracle, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
     "virtualenv==20.23.0",
     "dbt-artifacts-parser",
@@ -295,7 +295,8 @@ feast = { path = ".", editable = true, extras = ["ray", "grpcio", "test"] }
 [tool.pixi.feature.ray-tests.tasks]
 test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.ray_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
 test-compute = { cmd = "python -m pytest -v --integration sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
-test = { depends-on = ["test-offline", "test-compute"] }
+test-unit-compute-ray = { cmd = "python -m pytest -v sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test = { depends-on = ["test-offline", "test-unit-compute-ray", "test-compute"] }
 
 [tool.pixi.feature.registration-tests.pypi-dependencies]
 feast = { path = ".", editable = true, extras = ["aws", "gcp", "grpcio", "postgres", "mysql", "redis", "snowflake", "spark", "test"] }

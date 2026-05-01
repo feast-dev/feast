@@ -219,6 +219,53 @@ class StandardRayWrapper:
         """Read CSV files using standard Ray."""
         return ray.data.read_csv(path, **kwargs)
 
+    def read_json(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read JSON/JSONL file(s)."""
+        return ray.data.read_json(path, **kwargs)
+
+    def read_text(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read plain-text file(s)."""
+        return ray.data.read_text(path, **kwargs)
+
+    def read_images(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read image files (PNG, JPEG, …) from a directory as numpy arrays."""
+        return ray.data.read_images(path, **kwargs)
+
+    def read_binary_files(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read arbitrary binary files; each row has 'path' and 'bytes' columns."""
+        return ray.data.read_binary_files(path, **kwargs)
+
+    def read_tfrecords(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read TFRecord file(s)."""
+        return ray.data.read_tfrecords(path, **kwargs)
+
+    def read_webdataset(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read WebDataset tar shard(s)."""
+        return ray.data.read_webdataset(path, **kwargs)
+
+    def read_mongo(self, uri: str, database: str, collection: str, **kwargs) -> Any:
+        """Read from a MongoDB collection."""
+        return ray.data.read_mongo(
+            uri=uri, database=database, collection=collection, **kwargs
+        )
+
+    def read_sql(self, sql: str, connection_url: str, **kwargs) -> Any:
+        """Read from a SQL database.  Builds the connection factory from connection_url."""
+        import sqlalchemy
+
+        def _connection_factory():
+            # raw_connection() returns a DB API2-compliant connection (with .cursor())
+            # from the underlying driver.  engine.connect() returns a SQLAlchemy 2.0
+            # Connection object which does NOT expose .cursor(), failing Ray Data's
+            # DB API2 compliance check.
+            return sqlalchemy.create_engine(connection_url).raw_connection()
+
+        return ray.data.read_sql(sql, _connection_factory, **kwargs)
+
+    def from_huggingface(self, dataset: Any, **kwargs) -> Any:
+        """Convert a HuggingFace datasets.Dataset to a Ray Dataset."""
+        return ray.data.from_huggingface(dataset, **kwargs)
+
     def from_pandas(self, df: Any) -> Any:
         """Create dataset from pandas DataFrame using standard Ray."""
         return ray.data.from_pandas(df)
@@ -239,6 +286,8 @@ class CodeFlareRayWrapper:
         auth_server: str,
         skip_tls: bool = False,
         enable_logging: bool = False,
+        num_gpus: float = 0,
+        worker_task_options: Optional[Dict[str, Any]] = None,
     ):
         """Initialize CodeFlare Ray wrapper with cluster connection parameters."""
         self.cluster_name = cluster_name
@@ -247,6 +296,8 @@ class CodeFlareRayWrapper:
         self.auth_server = auth_server
         self.skip_tls = skip_tls
         self.enable_logging = enable_logging
+        self.num_gpus = num_gpus
+        self.worker_task_options = worker_task_options or {}
         self.cluster = None
 
         # Authenticate and setup Ray connection
@@ -307,54 +358,220 @@ class CodeFlareRayWrapper:
             logger.error(f"Ray connection failed: {e}")
             raise
 
+    def _get_task_options(self, include_gpu: bool = False) -> Dict[str, Any]:
+        """Build Ray .options() kwargs for a remote task dispatch.
+
+        Always includes the full worker_task_options passthrough dict.
+        num_gpus is merged in only when include_gpu=True, because I/O
+        operations (read_parquet, read_csv, from_pandas, from_arrow) are
+        pure data-movement and must not consume GPU slots.  Pass
+        include_gpu=True only for compute/transformation tasks.
+        """
+        opts: Dict[str, Any] = dict(self.worker_task_options)
+        if include_gpu and self.num_gpus:
+            opts["num_gpus"] = self.num_gpus
+        else:
+            # Guarantee no GPU slot is consumed for I/O tasks even if the
+            # caller placed num_gpus inside worker_task_options directly.
+            opts.pop("num_gpus", None)
+        return opts
+
     # Ray Data API methods - wrapped in @ray.remote to execute on cluster workers
     def read_parquet(self, path: Union[str, List[str]], **kwargs) -> Any:
         """Read parquet files - runs remotely on KubeRay cluster workers."""
         from feast.infra.ray_shared_utils import RemoteDatasetProxy
 
         @ray.remote
-        def _remote_read_parquet(file_path, read_kwargs):
+        def _remote(file_path, read_kwargs):
             import ray
 
             return ray.data.read_parquet(file_path, **read_kwargs)
 
-        return RemoteDatasetProxy(_remote_read_parquet.remote(path, kwargs))
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
 
     def read_csv(self, path: Union[str, List[str]], **kwargs) -> Any:
-        """Read CSV files - runs remotely on KubeRay cluster workers."""
+        """Read CSV files - dispatched via @ray.remote to cluster workers."""
         from feast.infra.ray_shared_utils import RemoteDatasetProxy
 
         @ray.remote
-        def _remote_read_csv(file_path, read_kwargs):
+        def _remote(file_path, read_kwargs):
             import ray
 
             return ray.data.read_csv(file_path, **read_kwargs)
 
-        return RemoteDatasetProxy(_remote_read_csv.remote(path, kwargs))
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
 
-    def from_pandas(self, df: Any) -> Any:
-        """Create dataset from pandas DataFrame - runs remotely on KubeRay cluster workers."""
+    def read_json(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read JSON/JSONL files - dispatched via @ray.remote to cluster workers."""
         from feast.infra.ray_shared_utils import RemoteDatasetProxy
 
         @ray.remote
-        def _remote_from_pandas(dataframe):
+        def _remote(file_path, read_kwargs):
+            import ray
+
+            return ray.data.read_json(file_path, **read_kwargs)
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
+
+    def read_text(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read plain-text files - dispatched via @ray.remote to cluster workers."""
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(file_path, read_kwargs):
+            import ray
+
+            return ray.data.read_text(file_path, **read_kwargs)
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
+
+    def read_images(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read image directory - dispatched via @ray.remote to cluster workers."""
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(file_path, read_kwargs):
+            import ray
+
+            return ray.data.read_images(file_path, **read_kwargs)
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
+
+    def read_binary_files(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read binary files - dispatched via @ray.remote to cluster workers."""
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(file_path, read_kwargs):
+            import ray
+
+            return ray.data.read_binary_files(file_path, **read_kwargs)
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
+
+    def read_tfrecords(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read TFRecord files - dispatched via @ray.remote to cluster workers."""
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(file_path, read_kwargs):
+            import ray
+
+            return ray.data.read_tfrecords(file_path, **read_kwargs)
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
+
+    def read_webdataset(self, path: Union[str, List[str]], **kwargs) -> Any:
+        """Read WebDataset shards - dispatched via @ray.remote to cluster workers."""
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(file_path, read_kwargs):
+            import ray
+
+            return ray.data.read_webdataset(file_path, **read_kwargs)
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(path, kwargs))
+
+    def read_mongo(self, uri: str, database: str, collection: str, **kwargs) -> Any:
+        """Read from MongoDB - dispatched via @ray.remote to cluster workers."""
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(mongo_uri, db, col, read_kwargs):
+            import ray
+
+            return ray.data.read_mongo(
+                uri=mongo_uri, database=db, collection=col, **read_kwargs
+            )
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(uri, database, collection, kwargs))
+
+    def read_sql(self, sql: str, connection_url: str, **kwargs) -> Any:
+        """Read from SQL database - dispatched via @ray.remote to cluster workers.
+
+        Accepts connection_url (str) instead of a connection_factory callable so
+        the argument is serialisable across the Ray object store boundary.
+        """
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(sql_query, conn_url, read_kwargs):
+            import ray
+            import sqlalchemy
+
+            def _factory():
+                return sqlalchemy.create_engine(conn_url).raw_connection()
+
+            return ray.data.read_sql(sql_query, _factory, **read_kwargs)
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(sql, connection_url, kwargs))
+
+    def from_huggingface(self, dataset: Any, **kwargs) -> Any:
+        """Convert a HuggingFace dataset - dispatched via @ray.remote to cluster workers.
+
+        Serialises the HuggingFace dataset and runs ray.data.from_huggingface()
+        on the cluster so the Ray Client driver is not involved in Ray Data ops.
+        """
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(hf_dataset, read_kwargs):
+            import ray
+
+            return ray.data.from_huggingface(hf_dataset, **read_kwargs)
+
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(dataset, kwargs))
+
+    def from_pandas(self, df: Any) -> Any:
+        """Create dataset from pandas DataFrame - dispatched via @ray.remote."""
+        from feast.infra.ray_shared_utils import RemoteDatasetProxy
+
+        @ray.remote
+        def _remote(dataframe):
             import ray
 
             return ray.data.from_pandas(dataframe)
 
-        return RemoteDatasetProxy(_remote_from_pandas.remote(df))
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(df))
 
     def from_arrow(self, table: Any) -> Any:
-        """Create dataset from Arrow table - runs remotely on KubeRay cluster workers."""
+        """Create dataset from Arrow table - dispatched via @ray.remote."""
         from feast.infra.ray_shared_utils import RemoteDatasetProxy
 
         @ray.remote
-        def _remote_from_arrow(arrow_table):
+        def _remote(arrow_table):
             import ray
 
             return ray.data.from_arrow(arrow_table)
 
-        return RemoteDatasetProxy(_remote_from_arrow.remote(table))
+        opts = self._get_task_options()
+        remote_fn = _remote.options(**opts) if opts else _remote
+        return RemoteDatasetProxy(remote_fn.remote(table))
 
 
 # Global state tracking
@@ -551,6 +768,8 @@ def _initialize_kuberay(config: Any, enable_logging: bool = False) -> None:
         auth_server=kuberay_config["auth_server"],
         skip_tls=kuberay_config.get("skip_tls", False),
         enable_logging=enable_logging,
+        num_gpus=getattr(config, "num_gpus", 0) or 0,
+        worker_task_options=getattr(config, "worker_task_options", None),
     )
 
     logger.info("KubeRay cluster connection established via CodeFlare SDK")

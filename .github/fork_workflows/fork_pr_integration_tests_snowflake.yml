@@ -40,7 +40,7 @@ jobs:
           architecture: x64
       - name: Setup Go
         id: setup-go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: 1.18.0
       - name: Install the latest version of uv
@@ -72,7 +72,7 @@ jobs:
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
         # Run only Snowflake BigQuery and File tests without dynamo and redshift tests.
         run: |
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Snowflake and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "(Snowflake or snowflake_registry) and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
           pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
       - name: Minimize uv cache
         run: uv cache prune --ci

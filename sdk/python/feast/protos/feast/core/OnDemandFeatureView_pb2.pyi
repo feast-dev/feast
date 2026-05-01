@@ -59,7 +59,7 @@ class OnDemandFeatureView(google.protobuf.message.Message):
 global___OnDemandFeatureView = OnDemandFeatureView
 
 class OnDemandFeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 18"""
+    """Next available id: 19"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -111,6 +111,7 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
     SINGLETON_FIELD_NUMBER: builtins.int
     AGGREGATIONS_FIELD_NUMBER: builtins.int
     VERSION_FIELD_NUMBER: builtins.int
+    ORG_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -147,6 +148,8 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
         """Aggregation definitions"""
     version: builtins.str
     """User-specified version pin (e.g. "latest", "v2", "version2")"""
+    org: builtins.str
+    """Organizational unit that owns this feature view (e.g. "ads", "search")."""
     def __init__(
         self,
         *,
@@ -166,9 +169,10 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
         singleton: builtins.bool = ...,
         aggregations: collections.abc.Iterable[feast.core.Aggregation_pb2.Aggregation] | None = ...,
         version: builtins.str = ...,
+        org: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["feature_transformation", b"feature_transformation", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "version", b"version", "write_to_online_store", b"write_to_online_store"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "org", b"org", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "version", b"version", "write_to_online_store", b"write_to_online_store"]) -> None: ...
 
 global___OnDemandFeatureViewSpec = OnDemandFeatureViewSpec
 

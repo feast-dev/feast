@@ -67,6 +67,8 @@ class StreamFeatureView(FeatureView):
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the stream feature view, typically the email of the primary maintainer.
+        org: The organizational unit that owns this stream feature view (e.g. "ads", "search").
+            Defaults to empty string.
         udf: The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
         udf_string: The string representation of the user defined transformation function.
         feature_transformation: The transformation to apply to the features.
@@ -88,6 +90,7 @@ class StreamFeatureView(FeatureView):
     description: str
     tags: Dict[str, str]
     owner: str
+    org: str
     mode: Union[TransformationMode, str]
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
@@ -112,6 +115,7 @@ class StreamFeatureView(FeatureView):
         offline: bool = False,
         description: str = "",
         owner: str = "",
+        org: str = "",
         schema: Optional[List[Field]] = None,
         aggregations: Optional[List[Aggregation]] = None,
         mode: Union[str, TransformationMode] = TransformationMode.PYTHON,
@@ -183,6 +187,7 @@ class StreamFeatureView(FeatureView):
             offline=offline,
             description=description,
             owner=owner,
+            org=org,
             schema=schema,
             source=source,  # type: ignore[arg-type]
             mode=mode,
@@ -304,6 +309,7 @@ class StreamFeatureView(FeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            org=self.org,
             ttl=ttl_duration,
             online=self.online,
             batch_source=batch_source_proto,
@@ -351,6 +357,7 @@ class StreamFeatureView(FeatureView):
             description=sfv_proto.spec.description,
             tags=dict(sfv_proto.spec.tags),
             owner=sfv_proto.spec.owner,
+            org=sfv_proto.spec.org,
             online=sfv_proto.spec.online,
             schema=[
                 Field.from_proto(field_proto) for field_proto in sfv_proto.spec.features
@@ -434,6 +441,7 @@ class StreamFeatureView(FeatureView):
             online=self.online,
             description=self.description,
             owner=self.owner,
+            org=self.org,
             aggregations=self.aggregations,
             mode=self.mode,
             timestamp_field=self.timestamp_field,
@@ -463,6 +471,7 @@ def stream_feature_view(
     online: Optional[bool] = True,
     description: Optional[str] = "",
     owner: Optional[str] = "",
+    org: Optional[str] = "",
     schema: Optional[List[Field]] = None,
     source: Optional[DataSource] = None,
     aggregations: Optional[List[Aggregation]] = None,
@@ -498,6 +507,7 @@ def stream_feature_view(
             tags=tags,
             online=online,
             owner=owner,
+            org=org,
             aggregations=aggregations,
             mode=mode,
             timestamp_field=timestamp_field,

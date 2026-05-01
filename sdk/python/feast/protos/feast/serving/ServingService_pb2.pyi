@@ -18,7 +18,7 @@ limitations under the License.
 """
 import builtins
 import collections.abc
-from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
+import feast.types.Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.internal.enum_type_wrapper
@@ -137,12 +137,12 @@ class GetOnlineFeaturesRequestV2(google.protobuf.message.Message):
             VALUE_FIELD_NUMBER: builtins.int
             key: builtins.str
             @property
-            def value(self) -> _feast_types_Value_pb2.Value: ...
+            def value(self) -> feast.types.Value_pb2.Value: ...
             def __init__(
                 self,
                 *,
                 key: builtins.str = ...,
-                value: _feast_types_Value_pb2.Value | None = ...,
+                value: feast.types.Value_pb2.Value | None = ...,
             ) -> None: ...
             def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
             def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
@@ -155,13 +155,13 @@ class GetOnlineFeaturesRequestV2(google.protobuf.message.Message):
             together with maxAge, to determine feature staleness.
             """
         @property
-        def fields(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, _feast_types_Value_pb2.Value]:
+        def fields(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.Value]:
             """Map containing mapping of entity name to entity value."""
         def __init__(
             self,
             *,
             timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-            fields: collections.abc.Mapping[builtins.str, _feast_types_Value_pb2.Value] | None = ...,
+            fields: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.Value] | None = ...,
         ) -> None: ...
         def HasField(self, field_name: typing_extensions.Literal["timestamp", b"timestamp"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["fields", b"fields", "timestamp", b"timestamp"]) -> None: ...
@@ -221,12 +221,12 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         VALUE_FIELD_NUMBER: builtins.int
         key: builtins.str
         @property
-        def value(self) -> _feast_types_Value_pb2.RepeatedValue: ...
+        def value(self) -> feast.types.Value_pb2.RepeatedValue: ...
         def __init__(
             self,
             *,
             key: builtins.str = ...,
-            value: _feast_types_Value_pb2.RepeatedValue | None = ...,
+            value: feast.types.Value_pb2.RepeatedValue | None = ...,
         ) -> None: ...
         def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
@@ -238,12 +238,12 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         VALUE_FIELD_NUMBER: builtins.int
         key: builtins.str
         @property
-        def value(self) -> _feast_types_Value_pb2.RepeatedValue: ...
+        def value(self) -> feast.types.Value_pb2.RepeatedValue: ...
         def __init__(
             self,
             *,
             key: builtins.str = ...,
-            value: _feast_types_Value_pb2.RepeatedValue | None = ...,
+            value: feast.types.Value_pb2.RepeatedValue | None = ...,
         ) -> None: ...
         def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
@@ -258,13 +258,13 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
     @property
     def features(self) -> global___FeatureList: ...
     @property
-    def entities(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, _feast_types_Value_pb2.RepeatedValue]:
+    def entities(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.RepeatedValue]:
         """The entity data is specified in a columnar format
         A map of entity name -> list of values
         """
     full_feature_names: builtins.bool
     @property
-    def request_context(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, _feast_types_Value_pb2.RepeatedValue]:
+    def request_context(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.RepeatedValue]:
         """Context for OnDemand Feature Transformation
         (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
         A map of variable name -> list of values
@@ -276,9 +276,9 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         *,
         feature_service: builtins.str = ...,
         features: global___FeatureList | None = ...,
-        entities: collections.abc.Mapping[builtins.str, _feast_types_Value_pb2.RepeatedValue] | None = ...,
+        entities: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
         full_feature_names: builtins.bool = ...,
-        request_context: collections.abc.Mapping[builtins.str, _feast_types_Value_pb2.RepeatedValue] | None = ...,
+        request_context: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
         include_feature_view_version_metadata: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["feature_service", b"feature_service", "features", b"features", "kind", b"kind"]) -> builtins.bool: ...
@@ -297,7 +297,7 @@ class GetOnlineFeaturesResponse(google.protobuf.message.Message):
         STATUSES_FIELD_NUMBER: builtins.int
         EVENT_TIMESTAMPS_FIELD_NUMBER: builtins.int
         @property
-        def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[_feast_types_Value_pb2.Value]: ...
+        def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.types.Value_pb2.Value]: ...
         @property
         def statuses(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[global___FieldStatus.ValueType]: ...
         @property
@@ -305,7 +305,7 @@ class GetOnlineFeaturesResponse(google.protobuf.message.Message):
         def __init__(
             self,
             *,
-            values: collections.abc.Iterable[_feast_types_Value_pb2.Value] | None = ...,
+            values: collections.abc.Iterable[feast.types.Value_pb2.Value] | None = ...,
             statuses: collections.abc.Iterable[global___FieldStatus.ValueType] | None = ...,
             event_timestamps: collections.abc.Iterable[google.protobuf.timestamp_pb2.Timestamp] | None = ...,
         ) -> None: ...

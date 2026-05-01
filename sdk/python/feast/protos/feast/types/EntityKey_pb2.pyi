@@ -18,7 +18,7 @@ limitations under the License.
 """
 import builtins
 import collections.abc
-from feast.protos.feast.types import Value_pb2 as _feast_types_Value_pb2
+import feast.types.Value_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
 import google.protobuf.message
@@ -39,12 +39,12 @@ class EntityKey(google.protobuf.message.Message):
     @property
     def join_keys(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
     @property
-    def entity_values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[_feast_types_Value_pb2.Value]: ...
+    def entity_values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.types.Value_pb2.Value]: ...
     def __init__(
         self,
         *,
         join_keys: collections.abc.Iterable[builtins.str] | None = ...,
-        entity_values: collections.abc.Iterable[_feast_types_Value_pb2.Value] | None = ...,
+        entity_values: collections.abc.Iterable[feast.types.Value_pb2.Value] | None = ...,
     ) -> None: ...
     def ClearField(self, field_name: typing_extensions.Literal["entity_values", b"entity_values", "join_keys", b"join_keys"]) -> None: ...
 

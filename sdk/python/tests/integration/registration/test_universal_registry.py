@@ -43,6 +43,7 @@ from feast.infra.online_stores.sqlite import SqliteTable
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
+from feast.infra.registry.snowflake import SnowflakeRegistry, SnowflakeRegistryConfig
 from feast.infra.registry.sql import SqlRegistry, SqlRegistryConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.permissions.action import AuthzedAction
@@ -285,6 +286,39 @@ def sqlite_registry():
 
 
 @pytest.fixture(scope="function")
+def snowflake_registry():
+    account = os.getenv("SNOWFLAKE_CI_DEPLOYMENT", "")
+    if not account:
+        pytest.skip("SNOWFLAKE_CI_DEPLOYMENT not set")
+
+    config_kwargs = dict(
+        registry_type="snowflake.registry",
+        account=account,
+        user=os.getenv("SNOWFLAKE_CI_USER", ""),
+        role=os.getenv("SNOWFLAKE_CI_ROLE", ""),
+        warehouse=os.getenv("SNOWFLAKE_CI_WAREHOUSE", ""),
+        database=os.getenv("SNOWFLAKE_CI_DATABASE", "FEAST"),
+        schema=os.getenv("SNOWFLAKE_CI_SCHEMA", "REGISTRY_TEST"),
+        cache_ttl_seconds=2,
+        purge_feast_metadata=False,
+    )
+
+    private_key = os.getenv("SNOWFLAKE_CI_PRIVATE_KEY_PATH", "")
+    if private_key:
+        config_kwargs["private_key"] = private_key
+        passphrase = os.getenv("SNOWFLAKE_CI_PRIVATE_KEY_PASSPHRASE", "")
+        if passphrase:
+            config_kwargs["private_key_passphrase"] = passphrase
+    else:
+        config_kwargs["password"] = os.getenv("SNOWFLAKE_CI_PASSWORD", "")
+
+    registry_config = SnowflakeRegistryConfig(**config_kwargs)
+    registry = SnowflakeRegistry(registry_config, "project", None)
+    yield registry
+    registry.teardown()
+
+
+@pytest.fixture(scope="function")
 def hdfs_registry():
     HADOOP_NAMENODE_IMAGE = "bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8"
     HADOOP_DATANODE_IMAGE = "bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8"
@@ -411,6 +445,10 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             pytest.param(
                 lazy_fixture("hdfs_registry"),
                 marks=pytest.mark.xdist_group(name="hdfs_registry"),
+            ),
+            pytest.param(
+                lazy_fixture("snowflake_registry"),
+                marks=pytest.mark.xdist_group(name="snowflake_registry"),
             ),
         ]
     )
@@ -895,6 +933,111 @@ def test_apply_data_source_with_timestamps(test_registry):
         f"updated_source.last_updated_timestamp: {updated_source.last_updated_timestamp}, original_updated: {original_updated}"
     )
     assert updated_source.description == "Updated description for timestamp test"
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [lazy_fixture("local_registry")],
+)
+def test_apply_data_source_cross_project_isolation(test_registry):
+    """Test that apply_data_source uses project-scoped filtering.
+
+    Regression test for https://github.com/feast-dev/feast/issues/6206:
+    applying a data source to one project must not overwrite the data source
+    with the same name in a different project.
+
+    See: feast-dev/feast#6298
+    """
+    project_a = "project_a"
+    project_b = "project_b"
+
+    source_a = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_a.parquet",
+        timestamp_field="ts_col",
+    )
+    source_b = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_b.parquet",
+        timestamp_field="ts_col",
+    )
+
+    test_registry.apply_data_source(source_a, project_a, commit=True)
+    test_registry.apply_data_source(source_b, project_b, commit=True)
+
+    # Each project should have exactly its own source
+    sources_a = test_registry.list_data_sources(project_a)
+    sources_b = test_registry.list_data_sources(project_b)
+    assert len(sources_a) == 1
+    assert len(sources_b) == 1
+
+    # Paths must be project-specific Ã¢ÂÂ not overwritten cross-project
+    assert sources_a[0].path == "file://feast/project_a.parquet"
+    assert sources_b[0].path == "file://feast/project_b.parquet"
+
+    # Re-apply source_b with updated path: must not bleed into project_a
+    source_b_updated = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_b_v2.parquet",
+        timestamp_field="ts_col",
+    )
+    test_registry.apply_data_source(source_b_updated, project_b, commit=True)
+
+    sources_a_after = test_registry.list_data_sources(project_a)
+    assert len(sources_a_after) == 1
+    assert sources_a_after[0].path == "file://feast/project_a.parquet", (
+        "apply_data_source for project_b must not overwrite project_a's source"
+    )
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [lazy_fixture("local_registry")],
+)
+def test_delete_data_source_project_scoped(test_registry):
+    """Test that delete_data_source only removes the source from the given project.
+
+    Regression test for https://github.com/feast-dev/feast/issues/6206:
+    deleting a data source from one project must not delete the data source
+    with the same name from another project.
+    """
+    project_a = "project_a"
+    project_b = "project_b"
+
+    source_a = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_a.parquet",
+        timestamp_field="ts_col",
+    )
+    source_b = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_b.parquet",
+        timestamp_field="ts_col",
+    )
+
+    test_registry.apply_data_source(source_a, project_a, commit=True)
+    test_registry.apply_data_source(source_b, project_b, commit=True)
+
+    # Delete the source from project_a only
+    test_registry.delete_data_source("shared_source_name", project_a, commit=True)
+
+    # project_a should have no sources; project_b should be unaffected
+    sources_a = test_registry.list_data_sources(project_a)
+    sources_b = test_registry.list_data_sources(project_b)
+    assert len(sources_a) == 0, "Source should be deleted from project_a"
+    assert len(sources_b) == 1, "Source in project_b must not be deleted"
+    assert sources_b[0].path == "file://feast/project_b.parquet"
 
     test_registry.teardown()
 

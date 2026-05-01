@@ -185,6 +185,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Athena (contrib plugin)](https://docs.feast.dev/reference/data-sources/athena)
   * [x] [Clickhouse (contrib plugin)](https://docs.feast.dev/reference/data-sources/clickhouse)
   * [x] [Oracle (contrib plugin)](https://docs.feast.dev/reference/data-sources/oracle)
+  * [x] [Ray source (contrib plugin)](https://docs.feast.dev/reference/data-sources/ray)
   * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
 * **Offline Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)

@@ -260,14 +260,63 @@ type FeastServices struct {
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
 // https://rtd.feast.dev/en/stable/#feast.repo_config.RepoConfig
 type RepoConfig struct {
-	Project                       string               `yaml:"project,omitempty"`
-	Provider                      FeastProviderType    `yaml:"provider,omitempty"`
-	OfflineStore                  OfflineStoreConfig   `yaml:"offline_store,omitempty"`
-	OnlineStore                   OnlineStoreConfig    `yaml:"online_store,omitempty"`
-	Registry                      RegistryConfig       `yaml:"registry,omitempty"`
-	AuthzConfig                   AuthzConfig          `yaml:"auth,omitempty"`
-	EntityKeySerializationVersion int                  `yaml:"entity_key_serialization_version,omitempty"`
-	BatchEngine                   *ComputeEngineConfig `yaml:"batch_engine,omitempty"`
+	Project                       string                     `yaml:"project,omitempty"`
+	Provider                      FeastProviderType          `yaml:"provider,omitempty"`
+	OfflineStore                  OfflineStoreConfig         `yaml:"offline_store,omitempty"`
+	OnlineStore                   OnlineStoreConfig          `yaml:"online_store,omitempty"`
+	Registry                      RegistryConfig             `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig                `yaml:"auth,omitempty"`
+	EntityKeySerializationVersion int                        `yaml:"entity_key_serialization_version,omitempty"`
+	BatchEngine                   *ComputeEngineConfig       `yaml:"batch_engine,omitempty"`
+	FeatureServer                 *FeatureServerYamlConfig   `yaml:"feature_server,omitempty"`
+	Materialization               *MaterializationYamlConfig `yaml:"materialization,omitempty"`
+	OpenLineage                   *OpenLineageYamlConfig     `yaml:"openlineage,omitempty"`
+}
+
+// FeatureServerYamlConfig maps to the feature_server section of feature_store.yaml.
+// Field names match Feast's Python SDK YAML keys exactly.
+type FeatureServerYamlConfig struct {
+	Type                                    string             `yaml:"type"`
+	Metrics                                 *MetricsYamlConfig `yaml:"metrics,omitempty"`
+	OfflinePushBatchingEnabled              *bool              `yaml:"offline_push_batching_enabled,omitempty"`
+	OfflinePushBatchingBatchSize            *int32             `yaml:"offline_push_batching_batch_size,omitempty"`
+	OfflinePushBatchingBatchIntervalSeconds *int32             `yaml:"offline_push_batching_batch_interval_seconds,omitempty"`
+	McpEnabled                              *bool              `yaml:"mcp_enabled,omitempty"`
+	McpServerName                           *string            `yaml:"mcp_server_name,omitempty"`
+	McpServerVersion                        *string            `yaml:"mcp_server_version,omitempty"`
+	McpTransport                            *string            `yaml:"mcp_transport,omitempty"`
+}
+
+// MetricsYamlConfig maps to the feature_server.metrics section of feature_store.yaml.
+// Category booleans are merged inline so they sit at the same YAML level as
+// "enabled". Keys must be valid Feast MetricsConfig field names for the SDK
+// version in use (e.g. resource, request, online_features, push,
+// materialization, freshness). Note: Feast's MetricsConfig uses
+// extra="forbid", so unknown keys will be rejected by SDK validation.
+type MetricsYamlConfig struct {
+	Enabled    bool                   `yaml:"enabled"`
+	Categories map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// MaterializationYamlConfig maps to the materialization section of feature_store.yaml.
+// ExtraConfig is merged inline so future Feast MaterializationConfig fields appear
+// at the same YAML level as the typed fields above.
+type MaterializationYamlConfig struct {
+	OnlineWriteBatchSize *int32                 `yaml:"online_write_batch_size,omitempty"`
+	ExtraConfig          map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// OpenLineageYamlConfig maps to the openlineage section of feature_store.yaml.
+// ExtraConfig is merged inline so all extra key-value pairs (namespace, producer,
+// emit_on_apply, emit_on_materialize, transport-specific options, etc.) appear at
+// the same YAML level as the typed connection fields.
+type OpenLineageYamlConfig struct {
+	Enabled           bool                   `yaml:"enabled"`
+	TransportType     *string                `yaml:"transport_type,omitempty"`
+	TransportUrl      *string                `yaml:"transport_url,omitempty"`
+	TransportEndpoint *string                `yaml:"transport_endpoint,omitempty"`
+	ApiKey            *string                `yaml:"api_key,omitempty"`
+	ExtraConfig       map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.
