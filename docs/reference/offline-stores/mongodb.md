@@ -19,12 +19,12 @@ registry: data/registry.db
 provider: local
 offline_store:
   type: feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb.MongoDBOfflineStore
-  connection_string: "mongodb+srv://user:pass@cluster.mongodb.net"
+  connection_string: "mongodb+srv://user:pass@cluster.mongodb.net"  # pragma: allowlist secret
   database: feast
   collection: feature_history
 online_store:
   type: mongodb
-  connection_string: "mongodb+srv://user:pass@cluster.mongodb.net"
+  connection_string: "mongodb+srv://user:pass@cluster.mongodb.net"  # pragma: allowlist secret
   database_name: feast_online_store
   collection_suffix: latest
   client_kwargs: {}
@@ -67,7 +67,6 @@ This index enables efficient range scans over entities and feature views, while 
 
 ## Key Optimizations
 
-* **K-collapse**: Multiple FeatureViews that share the same join keys are queried in a single aggregation using `feature_view: {$in: [...]}`, reducing round trips.
 * **Scoring vs. training paths**: When each entity appears only once in `entity_df` (scoring/inference — one feature lookup per entity), server-side `$group $first` efficiently returns the single latest value per entity. When the same entity appears at multiple timestamps (training — building a dataset with many historical snapshots per entity), the store retrieves all candidate rows and uses `pd.merge_asof` to select the correct point-in-time value for each request timestamp.
 * **Two-level chunking**: `CHUNK_SIZE` (50,000 rows) controls the size of intermediate DataFrames in memory; `MONGO_BATCH_SIZE` (10,000 entity IDs) limits the query size sent to MongoDB.
 

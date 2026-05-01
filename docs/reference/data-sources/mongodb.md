@@ -83,7 +83,8 @@ When `feast apply` (or `store.update()`) runs with `vector_enabled=True`, Atlas 
 Use `retrieve_online_documents_v2()` to perform similarity search:
 
 ```python
-results = FeatureStore.store.retrieve_online_documents_v2(
+source = FeatureStore(repo_path=".")
+results = store.retrieve_online_documents_v2(
     config=repo_config,
     table=item_embeddings,
     requested_features=["embedding", "title"],
