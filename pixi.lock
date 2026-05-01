@@ -394,7 +394,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
@@ -523,7 +523,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
@@ -652,7 +652,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
@@ -793,7 +793,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
@@ -915,7 +915,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
@@ -1037,7 +1037,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
@@ -1226,7 +1226,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b5/11/87d6d29fb5d237229d67973a6c9e06e048f01cf4994dee194ab0ea841814/tomlkit-0.14.0-py3-none-any.whl
@@ -1399,7 +1399,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b5/11/87d6d29fb5d237229d67973a6c9e06e048f01cf4994dee194ab0ea841814/tomlkit-0.14.0-py3-none-any.whl
@@ -1572,7 +1572,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/61/cceae43728b7de99d9b847560c262873a1f6c98202171fd5ed62640b494b/tomli-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b5/11/87d6d29fb5d237229d67973a6c9e06e048f01cf4994dee194ab0ea841814/tomlkit-0.14.0-py3-none-any.whl
@@ -2229,8 +2229,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.62.1.dev45+gec6ecfdf7.d20260430
-  sha256: 17e416d53681930f3fde815a17900340b8f37e57ca7ef6a1d1a0a3f7a99aad69
+  version: 0.62.1.dev57+g81aea6e37
+  sha256: 57276e59eed2e07dcc62a15111398f78f91a206f43f4b47c9a8edb71b73a241c
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2341,7 +2341,7 @@ packages:
   - pytest-benchmark>=3.4.1,<4 ; extra == 'test'
   - pytest-asyncio<=0.24.0 ; extra == 'test'
   - py>=1.11.0 ; extra == 'test'
-  - testcontainers==4.9.0 ; extra == 'test'
+  - testcontainers>=4.15.0rc2 ; extra == 'test'
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0 ; extra == 'test'
@@ -6857,50 +6857,62 @@ packages:
   - tornado>=4.5 ; extra == 'test'
   - typeguard ; extra == 'test'
   requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/3e/f8/6425ff800894784160290bcb9737878d910b6da6a08633bfe7f2ed8c9ae3/testcontainers-4.9.0-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/fa/a6/5833ae272ae79dceeea58b6c7381c47cbcbd0113d0d0b04da8ae1ac45e48/testcontainers-4.15.0rc2-py3-none-any.whl
   name: testcontainers
-  version: 4.9.0
-  sha256: c6fee929990972c40bf6b91b7072c94064ff3649b405a14fde0274c8b2479d32
+  version: 4.15.0rc2
+  sha256: e55b9045842c5bdfdd295e0d0b09aeafb3c1fb9d6f30bd8e718df8fd48dcdc41
   requires_dist:
-  - azure-cosmos ; extra == 'cosmosdb'
-  - azure-storage-blob>=12.19,<13.0 ; extra == 'azurite'
-  - bcrypt ; extra == 'registry'
-  - boto3 ; extra == 'aws' or extra == 'localstack'
-  - cassandra-driver==3.29.1 ; extra == 'scylla'
-  - chromadb-client ; extra == 'chroma'
-  - clickhouse-driver ; extra == 'clickhouse'
-  - cryptography ; extra == 'mailpit' or extra == 'sftp'
   - docker
-  - google-cloud-datastore>=2 ; extra == 'google'
-  - google-cloud-pubsub>=2 ; extra == 'google'
-  - httpx ; extra == 'aws' or extra == 'generic' or extra == 'test-module-import'
-  - ibm-db-sa ; extra == 'db2'
-  - influxdb ; extra == 'influxdb'
-  - influxdb-client ; extra == 'influxdb'
-  - kubernetes ; extra == 'k3s'
-  - minio ; extra == 'minio'
-  - nats-py ; extra == 'nats'
-  - neo4j ; extra == 'neo4j'
-  - opensearch-py ; extra == 'opensearch'
-  - oracledb ; extra == 'oracle' or extra == 'oracle-free'
-  - pika ; extra == 'rabbitmq'
-  - pymongo ; extra == 'mongodb'
-  - pymssql ; extra == 'mssql'
-  - pymysql[rsa] ; extra == 'mysql'
-  - python-arango>=7.8,<8.0 ; extra == 'arangodb'
   - python-dotenv
-  - python-keycloak ; extra == 'keycloak'
-  - pyyaml ; extra == 'k3s'
-  - qdrant-client ; extra == 'qdrant'
-  - redis ; extra == 'generic' or extra == 'redis'
-  - selenium ; extra == 'selenium'
-  - sqlalchemy ; extra == 'db2' or extra == 'mssql' or extra == 'mysql' or extra == 'oracle' or extra == 'oracle-free'
-  - trino ; extra == 'trino'
   - typing-extensions
   - urllib3
-  - weaviate-client>=4.5.4,<5.0.0 ; extra == 'weaviate'
   - wrapt
-  requires_python: '>=3.9,<4.0'
+  - python-arango>=8 ; extra == 'arangodb'
+  - boto3>=1 ; extra == 'aws'
+  - httpx ; extra == 'aws'
+  - azure-storage-blob>=12 ; extra == 'azurite'
+  - chromadb-client>=1 ; extra == 'chroma'
+  - clickhouse-driver ; extra == 'clickhouse'
+  - azure-cosmos>=4 ; extra == 'cosmosdb'
+  - ibm-db-sa ; platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'db2'
+  - sqlalchemy>=2 ; extra == 'db2'
+  - httpx ; extra == 'generic'
+  - redis>=7 ; extra == 'generic'
+  - sqlalchemy ; extra == 'generic'
+  - google-cloud-datastore>=2 ; extra == 'google'
+  - google-cloud-pubsub>=2 ; extra == 'google'
+  - influxdb-client>=1 ; extra == 'influxdb'
+  - influxdb>=5 ; extra == 'influxdb'
+  - kubernetes ; extra == 'k3s'
+  - pyyaml>=6.0.3 ; extra == 'k3s'
+  - python-keycloak>=6 ; python_full_version < '4' and extra == 'keycloak'
+  - boto3>=1 ; extra == 'localstack'
+  - cryptography ; extra == 'mailpit'
+  - minio>=7 ; extra == 'minio'
+  - pymongo>=4 ; extra == 'mongodb'
+  - pymssql>=2 ; extra == 'mssql'
+  - sqlalchemy>=2 ; extra == 'mssql'
+  - pymysql[rsa]>=1 ; extra == 'mysql'
+  - sqlalchemy>=2 ; extra == 'mysql'
+  - nats-py>=2 ; extra == 'nats'
+  - neo4j>=6 ; extra == 'neo4j'
+  - openfga-sdk ; extra == 'openfga'
+  - opensearch-py>=3 ; python_full_version < '4' and extra == 'opensearch'
+  - oracledb>=3 ; extra == 'oracle'
+  - sqlalchemy>=2 ; extra == 'oracle'
+  - oracledb>=3 ; extra == 'oracle-free'
+  - sqlalchemy>=2 ; extra == 'oracle-free'
+  - qdrant-client>=1 ; extra == 'qdrant'
+  - pika>=1 ; extra == 'rabbitmq'
+  - redis>=7 ; extra == 'redis'
+  - bcrypt>=5 ; extra == 'registry'
+  - cassandra-driver>=3 ; python_full_version < '3.14' and extra == 'scylla'
+  - selenium>=4 ; extra == 'selenium'
+  - cryptography ; extra == 'sftp'
+  - httpx ; extra == 'test-module-import'
+  - trino ; extra == 'trino'
+  - weaviate-client>=4 ; extra == 'weaviate'
+  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
   sha256: cafeec44494f842ffeca27e9c8b0c27ed714f93ac77ddadc6aaf726b5554ebac
   md5: cffd3bdd58090148f4cfcd831f4b26ab

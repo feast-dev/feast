@@ -255,9 +255,9 @@ attrs==26.1.0 \
     #   jsonschema
     #   openlineage-python
     #   referencing
-azure-core==1.39.0 \
-    --hash=sha256:4ac7b70fab5438c3f68770649a78daf97833caa83827f91df9c14e0e0ea7d34f \
-    --hash=sha256:8a90a562998dd44ce84597590fff6249701b98c0e8797c95fcdd695b54c35d74
+azure-core==1.40.0 \
+    --hash=sha256:7f3ea02579b1bb1d34e45043423b650621d11d7c2ea3b05e5554010080b78dfd \
+    --hash=sha256:ecf5b6ddf2564471fae9d576147b7e77a4da285958b2d9f4fd6c3af104f3e9d7
     # via
     #   azure-identity
     #   azure-storage-blob
@@ -4307,9 +4307,9 @@ pymssql==2.3.2 \
     --hash=sha256:fb8a7b197aaf466a7577ca6690aa9d747081b653ab212d052d71f3cc10587c3b \
     --hash=sha256:fdd774b26407babd0205ef85a098f90553e6b3da77a22322a1e7d2cb51f742c0
     # via feast (pyproject.toml)
-pymysql==1.1.2 \
-    --hash=sha256:4961d3e165614ae65014e361811a724e2044ad3ea3739de9903ae7c21f539f03 \
-    --hash=sha256:e6b1d89711dd51f8f74b1631fe08f039e7d76cf67a42a323d3178f0f25762ed9
+pymysql==1.1.3 \
+    --hash=sha256:8164ba62c552f6105f3b11753352d0f16b90d1703ba67d81923d5a8a5d1c5289 \
+    --hash=sha256:e70ebf2047a4edf6138cf79c68ad418ef620af65900aa585c5e8bfc95044d43a
     # via feast (pyproject.toml)
 pynacl==1.6.2 \
     --hash=sha256:018494d6d696ae03c7e656e5e74cdfd8ea1326962cc401bcf018f1ed8436811c \
