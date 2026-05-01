@@ -33,6 +33,7 @@ from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 from feast import FeatureView, OnDemandFeatureView
+from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
 from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
@@ -258,6 +259,10 @@ class SparkOfflineStore(OfflineStore):
             registry,
             project,
             entity_df_event_timestamp_range,
+        )
+
+        query_context = _apply_bfv_transformations(
+            spark_session, feature_views, query_context
         )
 
         spark_query_context = [
@@ -711,6 +716,44 @@ def _entity_schema_keys_from(
     return cast(
         KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys()
     )
+
+
+def _apply_bfv_transformations(
+    spark_session: SparkSession,
+    feature_views: List[FeatureView],
+    query_contexts: List[offline_utils.FeatureViewQueryContext],
+) -> List[offline_utils.FeatureViewQueryContext]:
+    """
+    For BatchFeatureViews with a UDF, read the raw source into a Spark DataFrame,
+    invoke the transformation, register the result as a temp view, and replace the
+    table_subquery in the query context so the PIT join reads transformed data.
+    """
+    from dataclasses import replace
+
+    fv_by_name = {fv.projection.name_to_use(): fv for fv in feature_views}
+
+    updated_contexts = []
+    for ctx in query_contexts:
+        fv = fv_by_name.get(ctx.name)
+        if (
+            fv is not None
+            and isinstance(fv, BatchFeatureView)
+            and fv.feature_transformation is not None
+            and fv.feature_transformation.udf is not None
+        ):
+            source_query = fv.batch_source.get_table_query_string()
+            source_df = spark_session.sql(f"SELECT * FROM {source_query}")
+
+            transformed_df = fv.feature_transformation.udf(source_df)
+
+            tmp_view_name = f"__feast_bfv_{fv.name}_{uuid.uuid4().hex[:8]}"
+            transformed_df.createOrReplaceTempView(tmp_view_name)
+
+            ctx = replace(ctx, table_subquery=tmp_view_name)
+
+        updated_contexts.append(ctx)
+
+    return updated_contexts
 
 
 def _get_entity_df_event_timestamp_range(
