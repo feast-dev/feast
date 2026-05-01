@@ -52,6 +52,7 @@ const (
 	ClientFailedReason           = "ClientDeploymentFailed"
 	CronJobFailedReason          = "CronJobDeploymentFailed"
 	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
+	OidcAuthzFailedReason        = "OidcAuthorizationDeploymentFailed"
 
 	// Feast condition messages:
 	ReadyMessage                  = "FeatureStore installation complete"
@@ -62,6 +63,7 @@ const (
 	ClientReadyMessage            = "Client installation complete"
 	CronJobReadyMessage           = "CronJob installation complete"
 	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
+	OidcAuthzReadyMessage         = "OIDC authorization installation complete"
 	DeploymentNotAvailableMessage = "Deployment is not available"
 
 	// entity_key_serialization_version
