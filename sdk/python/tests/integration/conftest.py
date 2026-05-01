@@ -134,7 +134,7 @@ def start_keycloak_server():
 
 @pytest.fixture(scope="session")
 def mysql_server():
-    container = MySqlContainer("mysql:latest")
+    container = MySqlContainer("mysql:latest", dialect="pymysql")
     container.start()
 
     yield container
