@@ -16,206 +16,178 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-from collections import abc as _abc
-from feast.core import Aggregation_pb2 as _Aggregation_pb2
-from feast.core import DataSource_pb2 as _DataSource_pb2
-from feast.core import FeatureView_pb2 as _FeatureView_pb2
-from feast.core import Feature_pb2 as _Feature_pb2
-from feast.core import OnDemandFeatureView_pb2 as _OnDemandFeatureView_pb2
-from feast.core import Transformation_pb2 as _Transformation_pb2
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import duration_pb2 as _duration_pb2
-from google.protobuf import message as _message
-from google.protobuf.internal import containers as _containers
-import builtins as _builtins
+import builtins
+import collections.abc
+import feast.core.Aggregation_pb2
+import feast.core.DataSource_pb2
+import feast.core.FeatureView_pb2
+import feast.core.Feature_pb2
+import feast.core.OnDemandFeatureView_pb2
+import feast.core.Transformation_pb2
+import google.protobuf.descriptor
+import google.protobuf.duration_pb2
+import google.protobuf.internal.containers
+import google.protobuf.message
 import sys
-import typing as _typing
 
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias as _TypeAlias
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
 else:
-    from typing_extensions import TypeAlias as _TypeAlias
+    import typing_extensions
 
-if sys.version_info >= (3, 13):
-    from warnings import deprecated as _deprecated
-else:
-    from typing_extensions import deprecated as _deprecated
+DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-DESCRIPTOR: _descriptor.FileDescriptor
+class StreamFeatureView(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-@_typing.final
-class StreamFeatureView(_message.Message):
-    DESCRIPTOR: _descriptor.Descriptor
-
-    SPEC_FIELD_NUMBER: _builtins.int
-    META_FIELD_NUMBER: _builtins.int
-    @_builtins.property
-    def spec(self) -> Global___StreamFeatureViewSpec:
+    SPEC_FIELD_NUMBER: builtins.int
+    META_FIELD_NUMBER: builtins.int
+    @property
+    def spec(self) -> global___StreamFeatureViewSpec:
         """User-specified specifications of this feature view."""
-
-    @_builtins.property
-    def meta(self) -> _FeatureView_pb2.FeatureViewMeta: ...
+    @property
+    def meta(self) -> feast.core.FeatureView_pb2.FeatureViewMeta: ...
     def __init__(
         self,
         *,
-        spec: Global___StreamFeatureViewSpec | None = ...,
-        meta: _FeatureView_pb2.FeatureViewMeta | None = ...,
+        spec: global___StreamFeatureViewSpec | None = ...,
+        meta: feast.core.FeatureView_pb2.FeatureViewMeta | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
 
-Global___StreamFeatureView: _TypeAlias = StreamFeatureView  # noqa: Y015
+global___StreamFeatureView = StreamFeatureView
 
-@_typing.final
-class StreamFeatureViewSpec(_message.Message):
+class StreamFeatureViewSpec(google.protobuf.message.Message):
     """Next available id: 23"""
 
-    DESCRIPTOR: _descriptor.Descriptor
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    @_typing.final
-    class TagsEntry(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
+    class TagsEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: _builtins.int
-        VALUE_FIELD_NUMBER: _builtins.int
-        key: _builtins.str
-        value: _builtins.str
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        value: builtins.str
         def __init__(
             self,
             *,
-            key: _builtins.str = ...,
-            value: _builtins.str = ...,
+            key: builtins.str = ...,
+            value: builtins.str = ...,
         ) -> None: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
-    NAME_FIELD_NUMBER: _builtins.int
-    PROJECT_FIELD_NUMBER: _builtins.int
-    ENTITIES_FIELD_NUMBER: _builtins.int
-    FEATURES_FIELD_NUMBER: _builtins.int
-    ENTITY_COLUMNS_FIELD_NUMBER: _builtins.int
-    DESCRIPTION_FIELD_NUMBER: _builtins.int
-    TAGS_FIELD_NUMBER: _builtins.int
-    OWNER_FIELD_NUMBER: _builtins.int
-    TTL_FIELD_NUMBER: _builtins.int
-    BATCH_SOURCE_FIELD_NUMBER: _builtins.int
-    STREAM_SOURCE_FIELD_NUMBER: _builtins.int
-    ONLINE_FIELD_NUMBER: _builtins.int
-    USER_DEFINED_FUNCTION_FIELD_NUMBER: _builtins.int
-    MODE_FIELD_NUMBER: _builtins.int
-    AGGREGATIONS_FIELD_NUMBER: _builtins.int
-    TIMESTAMP_FIELD_FIELD_NUMBER: _builtins.int
-    FEATURE_TRANSFORMATION_FIELD_NUMBER: _builtins.int
-    ENABLE_TILING_FIELD_NUMBER: _builtins.int
-    TILING_HOP_SIZE_FIELD_NUMBER: _builtins.int
-    ENABLE_VALIDATION_FIELD_NUMBER: _builtins.int
-    VERSION_FIELD_NUMBER: _builtins.int
-    ORG_FIELD_NUMBER: _builtins.int
-    name: _builtins.str
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    ENTITIES_FIELD_NUMBER: builtins.int
+    FEATURES_FIELD_NUMBER: builtins.int
+    ENTITY_COLUMNS_FIELD_NUMBER: builtins.int
+    DESCRIPTION_FIELD_NUMBER: builtins.int
+    TAGS_FIELD_NUMBER: builtins.int
+    OWNER_FIELD_NUMBER: builtins.int
+    TTL_FIELD_NUMBER: builtins.int
+    BATCH_SOURCE_FIELD_NUMBER: builtins.int
+    STREAM_SOURCE_FIELD_NUMBER: builtins.int
+    ONLINE_FIELD_NUMBER: builtins.int
+    USER_DEFINED_FUNCTION_FIELD_NUMBER: builtins.int
+    MODE_FIELD_NUMBER: builtins.int
+    AGGREGATIONS_FIELD_NUMBER: builtins.int
+    TIMESTAMP_FIELD_FIELD_NUMBER: builtins.int
+    FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
+    ENABLE_TILING_FIELD_NUMBER: builtins.int
+    TILING_HOP_SIZE_FIELD_NUMBER: builtins.int
+    ENABLE_VALIDATION_FIELD_NUMBER: builtins.int
+    VERSION_FIELD_NUMBER: builtins.int
+    ORG_FIELD_NUMBER: builtins.int
+    name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
-    project: _builtins.str
+    project: builtins.str
     """Name of Feast project that this feature view belongs to."""
-    description: _builtins.str
-    """Description of the feature view."""
-    owner: _builtins.str
-    """Owner of the feature view."""
-    online: _builtins.bool
-    """Whether these features should be served online or not"""
-    mode: _builtins.str
-    """Mode of execution"""
-    timestamp_field: _builtins.str
-    """Timestamp field for aggregation"""
-    enable_tiling: _builtins.bool
-    """Enable tiling for efficient window aggregation"""
-    enable_validation: _builtins.bool
-    """Whether schema validation is enabled during materialization"""
-    version: _builtins.str
-    """User-specified version pin (e.g. "latest", "v2", "version2")"""
-    org: _builtins.str
-    """Organizational unit that owns this stream feature view (e.g. "ads", "search")."""
-    @_builtins.property
-    def entities(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+    @property
+    def entities(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
         """List of names of entities associated with this feature view."""
-
-    @_builtins.property
-    def features(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]:
+    @property
+    def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each feature defined as part of this feature view."""
-
-    @_builtins.property
-    def entity_columns(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]:
+    @property
+    def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each entity defined as part of this feature view."""
-
-    @_builtins.property
-    def tags(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
+    description: builtins.str
+    """Description of the feature view."""
+    @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
-
-    @_builtins.property
-    def ttl(self) -> _duration_pb2.Duration:
+    owner: builtins.str
+    """Owner of the feature view."""
+    @property
+    def ttl(self) -> google.protobuf.duration_pb2.Duration:
         """Features in this feature view can only be retrieved from online serving
         younger than ttl. Ttl is measured as the duration of time between
         the feature's event timestamp and when the feature is retrieved
         Feature values outside ttl will be returned as unset values and indicated to end user
         """
-
-    @_builtins.property
-    def batch_source(self) -> _DataSource_pb2.DataSource:
+    @property
+    def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Batch/Offline DataSource where this view can retrieve offline feature data."""
-
-    @_builtins.property
-    def stream_source(self) -> _DataSource_pb2.DataSource:
+    @property
+    def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Streaming DataSource from where this view can consume "online" feature data."""
-
-    @_builtins.property
-    @_deprecated("""This field has been marked as deprecated using proto field options.""")
-    def user_defined_function(self) -> _OnDemandFeatureView_pb2.UserDefinedFunction:
+    online: builtins.bool
+    """Whether these features should be served online or not"""
+    @property
+    def user_defined_function(self) -> feast.core.OnDemandFeatureView_pb2.UserDefinedFunction:
         """Serialized function that is encoded in the streamfeatureview"""
-
-    @_builtins.property
-    def aggregations(self) -> _containers.RepeatedCompositeFieldContainer[_Aggregation_pb2.Aggregation]:
+    mode: builtins.str
+    """Mode of execution"""
+    @property
+    def aggregations(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Aggregation_pb2.Aggregation]:
         """Aggregation definitions"""
-
-    @_builtins.property
-    def feature_transformation(self) -> _Transformation_pb2.FeatureTransformationV2:
+    timestamp_field: builtins.str
+    """Timestamp field for aggregation"""
+    @property
+    def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
         """Oneof with {user_defined_function, on_demand_substrait_transformation}"""
-
-    @_builtins.property
-    def tiling_hop_size(self) -> _duration_pb2.Duration:
+    enable_tiling: builtins.bool
+    """Enable tiling for efficient window aggregation"""
+    @property
+    def tiling_hop_size(self) -> google.protobuf.duration_pb2.Duration:
         """Hop size for tiling (e.g., 5 minutes). Determines the granularity of pre-aggregated tiles.
         If not specified, defaults to 5 minutes. Only used when enable_tiling is true.
         """
-
+    enable_validation: builtins.bool
+    """Whether schema validation is enabled during materialization"""
+    version: builtins.str
+    """User-specified version pin (e.g. "latest", "v2", "version2")"""
+    org: builtins.str
+    """Organizational unit that owns this stream feature view (e.g. "ads", "search")."""
     def __init__(
         self,
         *,
-        name: _builtins.str = ...,
-        project: _builtins.str = ...,
-        entities: _abc.Iterable[_builtins.str] | None = ...,
-        features: _abc.Iterable[_Feature_pb2.FeatureSpecV2] | None = ...,
-        entity_columns: _abc.Iterable[_Feature_pb2.FeatureSpecV2] | None = ...,
-        description: _builtins.str = ...,
-        tags: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
-        owner: _builtins.str = ...,
-        ttl: _duration_pb2.Duration | None = ...,
-        batch_source: _DataSource_pb2.DataSource | None = ...,
-        stream_source: _DataSource_pb2.DataSource | None = ...,
-        online: _builtins.bool = ...,
-        user_defined_function: _OnDemandFeatureView_pb2.UserDefinedFunction | None = ...,
-        mode: _builtins.str = ...,
-        aggregations: _abc.Iterable[_Aggregation_pb2.Aggregation] | None = ...,
-        timestamp_field: _builtins.str = ...,
-        feature_transformation: _Transformation_pb2.FeatureTransformationV2 | None = ...,
-        enable_tiling: _builtins.bool = ...,
-        tiling_hop_size: _duration_pb2.Duration | None = ...,
-        enable_validation: _builtins.bool = ...,
-        version: _builtins.str = ...,
-        org: _builtins.str = ...,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        entities: collections.abc.Iterable[builtins.str] | None = ...,
+        features: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
+        entity_columns: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
+        description: builtins.str = ...,
+        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        owner: builtins.str = ...,
+        ttl: google.protobuf.duration_pb2.Duration | None = ...,
+        batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
+        stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
+        online: builtins.bool = ...,
+        user_defined_function: feast.core.OnDemandFeatureView_pb2.UserDefinedFunction | None = ...,
+        mode: builtins.str = ...,
+        aggregations: collections.abc.Iterable[feast.core.Aggregation_pb2.Aggregation] | None = ...,
+        timestamp_field: builtins.str = ...,
+        feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
+        enable_tiling: builtins.bool = ...,
+        tiling_hop_size: google.protobuf.duration_pb2.Duration | None = ...,
+        enable_validation: builtins.bool = ...,
+        version: builtins.str = ...,
+        org: builtins.str = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "tiling_hop_size", b"tiling_hop_size", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["aggregations", b"aggregations", "batch_source", b"batch_source", "description", b"description", "enable_tiling", b"enable_tiling", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "online", b"online", "org", b"org", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "tiling_hop_size", b"tiling_hop_size", "timestamp_field", b"timestamp_field", "ttl", b"ttl", "user_defined_function", b"user_defined_function", "version", b"version"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "tiling_hop_size", b"tiling_hop_size", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "batch_source", b"batch_source", "description", b"description", "enable_tiling", b"enable_tiling", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "online", b"online", "org", b"org", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "tiling_hop_size", b"tiling_hop_size", "timestamp_field", b"timestamp_field", "ttl", b"ttl", "user_defined_function", b"user_defined_function", "version", b"version"]) -> None: ...
 
-Global___StreamFeatureViewSpec: _TypeAlias = StreamFeatureViewSpec  # noqa: Y015
+global___StreamFeatureViewSpec = StreamFeatureViewSpec
