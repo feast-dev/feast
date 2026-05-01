@@ -322,6 +322,7 @@ hatchling==1.29.0 \
     #   pydantic-settings
     #   pygments
     #   python-multipart
+    #   redis
     #   referencing
     #   scikit-build-core
     #   starlette

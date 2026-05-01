@@ -1144,7 +1144,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b2/23/55d40e1bf54c141f541ab31b4b4b0f58610440c8837b1406f3467c2b4853/grpcio_testing-1.62.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/43/c8/8aaf447698c4d59aa853fd318eed300b5c9e44459f242ab8ead6c9c09792/gunicorn-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/42/6e/8adaefff7e3e216b0f7bd6cafce6d5d06798f31c3e2852dc3db6a7d758c9/hiredis-2.4.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/b4/c6/b54c15a80c6192c0f7b518b2cbdc0c0b713c02428ba3099cba5dc2023e40/hiredis-3.3.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f5/71/b0a9193641d9e2471ac541d3b1b869538a5fb6419d52fd2669fa9c79e4b8/httptools-0.7.1-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
@@ -1211,7 +1211,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/99/781fe0c827be2742bcc775efefccb3b048a3a9c6ce9aec0cbf4a101677e5/pytz-2026.1.post1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7a/1e/7acc4f0e74c4b3d9531e24739e0ab832a5edf40e64fbae1a9c01941cabd7/pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/20/2e/409703d645363352a20c944f5d119bdae3eb3034051a53724a7c5fee12b8/redis-4.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/74/3a/95deec7db1eb53979973ebd156f3369a72732208d1391cd2e5d127062a32/redis-7.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d7/8e/7540e8a2036f79a125c1d2ebadf69ed7901608859186c856fa0388ef4197/requests-2.33.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3b/5d/63d4ae3b9daea098d5d6f5da83984853c1bbacd5dc826764b249fe119d24/requests_oauthlib-2.0.0-py2.py3-none-any.whl
@@ -1317,7 +1317,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b2/23/55d40e1bf54c141f541ab31b4b4b0f58610440c8837b1406f3467c2b4853/grpcio_testing-1.62.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/43/c8/8aaf447698c4d59aa853fd318eed300b5c9e44459f242ab8ead6c9c09792/gunicorn-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d8/70/3f39ebfb3824578c34400df3b037b268abb5af0abaa789b430ffd17dd74e/hiredis-2.4.0-cp310-cp310-macosx_10_15_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/80/76/88edf234200e9592c19f0de7d7af37092151524553b9c29a029f81fe7c9f/hiredis-3.3.1-cp310-cp310-macosx_10_15_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/e5/c07e0bcf4ec8db8164e9f6738c048b2e66aabf30e7506f440c4cc6953f60/httptools-0.7.1-cp310-cp310-macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
@@ -1384,7 +1384,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/99/781fe0c827be2742bcc775efefccb3b048a3a9c6ce9aec0cbf4a101677e5/pytz-2026.1.post1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f4/a0/39350dd17dd6d6c6507025c0e53aef67a9293a6d37d3511f23ea510d5800/pyyaml-6.0.3-cp310-cp310-macosx_10_13_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/20/2e/409703d645363352a20c944f5d119bdae3eb3034051a53724a7c5fee12b8/redis-4.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/74/3a/95deec7db1eb53979973ebd156f3369a72732208d1391cd2e5d127062a32/redis-7.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d7/8e/7540e8a2036f79a125c1d2ebadf69ed7901608859186c856fa0388ef4197/requests-2.33.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3b/5d/63d4ae3b9daea098d5d6f5da83984853c1bbacd5dc826764b249fe119d24/requests_oauthlib-2.0.0-py2.py3-none-any.whl
@@ -1490,7 +1490,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b2/23/55d40e1bf54c141f541ab31b4b4b0f58610440c8837b1406f3467c2b4853/grpcio_testing-1.62.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/43/c8/8aaf447698c4d59aa853fd318eed300b5c9e44459f242ab8ead6c9c09792/gunicorn-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/b7/26a56a3b991abe7fcf7bcfa8e0a08de3c3766c6caecb1ba46239342792ff/hiredis-2.4.0-cp310-cp310-macosx_11_0_arm64.whl
+      - pypi: https://files.pythonhosted.org/packages/10/13/433c4dada704c7f1b1b8261e713483b4cdfa462b1fced1a910ca173c1832/hiredis-3.3.1-cp310-cp310-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7e/4f/35e3a63f863a659f92ffd92bef131f3e81cf849af26e6435b49bd9f6f751/httptools-0.7.1-cp310-cp310-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
@@ -1557,7 +1557,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/99/781fe0c827be2742bcc775efefccb3b048a3a9c6ce9aec0cbf4a101677e5/pytz-2026.1.post1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/05/14/52d505b5c59ce73244f59c7a50ecf47093ce4765f116cdb98286a71eeca2/pyyaml-6.0.3-cp310-cp310-macosx_11_0_arm64.whl
-      - pypi: https://files.pythonhosted.org/packages/20/2e/409703d645363352a20c944f5d119bdae3eb3034051a53724a7c5fee12b8/redis-4.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/74/3a/95deec7db1eb53979973ebd156f3369a72732208d1391cd2e5d127062a32/redis-7.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d7/8e/7540e8a2036f79a125c1d2ebadf69ed7901608859186c856fa0388ef4197/requests-2.33.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3b/5d/63d4ae3b9daea098d5d6f5da83984853c1bbacd5dc826764b249fe119d24/requests_oauthlib-2.0.0-py2.py3-none-any.whl
@@ -2229,8 +2229,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.62.1.dev57+g81aea6e37
-  sha256: 57276e59eed2e07dcc62a15111398f78f91a206f43f4b47c9a8edb71b73a241c
+  version: 0.62.1.dev58+g4f142a3c1.d20260501
+  sha256: 168dda185ac1fd0b97d388a4c5af598965dc17dfaaf09d35c7bb4ddbd3dafe43
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2324,8 +2324,8 @@ packages:
   - sentence-transformers>=3.0.0 ; extra == 'rag'
   - ray>=2.47.0 ; python_full_version == '3.10.*' and extra == 'ray'
   - codeflare-sdk>=0.31.1 ; python_full_version >= '3.11' and extra == 'ray'
-  - redis>=4.2.2,<5 ; extra == 'redis'
-  - hiredis>=2.0.0,<3 ; extra == 'redis'
+  - redis>=4.2.2,<8 ; extra == 'redis'
+  - hiredis>=2.0.0,<4 ; extra == 'redis'
   - singlestoredb<1.8.0 ; extra == 'singlestore'
   - snowflake-connector-python[pandas]>=3.7,<5 ; extra == 'snowflake'
   - sqlite-vec==0.1.6 ; extra == 'sqlite-vec'
@@ -2967,20 +2967,20 @@ packages:
   version: 0.16.0
   sha256: 63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
   requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/42/6e/8adaefff7e3e216b0f7bd6cafce6d5d06798f31c3e2852dc3db6a7d758c9/hiredis-2.4.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+- pypi: https://files.pythonhosted.org/packages/10/13/433c4dada704c7f1b1b8261e713483b4cdfa462b1fced1a910ca173c1832/hiredis-3.3.1-cp310-cp310-macosx_11_0_arm64.whl
   name: hiredis
-  version: 2.4.0
-  sha256: 87a8ece3e893f45354395c6b9dc0479744c1c8c6ee4471b60945d96c9b5ce6c2
+  version: 3.3.1
+  sha256: c1d68c6980d4690a4550bd3db6c03146f7be68ef5d08d38bb1fb68b3e9c32fe3
   requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/d8/70/3f39ebfb3824578c34400df3b037b268abb5af0abaa789b430ffd17dd74e/hiredis-2.4.0-cp310-cp310-macosx_10_15_x86_64.whl
+- pypi: https://files.pythonhosted.org/packages/80/76/88edf234200e9592c19f0de7d7af37092151524553b9c29a029f81fe7c9f/hiredis-3.3.1-cp310-cp310-macosx_10_15_x86_64.whl
   name: hiredis
-  version: 2.4.0
-  sha256: 76503a0edaf3d1557518127511e69e5d9fa37b6ff15598b0d9d9c2db18b08a41
+  version: 3.3.1
+  sha256: 6e2e1024f0a021777740cb7c633a0efb2c4a4bc570f508223a8dcbcf79f99ef9
   requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/ed/b7/26a56a3b991abe7fcf7bcfa8e0a08de3c3766c6caecb1ba46239342792ff/hiredis-2.4.0-cp310-cp310-macosx_11_0_arm64.whl
+- pypi: https://files.pythonhosted.org/packages/b4/c6/b54c15a80c6192c0f7b518b2cbdc0c0b713c02428ba3099cba5dc2023e40/hiredis-3.3.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
   name: hiredis
-  version: 2.4.0
-  sha256: b027b53adb1df11923753d85587e3ab611fe70bc69596e9eb3269acab809c376
+  version: 3.3.1
+  sha256: 042e57de8a2cae91e3e7c0af32960ea2c5107b2f27f68a740295861e68780a8a
   requires_python: '>=3.8'
 - pypi: https://files.pythonhosted.org/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl
   name: httpcore
@@ -6316,19 +6316,23 @@ packages:
   purls: []
   size: 313930
   timestamp: 1765813902568
-- pypi: https://files.pythonhosted.org/packages/20/2e/409703d645363352a20c944f5d119bdae3eb3034051a53724a7c5fee12b8/redis-4.6.0-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/74/3a/95deec7db1eb53979973ebd156f3369a72732208d1391cd2e5d127062a32/redis-7.4.0-py3-none-any.whl
   name: redis
-  version: 4.6.0
-  sha256: e2b03db868160ee4591de3cb90d40ebb50a90dd302138775937f6a42b7ed183c
+  version: 7.4.0
+  sha256: a9c74a5c893a5ef8455a5adb793a31bb70feb821c86eccb62eebef5a19c429ec
   requires_dist:
-  - async-timeout>=4.0.2 ; python_full_version <= '3.11.2'
-  - importlib-metadata>=1.0 ; python_full_version < '3.8'
-  - typing-extensions ; python_full_version < '3.8'
-  - hiredis>=1.0.0 ; extra == 'hiredis'
+  - async-timeout>=4.0.3 ; python_full_version < '3.11.3'
+  - pybreaker>=1.4.0 ; extra == 'circuit-breaker'
+  - hiredis>=3.2.0 ; extra == 'hiredis'
+  - pyjwt>=2.9.0 ; extra == 'jwt'
   - cryptography>=36.0.1 ; extra == 'ocsp'
-  - pyopenssl==20.0.1 ; extra == 'ocsp'
-  - requests>=2.26.0 ; extra == 'ocsp'
-  requires_python: '>=3.7'
+  - pyopenssl>=20.0.1 ; extra == 'ocsp'
+  - requests>=2.31.0 ; extra == 'ocsp'
+  - opentelemetry-api>=1.39.1 ; extra == 'otel'
+  - opentelemetry-exporter-otlp-proto-http>=1.39.1 ; extra == 'otel'
+  - opentelemetry-sdk>=1.39.1 ; extra == 'otel'
+  - xxhash~=3.6.0 ; extra == 'xxhash'
+  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl
   name: referencing
   version: 0.37.0
