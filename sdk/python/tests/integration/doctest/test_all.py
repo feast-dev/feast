@@ -5,8 +5,12 @@ import sys
 import traceback
 import unittest
 
+import pytest
+
 import feast
 from feast.utils import _utc_now
+
+pytestmark = pytest.mark.integration
 
 FILES_TO_IGNORE = {"app"}
 

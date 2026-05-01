@@ -9,6 +9,8 @@ from pydantic import ValidationError
 from feast.feature_store import FeatureStore
 from feast.infra.mcp_servers.mcp_config import McpFeatureServerConfig
 
+pytestmark = pytest.mark.integration
+
 
 class TestMCPFeatureServerIntegration(unittest.TestCase):
     """Integration tests for MCP feature server functionality."""
