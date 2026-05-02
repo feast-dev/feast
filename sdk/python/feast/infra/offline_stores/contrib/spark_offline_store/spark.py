@@ -738,6 +738,7 @@ def _apply_bfv_transformations(
         if (
             fv is not None
             and isinstance(fv, BatchFeatureView)
+            and fv.batch_source is not None
             and fv.feature_transformation is not None
             and fv.feature_transformation.udf is not None
         ):
