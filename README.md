@@ -185,6 +185,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Athena (contrib plugin)](https://docs.feast.dev/reference/data-sources/athena)
   * [x] [Clickhouse (contrib plugin)](https://docs.feast.dev/reference/data-sources/clickhouse)
   * [x] [Oracle (contrib plugin)](https://docs.feast.dev/reference/data-sources/oracle)
+  * [x] [MongoDB (contrib plugin)](https://docs.feast.dev/reference/data-sources/mongodb)
   * [x] [Ray source (contrib plugin)](https://docs.feast.dev/reference/data-sources/ray)
   * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
 * **Offline Stores**
@@ -204,6 +205,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Clickhouse (contrib plugin)](https://docs.feast.dev/reference/offline-stores/clickhouse)
   * [x] [Ray (contrib plugin)](https://docs.feast.dev/reference/offline-stores/ray)
   * [x] [Oracle (contrib plugin)](https://docs.feast.dev/reference/offline-stores/oracle)
+  * [x] [MongoDB (contrib plugin)](https://docs.feast.dev/reference/offline-stores/mongodb)
   * [x] [Hybrid](https://docs.feast.dev/reference/offline-stores/hybrid)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/customizing-feast/adding-a-new-offline-store)
 * **Online Stores**

@@ -69,3 +69,7 @@ Please see [Data Source](../../getting-started/concepts/data-ingestion.md) for a
 {% content-ref url="ray.md" %}
 [ray.md](ray.md)
 {% endcontent-ref %}
+
+{% content-ref url="mongodb.md" %}
+[mongodb.md](mongodb.md)
+{% endcontent-ref %}

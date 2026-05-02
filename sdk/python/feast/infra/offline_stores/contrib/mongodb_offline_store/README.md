@@ -1,10 +1,9 @@
 # MongoDB Offline Store
 
 This offline store lets you train models and run batch scoring directly from it.
-All feature views share a single collection (`feature_history`). Reads use
+All feature views share a single collection. Reads use
 MongoDB aggregation pipelines with a compound index, so per-entity cost is
-O(log n_observations) regardless of collection size, and K feature views with the same
-entity key collapse into one round-trip instead of K (1 if your data shares a unique id.)
+O(log n_observations) regardless of collection size.
 
 ## Schema
 
