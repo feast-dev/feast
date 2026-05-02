@@ -62,14 +62,17 @@ def _make_bfv(name: str, spark_source, has_udf: bool = True):
     fv.projection = MagicMock()
     fv.projection.name_to_use.return_value = name
     fv.batch_source = spark_source
+    fv.source_views = []
 
     if has_udf:
         transformation = MagicMock(spec=Transformation)
         transformed_df = MagicMock(name="transformed_df")
         transformation.udf = MagicMock(return_value=transformed_df)
         fv.feature_transformation = transformation
+        fv.udf = transformation.udf
     else:
         fv.feature_transformation = None
+        fv.udf = None
 
     return fv
 
@@ -81,6 +84,8 @@ def _make_plain_fv(name: str, spark_source):
     fv.projection = MagicMock()
     fv.projection.name_to_use.return_value = name
     fv.batch_source = spark_source
+    fv.feature_transformation = None
+    fv.udf = None
     return fv
 
 

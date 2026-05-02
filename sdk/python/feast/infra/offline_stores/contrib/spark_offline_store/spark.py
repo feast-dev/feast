@@ -730,6 +730,12 @@ def _apply_bfv_transformations(
     """
     from dataclasses import replace
 
+    from feast.feature_view_utils import (
+        get_transformation_function,
+        has_transformation,
+        resolve_feature_view_source,
+    )
+
     fv_by_name = {fv.projection.name_to_use(): fv for fv in feature_views}
 
     updated_contexts = []
@@ -738,19 +744,20 @@ def _apply_bfv_transformations(
         if (
             fv is not None
             and isinstance(fv, BatchFeatureView)
-            and fv.batch_source is not None
-            and fv.feature_transformation is not None
-            and fv.feature_transformation.udf is not None
+            and has_transformation(fv)
         ):
-            source_query = fv.batch_source.get_table_query_string()
-            source_df = spark_session.sql(f"SELECT * FROM {source_query}")
+            udf = get_transformation_function(fv)
+            if udf is not None:
+                source_info = resolve_feature_view_source(fv)
+                source_query = source_info.data_source.get_table_query_string()
+                source_df = spark_session.sql(f"SELECT * FROM {source_query}")
 
-            transformed_df = fv.feature_transformation.udf(source_df)
+                transformed_df = udf(source_df)
 
-            tmp_view_name = f"__feast_bfv_{fv.name}_{uuid.uuid4().hex[:8]}"
-            transformed_df.createOrReplaceTempView(tmp_view_name)
+                tmp_view_name = f"__feast_bfv_{fv.name}_{uuid.uuid4().hex[:8]}"
+                transformed_df.createOrReplaceTempView(tmp_view_name)
 
-            ctx = replace(ctx, table_subquery=tmp_view_name)
+                ctx = replace(ctx, table_subquery=tmp_view_name)
 
         updated_contexts.append(ctx)
 
