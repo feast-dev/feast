@@ -156,10 +156,10 @@ class BigQuerySource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
-        if self.table:
-            return f"`{self.table}`"
-        else:
+        if self.query:
             return f"({self.query})"
+        else:
+            return f"`{self.table}`"
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
@@ -185,14 +185,14 @@ class BigQuerySource(DataSource):
             location=config.offline_store.location,
             client_info=http_client_info.ClientInfo(user_agent=get_user_agent()),
         )
-        if self.table:
-            schema = client.get_table(self.table).schema
-            if not isinstance(schema[0], bigquery.schema.SchemaField):
-                raise TypeError("Could not parse BigQuery table schema.")
-        else:
+        if self.query:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 0"
             query_res = client.query(bq_columns_query).result()
             schema = query_res.schema
+        else:
+            schema = client.get_table(self.table).schema
+            if not isinstance(schema[0], bigquery.schema.SchemaField):
+                raise TypeError("Could not parse BigQuery table schema.")
 
         name_type_pairs: List[Tuple[str, str]] = []
         for field in schema:
