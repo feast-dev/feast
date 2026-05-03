@@ -185,6 +185,19 @@ class RayComputeEngine(ComputeEngine):
             if isinstance(retrieval_job, RayRetrievalJob):
                 ray_ds = retrieval_job.to_ray_dataset()
 
+                needs_offline = getattr(feature_view, "offline", False)
+                sink_source = getattr(feature_view, "sink_source", None)
+
+                # Materialise the lazy pipeline ONCE into Ray object-store memory
+                # when more than one write target will consume it.
+                # Without this, each use of ray_ds (online write via map_batches,
+                # to_arrow_refs for offline_write_batch, write_parquet for
+                # sink_source) independently re-executes the full source-read
+                # pipeline, producing up to three separate data snapshots that can
+                # diverge when the source changes between executions.
+                if needs_offline or sink_source is not None:
+                    ray_ds = ray_ds.materialize()
+
                 # Distributed online store write — each Ray worker writes its shard
                 write_to_online_store_from_ray_ds(
                     ray_ds=ray_ds,
@@ -195,7 +208,7 @@ class RayComputeEngine(ComputeEngine):
 
                 # offline_write_batch and sink_source are independent — both can
                 # apply when a feature view has offline=True AND a sink_source.
-                if getattr(feature_view, "offline", False):
+                if needs_offline:
                     import pyarrow as pa
                     import ray as _ray
 
@@ -207,7 +220,6 @@ class RayComputeEngine(ComputeEngine):
                         progress=lambda x: None,
                     )
 
-                sink_source = getattr(feature_view, "sink_source", None)
                 if sink_source is not None:
                     logger.debug(
                         f"Writing derived view {feature_view.name} to sink_source: {sink_source.path}"

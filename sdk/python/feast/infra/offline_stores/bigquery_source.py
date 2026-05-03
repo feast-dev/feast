@@ -47,15 +47,15 @@ class BigQuerySource(DataSource):
                 case the table must be specified.
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
-            table (optional): BigQuery table where the features are stored. Exactly one of 'table'
-                and 'query' must be specified.
-            table (optional): The BigQuery table where features can be found.
+            table (optional): BigQuery table where the features are stored. At least one of 'table'
+                and 'query' must be specified. When both are set, 'query' is used for reads and
+                'table' is used as the write destination.
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
             date_partition_column (optional): Timestamp column used for partitioning.
-            query (optional): The query to be executed to obtain the features. Exactly one of 'table'
-                and 'query' must be specified.
+            query (optional): The query to be executed to obtain the features. When both 'table'
+                and 'query' are provided, 'query' takes priority for reads.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the bigquery source, typically the email of the primary
@@ -156,10 +156,10 @@ class BigQuerySource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
-        if self.table:
-            return f"`{self.table}`"
-        else:
+        if self.query:
             return f"({self.query})"
+        else:
+            return f"`{self.table}`"
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
@@ -185,14 +185,14 @@ class BigQuerySource(DataSource):
             location=config.offline_store.location,
             client_info=http_client_info.ClientInfo(user_agent=get_user_agent()),
         )
-        if self.table:
-            schema = client.get_table(self.table).schema
-            if not isinstance(schema[0], bigquery.schema.SchemaField):
-                raise TypeError("Could not parse BigQuery table schema.")
-        else:
+        if self.query:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 0"
             query_res = client.query(bq_columns_query).result()
             schema = query_res.schema
+        else:
+            schema = client.get_table(self.table).schema
+            if not isinstance(schema[0], bigquery.schema.SchemaField):
+                raise TypeError("Could not parse BigQuery table schema.")
 
         name_type_pairs: List[Tuple[str, str]] = []
         for field in schema:
