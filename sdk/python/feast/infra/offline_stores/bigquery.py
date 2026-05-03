@@ -161,7 +161,7 @@ class BigQueryOfflineStore(OfflineStore):
             project=project_id,
             location=config.offline_store.location,
         )
-        cast_style = (
+        cast_style: Literal["date_func", "timestamp_func"] = (
             "date_func"
             if data_source.timestamp_field_type == "DATE"
             else "timestamp_func"
@@ -225,7 +225,7 @@ class BigQueryOfflineStore(OfflineStore):
             + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
             + timestamp_fields
         )
-        cast_style = (
+        cast_style: Literal["date_func", "timestamp_func"] = (
             "date_func"
             if data_source.timestamp_field_type == "DATE"
             else "timestamp_func"
