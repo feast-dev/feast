@@ -733,7 +733,7 @@ def _apply_bfv_transformations(
     from feast.feature_view_utils import (
         get_transformation_function,
         has_transformation,
-        resolve_feature_view_source,
+        resolve_feature_view_source_with_fallback,
     )
 
     fv_by_name = {fv.projection.name_to_use(): fv for fv in feature_views}
@@ -748,7 +748,7 @@ def _apply_bfv_transformations(
         ):
             udf = get_transformation_function(fv)
             if udf is not None:
-                source_info = resolve_feature_view_source(fv)
+                source_info = resolve_feature_view_source_with_fallback(fv)
                 source_query = source_info.data_source.get_table_query_string()
 
                 timestamp_filter = get_timestamp_filter_sql(
