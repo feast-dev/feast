@@ -750,11 +750,21 @@ def _apply_bfv_transformations(
             if udf is not None:
                 source_info = resolve_feature_view_source(fv)
                 source_query = source_info.data_source.get_table_query_string()
-                source_df = spark_session.sql(f"SELECT * FROM {source_query}")
+
+                timestamp_filter = get_timestamp_filter_sql(
+                    start_date=ctx.min_event_timestamp,
+                    end_date=ctx.max_event_timestamp,
+                    timestamp_field=ctx.timestamp_field,
+                    tz=timezone.utc,
+                    quote_fields=False,
+                )
+                source_df = spark_session.sql(
+                    f"SELECT * FROM {source_query} WHERE {timestamp_filter}"
+                )
 
                 transformed_df = udf(source_df)
 
-                tmp_view_name = f"__feast_bfv_{fv.name}_{uuid.uuid4().hex[:8]}"
+                tmp_view_name = "feast_bfv_" + uuid.uuid4().hex
                 transformed_df.createOrReplaceTempView(tmp_view_name)
 
                 ctx = replace(ctx, table_subquery=tmp_view_name)

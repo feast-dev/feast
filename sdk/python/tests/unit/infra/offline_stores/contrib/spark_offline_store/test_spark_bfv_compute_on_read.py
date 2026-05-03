@@ -101,7 +101,7 @@ class TestApplyBfvTransformations:
 
         assert len(result) == 1
         assert result[0].table_subquery != "`raw_events`"
-        assert result[0].table_subquery.startswith("__feast_bfv_my_bfv_")
+        assert result[0].table_subquery.startswith("feast_bfv_")
 
     def test_bfv_udf_is_invoked_with_source_df(
         self, spark_session, spark_source, base_query_context
@@ -112,7 +112,9 @@ class TestApplyBfvTransformations:
 
         _apply_bfv_transformations(spark_session, [bfv], contexts)
 
-        spark_session.sql.assert_called_once_with("SELECT * FROM `raw_events`")
+        sql_arg = spark_session.sql.call_args[0][0]
+        assert "SELECT * FROM `raw_events`" in sql_arg
+        assert "WHERE" in sql_arg
         source_df = spark_session.sql.return_value
         bfv.feature_transformation.udf.assert_called_once_with(source_df)
 
@@ -172,8 +174,35 @@ class TestApplyBfvTransformations:
             spark_session, [bfv, plain_fv], [ctx_bfv, ctx_plain]
         )
 
-        assert result[0].table_subquery.startswith("__feast_bfv_my_bfv_")
+        assert result[0].table_subquery.startswith("feast_bfv_")
         assert result[1].table_subquery == "`raw_events`"
+
+    def test_time_range_filter_applied(
+        self, spark_session, spark_source, base_query_context
+    ):
+        """Source query should include time bounds from the context."""
+        bfv = _make_bfv("my_bfv", spark_source)
+        contexts = [base_query_context]
+
+        _apply_bfv_transformations(spark_session, [bfv], contexts)
+
+        sql_arg = spark_session.sql.call_args[0][0]
+        assert "2023-01-01" in sql_arg
+        assert "2024-01-01" in sql_arg
+        assert "event_timestamp" in sql_arg
+
+    def test_time_range_filter_with_none_min_timestamp(
+        self, spark_session, spark_source, base_query_context
+    ):
+        """When min_event_timestamp is None (no TTL), query should still work."""
+        bfv = _make_bfv("my_bfv", spark_source)
+        ctx = replace(base_query_context, min_event_timestamp=None)
+
+        result = _apply_bfv_transformations(spark_session, [bfv], [ctx])
+
+        assert result[0].table_subquery.startswith("feast_bfv_")
+        sql_arg = spark_session.sql.call_args[0][0]
+        assert "2024-01-01" in sql_arg
 
     def test_other_context_fields_preserved(
         self, spark_session, spark_source, base_query_context
