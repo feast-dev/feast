@@ -35,6 +35,7 @@ class BigQuerySource(DataSource):
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
+        timestamp_field_type: Optional[str] = None,
         query: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
@@ -54,6 +55,9 @@ class BigQuerySource(DataSource):
             field_mapping (optional): A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
             date_partition_column (optional): Timestamp column used for partitioning.
+            timestamp_field_type (optional): Type of the timestamp_field column.
+                Set to "DATE" when the event timestamp column is a DATE type,
+                so SQL generation uses date-only comparisons instead of TIMESTAMP().
             query (optional): The query to be executed to obtain the features. When both 'table'
                 and 'query' are provided, 'query' takes priority for reads.
             description (optional): A human-readable description.
@@ -81,6 +85,7 @@ class BigQuerySource(DataSource):
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             date_partition_column=date_partition_column,
+            timestamp_field_type=timestamp_field_type,
             description=description,
             tags=tags,
             owner=owner,
@@ -121,6 +126,7 @@ class BigQuerySource(DataSource):
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
+            timestamp_field_type=data_source.timestamp_field_type or None,
             query=data_source.bigquery_options.query,
             description=data_source.description,
             tags=dict(data_source.tags),
@@ -139,6 +145,7 @@ class BigQuerySource(DataSource):
             timestamp_field=self.timestamp_field,
             created_timestamp_column=self.created_timestamp_column,
             date_partition_column=self.date_partition_column,
+            timestamp_field_type=self.timestamp_field_type,
         )
 
         return data_source_proto
