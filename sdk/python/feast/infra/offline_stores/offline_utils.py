@@ -98,7 +98,7 @@ class FeatureViewQueryContext:
     date_partition_column: Optional[
         str
     ]  # this attribute is added because partition pruning affects Athena's query performance.
-    timestamp_field_type: Optional[str]
+    timestamp_field_type: Optional[str] = None
 
 
 def get_feature_view_query_context(
