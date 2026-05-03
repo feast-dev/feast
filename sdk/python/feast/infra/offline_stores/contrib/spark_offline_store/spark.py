@@ -33,6 +33,7 @@ from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 from feast import FeatureView, OnDemandFeatureView
+from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
 from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
@@ -258,6 +259,10 @@ class SparkOfflineStore(OfflineStore):
             registry,
             project,
             entity_df_event_timestamp_range,
+        )
+
+        query_context = _apply_bfv_transformations(
+            spark_session, feature_views, query_context
         )
 
         spark_query_context = [
@@ -711,6 +716,62 @@ def _entity_schema_keys_from(
     return cast(
         KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys()
     )
+
+
+def _apply_bfv_transformations(
+    spark_session: SparkSession,
+    feature_views: List[FeatureView],
+    query_contexts: List[offline_utils.FeatureViewQueryContext],
+) -> List[offline_utils.FeatureViewQueryContext]:
+    """
+    For BatchFeatureViews with a UDF, read the raw source into a Spark DataFrame,
+    invoke the transformation, register the result as a temp view, and replace the
+    table_subquery in the query context so the PIT join reads transformed data.
+    """
+    from dataclasses import replace
+
+    from feast.feature_view_utils import (
+        get_transformation_function,
+        has_transformation,
+        resolve_feature_view_source_with_fallback,
+    )
+
+    fv_by_name = {fv.projection.name_to_use(): fv for fv in feature_views}
+
+    updated_contexts = []
+    for ctx in query_contexts:
+        fv = fv_by_name.get(ctx.name)
+        if (
+            fv is not None
+            and isinstance(fv, BatchFeatureView)
+            and has_transformation(fv)
+        ):
+            udf = get_transformation_function(fv)
+            if udf is not None:
+                source_info = resolve_feature_view_source_with_fallback(fv)
+                source_query = source_info.data_source.get_table_query_string()
+
+                timestamp_filter = get_timestamp_filter_sql(
+                    start_date=ctx.min_event_timestamp,
+                    end_date=ctx.max_event_timestamp,
+                    timestamp_field=ctx.timestamp_field,
+                    tz=timezone.utc,
+                    quote_fields=False,
+                )
+                source_df = spark_session.sql(
+                    f"SELECT * FROM {source_query} WHERE {timestamp_filter}"
+                )
+
+                transformed_df = udf(source_df)
+
+                tmp_view_name = "feast_bfv_" + uuid.uuid4().hex
+                transformed_df.createOrReplaceTempView(tmp_view_name)
+
+                ctx = replace(ctx, table_subquery=tmp_view_name)
+
+        updated_contexts.append(ctx)
+
+    return updated_contexts
 
 
 def _get_entity_df_event_timestamp_range(
