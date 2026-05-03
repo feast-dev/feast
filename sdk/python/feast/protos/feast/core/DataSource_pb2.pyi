@@ -16,42 +16,40 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-from collections import abc as _abc
-from feast.core import DataFormat_pb2 as _DataFormat_pb2
-from feast.core import Feature_pb2 as _Feature_pb2
-from feast.types import Value_pb2 as _Value_pb2
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import duration_pb2 as _duration_pb2
-from google.protobuf import message as _message
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from google.protobuf.internal import containers as _containers
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-import builtins as _builtins
+import builtins
+import collections.abc
+import feast.core.DataFormat_pb2
+import feast.core.Feature_pb2
+import feast.types.Value_pb2
+import google.protobuf.descriptor
+import google.protobuf.duration_pb2
+import google.protobuf.internal.containers
+import google.protobuf.internal.enum_type_wrapper
+import google.protobuf.message
+import google.protobuf.timestamp_pb2
 import sys
-import typing as _typing
+import typing
 
-if sys.version_info >= (3, 11):
-    from typing import TypeAlias as _TypeAlias, Never as _Never
+if sys.version_info >= (3, 10):
+    import typing as typing_extensions
 else:
-    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
+    import typing_extensions
 
-DESCRIPTOR: _descriptor.FileDescriptor
+DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@_typing.final
-class DataSource(_message.Message):
+class DataSource(google.protobuf.message.Message):
     """Defines a Data Source that can be used source Feature data
     Next available id: 29
     """
 
-    DESCRIPTOR: _descriptor.Descriptor
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     class _SourceType:
-        ValueType = _typing.NewType("ValueType", _builtins.int)
-        V: _TypeAlias = ValueType  # noqa: Y015
+        ValueType = typing.NewType("ValueType", builtins.int)
+        V: typing_extensions.TypeAlias = ValueType
 
-    class _SourceTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[DataSource._SourceType.ValueType], _builtins.type):
-        DESCRIPTOR: _descriptor.EnumDescriptor
+    class _SourceTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[DataSource._SourceType.ValueType], builtins.type):  # noqa: F821
+        DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
         INVALID: DataSource._SourceType.ValueType  # 0
         BATCH_FILE: DataSource._SourceType.ValueType  # 1
         BATCH_SNOWFLAKE: DataSource._SourceType.ValueType  # 8
@@ -85,608 +83,514 @@ class DataSource(_message.Message):
     BATCH_SPARK: DataSource.SourceType.ValueType  # 11
     BATCH_ATHENA: DataSource.SourceType.ValueType  # 12
 
-    @_typing.final
-    class TagsEntry(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
+    class TagsEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: _builtins.int
-        VALUE_FIELD_NUMBER: _builtins.int
-        key: _builtins.str
-        value: _builtins.str
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        value: builtins.str
         def __init__(
             self,
             *,
-            key: _builtins.str = ...,
-            value: _builtins.str = ...,
+            key: builtins.str = ...,
+            value: builtins.str = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
-    @_typing.final
-    class FieldMappingEntry(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
+    class FieldMappingEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: _builtins.int
-        VALUE_FIELD_NUMBER: _builtins.int
-        key: _builtins.str
-        value: _builtins.str
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        value: builtins.str
         def __init__(
             self,
             *,
-            key: _builtins.str = ...,
-            value: _builtins.str = ...,
+            key: builtins.str = ...,
+            value: builtins.str = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
-    @_typing.final
-    class SourceMeta(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
+    class SourceMeta(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        EARLIESTEVENTTIMESTAMP_FIELD_NUMBER: _builtins.int
-        LATESTEVENTTIMESTAMP_FIELD_NUMBER: _builtins.int
-        CREATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
-        LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
-        @_builtins.property
-        def earliestEventTimestamp(self) -> _timestamp_pb2.Timestamp: ...
-        @_builtins.property
-        def latestEventTimestamp(self) -> _timestamp_pb2.Timestamp: ...
-        @_builtins.property
-        def created_timestamp(self) -> _timestamp_pb2.Timestamp: ...
-        @_builtins.property
-        def last_updated_timestamp(self) -> _timestamp_pb2.Timestamp: ...
+        EARLIESTEVENTTIMESTAMP_FIELD_NUMBER: builtins.int
+        LATESTEVENTTIMESTAMP_FIELD_NUMBER: builtins.int
+        CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
+        LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
+        @property
+        def earliestEventTimestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+        @property
+        def latestEventTimestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+        @property
+        def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+        @property
+        def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
         def __init__(
             self,
             *,
-            earliestEventTimestamp: _timestamp_pb2.Timestamp | None = ...,
-            latestEventTimestamp: _timestamp_pb2.Timestamp | None = ...,
-            created_timestamp: _timestamp_pb2.Timestamp | None = ...,
-            last_updated_timestamp: _timestamp_pb2.Timestamp | None = ...,
+            earliestEventTimestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+            latestEventTimestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+            created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+            last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "earliestEventTimestamp", b"earliestEventTimestamp", "last_updated_timestamp", b"last_updated_timestamp", "latestEventTimestamp", b"latestEventTimestamp"]) -> None: ...
 
-    @_typing.final
-    class FileOptions(_message.Message):
+    class FileOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a file"""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        FILE_FORMAT_FIELD_NUMBER: _builtins.int
-        URI_FIELD_NUMBER: _builtins.int
-        S3_ENDPOINT_OVERRIDE_FIELD_NUMBER: _builtins.int
-        uri: _builtins.str
+        FILE_FORMAT_FIELD_NUMBER: builtins.int
+        URI_FIELD_NUMBER: builtins.int
+        S3_ENDPOINT_OVERRIDE_FIELD_NUMBER: builtins.int
+        @property
+        def file_format(self) -> feast.core.DataFormat_pb2.FileFormat: ...
+        uri: builtins.str
         """Target URL of file to retrieve and source features from.
         s3://path/to/file for AWS S3 storage
         gs://path/to/file for GCP GCS storage
         file:///path/to/file for local storage
         """
-        s3_endpoint_override: _builtins.str
+        s3_endpoint_override: builtins.str
         """override AWS S3 storage endpoint with custom S3 endpoint"""
-        @_builtins.property
-        def file_format(self) -> _DataFormat_pb2.FileFormat: ...
         def __init__(
             self,
             *,
-            file_format: _DataFormat_pb2.FileFormat | None = ...,
-            uri: _builtins.str = ...,
-            s3_endpoint_override: _builtins.str = ...,
+            file_format: feast.core.DataFormat_pb2.FileFormat | None = ...,
+            uri: builtins.str = ...,
+            s3_endpoint_override: builtins.str = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _typing.Literal["file_format", b"file_format"]  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["file_format", b"file_format", "s3_endpoint_override", b"s3_endpoint_override", "uri", b"uri"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["file_format", b"file_format"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["file_format", b"file_format", "s3_endpoint_override", b"s3_endpoint_override", "uri", b"uri"]) -> None: ...
 
-    @_typing.final
-    class BigQueryOptions(_message.Message):
+    class BigQueryOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a BigQuery Query"""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        TABLE_FIELD_NUMBER: _builtins.int
-        QUERY_FIELD_NUMBER: _builtins.int
-        table: _builtins.str
+        TABLE_FIELD_NUMBER: builtins.int
+        QUERY_FIELD_NUMBER: builtins.int
+        table: builtins.str
         """Full table reference in the form of [project:dataset.table]"""
-        query: _builtins.str
+        query: builtins.str
         """SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
         entity columns
         """
         def __init__(
             self,
             *,
-            table: _builtins.str = ...,
-            query: _builtins.str = ...,
+            table: builtins.str = ...,
+            query: builtins.str = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["query", b"query", "table", b"table"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["query", b"query", "table", b"table"]) -> None: ...
 
-    @_typing.final
-    class TrinoOptions(_message.Message):
+    class TrinoOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a Trino Query"""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        TABLE_FIELD_NUMBER: _builtins.int
-        QUERY_FIELD_NUMBER: _builtins.int
-        table: _builtins.str
+        TABLE_FIELD_NUMBER: builtins.int
+        QUERY_FIELD_NUMBER: builtins.int
+        table: builtins.str
         """Full table reference in the form of [project:dataset.table]"""
-        query: _builtins.str
+        query: builtins.str
         """SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
         entity columns
         """
         def __init__(
             self,
             *,
-            table: _builtins.str = ...,
-            query: _builtins.str = ...,
+            table: builtins.str = ...,
+            query: builtins.str = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["query", b"query", "table", b"table"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["query", b"query", "table", b"table"]) -> None: ...
 
-    @_typing.final
-    class KafkaOptions(_message.Message):
+    class KafkaOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from Kafka messages.
         Each message should be a Protobuf that can be decoded with the generated
         Java Protobuf class at the given class path
         """
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        KAFKA_BOOTSTRAP_SERVERS_FIELD_NUMBER: _builtins.int
-        TOPIC_FIELD_NUMBER: _builtins.int
-        MESSAGE_FORMAT_FIELD_NUMBER: _builtins.int
-        WATERMARK_DELAY_THRESHOLD_FIELD_NUMBER: _builtins.int
-        kafka_bootstrap_servers: _builtins.str
+        KAFKA_BOOTSTRAP_SERVERS_FIELD_NUMBER: builtins.int
+        TOPIC_FIELD_NUMBER: builtins.int
+        MESSAGE_FORMAT_FIELD_NUMBER: builtins.int
+        WATERMARK_DELAY_THRESHOLD_FIELD_NUMBER: builtins.int
+        kafka_bootstrap_servers: builtins.str
         """Comma separated list of Kafka bootstrap servers. Used for feature tables without a defined source host[:port]]"""
-        topic: _builtins.str
+        topic: builtins.str
         """Kafka topic to collect feature data from."""
-        @_builtins.property
-        def message_format(self) -> _DataFormat_pb2.StreamFormat:
+        @property
+        def message_format(self) -> feast.core.DataFormat_pb2.StreamFormat:
             """Defines the stream data format encoding feature/entity data in Kafka messages."""
-
-        @_builtins.property
-        def watermark_delay_threshold(self) -> _duration_pb2.Duration:
+        @property
+        def watermark_delay_threshold(self) -> google.protobuf.duration_pb2.Duration:
             """Watermark delay threshold for stream data"""
-
         def __init__(
             self,
             *,
-            kafka_bootstrap_servers: _builtins.str = ...,
-            topic: _builtins.str = ...,
-            message_format: _DataFormat_pb2.StreamFormat | None = ...,
-            watermark_delay_threshold: _duration_pb2.Duration | None = ...,
+            kafka_bootstrap_servers: builtins.str = ...,
+            topic: builtins.str = ...,
+            message_format: feast.core.DataFormat_pb2.StreamFormat | None = ...,
+            watermark_delay_threshold: google.protobuf.duration_pb2.Duration | None = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _typing.Literal["message_format", b"message_format", "watermark_delay_threshold", b"watermark_delay_threshold"]  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["kafka_bootstrap_servers", b"kafka_bootstrap_servers", "message_format", b"message_format", "topic", b"topic", "watermark_delay_threshold", b"watermark_delay_threshold"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["message_format", b"message_format", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["kafka_bootstrap_servers", b"kafka_bootstrap_servers", "message_format", b"message_format", "topic", b"topic", "watermark_delay_threshold", b"watermark_delay_threshold"]) -> None: ...
 
-    @_typing.final
-    class KinesisOptions(_message.Message):
+    class KinesisOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from Kinesis records.
         Each record should be a Protobuf that can be decoded with the generated
         Java Protobuf class at the given class path
         """
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        REGION_FIELD_NUMBER: _builtins.int
-        STREAM_NAME_FIELD_NUMBER: _builtins.int
-        RECORD_FORMAT_FIELD_NUMBER: _builtins.int
-        region: _builtins.str
+        REGION_FIELD_NUMBER: builtins.int
+        STREAM_NAME_FIELD_NUMBER: builtins.int
+        RECORD_FORMAT_FIELD_NUMBER: builtins.int
+        region: builtins.str
         """AWS region of the Kinesis stream"""
-        stream_name: _builtins.str
+        stream_name: builtins.str
         """Name of the Kinesis stream to obtain feature data from."""
-        @_builtins.property
-        def record_format(self) -> _DataFormat_pb2.StreamFormat:
+        @property
+        def record_format(self) -> feast.core.DataFormat_pb2.StreamFormat:
             """Defines the data format encoding the feature/entity data in Kinesis records.
             Kinesis Data Sources support Avro and Proto as data formats.
             """
-
         def __init__(
             self,
             *,
-            region: _builtins.str = ...,
-            stream_name: _builtins.str = ...,
-            record_format: _DataFormat_pb2.StreamFormat | None = ...,
+            region: builtins.str = ...,
+            stream_name: builtins.str = ...,
+            record_format: feast.core.DataFormat_pb2.StreamFormat | None = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _typing.Literal["record_format", b"record_format"]  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["record_format", b"record_format", "region", b"region", "stream_name", b"stream_name"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["record_format", b"record_format"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["record_format", b"record_format", "region", b"region", "stream_name", b"stream_name"]) -> None: ...
 
-    @_typing.final
-    class RedshiftOptions(_message.Message):
+    class RedshiftOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a Redshift Query"""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        TABLE_FIELD_NUMBER: _builtins.int
-        QUERY_FIELD_NUMBER: _builtins.int
-        SCHEMA_FIELD_NUMBER: _builtins.int
-        DATABASE_FIELD_NUMBER: _builtins.int
-        table: _builtins.str
+        TABLE_FIELD_NUMBER: builtins.int
+        QUERY_FIELD_NUMBER: builtins.int
+        SCHEMA_FIELD_NUMBER: builtins.int
+        DATABASE_FIELD_NUMBER: builtins.int
+        table: builtins.str
         """Redshift table name"""
-        query: _builtins.str
+        query: builtins.str
         """SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
         entity columns
         """
-        schema: _builtins.str
+        schema: builtins.str
         """Redshift schema name"""
-        database: _builtins.str
+        database: builtins.str
         """Redshift database name"""
         def __init__(
             self,
             *,
-            table: _builtins.str = ...,
-            query: _builtins.str = ...,
-            schema: _builtins.str = ...,
-            database: _builtins.str = ...,
+            table: builtins.str = ...,
+            query: builtins.str = ...,
+            schema: builtins.str = ...,
+            database: builtins.str = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["database", b"database", "query", b"query", "schema", b"schema", "table", b"table"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["database", b"database", "query", b"query", "schema", b"schema", "table", b"table"]) -> None: ...
 
-    @_typing.final
-    class AthenaOptions(_message.Message):
+    class AthenaOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a Athena Query"""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        TABLE_FIELD_NUMBER: _builtins.int
-        QUERY_FIELD_NUMBER: _builtins.int
-        DATABASE_FIELD_NUMBER: _builtins.int
-        DATA_SOURCE_FIELD_NUMBER: _builtins.int
-        table: _builtins.str
+        TABLE_FIELD_NUMBER: builtins.int
+        QUERY_FIELD_NUMBER: builtins.int
+        DATABASE_FIELD_NUMBER: builtins.int
+        DATA_SOURCE_FIELD_NUMBER: builtins.int
+        table: builtins.str
         """Athena table name"""
-        query: _builtins.str
+        query: builtins.str
         """SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
         entity columns
         """
-        database: _builtins.str
+        database: builtins.str
         """Athena database name"""
-        data_source: _builtins.str
+        data_source: builtins.str
         """Athena schema name"""
         def __init__(
             self,
             *,
-            table: _builtins.str = ...,
-            query: _builtins.str = ...,
-            database: _builtins.str = ...,
-            data_source: _builtins.str = ...,
+            table: builtins.str = ...,
+            query: builtins.str = ...,
+            database: builtins.str = ...,
+            data_source: builtins.str = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["data_source", b"data_source", "database", b"database", "query", b"query", "table", b"table"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["data_source", b"data_source", "database", b"database", "query", b"query", "table", b"table"]) -> None: ...
 
-    @_typing.final
-    class SnowflakeOptions(_message.Message):
+    class SnowflakeOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a Snowflake Query"""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        TABLE_FIELD_NUMBER: _builtins.int
-        QUERY_FIELD_NUMBER: _builtins.int
-        SCHEMA_FIELD_NUMBER: _builtins.int
-        DATABASE_FIELD_NUMBER: _builtins.int
-        table: _builtins.str
+        TABLE_FIELD_NUMBER: builtins.int
+        QUERY_FIELD_NUMBER: builtins.int
+        SCHEMA_FIELD_NUMBER: builtins.int
+        DATABASE_FIELD_NUMBER: builtins.int
+        table: builtins.str
         """Snowflake table name"""
-        query: _builtins.str
+        query: builtins.str
         """SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
         entity columns
         """
-        schema: _builtins.str
+        schema: builtins.str
         """Snowflake schema name"""
-        database: _builtins.str
+        database: builtins.str
         """Snowflake schema name"""
         def __init__(
             self,
             *,
-            table: _builtins.str = ...,
-            query: _builtins.str = ...,
-            schema: _builtins.str = ...,
-            database: _builtins.str = ...,
+            table: builtins.str = ...,
+            query: builtins.str = ...,
+            schema: builtins.str = ...,
+            database: builtins.str = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["database", b"database", "query", b"query", "schema", b"schema", "table", b"table"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["database", b"database", "query", b"query", "schema", b"schema", "table", b"table"]) -> None: ...
 
-    @_typing.final
-    class SparkOptions(_message.Message):
+    class SparkOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from a spark table/query"""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        TABLE_FIELD_NUMBER: _builtins.int
-        QUERY_FIELD_NUMBER: _builtins.int
-        PATH_FIELD_NUMBER: _builtins.int
-        FILE_FORMAT_FIELD_NUMBER: _builtins.int
-        DATE_PARTITION_COLUMN_FORMAT_FIELD_NUMBER: _builtins.int
-        TABLE_FORMAT_FIELD_NUMBER: _builtins.int
-        table: _builtins.str
+        TABLE_FIELD_NUMBER: builtins.int
+        QUERY_FIELD_NUMBER: builtins.int
+        PATH_FIELD_NUMBER: builtins.int
+        FILE_FORMAT_FIELD_NUMBER: builtins.int
+        DATE_PARTITION_COLUMN_FORMAT_FIELD_NUMBER: builtins.int
+        TABLE_FORMAT_FIELD_NUMBER: builtins.int
+        table: builtins.str
         """Table name"""
-        query: _builtins.str
+        query: builtins.str
         """Spark SQl query that returns the table, this is an alternative to `table`"""
-        path: _builtins.str
+        path: builtins.str
         """Path from which spark can read the table, this is an alternative to `table`"""
-        file_format: _builtins.str
+        file_format: builtins.str
         """Format of files at `path` (e.g. parquet, avro, etc)"""
-        date_partition_column_format: _builtins.str
+        date_partition_column_format: builtins.str
         """Date Format of date partition column (e.g. %Y-%m-%d)"""
-        @_builtins.property
-        def table_format(self) -> _DataFormat_pb2.TableFormat:
+        @property
+        def table_format(self) -> feast.core.DataFormat_pb2.TableFormat:
             """Table Format (e.g. iceberg, delta, hudi)"""
-
         def __init__(
             self,
             *,
-            table: _builtins.str = ...,
-            query: _builtins.str = ...,
-            path: _builtins.str = ...,
-            file_format: _builtins.str = ...,
-            date_partition_column_format: _builtins.str = ...,
-            table_format: _DataFormat_pb2.TableFormat | None = ...,
+            table: builtins.str = ...,
+            query: builtins.str = ...,
+            path: builtins.str = ...,
+            file_format: builtins.str = ...,
+            date_partition_column_format: builtins.str = ...,
+            table_format: feast.core.DataFormat_pb2.TableFormat | None = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _typing.Literal["table_format", b"table_format"]  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table", "table_format", b"table_format"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["table_format", b"table_format"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table", "table_format", b"table_format"]) -> None: ...
 
-    @_typing.final
-    class CustomSourceOptions(_message.Message):
+    class CustomSourceOptions(google.protobuf.message.Message):
         """Defines configuration for custom third-party data sources."""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        CONFIGURATION_FIELD_NUMBER: _builtins.int
-        configuration: _builtins.bytes
+        CONFIGURATION_FIELD_NUMBER: builtins.int
+        configuration: builtins.bytes
         """Serialized configuration information for the data source. The implementer of the custom data source is
         responsible for serializing and deserializing data from bytes
         """
         def __init__(
             self,
             *,
-            configuration: _builtins.bytes = ...,
+            configuration: builtins.bytes = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["configuration", b"configuration"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["configuration", b"configuration"]) -> None: ...
 
-    @_typing.final
-    class RequestDataOptions(_message.Message):
+    class RequestDataOptions(google.protobuf.message.Message):
         """Defines options for DataSource that sources features from request data"""
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        @_typing.final
-        class DeprecatedSchemaEntry(_message.Message):
-            DESCRIPTOR: _descriptor.Descriptor
+        class DeprecatedSchemaEntry(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-            KEY_FIELD_NUMBER: _builtins.int
-            VALUE_FIELD_NUMBER: _builtins.int
-            key: _builtins.str
-            value: _Value_pb2.ValueType.Enum.ValueType
+            KEY_FIELD_NUMBER: builtins.int
+            VALUE_FIELD_NUMBER: builtins.int
+            key: builtins.str
+            value: feast.types.Value_pb2.ValueType.Enum.ValueType
             def __init__(
                 self,
                 *,
-                key: _builtins.str = ...,
-                value: _Value_pb2.ValueType.Enum.ValueType = ...,
+                key: builtins.str = ...,
+                value: feast.types.Value_pb2.ValueType.Enum.ValueType = ...,
             ) -> None: ...
-            _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-            def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-            _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
-            def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-            def WhichOneof(self, oneof_group: _Never) -> None: ...
+            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
 
-        DEPRECATED_SCHEMA_FIELD_NUMBER: _builtins.int
-        SCHEMA_FIELD_NUMBER: _builtins.int
-        @_builtins.property
-        def deprecated_schema(self) -> _containers.ScalarMap[_builtins.str, _Value_pb2.ValueType.Enum.ValueType]:
+        DEPRECATED_SCHEMA_FIELD_NUMBER: builtins.int
+        SCHEMA_FIELD_NUMBER: builtins.int
+        @property
+        def deprecated_schema(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, feast.types.Value_pb2.ValueType.Enum.ValueType]:
             """Mapping of feature name to type"""
-
-        @_builtins.property
-        def schema(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]: ...
+        @property
+        def schema(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]: ...
         def __init__(
             self,
             *,
-            deprecated_schema: _abc.Mapping[_builtins.str, _Value_pb2.ValueType.Enum.ValueType] | None = ...,
-            schema: _abc.Iterable[_Feature_pb2.FeatureSpecV2] | None = ...,
+            deprecated_schema: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.ValueType.Enum.ValueType] | None = ...,
+            schema: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["deprecated_schema", b"deprecated_schema", "schema", b"schema"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["deprecated_schema", b"deprecated_schema", "schema", b"schema"]) -> None: ...
 
-    @_typing.final
-    class PushOptions(_message.Message):
+    class PushOptions(google.protobuf.message.Message):
         """Defines options for DataSource that supports pushing data to it. This allows data to be pushed to
         the online store on-demand, such as by stream consumers.
         """
 
-        DESCRIPTOR: _descriptor.Descriptor
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
         def __init__(
             self,
         ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-    NAME_FIELD_NUMBER: _builtins.int
-    PROJECT_FIELD_NUMBER: _builtins.int
-    DESCRIPTION_FIELD_NUMBER: _builtins.int
-    TAGS_FIELD_NUMBER: _builtins.int
-    OWNER_FIELD_NUMBER: _builtins.int
-    TYPE_FIELD_NUMBER: _builtins.int
-    FIELD_MAPPING_FIELD_NUMBER: _builtins.int
-    TIMESTAMP_FIELD_FIELD_NUMBER: _builtins.int
-    DATE_PARTITION_COLUMN_FIELD_NUMBER: _builtins.int
-    CREATED_TIMESTAMP_COLUMN_FIELD_NUMBER: _builtins.int
-    TIMESTAMP_FIELD_TYPE_FIELD_NUMBER: _builtins.int
-    DATA_SOURCE_CLASS_TYPE_FIELD_NUMBER: _builtins.int
-    BATCH_SOURCE_FIELD_NUMBER: _builtins.int
-    META_FIELD_NUMBER: _builtins.int
-    FILE_OPTIONS_FIELD_NUMBER: _builtins.int
-    BIGQUERY_OPTIONS_FIELD_NUMBER: _builtins.int
-    KAFKA_OPTIONS_FIELD_NUMBER: _builtins.int
-    KINESIS_OPTIONS_FIELD_NUMBER: _builtins.int
-    REDSHIFT_OPTIONS_FIELD_NUMBER: _builtins.int
-    REQUEST_DATA_OPTIONS_FIELD_NUMBER: _builtins.int
-    CUSTOM_OPTIONS_FIELD_NUMBER: _builtins.int
-    SNOWFLAKE_OPTIONS_FIELD_NUMBER: _builtins.int
-    PUSH_OPTIONS_FIELD_NUMBER: _builtins.int
-    SPARK_OPTIONS_FIELD_NUMBER: _builtins.int
-    TRINO_OPTIONS_FIELD_NUMBER: _builtins.int
-    ATHENA_OPTIONS_FIELD_NUMBER: _builtins.int
-    name: _builtins.str
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    DESCRIPTION_FIELD_NUMBER: builtins.int
+    TAGS_FIELD_NUMBER: builtins.int
+    OWNER_FIELD_NUMBER: builtins.int
+    TYPE_FIELD_NUMBER: builtins.int
+    FIELD_MAPPING_FIELD_NUMBER: builtins.int
+    TIMESTAMP_FIELD_FIELD_NUMBER: builtins.int
+    DATE_PARTITION_COLUMN_FIELD_NUMBER: builtins.int
+    CREATED_TIMESTAMP_COLUMN_FIELD_NUMBER: builtins.int
+    DATA_SOURCE_CLASS_TYPE_FIELD_NUMBER: builtins.int
+    BATCH_SOURCE_FIELD_NUMBER: builtins.int
+    META_FIELD_NUMBER: builtins.int
+    FILE_OPTIONS_FIELD_NUMBER: builtins.int
+    BIGQUERY_OPTIONS_FIELD_NUMBER: builtins.int
+    KAFKA_OPTIONS_FIELD_NUMBER: builtins.int
+    KINESIS_OPTIONS_FIELD_NUMBER: builtins.int
+    REDSHIFT_OPTIONS_FIELD_NUMBER: builtins.int
+    REQUEST_DATA_OPTIONS_FIELD_NUMBER: builtins.int
+    CUSTOM_OPTIONS_FIELD_NUMBER: builtins.int
+    SNOWFLAKE_OPTIONS_FIELD_NUMBER: builtins.int
+    PUSH_OPTIONS_FIELD_NUMBER: builtins.int
+    SPARK_OPTIONS_FIELD_NUMBER: builtins.int
+    TRINO_OPTIONS_FIELD_NUMBER: builtins.int
+    ATHENA_OPTIONS_FIELD_NUMBER: builtins.int
+    TIMESTAMP_FIELD_TYPE_FIELD_NUMBER: builtins.int
+    name: builtins.str
     """Unique name of data source within the project"""
-    project: _builtins.str
+    project: builtins.str
     """Name of Feast project that this data source belongs to."""
-    description: _builtins.str
-    owner: _builtins.str
-    type: Global___DataSource.SourceType.ValueType
-    timestamp_field: _builtins.str
+    description: builtins.str
+    @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    owner: builtins.str
+    type: global___DataSource.SourceType.ValueType
+    @property
+    def field_mapping(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+        """Defines mapping between fields in the sourced data
+        and fields in parent FeatureTable.
+        """
+    timestamp_field: builtins.str
     """Must specify event timestamp column name"""
-    date_partition_column: _builtins.str
+    date_partition_column: builtins.str
     """(Optional) Specify partition column
     useful for file sources
     """
-    created_timestamp_column: _builtins.str
+    created_timestamp_column: builtins.str
     """Must specify creation timestamp column name"""
-    timestamp_field_type: _builtins.str
-    """(Optional) Type of the timestamp_field column ("TIMESTAMP" or "DATE").
-    When set to "DATE", SQL generation uses date-only comparisons.
-    """
-    data_source_class_type: _builtins.str
+    timestamp_field_type: builtins.str
+    """Optional type of the timestamp field (e.g. DATE)"""
+    data_source_class_type: builtins.str
     """This is an internal field that is represents the python class for the data source object a proto object represents.
     This should be set by feast, and not by users.
     The field is used primarily by custom data sources and is mandatory for them to set. Feast may set it for
     first party sources as well.
     """
-    @_builtins.property
-    def tags(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]: ...
-    @_builtins.property
-    def field_mapping(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
-        """Defines mapping between fields in the sourced data
-        and fields in parent FeatureTable.
-        """
-
-    @_builtins.property
-    def batch_source(self) -> Global___DataSource:
+    @property
+    def batch_source(self) -> global___DataSource:
         """Optional batch source for streaming sources for historical features and materialization."""
-
-    @_builtins.property
-    def meta(self) -> Global___DataSource.SourceMeta: ...
-    @_builtins.property
-    def file_options(self) -> Global___DataSource.FileOptions: ...
-    @_builtins.property
-    def bigquery_options(self) -> Global___DataSource.BigQueryOptions: ...
-    @_builtins.property
-    def kafka_options(self) -> Global___DataSource.KafkaOptions: ...
-    @_builtins.property
-    def kinesis_options(self) -> Global___DataSource.KinesisOptions: ...
-    @_builtins.property
-    def redshift_options(self) -> Global___DataSource.RedshiftOptions: ...
-    @_builtins.property
-    def request_data_options(self) -> Global___DataSource.RequestDataOptions: ...
-    @_builtins.property
-    def custom_options(self) -> Global___DataSource.CustomSourceOptions: ...
-    @_builtins.property
-    def snowflake_options(self) -> Global___DataSource.SnowflakeOptions: ...
-    @_builtins.property
-    def push_options(self) -> Global___DataSource.PushOptions: ...
-    @_builtins.property
-    def spark_options(self) -> Global___DataSource.SparkOptions: ...
-    @_builtins.property
-    def trino_options(self) -> Global___DataSource.TrinoOptions: ...
-    @_builtins.property
-    def athena_options(self) -> Global___DataSource.AthenaOptions: ...
+    @property
+    def meta(self) -> global___DataSource.SourceMeta: ...
+    @property
+    def file_options(self) -> global___DataSource.FileOptions: ...
+    @property
+    def bigquery_options(self) -> global___DataSource.BigQueryOptions: ...
+    @property
+    def kafka_options(self) -> global___DataSource.KafkaOptions: ...
+    @property
+    def kinesis_options(self) -> global___DataSource.KinesisOptions: ...
+    @property
+    def redshift_options(self) -> global___DataSource.RedshiftOptions: ...
+    @property
+    def request_data_options(self) -> global___DataSource.RequestDataOptions: ...
+    @property
+    def custom_options(self) -> global___DataSource.CustomSourceOptions: ...
+    @property
+    def snowflake_options(self) -> global___DataSource.SnowflakeOptions: ...
+    @property
+    def push_options(self) -> global___DataSource.PushOptions: ...
+    @property
+    def spark_options(self) -> global___DataSource.SparkOptions: ...
+    @property
+    def trino_options(self) -> global___DataSource.TrinoOptions: ...
+    @property
+    def athena_options(self) -> global___DataSource.AthenaOptions: ...
     def __init__(
         self,
         *,
-        name: _builtins.str = ...,
-        project: _builtins.str = ...,
-        description: _builtins.str = ...,
-        tags: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
-        owner: _builtins.str = ...,
-        type: Global___DataSource.SourceType.ValueType = ...,
-        field_mapping: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
-        timestamp_field: _builtins.str = ...,
-        date_partition_column: _builtins.str = ...,
-        created_timestamp_column: _builtins.str = ...,
-        timestamp_field_type: _builtins.str = ...,
-        data_source_class_type: _builtins.str = ...,
-        batch_source: Global___DataSource | None = ...,
-        meta: Global___DataSource.SourceMeta | None = ...,
-        file_options: Global___DataSource.FileOptions | None = ...,
-        bigquery_options: Global___DataSource.BigQueryOptions | None = ...,
-        kafka_options: Global___DataSource.KafkaOptions | None = ...,
-        kinesis_options: Global___DataSource.KinesisOptions | None = ...,
-        redshift_options: Global___DataSource.RedshiftOptions | None = ...,
-        request_data_options: Global___DataSource.RequestDataOptions | None = ...,
-        custom_options: Global___DataSource.CustomSourceOptions | None = ...,
-        snowflake_options: Global___DataSource.SnowflakeOptions | None = ...,
-        push_options: Global___DataSource.PushOptions | None = ...,
-        spark_options: Global___DataSource.SparkOptions | None = ...,
-        trino_options: Global___DataSource.TrinoOptions | None = ...,
-        athena_options: Global___DataSource.AthenaOptions | None = ...,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        description: builtins.str = ...,
+        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        owner: builtins.str = ...,
+        type: global___DataSource.SourceType.ValueType = ...,
+        field_mapping: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        timestamp_field: builtins.str = ...,
+        date_partition_column: builtins.str = ...,
+        created_timestamp_column: builtins.str = ...,
+        timestamp_field_type: builtins.str = ...,
+        data_source_class_type: builtins.str = ...,
+        batch_source: global___DataSource | None = ...,
+        meta: global___DataSource.SourceMeta | None = ...,
+        file_options: global___DataSource.FileOptions | None = ...,
+        bigquery_options: global___DataSource.BigQueryOptions | None = ...,
+        kafka_options: global___DataSource.KafkaOptions | None = ...,
+        kinesis_options: global___DataSource.KinesisOptions | None = ...,
+        redshift_options: global___DataSource.RedshiftOptions | None = ...,
+        request_data_options: global___DataSource.RequestDataOptions | None = ...,
+        custom_options: global___DataSource.CustomSourceOptions | None = ...,
+        snowflake_options: global___DataSource.SnowflakeOptions | None = ...,
+        push_options: global___DataSource.PushOptions | None = ...,
+        spark_options: global___DataSource.SparkOptions | None = ...,
+        trino_options: global___DataSource.TrinoOptions | None = ...,
+        athena_options: global___DataSource.AthenaOptions | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "custom_options", b"custom_options", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "options", b"options", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "trino_options", b"trino_options"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "timestamp_field_type", b"timestamp_field_type", "trino_options", b"trino_options", "type", b"type"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_options: _TypeAlias = _typing.Literal["file_options", "bigquery_options", "kafka_options", "kinesis_options", "redshift_options", "request_data_options", "custom_options", "snowflake_options", "push_options", "spark_options", "trino_options", "athena_options"]  # noqa: Y015
-    _WhichOneofArgType_options: _TypeAlias = _typing.Literal["options", b"options"]  # noqa: Y015
-    def WhichOneof(self, oneof_group: _WhichOneofArgType_options) -> _WhichOneofReturnType_options | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "custom_options", b"custom_options", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "options", b"options", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "trino_options", b"trino_options"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "timestamp_field_type", b"timestamp_field_type", "trino_options", b"trino_options", "type", b"type"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["options", b"options"]) -> typing_extensions.Literal["file_options", "bigquery_options", "kafka_options", "kinesis_options", "redshift_options", "request_data_options", "custom_options", "snowflake_options", "push_options", "spark_options", "trino_options", "athena_options"] | None: ...
 
-Global___DataSource: _TypeAlias = DataSource  # noqa: Y015
+global___DataSource = DataSource
 
-@_typing.final
-class DataSourceList(_message.Message):
-    DESCRIPTOR: _descriptor.Descriptor
+class DataSourceList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    DATASOURCES_FIELD_NUMBER: _builtins.int
-    @_builtins.property
-    def datasources(self) -> _containers.RepeatedCompositeFieldContainer[Global___DataSource]: ...
+    DATASOURCES_FIELD_NUMBER: builtins.int
+    @property
+    def datasources(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___DataSource]: ...
     def __init__(
         self,
         *,
-        datasources: _abc.Iterable[Global___DataSource] | None = ...,
+        datasources: collections.abc.Iterable[global___DataSource] | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["datasources", b"datasources"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    def WhichOneof(self, oneof_group: _Never) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["datasources", b"datasources"]) -> None: ...
 
-Global___DataSourceList: _TypeAlias = DataSourceList  # noqa: Y015
+global___DataSourceList = DataSourceList
