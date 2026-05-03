@@ -794,7 +794,7 @@ class DynamoDBOnlineStore(OnlineStore):
     @staticmethod
     def _build_projection_expression(
         requested_features: Optional[List[str]],
-    ) -> Optional[Dict[str, str]]:
+    ) -> Optional[Dict[str, Any]]:
         if not requested_features:
             return None
         attr_names: Dict[str, str] = {
