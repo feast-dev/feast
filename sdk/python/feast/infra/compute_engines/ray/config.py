@@ -41,7 +41,20 @@ class RayComputeEngineConfig(FeastConfigBaseModel):
 
     # Additional configuration options
     max_workers: Optional[int] = None
-    """Maximum number of Ray workers. If None, uses all available cores."""
+    """Maximum number of Ray workers for transformation and join nodes.
+    If None, Ray uses all available cores."""
+
+    write_concurrency: Optional[int] = None
+    """Concurrency for the RayWriteNode's map_batches call (online-store writes).
+    If None, falls back to max_workers, then 1 (safe default
+    for single-file stores).
+
+    Example - SQLite online store (default for local deployments):
+      write_concurrency: 1
+
+    Example - Redis / DynamoDB online store (supports parallel writes):
+      write_concurrency: 8
+    """
 
     enable_optimization: bool = True
     """Enable automatic performance optimizations."""

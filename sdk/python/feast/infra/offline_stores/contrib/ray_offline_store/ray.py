@@ -1793,37 +1793,49 @@ class RayOfflineStore(OfflineStore):
             if pre_loaded_ds is not None:
                 ds = pre_loaded_ds
 
-                # Normalize the timestamp column BEFORE the filter so that
-                # non-Parquet sources (CSV, JSON, SQL) whose raw dataset may
-                # contain strings or tz-naive datetimes can be compared against
-                # the tz-aware datetime bounds below without raising TypeError.
-                # This mirrors what _create_filtered_dataset does for file-based
-                # sources as part of its read pipeline.
-                if timestamp_field:
-                    ts_cols_to_norm = [timestamp_field]
-                    if created_timestamp_column:
-                        ts_cols_to_norm.append(created_timestamp_column)
-                    ds = ensure_timestamp_compatibility(ds, ts_cols_to_norm)
+                # Normalise timestamps and apply time-range filter inside
+                # map_batches so that ds.schema() is NEVER called eagerly.
+                # Column-existence checks are deferred to each batch so that
+                # exotic sources whose timestamp column is synthesised inside a
+                # downstream UDF (e.g. HuggingFace image datasets) are handled
+                # gracefully: normalization and filtering are simply skipped for
+                # batches that do not yet contain the column.
+                _ts_field = timestamp_field
+                _created_ts = created_timestamp_column
+                _s_date = (
+                    make_tzaware(start_date)
+                    if start_date and start_date.tzinfo is None
+                    else start_date
+                )
+                _e_date = (
+                    make_tzaware(end_date)
+                    if end_date and end_date.tzinfo is None
+                    else end_date
+                )
 
-                # Apply time-range filter inline (done by _create_filtered_dataset
-                # for path-based sources).
-                def _normalize(dt: Optional[datetime]) -> Optional[datetime]:
-                    return make_tzaware(dt) if dt and dt.tzinfo is None else dt
-
-                s_date = _normalize(start_date)
-                e_date = _normalize(end_date)
-                ts_col = timestamp_field
-
-                if s_date and e_date:
-                    ds = ds.filter(
-                        lambda batch, s=s_date, e=e_date, col=ts_col: (
-                            (batch[col] >= s) & (batch[col] <= e)
+                def _norm_and_filter(batch: pd.DataFrame) -> pd.DataFrame:
+                    batch = make_df_tzaware(batch)
+                    for col in [
+                        c for c in [_ts_field, _created_ts] if c and c in batch.columns
+                    ]:
+                        batch[col] = (
+                            pd.to_datetime(batch[col], utc=True, errors="coerce")
+                            .dt.floor("s")
+                            .astype("datetime64[ns, UTC]")
                         )
-                    )
-                elif s_date:
-                    ds = ds.filter(lambda batch, s=s_date, col=ts_col: batch[col] >= s)
-                elif e_date:
-                    ds = ds.filter(lambda batch, e=e_date, col=ts_col: batch[col] <= e)
+                    if _ts_field and _ts_field in batch.columns:
+                        if _s_date and _e_date:
+                            batch = batch[
+                                (batch[_ts_field] >= _s_date)
+                                & (batch[_ts_field] <= _e_date)
+                            ]
+                        elif _s_date:
+                            batch = batch[batch[_ts_field] >= _s_date]
+                        elif _e_date:
+                            batch = batch[batch[_ts_field] <= _e_date]
+                    return batch
+
+                ds = ds.map_batches(_norm_and_filter, batch_format="pandas")
             else:
                 if not feature_name_columns:
                     columns_to_read = None

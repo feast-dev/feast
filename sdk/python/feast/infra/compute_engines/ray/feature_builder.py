@@ -136,6 +136,7 @@ class RayFeatureBuilder(FeatureBuilder):
             name="dedup",
             column_info=column_info,
             config=self.config,
+            is_materialization=self.is_materialization,
         )
         node.add_input(input_node)
 
