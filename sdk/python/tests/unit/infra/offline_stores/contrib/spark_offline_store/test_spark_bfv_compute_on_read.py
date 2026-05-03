@@ -52,6 +52,7 @@ def base_query_context():
         min_event_timestamp="2023-01-01T00:00:00",
         max_event_timestamp="2024-01-01T00:00:00",
         date_partition_column=None,
+        timestamp_field_type=None,
     )
 
 
