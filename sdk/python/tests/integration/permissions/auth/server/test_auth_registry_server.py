@@ -27,6 +27,8 @@ from tests.unit.permissions.auth.server.test_utils import (
 from tests.utils.auth_permissions_util import get_remote_registry_store
 from tests.utils.http_server import check_port_open  # noqa: E402
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def start_registry_server(

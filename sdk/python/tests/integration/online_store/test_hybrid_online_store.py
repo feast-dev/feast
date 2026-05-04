@@ -12,6 +12,8 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import Value
 from feast.types import PrimitiveFeastType
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def sample_entity():
