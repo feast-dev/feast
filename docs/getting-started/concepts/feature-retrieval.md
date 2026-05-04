@@ -297,6 +297,59 @@ training_df = store.get_historical_features(
 ).to_df()
 ```
 
+### Step 3: Choosing an output format
+
+`get_historical_features()` returns a `RetrievalJob` object. You can convert it
+to the format that suits your downstream pipeline:
+
+**Data conversion methods**
+
+| Method | Returns | When to use |
+|---|---|---|
+| `.to_df()` | `pandas.DataFrame` | General-purpose; scikit-learn, XGBoost, statsmodels |
+| `.to_feast_df()` | `FeastDataFrame` | Feast-native wrapper with engine metadata; preferred for Feast-internal tooling |
+| `.to_arrow()` | `pyarrow.Table` | Arrow-native pipelines, Polars, DuckDB, zero-copy interchange |
+| `.to_tensor(kind="torch")` | `Dict[str, torch.Tensor]` | Direct PyTorch training loops; numeric columns become tensors |
+| `.to_ray_dataset()` | `ray.data.Dataset` | Ray Train, Ray Serve, distributed ML workloads |
+
+**Persistence methods**
+
+| Method | Effect | When to use |
+|---|---|---|
+| `.persist(storage)` | Writes result to offline storage | Save a training dataset for later reuse or auditing |
+| `.to_remote_storage()` | Exports result to S3/GCS as Parquet files | Hand off to external systems or data pipelines |
+
+#### Retrieving as a Ray Dataset
+
+`to_ray_dataset()` is a **first-class method** on every `RetrievalJob`. When
+the underlying offline store is a `RayOfflineStore`, the dataset is returned
+directly without a copy through Arrow. For all other offline stores, a
+zero-copy Arrow → Ray Dataset conversion is used as a fallback.
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(".")
+
+# to_ray_dataset() is a first-class method on the RetrievalJob — chain it
+# directly after get_historical_features().
+ray_ds = store.get_historical_features(
+    entity_df=entity_df,
+    features=["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"],
+).to_ray_dataset()
+
+# Use with Ray Train
+import ray.train
+trainer = ray.train.torch.TorchTrainer(
+    train_loop_per_worker=...,
+    datasets={"train": ray_ds},
+)
+```
+
+> **Note:** `to_ray_dataset()` requires `feast[ray]` to be installed.
+
+---
+
 ## Retrieving online features (for model inference)
 Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.
 

@@ -35,27 +35,27 @@ Lineage Graph Structure:
 Usage:
     Simply configure OpenLineage in your feature_store.yaml:
 
-    ```yaml
-    project: my_project
-    # ... other config ...
+    .. code-block:: yaml
 
-    openlineage:
-      enabled: true
-      transport_type: http
-      transport_url: http://localhost:5000
-      transport_endpoint: api/v1/lineage
-      namespace: my_namespace  # Optional: defaults to project name
-    ```
+        project: my_project
+        # ... other config ...
+
+        openlineage:
+          enabled: true
+          transport_type: http
+          transport_url: http://localhost:5000
+          transport_endpoint: api/v1/lineage
+          namespace: my_namespace  # Optional: defaults to project name
 
     Then use Feast normally - lineage events are emitted automatically!
 
-    ```python
-    from feast import FeatureStore
+    .. code-block:: python
 
-    fs = FeatureStore(repo_path="feature_repo")
-    fs.apply([entity, feature_view, feature_service])  # Emits lineage
-    fs.materialize(start, end)  # Emits START/COMPLETE/FAIL events
-    ```
+        from feast import FeatureStore
+
+        fs = FeatureStore(repo_path="feature_repo")
+        fs.apply([entity, feature_view, feature_service])  # Emits lineage
+        fs.materialize(start, end)  # Emits START/COMPLETE/FAIL events
 """
 
 from feast.openlineage.client import FeastOpenLineageClient

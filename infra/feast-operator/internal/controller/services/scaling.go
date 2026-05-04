@@ -231,7 +231,7 @@ func (feast *FeastServices) buildPDBApplyConfig() *pdbac.PodDisruptionBudgetAppl
 				WithBlockOwnerDeletion(true),
 		).
 		WithSpec(pdbac.PodDisruptionBudgetSpec().
-			WithSelector(metaac.LabelSelector().WithMatchLabels(feast.getLabels())),
+			WithSelector(metaac.LabelSelector().WithMatchLabels(feast.getSelectorLabels())),
 		)
 
 	if pdbConfig.MinAvailable != nil {
@@ -249,8 +249,7 @@ func (feast *FeastServices) updateScalingStatus(deploy *appsv1.Deployment) {
 	cr := feast.Handler.FeatureStore
 
 	cr.Status.Replicas = deploy.Status.ReadyReplicas
-	labels := feast.getLabels()
-	cr.Status.Selector = metav1.FormatLabelSelector(metav1.SetAsLabelSelector(labels))
+	cr.Status.Selector = metav1.FormatLabelSelector(metav1.SetAsLabelSelector(feast.getSelectorLabels()))
 
 	if !isScalingEnabled(cr) {
 		cr.Status.ScalingStatus = nil

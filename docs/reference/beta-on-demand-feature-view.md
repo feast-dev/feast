@@ -69,6 +69,42 @@ def driver_aggregated_stats(inputs):
 
 Aggregated columns are automatically named using the pattern `{function}_{column}` (e.g., `sum_trips`, `mean_rating`).
 
+### Using `input_schema` with Aggregations
+
+When the input data is not already stored as a feature view, use `input_schema` instead of `sources` to describe the fields that will be passed at request time. Feast will create an internal `RequestSource` automatically.
+
+```python
+from datetime import timedelta
+from feast import Field, on_demand_feature_view
+from feast.aggregation import Aggregation
+from feast.types import Float64, Int64
+
+@on_demand_feature_view(
+    input_schema=[
+        Field(name="txn_amount", dtype=Float64),
+    ],
+    schema=[
+        Field(name="txn_count", dtype=Int64),
+        Field(name="total_txn_amount", dtype=Float64),
+        Field(name="avg_txn_amount", dtype=Float64),
+    ],
+    aggregations=[
+        Aggregation(column="txn_amount", function="count", name="txn_count",
+                    time_window=timedelta(days=30)),
+        Aggregation(column="txn_amount", function="sum", name="total_txn_amount",
+                    time_window=timedelta(days=30)),
+        Aggregation(column="txn_amount", function="mean", name="avg_txn_amount",
+                    time_window=timedelta(days=30)),
+    ],
+    entities=[user],
+)
+def user_transaction_stats(inputs):
+    # Aggregations replace the transformation function — no body needed.
+    pass
+```
+
+`input_schema` also accepts fields that are not aggregation columns — for example, thresholds, currency codes, or other contextual values passed at request time that your UDF needs but that are not stored as features.
+
 ## Example
 See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views.
 

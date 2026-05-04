@@ -1845,3 +1845,111 @@ class TestNestedCollectionTypes:
             pa_to_feast_value_type("list<item: list<item: double>>")
             == ValueType.VALUE_LIST
         )
+
+
+class TestEmptyArrayAsNull:
+    """Regression tests for https://github.com/feast-dev/feast/issues/6255
+    Ensure that an empty numpy array in a scalar feature column is treated as
+    null rather than raising ``ValueError: The truth value of an empty array is
+    ambiguous``.
+    """
+
+    def test_empty_numpy_array_treated_as_null_double(self):
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        result = python_values_to_proto_values(
+            [np.array([]), 1.0, None], ValueType.DOUBLE
+        )
+        assert result[0] == ProtoValue(), (
+            "empty array should produce an empty ProtoValue"
+        )
+        assert result[1].double_val == 1.0
+        assert result[2] == ProtoValue(), (
+            "None should still produce an empty ProtoValue"
+        )
+
+    def test_empty_numpy_array_treated_as_null_int64(self):
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        result = python_values_to_proto_values(
+            [np.array([]), 42, None], ValueType.INT64
+        )
+        assert result[0] == ProtoValue(), (
+            "empty array should produce an empty ProtoValue"
+        )
+        assert result[1].int64_val == 42
+        assert result[2] == ProtoValue()
+
+    def test_empty_numpy_array_treated_as_null_bool(self):
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        result = python_values_to_proto_values(
+            [np.array([]), True, None], ValueType.BOOL
+        )
+        assert result[0] == ProtoValue(), (
+            "empty array should produce an empty ProtoValue"
+        )
+        assert result[1].bool_val is True
+        assert result[2] == ProtoValue()
+
+    def test_array_with_null_element_treated_as_null(self):
+        """A non-empty array containing any null element in a scalar column is treated as null."""
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        result = python_values_to_proto_values(
+            [np.array([np.nan, 1.0]), 3.0], ValueType.DOUBLE
+        )
+        assert result[0] == ProtoValue(), (
+            "array with null element should produce an empty ProtoValue"
+        )
+        assert result[1].double_val == 3.0
+
+    def test_non_empty_array_without_nulls_is_treated_as_null(self):
+        """A non-empty numpy array in a scalar column is always treated as null.
+
+        A scalar feature column cannot hold an ndarray value (protobuf would
+        reject it), so any array-like value – empty or not – is mapped to an
+        empty ProtoValue() rather than crashing with ValueError.
+        """
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        result = python_values_to_proto_values(
+            [np.array([1.0, 2.0]), 3.0, None], ValueType.DOUBLE
+        )
+        # array-like value in a scalar column → null, not a crash
+        assert result[0] == ProtoValue(), (
+            "non-empty array in scalar column should be null"
+        )
+        assert result[1].double_val == 3.0
+        assert result[2] == ProtoValue()
+
+    def test_empty_numpy_array_treated_as_null_unix_timestamp(self):
+        """Array-like values in a scalar UNIX_TIMESTAMP column must not crash."""
+        from datetime import datetime, timezone
+
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        result = python_values_to_proto_values(
+            [np.array([]), ts, None], ValueType.UNIX_TIMESTAMP
+        )
+        assert result[0] == ProtoValue(), (
+            "empty array in UNIX_TIMESTAMP scalar column should produce null"
+        )
+        assert result[1].unix_timestamp_val == int(ts.timestamp())
+        assert result[2] == ProtoValue()
+
+    def test_non_empty_array_treated_as_null_unix_timestamp(self):
+        """Non-empty array in a UNIX_TIMESTAMP scalar column should produce null, not crash."""
+        from datetime import datetime, timezone
+
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        ts = datetime(2024, 6, 15, tzinfo=timezone.utc)
+        result = python_values_to_proto_values(
+            [np.array([1, 2, 3]), ts], ValueType.UNIX_TIMESTAMP
+        )
+        assert result[0] == ProtoValue(), (
+            "non-empty array in UNIX_TIMESTAMP scalar column should produce null"
+        )
+        assert result[1].unix_timestamp_val == int(ts.timestamp())

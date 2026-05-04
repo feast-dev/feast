@@ -214,6 +214,12 @@ class MaterializationConfig(BaseModel):
     """ bool: If true, feature retrieval jobs will only pull the latest feature values for each entity.
         If false, feature retrieval jobs will pull all feature values within the specified time range. """
 
+    online_write_batch_size: Optional[int] = Field(default=None, gt=0)
+    """ int: Number of rows to write to online store per batch during materialization.
+        If None (default), all rows are written in a single batch for backward compatibility.
+        Set to a positive integer (e.g., 10000) to enable batched writes.
+        Supported compute engines: local, spark, ray. """
+
 
 class OpenLineageConfig(FeastBaseModel):
     """Configuration for OpenLineage integration.
@@ -337,7 +343,7 @@ class RepoConfig(FeastBaseModel):
     """ MaterializationConfig: Configuration options for feature materialization behavior. """
 
     openlineage_config: Optional[OpenLineageConfig] = Field(None, alias="openlineage")
-    """ OpenLineageConfig: Configuration for OpenLineage data lineage integration (optional). """
+    """ Configuration for OpenLineage data lineage integration (optional). """
 
     def __init__(self, **data: Any):
         super().__init__(**data)
@@ -398,10 +404,11 @@ class RepoConfig(FeastBaseModel):
                     # This may be a custom registry store, which does not need a 'registry_type'
                     self._registry = RegistryConfig(**self.registry_config)
             elif isinstance(self.registry_config, str):
-                # User passed in just a path to file registry
-                self._registry = get_registry_config_from_type("file")(
-                    path=self.registry_config
-                )
+                # Let Registry.__init__ auto-detect the correct store class
+                # from the URI scheme (e.g. gs:// -> GCSRegistryStore).
+                # Previously this hardcoded "file" type, which broke gs:// and
+                # s3:// paths because FileRegistryStore uses pathlib.Path.
+                self._registry = RegistryConfig(path=self.registry_config)
             elif self.registry_config:
                 self._registry = self.registry_config
         return self._registry

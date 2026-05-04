@@ -52,6 +52,7 @@ const (
 	ClientFailedReason           = "ClientDeploymentFailed"
 	CronJobFailedReason          = "CronJobDeploymentFailed"
 	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
+	OidcAuthzFailedReason        = "OidcAuthorizationDeploymentFailed"
 
 	// Feast condition messages:
 	ReadyMessage                  = "FeatureStore installation complete"
@@ -62,11 +63,55 @@ const (
 	ClientReadyMessage            = "Client installation complete"
 	CronJobReadyMessage           = "CronJob installation complete"
 	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
+	OidcAuthzReadyMessage         = "OIDC authorization installation complete"
 	DeploymentNotAvailableMessage = "Deployment is not available"
 
 	// entity_key_serialization_version
 	SerializationVersion = 3
 )
+
+// MaterializationConfig controls feature materialization behavior written into feature_store.yaml.
+type MaterializationConfig struct {
+	// Number of rows per batch when writing to the online store during materialization.
+	// Prevents OOM for large feature views. Supported engines: local, spark, ray.
+	// If unset, all rows are written in a single batch.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	OnlineWriteBatchSize *int32 `json:"onlineWriteBatchSize,omitempty"`
+	// ExtraConfig passes additional materialization key-value settings inline into
+	// feature_store.yaml.
+	// +optional
+	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
+}
+
+// OpenLineageConfig enables OpenLineage data lineage tracking for Feast operations.
+// Lineage events are emitted during feast apply and materialization when enabled.
+type OpenLineageConfig struct {
+	// Enable OpenLineage integration.
+	Enabled bool `json:"enabled"`
+	// Transport type for lineage events.
+	// +kubebuilder:validation:Enum=http;console;file;kafka
+	// +optional
+	TransportType *string `json:"transportType,omitempty"`
+	// URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http".
+	// +optional
+	TransportUrl *string `json:"transportUrl,omitempty"`
+	// API endpoint path appended to transportUrl. Defaults to "api/v1/lineage".
+	// +optional
+	TransportEndpoint *string `json:"transportEndpoint,omitempty"`
+	// Reference to a Secret containing the key "api_key" for lineage server authentication.
+	// +optional
+	ApiKeySecretRef *corev1.LocalObjectReference `json:"apiKeySecretRef,omitempty"`
+	// ExtraConfig holds additional OpenLineage key-value settings written inline into
+	// the openlineage block of feature_store.yaml alongside the typed fields above.
+	// Use this for non-core settings (e.g. namespace, producer, emit_on_apply,
+	// emit_on_materialize) and transport-specific options (e.g. kafka
+	// bootstrap_servers, topic; file path). Boolean values ("true"/"false") and
+	// integer values are automatically coerced to their native YAML types.
+	// Keys must be valid Feast OpenLineageConfig YAML field names.
+	// +optional
+	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
+}
 
 // FeatureStoreSpec defines the desired state of FeatureStore
 // +kubebuilder:validation:XValidation:rule="self.replicas <= 1 || !has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)",message="replicas > 1 and services.scaling.autoscaling are mutually exclusive."
@@ -87,6 +132,14 @@ type FeatureStoreSpec struct {
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
 	Replicas *int32 `json:"replicas,omitempty"`
+	// Materialization controls feature materialization behavior (batch size, pull strategy).
+	// Written into feature_store.yaml for all service pods.
+	// +optional
+	Materialization *MaterializationConfig `json:"materialization,omitempty"`
+	// OpenLineage enables OpenLineage data lineage tracking for Feast operations.
+	// Written into feature_store.yaml for all service pods.
+	// +optional
+	OpenLineage *OpenLineageConfig `json:"openlineage,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
@@ -437,6 +490,71 @@ type OnlineStore struct {
 	// Creates a feature server container
 	Server      *ServerConfigs          `json:"server,omitempty"`
 	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
+	// Serving configures the Feast feature_server section written into feature_store.yaml for the online serve pod.
+	// Controls metrics granularity, offline push batching, and MCP.
+	// +optional
+	Serving *ServingConfig `json:"serving,omitempty"`
+}
+
+// ServingConfig configures the feature_server section of the generated feature_store.yaml.
+// When Mcp is set, the feature server type is switched to "mcp"; otherwise "local" is used.
+type ServingConfig struct {
+	// Metrics configures per-category Prometheus metrics for the feature server.
+	// Coexists with the server.metrics bool flag — both can be set simultaneously.
+	// +optional
+	Metrics *ServingMetricsConfig `json:"metrics,omitempty"`
+	// OfflinePushBatching batches writes to the offline store via the /push endpoint.
+	// +optional
+	OfflinePushBatching *OfflinePushBatchingConfig `json:"offlinePushBatching,omitempty"`
+	// Mcp enables MCP (Model Context Protocol) server support. When set, feature server type is "mcp".
+	// +optional
+	Mcp *McpConfig `json:"mcp,omitempty"`
+}
+
+// ServingMetricsConfig controls per-category Prometheus metrics for the feature server.
+// Setting Enabled to true activates the metrics HTTP server on port 8000.
+// All metric categories default to true when enabled; use Categories to selectively disable them.
+type ServingMetricsConfig struct {
+	// Enable the Prometheus metrics endpoint on port 8000.
+	Enabled bool `json:"enabled"`
+	// Categories selectively enables or disables individual Feast metric categories.
+	// Keys are Feast MetricsConfig field names (e.g. "resource", "request",
+	// "online_features", "push", "materialization", "freshness"). Omitted keys
+	// default to true when metrics is enabled.
+	// +optional
+	Categories map[string]bool `json:"categories,omitempty"`
+}
+
+// OfflinePushBatchingConfig controls batching of writes to the offline store via the /push endpoint.
+// Recommended for high-throughput push workloads (streaming pipelines, IoT) to prevent OOM.
+type OfflinePushBatchingConfig struct {
+	// Enable offline push batching.
+	Enabled bool `json:"enabled"`
+	// Maximum number of rows per offline write batch.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BatchSize *int32 `json:"batchSize,omitempty"`
+	// Seconds between batch flushes to the offline store.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BatchIntervalSeconds *int32 `json:"batchIntervalSeconds,omitempty"`
+}
+
+// McpConfig enables MCP (Model Context Protocol) server support in the feature server.
+// When this field is set on ServingConfig, the feature server type is switched to "mcp".
+type McpConfig struct {
+	// Enable the MCP server.
+	Enabled bool `json:"enabled"`
+	// MCP server name for identification. Defaults to "feast-mcp-server".
+	// +optional
+	ServerName *string `json:"serverName,omitempty"`
+	// MCP server version string. Defaults to "1.0.0".
+	// +optional
+	ServerVersion *string `json:"serverVersion,omitempty"`
+	// MCP transport protocol.
+	// +kubebuilder:validation:Enum=sse;http
+	// +optional
+	Transport *string `json:"transport,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service

@@ -37,7 +37,7 @@ message StreamFeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 22
+// Next available id: 23
 message StreamFeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
@@ -105,5 +105,8 @@ message StreamFeatureViewSpec {
 
     // User-specified version pin (e.g. "latest", "v2", "version2")
     string version = 21;
+
+    // Organizational unit that owns this stream feature view (e.g. "ads", "search").
+    string org = 22;
 }
 

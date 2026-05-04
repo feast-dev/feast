@@ -1566,6 +1566,15 @@ def _populate_response_from_feature_data(
                     feat_values[f_idx][out_idx] = feat_val
                     feat_statuses[f_idx][out_idx] = PRESENT
 
+    try:
+        from feast.metrics import track_feature_statuses
+
+        _present = sum(s == PRESENT for row in feat_statuses for s in row)
+        _not_found = (n_features * output_len) - _present
+        track_feature_statuses(table.name, _present, _not_found)
+    except Exception:
+        pass
+
     for f_idx in range(n_features):
         online_features_response.results.append(
             GetOnlineFeaturesResponse.FeatureVector(

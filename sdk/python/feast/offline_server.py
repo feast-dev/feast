@@ -436,6 +436,10 @@ class OfflineServer(fl.FlightServerBase):
             if len(entity_df.columns) == 1 and "key" in entity_df.columns:
                 entity_df = None
 
+        # If the client sent a SQL string, use it directly
+        if entity_df is None and "entity_df_sql" in command:
+            entity_df = command["entity_df_sql"]
+
         feature_view_names = command["feature_view_names"]
         name_aliases = command["name_aliases"]
         feature_refs = command["feature_refs"]
