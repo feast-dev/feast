@@ -30,6 +30,8 @@ import (
 
 var projectName = "test-project"
 
+const marquezUrl = "http://marquez:5000"
+
 var _ = Describe("Repo Config", func() {
 	Context("When creating the RepoConfig of a FeatureStore", func() {
 		It("should successfully create the repo configs", func() {
@@ -316,6 +318,276 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
+		})
+
+		It("should set feature_server block with type local and all options", func() {
+			featureStore := minimalFeatureStore()
+			batchSize := int32(500)
+			batchInterval := int32(15)
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Serving: &feastdevv1.ServingConfig{
+						Metrics: &feastdevv1.ServingMetricsConfig{
+							Enabled: true,
+							Categories: map[string]bool{
+								"resource":      true,
+								"freshness":     false,
+								"registry_sync": false,
+							},
+						},
+						OfflinePushBatching: &feastdevv1.OfflinePushBatchingConfig{
+							Enabled:              true,
+							BatchSize:            &batchSize,
+							BatchIntervalSeconds: &batchInterval,
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Type).To(Equal("local"))
+
+			Expect(repoConfig.FeatureServer.Metrics).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Metrics.Enabled).To(BeTrue())
+			Expect(repoConfig.FeatureServer.Metrics.Categories).To(HaveKeyWithValue("resource", true))
+			Expect(repoConfig.FeatureServer.Metrics.Categories).To(HaveKeyWithValue("freshness", false))
+			Expect(repoConfig.FeatureServer.Metrics.Categories).To(HaveKeyWithValue("registry_sync", false))
+
+			Expect(repoConfig.FeatureServer.OfflinePushBatchingEnabled).NotTo(BeNil())
+			Expect(*repoConfig.FeatureServer.OfflinePushBatchingEnabled).To(BeTrue())
+			Expect(repoConfig.FeatureServer.OfflinePushBatchingBatchSize).To(Equal(&batchSize))
+			Expect(repoConfig.FeatureServer.OfflinePushBatchingBatchIntervalSeconds).To(Equal(&batchInterval))
+
+			Expect(repoConfig.FeatureServer.McpEnabled).To(BeNil())
+		})
+
+		It("should set feature_server block with type mcp", func() {
+			featureStore := minimalFeatureStore()
+			serverName := "my-mcp-server"
+			serverVersion := "2.0.0"
+			transport := HttpScheme
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Serving: &feastdevv1.ServingConfig{
+						Mcp: &feastdevv1.McpConfig{
+							Enabled:       true,
+							ServerName:    &serverName,
+							ServerVersion: &serverVersion,
+							Transport:     &transport,
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Type).To(Equal("mcp"))
+			Expect(repoConfig.FeatureServer.McpEnabled).NotTo(BeNil())
+			Expect(*repoConfig.FeatureServer.McpEnabled).To(BeTrue())
+			Expect(repoConfig.FeatureServer.McpServerName).To(Equal(&serverName))
+			Expect(repoConfig.FeatureServer.McpServerVersion).To(Equal(&serverVersion))
+			Expect(repoConfig.FeatureServer.McpTransport).To(Equal(&transport))
+		})
+
+		It("should use type local when Mcp is present but Enabled is false", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Serving: &feastdevv1.ServingConfig{
+						Mcp: &feastdevv1.McpConfig{
+							Enabled: false,
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Type).To(Equal("local"))
+			Expect(repoConfig.FeatureServer.McpEnabled).To(BeNil())
+		})
+
+		It("should set materialization block", func() {
+			featureStore := minimalFeatureStore()
+			batchSize := int32(10000)
+
+			featureStore.Spec.Materialization = &feastdevv1.MaterializationConfig{
+				OnlineWriteBatchSize: &batchSize,
+				ExtraConfig: map[string]string{
+					"pull_latest_features": "false",
+					"max_workers":          "4",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Materialization).NotTo(BeNil())
+			Expect(repoConfig.Materialization.OnlineWriteBatchSize).To(Equal(&batchSize))
+			// "true"/"false" strings are coerced to native booleans; other strings pass through unchanged.
+			Expect(repoConfig.Materialization.ExtraConfig).To(HaveKeyWithValue("pull_latest_features", false))
+			Expect(repoConfig.Materialization.ExtraConfig).To(HaveKeyWithValue("max_workers", "4"))
+		})
+
+		It("should set openlineage block without api_key secret", func() {
+			featureStore := minimalFeatureStore()
+			transportType := HttpScheme
+			transportUrl := marquezUrl
+			endpoint := "api/v1/lineage"
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:           true,
+				TransportType:     &transportType,
+				TransportUrl:      &transportUrl,
+				TransportEndpoint: &endpoint,
+				ExtraConfig: map[string]string{
+					"namespace":           "my-feast",
+					"producer":            "feast-operator",
+					"emit_on_apply":       "true",
+					"emit_on_materialize": "false",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Enabled).To(BeTrue())
+			Expect(repoConfig.OpenLineage.TransportType).To(Equal(&transportType))
+			Expect(repoConfig.OpenLineage.TransportUrl).To(Equal(&transportUrl))
+			Expect(repoConfig.OpenLineage.TransportEndpoint).To(Equal(&endpoint))
+			Expect(repoConfig.OpenLineage.ApiKey).To(BeNil())
+			// ExtraConfig: "true"/"false" strings coerced to booleans; other strings unchanged.
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("namespace", "my-feast"))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("producer", "feast-operator"))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("emit_on_apply", true))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("emit_on_materialize", false))
+		})
+
+		It("should set openlineage block with kafka extraConfig", func() {
+			featureStore := minimalFeatureStore()
+			transportType := "kafka"
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:       true,
+				TransportType: &transportType,
+				ExtraConfig: map[string]string{
+					"bootstrap_servers": "kafka.svc:9092",
+					"topic":             "openlineage",
+					"sasl_mechanism":    "PLAIN",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("bootstrap_servers", "kafka.svc:9092"))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("topic", "openlineage"))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("sasl_mechanism", "PLAIN"))
+		})
+
+		It("should resolve api_key from secret for openlineage", func() {
+			featureStore := minimalFeatureStore()
+			transportType := HttpScheme
+			transportUrl := marquezUrl
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:       true,
+				TransportType: &transportType,
+				TransportUrl:  &transportUrl,
+				ApiKeySecretRef: &corev1.LocalObjectReference{
+					Name: "lineage-secret",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			apiKeyMockExtract := func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"api_key": "my-secret-key",
+				}, nil
+			}
+
+			repoConfig, err := getServiceRepoConfig(featureStore, apiKeyMockExtract, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.ApiKey).NotTo(BeNil())
+			Expect(*repoConfig.OpenLineage.ApiKey).To(Equal("my-secret-key"))
+		})
+
+		It("should return error when apiKeySecretRef Secret is missing the api_key key", func() {
+			featureStore := minimalFeatureStore()
+			transportType := HttpScheme
+			transportUrl := marquezUrl
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:       true,
+				TransportType: &transportType,
+				TransportUrl:  &transportUrl,
+				ApiKeySecretRef: &corev1.LocalObjectReference{
+					Name: "lineage-secret",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			missingKeyMock := func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"wrong_key": "some-value",
+				}, nil
+			}
+
+			_, err := getServiceRepoConfig(featureStore, missingKeyMock, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("api_key"))
+			Expect(err.Error()).To(ContainSubstring("lineage-secret"))
+		})
+
+		It("should return error when apiKeySecretRef api_key value is not a string", func() {
+			featureStore := minimalFeatureStore()
+			transportType := HttpScheme
+			transportUrl := marquezUrl
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:       true,
+				TransportType: &transportType,
+				TransportUrl:  &transportUrl,
+				ApiKeySecretRef: &corev1.LocalObjectReference{
+					Name: "lineage-secret",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			nonStringMock := func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"api_key": 12345, // integer, not a string
+				}, nil
+			}
+
+			_, err := getServiceRepoConfig(featureStore, nonStringMock, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("api_key"))
+			Expect(err.Error()).To(ContainSubstring("lineage-secret"))
+		})
+
+		It("should not set feature_server block when serving is nil", func() {
+			featureStore := minimalFeatureStore()
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).To(BeNil())
+			Expect(repoConfig.Materialization).To(BeNil())
+			Expect(repoConfig.OpenLineage).To(BeNil())
 		})
 	})
 	It("should fail to create the repo configs", func() {

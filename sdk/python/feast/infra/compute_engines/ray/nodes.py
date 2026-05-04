@@ -559,6 +559,20 @@ class RayAggregationNode(DAGNode):
 class RayDedupNode(DAGNode):
     """
     Ray node for deduplicating records.
+
+    Two dedup strategies are provided:
+
+    * **Materialization** (``is_materialization=True``): per-block
+      ``drop_duplicates``.  This is streaming-friendly because it never needs
+      to see all blocks at once.  Any cross-block duplicates are resolved by
+      the online store, which does an UPSERT and therefore naturally keeps the
+      last-written value.  This avoids the ``groupby().map_groups()`` full
+      shuffle that would otherwise block until every single block was produced.
+
+    * **Historical retrieval** (``is_materialization=False``): global
+      ``groupby().map_groups()``.  Correctness is required here because the
+      entity-timestamp join must return exactly one feature row per
+      (entity, query-timestamp) pair.
     """
 
     def __init__(
@@ -566,10 +580,12 @@ class RayDedupNode(DAGNode):
         name: str,
         column_info,
         config: RayComputeEngineConfig,
+        is_materialization: bool = False,
     ):
         super().__init__(name)
         self.column_info = column_info
         self.config = config
+        self.is_materialization = is_materialization
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the deduplication operation."""
@@ -577,39 +593,59 @@ class RayDedupNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
-        @safe_batch_processor
-        def deduplicate_batch(batch: pd.DataFrame) -> pd.DataFrame:
-            """Remove duplicates from the batch."""
-            # Get deduplication keys
-            join_keys = self.column_info.join_keys
-            timestamp_col = self.column_info.timestamp_column
+        join_keys = self.column_info.join_keys
+        timestamp_col = self.column_info.timestamp_column
 
-            if join_keys:
-                # Sort by join keys and timestamp (most recent first)
-                sort_columns = join_keys + [timestamp_col]
-                available_columns = [
-                    col for col in sort_columns if col in batch.columns
+        if join_keys:
+            if self.is_materialization:
+                # Per-block dedup: streaming-safe, no full shuffle required.
+                # Cross-block duplicates are handled by the online-store UPSERT.
+                #
+                # IMPORTANT: do NOT call dataset.schema() here.  For streaming
+                # datasets backed by slow map_batches actors, .schema() triggers
+                # eager block execution to
+                # infer the output type.  Those blocks are consumed and LOST —
+                # they never reach the write stage.  We therefore defer the
+                # column-existence check to inside _dedup_block, which runs in
+                # a worker per block without interfering with streaming.
+                _join_keys = list(join_keys)
+                _ts_col = timestamp_col
+
+                def _dedup_block(block: pd.DataFrame) -> pd.DataFrame:
+                    available = [k for k in _join_keys if k in block.columns]
+                    if not available:
+                        return block
+                    if _ts_col and _ts_col in block.columns:
+                        block = block.sort_values(_ts_col, ascending=False)
+                    return block.drop_duplicates(subset=available)
+
+                dataset = dataset.map_batches(_dedup_block, batch_format="pandas")
+            else:
+                # Global dedup via groupby: required for historical retrieval
+                # where the entity–timestamp join must return exactly one row
+                # per (entity, query-timestamp) pair.
+                # NOTE: groupby().map_groups() is a full shuffle and blocks
+                # until ALL upstream blocks are produced.  Use only when
+                # correctness across partition boundaries is mandatory.
+                available_join_keys = [
+                    k for k in join_keys if k in dataset.schema().names
                 ]
+                available_ts_col = (
+                    timestamp_col if timestamp_col in dataset.schema().names else None
+                )
 
-                if available_columns:
-                    # Sort and deduplicate
-                    sorted_batch = batch.sort_values(
-                        available_columns,
-                        ascending=[True] * len(join_keys)
-                        + [False],  # Recent timestamps first
+                if available_join_keys:
+
+                    def _keep_latest_in_group(group: pd.DataFrame) -> pd.DataFrame:
+                        if available_ts_col and available_ts_col in group.columns:
+                            group = group.sort_values(available_ts_col, ascending=False)
+                        return group.head(1)
+
+                    dataset = dataset.groupby(available_join_keys).map_groups(
+                        _keep_latest_in_group, batch_format="pandas"
                     )
 
-                    # Keep first occurrence (most recent) for each join key combination
-                    deduped_batch = sorted_batch.drop_duplicates(
-                        subset=join_keys,
-                        keep="first",
-                    )
-
-                    return deduped_batch
-
-            return batch
-
-        deduped_dataset = dataset.map_batches(deduplicate_batch, batch_format="pandas")
+        deduped_dataset = dataset
 
         return DAGValue(
             data=deduped_dataset,
@@ -856,10 +892,19 @@ class RayWriteNode(DAGNode):
 
             return batch
 
+        # Resolve write concurrency from config.
+        # write_concurrency takes precedence; falls back to max_workers, then 1.
+        if self.config is not None and self.config.write_concurrency is not None:
+            _write_concurrency = self.config.write_concurrency
+        elif self.config is not None and self.config.max_workers is not None:
+            _write_concurrency = self.config.max_workers
+        else:
+            _write_concurrency = 1
+
         written_dataset = dataset.map_batches(
             write_batch_with_serialized_artifacts,
             batch_format="pandas",
-            concurrency=self.config.max_workers if self.config else 12,
+            concurrency=_write_concurrency,
         )
         written_dataset = written_dataset.materialize()
 

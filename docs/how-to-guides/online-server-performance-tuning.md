@@ -31,6 +31,10 @@ When the server processes a `get_online_features()` call, it groups the requeste
 
 **Guideline:** For features that share the same entity key and are frequently requested together, consolidate them into a **single feature view**. This reduces the number of store round-trips per request. Split feature views only when features have different entities, different materialization schedules, or different data source update frequencies.
 
+{% hint style="info" %}
+**Redis exception:** The Redis online store overrides `get_online_features()` to batch all `HMGET` commands across every feature view into a **single pipeline execution**. Because all feature views for the same entity share one Redis hash key, the number of Redis round trips is always **1**, regardless of how many feature views the request touches. This means the "fewer feature views" guideline is less critical for Redis than for other stores — but consolidating feature views still reduces serialization and protobuf overhead at the application layer.
+{% endhint %}
+
 ### Feature services are free
 
 A [Feature Service](../getting-started/concepts/feature-retrieval.md) is a named collection of feature references — it's a convenience grouping, not a separate storage or execution unit. Using a feature service adds only a registry lookup (cached) compared to listing features individually. There is no performance penalty for using feature services, and they are the recommended way to define stable, versioned feature sets for production models.
@@ -229,7 +233,7 @@ The online store is the single largest factor in `get_online_features()` latency
 
 | Store | Typical p50 latency | Async read | Best for | Key trade-off |
 | ----- | ------------------- | ---------- | -------- | ------------- |
-| **Redis / Dragonfly** | < 1 ms | No (threadpool) | Ultra-low latency, high throughput | Requires in-memory capacity for your dataset |
+| **Redis / Dragonfly** | < 1 ms | No (threadpool) | Ultra-low latency, high throughput; all FV reads batched into 1 pipeline | Requires in-memory capacity for your dataset |
 | **DynamoDB** | 2–5 ms | Yes | Serverless, auto-scaling on AWS | Pay-per-request cost; batch API limits (100 items) |
 | **PostgreSQL** | 3–10 ms | No (threadpool) | Teams with existing Postgres infra | Connection pooling needed at scale |
 | **MongoDB** | 2–5 ms | Yes | Flexible schema, async-native | Requires index tuning for large datasets |
@@ -259,7 +263,7 @@ The feature server can read from the online store using either an **async** or *
 | **DynamoDB** | Yes | Yes | Uses `aiobotocore` for non-blocking I/O |
 | **MongoDB** | Yes | Yes | Uses `motor` (async MongoDB driver) |
 | **PostgreSQL** | Implemented | No | Has `online_read_async` but does not yet advertise via `async_supported`; uses sync/threadpool path |
-| **Redis** | Implemented | No | Has `online_read_async` but does not yet advertise via `async_supported`; uses sync/threadpool path |
+| **Redis** | Implemented | **Yes** | `online_read_async` and `online_write_batch_async` both implemented; uses sync/threadpool path for `get_online_features` (overridden with batched single pipeline) |
 | All others | No | No | Fall back to sync with `run_in_threadpool()` |
 
 **When async matters most:**
@@ -329,11 +333,38 @@ online_store:
   connection_string: "redis-cluster.internal:6379,ssl=true"
   redis_type: redis_cluster
   key_ttl_seconds: 604800
+  skip_dedup: false          # set true for initial bulk loads to halve write round trips
 ```
 
 - Use `redis_cluster` for horizontal partitioning across shards.
-- Set `key_ttl_seconds` to auto-expire stale feature data, keeping memory usage bounded.
+- Set `key_ttl_seconds` to auto-expire stale feature data, keeping memory usage bounded. This is a **key-level** TTL — it expires the entire entity hash (all feature views for that entity) together.
 - Ensure the Redis instance is in the **same availability zone** as the feature server pods to minimize network round-trips.
+
+#### Batched multi-feature-view reads
+
+The Redis online store overrides `get_online_features()` to issue all `HMGET` commands — across every feature view in the request — in a **single pipeline execution**. This reduces Redis round trips from `N` (one per feature view) to `1` regardless of request size.
+
+| Feature views | Round trips (other stores) | Round trips (Redis) |
+| :---: | :---: | :---: |
+| 1 | 1 | 1 |
+| 5 | 5 | **1** |
+| 10 | 10 | **1** |
+| 20 | 20 | **1** |
+
+This means the latency cost of adding feature views to a Redis-backed request is primarily **serialization and protobuf overhead** at the application layer, not Redis network latency.
+
+#### Write throughput: `skip_dedup`
+
+For initial bulk loads or append-only materialization pipelines:
+
+```yaml
+online_store:
+  type: redis
+  connection_string: "localhost:6379"
+  skip_dedup: true
+```
+
+With `skip_dedup: true`, `online_write_batch()` skips the existing-timestamp read pipeline and writes all values directly in a single pass, halving write round trips. Use only when you can guarantee write ordering — under concurrent writers, an older record can overwrite a newer one.
 
 ### Cassandra / ScyllaDB tuning
 
@@ -421,7 +452,7 @@ Different online stores have different optimal batch sizes for `get_online_featu
 | Store | Default batch size | Max batch size | Recommendation |
 | ----- | ------------------ | -------------- | -------------- |
 | DynamoDB | 100 | 100 (API limit) | Keep at 100; tune `max_read_workers` for parallelism |
-| Redis | N/A (pipelined) | N/A | Redis pipelines all keys in one round-trip; no batch tuning needed |
+| Redis | N/A (pipelined) | N/A | All entity keys **and** all feature views are batched into a single pipeline; no batch tuning needed |
 | PostgreSQL | N/A (single query) | N/A | Single `SELECT ... WHERE key IN (...)` query; tune connection pool instead |
 
 Profile your workload by measuring `feast_feature_server_online_store_read_duration_seconds` (see [Metrics setup](#metrics-setup-prometheus--opentelemetry)) across different entity counts to find the sweet spot.
@@ -980,6 +1011,72 @@ registry:
 
 ---
 
+## Materialization write performance
+
+Materialization (`feast materialize` / `feast materialize-incremental`) reads features from the offline store and writes them to the online store. For large feature views, two common bottlenecks arise: **memory exhaustion** during proto conversion and **write throughput** to the online store.
+
+### Memory: `online_write_batch_size`
+
+By default, Feast converts the entire Arrow table returned by the offline store into Python protobuf objects in a single pass before writing to the online store. For datasets with millions of rows this can consume tens of gigabytes of memory on the materialization worker.
+
+Set `online_write_batch_size` in `feature_store.yaml` to break the write into manageable chunks:
+
+```yaml
+materialization:
+  online_write_batch_size: 10000   # rows per write batch
+```
+
+Each chunk is independently converted and written, keeping peak memory proportional to the batch size rather than the full dataset. This is supported by the **local, Spark, and Ray** compute engines.
+
+| Dataset size | Without batching | With `online_write_batch_size: 10000` |
+| --- | --- | --- |
+| 1 M rows (100 bytes/row) | ~100 MB peak | ~1 MB peak |
+| 10 M rows | ~1 GB peak | ~1 MB peak |
+| 100 M rows | OOM / swap | ~1 MB peak |
+
+**Choosing a value:**
+
+- **Larger batches** (50 000+): fewer write calls to the online store, lower overhead per row — good when worker memory allows.
+- **Smaller batches** (1 000–5 000): lower peak memory — necessary for memory-constrained workers or very wide feature views (many features per row).
+- For **Redis**: pipeline overhead per batch is negligible; a batch size of 10 000–50 000 is a good starting point.
+- For **DynamoDB**: each batch maps to one or more `BatchWriteItem` calls (max 25 items per call); a larger `online_write_batch_size` amortizes the per-call overhead but doesn't change the 25-item DynamoDB limit.
+
+See the [feature-store-yaml reference](../reference/feature-repository/feature-store-yaml.md#online_write_batch_size) for the complete option documentation.
+
+### Throughput: parallel feature view materialization
+
+Each feature view in a `feast materialize` call is materialized sequentially by the local engine. To materialize multiple feature views in parallel, use a job orchestrator (Airflow, Kubernetes Jobs) and materialize one feature view per job:
+
+```bash
+# Airflow / cron: one task per feature view
+feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S") \
+  --views driver_stats
+```
+
+Alternatively, use the **Spark** or **Ray** compute engines which distribute the work across a cluster.
+
+### Redis: combine with `skip_dedup` for bulk reloads
+
+When performing a full historical reload into Redis (not an incremental update), combine `online_write_batch_size` with `skip_dedup` for maximum throughput:
+
+```yaml
+materialization:
+  online_write_batch_size: 50000   # large chunks — memory is bounded
+
+online_store:
+  type: redis
+  connection_string: "redis-cluster.internal:6379"
+  skip_dedup: true                 # skip per-row timestamp check — halves write round trips
+```
+
+`skip_dedup: true` eliminates the timestamp-read pipeline before each write (see [Redis tuning](#redis-tuning)), while `online_write_batch_size` prevents the write worker from converting the entire dataset into memory at once.
+
+{% hint style="warning" %}
+Reset `skip_dedup` to `false` (or remove it) after the bulk reload. Under normal incremental materialization, deduplication prevents older feature values from overwriting newer ones.
+{% endhint %}
+
+---
+
 ## Further reading
 
 - [Scaling Feast](./scaling-feast.md) — Horizontal scaling, HPA, KEDA, and HA in detail
@@ -987,5 +1084,6 @@ registry:
 - [OpenTelemetry Integration](../getting-started/components/open-telemetry.md) — Full OTEL setup with Prometheus Operator
 - [DynamoDB Online Store](../reference/online-stores/dynamodb.md) — Store-specific configuration and performance tuning
 - [PostgreSQL Online Store](../reference/online-stores/postgres.md) — Connection pooling and SSL configuration
-- [Redis Online Store](../reference/online-stores/redis.md) — Cluster mode, Sentinel, and TTL configuration
+- [Redis Online Store](../reference/online-stores/redis.md) — Cluster mode, Sentinel, TTL configuration, and batched reads
 - [On Demand Feature Views](../reference/beta-on-demand-feature-view.md) — Transformation modes and write-time transforms
+- [feature_store.yaml reference](../reference/feature-repository/feature-store-yaml.md) — Full configuration reference including `materialization` options

@@ -58,8 +58,11 @@ make lint-python
 # Run all precommit checks (format + lint)
 make precommit-check
 
-# Type checking
-cd sdk/python && python -m mypy feast
+# Type checking (entire codebase)
+uv run bash -c "cd sdk/python && mypy feast"
+
+# Type-check a single file
+uv run bash -c "cd sdk/python && mypy feast/path/to/file.py"
 ```
 
 ## Code Style
@@ -71,11 +74,44 @@ cd sdk/python && python -m mypy feast
 - Add a GitHub label to PRs (e.g. `kind/bug`, `kind/feature`, `kind/housekeeping`)
 - Sign off commits with `git commit -s` (DCO requirement)
 
+## Docker Images
+
+```bash
+# Build all Docker images
+make build-docker
+
+# Build feature server Docker image
+make build-feature-server-docker
+```
+
+## Documentation
+
+```bash
+# Build Sphinx documentation
+make build-sphinx
+
+# Build templates
+make build-templates
+
+# Build Helm docs
+make build-helm-docs
+```
+
 ## Documentation and Blog Posts
 
 - **Blog posts must be placed in `/infra/website/docs/blog/`** — do NOT place them under `docs/blog/` or elsewhere.
 - Blog post files must include YAML frontmatter with `title`, `description`, `date`, and `authors` fields matching the format of existing posts in that directory.
-- All other reference documentation (concepts, how-tos, reference pages) goes under `docs/`.
+- All other docs go under `docs/` and **must be added to `docs/SUMMARY.md`** (GitBook navigation) or they won't appear on the website.
+
+| Change type | Doc location |
+|---|---|
+| New online store | `docs/reference/online-stores/<name>.md` + update `README.md` and `SUMMARY.md` |
+| New offline store | `docs/reference/offline-stores/<name>.md` + update `README.md`, `overview.md`, `SUMMARY.md` |
+| New registry backend | `docs/reference/registries/<name>.md` + update `SUMMARY.md` |
+| Config option | `docs/reference/feature-store-yaml.md` |
+| CLI flag/command | `docs/reference/feast-cli-commands.md` |
+| How-to / integration | `docs/how-to-guides/customizing-feast/` or `docs/how-to-guides/` + update `SUMMARY.md` |
+| Architecture / concept | `docs/getting-started/architecture/` or `docs/getting-started/components/` |
 
 ## Project Structure
 

@@ -2051,6 +2051,35 @@ def cb_columnar_type_to_feast_value_type(type_str: str) -> ValueType:
     return value
 
 
+def mongodb_to_feast_value_type(type_str: str) -> ValueType:
+    """Map a Python type string (as inferred from pymongo documents) to a Feast ValueType.
+
+    The type strings are produced by
+    ``feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_source._infer_python_type_str``.
+    Unrecognised strings are mapped to ``ValueType.UNKNOWN``.
+    """
+    type_map: Dict[str, ValueType] = {
+        "str": ValueType.STRING,
+        "string": ValueType.STRING,
+        "int": ValueType.INT64,
+        "int64": ValueType.INT64,
+        "float": ValueType.DOUBLE,
+        "float64": ValueType.DOUBLE,
+        "bool": ValueType.BOOL,
+        "bytes": ValueType.BYTES,
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "list": ValueType.UNKNOWN,
+        "dict": ValueType.UNKNOWN,
+        "list[str]": ValueType.STRING_LIST,
+        "list[int]": ValueType.INT64_LIST,
+        "list[float]": ValueType.DOUBLE_LIST,
+        "list[bool]": ValueType.BOOL_LIST,
+        "list[bytes]": ValueType.BYTES_LIST,
+        "list[datetime]": ValueType.UNIX_TIMESTAMP_LIST,
+    }
+    return type_map.get(type_str, ValueType.UNKNOWN)
+
+
 def convert_scalar_column(
     series: pd.Series, value_type: ValueType, target_pandas_type: str
 ) -> pd.Series:

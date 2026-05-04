@@ -402,15 +402,22 @@ class DaskOfflineStore(OfflineStore):
         # Create lazy function that is only called from the RetrievalJob object
         source_df = _read_datasource(data_source, config.repo_path)
 
-        source_df = _normalize_timestamp(
-            source_df, timestamp_field, created_timestamp_column
-        )
-
+        # Validate join keys against source columns BEFORE calling _normalize_timestamp.
+        # _normalize_timestamp ends with df.persist() which initialises Dask's global
+        # ThreadPoolExecutor.  When the process subsequently exits (e.g. after raising
+        # FeastJoinKeysDuringMaterialization), Python's atexit handler calls
+        # ThreadPoolExecutor.shutdown(wait=True) which can block indefinitely, hanging
+        # the subprocess and preventing the parent from reading its output.
+        # df.columns is derived from the Parquet schema metadata — no computation needed.
         source_columns = set(source_df.columns)
         if not set(join_key_columns).issubset(source_columns):
             raise FeastJoinKeysDuringMaterialization(
                 data_source.path, set(join_key_columns), source_columns
             )
+
+        source_df = _normalize_timestamp(
+            source_df, timestamp_field, created_timestamp_column
+        )
 
         # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
         # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
