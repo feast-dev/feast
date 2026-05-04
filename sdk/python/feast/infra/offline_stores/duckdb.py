@@ -262,11 +262,10 @@ def _duckdb_numeric_histogram(
         ).fetchone()[0]
         return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
 
-    upper = max_val + (max_val - min_val) * 1e-10
     bin_width = (max_val - min_val) / bins
 
     query = (
-        f"SELECT width_bucket(CAST({q_col} AS DOUBLE), {min_val}, {upper}, {bins}) AS bucket, "
+        f"SELECT LEAST(FLOOR((CAST({q_col} AS DOUBLE) - {min_val}) / {bin_width}) + 1, {bins}) AS bucket, "
         f"COUNT(*) AS cnt "
         f"FROM {from_expr} AS _src "
         f"WHERE {q_col} IS NOT NULL AND {tw} "
