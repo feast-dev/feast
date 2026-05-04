@@ -89,6 +89,8 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
+        org: The organizational unit that owns this feature view (e.g. "ads", "search").
+            Defaults to empty string.
         mode: The transformation mode for feature transformations. Only meaningful when
             transformations are applied. Choose from TransformationMode enum values
             (e.g., PYTHON, PANDAS, RAY, SQL, SPARK, SUBSTRAIT).
@@ -107,6 +109,7 @@ class FeatureView(BaseFeatureView):
     description: str
     tags: Dict[str, str]
     owner: str
+    org: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
     enable_validation: bool
@@ -125,6 +128,7 @@ class FeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        org: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
         enable_validation: bool = False,
         version: str = "latest",
@@ -152,6 +156,8 @@ class FeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
+            org (optional): The organizational unit that owns this feature view
+                (e.g. "ads", "search").
             mode (optional): The transformation mode for feature transformations. Only meaningful
                 when transformations are applied. Choose from TransformationMode enum values.
             enable_validation (optional): If True, enables schema validation during materialization
@@ -278,6 +284,7 @@ class FeatureView(BaseFeatureView):
             owner=owner,
             source=self.batch_source,
         )
+        self.org = org
         self.online = online
         self.offline = offline
         self.mode = mode
@@ -302,6 +309,7 @@ class FeatureView(BaseFeatureView):
             version=self.version,
             description=self.description,
             owner=self.owner,
+            org=self.org,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -355,6 +363,7 @@ class FeatureView(BaseFeatureView):
             or self.enable_validation != other.enable_validation
             or normalize_version_string(self.version)
             != normalize_version_string(other.version)
+            or self.org != other.org
         ):
             return False
 
@@ -485,6 +494,7 @@ class FeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            org=self.org,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
             offline=self.offline,
@@ -520,14 +530,17 @@ class FeatureView(BaseFeatureView):
         return ttl_duration
 
     @classmethod
-    def from_proto(cls, feature_view_proto: FeatureViewProto) -> "FeatureView":
-        return cls._from_proto_internal(feature_view_proto, seen={})
+    def from_proto(
+        cls, feature_view_proto: FeatureViewProto, skip_udf: bool = False
+    ) -> "FeatureView":
+        return cls._from_proto_internal(feature_view_proto, seen={}, skip_udf=skip_udf)
 
     @classmethod
     def _from_proto_internal(
         cls,
         feature_view_proto: FeatureViewProto,
         seen: Dict[str, Union[None, "FeatureView"]],
+        skip_udf: bool = False,
     ) -> "FeatureView":
         """
         Creates a feature view from a protobuf representation of a feature view.
@@ -561,7 +574,7 @@ class FeatureView(BaseFeatureView):
         )
         source_views = [
             FeatureView._from_proto_internal(
-                FeatureViewProto(spec=view_spec, meta=None), seen
+                FeatureViewProto(spec=view_spec, meta=None), seen, skip_udf=skip_udf
             )
             for view_spec in feature_view_proto.spec.source_views
         ]
@@ -581,22 +594,23 @@ class FeatureView(BaseFeatureView):
             )
             transformation = None
 
-            if feature_transformation_proto.HasField("user_defined_function"):
-                udf_proto = feature_transformation_proto.user_defined_function
-                if udf_proto.mode:
-                    try:
-                        transformation_class = get_transformation_class_from_type(
-                            udf_proto.mode
-                        )
-                        transformation = transformation_class.from_proto(udf_proto)
-                    except (ValueError, KeyError):
+            if not skip_udf:
+                if feature_transformation_proto.HasField("user_defined_function"):
+                    udf_proto = feature_transformation_proto.user_defined_function
+                    if udf_proto.mode:
+                        try:
+                            transformation_class = get_transformation_class_from_type(
+                                udf_proto.mode
+                            )
+                            transformation = transformation_class.from_proto(udf_proto)
+                        except (ValueError, KeyError):
+                            transformation = PythonTransformation.from_proto(udf_proto)
+                    else:
                         transformation = PythonTransformation.from_proto(udf_proto)
-                else:
-                    transformation = PythonTransformation.from_proto(udf_proto)
-            elif feature_transformation_proto.HasField("substrait_transformation"):
-                transformation = SubstraitTransformation.from_proto(
-                    feature_transformation_proto.substrait_transformation
-                )
+                elif feature_transformation_proto.HasField("substrait_transformation"):
+                    transformation = SubstraitTransformation.from_proto(
+                        feature_transformation_proto.substrait_transformation
+                    )
 
             mode: Union[TransformationMode, str]
             if feature_view_proto.spec.mode:
@@ -611,6 +625,7 @@ class FeatureView(BaseFeatureView):
                 description=feature_view_proto.spec.description,
                 tags=dict(feature_view_proto.spec.tags),
                 owner=feature_view_proto.spec.owner,
+                org=feature_view_proto.spec.org,
                 online=feature_view_proto.spec.online,
                 offline=feature_view_proto.spec.offline,
                 ttl=(
@@ -633,6 +648,7 @@ class FeatureView(BaseFeatureView):
                 description=feature_view_proto.spec.description,
                 tags=dict(feature_view_proto.spec.tags),
                 owner=feature_view_proto.spec.owner,
+                org=feature_view_proto.spec.org,
                 online=feature_view_proto.spec.online,
                 offline=feature_view_proto.spec.offline,
                 ttl=(

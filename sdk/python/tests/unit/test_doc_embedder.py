@@ -6,7 +6,11 @@ import pandas as pd
 import pytest
 
 from feast.chunker import BaseChunker, ChunkingConfig, TextChunker
-from feast.doc_embedder import DocEmbedder, LogicalLayerFn, default_logical_layer_fn
+from feast.doc_embedder import (
+    DocEmbedder,
+    SchemaTransformFn,
+    default_schema_transform_fn,
+)
 from feast.embedder import BaseEmbedder, EmbeddingConfig, MultiModalEmbedder
 
 
@@ -230,17 +234,17 @@ class TestMultiModalEmbedder:
         embedder.embed.assert_called_once_with(["hello", "world"], "text")
 
 
-def test_logical_layer_fn_protocol_check():
-    """A matching function is recognized as LogicalLayerFn."""
+def test_schema_transform_fn_protocol_check():
+    """A matching function is recognized as SchemaTransformFn."""
 
     def my_fn(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
-    assert isinstance(my_fn, LogicalLayerFn)
+    assert isinstance(my_fn, SchemaTransformFn)
 
 
-def test_default_logical_layer_fn_output():
-    """default_logical_layer_fn transforms columns correctly."""
+def test_default_schema_transform_fn_output():
+    """default_schema_transform_fn transforms columns correctly."""
     input_df = pd.DataFrame(
         {
             "chunk_id": ["c1", "c2"],
@@ -250,7 +254,7 @@ def test_default_logical_layer_fn_output():
         }
     )
 
-    result = default_logical_layer_fn(input_df)
+    result = default_schema_transform_fn(input_df)
 
     assert list(result.columns) == [
         "passage_id",
@@ -288,7 +292,7 @@ class TestDocEmbedder:
         assert doc_embedder.feature_view_name == "test_view"
         assert doc_embedder.chunker is mock_chunker
         assert doc_embedder.embedder is mock_embedder
-        assert doc_embedder.logical_layer_fn is default_logical_layer_fn
+        assert doc_embedder.schema_transform_fn is default_schema_transform_fn
 
     @patch("feast.repo_operations.apply_total")
     @patch("feast.repo_config.load_repo_config")
@@ -374,7 +378,7 @@ class TestDocEmbedder:
     def test_embed_documents_full_chain(
         self, mock_fs_cls, mock_load_config, mock_apply_total, tmp_path
     ):
-        """embed_documents wires chunk -> embed -> logical_layer -> save correctly."""
+        """embed_documents wires chunk -> embed -> schema_transform -> save correctly."""
         mock_chunker = MagicMock(spec=BaseChunker)
         chunked_df = pd.DataFrame(
             {
@@ -409,7 +413,7 @@ class TestDocEmbedder:
             repo_path=str(tmp_path),
             chunker=mock_chunker,
             embedder=mock_embedder,
-            logical_layer_fn=mock_logical_fn,
+            schema_transform_fn=mock_logical_fn,
             create_feature_view=False,
         )
 
@@ -528,7 +532,7 @@ class TestDocEmbedder:
             repo_path=str(tmp_path),
             chunker=mock_chunker,
             embedder=mock_embedder,
-            logical_layer_fn=mock_logical_fn,
+            schema_transform_fn=mock_logical_fn,
             create_feature_view=False,
         )
 
@@ -599,7 +603,7 @@ class TestDocEmbedder:
 @patch("feast.repo_config.load_repo_config")
 @patch("feast.feature_store.FeatureStore")
 def test_end_to_end_pipeline(mock_fs_cls, mock_load_config, mock_apply_total, tmp_path):
-    """Full pipeline: real TextChunker + mocked embedder + default logical layer."""
+    """Full pipeline: real TextChunker + mocked embedder + default schema transform."""
     chunker = TextChunker(
         config=ChunkingConfig(
             chunk_size=10,
@@ -623,7 +627,7 @@ def test_end_to_end_pipeline(mock_fs_cls, mock_load_config, mock_apply_total, tm
         repo_path=str(tmp_path),
         chunker=chunker,
         embedder=mock_embedder,
-        logical_layer_fn=default_logical_layer_fn,
+        schema_transform_fn=default_schema_transform_fn,
         create_feature_view=False,
     )
 

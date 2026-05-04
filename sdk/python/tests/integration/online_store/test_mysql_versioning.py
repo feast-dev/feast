@@ -77,6 +77,7 @@ class TestMySQLVersioningIntegration:
             username="root",
             password="testpass",  # pragma: allowlist secret
             dbname="feast",
+            dialect="pymysql",
         ).with_exposed_ports(3306)
         self.container.start()
         self.port = self.container.get_exposed_port(3306)

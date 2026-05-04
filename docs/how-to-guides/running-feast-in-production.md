@@ -18,6 +18,10 @@ For example, you might not have a stream source and, thus, no need to write feat
 Additionally, please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md).
 {% endhint %}
 
+{% hint style="info" %}
+**Looking for production deployment patterns?** See the [Feast Production Deployment Topologies](./production-deployment-topologies.md) guide for three Kubernetes-ready topologies (Minimal, Standard, Enterprise), sample FeatureStore CRs, RBAC policies, infrastructure recommendations, and scaling best practices.
+{% endhint %}
+
 In this guide we will show you how to:
 
 1. Deploy your feature store and keep your infrastructure in sync with your feature repository
@@ -70,6 +74,15 @@ It is up to you to orchestrate and schedule runs of materialization.
 Feast keeps the history of materialization in its registry so that the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron). Cron util should be sufficient when you have just a few materialization jobs (it's usually one materialization job per feature view) triggered infrequently. 
 
 However, the amount of work can quickly outgrow the resources of a single machine. That happens because the materialization job needs to repackage all rows before writing them to an online store. That leads to high utilization of CPU and memory. In this case, you might want to use a job orchestrator to run multiple jobs in parallel using several workers. Kubernetes Jobs or Airflow are good choices for more comprehensive job orchestration.
+
+For large datasets, you can also reduce peak memory on the materialization worker by setting `online_write_batch_size` in `feature_store.yaml`. This breaks the proto conversion and write into chunks instead of loading the entire dataset into memory at once:
+
+```yaml
+materialization:
+  online_write_batch_size: 10000   # rows per write batch; reduces peak memory proportionally
+```
+
+See the [Materialization write performance](./online-server-performance-tuning.md#materialization-write-performance) guide for sizing recommendations and the full option reference in [feature_store.yaml](../reference/feature-repository/feature-store-yaml.md#online_write_batch_size).
 
 If you are using Airflow as a scheduler, Feast can be invoked through a  [PythonOperator](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html) after the [Python SDK](https://pypi.org/project/feast/) has been installed into a virtual environment and your feature repo has been synced:
 

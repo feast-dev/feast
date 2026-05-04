@@ -10,6 +10,10 @@ Kubernetes is a common target environment for running Feast in production. You c
 2. Run scheduled and ad-hoc jobs (e.g. materialization jobs) as Kubernetes Jobs.
 3. Operate Feast components using Kubernetes-native primitives.
 
+{% hint style="info" %}
+**Planning a production deployment?** See the [Feast Production Deployment Topologies](./production-deployment-topologies.md) guide for architecture diagrams, sample FeatureStore CRs, RBAC policies, infrastructure recommendations, and scaling best practices across Minimal, Standard, and Enterprise topologies.
+{% endhint %}
+
 ## Feast Operator
 
 To deploy Feast components on Kubernetes, use the included [feast-operator](../../infra/feast-operator).
@@ -63,6 +67,12 @@ spec:
 ```
 
 > _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
+
+{% hint style="info" %}
+**Advanced configuration:** To configure persistence, metrics, MCP, OpenLineage, security,
+batch jobs, and more via the operator, see the
+[Operator Configuration Guides](feast-operator/README.md).
+{% endhint %}
 
 ## Upgrading the Operator
 

@@ -38,6 +38,17 @@ repos:
         entry: uv run make build-templates
         pass_filenames: false
 
+      # Pre-push lint gate — check-only. Auto-fix omitted: pre-push cannot change committed objects.
+      # If blocked, run "make format-python", then amend/commit and push again.
+      - id: lint-push
+        name: Lint Before Push
+        stages: [push]
+        language: system
+        types: [python]
+        exclude: '_pb2\.py$'
+        entry: bash -c 'uv run ruff check "$@" && uv run ruff format --check "$@"' --
+        pass_filenames: true
+
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:

@@ -23,6 +23,7 @@ from tests.utils.feature_records import validate_online_features
     platform.system() == "Darwin" and os.environ.get("CI") == "true",
     reason="Skip on macOS CI due to Ray/uv subprocess compatibility issues",
 )
+@pytest.mark.timeout(600)
 def test_e2e_local() -> None:
     """
     Tests the end-to-end workflow of apply, materialize, and online retrieval.

@@ -152,3 +152,51 @@ def test_pull_all_from_table_or_query_partition_pruning(mock_get_bigquery_client
     )
     assert "partition_date >= '2021-01-01'" in actual_query
     assert "partition_date <= '2021-01-02'" in actual_query
+
+
+class TestBigQuerySourceGetTableQueryString:
+    def test_table_only(self):
+        source = BigQuerySource(
+            name="test",
+            table="project.dataset.table",
+            timestamp_field="ts",
+        )
+        assert source.get_table_query_string() == "`project.dataset.table`"
+
+    def test_query_only(self):
+        source = BigQuerySource(
+            name="test",
+            query="SELECT * FROM `project.dataset.table` WHERE active = TRUE",
+            timestamp_field="ts",
+        )
+        assert (
+            source.get_table_query_string()
+            == "(SELECT * FROM `project.dataset.table` WHERE active = TRUE)"
+        )
+
+    def test_both_table_and_query_prefers_query(self):
+        """When both table and query are set, query takes priority for reads."""
+        query = (
+            "SELECT * FROM `project.dataset.table`"
+            " QUALIFY ROW_NUMBER() OVER (PARTITION BY entity_id, event_time) = 1"
+        )
+        source = BigQuerySource(
+            name="test",
+            table="project.dataset.table",
+            query=query,
+            timestamp_field="ts",
+        )
+        result = source.get_table_query_string()
+        assert result.startswith("(")
+        assert "QUALIFY" in result
+        assert result != "`project.dataset.table`"
+
+    def test_table_property_unaffected_by_query_priority(self):
+        """The .table property is still accessible for write paths."""
+        source = BigQuerySource(
+            name="test",
+            table="project.dataset.write_target",
+            query="SELECT * FROM `project.dataset.write_target` WHERE deduped",
+            timestamp_field="ts",
+        )
+        assert source.table == "project.dataset.write_target"

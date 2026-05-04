@@ -217,8 +217,9 @@ The "RFC" (request for comments) process is intended to provide a consistent and
 2. Users, Contributors, and Maintainers discuss and upvote the draft
 3. If confident on its success, contributor completes the RFC with more in-detail technical specifications
 4. Maintainers approve RFC when it is ready
-5. Maintainers meet every quarter and choose three or five items based on popularity and alignment with project vision and goals
-6. Those selected items become part of the Mid-term goals
+5. Once finalized, the RFC should be added as an [Architecture Decision Record (ADR)](../docs/adr/README.md) in the repository
+6. Maintainers meet every quarter and choose three or five items based on popularity and alignment with project vision and goals
+7. Those selected items become part of the Mid-term goals
 
 
 ### When to Use RFCs

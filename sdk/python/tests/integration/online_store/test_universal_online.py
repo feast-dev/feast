@@ -921,13 +921,27 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
     df, data_source = fake_document_data
     item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
     fs.apply([item_embeddings_feature_view, item()])
+
+    features = [
+        "item_embeddings:embedding_float",
+        "item_embeddings:item_id",
+        "item_embeddings:string_feature",
+    ]
+
+    # Empty-store query: collection exists but has no rows yet.
+    empty = fs.retrieve_online_documents_v2(
+        features=features,
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="L2",
+    ).to_dict()
+    assert len(empty["embedding_float"]) == 0
+    assert len(empty["item_id"]) == 0
+
     fs.write_to_online_store("item_embeddings", df)
+
     documents = fs.retrieve_online_documents_v2(
-        features=[
-            "item_embeddings:embedding_float",
-            "item_embeddings:item_id",
-            "item_embeddings:string_feature",
-        ],
+        features=features,
         query=[1.0, 2.0],
         top_k=2,
         distance_metric="L2",
@@ -947,6 +961,50 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
         assert len(embedding) == query_dim, (
             f"Integration test: embedding {i} has {len(embedding)} dimensions, expected {query_dim}"
         )
+
+    # Oversized top_k: dataset has 3 rows, request 5 -> expect 3 back.
+    all_docs = fs.retrieve_online_documents_v2(
+        features=features,
+        query=[1.0, 2.0],
+        top_k=5,
+        distance_metric="L2",
+    ).to_dict()
+    assert len(all_docs["embedding_float"]) == 3
+    assert sorted(all_docs["item_id"]) == [1, 2, 3]
+
+    # Cosine-metric variant: separate FV so the Milvus collection is created
+    # with COSINE as its index metric.
+    cosine_fv = FeatureView(
+        name="item_embeddings_cosine",
+        entities=[item()],
+        schema=[
+            Field(
+                name="embedding_float",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="string_feature", dtype=String),
+            Field(name="float_feature", dtype=Float32),
+        ],
+        source=data_source,
+        ttl=timedelta(hours=2),
+    )
+    fs.apply([cosine_fv])
+    fs.write_to_online_store("item_embeddings_cosine", df)
+
+    cosine_docs = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings_cosine:embedding_float",
+            "item_embeddings_cosine:item_id",
+            "item_embeddings_cosine:string_feature",
+        ],
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="COSINE",
+    ).to_dict()
+    assert len(cosine_docs["embedding_float"]) == 2
+    assert len(cosine_docs["item_id"]) == 2
 
 
 @pytest.mark.integration

@@ -14,14 +14,75 @@ class RemoteDatasetProxy:
         """Initialize with a reference to the remote dataset."""
         self._dataset_ref = dataset_ref
 
-    def map_batches(self, func, **kwargs) -> "RemoteDatasetProxy":
-        """Execute map_batches remotely on cluster workers."""
+    def map_batches(
+        self,
+        func,
+        num_gpus: float = 0,
+        worker_task_options: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> "RemoteDatasetProxy":
+        """Execute map_batches remotely on cluster workers.
+
+        Resource options are applied at two levels:
+
+        1. **Orchestration task** (@ray.remote wrapper) — receives only the
+           non-compute keys from worker_task_options (runtime_env, max_retries,
+           scheduling_strategy, memory, …).  Compute-scheduling keys
+           (num_gpus, num_cpus, accelerator_type, resources) are intentionally
+           excluded: the orchestration task only calls dataset.map_batches()
+           and holds no GPU/CPU work itself.  Including num_gpus here would
+           waste a GPU slot for the entire operation duration and, on
+           GPU-constrained clusters, could cause deadlock where the orchestrator
+           holds a GPU while the data workers queue waiting for the same slots.
+
+        2. **Data workers** (inside dataset.map_batches) — receives the full
+           compute-scheduling subset (num_gpus, num_cpus, accelerator_type,
+           resources).  Ray Data propagates these to the actual processing tasks.
+
+        Args:
+            func: Batch transformation function.
+            num_gpus: Shorthand GPU count (merged into worker_task_options,
+                takes precedence). Kept first-class because it also drives
+                gpu_batch_format selection in the compute engine.
+            worker_task_options: Arbitrary Ray .options() kwargs (num_cpus,
+                memory, accelerator_type, resources, runtime_env,
+                max_retries, …).
+            **kwargs: Additional map_batches kwargs (batch_format, concurrency).
+        """
+        # Merge num_gpus into worker_task_options; dedicated field takes precedence
+        opts: Dict[str, Any] = dict(worker_task_options or {})
+        if num_gpus:
+            opts["num_gpus"] = num_gpus
+
+        # Keys accepted by Ray Data's map_batches for per-worker scheduling
+        _MAP_BATCHES_RESOURCE_KEYS = {
+            "num_gpus",
+            "num_cpus",
+            "accelerator_type",
+            "resources",
+        }
+
+        # Data workers get the compute-scheduling subset only
+        map_resource_kwargs = {
+            k: v for k, v in opts.items() if k in _MAP_BATCHES_RESOURCE_KEYS
+        }
+
+        # Orchestration task gets the remainder (non-compute keys only) so it
+        # never holds GPU/CPU slots it doesn't use
+        orchestration_opts = {
+            k: v for k, v in opts.items() if k not in _MAP_BATCHES_RESOURCE_KEYS
+        }
 
         @ray.remote
-        def _remote_map_batches(dataset, function, batch_kwargs):
-            return dataset.map_batches(function, **batch_kwargs)
+        def _remote_map_batches(dataset, function, batch_kwargs, resource_kwargs):
+            return dataset.map_batches(function, **batch_kwargs, **resource_kwargs)
 
-        new_ref = _remote_map_batches.remote(self._dataset_ref, func, kwargs)
+        remote_fn = (
+            _remote_map_batches.options(**orchestration_opts)
+            if orchestration_opts
+            else _remote_map_batches
+        )
+        new_ref = remote_fn.remote(self._dataset_ref, func, kwargs, map_resource_kwargs)
         return RemoteDatasetProxy(new_ref)
 
     def filter(self, fn) -> "RemoteDatasetProxy":

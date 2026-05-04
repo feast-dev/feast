@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
@@ -36,15 +37,28 @@ import (
 
 var tracer trace.Tracer
 
+var newSignalStopChannel = func() (chan os.Signal, func()) {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	return stop, func() {
+		signal.Stop(stop)
+	}
+}
+
 type ServerStarter interface {
 	StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
 	StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
+	StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, certFile string, keyFile string) error
 }
 
 type RealServerStarter struct{}
 
 func (s *RealServerStarter) StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
+	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts, false, "", "")
+}
+
+func (s *RealServerStarter) StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, certFile string, keyFile string) error {
+	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts, true, certFile, keyFile)
 }
 
 func (s *RealServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
@@ -58,18 +72,22 @@ func main() {
 	port := 8080
 	metricsPort := 9090
 	server := RealServerStarter{}
+	certFile := ""
+	keyFile := ""
 	// Current Directory
 	repoPath, err := os.Getwd()
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed to get current directory")
 	}
 
-	flag.StringVar(&serverType, "type", serverType, "Specify the server type (http or grpc)")
+	flag.StringVar(&serverType, "type", serverType, "Specify the server type (http, https or grpc)")
 	flag.StringVar(&repoPath, "chdir", repoPath, "Repository path where feature store yaml file is stored")
 
 	flag.StringVar(&host, "host", host, "Specify a host for the server")
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
 	flag.IntVar(&metricsPort, "metrics-port", metricsPort, "Specify a port for the metrics server")
+	flag.StringVar(&certFile, "tls-cert-file", "", "Path to the TLS certificate file")
+	flag.StringVar(&keyFile, "tls-key-file", "", "Path to the TLS key file")
 	flag.Parse()
 
 	// Initialize tracer
@@ -119,8 +137,10 @@ func main() {
 		err = server.StartHttpServer(fs, host, port, metricsPort, nil, loggingOptions)
 	} else if serverType == "grpc" {
 		err = server.StartGrpcServer(fs, host, port, metricsPort, nil, loggingOptions)
+	} else if serverType == "https" {
+		err = server.StartHttpsServer(fs, host, port, metricsPort, nil, loggingOptions, certFile, keyFile)
 	} else {
-		fmt.Println("Unknown server type. Please specify 'http' or 'grpc'.")
+		fmt.Println("Unknown server type. Please specify 'http' or 'grpc' or 'https'.")
 	}
 
 	if err != nil {
@@ -227,27 +247,34 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 // StartHttpServerWithLogging starts HTTP server with enabled feature logging
 // Go does not allow direct assignment to package-level functions as a way to
 // mock them for tests
-func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, httpsEnable bool, certFile string, keyFile string) error {
+	if httpsEnable && (certFile == "" || keyFile == "") {
+		return fmt.Errorf("--tls-cert-file and --tls-key-file must be provided for HTTPS server.")
+	}
+
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
 	}
 	ser := server.NewHttpServer(fs, loggingService)
 	log.Info().Msgf("Starting a HTTP server on host %s, port %d", host, port)
+
 	// Start metrics server
-	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", metricsPort)}
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	metricsServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", metricsPort),
+		Handler: mux,
+	}
 	go func() {
 		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		metricsServer.Handler = mux
 		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error().Err(err).Msg("Failed to start metrics server")
 		}
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	stop, stopCleanup := newSignalStopChannel()
+	defer stopCleanup()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -263,7 +290,9 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 				log.Error().Err(err).Msg("Error when stopping the HTTP server")
 			}
 			log.Info().Msg("Stopping metrics server...")
-			if err := metricsServer.Shutdown(context.Background()); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := metricsServer.Shutdown(ctx); err != nil {
 				log.Error().Err(err).Msg("Error stopping metrics server")
 			}
 			if loggingService != nil {
@@ -279,7 +308,11 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort 
 		}
 	}()
 
-	err = ser.Serve(host, port)
+	if httpsEnable {
+		err = ser.ServeTLS(host, port, certFile, keyFile)
+	} else {
+		err = ser.Serve(host, port)
+	}
 	close(serverExited)
 	wg.Wait()
 	return err
