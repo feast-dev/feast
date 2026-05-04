@@ -130,15 +130,18 @@ class CliRunner:
             repo_path = Path(repo_dir_name)
             data_path = Path(data_dir_name)
 
+            registry_path_yaml = str(data_path / "registry.db")
+            online_store_path_yaml = str(data_path / "online_store.db")
+
             repo_config = repo_path / "feature_store.yaml"
             if online_store == "sqlite":
                 yaml_config = dedent(
                     f"""
                 project: {project_id}
-                registry: {data_path / "registry.db"}
+                registry: {registry_path_yaml}
                 provider: local
                 online_store:
-                    path: {data_path / "online_store.db"}
+                    path: {online_store_path_yaml}
                 offline_store:
                     type: {offline_store}
                 entity_key_serialization_version: 3
@@ -148,10 +151,10 @@ class CliRunner:
                 yaml_config = dedent(
                     f"""
                 project: {project_id}
-                registry: {data_path / "registry.db"}
+                registry: {registry_path_yaml}
                 provider: local
                 online_store:
-                    path: {data_path / "online_store.db"}
+                    path: {online_store_path_yaml}
                     type: milvus
                     vector_enabled: true
                     embedding_dim: 10
@@ -164,7 +167,7 @@ class CliRunner:
                 yaml_config = dedent(
                     f"""
                 project: {project_id}
-                registry: {data_path / "registry.db"}
+                registry: {registry_path_yaml}
                 provider: local
                 online_store:
                     type: {online_store}

@@ -44,14 +44,18 @@ def test_e2e_local() -> None:
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
         driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
+        driver_stats_path_posix = Path(driver_stats_path).as_posix()
+
         global_df = create_global_daily_stats_df(start_date, end_date)
         global_stats_path = os.path.join(data_dir, "global_stats.parquet")
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
+        global_stats_path_posix = Path(global_stats_path).as_posix()
+
         with runner.local_repo(
             get_example_repo("example_feature_repo_2.py")
-            .replace("%PARQUET_PATH%", driver_stats_path)
-            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            .replace("%PARQUET_PATH%", driver_stats_path_posix)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path_posix),
             "file",
         ) as store:
             _test_materialize_and_online_retrieval(
@@ -60,8 +64,8 @@ def test_e2e_local() -> None:
 
         with runner.local_repo(
             get_example_repo("example_feature_repo_with_bfvs.py")
-            .replace("%PARQUET_PATH%", driver_stats_path)
-            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            .replace("%PARQUET_PATH%", driver_stats_path_posix)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path_posix),
             "file",
         ) as store:
             _test_materialize_and_online_retrieval(
@@ -70,8 +74,8 @@ def test_e2e_local() -> None:
 
         with runner.local_repo(
             get_example_repo("example_feature_repo_with_ttl_0.py")
-            .replace("%PARQUET_PATH%", driver_stats_path)
-            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            .replace("%PARQUET_PATH%", driver_stats_path_posix)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path_posix),
             "file",
         ) as store:
             _test_materialize_and_online_retrieval(
@@ -81,7 +85,7 @@ def test_e2e_local() -> None:
         # Test a failure case when the parquet file doesn't include a join key
         with runner.local_repo(
             get_example_repo("example_feature_repo_with_entity_join_key.py").replace(
-                "%PARQUET_PATH%", driver_stats_path
+                "%PARQUET_PATH%", driver_stats_path_posix
             ),
             "file",
         ) as store:
