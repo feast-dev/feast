@@ -810,7 +810,7 @@ def _dask_filter_arrow_by_timestamp(
 def _dask_compute_numeric_metrics(
     column: pyarrow.ChunkedArray, histogram_bins: int
 ) -> Dict[str, Any]:
-    total = column.length
+    total = len(column)
     null_count = column.null_count
     result: Dict[str, Any] = {
         "feature_type": "numeric",
@@ -863,7 +863,7 @@ def _dask_compute_numeric_metrics(
 def _dask_compute_categorical_metrics(
     column: pyarrow.ChunkedArray, top_n: int
 ) -> Dict[str, Any]:
-    total = column.length
+    total = len(column)
     null_count = column.null_count
     result: Dict[str, Any] = {
         "feature_type": "categorical",
