@@ -8,10 +8,62 @@ metadata:
           "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
+            "name": "sample-materialization-openlineage",
+            "namespace": "feast"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "materialization": {
+              "onlineWriteBatchSize": 10000
+            },
+            "openlineage": {
+              "apiKeySecretRef": {
+                "name": "openlineage-secret"
+              },
+              "enabled": true,
+              "extraConfig": {
+                "emit_on_apply": "true",
+                "emit_on_materialize": "true",
+                "namespace": "my-feast-project",
+                "producer": "feast-operator"
+              },
+              "transportEndpoint": "api/v1/lineage",
+              "transportType": "http",
+              "transportUrl": "http://marquez.feast.svc.cluster.local:5000"
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
             "name": "sample"
           },
           "spec": {
             "feastProject": "my_project"
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-mcp"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "onlineStore": {
+                "server": {},
+                "serving": {
+                  "mcp": {
+                    "enabled": true,
+                    "serverName": "feast-mcp-server",
+                    "serverVersion": "1.0.0",
+                    "transport": "sse"
+                  }
+                }
+              }
+            }
           }
         },
         {
@@ -39,6 +91,39 @@ metadata:
           "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
+            "name": "sample-serving"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "onlineStore": {
+                "server": {},
+                "serving": {
+                  "metrics": {
+                    "categories": {
+                      "freshness": false,
+                      "materialization": true,
+                      "online_features": true,
+                      "push": true,
+                      "request": true,
+                      "resource": true
+                    },
+                    "enabled": true
+                  },
+                  "offlinePushBatching": {
+                    "batchIntervalSeconds": 10,
+                    "batchSize": 1000,
+                    "enabled": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
             "name": "sample-ui"
           },
           "spec": {
@@ -50,10 +135,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-04-30T09:51:36Z"
-    operators.operatorframework.io/builder: operator-sdk-v1.38.0
+    createdAt: "2026-05-04T03:44:24Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.41.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.62.0
+  name: feast-operator.v0.63.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -267,13 +352,13 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: quay.io/feastdev/feature-server:0.62.0
+                  value: quay.io/feastdev/feature-server:0.63.0
                 - name: RELATED_IMAGE_CRON_JOB
                   value: quay.io/openshift/origin-cli:4.17
                 - name: GOMEMLIMIT
                   value: 230MiB
                 - name: OIDC_ISSUER_URL
-                image: quay.io/feastdev/feast-operator:0.62.0
+                image: quay.io/feastdev/feast-operator:0.63.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -363,8 +448,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: quay.io/feastdev/feature-server:0.62.0
+  - image: quay.io/feastdev/feature-server:0.63.0
     name: feature-server
   - image: quay.io/openshift/origin-cli:4.17
     name: cron-job
-  version: 0.62.0
+  version: 0.63.0
