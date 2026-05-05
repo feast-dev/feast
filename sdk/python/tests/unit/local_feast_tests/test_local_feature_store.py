@@ -543,6 +543,53 @@ def test_apply_conflicting_feature_view_names(feature_store_with_local_registry)
     feature_store_with_local_registry.teardown()
 
 
+def test_cross_project_feature_view_names_do_not_conflict():
+    """Feature views with the same name in different projects must not raise ConflictingFeatureViewNames."""
+    fd, registry_path = mkstemp()
+    fd, online_store_path = mkstemp()
+
+    def make_store(project: str) -> FeatureStore:
+        return FeatureStore(
+            config=RepoConfig(
+                registry=registry_path,
+                project=project,
+                provider="local",
+                online_store=SqliteOnlineStoreConfig(path=online_store_path),
+                entity_key_serialization_version=3,
+            )
+        )
+
+    store_a = make_store("project_a")
+    store_b = make_store("project_b")
+
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    source = FileSource(path="driver_stats.parquet")
+
+    fv_a = FeatureView(
+        name="driver_stats",
+        entities=[entity],
+        schema=[Field(name="driver_id", dtype=Int64)],
+        ttl=timedelta(seconds=10),
+        online=False,
+        source=source,
+    )
+    store_a.apply([entity, fv_a])
+
+    fv_b = FeatureView(
+        name="driver_stats",
+        entities=[entity],
+        schema=[Field(name="driver_id", dtype=Int64)],
+        ttl=timedelta(seconds=10),
+        online=False,
+        source=source,
+    )
+    # Must not raise ConflictingFeatureViewNames — same name but different project.
+    store_b.apply([entity, fv_b])
+
+    store_a.teardown()
+    store_b.teardown()
+
+
 @pytest.mark.parametrize(
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
