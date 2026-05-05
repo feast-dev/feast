@@ -22,6 +22,7 @@ def file_registry():
     config = RegistryConfig(path=registry_path)
     registry = Registry("test_project", config, None)
     yield registry
+    registry.teardown()
 
 
 def _make_sources():
