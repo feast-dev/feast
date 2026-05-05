@@ -20,9 +20,9 @@ attrs==26.1.0 \
     # via
     #   jsonschema
     #   referencing
-bigtree==1.4.0 \
-    --hash=sha256:d0d99550ae64ce4529f132602ab875c2ab472c96c942f5704f8c72a17450d3ea \
-    --hash=sha256:e5ae2e948168da671d99601c9ed87ab3b48d9d4ea8a98f111e5748e98064c31c
+bigtree==1.4.1 \
+    --hash=sha256:78bf1fb50c46242012b26b237c652b21a28220b6e66f9f6a07cd059375618040 \
+    --hash=sha256:81fffc6c6b92f4038710f5a5d60532deaad31e7ebacb8f527bc7eb1fbd286477
     # via feast (pyproject.toml)
 certifi==2026.4.22 \
     --hash=sha256:3cb2210c8f88ba2318d29b0388d1023c8492ff72ecdde4ebdaddbb13a31b1c4a \
@@ -190,9 +190,9 @@ fsspec==2026.4.0 \
     --hash=sha256:11ef7bb35dab8a394fde6e608221d5cf3e8499401c249bebaeaad760a1a8dec2 \
     --hash=sha256:301d8ac70ae90ef3ad05dcf94d6c3754a097f9b5fe4667d2787aa359ec7df7e4
     # via dask
-gunicorn==25.3.0 \
-    --hash=sha256:cacea387dab08cd6776501621c295a904fe8e3b7aae9a1a3cbb26f4e7ed54660 \
-    --hash=sha256:f74e1b2f9f76f6cd1ca01198968bd2dd65830edc24b6e8e4d78de8320e2fe889
+gunicorn==26.0.0 \
+    --hash=sha256:40233d26a5f0d1872916188c276e21641155111c2853f0c2cd55260aec0d24fc \
+    --hash=sha256:ca9346f85e3a4aeeb64d491045c16b9a35647abd37ea15efe53080eb8b090baf
     # via
     #   feast (pyproject.toml)
     #   uvicorn-worker
@@ -998,9 +998,9 @@ python-dotenv==1.2.2 \
     --hash=sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a \
     --hash=sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3
     # via uvicorn
-pytz==2026.1.post1 \
-    --hash=sha256:3378dde6a0c3d26719182142c56e60c7f9af7e968076f31aae569d72a0358ee1 \
-    --hash=sha256:f2fd16142fda348286a75e1a524be810bb05d444e5a081f37f7affc635035f7a
+pytz==2026.2 \
+    --hash=sha256:04156e608bee23d3792fd45c94ae47fae1036688e75032eea2e3bf0323d1f126 \
+    --hash=sha256:0e60b47b29f21574376f218fe21abc009894a2321ea16c6754f3cad6eb7cdd6a
     # via pandas
 pyyaml==6.0.3 \
     --hash=sha256:00c4bdeba853cc34e7dd471f16b4114f4162dc03e6b7afcc2128711f0eca823c \

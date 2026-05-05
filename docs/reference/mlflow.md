@@ -269,19 +269,27 @@ These are unique to the Feast integration and have no `mlflow` equivalent:
 |----------|-------------|
 | `store.mlflow.resolve_features(model_uri)` | Resolve model URI to Feast feature service name |
 | `store.mlflow.get_training_entity_df(run_id, ...)` | Recover entity DataFrame from a past MLflow run |
+| `store.mlflow.log_training_dataset(df, dataset_name)` | Log a training DataFrame as an MLflow dataset input |
 | `store.mlflow.active_run_id` | Current active MLflow run ID (or `None`) |
+| `store.mlflow.client` | The underlying `MlflowClient` instance for advanced queries |
 | `feast.mlflow.init(store)` | Explicitly bind `feast.mlflow` module to a `FeatureStore` (optional) |
 
 ### Passthrough behavior
 
-Any attribute not listed above delegates to the raw `mlflow` module. This means you can use `store.mlflow` or `feast.mlflow` everywhere you previously used `import mlflow`:
+The `feast.mlflow` module delegates any attribute not listed above to the raw `mlflow` module. This means you can use `feast.mlflow` as a drop-in replacement for `import mlflow`:
 
 ```python
-store.mlflow.mlflow.log_params(params)     # via escape hatch
-feast.mlflow.log_params(params)             # via module API
+feast.mlflow.log_params(params)             # passes through to mlflow.log_params
 feast.mlflow.log_metrics(metrics)
 feast.mlflow.set_tag("env", "staging")
 feast.mlflow.MlflowClient()
+```
+
+`store.mlflow` does **not** have this passthrough — it only exposes the Feast-enhanced and Feast-only methods listed above. To access raw `mlflow` functions from `store.mlflow`, use the escape hatches:
+
+```python
+store.mlflow.client.log_param(run_id, "lr", "0.01")  # via MlflowClient instance
+store.mlflow.mlflow.log_params(params)                # via raw mlflow module
 ```
 
 ### Resolve a model back to its feature service

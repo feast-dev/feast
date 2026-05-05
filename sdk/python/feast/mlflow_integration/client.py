@@ -69,6 +69,11 @@ class FeastMlflowClient:
         )
 
     @property
+    def client(self):
+        """The underlying ``MlflowClient`` instance."""
+        return self._client
+
+    @property
     def mlflow(self):
         """Escape hatch: access the raw ``mlflow`` module."""
         return self._mlflow

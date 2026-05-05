@@ -718,9 +718,9 @@ pluggy==1.6.0 \
     --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
     --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
     # via hatchling
-poetry-core==2.3.2 \
-    --hash=sha256:20cb71be27b774628da9f384effd9183dfceb53bcef84063248a8672aa47031f \
-    --hash=sha256:23df641b64f87fbb4ce1873c1915a4d4bb1b7d808c596e4307edc073e68d7234
+poetry-core==2.4.0 \
+    --hash=sha256:4305848477da00272bebd3f615bbec87f64bd117cdb858ab660b626a06a9d96c \
+    --hash=sha256:4e8c7496cf797998ffc493f2e23eba4b038c894c08eadacdcdf688945de6b43a
     # via
     #   aiohappyeyeballs
     #   dunamai
