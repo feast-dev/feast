@@ -547,6 +547,7 @@ def test_cross_project_feature_view_names_do_not_conflict():
     """Feature views with the same name in different projects must not raise ConflictingFeatureViewNames."""
     fd, registry_path = mkstemp()
     fd, online_store_path = mkstemp()
+    fd, parquet_path = mkstemp(suffix=".parquet")
 
     def make_store(project: str) -> FeatureStore:
         return FeatureStore(
@@ -563,7 +564,7 @@ def test_cross_project_feature_view_names_do_not_conflict():
     store_b = make_store("project_b")
 
     entity = Entity(name="driver", join_keys=["driver_id"])
-    source = FileSource(path="driver_stats.parquet")
+    source = FileSource(path=parquet_path)
 
     fv_a = FeatureView(
         name="driver_stats",
