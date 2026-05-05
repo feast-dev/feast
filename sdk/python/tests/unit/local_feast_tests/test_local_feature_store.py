@@ -547,7 +547,6 @@ def test_cross_project_feature_view_names_do_not_conflict():
     """Feature views with the same name in different projects must not raise ConflictingFeatureViewNames."""
     fd, registry_path = mkstemp()
     fd, online_store_path = mkstemp()
-    fd, parquet_path = mkstemp(suffix=".parquet")
 
     def make_store(project: str) -> FeatureStore:
         return FeatureStore(
@@ -564,28 +563,34 @@ def test_cross_project_feature_view_names_do_not_conflict():
     store_b = make_store("project_b")
 
     entity = Entity(name="driver", join_keys=["driver_id"])
-    source = FileSource(path=parquet_path)
-
-    fv_a = FeatureView(
-        name="driver_stats",
-        entities=[entity],
-        schema=[Field(name="driver_id", dtype=Int64)],
-        ttl=timedelta(seconds=10),
-        online=False,
-        source=source,
+    df = pd.DataFrame(
+        {
+            "driver_id": [1, 2],
+            "ts": pd.to_datetime(["2024-01-01", "2024-01-02"], utc=True),
+        }
     )
-    store_a.apply([entity, fv_a])
 
-    fv_b = FeatureView(
-        name="driver_stats",
-        entities=[entity],
-        schema=[Field(name="driver_id", dtype=Int64)],
-        ttl=timedelta(seconds=10),
-        online=False,
-        source=source,
-    )
-    # Must not raise ConflictingFeatureViewNames — same name but different project.
-    store_b.apply([entity, fv_b])
+    with prep_file_source(df=df, timestamp_field="ts") as source:
+        fv_a = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            schema=[Field(name="driver_id", dtype=Int64)],
+            ttl=timedelta(seconds=10),
+            online=False,
+            source=source,
+        )
+        store_a.apply([entity, fv_a])
+
+        fv_b = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            schema=[Field(name="driver_id", dtype=Int64)],
+            ttl=timedelta(seconds=10),
+            online=False,
+            source=source,
+        )
+        # Must not raise ConflictingFeatureViewNames — same name but different project.
+        store_b.apply([entity, fv_b])
 
     store_a.teardown()
     store_b.teardown()
