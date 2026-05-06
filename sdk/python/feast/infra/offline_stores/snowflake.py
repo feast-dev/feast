@@ -3,7 +3,8 @@ import json
 import os
 import uuid
 import warnings
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 from functools import reduce
 from pathlib import Path
 from typing import (
@@ -49,6 +50,16 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,
     write_pandas,
     write_parquet,
+)
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
 )
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -421,6 +432,230 @@ class SnowflakeOfflineStore(OfflineStore):
             auto_create_table=True,
         )
 
+    @staticmethod
+    def compute_monitoring_metrics(
+        config: RepoConfig,
+        data_source: DataSource,
+        feature_columns: List[Tuple[str, str]],
+        timestamp_field: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        histogram_bins: int = 20,
+        top_n: int = 10,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+        assert isinstance(data_source, SnowflakeSource)
+
+        from_expression = data_source.get_table_query_string()
+        from_expression = _qualify_snowflake_from_expression(
+            config, data_source, from_expression
+        )
+        ts_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, tz=timezone.utc
+        )
+
+        numeric_features = [n for n, t in feature_columns if t == "numeric"]
+        categorical_features = [n for n, t in feature_columns if t == "categorical"]
+        results: List[Dict[str, Any]] = []
+
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            if numeric_features:
+                results.extend(
+                    _snowflake_sql_numeric_stats(
+                        conn,
+                        from_expression,
+                        numeric_features,
+                        ts_filter,
+                        histogram_bins,
+                    )
+                )
+
+            for col_name in categorical_features:
+                results.append(
+                    _snowflake_sql_categorical_stats(
+                        conn, from_expression, col_name, ts_filter, top_n
+                    )
+                )
+
+        return results
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+        assert isinstance(data_source, SnowflakeSource)
+
+        from_expression = data_source.get_table_query_string()
+        from_expression = _qualify_snowflake_from_expression(
+            config, data_source, from_expression
+        )
+
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            cursor = execute_snowflake_statement(
+                conn,
+                f'SELECT MAX("{timestamp_field}") FROM {from_expression} AS _src',
+            )
+            row = cursor.fetchone()
+
+        if row is None or row[0] is None:
+            return None
+        val = row[0]
+        if isinstance(val, pd.Timestamp):
+            val = val.to_pydatetime()
+        if isinstance(val, datetime):
+            return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        return datetime.combine(val, datetime.min.time(), tzinfo=timezone.utc)
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+
+        fq_feature = _snowflake_monitoring_table_fqn(config, MON_TABLE_FEATURE)
+        fq_view = _snowflake_monitoring_table_fqn(config, MON_TABLE_FEATURE_VIEW)
+        fq_service = _snowflake_monitoring_table_fqn(config, MON_TABLE_FEATURE_SERVICE)
+
+        ddl_feature = f"""
+            CREATE TABLE IF NOT EXISTS {fq_feature} (
+                "project_id"        VARCHAR(255) NOT NULL,
+                "feature_view_name" VARCHAR(255) NOT NULL,
+                "feature_name"      VARCHAR(255) NOT NULL,
+                "metric_date"       DATE         NOT NULL,
+                "granularity"       VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                "data_source_type"  VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                "computed_at"       TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "is_baseline"       BOOLEAN      NOT NULL DEFAULT FALSE,
+                "feature_type"      VARCHAR(50)  NOT NULL,
+                "row_count"         BIGINT,
+                "null_count"        BIGINT,
+                "null_rate"         DOUBLE,
+                "mean"              DOUBLE,
+                "stddev"            DOUBLE,
+                "min_val"           DOUBLE,
+                "max_val"           DOUBLE,
+                "p50"               DOUBLE,
+                "p75"               DOUBLE,
+                "p90"               DOUBLE,
+                "p95"               DOUBLE,
+                "p99"               DOUBLE,
+                "histogram"         VARIANT,
+                PRIMARY KEY ("project_id", "feature_view_name", "feature_name",
+                             "metric_date", "granularity", "data_source_type")
+            )
+        """
+        ddl_view = f"""
+            CREATE TABLE IF NOT EXISTS {fq_view} (
+                "project_id"        VARCHAR(255) NOT NULL,
+                "feature_view_name" VARCHAR(255) NOT NULL,
+                "metric_date"       DATE         NOT NULL,
+                "granularity"       VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                "data_source_type"  VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                "computed_at"       TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "is_baseline"       BOOLEAN      NOT NULL DEFAULT FALSE,
+                "total_row_count"   BIGINT,
+                "total_features"    INTEGER,
+                "features_with_nulls" INTEGER,
+                "avg_null_rate"     DOUBLE,
+                "max_null_rate"     DOUBLE,
+                PRIMARY KEY ("project_id", "feature_view_name", "metric_date",
+                             "granularity", "data_source_type")
+            )
+        """
+        ddl_service = f"""
+            CREATE TABLE IF NOT EXISTS {fq_service} (
+                "project_id"           VARCHAR(255) NOT NULL,
+                "feature_service_name" VARCHAR(255) NOT NULL,
+                "metric_date"          DATE         NOT NULL,
+                "granularity"          VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                "data_source_type"     VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                "computed_at"          TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "is_baseline"          BOOLEAN      NOT NULL DEFAULT FALSE,
+                "total_feature_views"  INTEGER,
+                "total_features"       INTEGER,
+                "avg_null_rate"        DOUBLE,
+                "max_null_rate"        DOUBLE,
+                PRIMARY KEY ("project_id", "feature_service_name", "metric_date",
+                             "granularity", "data_source_type")
+            )
+        """
+
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            execute_snowflake_statement(conn, ddl_feature)
+            execute_snowflake_statement(conn, ddl_view)
+            execute_snowflake_statement(conn, ddl_service)
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        if not metrics:
+            return
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
+        _snowflake_mon_merge_upsert(
+            config.offline_store, table, columns, pk_columns, metrics
+        )
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+
+        _, columns, _ = monitoring_table_meta(metric_type)
+        return _snowflake_mon_query(
+            config.offline_store,
+            metric_type,
+            columns,
+            project,
+            filters,
+            start_date,
+            end_date,
+        )
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+
+        fq_table = _snowflake_monitoring_table_fqn(config, MON_TABLE_FEATURE)
+        conditions = [f'"project_id" = {_snowflake_sql_literal(project)}']
+        if feature_view_name:
+            conditions.append(
+                f'"feature_view_name" = {_snowflake_sql_literal(feature_view_name)}'
+            )
+        if feature_name:
+            conditions.append(
+                f'"feature_name" = {_snowflake_sql_literal(feature_name)}'
+            )
+        if data_source_type:
+            conditions.append(
+                f'"data_source_type" = {_snowflake_sql_literal(data_source_type)}'
+            )
+        conditions.append('"is_baseline" = TRUE')
+
+        sql = f'UPDATE {fq_table} SET "is_baseline" = FALSE WHERE ' + " AND ".join(
+            conditions
+        )
+
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            execute_snowflake_statement(conn, sql)
+
 
 class SnowflakeRetrievalJob(RetrievalJob):
     def __init__(
@@ -638,6 +873,334 @@ class SnowflakeRetrievalJob(RetrievalJob):
             f"{native_export_path}/{row[file_name_column_index]}"
             for row in cursor.fetchall()
         ]
+
+
+# ------------------------------------------------------------------ #
+#  Snowflake monitoring SQL push-down & storage helpers
+# ------------------------------------------------------------------ #
+
+
+def _escape_snowflake_sql_string(value: str) -> str:
+    return value.replace("'", "''")
+
+
+def _snowflake_sql_literal(val: Any) -> str:
+    if val is None:
+        return "NULL"
+    if isinstance(val, bool):
+        return "TRUE" if val else "FALSE"
+    if isinstance(val, (int, float)) and not isinstance(val, bool):
+        if isinstance(val, float) and (np.isnan(val) or np.isinf(val)):
+            return "NULL"
+        return str(val)
+    if isinstance(val, Decimal):
+        return str(val)
+    if isinstance(val, date) and not isinstance(val, datetime):
+        return f"DATE '{val.isoformat()}'"
+    if isinstance(val, datetime):
+        dt = val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        return f"TIMESTAMP_TZ '{dt.isoformat()}'"
+    if isinstance(val, str):
+        return f"'{_escape_snowflake_sql_string(val)}'"
+    return f"'{_escape_snowflake_sql_string(str(val))}'"
+
+
+def _qualify_snowflake_from_expression(
+    config: RepoConfig,
+    data_source: SnowflakeSource,
+    from_expression: str,
+) -> str:
+    if not data_source.database and not data_source.schema and data_source.table:
+        return (
+            f'"{config.offline_store.database}"."{config.offline_store.schema_}".'
+            f"{from_expression}"
+        )
+    if not data_source.database and data_source.schema and data_source.table:
+        return f'"{config.offline_store.database}".{from_expression}'
+    return from_expression
+
+
+def _snowflake_monitoring_table_fqn(
+    config: RepoConfig,
+    table_name: str,
+) -> str:
+    os = config.offline_store
+    assert isinstance(os, SnowflakeOfflineStoreConfig)
+    return f'"{os.database}"."{os.schema_}"."{table_name}"'
+
+
+def _snowflake_sql_numeric_histogram(
+    conn: SnowflakeConnection,
+    from_expression: str,
+    col_name: str,
+    ts_filter: str,
+    bins: int,
+    min_val: float,
+    max_val: float,
+) -> Dict[str, Any]:
+    q_col = f'"{col_name}"'
+
+    if min_val == max_val:
+        cursor = execute_snowflake_statement(
+            conn,
+            f"SELECT COUNT(*) FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_filter}",
+        )
+        row = cursor.fetchone()
+        cnt = (row or (0,))[0]
+        return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
+
+    upper = max_val + (max_val - min_val) * 1e-10
+    bin_width = (max_val - min_val) / bins
+
+    query = (
+        f"SELECT WIDTH_BUCKET(CAST({q_col} AS DOUBLE), {min_val}, {upper}, {bins}) "
+        f"AS bucket, COUNT(*) AS cnt "
+        f"FROM {from_expression} AS _src "
+        f"WHERE {q_col} IS NOT NULL AND {ts_filter} "
+        f"GROUP BY bucket ORDER BY bucket"
+    )
+
+    cursor = execute_snowflake_statement(conn, query)
+    rows = cursor.fetchall()
+
+    counts = [0] * bins
+    for bucket, cnt in rows:
+        if bucket is not None and 1 <= int(bucket) <= bins:
+            counts[int(bucket) - 1] = cnt
+
+    bin_edges = [min_val + i * bin_width for i in range(bins + 1)]
+    return {
+        "bins": [float(b) for b in bin_edges],
+        "counts": counts,
+        "bin_width": float(bin_width),
+    }
+
+
+def _snowflake_sql_numeric_stats(
+    conn: SnowflakeConnection,
+    from_expression: str,
+    feature_names: List[str],
+    ts_filter: str,
+    histogram_bins: int,
+) -> List[Dict[str, Any]]:
+    select_parts = ["COUNT(*)"]
+    for col in feature_names:
+        q = f'"{col}"'
+        c = f"CAST({q} AS DOUBLE)"
+        select_parts.extend(
+            [
+                f"COUNT({q})",
+                f"AVG({c})",
+                f"STDDEV_SAMP({c})",
+                f"MIN({c})",
+                f"MAX({c})",
+                f"PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY {c})",
+            ]
+        )
+
+    query = (
+        f"SELECT {', '.join(select_parts)} "
+        f"FROM {from_expression} AS _src WHERE {ts_filter}"
+    )
+
+    cursor = execute_snowflake_statement(conn, query)
+    row = cursor.fetchone()
+
+    if row is None:
+        return [empty_numeric_metric(n) for n in feature_names]
+
+    row_count = row[0]
+    results: List[Dict[str, Any]] = []
+
+    for i, col in enumerate(feature_names):
+        base = 1 + i * 10
+        non_null = row[base] or 0
+        null_count = row_count - non_null
+
+        min_val = opt_float(row[base + 3])
+        max_val = opt_float(row[base + 4])
+
+        result: Dict[str, Any] = {
+            "feature_name": col,
+            "feature_type": "numeric",
+            "row_count": row_count,
+            "null_count": null_count,
+            "null_rate": null_count / row_count if row_count > 0 else 0.0,
+            "mean": opt_float(row[base + 1]),
+            "stddev": opt_float(row[base + 2]),
+            "min_val": min_val,
+            "max_val": max_val,
+            "p50": opt_float(row[base + 5]),
+            "p75": opt_float(row[base + 6]),
+            "p90": opt_float(row[base + 7]),
+            "p95": opt_float(row[base + 8]),
+            "p99": opt_float(row[base + 9]),
+            "histogram": None,
+        }
+
+        if min_val is not None and max_val is not None and non_null > 0:
+            result["histogram"] = _snowflake_sql_numeric_histogram(
+                conn,
+                from_expression,
+                col,
+                ts_filter,
+                histogram_bins,
+                min_val,
+                max_val,
+            )
+
+        results.append(result)
+
+    return results
+
+
+def _snowflake_sql_categorical_stats(
+    conn: SnowflakeConnection,
+    from_expression: str,
+    col_name: str,
+    ts_filter: str,
+    top_n: int,
+) -> Dict[str, Any]:
+    q_col = f'"{col_name}"'
+
+    query = (
+        f"WITH filtered AS ("
+        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_filter}"
+        f") "
+        f"SELECT "
+        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
+        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
+        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
+        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
+        f"  TO_VARCHAR({q_col}) AS value, COUNT(*) AS cnt "
+        f"FROM filtered WHERE {q_col} IS NOT NULL "
+        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+    )
+
+    cursor = execute_snowflake_statement(conn, query)
+    rows = cursor.fetchall()
+
+    if not rows:
+        return empty_categorical_metric(col_name)
+
+    row_count = rows[0][0]
+    null_count = rows[0][1]
+    unique_count = rows[0][2]
+
+    top_entries = [{"value": r[3], "count": r[4]} for r in rows]
+    top_total = sum(e["count"] for e in top_entries)
+    other_count = (row_count - null_count) - top_total
+
+    return {
+        "feature_name": col_name,
+        "feature_type": "categorical",
+        "row_count": row_count,
+        "null_count": null_count,
+        "null_rate": null_count / row_count if row_count > 0 else 0.0,
+        "mean": None,
+        "stddev": None,
+        "min_val": None,
+        "max_val": None,
+        "p50": None,
+        "p75": None,
+        "p90": None,
+        "p95": None,
+        "p99": None,
+        "histogram": {
+            "values": top_entries,
+            "other_count": max(other_count, 0),
+            "unique_count": unique_count,
+        },
+    }
+
+
+def _snowflake_mon_merge_upsert(
+    offline_store: SnowflakeOfflineStoreConfig,
+    table: str,
+    columns: List[str],
+    pk_columns: List[str],
+    rows: List[Dict[str, Any]],
+) -> None:
+    fq = f'"{offline_store.database}"."{offline_store.schema_}"."{table}"'
+    non_pk = [c for c in columns if c not in pk_columns]
+
+    with GetSnowflakeConnection(offline_store) as conn:
+        for row in rows:
+            select_parts: List[str] = []
+            for col in columns:
+                val = row.get(col)
+                if col == "histogram":
+                    if val is not None:
+                        json_str = json.dumps(val)
+                        select_parts.append(
+                            f'PARSE_JSON({_snowflake_sql_literal(json_str)}) AS "{col}"'
+                        )
+                    else:
+                        select_parts.append(f'NULL AS "{col}"')
+                else:
+                    select_parts.append(f'{_snowflake_sql_literal(val)} AS "{col}"')
+
+            using = ", ".join(select_parts)
+            on_parts = [f't."{pk}" = s."{pk}"' for pk in pk_columns]
+            update_parts = [f't."{c}" = s."{c}"' for c in non_pk]
+            insert_cols = ", ".join(f'"{c}"' for c in columns)
+            insert_vals = ", ".join(f's."{c}"' for c in columns)
+
+            sql = (
+                f"MERGE INTO {fq} AS t "
+                f"USING (SELECT {using}) AS s "
+                f"ON {' AND '.join(on_parts)} "
+                f"WHEN MATCHED THEN UPDATE SET {', '.join(update_parts)} "
+                f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})"
+            )
+
+            execute_snowflake_statement(conn, sql)
+
+
+def _snowflake_mon_query(
+    offline_store: SnowflakeOfflineStoreConfig,
+    metric_type: str,
+    columns: List[str],
+    project: str,
+    filters: Optional[Dict[str, Any]] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> List[Dict[str, Any]]:
+    table, _, _ = monitoring_table_meta(metric_type)
+    fq = f'"{offline_store.database}"."{offline_store.schema_}"."{table}"'
+
+    conditions = [f'"project_id" = {_snowflake_sql_literal(project)}']
+    if filters:
+        for key, value in filters.items():
+            if value is not None:
+                conditions.append(f'"{key}" = {_snowflake_sql_literal(value)}')
+
+    if start_date:
+        conditions.append(f'"metric_date" >= {_snowflake_sql_literal(start_date)}')
+    if end_date:
+        conditions.append(f'"metric_date" <= {_snowflake_sql_literal(end_date)}')
+
+    col_list = ", ".join(f'"{c}"' for c in columns)
+    sql = (
+        f"SELECT {col_list} FROM {fq} WHERE {' AND '.join(conditions)} "
+        f'ORDER BY "metric_date" ASC'
+    )
+
+    with GetSnowflakeConnection(offline_store) as conn:
+        cursor = execute_snowflake_statement(conn, sql)
+        rows = cursor.fetchall()
+
+    results: List[Dict[str, Any]] = []
+    for row in rows:
+        record = dict(zip(columns, row))
+        results.append(normalize_monitoring_row(record))
+
+    return results
 
 
 def _get_entity_schema(

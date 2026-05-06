@@ -106,6 +106,10 @@ func getServiceRepoConfig(
 		}
 	}
 
+	if appliedSpec.Dqm != nil {
+		setRepoConfigDqm(appliedSpec.Dqm, &repoConfig)
+	}
+
 	return repoConfig, nil
 }
 
@@ -475,6 +479,21 @@ func coerceStringToYamlType(v string) interface{} {
 		return false
 	}
 	return v
+}
+
+func setRepoConfigDqm(dqmConfig *feastdevv1.DqmConfig, repoConfig *RepoConfig) {
+	if dqmConfig.Distribution == nil || dqmConfig.Distribution.Initial == nil || dqmConfig.Distribution.Initial.Enabled == nil {
+		return
+	}
+	repoConfig.FeatureServer = &FeatureServerYamlConfig{
+		Dqm: &DqmYamlConfig{
+			Distribution: &DqmDistributionYamlConfig{
+				Initial: &DqmInitialDistributionYamlConfig{
+					Enabled: *dqmConfig.Distribution.Initial.Enabled,
+				},
+			},
+		},
+	}
 }
 
 func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {

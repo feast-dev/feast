@@ -1,7 +1,8 @@
 import contextlib
+import json
 import tempfile
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import (
     Any,
@@ -42,6 +43,16 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -462,6 +473,627 @@ class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def _escape_query_columns(columns: List[str]) -> List[str]:
         return [f"`{x}`" for x in columns]
+
+    @staticmethod
+    def compute_monitoring_metrics(
+        config: RepoConfig,
+        data_source: DataSource,
+        feature_columns: List[Tuple[str, str]],
+        timestamp_field: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        histogram_bins: int = 20,
+        top_n: int = 10,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        assert isinstance(data_source, BigQuerySource)
+        return _bq_compute_monitoring_metrics(
+            config,
+            data_source,
+            feature_columns,
+            timestamp_field,
+            start_date=start_date,
+            end_date=end_date,
+            histogram_bins=histogram_bins,
+            top_n=top_n,
+        )
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        assert isinstance(data_source, BigQuerySource)
+        return _bq_get_monitoring_max_timestamp(config, data_source, timestamp_field)
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        _bq_ensure_monitoring_tables(config)
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        if not metrics:
+            return
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        _bq_save_monitoring_metrics(config, metric_type, metrics)
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        return _bq_query_monitoring_metrics(
+            config, project, metric_type, filters, start_date, end_date
+        )
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        _bq_clear_monitoring_baseline(
+            config, project, feature_view_name, feature_name, data_source_type
+        )
+
+
+# ------------------------------------------------------------------ #
+#  BigQuery monitoring metrics (native)
+# ------------------------------------------------------------------ #
+
+
+def _bq_monitoring_table_fqn(config: RepoConfig, table_name: str) -> str:
+    assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+    project_id = config.offline_store.project_id
+    if not project_id:
+        client = _get_bigquery_client(
+            project=config.offline_store.billing_project_id,
+            location=config.offline_store.location,
+        )
+        project_id = client.project
+    return f"`{project_id}.{config.offline_store.dataset}.{table_name}`"
+
+
+def _bq_scalar_param_type(column: str) -> str:
+    if column == "is_baseline":
+        return "BOOL"
+    if column == "metric_date":
+        return "DATE"
+    if column == "computed_at":
+        return "TIMESTAMP"
+    if column in {
+        "row_count",
+        "null_count",
+        "total_row_count",
+        "total_features",
+        "features_with_nulls",
+        "total_feature_views",
+    }:
+        return "INT64"
+    if column in {
+        "null_rate",
+        "mean",
+        "stddev",
+        "min_val",
+        "max_val",
+        "p50",
+        "p75",
+        "p90",
+        "p95",
+        "p99",
+        "avg_null_rate",
+        "max_null_rate",
+    }:
+        return "FLOAT64"
+    return "STRING"
+
+
+def _bq_merge_row(
+    config: RepoConfig,
+    table_fqn: str,
+    columns: List[str],
+    pk_columns: List[str],
+    row: Dict[str, Any],
+) -> None:
+    project_id = (
+        config.offline_store.billing_project_id or config.offline_store.project_id
+    )
+    client = _get_bigquery_client(
+        project=project_id,
+        location=config.offline_store.location,
+    )
+    non_pk = [c for c in columns if c not in pk_columns]
+    params: List[Any] = []
+    using_parts: List[str] = []
+    on_parts: List[str] = []
+    merge_idx = 0
+    for col in columns:
+        p = f"p{merge_idx}"
+        merge_idx += 1
+        val = row.get(col)
+        if col == "histogram" and val is not None and not isinstance(val, str):
+            val = json.dumps(val)
+        param_type = _bq_scalar_param_type(col)
+        params.append(bigquery.ScalarQueryParameter(p, param_type, val))
+        using_parts.append(f"@{p} AS {col}")
+        on_parts.append(f"T.{col} = S.{col}")
+    update_set = ", ".join(f"{c} = S.{c}" for c in non_pk)
+    merge_sql = f"""
+MERGE {table_fqn} T
+USING (SELECT {", ".join(using_parts)}) S
+ON {" AND ".join(on_parts)}
+WHEN MATCHED THEN UPDATE SET {update_set}
+WHEN NOT MATCHED THEN INSERT ({", ".join(columns)}) VALUES ({", ".join(f"S.{c}" for c in columns)})
+"""
+    job_config = bigquery.QueryJobConfig(query_parameters=params)
+    client.query(merge_sql, job_config=job_config).result()
+
+
+def _bq_save_monitoring_metrics(
+    config: RepoConfig,
+    metric_type: str,
+    metrics: List[Dict[str, Any]],
+) -> None:
+    table_short, columns, pk_columns = monitoring_table_meta(metric_type)
+    table_fqn = _bq_monitoring_table_fqn(config, table_short)
+    for row in metrics:
+        _bq_merge_row(config, table_fqn, columns, pk_columns, row)
+
+
+def _bq_query_monitoring_metrics(
+    config: RepoConfig,
+    project: str,
+    metric_type: str,
+    filters: Optional[Dict[str, Any]] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> List[Dict[str, Any]]:
+    table_short, columns, _ = monitoring_table_meta(metric_type)
+    table_fqn = _bq_monitoring_table_fqn(config, table_short)
+    project_id = (
+        config.offline_store.billing_project_id or config.offline_store.project_id
+    )
+    client = _get_bigquery_client(
+        project=project_id,
+        location=config.offline_store.location,
+    )
+    params: List[Any] = [
+        bigquery.ScalarQueryParameter("project", "STRING", project),
+    ]
+    conditions = ["project_id = @project"]
+    if filters:
+        for key, value in filters.items():
+            if value is not None:
+                conditions.append(f"`{key}` = @{key}")
+                params.append(
+                    bigquery.ScalarQueryParameter(
+                        key, _bq_scalar_param_type(key), value
+                    )
+                )
+    if start_date:
+        conditions.append("metric_date >= @start_date")
+        params.append(bigquery.ScalarQueryParameter("start_date", "DATE", start_date))
+    if end_date:
+        conditions.append("metric_date <= @end_date")
+        params.append(bigquery.ScalarQueryParameter("end_date", "DATE", end_date))
+    col_list = ", ".join(f"`{c}`" for c in columns)
+    where_sql = " AND ".join(conditions)
+    sql = (
+        f"SELECT {col_list} FROM {table_fqn} WHERE {where_sql} ORDER BY metric_date ASC"
+    )
+    job_config = bigquery.QueryJobConfig(query_parameters=params)
+    job = client.query(sql, job_config=job_config)
+    job.result()
+    results: List[Dict[str, Any]] = []
+    for r in job:
+        record = {columns[i]: r[i] for i in range(len(columns))}
+        results.append(normalize_monitoring_row(record))
+    return results
+
+
+def _bq_clear_monitoring_baseline(
+    config: RepoConfig,
+    project: str,
+    feature_view_name: Optional[str] = None,
+    feature_name: Optional[str] = None,
+    data_source_type: Optional[str] = None,
+) -> None:
+    table_fqn = _bq_monitoring_table_fqn(config, MON_TABLE_FEATURE)
+    project_id = (
+        config.offline_store.billing_project_id or config.offline_store.project_id
+    )
+    client = _get_bigquery_client(
+        project=project_id,
+        location=config.offline_store.location,
+    )
+    params: List[Any] = [
+        bigquery.ScalarQueryParameter("project", "STRING", project),
+    ]
+    conditions = ["project_id = @project", "is_baseline = TRUE"]
+    if feature_view_name:
+        conditions.append("feature_view_name = @feature_view_name")
+        params.append(
+            bigquery.ScalarQueryParameter(
+                "feature_view_name", "STRING", feature_view_name
+            )
+        )
+    if feature_name:
+        conditions.append("feature_name = @feature_name")
+        params.append(
+            bigquery.ScalarQueryParameter("feature_name", "STRING", feature_name)
+        )
+    if data_source_type:
+        conditions.append("data_source_type = @data_source_type")
+        params.append(
+            bigquery.ScalarQueryParameter(
+                "data_source_type", "STRING", data_source_type
+            )
+        )
+    sql = f"UPDATE {table_fqn} SET is_baseline = FALSE WHERE {' AND '.join(conditions)}"
+    job_config = bigquery.QueryJobConfig(query_parameters=params)
+    client.query(sql, job_config=job_config).result()
+
+
+def _bq_ensure_monitoring_tables(config: RepoConfig) -> None:
+    project_id = (
+        config.offline_store.billing_project_id or config.offline_store.project_id
+    )
+    client = _get_bigquery_client(
+        project=project_id,
+        location=config.offline_store.location,
+    )
+    ds = config.offline_store.dataset
+    proj = config.offline_store.project_id or client.project
+    feature_ddl = f"""
+CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE}` (
+  project_id STRING NOT NULL,
+  feature_view_name STRING NOT NULL,
+  feature_name STRING NOT NULL,
+  metric_date DATE NOT NULL,
+  granularity STRING NOT NULL,
+  data_source_type STRING NOT NULL,
+  computed_at TIMESTAMP NOT NULL,
+  is_baseline BOOL NOT NULL,
+  feature_type STRING NOT NULL,
+  row_count INT64,
+  null_count INT64,
+  null_rate FLOAT64,
+  mean FLOAT64,
+  stddev FLOAT64,
+  min_val FLOAT64,
+  max_val FLOAT64,
+  p50 FLOAT64,
+  p75 FLOAT64,
+  p90 FLOAT64,
+  p95 FLOAT64,
+  p99 FLOAT64,
+  histogram STRING
+)
+PRIMARY KEY (project_id, feature_view_name, feature_name, metric_date, granularity, data_source_type) NOT ENFORCED
+"""
+    view_ddl = f"""
+CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_VIEW}` (
+  project_id STRING NOT NULL,
+  feature_view_name STRING NOT NULL,
+  metric_date DATE NOT NULL,
+  granularity STRING NOT NULL,
+  data_source_type STRING NOT NULL,
+  computed_at TIMESTAMP NOT NULL,
+  is_baseline BOOL NOT NULL,
+  total_row_count INT64,
+  total_features INT64,
+  features_with_nulls INT64,
+  avg_null_rate FLOAT64,
+  max_null_rate FLOAT64
+)
+PRIMARY KEY (project_id, feature_view_name, metric_date, granularity, data_source_type) NOT ENFORCED
+"""
+    service_ddl = f"""
+CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_SERVICE}` (
+  project_id STRING NOT NULL,
+  feature_service_name STRING NOT NULL,
+  metric_date DATE NOT NULL,
+  granularity STRING NOT NULL,
+  data_source_type STRING NOT NULL,
+  computed_at TIMESTAMP NOT NULL,
+  is_baseline BOOL NOT NULL,
+  total_feature_views INT64,
+  total_features INT64,
+  avg_null_rate FLOAT64,
+  max_null_rate FLOAT64
+)
+PRIMARY KEY (project_id, feature_service_name, metric_date, granularity, data_source_type) NOT ENFORCED
+"""
+    for ddl in (feature_ddl, view_ddl, service_ddl):
+        client.query(ddl).result()
+
+
+def _bq_get_monitoring_max_timestamp(
+    config: RepoConfig,
+    data_source: BigQuerySource,
+    timestamp_field: str,
+) -> Optional[datetime]:
+    from_expression = data_source.get_table_query_string()
+    ts_col = f"`{timestamp_field}`"
+    sql = f"SELECT MAX({ts_col}) AS _max_ts FROM {from_expression}"
+    project_id = (
+        config.offline_store.billing_project_id or config.offline_store.project_id
+    )
+    client = _get_bigquery_client(
+        project=project_id,
+        location=config.offline_store.location,
+    )
+    job = client.query(sql)
+    job.result()
+    rows = list(job)
+    if not rows or rows[0][0] is None:
+        return None
+    val = rows[0][0]
+    if isinstance(val, datetime):
+        return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+    if isinstance(val, date):
+        return datetime.combine(val, datetime.min.time(), tzinfo=timezone.utc)
+    return val  # type: ignore[no-any-return]
+
+
+def _bq_numeric_histogram(
+    config: RepoConfig,
+    from_expression: str,
+    col_name: str,
+    ts_filter: str,
+    bins: int,
+    min_val: float,
+    max_val: float,
+) -> Dict[str, Any]:
+    q_col = f"`{col_name}`"
+    project_id = (
+        config.offline_store.billing_project_id or config.offline_store.project_id
+    )
+    client = _get_bigquery_client(
+        project=project_id,
+        location=config.offline_store.location,
+    )
+    if min_val == max_val:
+        sql = (
+            f"SELECT COUNT(*) AS cnt FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_filter}"
+        )
+        job = client.query(sql)
+        job.result()
+        hrows = list(job)
+        cnt = int(hrows[0][0]) if hrows else 0
+        return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
+
+    bin_width = (max_val - min_val) / bins
+    sql = f"""
+SELECT
+  LEAST(
+    GREATEST(
+      CAST(FLOOR((CAST({q_col} AS FLOAT64) - {min_val}) / {bin_width}) AS INT64) + 1,
+      1
+    ),
+    {bins}
+  ) AS bucket,
+  COUNT(*) AS cnt
+FROM {from_expression} AS _src
+WHERE {q_col} IS NOT NULL AND {ts_filter}
+GROUP BY bucket
+ORDER BY bucket
+"""
+    job = client.query(sql)
+    job.result()
+    rows = list(job)
+    counts = [0] * bins
+    for bucket, cnt in rows:
+        b = int(bucket)
+        if 1 <= b <= bins:
+            counts[b - 1] += int(cnt)
+    bin_edges = [min_val + i * bin_width for i in range(bins + 1)]
+    return {
+        "bins": [float(b) for b in bin_edges],
+        "counts": counts,
+        "bin_width": float(bin_width),
+    }
+
+
+def _bq_numeric_stats(
+    config: RepoConfig,
+    from_expression: str,
+    feature_names: List[str],
+    ts_filter: str,
+    histogram_bins: int,
+) -> List[Dict[str, Any]]:
+    project_id = (
+        config.offline_store.billing_project_id or config.offline_store.project_id
+    )
+    client = _get_bigquery_client(
+        project=project_id,
+        location=config.offline_store.location,
+    )
+    select_parts: List[str] = ["COUNT(*) AS _row_count"]
+    for i, col in enumerate(feature_names):
+        q = f"`{col}`"
+        c = f"CAST({q} AS FLOAT64)"
+        select_parts.extend(
+            [
+                f"COUNT({q}) AS c{i}_nn",
+                f"AVG({c}) AS c{i}_avg",
+                f"STDDEV_SAMP({c}) AS c{i}_stddev",
+                f"MIN({c}) AS c{i}_min",
+                f"MAX({c}) AS c{i}_max",
+                f"APPROX_QUANTILES({c}, 100)[OFFSET(50)] AS c{i}_p50",
+                f"APPROX_QUANTILES({c}, 100)[OFFSET(75)] AS c{i}_p75",
+                f"APPROX_QUANTILES({c}, 100)[OFFSET(90)] AS c{i}_p90",
+                f"APPROX_QUANTILES({c}, 100)[OFFSET(95)] AS c{i}_p95",
+                f"APPROX_QUANTILES({c}, 100)[OFFSET(99)] AS c{i}_p99",
+            ]
+        )
+    query = (
+        f"SELECT {', '.join(select_parts)} "
+        f"FROM {from_expression} AS _src WHERE {ts_filter}"
+    )
+    job = client.query(query)
+    job.result()
+    rows = list(job)
+    if not rows:
+        return [empty_numeric_metric(n) for n in feature_names]
+    row = rows[0]
+    row_count = row["_row_count"] or 0
+    results: List[Dict[str, Any]] = []
+    for i, col in enumerate(feature_names):
+        base = f"c{i}_"
+        non_null = row[f"{base}nn"] or 0
+        null_count = int(row_count) - int(non_null)
+        min_v = opt_float(row[f"{base}min"])
+        max_v = opt_float(row[f"{base}max"])
+        result: Dict[str, Any] = {
+            "feature_name": col,
+            "feature_type": "numeric",
+            "row_count": int(row_count),
+            "null_count": null_count,
+            "null_rate": null_count / row_count if row_count > 0 else 0.0,
+            "mean": opt_float(row[f"{base}avg"]),
+            "stddev": opt_float(row[f"{base}stddev"]),
+            "min_val": min_v,
+            "max_val": max_v,
+            "p50": opt_float(row[f"{base}p50"]),
+            "p75": opt_float(row[f"{base}p75"]),
+            "p90": opt_float(row[f"{base}p90"]),
+            "p95": opt_float(row[f"{base}p95"]),
+            "p99": opt_float(row[f"{base}p99"]),
+            "histogram": None,
+        }
+        if min_v is not None and max_v is not None and non_null and int(non_null) > 0:
+            result["histogram"] = _bq_numeric_histogram(
+                config,
+                from_expression,
+                col,
+                ts_filter,
+                histogram_bins,
+                min_v,
+                max_v,
+            )
+        results.append(result)
+    return results
+
+
+def _bq_categorical_stats(
+    config: RepoConfig,
+    from_expression: str,
+    col_name: str,
+    ts_filter: str,
+    top_n: int,
+) -> Dict[str, Any]:
+    q_col = f"`{col_name}`"
+    project_id = (
+        config.offline_store.billing_project_id or config.offline_store.project_id
+    )
+    client = _get_bigquery_client(
+        project=project_id,
+        location=config.offline_store.location,
+    )
+    query = f"""
+WITH filtered AS (
+  SELECT * FROM {from_expression} AS _src WHERE {ts_filter}
+)
+SELECT
+  (SELECT COUNT(*) FROM filtered) AS row_count,
+  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count,
+  (SELECT COUNT(DISTINCT {q_col}) FROM filtered WHERE {q_col} IS NOT NULL) AS unique_count,
+  CAST({q_col} AS STRING) AS value,
+  COUNT(*) AS cnt
+FROM filtered
+WHERE {q_col} IS NOT NULL
+GROUP BY CAST({q_col} AS STRING)
+ORDER BY cnt DESC
+LIMIT {int(top_n)}
+"""
+    job = client.query(query)
+    job.result()
+    rows = list(job)
+    if not rows:
+        return empty_categorical_metric(col_name)
+    row_count = rows[0]["row_count"]
+    null_count = rows[0]["null_count"]
+    unique_count = rows[0]["unique_count"]
+    top_entries = [{"value": r["value"], "count": r["cnt"]} for r in rows]
+    top_total = sum(e["count"] for e in top_entries)
+    other_count = (row_count - null_count) - top_total
+    return {
+        "feature_name": col_name,
+        "feature_type": "categorical",
+        "row_count": row_count,
+        "null_count": null_count,
+        "null_rate": null_count / row_count if row_count > 0 else 0.0,
+        "mean": None,
+        "stddev": None,
+        "min_val": None,
+        "max_val": None,
+        "p50": None,
+        "p75": None,
+        "p90": None,
+        "p95": None,
+        "p99": None,
+        "histogram": {
+            "values": top_entries,
+            "other_count": max(other_count, 0),
+            "unique_count": unique_count,
+        },
+    }
+
+
+def _bq_compute_monitoring_metrics(
+    config: RepoConfig,
+    data_source: BigQuerySource,
+    feature_columns: List[Tuple[str, str]],
+    timestamp_field: str,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    histogram_bins: int = 20,
+    top_n: int = 10,
+) -> List[Dict[str, Any]]:
+    from_expression = data_source.get_table_query_string()
+    ts_filter = get_timestamp_filter_sql(
+        start_date,
+        end_date,
+        timestamp_field,
+        date_partition_column=data_source.date_partition_column,
+        quote_fields=False,
+        cast_style="timestamp_func",
+    )
+    numeric_features = [n for n, t in feature_columns if t == "numeric"]
+    categorical_features = [n for n, t in feature_columns if t == "categorical"]
+    results: List[Dict[str, Any]] = []
+    if numeric_features:
+        results.extend(
+            _bq_numeric_stats(
+                config,
+                from_expression,
+                numeric_features,
+                ts_filter,
+                histogram_bins,
+            )
+        )
+    for col_name in categorical_features:
+        results.append(
+            _bq_categorical_stats(config, from_expression, col_name, ts_filter, top_n)
+        )
+    return results
 
 
 class BigQueryRetrievalJob(RetrievalJob):
