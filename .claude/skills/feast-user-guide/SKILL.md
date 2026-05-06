@@ -1,1 +1,1 @@
-../../../../skills/feast-user-guide/SKILL.md
+../../../skills/feast-user-guide/SKILL.md

@@ -15,7 +15,7 @@ require (
 
 require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.75.0
-	k8s.io/apiextensions-apiserver v0.30.2
+	k8s.io/apiextensions-apiserver v0.33.0
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 )
 
@@ -91,9 +91,8 @@ require (
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiserver v0.30.2 // indirect
-	k8s.io/component-base v0.30.2 // indirect
+	k8s.io/apiserver v0.33.0 // indirect
+	k8s.io/component-base v0.33.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.2 // indirect
