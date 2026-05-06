@@ -434,11 +434,15 @@ class BigQueryOfflineStore(OfflineStore):
             location=config.offline_store.location,
         )
 
+        parquet_options = bigquery.ParquetOptions()
+        parquet_options.enable_list_inference = True
+
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
             schema=arrow_schema_to_bq_schema(pa_schema),
             create_disposition=config.offline_store.table_create_disposition,
             write_disposition="WRITE_APPEND",  # Default but included for clarity
+            parquet_options=parquet_options,
         )
 
         with tempfile.TemporaryFile() as parquet_temp_file:
