@@ -274,6 +274,7 @@ def test_map_in_pandas_dummy_yield_has_correct_schema():
     assert df["status"].iloc[0] == 0
 
 
+@pytest.mark.integration
 def test_write_to_online_store_skips_empty_partitions():
     from pyspark.sql import SparkSession
     from pyspark.sql.types import FloatType, StringType, StructField, StructType
