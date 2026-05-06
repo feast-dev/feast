@@ -10,6 +10,7 @@ import {
   EuiFlexItem,
 } from "@elastic/eui";
 import useLoadRegistry from "../queries/useLoadRegistry";
+import useLoadMlflowRuns from "../queries/useLoadMlflowRuns";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import RegistryVisualization from "./RegistryVisualization";
 import { FEAST_FCO_TYPES } from "../parsers/types";
@@ -22,6 +23,7 @@ const RegistryVisualizationTab = () => {
     registryUrl,
     projectName,
   );
+  const { data: mlflowData } = useLoadMlflowRuns();
   const [selectedObjectType, setSelectedObjectType] = useState("");
   const [selectedObjectName, setSelectedObjectName] = useState("");
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
@@ -92,6 +94,7 @@ const RegistryVisualizationTab = () => {
                     { value: "entity", text: "Entity" },
                     { value: "featureView", text: "Feature View" },
                     { value: "featureService", text: "Feature Service" },
+                    { value: "mlflowRun", text: "MLflow Run" },
                   ]}
                   value={selectedObjectType}
                   onChange={(e) => {
@@ -162,6 +165,7 @@ const RegistryVisualizationTab = () => {
                   }
                 : undefined
             }
+            mlflowRuns={mlflowData?.runs}
           />
         </>
       )}

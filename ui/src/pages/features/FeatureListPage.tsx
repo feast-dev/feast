@@ -15,12 +15,16 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFormRow,
+  EuiBadge,
 } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
 import ExportButton from "../../components/ExportButton";
 import { useParams } from "react-router-dom";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
+import useLoadFeatureModels, {
+  FeatureModelInfo,
+} from "../../queries/useLoadFeatureModels";
 import { FeatureIcon } from "../../graphics/FeatureIcon";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import {
@@ -35,6 +39,7 @@ interface Feature {
   type: string;
   project?: string;
   permissions?: any[];
+  models?: FeatureModelInfo[];
 }
 
 type FeatureColumn =
@@ -48,6 +53,7 @@ const FeatureListPage = () => {
     registryUrl,
     projectName,
   );
+  const { data: featureModelsData } = useLoadFeatureModels();
   const [searchText, setSearchText] = useState("");
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
 
@@ -59,8 +65,10 @@ const FeatureListPage = () => {
 
   const featuresWithPermissions: Feature[] = (data?.allFeatures || []).map(
     (feature) => {
+      const featureRef = `${feature.featureView}:${feature.name}`;
       return {
         ...feature,
+        models: featureModelsData?.feature_models?.[featureRef] || [],
         permissions: getEntityPermissions(
           selectedPermissionAction
             ? filterPermissionsByAction(
@@ -126,6 +134,47 @@ const FeatureListPage = () => {
       },
     },
     { name: "Type", field: "type", sortable: true },
+    {
+      name: "Models",
+      field: "models",
+      sortable: false,
+      render: (models: FeatureModelInfo[]) => {
+        if (!models || models.length === 0) {
+          return (
+            <EuiText size="xs" color="subdued">
+              --
+            </EuiText>
+          );
+        }
+        if (models.length === 1) {
+          return (
+            <EuiBadge
+              color="hollow"
+              href={models[0].mlflow_url}
+              target="_blank"
+            >
+              {models[0].model_name} v{models[0].version}
+            </EuiBadge>
+          );
+        }
+        return (
+          <EuiToolTip
+            position="top"
+            content={
+              <div>
+                {models.map((m) => (
+                  <div key={`${m.model_name}_v${m.version}`}>
+                    {m.model_name} v{m.version}
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <EuiBadge color="hollow">{models.length} models</EuiBadge>
+          </EuiToolTip>
+        );
+      },
+    },
     {
       name: "Permissions",
       field: "permissions",

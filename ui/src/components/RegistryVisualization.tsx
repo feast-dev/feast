@@ -25,6 +25,7 @@ import {
 } from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
+import { MlflowRunData } from "../queries/useLoadMlflowRuns";
 import { feast } from "../protos";
 import { useTheme } from "../contexts/ThemeContext";
 import {
@@ -79,6 +80,10 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#ff8000"; // Orange
     case FEAST_FCO_TYPES.dataSource:
       return "#cc0000"; // Red
+    case FEAST_FCO_TYPES.mlflowRun:
+      return "#0194e2"; // MLflow brand blue
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "#7b2d8e"; // Purple
     default:
       return "#666666"; // Gray
   }
@@ -94,6 +99,10 @@ const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#fff2e6"; // Light orange
     case FEAST_FCO_TYPES.dataSource:
       return "#ffe6e6"; // Light red
+    case FEAST_FCO_TYPES.mlflowRun:
+      return "#e6f6fd"; // Light MLflow blue
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "#f3e6f9"; // Light purple
     default:
       return "#f0f0f0"; // Light gray
   }
@@ -109,6 +118,10 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
       return "▲"; // Triangle for entity
     case FEAST_FCO_TYPES.dataSource:
       return "◆"; // Diamond for data source
+    case FEAST_FCO_TYPES.mlflowRun:
+      return "⬡"; // Hexagon for MLflow run
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "⬢"; // Filled hexagon for registered model
     default:
       return "●"; // Default circle
   }
@@ -125,6 +138,14 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   const hasVersion = data.versionNumber != null && data.versionNumber > 1;
 
   const handleClick = () => {
+    if (
+      (data.type === FEAST_FCO_TYPES.mlflowRun ||
+        data.type === FEAST_FCO_TYPES.mlflowModel) &&
+      data.metadata?.mlflow_url
+    ) {
+      window.open(data.metadata.mlflow_url, "_blank", "noopener,noreferrer");
+      return;
+    }
     let path;
     switch (data.type) {
       case FEAST_FCO_TYPES.dataSource:
@@ -183,7 +204,10 @@ const CustomNode = ({ data }: { data: NodeData }) => {
             zIndex: 5,
           }}
         >
-          View Details
+          {data.type === FEAST_FCO_TYPES.mlflowRun ||
+          data.type === FEAST_FCO_TYPES.mlflowModel
+            ? "Open in MLflow ↗"
+            : "View Details"}
         </div>
       )}
 
@@ -398,6 +422,8 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.entity]: [],
     [FEAST_FCO_TYPES.featureView]: [],
     [FEAST_FCO_TYPES.featureService]: [],
+    [FEAST_FCO_TYPES.mlflowRun]: [],
+    [FEAST_FCO_TYPES.mlflowModel]: [],
   };
 
   isolatedNodes.forEach((node) => {
@@ -454,6 +480,8 @@ const Legend = () => {
     { type: FEAST_FCO_TYPES.featureView, label: "Feature View" },
     { type: FEAST_FCO_TYPES.entity, label: "Entity" },
     { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
+    { type: FEAST_FCO_TYPES.mlflowRun, label: "MLflow Run" },
+    { type: FEAST_FCO_TYPES.mlflowModel, label: "Registered Model" },
   ];
 
   const isDarkMode = colorMode === "dark";
@@ -535,6 +563,7 @@ const registryToFlow = (
   relationships: EntityRelation[],
   permissions?: any[],
   versionHistory?: feast.core.IFeatureViewVersionRecord[],
+  mlflowRuns?: MlflowRunData[],
 ) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -743,6 +772,101 @@ const registryToFlow = (
     });
   });
 
+  if (mlflowRuns && mlflowRuns.length > 0) {
+    mlflowRuns.forEach((run) => {
+      const runLabel = run.run_name || run.run_id.substring(0, 8);
+      nodes.push({
+        id: `mlflow-${run.run_id}`,
+        type: "custom",
+        data: {
+          label: runLabel,
+          type: FEAST_FCO_TYPES.mlflowRun,
+          metadata: {
+            mlflow_url: run.mlflow_url,
+            retrieval_type: run.retrieval_type,
+            status: run.status,
+            run_id: run.run_id,
+          },
+        },
+        position: { x: 0, y: 0 },
+      });
+
+      if (run.feature_service) {
+        const fsNodeId = `fs-${run.feature_service}`;
+        const fsNodeExists = nodes.some((n) => n.id === fsNodeId);
+        if (fsNodeExists) {
+          edges.push({
+            id: `edge-mlflow-${run.run_id}`,
+            source: fsNodeId,
+            sourceHandle: "source",
+            target: `mlflow-${run.run_id}`,
+            targetHandle: "target",
+            animated: true,
+            style: {
+              strokeWidth: 3,
+              stroke: "#0194e2",
+              strokeDasharray: "10 5",
+              animation: "dataflow 2s linear infinite",
+            },
+            type: "smoothstep",
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: "#0194e2",
+            },
+          });
+        }
+      }
+
+      if (run.registered_models && run.registered_models.length > 0) {
+        run.registered_models.forEach((model) => {
+          const modelNodeId = `model-${model.model_name}-v${model.version}`;
+          const modelExists = nodes.some((n) => n.id === modelNodeId);
+          if (!modelExists) {
+            nodes.push({
+              id: modelNodeId,
+              type: "custom",
+              data: {
+                label: `${model.model_name} v${model.version}`,
+                type: FEAST_FCO_TYPES.mlflowModel,
+                metadata: {
+                  mlflow_url: model.mlflow_url,
+                  model_name: model.model_name,
+                  version: model.version,
+                  stage: model.stage,
+                },
+              },
+              position: { x: 0, y: 0 },
+            });
+          }
+
+          edges.push({
+            id: `edge-model-${run.run_id}-${model.model_name}-v${model.version}`,
+            source: `mlflow-${run.run_id}`,
+            sourceHandle: "source",
+            target: modelNodeId,
+            targetHandle: "target",
+            animated: true,
+            style: {
+              strokeWidth: 3,
+              stroke: "#7b2d8e",
+              strokeDasharray: "10 5",
+              animation: "dataflow 2s linear infinite",
+            },
+            type: "smoothstep",
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: "#7b2d8e",
+            },
+          });
+        });
+      }
+    });
+  }
+
   return { nodes, edges };
 };
 
@@ -756,6 +880,10 @@ const getNodePrefix = (type: FEAST_FCO_TYPES) => {
       return "entity";
     case FEAST_FCO_TYPES.dataSource:
       return "ds";
+    case FEAST_FCO_TYPES.mlflowRun:
+      return "mlflow";
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "model";
     default:
       return "unknown";
   }
@@ -766,7 +894,8 @@ interface RegistryVisualizationProps {
   relationships: EntityRelation[];
   indirectRelationships: EntityRelation[];
   filterNode?: { type: FEAST_FCO_TYPES; name: string };
-  permissions?: any[]; // Add permissions field
+  permissions?: any[];
+  mlflowRuns?: MlflowRunData[];
 }
 
 const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
@@ -775,6 +904,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   indirectRelationships,
   filterNode,
   permissions,
+  mlflowRuns,
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -851,6 +981,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         validRelationships,
         permissions,
         versionRecords as feast.core.IFeatureViewVersionRecord[] | undefined,
+        mlflowRuns,
       );
 
       const { nodes: layoutedNodes, edges: layoutedEdges } =
@@ -873,6 +1004,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     showIsolatedNodes,
     filterNode,
     permissions,
+    mlflowRuns,
     setNodes,
     setEdges,
   ]);
