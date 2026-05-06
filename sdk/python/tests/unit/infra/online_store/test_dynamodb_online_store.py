@@ -1050,3 +1050,107 @@ def test_dynamodb_online_store_thread_safety_uses_shared_client(
         f"Expected 1 shared client for thread-safety, "
         f"got {len(set(dynamodb_clients))} unique clients"
     )
+
+
+@mock_dynamodb
+def test_dynamodb_online_store_online_read_with_requested_features(
+    repo_config, dynamodb_online_store
+):
+    """Test that requested_features filters returned features."""
+    n_samples = 5
+    db_table_name = f"{TABLE_NAME}_requested_features"
+    create_test_table(PROJECT, db_table_name, REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(data, PROJECT, db_table_name, REGION)
+
+    entity_keys, features, *rest = zip(*data)
+    returned_items = dynamodb_online_store.online_read(
+        config=repo_config,
+        table=MockFeatureView(name=db_table_name),
+        entity_keys=entity_keys,
+        requested_features=["name", "age"],
+    )
+    assert len(returned_items) == n_samples
+    for _, feat_dict in returned_items:
+        assert feat_dict is not None
+        assert "name" in feat_dict
+        assert "age" in feat_dict
+        assert "avg_orders_day" not in feat_dict
+
+
+@mock_dynamodb
+def test_dynamodb_online_store_online_read_without_requested_features(
+    repo_config, dynamodb_online_store
+):
+    """Test that omitting requested_features returns all features."""
+    n_samples = 5
+    db_table_name = f"{TABLE_NAME}_all_features"
+    create_test_table(PROJECT, db_table_name, REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(data, PROJECT, db_table_name, REGION)
+
+    entity_keys, features, *rest = zip(*data)
+    returned_items = dynamodb_online_store.online_read(
+        config=repo_config,
+        table=MockFeatureView(name=db_table_name),
+        entity_keys=entity_keys,
+        requested_features=None,
+    )
+    assert len(returned_items) == n_samples
+    for _, feat_dict in returned_items:
+        assert feat_dict is not None
+        assert set(feat_dict.keys()) == {"avg_orders_day", "name", "age"}
+
+
+def test_build_projection_expression():
+    """Test that _build_projection_expression generates correct DynamoDB expressions."""
+    result = DynamoDBOnlineStore._build_projection_expression(["feat_a", "feat_b"])
+    assert result is not None
+    assert "#entity_id" in result["ProjectionExpression"]
+    assert "#event_ts" in result["ProjectionExpression"]
+    assert "#vals.#feat0" in result["ProjectionExpression"]
+    assert "#vals.#feat1" in result["ProjectionExpression"]
+    attr_names = result["ExpressionAttributeNames"]
+    assert attr_names["#vals"] == "values"
+    assert attr_names["#feat0"] == "feat_a"
+    assert attr_names["#feat1"] == "feat_b"
+
+
+def test_build_projection_expression_none():
+    """Test that _build_projection_expression returns None for empty input."""
+    assert DynamoDBOnlineStore._build_projection_expression(None) is None
+    assert DynamoDBOnlineStore._build_projection_expression([]) is None
+
+
+@mock_dynamodb
+def test_dynamodb_online_store_online_read_requested_features_parallel(
+    dynamodb_online_store,
+):
+    """Test that requested_features works across parallel batches."""
+    small_batch_config = RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=DynamoDBOnlineStoreConfig(region=REGION, batch_size=5),
+        offline_store=DaskOfflineStoreConfig(),
+        entity_key_serialization_version=3,
+    )
+    n_samples = 15
+    db_table_name = f"{TABLE_NAME}_requested_parallel"
+    create_test_table(PROJECT, db_table_name, REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(data, PROJECT, db_table_name, REGION)
+
+    entity_keys, features, *rest = zip(*data)
+    returned_items = dynamodb_online_store.online_read(
+        config=small_batch_config,
+        table=MockFeatureView(name=db_table_name),
+        entity_keys=entity_keys,
+        requested_features=["age"],
+    )
+    assert len(returned_items) == n_samples
+    for _, feat_dict in returned_items:
+        assert feat_dict is not None
+        assert "age" in feat_dict
+        assert "name" not in feat_dict
+        assert "avg_orders_day" not in feat_dict
