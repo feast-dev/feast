@@ -148,28 +148,72 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 
-def _resolve_feature_counts(
+def _parse_feature_info(
     features: Union[List[str], "feast.FeatureService"],
 ) -> tuple:
-    """Return (feature_count, feature_view_count) from the resolved features.
+    """Return ``(feature_view_names, feature_count)`` from resolved features.
 
     ``features`` is either a list of ``"feature_view:feature"`` strings or
     a ``FeatureService`` with ``feature_view_projections``.
+
+    Returns:
+        (fv_names, feat_count) where fv_names is a list of unique feature
+        view name strings and feat_count is the total number of features.
     """
     from feast.feature_service import FeatureService
 
     if isinstance(features, FeatureService):
         projections = features.feature_view_projections
-        fv_count = len(projections)
+        fv_names = [p.name for p in projections]
         feat_count = sum(len(p.features) for p in projections)
     elif isinstance(features, list):
         feat_count = len(features)
-        fv_names = {ref.split(":")[0].split("@")[0] for ref in features if ":" in ref}
-        fv_count = len(fv_names)
+        fv_names = list(
+            {ref.split(":")[0].split("@")[0] for ref in features if ":" in ref}
+        )
     else:
+        fv_names = []
         feat_count = 0
-        fv_count = 0
-    return str(feat_count), str(fv_count)
+    return fv_names, feat_count
+
+
+def _resolve_feature_counts(
+    features: Union[List[str], "feast.FeatureService"],
+) -> tuple:
+    """Return ``(feature_count_str, feature_view_count_str)`` for Prometheus labels."""
+    fv_names, feat_count = _parse_feature_info(features)
+    return str(feat_count), str(len(fv_names))
+
+
+def _emit_online_audit(
+    request: GetOnlineFeaturesRequest,
+    features: Union[List[str], "feast.FeatureService"],
+    entity_count: int,
+    status: str,
+    latency_ms: float,
+):
+    """Best-effort audit log emission for online feature requests."""
+    try:
+        from feast.permissions.security_manager import get_security_manager
+
+        requestor_id = "anonymous"
+        sm = get_security_manager()
+        if sm and sm.current_user:
+            requestor_id = sm.current_user.username or "anonymous"
+
+        fv_names, feat_count = _parse_feature_info(features)
+
+        feast_metrics.emit_online_audit_log(
+            requestor_id=requestor_id,
+            entity_keys=list(request.entities.keys()),
+            entity_count=entity_count,
+            feature_views=fv_names,
+            feature_count=feat_count,
+            status=status,
+            latency_ms=latency_ms,
+        )
+    except Exception:
+        logger.warning("Failed to emit online audit log", exc_info=True)
 
 
 async def _get_features(
@@ -387,11 +431,22 @@ def get_app(
                 include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
 
-            if store._get_provider().async_supported.online.read:
-                response = await store.get_online_features_async(**read_params)  # type: ignore
-            else:
-                response = await run_in_threadpool(
-                    lambda: store.get_online_features(**read_params)  # type: ignore
+            audit_start_ms = time.monotonic() * 1000
+            audit_status = "success"
+            try:
+                if store._get_provider().async_supported.online.read:
+                    response = await store.get_online_features_async(**read_params)  # type: ignore
+                else:
+                    response = await run_in_threadpool(
+                        lambda: store.get_online_features(**read_params)  # type: ignore
+                    )
+            except Exception:
+                audit_status = "error"
+                raise
+            finally:
+                audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
+                _emit_online_audit(
+                    request, features, entity_count, audit_status, audit_latency_ms
                 )
 
             response_dict = await run_in_threadpool(
