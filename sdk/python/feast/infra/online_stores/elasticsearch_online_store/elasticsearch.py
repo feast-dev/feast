@@ -172,7 +172,10 @@ class ElasticSearchOnlineStore(OnlineStore):
         for hit in response["hits"]["hits"]:
             source = hit["_source"]
             timestamp = source.get("timestamp")
-            timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S")
+            try:
+                timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f")
+            except ValueError:
+                timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S")
 
             features: Dict[str, ValueProto] = {}
 
