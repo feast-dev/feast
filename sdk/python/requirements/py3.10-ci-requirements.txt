@@ -2386,9 +2386,9 @@ minio==7.2.11 \
     --hash=sha256:153582ed52ff3b5005ba558e1f25bfe1e9e834f7f0745e594777f28e3e81e1a0 \
     --hash=sha256:4db95a21fe1e2022ec975292d8a1f83bd5b18f830d23d42a4518ac7a5281d7c5
     # via feast (pyproject.toml)
-mistune==3.2.0 \
-    --hash=sha256:708487c8a8cdd99c9d90eb3ed4c3ed961246ff78ac82f03418f5183ab70e398a \
-    --hash=sha256:febdc629a3c78616b94393c6580551e0e34cc289987ec6c35ed3f4be42d0eee1
+mistune==3.2.1 \
+    --hash=sha256:78cdb0ba5e938053ccf63651b352508d2efa9411dc8810bfb05f2dc5140c0048 \
+    --hash=sha256:7c8e5501d38bac1582e067e46c8343f17d57ea1aaa735823f3aba1fd59c88a28
     # via
     #   great-expectations
     #   nbconvert
