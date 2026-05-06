@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -768,6 +769,17 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 	}
 }
 
+// getServiceAppProtocol returns the appProtocol for a Service port.
+// The registry gRPC service uses the gRPC protocol, which requires HTTP/2.
+// Setting appProtocol allows service meshes (e.g. Istio) and load balancers
+// to correctly classify the traffic and avoid downgrading to HTTP/1.1.
+func (feast *FeastServices) getServiceAppProtocol(feastType FeastServiceType, isRestService bool) *string {
+	if feastType == RegistryFeastType && !isRestService && feast.isRegistryGrpcEnabled() {
+		return ptr.To("grpc")
+	}
+	return nil
+}
+
 func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType, isRestService bool) error {
 	svc.Labels = feast.getFeastTypeLabels(feastType)
 	if feast.isOpenShiftTls(feastType) {
@@ -829,10 +841,11 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 		Type:     corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
-				Name:       scheme,
-				Port:       port,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(targetPort)),
+				Name:        scheme,
+				Port:        port,
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(int(targetPort)),
+				AppProtocol: feast.getServiceAppProtocol(feastType, isRestService),
 			},
 		},
 	}
