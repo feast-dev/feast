@@ -2335,3 +2335,124 @@ def test_cross_type_feature_view_odfv_conflict(test_registry: BaseRegistry):
     # Cleanup
     test_registry.delete_feature_view("shared_odfv_name", project)
     test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
+def test_cross_project_feature_view_name_allowed(test_registry: BaseRegistry):
+    """
+    Test that different projects can use the same feature view names.
+    This is a regression test for issue #6209.
+    """
+    project_a = "project_a"
+    project_b = "project_b"
+
+    # Create a FeatureView in project A
+    feature_view_a = FeatureView(
+        name="shared_name",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=FileSource(path="data.parquet"),
+    )
+
+    # Create a StreamFeatureView with the same name in project B
+    stream_feature_view_b = StreamFeatureView(
+        name="shared_name",
+        entities=[],
+        schema=[Field(name="feature2", dtype=Float32)],
+        source=KafkaSource(
+            name="kafka_source",
+            kafka_bootstrap_servers="localhost:9092",
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+            batch_source=FileSource(path="stream_data.parquet"),
+        ),
+        aggregations=[],
+    )
+
+    # Both should apply successfully without ConflictingFeatureViewNames error
+    test_registry.apply_feature_view(feature_view_a, project_a)
+    test_registry.apply_feature_view(stream_feature_view_b, project_b)
+
+    # Verify both exist in their respective projects
+    retrieved_fv_a = test_registry.get_feature_view("shared_name", project_a)
+    assert retrieved_fv_a.name == "shared_name"
+    assert isinstance(retrieved_fv_a, FeatureView)
+    assert not isinstance(retrieved_fv_a, StreamFeatureView)
+
+    retrieved_sfv_b = test_registry.get_stream_feature_view("shared_name", project_b)
+    assert retrieved_sfv_b.name == "shared_name"
+    assert isinstance(retrieved_sfv_b, StreamFeatureView)
+
+    # Cleanup
+    test_registry.delete_feature_view("shared_name", project_a)
+    test_registry.delete_feature_view("shared_name", project_b)
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
+def test_batch_apply_preserves_all_feature_views(test_registry: BaseRegistry):
+    """
+    Regression test for cache overwrite during batch feature view apply.
+
+    Verifies that applying multiple feature views with commit=False in a loop
+    (as feature_store.apply() does) preserves all uncommitted in-memory changes.
+    Before the fix, each apply_feature_view call with commit=False would invoke
+    _ensure_feature_view_name_is_unique with allow_cache=False, causing
+    _get_registry_proto to re-read from the store and overwrite cached_registry_proto,
+    discarding previously applied feature views from the in-memory cache.
+    """
+    project = "project"
+
+    batch_source = FileSource(
+        name="batch_source",
+        file_format=ParquetFormat(),
+        path="file://feast/data.parquet",
+        timestamp_field="event_timestamp",
+    )
+
+    fv1 = FeatureView(
+        name="feature_view_1",
+        entities=[],
+        schema=[Field(name="feature_a", dtype=Float32)],
+        source=batch_source,
+    )
+    fv2 = FeatureView(
+        name="feature_view_2",
+        entities=[],
+        schema=[Field(name="feature_b", dtype=Float32)],
+        source=batch_source,
+    )
+    fv3 = FeatureView(
+        name="feature_view_3",
+        entities=[],
+        schema=[Field(name="feature_c", dtype=Float32)],
+        source=batch_source,
+    )
+
+    # Mimic feature_store.apply(): apply all objects with commit=False, then commit once.
+    # Without the allow_cache=True fix, each apply_feature_view call would overwrite
+    # cached_registry_proto from the store, causing previously applied FVs to be lost.
+    test_registry.apply_data_source(batch_source, project, commit=False)
+    for fv in [fv1, fv2, fv3]:
+        test_registry.apply_feature_view(fv, project, commit=False)
+    test_registry.commit()
+
+    # All three feature views must survive — any cache overwrite would cause missing entries.
+    stored_fvs = test_registry.list_feature_views(project)
+    stored_names = {fv.name for fv in stored_fvs}
+    assert "feature_view_1" in stored_names, "fv1 lost during batch apply (cache overwrite)"
+    assert "feature_view_2" in stored_names, "fv2 lost during batch apply (cache overwrite)"
+    assert "feature_view_3" in stored_names, "fv3 lost during batch apply (cache overwrite)"
+
+    stored_sources = test_registry.list_data_sources(project)
+    assert len(stored_sources) == 1, "data source lost during batch apply"
+
+    test_registry.teardown()
