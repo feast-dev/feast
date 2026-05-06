@@ -161,13 +161,18 @@ class BigQueryOfflineStore(OfflineStore):
             project=project_id,
             location=config.offline_store.location,
         )
+        cast_style: Literal["date_func", "timestamp_func"] = (
+            "date_func"
+            if data_source.timestamp_field_type == "DATE"
+            else "timestamp_func"
+        )
         timestamp_filter = get_timestamp_filter_sql(
             start_date,
             end_date,
             timestamp_field,
             date_partition_column=data_source.date_partition_column,
             quote_fields=False,
-            cast_style="timestamp_func",
+            cast_style=cast_style,
         )
         query = f"""
             SELECT
@@ -220,13 +225,18 @@ class BigQueryOfflineStore(OfflineStore):
             + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
             + timestamp_fields
         )
+        cast_style: Literal["date_func", "timestamp_func"] = (
+            "date_func"
+            if data_source.timestamp_field_type == "DATE"
+            else "timestamp_func"
+        )
         timestamp_filter = get_timestamp_filter_sql(
             start_date,
             end_date,
             timestamp_field,
             date_partition_column=data_source.date_partition_column,
             quote_fields=False,
-            cast_style="timestamp_func",
+            cast_style=cast_style,
         )
         query = f"""
             SELECT {field_string}
@@ -934,9 +944,16 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
                 {% if loop.last %}{% else %}, {% endif %}
             {% endfor %}
         FROM {{ featureview.table_subquery }}
+        {% if featureview.timestamp_field_type == "DATE" %}
+        WHERE {{ featureview.timestamp_field }} <= DATE('{{ featureview.max_event_timestamp[:10] }}')
+        {% if featureview.ttl == 0 %}{% else %}
+        AND {{ featureview.timestamp_field }} >= DATE('{{ featureview.min_event_timestamp[:10] }}')
+        {% endif %}
+        {% else %}
         WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
         {% if featureview.ttl == 0 %}{% else %}
         AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
+        {% endif %}
         {% endif %}
         {% if featureview.date_partition_column %}
         AND {{ featureview.date_partition_column | backticks }} <= '{{ featureview.max_event_timestamp[:10] }}'

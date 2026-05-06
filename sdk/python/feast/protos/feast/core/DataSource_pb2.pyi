@@ -39,7 +39,7 @@ DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
 class DataSource(google.protobuf.message.Message):
     """Defines a Data Source that can be used source Feature data
-    Next available id: 28
+    Next available id: 29
     """
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -484,6 +484,7 @@ class DataSource(google.protobuf.message.Message):
     SPARK_OPTIONS_FIELD_NUMBER: builtins.int
     TRINO_OPTIONS_FIELD_NUMBER: builtins.int
     ATHENA_OPTIONS_FIELD_NUMBER: builtins.int
+    TIMESTAMP_FIELD_TYPE_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Unique name of data source within the project"""
     project: builtins.str
@@ -506,6 +507,8 @@ class DataSource(google.protobuf.message.Message):
     """
     created_timestamp_column: builtins.str
     """Must specify creation timestamp column name"""
+    timestamp_field_type: builtins.str
+    """Optional type of the timestamp field (e.g. DATE)"""
     data_source_class_type: builtins.str
     """This is an internal field that is represents the python class for the data source object a proto object represents.
     This should be set by feast, and not by users.
@@ -554,6 +557,7 @@ class DataSource(google.protobuf.message.Message):
         timestamp_field: builtins.str = ...,
         date_partition_column: builtins.str = ...,
         created_timestamp_column: builtins.str = ...,
+        timestamp_field_type: builtins.str = ...,
         data_source_class_type: builtins.str = ...,
         batch_source: global___DataSource | None = ...,
         meta: global___DataSource.SourceMeta | None = ...,
@@ -571,7 +575,7 @@ class DataSource(google.protobuf.message.Message):
         athena_options: global___DataSource.AthenaOptions | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "custom_options", b"custom_options", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "options", b"options", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "trino_options", b"trino_options"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "trino_options", b"trino_options", "type", b"type"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "timestamp_field_type", b"timestamp_field_type", "trino_options", b"trino_options", "type", b"type"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions.Literal["options", b"options"]) -> typing_extensions.Literal["file_options", "bigquery_options", "kafka_options", "kinesis_options", "redshift_options", "request_data_options", "custom_options", "snowflake_options", "push_options", "spark_options", "trino_options", "athena_options"] | None: ...
 
 global___DataSource = DataSource
