@@ -1,0 +1,113 @@
+name: pr-chronon-integration-tests
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+    paths:
+      - "sdk/python/feast/infra/online_stores/chronon_online_store/**"
+      - "sdk/python/feast/infra/offline_stores/contrib/chronon_offline_store/**"
+      - "sdk/python/feast/infra/chronon_provider.py"
+      - "sdk/python/tests/unit/infra/online_stores/chronon_online_store/**"
+      - "sdk/python/tests/unit/infra/offline_stores/contrib/chronon_offline_store/**"
+      - "sdk/python/tests/integration/online_store/test_chronon_online_store.py"
+      - "sdk/python/tests/integration/online_store/test_chronon_online_store_real_service.py"
+      - "sdk/python/tests/integration/offline_store/test_chronon_offline_store.py"
+      - "infra/scripts/chronon/**"
+      - "chronon/**"
+      - ".github/workflows/pr_chronon_integration_tests.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chronon-python-tests:
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.repository.full_name }}
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: recursive
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+      - name: Install dependencies
+        run: make install-python-dependencies-ci
+      - name: Install Chronon build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            apt-transport-https \
+            autoconf \
+            automake \
+            bison \
+            build-essential \
+            ca-certificates \
+            curl \
+            flex \
+            g++ \
+            gnupg \
+            libtool \
+            pkg-config \
+            python3-pip \
+            python3-venv
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+          curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x99E82A75642AC823" | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install -y sbt
+          curl -sSL "http://archive.apache.org/dist/thrift/0.13.0/thrift-0.13.0.tar.gz" -o /tmp/thrift.tar.gz
+          sudo rm -rf /usr/src/thrift
+          sudo mkdir -p /usr/src/thrift
+          sudo tar zxf /tmp/thrift.tar.gz -C /usr/src/thrift --strip-components=1
+          cd /usr/src/thrift
+          sudo ./configure --without-python --without-cpp
+          sudo make -j2
+          sudo make install
+          python3 -m pip install --break-system-packages build
+          thrift -version
+      - name: Build Chronon quickstart and service jars
+        run: |
+          cd chronon/quickstart/mongo-online-impl
+          sbt assembly
+          cd "${GITHUB_WORKSPACE}/chronon"
+          sbt "project service" assembly
+      - name: Run Chronon unit and stub integration tests
+        run: |
+          uv run pytest -c sdk/python/pytest.ini \
+            sdk/python/tests/unit/infra/online_stores/chronon_online_store \
+            sdk/python/tests/unit/infra/offline_stores/contrib/chronon_offline_store \
+            sdk/python/tests/integration/online_store/test_chronon_online_store.py \
+            sdk/python/tests/integration/offline_store/test_chronon_offline_store.py \
+            --integration
+      - name: Start live Chronon service
+        run: infra/scripts/chronon/start-local-chronon-service.sh
+      - name: Run Chronon live-service integration test
+        env:
+          CHRONON_SERVICE_URL: http://127.0.0.1:9000
+        run: |
+          uv run pytest -c sdk/python/pytest.ini \
+            sdk/python/tests/integration/online_store/test_chronon_online_store_real_service.py \
+            --integration
+      - name: Stop live Chronon service
+        if: always()
+        run: infra/scripts/chronon/stop-local-chronon-service.sh
