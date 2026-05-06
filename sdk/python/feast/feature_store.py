@@ -3414,7 +3414,7 @@ class FeatureStore:
         """
         return self.registry.delete_project(name, commit=commit)
 
-        def list_saved_datasets(
+    def list_saved_datasets(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[SavedDataset]:
         """
