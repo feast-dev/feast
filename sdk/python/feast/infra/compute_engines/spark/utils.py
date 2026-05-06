@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import TYPE_CHECKING, Dict, Iterable, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Literal, Optional
 
 import pandas as pd
 import pyarrow
@@ -339,7 +339,7 @@ def write_to_offline_store(
     spark_df.foreachPartition(_write_partition)
 
 
-_FEAST_EMBED_MODEL_CACHE: Dict[tuple, object] = {}
+_FEAST_EMBED_MODEL_CACHE: Dict[tuple, "Any"] = {}
 
 
 def spark_embed(
