@@ -11,6 +11,10 @@ on:
         required: true
         default: ""
         type: string
+      ref:
+        description: 'Git ref to checkout (branch, tag, or SHA). Defaults to the triggering ref. Use to rebuild images from a different branch (e.g., master) when the release tag has a broken Dockerfile.'
+        required: false
+        type: string
   workflow_call: # Allows trigger of the workflow from another workflow
     inputs:
       custom_version: # Optional input for a custom version
@@ -36,6 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
           submodules: 'true'
       - id: get-version
         uses: ./.github/actions/get-semantic-release-version
