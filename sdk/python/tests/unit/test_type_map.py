@@ -1953,3 +1953,68 @@ class TestEmptyArrayAsNull:
             "non-empty array in UNIX_TIMESTAMP scalar column should produce null"
         )
         assert result[1].unix_timestamp_val == int(ts.timestamp())
+
+
+class TestNdarrayListConversion:
+    """Regression tests for https://github.com/feast-dev/feast/issues/6325
+    Arrow/Athena deserializes Array(String) columns as numpy.ndarray with
+    object dtype instead of plain Python lists.  Ensure these are converted
+    to proto without raising ValueError or TypeError.
+    """
+
+    def test_ndarray_string_list_roundtrip(self):
+        """ndarray of strings converts to STRING_LIST proto and back."""
+        values = [np.array(["tag1", "tag2"], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == ["tag1", "tag2"]
+
+    def test_ndarray_string_list_with_none_elements(self):
+        """None elements inside an ndarray are replaced with empty string."""
+        values = [np.array(["tag1", None, "tag3"], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == ["tag1", "", "tag3"]
+
+    def test_ndarray_empty_string_list(self):
+        """An empty ndarray in a list column produces an empty ProtoValue (null)."""
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        values = [np.array([], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert protos[0] == ProtoValue()
+
+    def test_ndarray_string_list_mixed_batch(self):
+        """Batch with populated ndarray, None, and empty ndarray."""
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        values = [
+            np.array(["a", "b"], dtype=object),
+            None,
+            np.array([], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert feast_value_type_to_python_type(protos[0]) == ["a", "b"]
+        assert protos[1] == ProtoValue()
+        assert protos[2] == ProtoValue()
+
+    def test_ndarray_int64_list_roundtrip(self):
+        """ndarray of ints converts to INT64_LIST proto and back."""
+        values = [np.array([1, 2, 3], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.INT64_LIST)
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == [1, 2, 3]
+
+    def test_ndarray_double_list_with_none_elements(self):
+        """None elements in a DOUBLE_LIST ndarray are replaced with 0.0."""
+        values = [np.array([1.5, None, 3.5], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.DOUBLE_LIST)
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == [1.5, 0.0, 3.5]
+
+    def test_ndarray_bool_list_roundtrip(self):
+        """ndarray of bools converts to BOOL_LIST proto and back."""
+        values = [np.array([True, False, True], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.BOOL_LIST)
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == [True, False, True]
