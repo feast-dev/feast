@@ -186,6 +186,36 @@ def test_local_dedup_node():
     assert set(df_result["entity_id"]) == {1, 2}
 
 
+def test_local_dedup_node_empty_input():
+    """LocalDedupNode must pass through an empty table without raising KeyError.
+
+    When the Athena CTAS query returns no rows the upstream source node
+    produces a schema-less (0-row) table.  Prior to the fix, calling
+    sort_values on a column that does not exist in an empty DataFrame
+    raised ``KeyError: 'event_timestamp'``.
+    """
+    empty_table = pa.table({})
+    context = create_context(node_outputs={"source": ArrowTableValue(empty_table)})
+
+    node = LocalDedupNode(
+        name="dedup",
+        backend=backend,
+        column_info=ColumnInfo(
+            join_keys=["entity_id"],
+            feature_cols=["value"],
+            ts_col="event_timestamp",
+            created_ts_col=None,
+        ),
+    )
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    result = node.execute(context)
+
+    assert isinstance(result, ArrowTableValue)
+    assert result.data.num_rows == 0
+
+
 def test_local_transformation_node():
     context = create_context(
         node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}

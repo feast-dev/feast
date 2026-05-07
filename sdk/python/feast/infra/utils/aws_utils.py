@@ -894,6 +894,18 @@ def unload_athena_query_to_pa(
     with tempfile.TemporaryDirectory() as temp_dir:
         download_s3_directory(s3_resource, bucket, key, temp_dir)
         delete_s3_directory(s3_resource, bucket, key)
+        # When the Athena CTAS query returns no rows it writes no Parquet files.
+        # pq.read_table on an empty (or metadata-only) directory raises or returns
+        # a schema-less table, which causes downstream KeyErrors on timestamp columns.
+        # Return an empty table early so the materialization pipeline can short-circuit
+        # gracefully via the num_rows == 0 guards in the compute nodes.
+        parquet_files = [
+            f
+            for f in os.listdir(temp_dir)
+            if f.endswith(".parquet") or f.endswith(".snappy.parquet")
+        ]
+        if not parquet_files:
+            return pa.table({})
         return pq.read_table(temp_dir)
 
 

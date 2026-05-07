@@ -1,6 +1,7 @@
 import logging
 import os
 import warnings
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -219,6 +220,30 @@ class MaterializationConfig(BaseModel):
         If None (default), all rows are written in a single batch for backward compatibility.
         Set to a positive integer (e.g., 10000) to enable batched writes.
         Supported compute engines: local, spark, ray. """
+
+    chunk_size: Optional[timedelta] = None
+    """ timedelta: If set, materialization is split into consecutive time-based chunks of this
+        size to reduce memory pressure when processing large volumes of data.  For example,
+        ``timedelta(hours=6)`` issues one ``materialize_single_feature_view`` call per 6-hour
+        window instead of materializing the entire range at once.  ``None`` (default) disables
+        chunking and preserves the existing single-pass behaviour.
+
+        Can be overridden at call-time via the ``chunk_size`` parameter of
+        ``FeatureStore.materialize()`` / ``FeatureStore.materialize_incremental()``, or via the
+        ``--chunk-hours`` / ``--chunk-minutes`` / ``--chunk-seconds`` CLI flags.
+
+        Example ``feature_store.yaml`` snippet::
+
+            materialization:
+              chunk_size: 21600  # 6 hours expressed as seconds
+    """
+
+    chunk_failure_strategy: StrictStr = "stop"
+    """ str: Controls what happens when a chunk fails during chunked materialization.
+        ``'stop'`` (default) re-raises the exception immediately.
+        ``'continue'`` logs the failure and proceeds with the remaining chunks, emitting
+        a summary warning at the end.  Only meaningful when ``chunk_size`` is set.
+    """
 
 
 class OpenLineageConfig(FeastBaseModel):
