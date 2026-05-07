@@ -243,24 +243,23 @@ def write_to_online_store(
     Uses foreachPartition instead of mapInArrow to avoid a Spark 3.5
     serialiser mismatch (ArrowStreamPandasUDFSerializer vs ArrowStreamUDFSerializer)
     when WindowGroupLimitExec precedes MapInArrowExec.
+
+    Rows are consumed in fixed-size chunks (default 5 000) so that Python
+    memory stays bounded regardless of partition size.  Previous behaviour
+    called ``list(rows)`` which materialised the entire partition and caused
+    ``MemoryError`` / OOMKill on large feature views.
     """
+    from itertools import islice
+
     from pyspark.sql.pandas.types import to_arrow_schema
 
     df_schema = spark_df.schema
+    _CHUNK = 5_000
 
     def _write_partition(rows):  # type: ignore[type-arg]
-        rows_list = list(rows)
-        if not rows_list:
-            return
-
         import pyarrow as pa
 
         from feast.utils import _convert_arrow_to_proto
-
-        pdf = pd.DataFrame([r.asDict(recursive=True) for r in rows_list])
-        table = pa.Table.from_pandas(
-            pdf, schema=to_arrow_schema(df_schema), preserve_index=False
-        )
 
         (
             feature_view,
@@ -273,24 +272,26 @@ def write_to_online_store(
             entity.name: entity.dtype.to_value_type()
             for entity in feature_view.entity_columns
         }
+        arrow_schema = to_arrow_schema(df_schema)
 
         batch_size = getattr(
             repo_config.materialization_config, "online_write_batch_size", None
         )
-        if batch_size is None:
-            sub_tables = [table]
-        else:
-            sub_tables = [
-                table.slice(offset, min(batch_size, len(table) - offset))
-                for offset in range(0, len(table), batch_size)
-            ]
+        write_size = batch_size or _CHUNK
 
-        for sub_table in sub_tables:
+        while True:
+            chunk = list(islice(rows, write_size))
+            if not chunk:
+                break
+            pdf = pd.DataFrame([r.asDict(recursive=True) for r in chunk])
+            table = pa.Table.from_pandas(
+                pdf, schema=arrow_schema, preserve_index=False
+            )
             online_store.online_write_batch(
                 config=repo_config,
                 table=feature_view,
                 data=_convert_arrow_to_proto(
-                    sub_table, feature_view, join_key_to_value_type
+                    table, feature_view, join_key_to_value_type
                 ),
                 progress=lambda x: None,
             )
@@ -304,23 +305,18 @@ def write_to_offline_store(
 ) -> None:
     """Write a Spark DataFrame to the offline store via foreachPartition.
 
-    Same Spark 3.5 serialiser workaround as ``write_to_online_store``.
+    Same Spark 3.5 serialiser workaround and chunked-iterator pattern as
+    ``write_to_online_store``.
     """
+    from itertools import islice
+
     from pyspark.sql.pandas.types import to_arrow_schema
 
     df_schema = spark_df.schema
+    _CHUNK = 5_000
 
     def _write_partition(rows):  # type: ignore[type-arg]
-        rows_list = list(rows)
-        if not rows_list:
-            return
-
         import pyarrow as pa
-
-        pdf = pd.DataFrame([r.asDict(recursive=True) for r in rows_list])
-        table = pa.Table.from_pandas(
-            pdf, schema=to_arrow_schema(df_schema), preserve_index=False
-        )
 
         (
             feature_view,
@@ -329,12 +325,22 @@ def write_to_offline_store(
             repo_config,
         ) = serialized_artifacts.unserialize()
 
-        offline_store.offline_write_batch(
-            config=repo_config,
-            feature_view=feature_view,
-            table=table,
-            progress=lambda x: None,
-        )
+        arrow_schema = to_arrow_schema(df_schema)
+
+        while True:
+            chunk = list(islice(rows, _CHUNK))
+            if not chunk:
+                break
+            pdf = pd.DataFrame([r.asDict(recursive=True) for r in chunk])
+            table = pa.Table.from_pandas(
+                pdf, schema=arrow_schema, preserve_index=False
+            )
+            offline_store.offline_write_batch(
+                config=repo_config,
+                feature_view=feature_view,
+                table=table,
+                progress=lambda x: None,
+            )
 
     spark_df.foreachPartition(_write_partition)
 
