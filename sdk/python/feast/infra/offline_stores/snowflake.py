@@ -55,6 +55,7 @@ from feast.monitoring.monitoring_utils import (
     MON_TABLE_FEATURE,
     MON_TABLE_FEATURE_SERVICE,
     MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
     empty_categorical_metric,
     empty_numeric_metric,
     monitoring_table_meta,
@@ -581,10 +582,29 @@ class SnowflakeOfflineStore(OfflineStore):
             )
         """
 
+        fq_job = _snowflake_monitoring_table_fqn(config, MON_TABLE_JOB)
+        ddl_job = f"""
+            CREATE TABLE IF NOT EXISTS {fq_job} (
+                "job_id"            VARCHAR(36) NOT NULL,
+                "project_id"        VARCHAR(255) NOT NULL,
+                "feature_view_name" VARCHAR(255),
+                "job_type"          VARCHAR(50) NOT NULL,
+                "status"            VARCHAR(20) NOT NULL DEFAULT 'pending',
+                "parameters"        VARCHAR,
+                "metric_date"       DATE NOT NULL,
+                "started_at"        TIMESTAMP_TZ,
+                "completed_at"      TIMESTAMP_TZ,
+                "error_message"     VARCHAR,
+                "result_summary"    VARCHAR,
+                PRIMARY KEY ("job_id")
+            )
+        """
+
         with GetSnowflakeConnection(config.offline_store) as conn:
             execute_snowflake_statement(conn, ddl_feature)
             execute_snowflake_statement(conn, ddl_view)
             execute_snowflake_statement(conn, ddl_service)
+            execute_snowflake_statement(conn, ddl_job)
 
     @staticmethod
     def save_monitoring_metrics(
@@ -1174,7 +1194,9 @@ def _snowflake_mon_query(
     table, _, _ = monitoring_table_meta(metric_type)
     fq = f'"{offline_store.database}"."{offline_store.schema_}"."{table}"'
 
-    conditions = [f'"project_id" = {_snowflake_sql_literal(project)}']
+    conditions: List[str] = []
+    if project:
+        conditions.append(f'"project_id" = {_snowflake_sql_literal(project)}')
     if filters:
         for key, value in filters.items():
             if value is not None:
@@ -1186,10 +1208,9 @@ def _snowflake_mon_query(
         conditions.append(f'"metric_date" <= {_snowflake_sql_literal(end_date)}')
 
     col_list = ", ".join(f'"{c}"' for c in columns)
-    sql = (
-        f"SELECT {col_list} FROM {fq} WHERE {' AND '.join(conditions)} "
-        f'ORDER BY "metric_date" ASC'
-    )
+    where_clause = " AND ".join(conditions) if conditions else "TRUE"
+    order_col = "metric_date" if "metric_date" in columns else "job_id"
+    sql = f'SELECT {col_list} FROM {fq} WHERE {where_clause} ORDER BY "{order_col}" ASC'
 
     with GetSnowflakeConnection(offline_store) as conn:
         cursor = execute_snowflake_statement(conn, sql)

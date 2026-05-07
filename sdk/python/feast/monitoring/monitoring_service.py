@@ -2,13 +2,16 @@ import logging
 import time
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from feast.feature_logging import LOG_TIMESTAMP_FIELD, FeatureServiceLoggingSource
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.monitoring.dqm_job_manager import DQMJobManager
 from feast.monitoring.metrics_calculator import MetricsCalculator
 from feast.monitoring.monitoring_utils import build_view_aggregate
+
+if TYPE_CHECKING:
+    from feast.feature_store import FeatureStore
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,7 @@ GRANULARITY_WINDOWS = {
 
 
 class MonitoringService:
-    def __init__(self, store: "FeatureStore"):  # noqa: F821
+    def __init__(self, store: "FeatureStore"):
         self._store = store
         self._job_manager: Optional[DQMJobManager] = None
         self._calculator = MetricsCalculator()
@@ -47,8 +50,9 @@ class MonitoringService:
     @property
     def job_manager(self) -> DQMJobManager:
         if self._job_manager is None:
-            offline_store_config = self._store.config.offline_store
-            self._job_manager = DQMJobManager(offline_store_config)
+            self._job_manager = DQMJobManager(
+                self._get_offline_store(), self._store.config
+            )
             self._job_manager.ensure_table()
         return self._job_manager
 
@@ -104,15 +108,14 @@ class MonitoringService:
                         set_baseline=False,
                         now=now,
                     )
+                    self._compute_feature_service_metrics(
+                        project=project,
+                        granularity=granularity,
+                        metric_dates=[window_start.date()],
+                        set_baseline=False,
+                    )
                     total_features += len(metrics_list)
                     granularities_computed.add(granularity)
-
-                self._compute_feature_service_metrics(
-                    project=project,
-                    granularity="daily",
-                    metric_dates=[max_ts.date() - timedelta(days=1)],
-                    set_baseline=False,
-                )
                 total_views += 1
             except Exception:
                 logger.exception(

@@ -78,19 +78,19 @@ class MetricsCalculator:
             "histogram": None,
         }
 
-        valid = pc.drop_null(array)
+        valid = pc.drop_null(array)  # type: ignore[attr-defined]
         if len(valid) == 0:
             return result
 
         float_array = pc.cast(valid, pa.float64())
-        result["mean"] = pc.mean(float_array).as_py()
-        result["stddev"] = pc.stddev(float_array, ddof=1).as_py()
+        result["mean"] = pc.mean(float_array).as_py()  # type: ignore[attr-defined]
+        result["stddev"] = pc.stddev(float_array, ddof=1).as_py()  # type: ignore[attr-defined]
 
-        min_max = pc.min_max(float_array)
+        min_max = pc.min_max(float_array)  # type: ignore[attr-defined]
         result["min_val"] = min_max["min"].as_py()
         result["max_val"] = min_max["max"].as_py()
 
-        quantiles = pc.quantile(float_array, q=[0.50, 0.75, 0.90, 0.95, 0.99])
+        quantiles = pc.quantile(float_array, q=[0.50, 0.75, 0.90, 0.95, 0.99])  # type: ignore[attr-defined]
         q_values = quantiles.to_pylist()
         result["p50"] = q_values[0]
         result["p75"] = q_values[1]
@@ -130,11 +130,11 @@ class MetricsCalculator:
             "histogram": None,
         }
 
-        valid = pc.drop_null(array)
+        valid = pc.drop_null(array)  # type: ignore[attr-defined]
         if len(valid) == 0:
             return result
 
-        value_counts = pc.value_counts(valid)
+        value_counts = pc.value_counts(valid)  # type: ignore[attr-defined]
         entries = [
             {"value": vc["values"].as_py(), "count": vc["counts"].as_py()}
             for vc in value_counts

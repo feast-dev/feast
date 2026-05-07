@@ -45,6 +45,7 @@ from feast.monitoring.monitoring_utils import (
     MON_TABLE_FEATURE,
     MON_TABLE_FEATURE_SERVICE,
     MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
     empty_categorical_metric,
     empty_numeric_metric,
     monitoring_table_meta,
@@ -584,6 +585,22 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
                  granularity, data_source_type)
 );
 """,
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_JOB} (
+    job_id            VARCHAR(36) NOT NULL,
+    project_id        VARCHAR(255) NOT NULL,
+    feature_view_name VARCHAR(255),
+    job_type          VARCHAR(50) NOT NULL,
+    status            VARCHAR(20) NOT NULL DEFAULT 'pending',
+    parameters        VARCHAR(65535),
+    metric_date       DATE NOT NULL,
+    started_at        TIMESTAMPTZ,
+    completed_at      TIMESTAMPTZ,
+    error_message     VARCHAR(65535),
+    result_summary    VARCHAR(65535),
+    PRIMARY KEY (job_id)
+);
+""",
 ]
 
 
@@ -719,7 +736,9 @@ def _redshift_mon_query(
     end_date: Optional[date],
 ) -> List[Dict[str, Any]]:
     table, _, _ = monitoring_table_meta(metric_type)
-    conditions = [f"project_id = {_redshift_sql_literal(project)}"]
+    conditions: list = []
+    if project:
+        conditions.append(f"project_id = {_redshift_sql_literal(project)}")
     if filters:
         for key, value in filters.items():
             if value is not None:
@@ -728,9 +747,12 @@ def _redshift_mon_query(
         conditions.append(f"metric_date >= DATE '{start_date.isoformat()}'")
     if end_date:
         conditions.append(f"metric_date <= DATE '{end_date.isoformat()}'")
-    where_sql = " AND ".join(conditions)
+    where_sql = " AND ".join(conditions) if conditions else "TRUE"
     col_sql = ", ".join(f'"{c}"' for c in columns)
-    sql = f'SELECT {col_sql} FROM "{table}" WHERE {where_sql} ORDER BY metric_date ASC'
+    order_col = "metric_date" if "metric_date" in columns else "job_id"
+    sql = (
+        f'SELECT {col_sql} FROM "{table}" WHERE {where_sql} ORDER BY "{order_col}" ASC'
+    )
 
     client = aws_utils.get_redshift_data_client(config.offline_store.region)
     sid = aws_utils.execute_redshift_statement(
