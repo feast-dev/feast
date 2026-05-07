@@ -870,43 +870,38 @@ def _python_set_to_proto_values(
     ]
 
 
-# Sentinel value used by _to_proto_safe_list to indicate that None elements
-# should simply be filtered (dropped) rather than replaced with a default.
-_DROP_NONE = object()
-
 # Per-type default values substituted for None elements inside list columns.
-# Only STRING_LIST uses ""; numeric/bytes types drop None entirely because
-# there is no meaningful in-band sentinel (protobuf rejects wrong scalar types).
-_LIST_TYPE_NONE_REPLACEMENT: Dict[ValueType, Any] = {
+# Protobuf repeated fields do not accept None, so we replace with a
+# type-appropriate zero/empty value.
+_LIST_NONE_DEFAULTS: Dict[ValueType, Any] = {
     ValueType.STRING_LIST: "",
+    ValueType.BYTES_LIST: b"",
+    ValueType.INT32_LIST: 0,
+    ValueType.INT64_LIST: 0,
+    ValueType.FLOAT_LIST: 0.0,
+    ValueType.DOUBLE_LIST: 0.0,
+    ValueType.BOOL_LIST: False,
+    ValueType.UNIX_TIMESTAMP_LIST: NULL_TIMESTAMP_INT_VALUE,
+    ValueType.UUID_LIST: "",
+    ValueType.TIME_UUID_LIST: "",
+    ValueType.DECIMAL_LIST: "",
 }
 
 
-def _to_proto_safe_list(
-    value: Any, feast_value_type: ValueType = ValueType.STRING_LIST
-) -> Any:
-    """Convert an array/list column value to a proto-safe Python list.
+def _sanitize_list_value(value: Any, feast_value_type: ValueType) -> Any:
+    """Convert ndarray to list and replace None elements with a type-appropriate default.
 
-    Arrow/Athena returns Array columns as numpy.ndarray (object dtype).
-    Protobuf repeated fields reject ndarrays and (for non-string types) None
-    elements, so we:
-    1. Call .tolist() to convert any numpy.ndarray to a plain Python list.
-    2. For STRING_LIST: replace None elements with "" (empty string).
-       For all other list types: drop None elements, since there is no valid
-       in-band default for numeric/bytes protobuf fields.
-
-    Args:
-        value: The raw column value (ndarray, list, or scalar).
-        feast_value_type: The Feast ValueType of the list column. Controls how
-            None elements are handled. Defaults to STRING_LIST.
+    Arrow/Athena may deserialize array columns as numpy.ndarray with object dtype
+    instead of plain Python lists.  Protobuf repeated fields do not accept ndarrays
+    or None elements, so we normalise here before building proto messages.
     """
     if isinstance(value, np.ndarray):
         value = value.tolist()
-    if isinstance(value, list):
-        none_replacement = _LIST_TYPE_NONE_REPLACEMENT.get(feast_value_type, _DROP_NONE)
-        if none_replacement is _DROP_NONE:
-            return [x for x in value if x is not None]
-        return [x if x is not None else none_replacement for x in value]
+        if isinstance(value, list) and len(value) == 0:
+            return None
+    none_default = _LIST_NONE_DEFAULTS.get(feast_value_type)
+    if none_default is not None and isinstance(value, list):
+        value = [none_default if v is None else v for v in value]
     return value
 
 
@@ -931,6 +926,13 @@ def _convert_list_values_to_proto(
     proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
         feast_value_type
     ]
+
+    values = [
+        _sanitize_list_value(v, feast_value_type) if v is not None else v
+        for v in values
+    ]
+    if sample is not None:
+        sample = _sanitize_list_value(sample, feast_value_type)
 
     # Bytes to array type conversion
     if isinstance(sample, (bytes, bytearray)):
@@ -988,14 +990,8 @@ def _convert_list_values_to_proto(
         ]
 
     # Generic list conversion
-    # Arrow/Athena deserializes Array columns as numpy.ndarray (object dtype).
-    # _to_proto_safe_list converts to a plain Python list and sanitizes None
-    # elements in a type-appropriate way (replaced with "" for STRING_LIST,
-    # dropped for numeric/bytes types).
     return [
-        ProtoValue(
-            **{field_name: proto_type(val=_to_proto_safe_list(value, feast_value_type))}  # type: ignore[arg-type]
-        )
+        ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore[arg-type]
         if value is not None
         else ProtoValue()
         for value in values
