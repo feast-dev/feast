@@ -56,7 +56,9 @@ from feast.monitoring.monitoring_utils import (
     MON_TABLE_FEATURE,
     MON_TABLE_FEATURE_SERVICE,
     MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
     empty_categorical_metric,
+    empty_numeric_metric,
     monitoring_table_meta,
     normalize_monitoring_row,
     opt_float,
@@ -568,17 +570,20 @@ class SparkOfflineStore(OfflineStore):
 
         from pyspark.sql import functions as F
 
-        df = spark_session.table(table).filter(F.col("project_id") == project)
+        df = spark_session.table(table)
+        if project:
+            df = df.filter(F.col("project_id") == project)
         if filters:
             for key, value in filters.items():
                 if value is not None:
                     df = df.filter(F.col(key) == value)
-        if start_date is not None:
+        if start_date is not None and "metric_date" in df.columns:
             df = df.filter(F.col("metric_date") >= F.lit(start_date))
-        if end_date is not None:
+        if end_date is not None and "metric_date" in df.columns:
             df = df.filter(F.col("metric_date") <= F.lit(end_date))
 
-        rows = df.orderBy("metric_date").collect()
+        order_col = "metric_date" if "metric_date" in df.columns else "job_id"
+        rows = df.orderBy(order_col).collect()
         return _spark_rows_to_metric_dicts(rows, columns)
 
     @staticmethod
@@ -597,6 +602,8 @@ class SparkOfflineStore(OfflineStore):
             return
 
         pdf = spark_session.table(MON_TABLE_FEATURE).toPandas()
+        if pdf is None:
+            return
         mask = (pdf["project_id"] == project) & (pdf["is_baseline"] == True)  # noqa: E712
         if feature_view_name is not None:
             mask &= pdf["feature_view_name"] == feature_view_name
@@ -669,6 +676,21 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
     max_null_rate        DOUBLE
 ) USING PARQUET
 """,
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_JOB} (
+    job_id            STRING NOT NULL,
+    project_id        STRING NOT NULL,
+    feature_view_name STRING,
+    job_type          STRING NOT NULL,
+    status            STRING NOT NULL,
+    parameters        STRING,
+    metric_date       DATE NOT NULL,
+    started_at        TIMESTAMP,
+    completed_at      TIMESTAMP,
+    error_message     STRING,
+    result_summary    STRING
+) USING PARQUET
+""",
 ]
 
 
@@ -734,7 +756,7 @@ def _spark_sql_numeric_stats(
     )
     rows = spark_session.sql(query).collect()
     if not rows or rows[0] is None:
-        return [empty_categorical_metric(n) for n in feature_names]
+        return [empty_numeric_metric(n) for n in feature_names]
 
     row = rows[0]
     row_count = int(row[0] or 0)

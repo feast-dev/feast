@@ -44,6 +44,8 @@ from feast.monitoring.monitoring_utils import (
     FEATURE_SERVICE_METRICS_PK,
     FEATURE_VIEW_METRICS_COLUMNS,
     FEATURE_VIEW_METRICS_PK,
+    JOB_COLUMNS,
+    JOB_PK,
     normalize_monitoring_row,
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -651,7 +653,7 @@ class DaskOfflineStore(OfflineStore):
         if t.num_rows == 0:
             return None
         arr = t[timestamp_field]
-        mx = pc.max(arr)
+        mx = pc.max(arr)  # type: ignore[attr-defined]
         val = mx.as_py()
         if val is None:
             return None
@@ -671,6 +673,7 @@ class DaskOfflineStore(OfflineStore):
             (_DASK_FEATURE_METRICS_FILE, FEATURE_METRICS_COLUMNS),
             (_DASK_VIEW_METRICS_FILE, FEATURE_VIEW_METRICS_COLUMNS),
             (_DASK_SERVICE_METRICS_FILE, FEATURE_SERVICE_METRICS_COLUMNS),
+            (_DASK_JOB_FILE, JOB_COLUMNS),
         ]
         for fname, columns in tables:
             fpath = _dask_monitoring_path(config, fname)
@@ -741,6 +744,7 @@ _DASK_MON_DIR = "feast_monitoring"
 _DASK_FEATURE_METRICS_FILE = "feature_metrics.parquet"
 _DASK_VIEW_METRICS_FILE = "feature_view_metrics.parquet"
 _DASK_SERVICE_METRICS_FILE = "feature_service_metrics.parquet"
+_DASK_JOB_FILE = "jobs.parquet"
 
 
 def _dask_monitoring_base(config: RepoConfig) -> str:
@@ -767,6 +771,8 @@ def _dask_mon_table_meta(metric_type: str):
             FEATURE_SERVICE_METRICS_COLUMNS,
             FEATURE_SERVICE_METRICS_PK,
         )
+    if metric_type == "job":
+        return _DASK_JOB_FILE, JOB_COLUMNS, JOB_PK
     raise ValueError(f"Unknown metric_type '{metric_type}'")
 
 
@@ -800,10 +806,10 @@ def _dask_filter_arrow_by_timestamp(
     arr = table[timestamp_field]
     mask = None
     if start_date is not None:
-        mask = pc.greater_equal(arr, pyarrow.scalar(start_date))
+        mask = pc.greater_equal(arr, pyarrow.scalar(start_date))  # type: ignore[attr-defined]
     if end_date is not None:
-        m2 = pc.less_equal(arr, pyarrow.scalar(end_date))
-        mask = m2 if mask is None else pc.and_(mask, m2)
+        m2 = pc.less_equal(arr, pyarrow.scalar(end_date))  # type: ignore[attr-defined]
+        mask = m2 if mask is None else pc.and_(mask, m2)  # type: ignore[attr-defined]
     return table.filter(mask)
 
 
@@ -829,19 +835,19 @@ def _dask_compute_numeric_metrics(
         "histogram": None,
     }
 
-    valid = pc.drop_null(column)
+    valid = pc.drop_null(column)  # type: ignore[attr-defined]
     if len(valid) == 0:
         return result
 
     float_array = pc.cast(valid, pyarrow.float64())
-    result["mean"] = pc.mean(float_array).as_py()
-    result["stddev"] = pc.stddev(float_array, ddof=1).as_py()
+    result["mean"] = pc.mean(float_array).as_py()  # type: ignore[attr-defined]
+    result["stddev"] = pc.stddev(float_array, ddof=1).as_py()  # type: ignore[attr-defined]
 
-    min_max = pc.min_max(float_array)
+    min_max = pc.min_max(float_array)  # type: ignore[attr-defined]
     result["min_val"] = min_max["min"].as_py()
     result["max_val"] = min_max["max"].as_py()
 
-    quantiles = pc.quantile(float_array, q=[0.50, 0.75, 0.90, 0.95, 0.99])
+    quantiles = pc.quantile(float_array, q=[0.50, 0.75, 0.90, 0.95, 0.99])  # type: ignore[attr-defined]
     q_values = quantiles.to_pylist()
     result["p50"] = q_values[0]
     result["p75"] = q_values[1]
@@ -882,11 +888,11 @@ def _dask_compute_categorical_metrics(
         "histogram": None,
     }
 
-    valid = pc.drop_null(column)
+    valid = pc.drop_null(column)  # type: ignore[attr-defined]
     if len(valid) == 0:
         return result
 
-    value_counts = pc.value_counts(valid)
+    value_counts = pc.value_counts(valid)  # type: ignore[attr-defined]
     entries = [
         {"value": vc["values"].as_py(), "count": vc["counts"].as_py()}
         for vc in value_counts
@@ -951,16 +957,20 @@ def _dask_parquet_query(
         return []
 
     df = tab.to_pandas()
-    df = df[df["project_id"] == project]
+    if project:
+        df = df[df["project_id"] == project]
     if filters:
         for key, value in filters.items():
             if value is not None:
                 df = df[df[key] == value]
-    if start_date is not None:
-        df = df[df["metric_date"] >= start_date]
-    if end_date is not None:
-        df = df[df["metric_date"] <= end_date]
-    df = df.sort_values("metric_date", ascending=True)
+    if "metric_date" in df.columns:
+        if start_date is not None:
+            df = df[df["metric_date"] >= start_date]
+        if end_date is not None:
+            df = df[df["metric_date"] <= end_date]
+        df = df.sort_values("metric_date", ascending=True)
+    else:
+        df = df.sort_values("job_id", ascending=True)
 
     results = []
     for _, row in df.iterrows():

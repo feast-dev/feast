@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 MON_TABLE_FEATURE = "feast_monitoring_feature_metrics"
 MON_TABLE_FEATURE_VIEW = "feast_monitoring_feature_view_metrics"
 MON_TABLE_FEATURE_SERVICE = "feast_monitoring_feature_service_metrics"
+MON_TABLE_JOB = "feast_monitoring_jobs"
 
 # ------------------------------------------------------------------ #
 #  Column definitions — (ordered, used by INSERT / SELECT / Parquet)
@@ -100,6 +101,24 @@ FEATURE_SERVICE_METRICS_PK: List[str] = [
     "data_source_type",
 ]
 
+JOB_COLUMNS: List[str] = [
+    "job_id",
+    "project_id",
+    "feature_view_name",
+    "job_type",
+    "status",
+    "parameters",
+    "metric_date",
+    "started_at",
+    "completed_at",
+    "error_message",
+    "result_summary",
+]
+
+JOB_PK: List[str] = [
+    "job_id",
+]
+
 
 def monitoring_table_meta(
     metric_type: str,
@@ -122,6 +141,8 @@ def monitoring_table_meta(
             FEATURE_SERVICE_METRICS_COLUMNS,
             FEATURE_SERVICE_METRICS_PK,
         )
+    if metric_type == "job":
+        return MON_TABLE_JOB, JOB_COLUMNS, JOB_PK
     raise ValueError(f"Unknown monitoring metric_type: '{metric_type}'")
 
 
@@ -225,7 +246,10 @@ def build_view_aggregate(
         m["null_rate"] for m in metrics_list if m.get("null_rate") is not None
     ]
     return {
-        "total_row_count": metrics_list[0]["row_count"] if metrics_list else 0,
+        "total_row_count": max(
+            (m["row_count"] for m in metrics_list if m.get("row_count") is not None),
+            default=0,
+        ),
         "total_features": len(metrics_list),
         "features_with_nulls": sum(
             1 for m in metrics_list if (m.get("null_count") or 0) > 0

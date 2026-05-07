@@ -36,6 +36,8 @@ from feast.monitoring.monitoring_utils import (
     FEATURE_SERVICE_METRICS_PK,
     FEATURE_VIEW_METRICS_COLUMNS,
     FEATURE_VIEW_METRICS_PK,
+    JOB_COLUMNS,
+    JOB_PK,
     empty_categorical_metric,
     empty_numeric_metric,
     normalize_monitoring_row,
@@ -142,6 +144,7 @@ MONITORING_DIR = "feast_monitoring"
 FEATURE_METRICS_FILE = "feature_metrics.parquet"
 VIEW_METRICS_FILE = "feature_view_metrics.parquet"
 SERVICE_METRICS_FILE = "feature_service_metrics.parquet"
+JOB_METRICS_FILE = "jobs.parquet"
 
 
 def _duckdb_monitoring_base(config: RepoConfig) -> str:
@@ -260,10 +263,11 @@ def _duckdb_numeric_histogram(
 
     tw = _duckdb_ts_where(ts_filter)
     if min_val == max_val:
-        cnt = conn.execute(
+        row = conn.execute(
             f"SELECT COUNT(*) FROM {from_expr} AS _src "
             f"WHERE {q_col} IS NOT NULL AND {tw}"
-        ).fetchone()[0]
+        ).fetchone()
+        cnt = row[0] if row else 0
         return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
 
     bin_width = (max_val - min_val) / bins
@@ -363,6 +367,8 @@ def _duckdb_mon_table_meta(metric_type: str):
             FEATURE_SERVICE_METRICS_COLUMNS,
             FEATURE_SERVICE_METRICS_PK,
         )
+    if metric_type == "job":
+        return JOB_METRICS_FILE, JOB_COLUMNS, JOB_PK
     raise ValueError(f"Unknown metric_type '{metric_type}'")
 
 
@@ -417,16 +423,20 @@ def _duckdb_parquet_query(
         return []
 
     df = tab.to_pandas()
-    df = df[df["project_id"] == project]
+    if project:
+        df = df[df["project_id"] == project]
     if filters:
         for key, value in filters.items():
             if value is not None:
                 df = df[df[key] == value]
-    if start_date is not None:
-        df = df[df["metric_date"] >= start_date]
-    if end_date is not None:
-        df = df[df["metric_date"] <= end_date]
-    df = df.sort_values("metric_date", ascending=True)
+    if "metric_date" in df.columns:
+        if start_date is not None:
+            df = df[df["metric_date"] >= start_date]
+        if end_date is not None:
+            df = df[df["metric_date"] <= end_date]
+        df = df.sort_values("metric_date", ascending=True)
+    else:
+        df = df.sort_values("job_id", ascending=True)
 
     results = []
     for _, row in df.iterrows():
@@ -661,6 +671,7 @@ class DuckDBOfflineStore(OfflineStore):
             (FEATURE_METRICS_FILE, FEATURE_METRICS_COLUMNS),
             (VIEW_METRICS_FILE, FEATURE_VIEW_METRICS_COLUMNS),
             (SERVICE_METRICS_FILE, FEATURE_SERVICE_METRICS_COLUMNS),
+            (JOB_METRICS_FILE, JOB_COLUMNS),
         ]
         for fname, columns in tables:
             path = _duckdb_monitoring_path(config, fname)

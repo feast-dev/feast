@@ -271,6 +271,7 @@ type RepoConfig struct {
 	FeatureServer                 *FeatureServerYamlConfig   `yaml:"feature_server,omitempty"`
 	Materialization               *MaterializationYamlConfig `yaml:"materialization,omitempty"`
 	OpenLineage                   *OpenLineageYamlConfig     `yaml:"openlineage,omitempty"`
+	DataQualityMonitoring         *DataQualityMonitoringYamlConfig `yaml:"dqm,omitempty"`
 }
 
 // FeatureServerYamlConfig maps to the feature_server section of feature_store.yaml.
@@ -285,7 +286,6 @@ type FeatureServerYamlConfig struct {
 	McpServerName                           *string            `yaml:"mcp_server_name,omitempty"`
 	McpServerVersion                        *string            `yaml:"mcp_server_version,omitempty"`
 	McpTransport                            *string            `yaml:"mcp_transport,omitempty"`
-	Dqm										*DqmYamlConfig	   `yaml:"dqm,omitempty"`
 }
 
 // MetricsYamlConfig maps to the feature_server.metrics section of feature_store.yaml.
@@ -299,18 +299,9 @@ type MetricsYamlConfig struct {
 	Categories map[string]interface{} `yaml:",inline,omitempty"`
 }
 
-type DqmYamlConfig struct {
-	Distribution *DqmDistributionYamlConfig `yaml:"distribution,omitempty"`
-}
-
-// DqmDistributionYamlConfig mirrors the Python DqmDistributionConfig.
-type DqmDistributionYamlConfig struct {
-	Initial *DqmInitialDistributionYamlConfig `yaml:"initial,omitempty"`
-}
-
-// DqmInitialDistributionYamlConfig mirrors the Python DqmInitialDistributionConfig.
-type DqmInitialDistributionYamlConfig struct {
-	Enabled bool `yaml:"enabled"`
+// DataQualityMonitoringYamlConfig mirrors the Python DqmConfig in feature_store.yaml.
+type DataQualityMonitoringYamlConfig struct {
+	AutoBaseline bool `yaml:"auto_baseline"`
 }
 
 // MaterializationYamlConfig maps to the materialization section of feature_store.yaml.
