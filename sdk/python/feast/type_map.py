@@ -52,8 +52,11 @@ from feast.protos.feast.types.Value_pb2 import (
     Int64List,
     Int64Set,
     Map,
+    MapKey,
     MapList,
     RepeatedValue,
+    ScalarMap,
+    ScalarMapEntry,
     StringList,
     StringSet,
 )
@@ -121,6 +124,8 @@ def feast_value_type_to_python_type(
         return _handle_map_value(val)
     elif val_attr == "map_list_val":
         return _handle_map_list_value(val)
+    elif val_attr == "scalar_map_val":
+        return _handle_scalar_map_value(val)
 
     # If it's a _LIST or _SET type extract the values.
     if hasattr(val, "val"):
@@ -220,6 +225,43 @@ def _handle_nested_collection_value(repeated_value) -> List[Any]:
     result = []
     for inner_value in repeated_value.val:
         result.append(feast_value_type_to_python_type(inner_value))
+    return result
+
+
+def _map_key_to_python_value(map_key: MapKey) -> Any:
+    """Convert a MapKey proto to its Python equivalent."""
+    key_attr = map_key.WhichOneof("key")
+    if key_attr is None:
+        return None
+    val = getattr(map_key, key_attr)
+    if key_attr in ("int32_key", "int64_key"):
+        return int(val)
+    if key_attr in ("float_key", "double_key"):
+        return float(val)
+    if key_attr == "bool_key":
+        return bool(val)
+    if key_attr == "unix_timestamp_key":
+        return (
+            datetime.fromtimestamp(val, tz=timezone.utc)
+            if val != NULL_TIMESTAMP_INT_VALUE
+            else None
+        )
+    if key_attr == "bytes_key":
+        return bytes(val)
+    if key_attr in ("uuid_key", "time_uuid_key"):
+        return uuid_module.UUID(val)
+    if key_attr == "decimal_key":
+        return decimal.Decimal(val)
+    return val
+
+
+def _handle_scalar_map_value(value_map_message: ScalarMap) -> Dict[Any, Any]:
+    """Handle ScalarMap proto message (repeated ScalarMapEntry) → Python dict."""
+    result: Dict[Any, Any] = {}
+    for entry in value_map_message.val:
+        key = _map_key_to_python_value(entry.key)
+        value = feast_value_type_to_python_type(entry.value)
+        result[key] = value
     return result
 
 
@@ -399,6 +441,9 @@ def python_type_to_feast_value_type(
 
     # Check if it's a dictionary (Map type)
     if isinstance(value, dict):
+        # Non-string keys require ScalarMap; string keys (or empty dict) use Map
+        if value and not isinstance(next(iter(value)), str):
+            return ValueType.SCALAR_MAP
         return ValueType.MAP
 
     raise ValueError(
@@ -1066,6 +1111,21 @@ def _python_value_to_proto_value(
                 )
         return result
 
+    if feast_value_type == ValueType.SCALAR_MAP:
+        result = []
+        for value in values:
+            if value is None:
+                result.append(ProtoValue())
+            else:
+                if not isinstance(value, dict):
+                    raise TypeError(
+                        f"Expected dict for SCALAR_MAP type, got {type(value).__name__}: {value!r}"
+                    )
+                result.append(
+                    ProtoValue(scalar_map_val=_python_dict_to_scalar_map_proto(value))
+                )
+        return result
+
     # Handle JSON type — serialize Python objects as JSON strings
     if feast_value_type == ValueType.JSON:
         result = []
@@ -1249,6 +1309,48 @@ def _python_list_to_map_list_proto(python_list: List[Dict[str, Any]]) -> MapList
     return map_list_proto
 
 
+def _python_value_to_map_key_proto(key: Any) -> MapKey:
+    """Convert a Python value to a MapKey proto for use in ScalarMap entries."""
+    # bool must be checked before int since bool is a subclass of int
+    if isinstance(key, (bool, np.bool_)):
+        return MapKey(bool_key=bool(key))
+    if isinstance(key, np.int32):
+        return MapKey(int32_key=int(key))
+    if isinstance(key, (int, np.integer)):
+        return MapKey(int64_key=int(key))
+    if isinstance(key, np.float32):
+        return MapKey(float_key=float(key))
+    if isinstance(key, (float, np.floating)):
+        return MapKey(double_key=float(key))
+    if isinstance(key, uuid_module.UUID):
+        return MapKey(uuid_key=str(key))
+    if isinstance(key, decimal.Decimal):
+        return MapKey(decimal_key=str(key))
+    if isinstance(key, bytes):
+        return MapKey(bytes_key=key)
+    if isinstance(key, (datetime, pd.Timestamp)):
+        ts = int(pd.Timestamp(key).timestamp())
+        return MapKey(unix_timestamp_key=ts)
+    raise TypeError(
+        f"Unsupported key type for SCALAR_MAP: {type(key).__name__}. "
+        "Supported non-string key types: int, float, bool, uuid.UUID, "
+        "decimal.Decimal, bytes, datetime."
+    )
+
+
+def _python_dict_to_scalar_map_proto(python_dict: Dict[Any, Any]) -> ScalarMap:
+    """Convert a Python dictionary with non-string keys to a ScalarMap proto."""
+    value_map_proto = ScalarMap()
+    for key, value in python_dict.items():
+        map_key = _python_value_to_map_key_proto(key)
+        if value is None:
+            value_proto = ProtoValue()
+        else:
+            value_proto = python_values_to_proto_values([value], ValueType.UNKNOWN)[0]
+        value_map_proto.val.append(ScalarMapEntry(key=map_key, value=value_proto))
+    return value_map_proto
+
+
 def python_values_to_proto_values(
     values: List[Any], feature_type: ValueType = ValueType.UNKNOWN
 ) -> List[ProtoValue]:
@@ -1321,6 +1423,7 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "decimal_val": ValueType.DECIMAL,
     "decimal_list_val": ValueType.DECIMAL_LIST,
     "decimal_set_val": ValueType.DECIMAL_SET,
+    "scalar_map_val": ValueType.SCALAR_MAP,
 }
 
 VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
