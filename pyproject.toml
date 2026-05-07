@@ -251,9 +251,6 @@ tag_regex = "^(?:[\\/\\w-]+)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+
 line-length = 88
 target-version = "py310"
 include = ["*.py", "*.pyi"]
-
-[tool.ruff.format]
-# exclude a few common directories in the root of the project
 exclude = [
   ".eggs",
   ".git",
@@ -265,10 +262,41 @@ exclude = [
   "buck-out",
   "build",
   "dist",
-  "pb2.py",
-  ".pyi",
-  "protos",
-  "sdk/python/feast/embedded_go/lib"]
+  "sdk/python/feast/protos",
+  "sdk/python/feast/embedded_go/lib",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = [
+  "E203",  # whitespace before ':'
+  "E266",  # too many leading '#' for block comment
+  "E501",  # line too long (handled by formatter)
+  "E721",  # do not compare types, use isinstance()
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["feast", "feast_serving_server", "feast_core_server"]
+default-section = "third-party"
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.ruff.format]
+exclude = [
+  ".eggs",
+  ".git",
+  ".hg",
+  ".mypy_cache",
+  ".tox",
+  ".venv",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "sdk/python/feast/protos",
+  "sdk/python/feast/embedded_go/lib",
+]
 
 [dependency-groups]
 dev = [
