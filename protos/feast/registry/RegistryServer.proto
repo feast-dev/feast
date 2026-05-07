@@ -14,6 +14,7 @@ import "feast/core/FeatureService.proto";
 import "feast/core/SavedDataset.proto";
 import "feast/core/ValidationProfile.proto";
 import "feast/core/InfraObject.proto";
+import "feast/core/LabelView.proto";
 import "feast/core/Permission.proto";
 import "feast/core/Project.proto";
 
@@ -49,6 +50,10 @@ service RegistryServer{
   // OnDemandFeatureView RPCs
   rpc GetOnDemandFeatureView (GetOnDemandFeatureViewRequest) returns (feast.core.OnDemandFeatureView) {}
   rpc ListOnDemandFeatureViews (ListOnDemandFeatureViewsRequest) returns (ListOnDemandFeatureViewsResponse) {}
+
+  // LabelView RPCs
+  rpc GetLabelView (GetLabelViewRequest) returns (feast.core.LabelView) {}
+  rpc ListLabelViews (ListLabelViewsRequest) returns (ListLabelViewsResponse) {}
 
   // FeatureService RPCs
   rpc ApplyFeatureService (ApplyFeatureServiceRequest) returns (google.protobuf.Empty) {}
@@ -220,6 +225,7 @@ message ApplyFeatureViewRequest {
     feast.core.FeatureView feature_view = 1;
     feast.core.OnDemandFeatureView on_demand_feature_view = 2;
     feast.core.StreamFeatureView stream_feature_view = 3;
+    feast.core.LabelView label_view = 6;
   }
   string project = 4;
   bool commit = 5;
@@ -255,6 +261,7 @@ message AnyFeatureView {
         feast.core.FeatureView feature_view = 1;
         feast.core.OnDemandFeatureView on_demand_feature_view = 2;
         feast.core.StreamFeatureView stream_feature_view = 3;
+        feast.core.LabelView label_view = 4;
     }    
 }
 
@@ -325,6 +332,27 @@ message ListOnDemandFeatureViewsRequest {
 
 message ListOnDemandFeatureViewsResponse {
     repeated feast.core.OnDemandFeatureView on_demand_feature_views = 1;
+    PaginationMetadata pagination = 2;
+}
+
+// LabelViews
+
+message GetLabelViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListLabelViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+}
+
+message ListLabelViewsResponse {
+    repeated feast.core.LabelView label_views = 1;
     PaginationMetadata pagination = 2;
 }
 

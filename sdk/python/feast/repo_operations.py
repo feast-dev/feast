@@ -27,6 +27,7 @@ from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.file_utils import replace_str_in_file
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
+from feast.labeling.label_view import LabelView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
@@ -127,6 +128,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_services=[],
         on_demand_feature_views=[],
         stream_feature_views=[],
+        label_views=[],
         permissions=[],
     )
 
@@ -212,6 +214,22 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is odfv) for odfv in res.on_demand_feature_views
             ):
                 res.on_demand_feature_views.append(obj)
+            elif isinstance(obj, LabelView) and not any(
+                (obj is lv) for lv in res.label_views
+            ):
+                res.label_views.append(obj)
+                if obj.source is not None and not any(
+                    (obj.source is ds) for ds in res.data_sources
+                ):
+                    res.data_sources.append(obj.source)
+                if (
+                    isinstance(obj.source, PushSource)
+                    and obj.source.batch_source
+                    and not any(
+                        (obj.source.batch_source is ds) for ds in res.data_sources
+                    )
+                ):
+                    res.data_sources.append(obj.source.batch_source)
             elif isinstance(obj, Permission) and not any(
                 (obj is p) for p in res.permissions
             ):

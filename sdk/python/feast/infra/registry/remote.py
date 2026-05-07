@@ -17,6 +17,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.client.grpc_client_auth_interceptor import (
@@ -35,7 +36,10 @@ from feast.stream_feature_view import StreamFeatureView
 def extract_base_feature_view(
     any_feature_view: RegistryServer_pb2.AnyFeatureView,
 ) -> BaseFeatureView:
+    from feast.labeling.label_view import LabelView
+
     feature_view_type = any_feature_view.WhichOneof("any_feature_view")
+    feature_view: BaseFeatureView
     if feature_view_type == "feature_view":
         feature_view = FeatureView.from_proto(any_feature_view.feature_view)
     elif feature_view_type == "on_demand_feature_view":
@@ -45,6 +49,12 @@ def extract_base_feature_view(
     elif feature_view_type == "stream_feature_view":
         feature_view = StreamFeatureView.from_proto(
             any_feature_view.stream_feature_view
+        )
+    elif feature_view_type == "label_view":
+        feature_view = LabelView.from_proto(any_feature_view.label_view)
+    else:
+        raise ValueError(
+            f"Unexpected feature view type in AnyFeatureView: {feature_view_type}"
         )
 
     return feature_view
@@ -223,12 +233,16 @@ class RemoteRegistry(BaseRegistry):
         commit: bool = True,
         no_promote: bool = False,
     ):
-        if isinstance(feature_view, StreamFeatureView):
+        if isinstance(feature_view, LabelView):
+            arg_name = "label_view"
+        elif isinstance(feature_view, StreamFeatureView):
             arg_name = "stream_feature_view"
         elif isinstance(feature_view, FeatureView):
             arg_name = "feature_view"
         elif isinstance(feature_view, OnDemandFeatureView):
             arg_name = "on_demand_feature_view"
+        else:
+            raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
         request = RegistryServer_pb2.ApplyFeatureViewRequest(
             feature_view=(
@@ -242,6 +256,7 @@ class RemoteRegistry(BaseRegistry):
                 if arg_name == "on_demand_feature_view"
                 else None
             ),
+            label_view=(feature_view.to_proto() if arg_name == "label_view" else None),
             project=project,
             commit=commit,
         )
@@ -302,6 +317,30 @@ class RemoteRegistry(BaseRegistry):
             for on_demand_feature_view in response.on_demand_feature_views
         ]
 
+    def get_label_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> LabelView:
+        request = RegistryServer_pb2.GetLabelViewRequest(
+            name=name, project=project, allow_cache=allow_cache
+        )
+        response = self.stub.GetLabelView(request)
+        return LabelView.from_proto(response)
+
+    def list_label_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[LabelView]:
+        request = RegistryServer_pb2.ListLabelViewsRequest(
+            project=project, allow_cache=allow_cache, tags=tags
+        )
+        response = self.stub.ListLabelViews(request)
+        return [LabelView.from_proto(label_view) for label_view in response.label_views]
+
+    def delete_label_view(self, name: str, project: str, commit: bool = True):
+        self.delete_feature_view(name, project, commit)
+
     def get_any_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> BaseFeatureView:
@@ -360,12 +399,18 @@ class RemoteRegistry(BaseRegistry):
 
     def apply_materialization(
         self,
-        feature_view: Union[FeatureView, OnDemandFeatureView],
+        feature_view: Union[FeatureView, OnDemandFeatureView, LabelView],
         project: str,
         start_date: datetime,
         end_date: datetime,
         commit: bool = True,
     ):
+        if isinstance(feature_view, LabelView):
+            raise ValueError(
+                f"Cannot apply materialization for LabelView {feature_view.name}. "
+                f"Use FeatureStore.push() to write labels."
+            )
+
         start_date_timestamp = Timestamp()
         end_date_timestamp = Timestamp()
         start_date_timestamp.FromDatetime(start_date)

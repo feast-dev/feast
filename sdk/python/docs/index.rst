@@ -128,6 +128,18 @@ Stream Feature View
 .. autoclass:: feast.stream_feature_view.StreamFeatureView
     :members:
 
+Label View
+----------------------
+
+.. autoclass:: feast.labeling.label_view.LabelView
+    :members:
+
+Conflict Policy
+----------------------
+
+.. autoclass:: feast.labeling.conflict_policy.ConflictPolicy
+    :members:
+
 Field
 ==================
 

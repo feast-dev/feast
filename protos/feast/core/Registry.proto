@@ -35,8 +35,9 @@ import "google/protobuf/timestamp.proto";
 import "feast/core/Permission.proto";
 import "feast/core/Project.proto";
 import "feast/core/FeatureViewVersion.proto";
+import "feast/core/LabelView.proto";
 
-// Next id: 19
+// Next id: 20
 message Registry {
     repeated Entity entities = 1;
     repeated FeatureTable feature_tables = 2;
@@ -57,6 +58,7 @@ message Registry {
     repeated Permission permissions = 16;
     repeated Project projects = 17;
     FeatureViewVersionHistory feature_view_version_history = 18;
+    repeated LabelView label_views = 19;
 }
 
 message ProjectMetadata {

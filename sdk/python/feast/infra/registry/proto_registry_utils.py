@@ -18,6 +18,7 @@ from feast.errors import (
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -145,6 +146,13 @@ def get_any_feature_view(
         ):
             return OnDemandFeatureView.from_proto(on_demand_feature_view)
 
+    for label_view_proto in registry_proto.label_views:
+        if (
+            label_view_proto.spec.name == name
+            and label_view_proto.spec.project == project
+        ):
+            return LabelView.from_proto(label_view_proto)
+
     raise FeatureViewNotFoundException(name, project)
 
 
@@ -154,6 +162,9 @@ def get_feature_view_by_version(
     """Retrieve a feature view snapshot for a specific version from version history."""
     from feast.protos.feast.core.FeatureView_pb2 import (
         FeatureView as FeatureViewProto,
+    )
+    from feast.protos.feast.core.LabelView_pb2 import (
+        LabelView as LabelViewProto,
     )
     from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
         OnDemandFeatureView as OnDemandFeatureViewProto,
@@ -169,6 +180,7 @@ def get_feature_view_by_version(
             and record.project_id == project
             and record.version_number == version_number
         ):
+            fv: BaseFeatureView
             if record.feature_view_type == "feature_view":
                 fv_proto = FeatureViewProto.FromString(record.feature_view_proto)
                 fv = FeatureView.from_proto(fv_proto)
@@ -180,6 +192,9 @@ def get_feature_view_by_version(
                     record.feature_view_proto
                 )
                 fv = OnDemandFeatureView.from_proto(odfv_proto)
+            elif record.feature_view_type == "label_view":
+                lv_proto = LabelViewProto.FromString(record.feature_view_proto)
+                fv = LabelView.from_proto(lv_proto)
             else:
                 raise ValueError(
                     f"Unknown feature view type: {record.feature_view_type}"
@@ -285,6 +300,7 @@ def list_all_feature_views(
         list_feature_views(registry_proto, project, tags)
         + list_stream_feature_views(registry_proto, project, tags)
         + list_on_demand_feature_views(registry_proto, project, tags)
+        + list_label_views(registry_proto, project, tags)
     )
 
 
@@ -329,6 +345,29 @@ def list_on_demand_feature_views(
                 OnDemandFeatureView.from_proto(on_demand_feature_view)
             )
     return on_demand_feature_views
+
+
+def get_label_view(registry_proto: RegistryProto, name: str, project: str) -> LabelView:
+    for label_view_proto in registry_proto.label_views:
+        if (
+            label_view_proto.spec.name == name
+            and label_view_proto.spec.project == project
+        ):
+            return LabelView.from_proto(label_view_proto)
+    raise FeatureViewNotFoundException(name, project)
+
+
+@registry_proto_cache_with_tags
+def list_label_views(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[LabelView]:
+    label_views = []
+    for label_view_proto in registry_proto.label_views:
+        if label_view_proto.spec.project == project and utils.has_all_tags(
+            label_view_proto.spec.tags, tags
+        ):
+            label_views.append(LabelView.from_proto(label_view_proto))
+    return label_views
 
 
 @registry_proto_cache_with_tags
