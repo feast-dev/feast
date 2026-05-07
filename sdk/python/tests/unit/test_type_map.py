@@ -2079,77 +2079,87 @@ class TestArrowArrayStringListMaterialization:
     2. TypeError: "bad argument type for built-in operation"
        — when proto_type(val=<ndarray>) was called; protobuf rejects ndarrays.
 
-    Both are fixed by _to_proto_safe_list, which converts ndarrays to plain Python
-    lists and sanitizes None elements in a type-appropriate way:
-    - STRING_LIST: None → "" (empty string)
-    - All other list types: None elements are dropped (filtered out)
+    Both are fixed by _sanitize_list_value, which converts ndarrays to plain Python
+    lists and replaces None elements with a type-appropriate zero/empty default
+    (see _LIST_NONE_DEFAULTS).
     """
 
-    def test_to_proto_safe_list_ndarray(self):
+    def test_sanitize_list_value_ndarray(self):
         """ndarray is converted to a plain Python list."""
-        from feast.type_map import _to_proto_safe_list
+        from feast.type_map import _sanitize_list_value
 
         arr = np.array(["foo", "bar"], dtype=object)
-        result = _to_proto_safe_list(arr)
+        result = _sanitize_list_value(arr, ValueType.STRING_LIST)
         assert result == ["foo", "bar"]
         assert isinstance(result, list)
 
-    def test_to_proto_safe_list_empty_ndarray(self):
-        """Empty ndarray is converted to an empty list."""
-        from feast.type_map import _to_proto_safe_list
+    def test_sanitize_list_value_empty_ndarray(self):
+        """Empty ndarray is converted to None (treated as a missing row)."""
+        from feast.type_map import _sanitize_list_value
 
         arr = np.array([], dtype=object)
-        result = _to_proto_safe_list(arr)
-        assert result == []
-        assert isinstance(result, list)
+        result = _sanitize_list_value(arr, ValueType.STRING_LIST)
+        assert result is None
 
-    def test_to_proto_safe_list_ndarray_with_none(self):
+    def test_sanitize_list_value_ndarray_with_none(self):
         """None elements inside a STRING_LIST ndarray are replaced with empty string."""
-        from feast.type_map import _to_proto_safe_list
+        from feast.type_map import _sanitize_list_value
 
         arr = np.array(["foo", None, "baz"], dtype=object)
-        result = _to_proto_safe_list(arr, ValueType.STRING_LIST)
+        result = _sanitize_list_value(arr, ValueType.STRING_LIST)
         assert result == ["foo", "", "baz"]
 
-    def test_to_proto_safe_list_plain_list(self):
-        """Plain Python lists pass through unchanged (no None replacement needed)."""
-        from feast.type_map import _to_proto_safe_list
+    def test_sanitize_list_value_plain_list(self):
+        """Plain Python lists without None pass through unchanged."""
+        from feast.type_map import _sanitize_list_value
 
         lst = ["foo", "bar"]
-        result = _to_proto_safe_list(lst)
+        result = _sanitize_list_value(lst, ValueType.STRING_LIST)
         assert result == ["foo", "bar"]
 
-    def test_to_proto_safe_list_plain_list_with_none(self):
+    def test_sanitize_list_value_plain_list_with_none(self):
         """None elements in a STRING_LIST plain list are replaced with empty string."""
-        from feast.type_map import _to_proto_safe_list
+        from feast.type_map import _sanitize_list_value
 
         lst = ["foo", None]
-        result = _to_proto_safe_list(lst, ValueType.STRING_LIST)
+        result = _sanitize_list_value(lst, ValueType.STRING_LIST)
         assert result == ["foo", ""]
 
-    def test_to_proto_safe_list_numeric_list_none_dropped(self):
-        """None elements in non-string lists are dropped, not replaced with a sentinel."""
-        from feast.type_map import _to_proto_safe_list
+    def test_sanitize_list_value_numeric_none_replaced(self):
+        """None elements in numeric lists are replaced with a type-appropriate default."""
+        from feast.type_map import _sanitize_list_value
 
-        for vt in (
-            ValueType.FLOAT_LIST,
-            ValueType.DOUBLE_LIST,
-            ValueType.INT32_LIST,
-            ValueType.INT64_LIST,
-            ValueType.BYTES_LIST,
-        ):
-            result = _to_proto_safe_list([1.0, None, 2.0], vt)
-            assert result == [1.0, 2.0], (
-                f"Expected None dropped for {vt}, got {result!r}"
-            )
+        assert _sanitize_list_value([1, None, 2], ValueType.INT32_LIST) == [1, 0, 2]
+        assert _sanitize_list_value([1, None, 2], ValueType.INT64_LIST) == [1, 0, 2]
+        assert _sanitize_list_value([1.0, None, 2.0], ValueType.FLOAT_LIST) == [
+            1.0,
+            0.0,
+            2.0,
+        ]
+        assert _sanitize_list_value([1.0, None, 2.0], ValueType.DOUBLE_LIST) == [
+            1.0,
+            0.0,
+            2.0,
+        ]
+        assert _sanitize_list_value([True, None, False], ValueType.BOOL_LIST) == [
+            True,
+            False,
+            False,
+        ]
 
-    def test_to_proto_safe_list_scalar_passthrough(self):
+    def test_sanitize_list_value_bytes_none_replaced(self):
+        """None elements in BYTES_LIST are replaced with b''."""
+        from feast.type_map import _sanitize_list_value
+
+        result = _sanitize_list_value([b"x", None], ValueType.BYTES_LIST)
+        assert result == [b"x", b""]
+
+    def test_sanitize_list_value_scalar_passthrough(self):
         """Non-list, non-ndarray values are returned unchanged."""
-        from feast.type_map import _to_proto_safe_list
+        from feast.type_map import _sanitize_list_value
 
-        assert _to_proto_safe_list("hello") == "hello"
-        assert _to_proto_safe_list(None) is None
-        assert _to_proto_safe_list(42) == 42
+        assert _sanitize_list_value("hello", ValueType.STRING_LIST) == "hello"
+        assert _sanitize_list_value(42, ValueType.INT32_LIST) == 42
 
     def test_string_list_from_ndarray(self):
         """STRING_LIST column with ndarray values materializes without TypeError."""
