@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Copyright 2025 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import asyncio
 import os
 import sys
@@ -25,7 +26,6 @@ from importlib import resources as importlib_resources
 from types import SimpleNamespace
 from typing import Any, DefaultDict, Dict, List, NamedTuple, Optional, Set, Union
 
-import pandas as pd
 from dateutil import parser
 from fastapi import (
     Depends,
@@ -46,12 +46,12 @@ from pydantic import BaseModel, field_validator
 import feast
 from feast import metrics as feast_metrics
 from feast import proto_json, utils
+from feast._lazy_pandas import pd
 from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import (
     FeastError,
 )
-from feast.feast_object import FeastObject
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
@@ -544,7 +544,7 @@ def get_app(
 
     async def _get_feast_object(
         feature_view_name: str, allow_registry_cache: bool
-    ) -> FeastObject:
+    ) -> Any:
         return await run_in_threadpool(
             get_feature_view_from_feature_store,
             store,
@@ -730,7 +730,6 @@ def get_app(
 
 def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
     """Add MCP support to the FastAPI app if enabled in configuration."""
-    mcp_transport_not_supported_error = None
     try:
         # Check if MCP is enabled in feature server config
         if (
@@ -739,16 +738,7 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
             and store.config.feature_server.type == "mcp"
             and getattr(store.config.feature_server, "mcp_enabled", False)
         ):
-            try:
-                from feast.infra.mcp_servers.mcp_server import (
-                    McpTransportNotSupportedError,
-                    add_mcp_support_to_app,
-                )
-
-                mcp_transport_not_supported_error = McpTransportNotSupportedError
-            except ImportError as e:
-                logger.error(f"Error checking/adding MCP support: {e}")
-                return
+            from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
 
             mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
 
@@ -759,10 +749,6 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
         else:
             logger.debug("MCP support is not enabled in feature server configuration")
     except Exception as e:
-        if mcp_transport_not_supported_error and isinstance(
-            e, mcp_transport_not_supported_error
-        ):
-            raise
         logger.error(f"Error checking/adding MCP support: {e}")
         # Don't fail the entire server if MCP fails to initialize
 

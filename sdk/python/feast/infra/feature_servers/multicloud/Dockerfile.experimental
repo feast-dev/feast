@@ -1,0 +1,62 @@
+ARG PYTHON_VERSION=3.14.0
+ARG PYTHON_TARBALL=https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
+
+FROM registry.access.redhat.com/ubi9/ubi:latest AS python-builder
+
+ARG PYTHON_VERSION
+ARG PYTHON_TARBALL
+
+RUN dnf install -y \
+        bzip2-devel \
+        findutils \
+        gcc \
+        gzip \
+        libffi-devel \
+        make \
+        openssl-devel \
+        sqlite-devel \
+        tar \
+        wget \
+        xz-devel \
+        zlib-devel \
+    && dnf clean all
+
+WORKDIR /tmp
+RUN wget -O python.tgz "${PYTHON_TARBALL}" \
+    && tar -xzf python.tgz \
+    && cd Python-${PYTHON_VERSION} \
+    && ./configure \
+        --prefix=/opt/python314t \
+        --disable-gil \
+        --enable-optimizations \
+        --with-ensurepip=install \
+    && make -j"$(nproc)" \
+    && make install
+
+FROM registry.access.redhat.com/ubi9/ubi:latest
+
+LABEL org.opencontainers.image.title="Feast Feature Server (Experimental Python 3.14 free-threaded)"
+LABEL org.opencontainers.image.description="Experimental Feast feature server image built with a Python 3.14 free-threaded runtime."
+LABEL feast.experimental="true"
+
+RUN dnf install -y \
+        gcc \
+    && dnf clean all
+
+COPY --from=python-builder /opt/python314t /opt/python314t
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+ENV PATH=/opt/python314t/bin:${PATH}
+ENV UV_CACHE_DIR=/tmp/uv-cache
+ENV FEAST_EXPERIMENTAL_PYTHON_FREE_THREADED=1
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=0.61.0
+
+WORKDIR /src
+COPY pyproject.toml README.md MANIFEST.in Makefile /src/
+COPY protos /src/protos
+COPY sdk/python /src/sdk/python
+
+RUN uv pip install --python /opt/python314t/bin/python3.14t --system /src protobuf==6.33.6
+
+# modify permissions to support running with a random uid
+RUN chmod g+w $(python3.14t -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json

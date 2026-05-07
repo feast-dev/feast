@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Copyright 2019 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,8 +38,12 @@ from typing import (
 
 if TYPE_CHECKING:
     from feast.diff.apply_progress import ApplyProgressContext
+    from feast.saved_dataset import (
+        SavedDataset,
+        SavedDatasetStorage,
+        ValidationReference,
+    )
 
-import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
 from fastapi.concurrency import run_in_threadpool
@@ -45,6 +51,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
 
 from feast import feature_server, flags_helper, ui_server, utils
+from feast._lazy_pandas import pd
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import (
@@ -66,7 +73,6 @@ from feast.errors import (
     PushSourceNotFoundException,
     RequestDataNotFoundInEntityDfException,
 )
-from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.inference import (
@@ -74,9 +80,6 @@ from feast.inference import (
     update_feature_views_with_inferred_features_and_entities,
 )
 from feast.infra.infra_object import Infra
-from feast.infra.offline_stores.offline_utils import (
-    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
-)
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
@@ -94,13 +97,12 @@ from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
-from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
 from feast.version_utils import parse_version
+
+DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
 _track_materialization = None  # Lazy-loaded on first materialization call
 _track_materialization_loaded = False
@@ -123,6 +125,16 @@ def _get_track_materialization():
         except Exception:  # pragma: no cover
             _track_materialization = None
     return _track_materialization
+
+
+def _get_saved_dataset_classes():
+    from feast.saved_dataset import (
+        SavedDataset,
+        SavedDatasetStorage,
+        ValidationReference,
+    )
+
+    return SavedDataset, SavedDatasetStorage, ValidationReference
 
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -1049,9 +1061,9 @@ class FeatureStore:
             FeatureService,
             ValidationReference,
             Permission,
-            List[FeastObject],
+            List[Any],
         ],
-        objects_to_delete: Optional[List[FeastObject]] = None,
+        objects_to_delete: Optional[List[Any]] = None,
         partial: bool = True,
         skip_feature_view_validation: bool = False,
         no_promote: bool = False,
@@ -1105,6 +1117,8 @@ class FeatureStore:
         assert isinstance(objects, list)
         if not objects_to_delete:
             objects_to_delete = []
+
+        _, _, ValidationReference = _get_saved_dataset_classes()
 
         # Separate all objects into entities, feature services, and different feature view types.
         projects_to_update = [ob for ob in objects if isinstance(ob, Project)]
@@ -1447,19 +1461,6 @@ class FeatureStore:
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
 
-        # ODFV source FV dependencies (e.g. driver_stats:conv_rate) are resolved
-        # by _group_feature_refs and included in `fvs`, but not in _feature_refs.
-        # Offline stores use feature_refs to map which features to fetch from each
-        # FV, so we must include these implicit dependency refs.
-        _feature_refs_for_provider = list(_feature_refs)
-        existing_refs = set(_feature_refs)
-        for view, feats in fvs:
-            for feat in feats:
-                ref = f"{view.projection.name_to_use()}:{feat}"
-                if ref not in existing_refs:
-                    _feature_refs_for_provider.append(ref)
-                    existing_refs.add(ref)
-
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
             if self.config.coerce_tz_aware:
@@ -1486,7 +1487,7 @@ class FeatureStore:
         job = provider.get_historical_features(
             self.config,
             feature_views,
-            _feature_refs_for_provider,
+            _feature_refs,
             entity_df,
             self.registry,
             self.project,
@@ -1539,6 +1540,7 @@ class FeatureStore:
                 f"The RetrievalJob {type(from_)} must implement the metadata property."
             )
 
+        SavedDataset, _, _ = _get_saved_dataset_classes()
         dataset = SavedDataset(
             name=name,
             features=from_.metadata.features,
@@ -2198,6 +2200,8 @@ class FeatureStore:
             _t0 = _time.monotonic()
 
         try:
+            from feast.transformation.python_transformation import PythonTransformation
+
             if feature_view.mode == "python" and isinstance(
                 feature_view.feature_transformation, PythonTransformation
             ):
@@ -2262,7 +2266,9 @@ class FeatureStore:
 
                 return pd.DataFrame(transformed_data)
 
-            elif feature_view.mode == "pandas" and isinstance(
+            from feast.transformation.pandas_transformation import PandasTransformation
+
+            if feature_view.mode == "pandas" and isinstance(
                 feature_view.feature_transformation, PandasTransformation
             ):
                 transformed_df = feature_view.feature_transformation.udf(df)
@@ -2781,10 +2787,7 @@ class FeatureStore:
             online_features_response=online_features_response,
             data=requested_features_data,
         )
-        feature_types = {
-            f.name: f.dtype.to_value_type() for f in requested_feature_view.features
-        }
-        return OnlineResponse(online_features_response, feature_types=feature_types)
+        return OnlineResponse(online_features_response)
 
     def retrieve_online_documents_v2(
         self,
@@ -3074,20 +3077,24 @@ class FeatureStore:
             online_features_response.metadata.feature_names.val.extend(
                 features_to_request
             )
-            feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
-            return OnlineResponse(online_features_response, feature_types=feature_types)
+            return OnlineResponse(online_features_response)
 
         table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
         )
 
-        online_features_response = GetOnlineFeaturesResponse(results=[])
-        utils._populate_response_from_feature_data(
+        feature_data = utils._convert_rows_to_protobuf(
             requested_features=features_to_request,
             read_rows=list(zip(datevals, list_of_feature_dicts)),
+        )
+
+        online_features_response = GetOnlineFeaturesResponse(results=[])
+        utils._populate_response_from_feature_data(
+            feature_data=feature_data,
             indexes=idxs,
             online_features_response=online_features_response,
             full_feature_names=False,
+            requested_features=features_to_request,
             table=table,
             output_len=output_len,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
@@ -3098,8 +3105,7 @@ class FeatureStore:
             data=entity_key_dict,
         )
 
-        feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
-        return OnlineResponse(online_features_response, feature_types=feature_types)
+        return OnlineResponse(online_features_response)
 
     def serve(
         self,

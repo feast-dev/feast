@@ -166,6 +166,18 @@ make compile-protos-python
 docker build -t docker-whale -f ./sdk/python/feast/infra/feature_servers/multicloud/Dockerfile .
 ```
 
+### Building the experimental Python 3.14 free-threaded feature server image
+```sh
+make build-feature-server-experimental-docker
+
+# Optional: compare it to the stable image with the sample local repo
+make benchmark-feature-server-experimental
+```
+
+This experimental image is currently aimed at early compatibility and performance testing for the Python feature server. The benchmark target compares the stable and experimental containers against the sample local repo and is currently most representative for SQLite-backed serving experiments.
+
+In the current SQLite benchmark run, the experimental `3.14t` image reached `157.01 req/s` versus `187.65 req/s` for the stable image, while improving p95 latency from `274.72 ms` to `262.61 ms`. Treat that as an early data point rather than a universal result: the free-threaded stack is still evolving, and dependency behavior can outweigh any no-GIL gains on a given workload.
+
 ### Code Style and Linting
 Feast Python SDK and CLI codebase:
 - Conforms to [Black code style](https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html)
