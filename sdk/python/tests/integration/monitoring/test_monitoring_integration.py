@@ -27,16 +27,6 @@ from feast.types import PrimitiveFeastType
 # ------------------------------------------------------------------ #
 
 
-def _mock_pg_conn():
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
-    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
-    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
-    mock_conn.__exit__ = MagicMock(return_value=False)
-    return mock_conn, mock_cursor
-
-
 def _make_feature_field(name, dtype):
     field = MagicMock()
     field.name = name
@@ -135,10 +125,26 @@ def _make_mock_store(feature_views, feature_services=None):
         NotImplementedError
     )
 
-    # Storage methods: no-op by default (save does nothing, query returns [])
+    job_store = {}
+
+    def _mock_save(config, metric_type, metrics):
+        if metric_type == "job":
+            for m in metrics:
+                job_store[m["job_id"]] = dict(m)
+
+    def _mock_query(config, project, metric_type, filters=None, **kwargs):
+        if metric_type == "job":
+            results = list(job_store.values())
+            if filters:
+                for key, value in filters.items():
+                    if value is not None:
+                        results = [r for r in results if r.get(key) == value]
+            return results
+        return []
+
     provider.offline_store.ensure_monitoring_tables.return_value = None
-    provider.offline_store.save_monitoring_metrics.return_value = None
-    provider.offline_store.query_monitoring_metrics.return_value = []
+    provider.offline_store.save_monitoring_metrics.side_effect = _mock_save
+    provider.offline_store.query_monitoring_metrics.side_effect = _mock_query
     provider.offline_store.clear_monitoring_baseline.return_value = None
 
     store._get_provider.return_value = provider
@@ -227,32 +233,47 @@ class TestComputeBaseline:
 
         # Simulate conv_rate already has baseline via query_monitoring_metrics
         provider = store._get_provider.return_value
-        provider.offline_store.query_monitoring_metrics.return_value = [
-            {
-                "project_id": "test_project",
-                "feature_view_name": "driver_stats",
-                "feature_name": "conv_rate",
-                "metric_date": "2025-01-01",
-                "granularity": "daily",
-                "data_source_type": "batch",
-                "computed_at": datetime.now(timezone.utc).isoformat(),
-                "is_baseline": True,
-                "feature_type": "numeric",
-                "row_count": 100,
-                "null_count": 0,
-                "null_rate": 0.0,
-                "mean": 5.0,
-                "stddev": 1.0,
-                "min_val": 0.0,
-                "max_val": 10.0,
-                "p50": 5.0,
-                "p75": 7.5,
-                "p90": 9.0,
-                "p95": 9.5,
-                "p99": 9.9,
-                "histogram": None,
-            },
-        ]
+        existing_baseline = {
+            "project_id": "test_project",
+            "feature_view_name": "driver_stats",
+            "feature_name": "conv_rate",
+            "metric_date": "2025-01-01",
+            "granularity": "daily",
+            "data_source_type": "batch",
+            "computed_at": datetime.now(timezone.utc).isoformat(),
+            "is_baseline": True,
+            "feature_type": "numeric",
+            "row_count": 100,
+            "null_count": 0,
+            "null_rate": 0.0,
+            "mean": 5.0,
+            "stddev": 1.0,
+            "min_val": 0.0,
+            "max_val": 10.0,
+            "p50": 5.0,
+            "p75": 7.5,
+            "p90": 9.0,
+            "p95": 9.5,
+            "p99": 9.9,
+            "histogram": None,
+        }
+
+        original_side_effect = (
+            provider.offline_store.query_monitoring_metrics.side_effect
+        )
+
+        def _query_with_baseline(config, project, metric_type, filters=None, **kwargs):
+            if metric_type == "feature" and filters and filters.get("is_baseline"):
+                return [existing_baseline]
+            if original_side_effect:
+                return original_side_effect(
+                    config, project, metric_type, filters=filters, **kwargs
+                )
+            return []
+
+        provider.offline_store.query_monitoring_metrics.side_effect = (
+            _query_with_baseline
+        )
 
         svc = MonitoringService(store)
         result = svc.compute_baseline(project="test_project")
@@ -315,14 +336,30 @@ class TestTransientCompute:
 
 
 class TestDQMJobManager:
-    @patch("feast.monitoring.dqm_job_manager._get_conn")
-    def test_submit_and_get_job(self, mock_get_conn):
-        mock_conn, mock_cursor = _mock_pg_conn()
-        mock_get_conn.return_value = mock_conn
-
+    def _make_manager(self):
         from feast.monitoring.dqm_job_manager import DQMJobManager
 
-        mgr = DQMJobManager(MagicMock())
+        stored = {}
+
+        def mock_save(config, metric_type, metrics):
+            for m in metrics:
+                stored[m["job_id"]] = dict(m)
+
+        def mock_query(config, project, metric_type, filters=None, **kwargs):
+            results = list(stored.values())
+            if filters:
+                for key, value in filters.items():
+                    if value is not None:
+                        results = [r for r in results if r.get(key) == value]
+            return results
+
+        offline_store = MagicMock()
+        offline_store.save_monitoring_metrics.side_effect = mock_save
+        offline_store.query_monitoring_metrics.side_effect = mock_query
+        return DQMJobManager(offline_store, MagicMock())
+
+    def test_submit_and_get_job(self):
+        mgr = self._make_manager()
         job_id = mgr.submit(
             project="test_project",
             job_type="auto_compute",
@@ -331,20 +368,26 @@ class TestDQMJobManager:
 
         assert job_id is not None
         assert len(job_id) == 36  # UUID format
-        mock_cursor.execute.assert_called_once()
 
-    @patch("feast.monitoring.dqm_job_manager._get_conn")
-    def test_update_status(self, mock_get_conn):
-        mock_conn, mock_cursor = _mock_pg_conn()
-        mock_get_conn.return_value = mock_conn
+        job = mgr.get_job(job_id)
+        assert job is not None
+        assert job["project_id"] == "test_project"
+        assert job["job_type"] == "auto_compute"
+        assert job["status"] == "pending"
 
-        from feast.monitoring.dqm_job_manager import JOB_STATUS_RUNNING, DQMJobManager
+    def test_update_status(self):
+        from feast.monitoring.dqm_job_manager import JOB_STATUS_RUNNING
 
-        mgr = DQMJobManager(MagicMock())
-        mgr.update_status("test-job-id", JOB_STATUS_RUNNING)
+        mgr = self._make_manager()
+        job_id = mgr.submit(
+            project="test_project",
+            job_type="compute",
+        )
+        mgr.update_status(job_id, JOB_STATUS_RUNNING)
 
-        mock_cursor.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()
+        job = mgr.get_job(job_id)
+        assert job["status"] == JOB_STATUS_RUNNING
+        assert job["started_at"] is not None
 
 
 # ------------------------------------------------------------------ #
@@ -452,26 +495,9 @@ class TestRESTEndpoints:
 
         return TestClient(app), mock_server
 
-    @patch("feast.monitoring.dqm_job_manager._get_conn")
     @patch("feast.api.registry.rest.monitoring.assert_permissions")
-    def test_auto_compute_endpoint(self, mock_perms, mock_job_conn, app):
+    def test_auto_compute_endpoint(self, mock_perms, app):
         client, _ = app
-
-        mock_job_conn_val, mock_job_cursor = _mock_pg_conn()
-        mock_job_conn.return_value = mock_job_conn_val
-        mock_job_cursor.fetchone.return_value = (
-            "test-job-id",
-            "test_project",
-            None,
-            "auto_compute",
-            "pending",
-            None,
-            datetime.now(timezone.utc),
-            None,
-            None,
-            None,
-            None,
-        )
 
         response = client.post(
             "/monitoring/auto_compute",
@@ -556,12 +582,9 @@ class TestRBACEnforcement:
 
         return TestClient(app), mock_server
 
-    @patch("feast.monitoring.dqm_job_manager._get_conn")
     @patch("feast.api.registry.rest.monitoring.assert_permissions")
-    def test_compute_requires_update(self, mock_perms, mock_job_conn, app):
+    def test_compute_requires_update(self, mock_perms, app):
         client, _ = app
-        mock_conn, _ = _mock_pg_conn()
-        mock_job_conn.return_value = mock_conn
 
         from feast.permissions.action import AuthzedAction
 

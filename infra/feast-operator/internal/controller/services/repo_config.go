@@ -106,8 +106,8 @@ func getServiceRepoConfig(
 		}
 	}
 
-	if appliedSpec.Dqm != nil {
-		setRepoConfigDqm(appliedSpec.Dqm, &repoConfig)
+	if appliedSpec.DataQualityMonitoring != nil {
+		setRepoConfigDataQualityMonitoring(appliedSpec.DataQualityMonitoring, &repoConfig)
 	}
 
 	return repoConfig, nil
@@ -490,18 +490,12 @@ func coerceStringToYamlType(v string) interface{} {
 	return v
 }
 
-func setRepoConfigDqm(dqmConfig *feastdevv1.DqmConfig, repoConfig *RepoConfig) {
-	if dqmConfig.Distribution == nil || dqmConfig.Distribution.Initial == nil || dqmConfig.Distribution.Initial.Enabled == nil {
+func setRepoConfigDataQualityMonitoring(dqmConfig *feastdevv1.DataQualityMonitoringConfig, repoConfig *RepoConfig) {
+	if dqmConfig.AutoBaseline == nil {
 		return
 	}
-	repoConfig.FeatureServer = &FeatureServerYamlConfig{
-		Dqm: &DqmYamlConfig{
-			Distribution: &DqmDistributionYamlConfig{
-				Initial: &DqmInitialDistributionYamlConfig{
-					Enabled: *dqmConfig.Distribution.Initial.Enabled,
-				},
-			},
-		},
+	repoConfig.DataQualityMonitoring = &DataQualityMonitoringYamlConfig{
+		AutoBaseline: *dqmConfig.AutoBaseline,
 	}
 }
 

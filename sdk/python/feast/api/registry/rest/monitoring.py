@@ -1,6 +1,6 @@
 import logging
 from datetime import date
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -54,11 +54,16 @@ class ComputeTransientRequest(BaseModel):
 def get_monitoring_router(grpc_handler, server=None):
     router = APIRouter()
 
-    def _get_monitoring_service():
-        from feast.monitoring.monitoring_service import MonitoringService
+    _monitoring_service = None
 
-        store = server.store if server else grpc_handler.store
-        return MonitoringService(store)
+    def _get_monitoring_service():
+        nonlocal _monitoring_service
+        if _monitoring_service is None:
+            from feast.monitoring.monitoring_service import MonitoringService
+
+            store = server.store if server else grpc_handler.store
+            _monitoring_service = MonitoringService(store)
+        return _monitoring_service
 
     def _get_store():
         return server.store if server else grpc_handler.store
@@ -86,7 +91,7 @@ def get_monitoring_router(grpc_handler, server=None):
 
         svc = _get_monitoring_service()
 
-        params = {}
+        params: Dict[str, Any] = {}
         if request.start_date:
             params["start_date"] = request.start_date
         if request.end_date:

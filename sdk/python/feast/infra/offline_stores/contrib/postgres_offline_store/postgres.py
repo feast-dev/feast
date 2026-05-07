@@ -46,6 +46,7 @@ from feast.monitoring.monitoring_utils import (
     MON_TABLE_FEATURE,
     MON_TABLE_FEATURE_SERVICE,
     MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
     empty_categorical_metric,
     empty_numeric_metric,
     monitoring_table_meta,
@@ -461,6 +462,26 @@ class PostgreSQLOfflineStore(OfflineStore):
                     PRIMARY KEY (project_id, feature_service_name, metric_date,
                                  granularity, data_source_type)
                 );
+            """)
+
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {MON_TABLE_JOB} (
+                    job_id            VARCHAR(36) PRIMARY KEY,
+                    project_id        VARCHAR(255) NOT NULL,
+                    feature_view_name VARCHAR(255),
+                    job_type          VARCHAR(50)  NOT NULL,
+                    status            VARCHAR(20)  NOT NULL DEFAULT 'pending',
+                    parameters        TEXT,
+                    metric_date       DATE         NOT NULL,
+                    started_at        TIMESTAMPTZ,
+                    completed_at      TIMESTAMPTZ,
+                    error_message     TEXT,
+                    result_summary    TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_fm_jobs_status
+                    ON {MON_TABLE_JOB} (status);
+                CREATE INDEX IF NOT EXISTS idx_fm_jobs_project
+                    ON {MON_TABLE_JOB} (project_id);
             """)
             conn.commit()
 
@@ -1277,8 +1298,12 @@ def _mon_query(
 ) -> List[Dict[str, Any]]:
     table, _, _ = monitoring_table_meta(metric_type)
 
-    conditions = [sql.SQL("project_id = %s")]
-    params: list = [project]
+    conditions: list = []
+    params: list = []
+
+    if project:
+        conditions.append(sql.SQL("project_id = %s"))
+        params.append(project)
 
     if filters:
         for key, value in filters.items():
@@ -1294,10 +1319,13 @@ def _mon_query(
         params.append(end_date)
 
     col_ids = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
-    query = sql.SQL("SELECT {} FROM {} WHERE {} ORDER BY metric_date ASC").format(
+    where = sql.SQL(" AND ").join(conditions) if conditions else sql.SQL("TRUE")
+    order_col = "metric_date" if "metric_date" in columns else "job_id"
+    query = sql.SQL("SELECT {} FROM {} WHERE {} ORDER BY {} ASC").format(
         col_ids,
         sql.Identifier(table),
-        sql.SQL(" AND ").join(conditions),
+        where,
+        sql.Identifier(order_col),
     )
 
     with _get_conn(pg_config) as conn, conn.cursor() as cur:

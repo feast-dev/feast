@@ -319,36 +319,29 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
 
-			By("Having DQM config with initial distribution disabled")
+			By("Having DQM config with auto_baseline disabled")
 			featureStore = minimalFeatureStore()
-			dqmEnabled := false
-			featureStore.Spec.Dqm = &feastdevv1.DqmConfig{
-				Distribution: &feastdevv1.DqmDistributionConfig{
-					Initial: &feastdevv1.DqmInitialDistributionConfig{
-						Enabled: &dqmEnabled,
-					},
-				},
+			dqmAutoBaseline := false
+			featureStore.Spec.DataQualityMonitoring = &feastdevv1.DataQualityMonitoringConfig{
+				AutoBaseline: &dqmAutoBaseline,
 			}
 			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.FeatureServer).NotTo(BeNil())
-			Expect(repoConfig.FeatureServer.Dqm).NotTo(BeNil())
-			Expect(repoConfig.FeatureServer.Dqm.Distribution).NotTo(BeNil())
-			Expect(repoConfig.FeatureServer.Dqm.Distribution.Initial).NotTo(BeNil())
-			Expect(repoConfig.FeatureServer.Dqm.Distribution.Initial.Enabled).To(BeFalse())
+			Expect(repoConfig.DataQualityMonitoring).NotTo(BeNil())
+			Expect(repoConfig.DataQualityMonitoring.AutoBaseline).To(BeFalse())
 
 			fsYaml, marshalErr := yaml.Marshal(repoConfig)
 			Expect(marshalErr).NotTo(HaveOccurred())
-			Expect(string(fsYaml)).To(ContainSubstring("feature_server:"))
-			Expect(string(fsYaml)).To(ContainSubstring("enabled: false"))
+			Expect(string(fsYaml)).To(ContainSubstring("dqm:"))
+			Expect(string(fsYaml)).To(ContainSubstring("auto_baseline: false"))
 
-			By("Having no DQM config — feature_server should be nil")
+			By("Having no DQM config — dqm should be nil")
 			featureStore = minimalFeatureStore()
 			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.FeatureServer).To(BeNil())
+			Expect(repoConfig.DataQualityMonitoring).To(BeNil())
 		})
 
 		It("should set feature_server block with type local and all options", func() {

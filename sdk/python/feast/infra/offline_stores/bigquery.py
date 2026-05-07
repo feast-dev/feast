@@ -47,6 +47,7 @@ from feast.monitoring.monitoring_utils import (
     MON_TABLE_FEATURE,
     MON_TABLE_FEATURE_SERVICE,
     MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
     empty_categorical_metric,
     empty_numeric_metric,
     monitoring_table_meta,
@@ -645,7 +646,7 @@ def _bq_merge_row(
         param_type = _bq_scalar_param_type(col)
         params.append(bigquery.ScalarQueryParameter(p, param_type, val))
         using_parts.append(f"@{p} AS {col}")
-        on_parts.append(f"T.{col} = S.{col}")
+    on_parts = [f"T.{col} = S.{col}" for col in pk_columns]
     update_set = ", ".join(f"{c} = S.{c}" for c in non_pk)
     merge_sql = f"""
 MERGE {table_fqn} T
@@ -686,10 +687,13 @@ def _bq_query_monitoring_metrics(
         project=project_id,
         location=config.offline_store.location,
     )
-    params: List[Any] = [
-        bigquery.ScalarQueryParameter("project", "STRING", project),
-    ]
-    conditions = ["project_id = @project"]
+    params: List[Any] = []
+    conditions: List[str] = []
+    if project:
+        params.append(
+            bigquery.ScalarQueryParameter("project", "STRING", project),
+        )
+        conditions.append("project_id = @project")
     if filters:
         for key, value in filters.items():
             if value is not None:
@@ -706,10 +710,9 @@ def _bq_query_monitoring_metrics(
         conditions.append("metric_date <= @end_date")
         params.append(bigquery.ScalarQueryParameter("end_date", "DATE", end_date))
     col_list = ", ".join(f"`{c}`" for c in columns)
-    where_sql = " AND ".join(conditions)
-    sql = (
-        f"SELECT {col_list} FROM {table_fqn} WHERE {where_sql} ORDER BY metric_date ASC"
-    )
+    where_sql = " AND ".join(conditions) if conditions else "TRUE"
+    order_col = "metric_date" if "metric_date" in columns else "job_id"
+    sql = f"SELECT {col_list} FROM {table_fqn} WHERE {where_sql} ORDER BY `{order_col}` ASC"
     job_config = bigquery.QueryJobConfig(query_parameters=params)
     job = client.query(sql, job_config=job_config)
     job.result()
@@ -833,7 +836,23 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_SERVICE}` (
 )
 PRIMARY KEY (project_id, feature_service_name, metric_date, granularity, data_source_type) NOT ENFORCED
 """
-    for ddl in (feature_ddl, view_ddl, service_ddl):
+    job_ddl = f"""
+CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_JOB}` (
+  job_id STRING NOT NULL,
+  project_id STRING NOT NULL,
+  feature_view_name STRING,
+  job_type STRING NOT NULL,
+  status STRING NOT NULL,
+  parameters STRING,
+  metric_date DATE NOT NULL,
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  error_message STRING,
+  result_summary STRING
+)
+PRIMARY KEY (job_id) NOT ENFORCED
+"""
+    for ddl in (feature_ddl, view_ddl, service_ddl, job_ddl):
         client.query(ddl).result()
 
 

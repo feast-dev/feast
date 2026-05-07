@@ -29,6 +29,7 @@ from feast.monitoring.monitoring_utils import (
     MON_TABLE_FEATURE,
     MON_TABLE_FEATURE_SERVICE,
     MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
     empty_categorical_metric,
     empty_numeric_metric,
     monitoring_table_meta,
@@ -774,6 +775,26 @@ class OracleOfflineStore(OfflineStore):
             """,
         )
 
+        _oracle_try_execute_ddl(
+            con,
+            f"""
+            CREATE TABLE {MON_TABLE_JOB} (
+              job_id             VARCHAR2(36) NOT NULL,
+              project_id         VARCHAR2(255) NOT NULL,
+              feature_view_name  VARCHAR2(255),
+              job_type           VARCHAR2(50) NOT NULL,
+              status             VARCHAR2(20) DEFAULT 'pending' NOT NULL,
+              parameters         VARCHAR2(4000),
+              metric_date        DATE NOT NULL,
+              started_at         TIMESTAMP WITH TIME ZONE,
+              completed_at       TIMESTAMP WITH TIME ZONE,
+              error_message      VARCHAR2(4000),
+              result_summary     VARCHAR2(4000),
+              CONSTRAINT pk_fmj PRIMARY KEY (job_id)
+            )
+            """,
+        )
+
     @staticmethod
     def save_monitoring_metrics(
         config: RepoConfig,
@@ -802,9 +823,11 @@ class OracleOfflineStore(OfflineStore):
 
         table, columns, _ = monitoring_table_meta(metric_type)
 
-        conditions = [
-            f"{_oracle_quote_ident('project_id')} = {_oracle_escape_literal(project)}"
-        ]
+        conditions: list = []
+        if project:
+            conditions.append(
+                f"{_oracle_quote_ident('project_id')} = {_oracle_escape_literal(project)}"
+            )
         if filters:
             for key, value in filters.items():
                 if value is not None:
@@ -820,14 +843,15 @@ class OracleOfflineStore(OfflineStore):
                 f"{_oracle_quote_ident('metric_date')} <= {_oracle_escape_literal(end_date)}"
             )
 
-        where_sql = " AND ".join(conditions)
+        where_sql = " AND ".join(conditions) if conditions else "1=1"
         col_list = ", ".join(_oracle_quote_ident(c) for c in columns)
+        order_col = "metric_date" if "metric_date" in columns else "job_id"
 
         con = get_ibis_connection(config)
         rows = _oracle_fetchall(
             con,
             f"SELECT {col_list} FROM {table} WHERE {where_sql} "
-            f"ORDER BY {_oracle_quote_ident('metric_date')} ASC",
+            f"ORDER BY {_oracle_quote_ident(order_col)} ASC",
         )
 
         results = []
