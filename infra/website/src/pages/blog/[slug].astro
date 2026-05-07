@@ -1,6 +1,21 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Navigation from '../../components/Navigation.astro';
+import { readFileSync } from 'node:fs';
+
+const SITE_URL = 'https://feast.dev';
+
+function toAbsoluteUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  return new URL(path, SITE_URL).toString();
+}
+
+function extractHeroImage(markdown: string): string | undefined {
+  const heroImageMatch = markdown.match(/<div\s+class=["']hero-image["'][^>]*>[\s\S]*?<img[^>]*src=["']([^"']+)["']/i);
+  return heroImageMatch?.[1];
+}
 
 export async function getStaticPaths() {
   const posts = await Astro.glob('../../../docs/blog/*.md');
@@ -17,9 +32,14 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { title, description, date, authors = [] } = post.frontmatter;
+const blogUrl = `${SITE_URL}/blog/${Astro.params.slug}/`;
+const frontmatterImage = post.frontmatter.hero_image || post.frontmatter.heroImage || post.frontmatter.image;
+const markdown = readFileSync(post.file, 'utf-8');
+const heroImage = frontmatterImage || extractHeroImage(markdown);
+const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} socialImage={socialImage} ogUrl={blogUrl}>
   <Navigation slot="header" />
   <div class="blog-wrapper">
     <header class="blog-hero">
