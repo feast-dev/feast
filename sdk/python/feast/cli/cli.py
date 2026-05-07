@@ -475,6 +475,7 @@ def materialize_incremental_command(
             "milvus",
             "ray",
             "ray_rag",
+            "rag",
             "pytorch_nlp",
         ],
         case_sensitive=False,
