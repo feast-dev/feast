@@ -78,6 +78,72 @@ class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
     max_date_partition: str
 
 
+def _apply_bfv_transformations_for_historical(
+    spark_session: SparkSession,
+    feature_views: List[FeatureView],
+    query_context: List[offline_utils.FeatureViewQueryContext],
+) -> List[offline_utils.FeatureViewQueryContext]:
+    """
+    For BatchFeatureViews, redirect get_historical_features to read from the
+    pre-materialized offline store (batch_source.path) when available, avoiding
+    expensive UDF re-execution on raw data.
+
+    Precedence:
+      1. offline=True + batch_source.path set -> read pre-computed parquet
+      2. Python/pandas UDF present -> execute UDF on raw source (fallback)
+      3. Otherwise -> pass through unchanged
+    """
+    from dataclasses import replace
+
+    fv_by_name = {fv.projection.name_to_use(): fv for fv in feature_views}
+    new_contexts = []
+
+    for ctx in query_context:
+        fv = fv_by_name.get(ctx.name)
+        if fv is None or not isinstance(fv, BatchFeatureView):
+            new_contexts.append(ctx)
+            continue
+
+        if (
+            getattr(fv, "offline", False)
+            and isinstance(fv.batch_source, SparkSource)
+            and fv.batch_source.path
+        ):
+            tmp_view = f"__feast_offline_{ctx.name}_{uuid.uuid4().hex[:8]}"
+            file_format = fv.batch_source.file_format or "parquet"
+            df = spark_session.read.format(file_format).load(fv.batch_source.path)
+            df.createOrReplaceTempView(tmp_view)
+            ctx = replace(ctx, table_subquery=tmp_view)
+        elif (
+            hasattr(fv, "feature_transformation")
+            and fv.feature_transformation is not None
+            and (
+                getattr(fv.feature_transformation, "mode", None)
+                in ("python", "pandas")
+                or getattr(
+                    getattr(fv.feature_transformation, "mode", None), "value", None
+                )
+                in ("python", "pandas")
+            )
+        ):
+            udf = getattr(fv.feature_transformation, "udf", None) or getattr(
+                fv, "udf", None
+            )
+            if udf is not None:
+                temp_view_name = f"__feast_bfv_{ctx.name}_{uuid.uuid4().hex[:8]}"
+                spark_session.conf.set("spark.sql.runSQLOnFiles", "true")
+                raw_df = spark_session.sql(
+                    f"SELECT * FROM {ctx.table_subquery}"
+                )
+                transformed_df = udf(raw_df)
+                transformed_df.createOrReplaceTempView(temp_view_name)
+                ctx = replace(ctx, table_subquery=temp_view_name)
+
+        new_contexts.append(ctx)
+
+    return new_contexts
+
+
 class SparkOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table_or_query(
@@ -258,6 +324,12 @@ class SparkOfflineStore(OfflineStore):
             registry,
             project,
             entity_df_event_timestamp_range,
+        )
+
+        query_context = _apply_bfv_transformations_for_historical(
+            spark_session=spark_session,
+            feature_views=feature_views,
+            query_context=query_context,
         )
 
         spark_query_context = [
