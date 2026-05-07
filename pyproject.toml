@@ -39,7 +39,7 @@ dependencies = [
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
-    "prometheus_client",
+    "prometheus_client>=0.20.0,<0.25.0",
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
