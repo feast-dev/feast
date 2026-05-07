@@ -694,7 +694,7 @@ def _validate_collection_item_types(
     """
     if sample is None:
         return
-    if all(type(item) in valid_types for item in sample):
+    if all(type(item) in valid_types for item in sample if item is not None):
         return
 
     # to_numpy() upcasts INT32/INT64 with NULL to Float64 automatically
@@ -705,6 +705,8 @@ def _validate_collection_item_types(
         ValueType.INT64_SET,
     ]
     for item in sample:
+        if item is None:
+            continue  # None elements in STRING_LIST are replaced with ""; for other types they are dropped
         if type(item) not in valid_types:
             if feast_value_type in int_collection_types:
                 # Check if the float values are due to NULL upcast
@@ -823,6 +825,46 @@ def _python_set_to_proto_values(
     ]
 
 
+# Sentinel value used by _to_proto_safe_list to indicate that None elements
+# should simply be filtered (dropped) rather than replaced with a default.
+_DROP_NONE = object()
+
+# Per-type default values substituted for None elements inside list columns.
+# Only STRING_LIST uses ""; numeric/bytes types drop None entirely because
+# there is no meaningful in-band sentinel (protobuf rejects wrong scalar types).
+_LIST_TYPE_NONE_REPLACEMENT: Dict[ValueType, Any] = {
+    ValueType.STRING_LIST: "",
+}
+
+
+def _to_proto_safe_list(
+    value: Any, feast_value_type: ValueType = ValueType.STRING_LIST
+) -> Any:
+    """Convert an array/list column value to a proto-safe Python list.
+
+    Arrow/Athena returns Array columns as numpy.ndarray (object dtype).
+    Protobuf repeated fields reject ndarrays and (for non-string types) None
+    elements, so we:
+    1. Call .tolist() to convert any numpy.ndarray to a plain Python list.
+    2. For STRING_LIST: replace None elements with "" (empty string).
+       For all other list types: drop None elements, since there is no valid
+       in-band default for numeric/bytes protobuf fields.
+
+    Args:
+        value: The raw column value (ndarray, list, or scalar).
+        feast_value_type: The Feast ValueType of the list column. Controls how
+            None elements are handled. Defaults to STRING_LIST.
+    """
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    if isinstance(value, list):
+        none_replacement = _LIST_TYPE_NONE_REPLACEMENT.get(feast_value_type, _DROP_NONE)
+        if none_replacement is _DROP_NONE:
+            return [x for x in value if x is not None]
+        return [x if x is not None else none_replacement for x in value]
+    return value
+
+
 def _convert_list_values_to_proto(
     feast_value_type: ValueType,
     values: List[Any],
@@ -901,8 +943,14 @@ def _convert_list_values_to_proto(
         ]
 
     # Generic list conversion
+    # Arrow/Athena deserializes Array columns as numpy.ndarray (object dtype).
+    # _to_proto_safe_list converts to a plain Python list and sanitizes None
+    # elements in a type-appropriate way (replaced with "" for STRING_LIST,
+    # dropped for numeric/bytes types).
     return [
-        ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore[arg-type]
+        ProtoValue(
+            **{field_name: proto_type(val=_to_proto_safe_list(value, feast_value_type))}  # type: ignore[arg-type]
+        )
         if value is not None
         else ProtoValue()
         for value in values

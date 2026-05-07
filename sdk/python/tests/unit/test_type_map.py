@@ -1953,3 +1953,154 @@ class TestEmptyArrayAsNull:
             "non-empty array in UNIX_TIMESTAMP scalar column should produce null"
         )
         assert result[1].unix_timestamp_val == int(ts.timestamp())
+
+
+class TestArrowArrayStringListMaterialization:
+    """Regression tests for Array(String) columns from Arrow/Athena materialization.
+
+    Arrow/Athena deserializes Array(String) feature columns as numpy.ndarray with
+    object dtype. Two bugs were triggered:
+
+    1. ValueError: "The truth value of an empty array is ambiguous"
+       — when an empty ndarray reached the scalar null-check `elif not pd.isnull(value)`.
+
+    2. TypeError: "bad argument type for built-in operation"
+       — when proto_type(val=<ndarray>) was called; protobuf rejects ndarrays.
+
+    Both are fixed by _to_proto_safe_list, which converts ndarrays to plain Python
+    lists and sanitizes None elements in a type-appropriate way:
+    - STRING_LIST: None → "" (empty string)
+    - All other list types: None elements are dropped (filtered out)
+    """
+
+    def test_to_proto_safe_list_ndarray(self):
+        """ndarray is converted to a plain Python list."""
+        from feast.type_map import _to_proto_safe_list
+
+        arr = np.array(["foo", "bar"], dtype=object)
+        result = _to_proto_safe_list(arr)
+        assert result == ["foo", "bar"]
+        assert isinstance(result, list)
+
+    def test_to_proto_safe_list_empty_ndarray(self):
+        """Empty ndarray is converted to an empty list."""
+        from feast.type_map import _to_proto_safe_list
+
+        arr = np.array([], dtype=object)
+        result = _to_proto_safe_list(arr)
+        assert result == []
+        assert isinstance(result, list)
+
+    def test_to_proto_safe_list_ndarray_with_none(self):
+        """None elements inside a STRING_LIST ndarray are replaced with empty string."""
+        from feast.type_map import _to_proto_safe_list
+
+        arr = np.array(["foo", None, "baz"], dtype=object)
+        result = _to_proto_safe_list(arr, ValueType.STRING_LIST)
+        assert result == ["foo", "", "baz"]
+
+    def test_to_proto_safe_list_plain_list(self):
+        """Plain Python lists pass through unchanged (no None replacement needed)."""
+        from feast.type_map import _to_proto_safe_list
+
+        lst = ["foo", "bar"]
+        result = _to_proto_safe_list(lst)
+        assert result == ["foo", "bar"]
+
+    def test_to_proto_safe_list_plain_list_with_none(self):
+        """None elements in a STRING_LIST plain list are replaced with empty string."""
+        from feast.type_map import _to_proto_safe_list
+
+        lst = ["foo", None]
+        result = _to_proto_safe_list(lst, ValueType.STRING_LIST)
+        assert result == ["foo", ""]
+
+    def test_to_proto_safe_list_numeric_list_none_dropped(self):
+        """None elements in non-string lists are dropped, not replaced with a sentinel."""
+        from feast.type_map import _to_proto_safe_list
+
+        for vt in (
+            ValueType.FLOAT_LIST,
+            ValueType.DOUBLE_LIST,
+            ValueType.INT32_LIST,
+            ValueType.INT64_LIST,
+            ValueType.BYTES_LIST,
+        ):
+            result = _to_proto_safe_list([1.0, None, 2.0], vt)
+            assert result == [1.0, 2.0], (
+                f"Expected None dropped for {vt}, got {result!r}"
+            )
+
+    def test_to_proto_safe_list_scalar_passthrough(self):
+        """Non-list, non-ndarray values are returned unchanged."""
+        from feast.type_map import _to_proto_safe_list
+
+        assert _to_proto_safe_list("hello") == "hello"
+        assert _to_proto_safe_list(None) is None
+        assert _to_proto_safe_list(42) == 42
+
+    def test_string_list_from_ndarray(self):
+        """STRING_LIST column with ndarray values materializes without TypeError."""
+        values = [
+            np.array(["foo", "bar"], dtype=object),
+            np.array(["baz"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert len(protos) == 2
+        assert list(protos[0].string_list_val.val) == ["foo", "bar"]
+        assert list(protos[1].string_list_val.val) == ["baz"]
+
+    def test_string_list_from_empty_ndarray(self):
+        """Empty ndarray in a STRING_LIST column must not raise ValueError."""
+        values = [
+            np.array([], dtype=object),
+            np.array(["foo"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert list(protos[0].string_list_val.val) == []
+        assert list(protos[1].string_list_val.val) == ["foo"]
+
+    def test_string_list_from_ndarray_with_none_elements(self):
+        """None elements inside an ndarray must not cause TypeError in protobuf."""
+        values = [
+            np.array(["foo", None, "baz"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        # None is replaced with empty string
+        assert list(protos[0].string_list_val.val) == ["foo", "", "baz"]
+
+    def test_string_list_null_row_produces_empty_proto(self):
+        """A None row (missing user) produces an empty ProtoValue."""
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        values = [
+            None,
+            np.array(["foo"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert protos[0] == ProtoValue()
+        assert list(protos[1].string_list_val.val) == ["foo"]
+
+    def test_mixed_batch_simulating_athena_chunk(self):
+        """Simulate a real Athena chunk: mix of ndarray, empty ndarray, and None rows.
+
+        This is the exact scenario that triggered the TypeError during
+        string_list_features materialization.
+        """
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        # tags / labels column from Athena
+        values = [
+            np.array(["foo", "bar"], dtype=object),  # normal entity
+            np.array([], dtype=object),  # entity with no values set
+            None,  # missing entity (NULL row)
+            np.array(["baz"], dtype=object),  # normal entity
+            np.array(["qux", None], dtype=object),  # entity with partial null
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+
+        assert list(protos[0].string_list_val.val) == ["foo", "bar"]
+        assert list(protos[1].string_list_val.val) == []
+        assert protos[2] == ProtoValue()
+        assert list(protos[3].string_list_val.val) == ["baz"]
+        assert list(protos[4].string_list_val.val) == ["qux", ""]
