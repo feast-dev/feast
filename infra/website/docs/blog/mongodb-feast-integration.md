@@ -5,10 +5,6 @@ date: 2026-05-07
 authors: ["Rishabh Bisht"]
 ---
 
-# **Native MongoDB Support in Feast: One Database for Operational Data, Features, and Vectors**
-
-Feast now ships first-class support for **MongoDB** as both an online and an offline store, plus native **Vector Search** for embedding-based retrieval. Machine Learning teams running on MongoDB can serve features at low latency, generate point-in-time-correct training datasets, and power RAG or recommender workloads, all from a single MongoDB Atlas cluster, with no separate cache, no separate warehouse, and no parallel vector database to keep in sync.
-
 
 <div class="hero-image">
 <img src="/images/blog/mongodb-feature-stores.png" alt="MongoDB Feast Stores" loading="lazy>
@@ -28,8 +24,6 @@ That's three sets of credentials, three security postures, three monitoring stac
 For teams whose operational data already lives in MongoDB, this was especially painful. Until now, Feast had no native MongoDB option so teams either stood up parallel infrastructure they didn't want, or settled for community plugins of varying maturity. 
 
 With this release, both types of the feature store run on MongoDB \- same connection string, same auth, same backups, same observability. The features sit next to the operational data they were derived from.
-
-## 
 
 ## **What's in the integration**
 
