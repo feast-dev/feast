@@ -112,10 +112,21 @@ def _apply_bfv_transformations_for_historical(
         ):
             tmp_view = f"__feast_offline_{ctx.name}_{uuid.uuid4().hex[:8]}"
             file_format = fv.batch_source.file_format or "parquet"
-            df = spark_session.read.format(file_format).load(fv.batch_source.path)
-            df.createOrReplaceTempView(tmp_view)
-            ctx = replace(ctx, table_subquery=tmp_view)
-        elif (
+            try:
+                df = spark_session.read.format(file_format).load(fv.batch_source.path)
+                df.createOrReplaceTempView(tmp_view)
+                ctx = replace(ctx, table_subquery=tmp_view)
+                new_contexts.append(ctx)
+                continue
+            except Exception:
+                warnings.warn(
+                    f"Offline path '{fv.batch_source.path}' not readable for "
+                    f"'{ctx.name}'; falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+
+        if (
             hasattr(fv, "feature_transformation")
             and fv.feature_transformation is not None
             and (
