@@ -1,5 +1,5 @@
 ---
-title: Native MongoDB Support in Feast: One Database for Operational Data, Features, and Vectors
+title: "Native MongoDB Support in Feast: One Database for Operational Data, Features, and Vectors"
 description: Feast now ships first-class support for **MongoDB** as both an online and an offline store, plus native **Vector Search** for embedding-based retrieval. Machine Learning teams running on MongoDB can serve features at low latency, generate point-in-time-correct training datasets, and power RAG or recommender workloads, all from a single MongoDB Atlas cluster, with no separate cache, no separate warehouse, and no parallel vector database to keep in sync.
 date: 2026-05-07
 authors: ["Rishabh Bisht"]
