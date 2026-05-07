@@ -18,9 +18,9 @@ limitations under the License.
 """
 
 from collections import abc as _abc
-from feast.core import DataFormat_pb2 as _DataFormat_pb2
-from feast.core import Feature_pb2 as _Feature_pb2
-from feast.types import Value_pb2 as _Value_pb2
+from feast.core import DataFormat_pb2 as _DataFormat_pb2  # type: ignore[attr-defined]
+from feast.core import Feature_pb2 as _Feature_pb2  # type: ignore[attr-defined]
+from feast.types import Value_pb2 as _Value_pb2  # type: ignore[attr-defined]
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf import message as _message

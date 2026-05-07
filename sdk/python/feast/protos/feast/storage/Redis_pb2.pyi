@@ -18,7 +18,7 @@ limitations under the License.
 """
 
 from collections import abc as _abc
-from feast.types import Value_pb2 as _Value_pb2
+from feast.types import Value_pb2 as _Value_pb2  # type: ignore[attr-defined]
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf.internal import containers as _containers
