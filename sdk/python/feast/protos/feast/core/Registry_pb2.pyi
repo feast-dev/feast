@@ -16,130 +16,144 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
-import builtins
-import collections.abc
-import feast.core.DataSource_pb2
-import feast.core.Entity_pb2
-import feast.core.FeatureService_pb2
-import feast.core.FeatureTable_pb2
-import feast.core.FeatureViewVersion_pb2
-import feast.core.FeatureView_pb2
-import feast.core.InfraObject_pb2
-import feast.core.OnDemandFeatureView_pb2
-import feast.core.Permission_pb2
-import feast.core.Project_pb2
-import feast.core.SavedDataset_pb2
-import feast.core.StreamFeatureView_pb2
-import feast.core.ValidationProfile_pb2
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
-import google.protobuf.timestamp_pb2
+
+from collections import abc as _abc
+from feast.core import DataSource_pb2 as _DataSource_pb2
+from feast.core import Entity_pb2 as _Entity_pb2
+from feast.core import FeatureService_pb2 as _FeatureService_pb2
+from feast.core import FeatureTable_pb2 as _FeatureTable_pb2
+from feast.core import FeatureViewVersion_pb2 as _FeatureViewVersion_pb2
+from feast.core import FeatureView_pb2 as _FeatureView_pb2
+from feast.core import InfraObject_pb2 as _InfraObject_pb2
+from feast.core import OnDemandFeatureView_pb2 as _OnDemandFeatureView_pb2
+from feast.core import Permission_pb2 as _Permission_pb2
+from feast.core import Project_pb2 as _Project_pb2
+from feast.core import SavedDataset_pb2 as _SavedDataset_pb2
+from feast.core import StreamFeatureView_pb2 as _StreamFeatureView_pb2
+from feast.core import ValidationProfile_pb2 as _ValidationProfile_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+if sys.version_info >= (3, 13):
+    from warnings import deprecated as _deprecated
+else:
+    from typing_extensions import deprecated as _deprecated
 
-class Registry(google.protobuf.message.Message):
+DESCRIPTOR: _descriptor.FileDescriptor
+
+@_typing.final
+class Registry(_message.Message):
     """Next id: 19"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    ENTITIES_FIELD_NUMBER: builtins.int
-    FEATURE_TABLES_FIELD_NUMBER: builtins.int
-    FEATURE_VIEWS_FIELD_NUMBER: builtins.int
-    DATA_SOURCES_FIELD_NUMBER: builtins.int
-    ON_DEMAND_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
-    STREAM_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
-    FEATURE_SERVICES_FIELD_NUMBER: builtins.int
-    SAVED_DATASETS_FIELD_NUMBER: builtins.int
-    VALIDATION_REFERENCES_FIELD_NUMBER: builtins.int
-    INFRA_FIELD_NUMBER: builtins.int
-    PROJECT_METADATA_FIELD_NUMBER: builtins.int
-    REGISTRY_SCHEMA_VERSION_FIELD_NUMBER: builtins.int
-    VERSION_ID_FIELD_NUMBER: builtins.int
-    LAST_UPDATED_FIELD_NUMBER: builtins.int
-    PERMISSIONS_FIELD_NUMBER: builtins.int
-    PROJECTS_FIELD_NUMBER: builtins.int
-    FEATURE_VIEW_VERSION_HISTORY_FIELD_NUMBER: builtins.int
-    @property
-    def entities(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Entity_pb2.Entity]: ...
-    @property
-    def feature_tables(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.FeatureTable_pb2.FeatureTable]: ...
-    @property
-    def feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.FeatureView_pb2.FeatureView]: ...
-    @property
-    def data_sources(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.DataSource_pb2.DataSource]: ...
-    @property
-    def on_demand_feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView]: ...
-    @property
-    def stream_feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.StreamFeatureView_pb2.StreamFeatureView]: ...
-    @property
-    def feature_services(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.FeatureService_pb2.FeatureService]: ...
-    @property
-    def saved_datasets(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.SavedDataset_pb2.SavedDataset]: ...
-    @property
-    def validation_references(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.ValidationProfile_pb2.ValidationReference]: ...
-    @property
-    def infra(self) -> feast.core.InfraObject_pb2.Infra: ...
-    @property
-    def project_metadata(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ProjectMetadata]:
-        """Tracking metadata of Feast by project"""
-    registry_schema_version: builtins.str
+    ENTITIES_FIELD_NUMBER: _builtins.int
+    FEATURE_TABLES_FIELD_NUMBER: _builtins.int
+    FEATURE_VIEWS_FIELD_NUMBER: _builtins.int
+    DATA_SOURCES_FIELD_NUMBER: _builtins.int
+    ON_DEMAND_FEATURE_VIEWS_FIELD_NUMBER: _builtins.int
+    STREAM_FEATURE_VIEWS_FIELD_NUMBER: _builtins.int
+    FEATURE_SERVICES_FIELD_NUMBER: _builtins.int
+    SAVED_DATASETS_FIELD_NUMBER: _builtins.int
+    VALIDATION_REFERENCES_FIELD_NUMBER: _builtins.int
+    INFRA_FIELD_NUMBER: _builtins.int
+    PROJECT_METADATA_FIELD_NUMBER: _builtins.int
+    REGISTRY_SCHEMA_VERSION_FIELD_NUMBER: _builtins.int
+    VERSION_ID_FIELD_NUMBER: _builtins.int
+    LAST_UPDATED_FIELD_NUMBER: _builtins.int
+    PERMISSIONS_FIELD_NUMBER: _builtins.int
+    PROJECTS_FIELD_NUMBER: _builtins.int
+    FEATURE_VIEW_VERSION_HISTORY_FIELD_NUMBER: _builtins.int
+    registry_schema_version: _builtins.str
     """to support migrations; incremented when schema is changed"""
-    version_id: builtins.str
+    version_id: _builtins.str
     """version id, random string generated on each update of the data; now used only for debugging purposes"""
-    @property
-    def last_updated(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
-    @property
-    def permissions(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Permission_pb2.Permission]: ...
-    @property
-    def projects(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Project_pb2.Project]: ...
-    @property
-    def feature_view_version_history(self) -> feast.core.FeatureViewVersion_pb2.FeatureViewVersionHistory: ...
+    @_builtins.property
+    def entities(self) -> _containers.RepeatedCompositeFieldContainer[_Entity_pb2.Entity]: ...
+    @_builtins.property
+    def feature_tables(self) -> _containers.RepeatedCompositeFieldContainer[_FeatureTable_pb2.FeatureTable]: ...
+    @_builtins.property
+    def feature_views(self) -> _containers.RepeatedCompositeFieldContainer[_FeatureView_pb2.FeatureView]: ...
+    @_builtins.property
+    def data_sources(self) -> _containers.RepeatedCompositeFieldContainer[_DataSource_pb2.DataSource]: ...
+    @_builtins.property
+    def on_demand_feature_views(self) -> _containers.RepeatedCompositeFieldContainer[_OnDemandFeatureView_pb2.OnDemandFeatureView]: ...
+    @_builtins.property
+    def stream_feature_views(self) -> _containers.RepeatedCompositeFieldContainer[_StreamFeatureView_pb2.StreamFeatureView]: ...
+    @_builtins.property
+    def feature_services(self) -> _containers.RepeatedCompositeFieldContainer[_FeatureService_pb2.FeatureService]: ...
+    @_builtins.property
+    def saved_datasets(self) -> _containers.RepeatedCompositeFieldContainer[_SavedDataset_pb2.SavedDataset]: ...
+    @_builtins.property
+    def validation_references(self) -> _containers.RepeatedCompositeFieldContainer[_ValidationProfile_pb2.ValidationReference]: ...
+    @_builtins.property
+    def infra(self) -> _InfraObject_pb2.Infra: ...
+    @_builtins.property
+    @_deprecated("""This field has been marked as deprecated using proto field options.""")
+    def project_metadata(self) -> _containers.RepeatedCompositeFieldContainer[Global___ProjectMetadata]:
+        """Tracking metadata of Feast by project"""
+
+    @_builtins.property
+    def last_updated(self) -> _timestamp_pb2.Timestamp: ...
+    @_builtins.property
+    def permissions(self) -> _containers.RepeatedCompositeFieldContainer[_Permission_pb2.Permission]: ...
+    @_builtins.property
+    def projects(self) -> _containers.RepeatedCompositeFieldContainer[_Project_pb2.Project]: ...
+    @_builtins.property
+    def feature_view_version_history(self) -> _FeatureViewVersion_pb2.FeatureViewVersionHistory: ...
     def __init__(
         self,
         *,
-        entities: collections.abc.Iterable[feast.core.Entity_pb2.Entity] | None = ...,
-        feature_tables: collections.abc.Iterable[feast.core.FeatureTable_pb2.FeatureTable] | None = ...,
-        feature_views: collections.abc.Iterable[feast.core.FeatureView_pb2.FeatureView] | None = ...,
-        data_sources: collections.abc.Iterable[feast.core.DataSource_pb2.DataSource] | None = ...,
-        on_demand_feature_views: collections.abc.Iterable[feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView] | None = ...,
-        stream_feature_views: collections.abc.Iterable[feast.core.StreamFeatureView_pb2.StreamFeatureView] | None = ...,
-        feature_services: collections.abc.Iterable[feast.core.FeatureService_pb2.FeatureService] | None = ...,
-        saved_datasets: collections.abc.Iterable[feast.core.SavedDataset_pb2.SavedDataset] | None = ...,
-        validation_references: collections.abc.Iterable[feast.core.ValidationProfile_pb2.ValidationReference] | None = ...,
-        infra: feast.core.InfraObject_pb2.Infra | None = ...,
-        project_metadata: collections.abc.Iterable[global___ProjectMetadata] | None = ...,
-        registry_schema_version: builtins.str = ...,
-        version_id: builtins.str = ...,
-        last_updated: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        permissions: collections.abc.Iterable[feast.core.Permission_pb2.Permission] | None = ...,
-        projects: collections.abc.Iterable[feast.core.Project_pb2.Project] | None = ...,
-        feature_view_version_history: feast.core.FeatureViewVersion_pb2.FeatureViewVersionHistory | None = ...,
+        entities: _abc.Iterable[_Entity_pb2.Entity] | None = ...,
+        feature_tables: _abc.Iterable[_FeatureTable_pb2.FeatureTable] | None = ...,
+        feature_views: _abc.Iterable[_FeatureView_pb2.FeatureView] | None = ...,
+        data_sources: _abc.Iterable[_DataSource_pb2.DataSource] | None = ...,
+        on_demand_feature_views: _abc.Iterable[_OnDemandFeatureView_pb2.OnDemandFeatureView] | None = ...,
+        stream_feature_views: _abc.Iterable[_StreamFeatureView_pb2.StreamFeatureView] | None = ...,
+        feature_services: _abc.Iterable[_FeatureService_pb2.FeatureService] | None = ...,
+        saved_datasets: _abc.Iterable[_SavedDataset_pb2.SavedDataset] | None = ...,
+        validation_references: _abc.Iterable[_ValidationProfile_pb2.ValidationReference] | None = ...,
+        infra: _InfraObject_pb2.Infra | None = ...,
+        project_metadata: _abc.Iterable[Global___ProjectMetadata] | None = ...,
+        registry_schema_version: _builtins.str = ...,
+        version_id: _builtins.str = ...,
+        last_updated: _timestamp_pb2.Timestamp | None = ...,
+        permissions: _abc.Iterable[_Permission_pb2.Permission] | None = ...,
+        projects: _abc.Iterable[_Project_pb2.Project] | None = ...,
+        feature_view_version_history: _FeatureViewVersion_pb2.FeatureViewVersionHistory | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["feature_view_version_history", b"feature_view_version_history", "infra", b"infra", "last_updated", b"last_updated"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_view_version_history", b"feature_view_version_history", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["feature_view_version_history", b"feature_view_version_history", "infra", b"infra", "last_updated", b"last_updated"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_view_version_history", b"feature_view_version_history", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___Registry = Registry
+Global___Registry: _TypeAlias = Registry  # noqa: Y015
 
-class ProjectMetadata(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class ProjectMetadata(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    PROJECT_FIELD_NUMBER: builtins.int
-    PROJECT_UUID_FIELD_NUMBER: builtins.int
-    project: builtins.str
-    project_uuid: builtins.str
+    PROJECT_FIELD_NUMBER: _builtins.int
+    PROJECT_UUID_FIELD_NUMBER: _builtins.int
+    project: _builtins.str
+    project_uuid: _builtins.str
     def __init__(
         self,
         *,
-        project: builtins.str = ...,
-        project_uuid: builtins.str = ...,
+        project: _builtins.str = ...,
+        project_uuid: _builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["project", b"project", "project_uuid", b"project_uuid"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["project", b"project", "project_uuid", b"project_uuid"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___ProjectMetadata = ProjectMetadata
+Global___ProjectMetadata: _TypeAlias = ProjectMetadata  # noqa: Y015

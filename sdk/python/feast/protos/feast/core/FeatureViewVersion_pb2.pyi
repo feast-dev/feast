@@ -16,72 +16,79 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
-import google.protobuf.timestamp_pb2
+
+from collections import abc as _abc
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-class FeatureViewVersionRecord(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class FeatureViewVersionRecord(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    FEATURE_VIEW_NAME_FIELD_NUMBER: builtins.int
-    PROJECT_ID_FIELD_NUMBER: builtins.int
-    VERSION_NUMBER_FIELD_NUMBER: builtins.int
-    FEATURE_VIEW_TYPE_FIELD_NUMBER: builtins.int
-    FEATURE_VIEW_PROTO_FIELD_NUMBER: builtins.int
-    CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    DESCRIPTION_FIELD_NUMBER: builtins.int
-    VERSION_ID_FIELD_NUMBER: builtins.int
-    feature_view_name: builtins.str
-    project_id: builtins.str
-    version_number: builtins.int
-    feature_view_type: builtins.str
+    FEATURE_VIEW_NAME_FIELD_NUMBER: _builtins.int
+    PROJECT_ID_FIELD_NUMBER: _builtins.int
+    VERSION_NUMBER_FIELD_NUMBER: _builtins.int
+    FEATURE_VIEW_TYPE_FIELD_NUMBER: _builtins.int
+    FEATURE_VIEW_PROTO_FIELD_NUMBER: _builtins.int
+    CREATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    DESCRIPTION_FIELD_NUMBER: _builtins.int
+    VERSION_ID_FIELD_NUMBER: _builtins.int
+    feature_view_name: _builtins.str
+    project_id: _builtins.str
+    version_number: _builtins.int
+    feature_view_type: _builtins.str
     """"feature_view" | "stream_feature_view" | "on_demand_feature_view" """
-    feature_view_proto: builtins.bytes
+    feature_view_proto: _builtins.bytes
     """serialized FV proto snapshot"""
-    @property
-    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
-    description: builtins.str
-    version_id: builtins.str
+    description: _builtins.str
+    version_id: _builtins.str
     """auto-generated UUID for unique identification"""
+    @_builtins.property
+    def created_timestamp(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
-        feature_view_name: builtins.str = ...,
-        project_id: builtins.str = ...,
-        version_number: builtins.int = ...,
-        feature_view_type: builtins.str = ...,
-        feature_view_proto: builtins.bytes = ...,
-        created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        description: builtins.str = ...,
-        version_id: builtins.str = ...,
+        feature_view_name: _builtins.str = ...,
+        project_id: _builtins.str = ...,
+        version_number: _builtins.int = ...,
+        feature_view_type: _builtins.str = ...,
+        feature_view_proto: _builtins.bytes = ...,
+        created_timestamp: _timestamp_pb2.Timestamp | None = ...,
+        description: _builtins.str = ...,
+        version_id: _builtins.str = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "description", b"description", "feature_view_name", b"feature_view_name", "feature_view_proto", b"feature_view_proto", "feature_view_type", b"feature_view_type", "project_id", b"project_id", "version_id", b"version_id", "version_number", b"version_number"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "description", b"description", "feature_view_name", b"feature_view_name", "feature_view_proto", b"feature_view_proto", "feature_view_type", b"feature_view_type", "project_id", b"project_id", "version_id", b"version_id", "version_number", b"version_number"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___FeatureViewVersionRecord = FeatureViewVersionRecord
+Global___FeatureViewVersionRecord: _TypeAlias = FeatureViewVersionRecord  # noqa: Y015
 
-class FeatureViewVersionHistory(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class FeatureViewVersionHistory(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    RECORDS_FIELD_NUMBER: builtins.int
-    @property
-    def records(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureViewVersionRecord]: ...
+    RECORDS_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def records(self) -> _containers.RepeatedCompositeFieldContainer[Global___FeatureViewVersionRecord]: ...
     def __init__(
         self,
         *,
-        records: collections.abc.Iterable[global___FeatureViewVersionRecord] | None = ...,
+        records: _abc.Iterable[Global___FeatureViewVersionRecord] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["records", b"records"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["records", b"records"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___FeatureViewVersionHistory = FeatureViewVersionHistory
+Global___FeatureViewVersionHistory: _TypeAlias = FeatureViewVersionHistory  # noqa: Y015
