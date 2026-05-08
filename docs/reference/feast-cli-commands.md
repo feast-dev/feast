@@ -21,6 +21,7 @@ Commands:
   apply                    Create or update a feature store deployment
   configuration            Display Feast configuration
   delete                   Delete a Feast object from the registry
+  demo-notebooks           Generate demo Jupyter notebooks for the project
   entities                 Access entities
   feature-views            Access feature views
   init                     Create a new Feast repository
@@ -141,6 +142,47 @@ The delete operation is permanent and will remove the object from the registry. 
 {% hint style="info" %}
 If multiple objects have the same name across different types, `feast delete` will delete the first one it finds. For programmatic deletion with more control, use the Python SDK methods like `store.delete_feature_view()`, `store.delete_feature_service()`, etc.
 {% endhint %}
+
+## Demo Notebooks
+
+Generate tailored demo Jupyter notebooks for each Feast project found in the current directory.
+
+```bash
+feast demo-notebooks
+```
+
+The command searches for `feature_store.yaml` in the current directory and every file inside the `feast-config/` directory. Each file is treated as a separate project config, and notebooks are created under `./feast-demo-notebooks/<project>/`.
+
+The generated notebooks adapt to your project configuration (online/offline store types, authentication, vector search) and cover:
+
+* **Feature store overview** — explore registered entities, feature views, and services.
+* **Historical feature retrieval** — build training datasets with point-in-time correct joins.
+* **Online feature serving** — materialize features and retrieve them at low latency.
+
+**Options:**
+
+* `-o, --output-dir` — Directory where the notebooks are written. Default: `./feast-demo-notebooks`.
+* `--overwrite` — Overwrite existing notebooks if the output directory already exists.
+
+```bash
+feast demo-notebooks -o ./my-notebooks --overwrite
+```
+
+You can also use the `--chdir` global option to point at a different feature repository:
+
+```bash
+feast -c /path/to/feature_repo demo-notebooks
+```
+
+The same functionality is available via the Python SDK:
+
+```python
+from feast import copy_demo_notebooks
+
+copy_demo_notebooks(output_dir="./feast-demo-notebooks", repo_path=".")
+```
+
+For more details see the [Demo Notebooks tutorial](../tutorials/demo-notebooks.md).
 
 ## Entities
 
