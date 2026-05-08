@@ -2229,8 +2229,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.62.1.dev58+g4f142a3c1.d20260501
-  sha256: 168dda185ac1fd0b97d388a4c5af598965dc17dfaaf09d35c7bb4ddbd3dafe43
+  version: 0.63.1.dev11+g728aa2e03
+  sha256: 0374de3999768cff5af26fcded970de628340809ce8d1466645c9ca0d209c166
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2257,7 +2257,7 @@ packages:
   - uvicorn-worker
   - gunicorn ; sys_platform != 'win32'
   - dask[dataframe]>=2024.2.1
-  - prometheus-client
+  - prometheus-client>=0.20.0,<0.25.0
   - psutil
   - bigtree>=0.19.2
   - pyjwt

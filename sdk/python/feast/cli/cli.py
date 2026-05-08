@@ -598,6 +598,39 @@ def validate(
     exit(1)
 
 
+@cli.command("demo-notebooks")
+@click.option(
+    "--output-dir",
+    "-o",
+    default="./feast-demo-notebooks",
+    show_default=True,
+    help="Directory where the demo notebooks are written.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing notebooks if the output directory already exists.",
+)
+@click.pass_context
+def demo_notebooks_command(ctx: click.Context, output_dir: str, overwrite: bool):
+    """
+    Generate demo Jupyter notebooks tailored to the feature store configuration.
+
+    Searches for feature_store.yaml in the current directory and every file
+    inside feast-config/. Each file is treated as a separate project config.
+    For each project found, a sub-directory is created under OUTPUT_DIR.
+    """
+    from feast.demos import copy_demo_notebooks
+
+    repo = ctx.obj["CHDIR"]
+    copy_demo_notebooks(
+        output_dir=output_dir,
+        repo_path=str(repo),
+        overwrite=overwrite,
+    )
+
+
 cli.add_command(data_sources_cmd)
 cli.add_command(entities_cmd)
 cli.add_command(feature_services_cmd)
