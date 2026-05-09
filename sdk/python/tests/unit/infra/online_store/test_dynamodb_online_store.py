@@ -1050,3 +1050,59 @@ def test_dynamodb_online_store_thread_safety_uses_shared_client(
         f"Expected 1 shared client for thread-safety, "
         f"got {len(set(dynamodb_clients))} unique clients"
     )
+
+
+# ============================================================================
+# DAX (DynamoDB Accelerator) Configuration Tests
+# ============================================================================
+
+
+def test_dynamodb_online_store_config_dax_defaults():
+    """Test DynamoDBOnlineStoreConfig DAX defaults."""
+    config = DynamoDBOnlineStoreConfig(region="us-west-2")
+    assert config.use_dax is False
+    assert config.dax_endpoint is None
+
+
+def test_dynamodb_online_store_config_dax_enabled():
+    """Test DynamoDBOnlineStoreConfig with DAX enabled."""
+    config = DynamoDBOnlineStoreConfig(
+        region="us-west-2",
+        use_dax=True,
+        dax_endpoint="dax://my-cluster.xxx.dax-clusters.us-west-2.amazonaws.com",
+    )
+    assert config.use_dax is True
+    assert config.dax_endpoint == "dax://my-cluster.xxx.dax-clusters.us-west-2.amazonaws.com"
+
+
+def test_dynamodb_online_store_config_dax_validation_missing_endpoint():
+    """Test that use_dax=True without dax_endpoint raises ValueError."""
+    with pytest.raises(ValueError, match="dax_endpoint is required when use_dax is True"):
+        DynamoDBOnlineStoreConfig(
+            region="us-west-2",
+            use_dax=True,
+            # dax_endpoint intentionally missing
+        )
+
+
+def test_dynamodb_online_store_config_dax_with_tls():
+    """Test DynamoDBOnlineStoreConfig with TLS DAX endpoint (daxs://)."""
+    config = DynamoDBOnlineStoreConfig(
+        region="us-west-2",
+        use_dax=True,
+        dax_endpoint="daxs://my-cluster.xxx.dax-clusters.us-west-2.amazonaws.com",
+    )
+    assert config.use_dax is True
+    assert config.dax_endpoint.startswith("daxs://")
+
+
+def test_dynamodb_online_store_config_dax_disabled_with_endpoint():
+    """Test that dax_endpoint is ignored when use_dax=False."""
+    config = DynamoDBOnlineStoreConfig(
+        region="us-west-2",
+        use_dax=False,
+        dax_endpoint="dax://my-cluster.xxx.dax-clusters.us-west-2.amazonaws.com",
+    )
+    assert config.use_dax is False
+    # Endpoint is set but will be ignored since use_dax=False
+    assert config.dax_endpoint is not None
