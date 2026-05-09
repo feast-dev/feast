@@ -189,6 +189,13 @@ class LocalDedupNode(LocalNode):
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
+
+        # No data in this time window — skip dedup and pass the empty table through.
+        if input_table.num_rows == 0:
+            output = ArrowTableValue(input_table)
+            context.node_outputs[self.name] = output
+            return output
+
         df = self.backend.from_arrow(input_table)
 
         # Extract join_keys, timestamp, and created_ts from context

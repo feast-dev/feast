@@ -69,6 +69,7 @@ from feast.errors import (
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view_utils import generate_time_chunks
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -1711,6 +1712,7 @@ class FeatureStore:
         feature_views: Optional[List[str]] = None,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        chunk_size: Optional[timedelta] = None,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1729,6 +1731,11 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            chunk_size (timedelta): Optional override for the time-based chunk size used to split
+                materialization into smaller windows.  When set, each feature view's time range is
+                partitioned into consecutive chunks of this width and materialized one chunk at a
+                time.  Falls back to ``config.materialization.chunk_size`` when not given, and
+                performs a single-pass materialization if neither is set.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -1820,18 +1827,81 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date) or _utc_now()
 
+                effective_chunk_size = self._resolve_chunk_size(chunk_size)
+                chunks = (
+                    list(
+                        generate_time_chunks(start_date, end_date, effective_chunk_size)
+                    )
+                    if effective_chunk_size is not None
+                    else [(start_date, end_date)]
+                )
+                total_chunks = len(chunks)
+
                 fv_start = time.monotonic()
                 fv_success = True
+                failed_chunks = []
+                # gap_hit becomes True the moment the first chunk fails under
+                # CONTINUE strategy.  Once True, subsequent successful chunks
+                # still have their data written to the online store (the call to
+                # materialize_single_feature_view is not skipped), but we stop
+                # calling apply_materialization so the registry watermark
+                # (most_recent_end_time) does not advance past the failure.
+                # This guarantees that the next materialize_incremental() call
+                # retries from the start of the failed chunk rather than
+                # silently skipping it.
+                gap_hit = False
                 try:
-                    provider.materialize_single_feature_view(
-                        config=self.config,
-                        feature_view=feature_view,
-                        start_date=start_date,
-                        end_date=end_date,
-                        registry=self.registry,
-                        project=self.project,
-                        tqdm_builder=tqdm_builder,
-                    )
+                    for chunk_idx, (chunk_start, chunk_end) in enumerate(chunks, 1):
+                        if total_chunks > 1:
+                            print(
+                                f"  [{chunk_idx}/{total_chunks}] "
+                                f"{chunk_start.isoformat(timespec='seconds')} \u2192 "
+                                f"{chunk_end.isoformat(timespec='seconds')}"
+                            )
+                        try:
+                            provider.materialize_single_feature_view(
+                                config=self.config,
+                                feature_view=feature_view,
+                                start_date=chunk_start,
+                                end_date=chunk_end,
+                                registry=self.registry,
+                                project=self.project,
+                                tqdm_builder=tqdm_builder,
+                            )
+                        except Exception as chunk_exc:
+                            if (
+                                total_chunks > 1
+                                and self.config.materialization_config.chunk_failure_strategy
+                                == "continue"
+                            ):
+                                failed_chunks.append(
+                                    (chunk_idx, chunk_start, chunk_end, chunk_exc)
+                                )
+                                # Mark that a gap now exists in the committed
+                                # range so subsequent successes don't advance
+                                # the watermark past this failed window.
+                                gap_hit = True
+                            else:
+                                raise
+                        else:
+                            # Only advance the watermark for chunks that are
+                            # contiguous from the original start_date.  Once a
+                            # gap has been introduced by a failed chunk we stop
+                            # registering successful intervals so the watermark
+                            # stays at the boundary just before the first gap.
+                            # The data for post-gap chunks IS written to the
+                            # online store; it will simply be re-written on the
+                            # next incremental run (writes are idempotent).
+                            if (
+                                not isinstance(feature_view, OnDemandFeatureView)
+                                and not gap_hit
+                            ):
+                                self.registry.apply_materialization(
+                                    feature_view,
+                                    self.project,
+                                    chunk_start,
+                                    chunk_end,
+                                )
                 except Exception:
                     fv_success = False
                     raise
@@ -1843,12 +1913,17 @@ class FeatureStore:
                             fv_success,
                             time.monotonic() - fv_start,
                         )
-                if not isinstance(feature_view, OnDemandFeatureView):
-                    self.registry.apply_materialization(
-                        feature_view,
-                        self.project,
-                        start_date,
-                        end_date,
+                if failed_chunks:
+                    import warnings as _w
+
+                    _w.warn(
+                        f"FeatureView '{feature_view.name}': {len(failed_chunks)}/{total_chunks} "
+                        f"chunk(s) failed (chunk_failure_strategy=continue):\n"
+                        + "\n".join(
+                            f"  chunk {i}: {s.isoformat(timespec='seconds')} \u2192 "
+                            f"{e.isoformat(timespec='seconds')}: {err}"
+                            for i, s, e, err in failed_chunks
+                        )
                     )
 
             # Emit OpenLineage COMPLETE event
@@ -1868,6 +1943,7 @@ class FeatureStore:
         disable_event_timestamp: bool = False,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        chunk_size: Optional[timedelta] = None,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -1886,6 +1962,11 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            chunk_size (timedelta): Optional override for the time-based chunk size used to split
+                materialization into smaller windows.  When set, each feature view's time range is
+                partitioned into consecutive chunks of this width and materialized one chunk at a
+                time.  Falls back to ``config.materialization.chunk_size`` when not given, and
+                performs a single-pass materialization if neither is set.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -1947,19 +2028,67 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date)
 
+                effective_chunk_size = self._resolve_chunk_size(chunk_size)
+                chunks = (
+                    list(
+                        generate_time_chunks(start_date, end_date, effective_chunk_size)
+                    )
+                    if effective_chunk_size is not None
+                    else [(start_date, end_date)]
+                )
+                total_chunks = len(chunks)
+
                 fv_start = time.monotonic()
                 fv_success = True
+                failed_chunks = []
+                # gap_hit becomes True the moment the first chunk fails under
+                # CONTINUE strategy.  Subsequent successful chunks still have
+                # their data written to the online store but apply_materialization
+                # is NOT called for them, keeping the registry watermark at the
+                # boundary just before the first gap.  A future materialize()/
+                # materialize_incremental() call with explicit dates can replay
+                # the failed range; the post-gap data will simply be re-written
+                # (writes are idempotent).
+                gap_hit = False
                 try:
-                    provider.materialize_single_feature_view(
-                        config=self.config,
-                        feature_view=feature_view,
-                        start_date=start_date,
-                        end_date=end_date,
-                        registry=self.registry,
-                        project=self.project,
-                        tqdm_builder=tqdm_builder,
-                        disable_event_timestamp=disable_event_timestamp,
-                    )
+                    for chunk_idx, (chunk_start, chunk_end) in enumerate(chunks, 1):
+                        if total_chunks > 1:
+                            print(
+                                f"  [{chunk_idx}/{total_chunks}] "
+                                f"{chunk_start.isoformat(timespec='seconds')} \u2192 "
+                                f"{chunk_end.isoformat(timespec='seconds')}"
+                            )
+                        try:
+                            provider.materialize_single_feature_view(
+                                config=self.config,
+                                feature_view=feature_view,
+                                start_date=chunk_start,
+                                end_date=chunk_end,
+                                registry=self.registry,
+                                project=self.project,
+                                tqdm_builder=tqdm_builder,
+                                disable_event_timestamp=disable_event_timestamp,
+                            )
+                        except Exception as chunk_exc:
+                            if (
+                                total_chunks > 1
+                                and self.config.materialization_config.chunk_failure_strategy
+                                == "continue"
+                            ):
+                                failed_chunks.append(
+                                    (chunk_idx, chunk_start, chunk_end, chunk_exc)
+                                )
+                                gap_hit = True
+                            else:
+                                raise
+                        else:
+                            if not gap_hit:
+                                self.registry.apply_materialization(
+                                    feature_view,
+                                    self.project,
+                                    chunk_start,
+                                    chunk_end,
+                                )
                 except Exception:
                     fv_success = False
                     raise
@@ -1971,13 +2100,18 @@ class FeatureStore:
                             fv_success,
                             time.monotonic() - fv_start,
                         )
+                if failed_chunks:
+                    import warnings as _w
 
-                self.registry.apply_materialization(
-                    feature_view,
-                    self.project,
-                    start_date,
-                    end_date,
-                )
+                    _w.warn(
+                        f"FeatureView '{feature_view.name}': {len(failed_chunks)}/{total_chunks} "
+                        f"chunk(s) failed (chunk_failure_strategy=continue):\n"
+                        + "\n".join(
+                            f"  chunk {i}: {s.isoformat(timespec='seconds')} \u2192 "
+                            f"{e.isoformat(timespec='seconds')}: {err}"
+                            for i, s, e, err in failed_chunks
+                        )
+                    )
 
             # Emit OpenLineage COMPLETE event
             self._emit_openlineage_materialize_complete(
@@ -1987,6 +2121,22 @@ class FeatureStore:
             # Emit OpenLineage FAIL event
             self._emit_openlineage_materialize_fail(ol_run_id, str(e))
             raise
+
+    def _resolve_chunk_size(
+        self,
+        override: Optional[timedelta] = None,
+    ) -> Optional[timedelta]:
+        """Return the effective chunk size for a materialization call.
+
+        Priority (highest first):
+        1. ``override`` – value passed directly to ``materialize()`` / ``materialize_incremental()``
+        2. ``config.materialization_config.chunk_size`` – project-level default from
+           ``feature_store.yaml``
+        3. ``None`` – no chunking, single-pass behaviour (backward-compatible default).
+        """
+        if override is not None:
+            return override
+        return self.config.materialization_config.chunk_size
 
     def _emit_openlineage_materialize_start(
         self,
