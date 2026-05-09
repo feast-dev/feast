@@ -27,6 +27,8 @@ from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
     FeatureViewNotFoundException,
+    FeatureViewPinConflict,
+    FeatureViewVersionNotFound,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -537,6 +539,71 @@ class BaseRegistry(ABC):
         raise NotImplementedError(
             "get_feature_view_by_version is not implemented for this registry"
         )
+
+    def check_version_pin_conflict(
+        self, feature_view: BaseFeatureView, project: str
+    ) -> None:
+        """Raise FeatureViewPinConflict if a version pin conflicts with schema changes.
+
+        Mirrors the conflict check inside apply_feature_view so that feast plan
+        can surface the error before feast apply is run.  The check is read-only:
+        no registry state is modified.
+
+        A conflict occurs when the user simultaneously pins to an existing version
+        AND modifies the feature view definition (schema or UDF change).
+
+        Args:
+            feature_view: The desired feature view from the repo config.
+            project: Feast project name.
+
+        Raises:
+            FeatureViewPinConflict: if the pin and schema change conflict.
+        """
+        from feast.version_utils import parse_version, version_tag
+
+        fv_version = getattr(feature_view, "version", None)
+        if not fv_version:
+            return
+
+        is_latest, pin_version = parse_version(fv_version)
+        if is_latest or pin_version is None:
+            return
+
+        # Check whether the target version already exists in the registry.
+        try:
+            self.get_feature_view_by_version(
+                feature_view.name, project, pin_version, allow_cache=True
+            )
+        except (FeatureViewVersionNotFound, NotImplementedError):
+            # Version doesn't exist → forward declaration; no conflict possible.
+            return
+        except Exception:
+            return
+
+        # Version exists → check whether the user also modified the definition.
+        try:
+            active_fv = self.get_any_feature_view(
+                feature_view.name, project, allow_cache=True
+            )
+        except (FeatureViewNotFoundException, NotImplementedError):
+            return
+
+        user_fv_copy = feature_view.__copy__()
+        active_fv_copy = active_fv.__copy__()
+
+        # Normalise fields that legitimately differ between desired and stored FVs.
+        user_fv_copy.version = "latest"
+        active_fv_copy.version = "latest"
+        user_fv_copy.created_timestamp = active_fv_copy.created_timestamp
+        user_fv_copy.last_updated_timestamp = active_fv_copy.last_updated_timestamp
+        user_fv_copy.current_version_number = active_fv_copy.current_version_number
+        if hasattr(active_fv_copy, "materialization_intervals"):
+            user_fv_copy.materialization_intervals = (
+                active_fv_copy.materialization_intervals
+            )
+
+        if user_fv_copy != active_fv_copy:
+            raise FeatureViewPinConflict(feature_view.name, version_tag(pin_version))
 
     @abstractmethod
     def apply_materialization(
