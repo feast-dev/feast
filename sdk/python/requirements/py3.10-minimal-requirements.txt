@@ -2851,9 +2851,9 @@ ujson==5.12.0 \
     --hash=sha256:f7a0430d765f9bda043e6aefaba5944d5f21ec43ff4774417d7e296f61917382 \
     --hash=sha256:fb94245a715b4d6e24689de12772b85329a1f9946cbf6187923a64ecdea39e65
     # via pymilvus
-urllib3==2.6.3 \
-    --hash=sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed \
-    --hash=sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4
+urllib3==2.7.0 \
+    --hash=sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c \
+    --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
     # via
     #   botocore
     #   kubernetes
