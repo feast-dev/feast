@@ -161,6 +161,7 @@ def _parse_feature_info(
         view name strings and feat_count is the total number of features.
     """
     from feast.feature_service import FeatureService
+    from feast.utils import _parse_feature_ref
 
     if isinstance(features, FeatureService):
         projections = features.feature_view_projections
@@ -168,9 +169,7 @@ def _parse_feature_info(
         feat_count = sum(len(p.features) for p in projections)
     elif isinstance(features, list):
         feat_count = len(features)
-        fv_names = list(
-            {ref.split(":")[0].split("@")[0] for ref in features if ":" in ref}
-        )
+        fv_names = list({_parse_feature_ref(ref)[0] for ref in features if ":" in ref})
     else:
         fv_names = []
         feat_count = 0

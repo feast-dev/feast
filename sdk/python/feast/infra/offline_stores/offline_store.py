@@ -15,7 +15,7 @@ import logging
 import time
 import warnings
 from abc import ABC
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -191,22 +191,22 @@ class RetrievalJob(ABC):
                     feast_metrics.offline_store_request_latency_seconds.labels(
                         method="to_arrow"
                     ).observe(elapsed)
-                    if row_count > 0:
-                        feast_metrics.offline_store_row_count.labels(
-                            method="to_arrow"
-                        ).observe(row_count)
+                    feast_metrics.offline_store_row_count.labels(
+                        method="to_arrow"
+                    ).observe(row_count)
 
                 if feast_metrics._config.audit_logging:
                     feature_views, feature_count = _extract_retrieval_metadata(self)
-                    now_iso = datetime.now(tz=timezone.utc).isoformat()
+                    end_dt = datetime.now(tz=timezone.utc)
+                    start_dt = end_dt - timedelta(seconds=elapsed)
                     feast_metrics.emit_offline_audit_log(
                         method="to_arrow",
                         feature_views=feature_views,
                         feature_count=feature_count,
                         row_count=row_count,
                         status=status_label,
-                        start_time=now_iso,
-                        end_time=now_iso,
+                        start_time=start_dt.isoformat(),
+                        end_time=end_dt.isoformat(),
                         duration_ms=elapsed * 1000,
                     )
             except Exception:
