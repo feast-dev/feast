@@ -1246,6 +1246,7 @@ class TestEmitAuditLogs:
             record = json.loads(logged_json)
 
         assert record["event"] == "offline_feature_retrieval"
+        assert "timestamp" in record
         assert record["method"] == "to_arrow"
         assert record["feature_views"] == ["driver_fv"]
         assert record["feature_count"] == 3
@@ -1508,19 +1509,18 @@ class TestRetrievalJobToArrowInstrumentation:
             >= before_sum + 500
         )
 
-    def test_row_count_not_recorded_when_zero(self):
+    def test_row_count_recorded_when_zero(self):
         import pyarrow as pa
 
         table = pa.table({"a": pa.array([], type=pa.int64())})
         job = self._make_job(table)
 
-        before_count = offline_store_row_count.labels(method="to_arrow")._sum.get()
+        hist = offline_store_row_count.labels(method="to_arrow")
+        before_bucket = hist._buckets[0].get()
 
         job.to_arrow()
 
-        assert (
-            offline_store_row_count.labels(method="to_arrow")._sum.get() == before_count
-        )
+        assert hist._buckets[0].get() == before_bucket + 1
 
     def test_metrics_skipped_when_offline_features_disabled(self):
         import pyarrow as pa

@@ -26,8 +26,8 @@ spec:
             push: true            # push/write request counters
             materialization: true # materialization counters and duration histograms
             freshness: false      # feature freshness gauges (can be expensive at scale)
-            # Example: when a future SDK adds "registry_sync", enable it here
-            # registry_sync: false
+            offline_features: true # offline store retrieval counters, latency, row count
+            audit_logging: false   # structured JSON audit logs via the feast.audit logger
         offlinePushBatching:
           enabled: true
           batchSize: 1000          # max rows per offline write batch
