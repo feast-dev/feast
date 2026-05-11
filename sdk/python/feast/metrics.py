@@ -470,6 +470,7 @@ def emit_offline_audit_log(
         _json_dumps(
             {
                 "event": "offline_feature_retrieval",
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
                 "method": method,
                 "start_time": start_time,
                 "end_time": end_time,
