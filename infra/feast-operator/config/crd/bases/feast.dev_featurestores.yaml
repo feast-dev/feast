@@ -735,6 +735,10 @@ spec:
                         - hazelcast
                         - couchbase
                         - clickhouse
+                        - milvus
+                        - ray
+                        - ray_rag
+                        - pytorch_nlp
                         type: string
                     type: object
                 type: object
@@ -6696,6 +6700,10 @@ spec:
                             - hazelcast
                             - couchbase
                             - clickhouse
+                            - milvus
+                            - ray
+                            - ray_rag
+                            - pytorch_nlp
                             type: string
                         type: object
                     type: object
@@ -12797,6 +12805,10 @@ spec:
                         - hazelcast
                         - couchbase
                         - clickhouse
+                        - milvus
+                        - ray
+                        - ray_rag
+                        - pytorch_nlp
                         type: string
                     type: object
                 type: object
@@ -17060,6 +17072,10 @@ spec:
                             - hazelcast
                             - couchbase
                             - clickhouse
+                            - milvus
+                            - ray
+                            - ray_rag
+                            - pytorch_nlp
                             type: string
                         type: object
                     type: object
