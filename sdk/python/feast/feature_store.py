@@ -828,20 +828,20 @@ class FeatureStore:
                 self.registry, self.project, hide_dummy_entity=False
             )
             feature_views_to_materialize.extend(
-                [fv for fv in regular_feature_views if fv.online]
+                [fv for fv in regular_feature_views if fv.online and fv.enabled]
             )
             stream_feature_views_to_materialize = self._list_stream_feature_views(
                 hide_dummy_entity=False
             )
             feature_views_to_materialize.extend(
-                [sfv for sfv in stream_feature_views_to_materialize if sfv.online]
+                [sfv for sfv in stream_feature_views_to_materialize if sfv.online and sfv.enabled]
             )
             on_demand_feature_views_to_materialize = self.list_on_demand_feature_views()
             feature_views_to_materialize.extend(
                 [
                     odfv
                     for odfv in on_demand_feature_views_to_materialize
-                    if odfv.write_to_online_store
+                    if odfv.write_to_online_store and odfv.enabled
                 ]
             )
         else:
@@ -867,6 +867,11 @@ class FeatureStore:
                         except FeatureViewNotFoundException:
                             feature_view = self.get_on_demand_feature_view(name)
 
+                if hasattr(feature_view, "enabled") and not feature_view.enabled:
+                    raise ValueError(
+                        f"FeatureView {feature_view.name} is disabled. "
+                        f"Enable it before materializing."
+                    )
                 if hasattr(feature_view, "online") and not feature_view.online:
                     raise ValueError(
                         f"FeatureView {feature_view.name} is not configured to be served online."

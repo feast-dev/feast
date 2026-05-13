@@ -1246,6 +1246,12 @@ def _get_feature_views_to_use(
         else:
             fv = registry.get_any_feature_view(name, project, allow_cache)
 
+        if hasattr(fv, "enabled") and not fv.enabled:
+            raise ValueError(
+                f"Feature view '{name}' is disabled and cannot serve features. "
+                f"Enable it with `feast feature-views enable {name}` or set enabled=True."
+            )
+
         if isinstance(fv, OnDemandFeatureView):
             od_fvs_to_use.append(
                 fv.with_projection(copy.copy(projection)) if projection else fv

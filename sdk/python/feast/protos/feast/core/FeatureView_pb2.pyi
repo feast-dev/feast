@@ -108,6 +108,7 @@ class FeatureViewSpec(_message.Message):
     ENABLE_VALIDATION_FIELD_NUMBER: _builtins.int
     VERSION_FIELD_NUMBER: _builtins.int
     ORG_FIELD_NUMBER: _builtins.int
+    DISABLED_FIELD_NUMBER: _builtins.int
     name: _builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: _builtins.str
@@ -130,6 +131,8 @@ class FeatureViewSpec(_message.Message):
     """User-specified version pin (e.g. "latest", "v2", "version2")"""
     org: _builtins.str
     """Organizational unit that owns this feature view (e.g. "ads", "search")."""
+    disabled: _builtins.bool
+    """Whether this feature view is disabled for serving and materialization."""
     @_builtins.property
     def entities(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """List of names of entities associated with this feature view."""
@@ -194,10 +197,11 @@ class FeatureViewSpec(_message.Message):
         enable_validation: _builtins.bool = ...,
         version: _builtins.str = ...,
         org: _builtins.str = ...,
+        disabled: _builtins.bool = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["batch_source", b"batch_source", "description", b"description", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "org", b"org", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "version", b"version"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["batch_source", b"batch_source", "description", b"description", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "disabled", b"disabled", "org", b"org", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "version", b"version"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
 Global___FeatureViewSpec: _TypeAlias = FeatureViewSpec  # noqa: Y015

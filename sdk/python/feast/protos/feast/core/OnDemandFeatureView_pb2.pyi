@@ -129,6 +129,7 @@ class OnDemandFeatureViewSpec(_message.Message):
     AGGREGATIONS_FIELD_NUMBER: _builtins.int
     VERSION_FIELD_NUMBER: _builtins.int
     ORG_FIELD_NUMBER: _builtins.int
+    DISABLED_FIELD_NUMBER: _builtins.int
     name: _builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: _builtins.str
@@ -144,6 +145,8 @@ class OnDemandFeatureViewSpec(_message.Message):
     """User-specified version pin (e.g. "latest", "v2", "version2")"""
     org: _builtins.str
     """Organizational unit that owns this feature view (e.g. "ads", "search")."""
+    disabled: _builtins.bool
+    """Whether this feature view is disabled for serving."""
     @_builtins.property
     def features(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]:
         """List of features specifications for each feature defined with this feature view."""
@@ -195,10 +198,11 @@ class OnDemandFeatureViewSpec(_message.Message):
         aggregations: _abc.Iterable[_Aggregation_pb2.Aggregation] | None = ...,
         version: _builtins.str = ...,
         org: _builtins.str = ...,
+        disabled: _builtins.bool = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["feature_transformation", b"feature_transformation", "user_defined_function", b"user_defined_function"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["aggregations", b"aggregations", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "org", b"org", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "version", b"version", "write_to_online_store", b"write_to_online_store"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["aggregations", b"aggregations", "description", b"description", "disabled", b"disabled", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "org", b"org", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "version", b"version", "write_to_online_store", b"write_to_online_store"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
 Global___OnDemandFeatureViewSpec: _TypeAlias = OnDemandFeatureViewSpec  # noqa: Y015

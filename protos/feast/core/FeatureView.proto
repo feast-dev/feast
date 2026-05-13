@@ -100,6 +100,11 @@ message FeatureViewSpec {
 
     // Organizational unit that owns this feature view (e.g. "ads", "search").
     string org = 19;
+
+    // Whether this feature view is disabled for serving and materialization.
+    // When true, the feature view will not serve online features or be materialized.
+    // Defaults to false (enabled) for backward compatibility.
+    bool disabled = 20;
 }
 
 message FeatureViewMeta {

@@ -113,6 +113,7 @@ class FeatureView(BaseFeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
     enable_validation: bool
+    enabled: bool
 
     def __init__(
         self,
@@ -132,6 +133,7 @@ class FeatureView(BaseFeatureView):
         mode: Optional[Union["TransformationMode", str]] = None,
         enable_validation: bool = False,
         version: str = "latest",
+        enabled: bool = True,
     ):
         """
         Creates a FeatureView object.
@@ -289,6 +291,7 @@ class FeatureView(BaseFeatureView):
         self.offline = offline
         self.mode = mode
         self.materialization_intervals = []
+        self.enabled = enabled
 
     def __hash__(self):
         return super().__hash__()
@@ -310,6 +313,7 @@ class FeatureView(BaseFeatureView):
             description=self.description,
             owner=self.owner,
             org=self.org,
+            enabled=self.enabled,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -505,6 +509,7 @@ class FeatureView(BaseFeatureView):
             mode=mode_to_string(self.mode),
             enable_validation=self.enable_validation,
             version=self.version,
+            disabled=not self.enabled,
         )
 
     def to_proto_meta(self):
@@ -684,6 +689,11 @@ class FeatureView(BaseFeatureView):
 
         # Restore enable_validation from proto field.
         feature_view.enable_validation = feature_view_proto.spec.enable_validation
+
+        # Restore enabled from proto's inverted 'disabled' field.
+        # Proto bool defaults to False, so old protos without this field
+        # will correctly default to enabled=True.
+        feature_view.enabled = not feature_view_proto.spec.disabled
 
         # Restore version fields.
         spec_version = feature_view_proto.spec.version

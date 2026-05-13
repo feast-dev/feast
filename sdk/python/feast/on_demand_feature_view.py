@@ -155,6 +155,7 @@ class OnDemandFeatureView(BaseFeatureView):
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     aggregations: List[Aggregation]
+    enabled: bool
 
     def __init__(  # noqa: C901
         self,
@@ -177,6 +178,7 @@ class OnDemandFeatureView(BaseFeatureView):
         track_metrics: bool = False,
         aggregations: Optional[List[Aggregation]] = None,
         version: str = "latest",
+        enabled: bool = True,
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -316,6 +318,7 @@ class OnDemandFeatureView(BaseFeatureView):
             )
         self.track_metrics = track_metrics
         self.aggregations = aggregations or []
+        self.enabled = enabled
 
         if input_schema is not None and self.aggregations:
             input_field_names = {f.name for f in input_schema}
@@ -635,6 +638,7 @@ class OnDemandFeatureView(BaseFeatureView):
             singleton=self.singleton or False,
             aggregations=[agg.to_proto() for agg in self.aggregations],
             version=self.version,
+            disabled=not self.enabled,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
@@ -709,6 +713,7 @@ class OnDemandFeatureView(BaseFeatureView):
         # Set additional attributes that aren't part of the constructor
         on_demand_feature_view_obj.entities = optional_fields["entities"]
         on_demand_feature_view_obj.entity_columns = optional_fields["entity_columns"]
+        on_demand_feature_view_obj.enabled = not on_demand_feature_view_proto.spec.disabled
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
         # Create the default projection.
