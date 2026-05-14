@@ -1,13 +1,9 @@
-import contextlib
 import logging
 import uuid
 from datetime import date, datetime
 from typing import (
     Any,
-    Callable,
-    ContextManager,
     Dict,
-    Iterator,
     List,
     Literal,
     Optional,
@@ -192,28 +188,22 @@ class TrinoOfflineStoreConfig(FeastConfigBaseModel):
 class TrinoRetrievalJob(RetrievalJob):
     def __init__(
         self,
-        query: Union[str, Callable[[], ContextManager[str]]],
+        query: str,
         client: Trino,
         config: RepoConfig,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
+        temp_table: Optional[str] = None,
     ):
-        if not isinstance(query, str):
-            self._query_generator = query
-        else:
-
-            @contextlib.contextmanager
-            def query_generator() -> Iterator[str]:
-                assert isinstance(query, str)
-                yield query
-
-            self._query_generator = query_generator
+        self._query = query
         self._client = client
         self._config = config
         self._full_feature_names = full_feature_names
         self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
+        self._temp_table = temp_table
+        self._cleaned_up = False
 
     @property
     def full_feature_names(self) -> bool:
@@ -223,12 +213,29 @@ class TrinoRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
+    def _drop_temp_table(self) -> None:
+        if self._cleaned_up or not self._temp_table:
+            return
+        self._cleaned_up = True
+        try:
+            self._client.execute_query(f"DROP TABLE IF EXISTS {self._temp_table}")
+        except Exception:
+            logger.exception(
+                "Failed to drop temporary entity table %s",
+                self._temp_table,
+            )
+
+    def __del__(self) -> None:
+        self._drop_temp_table()
+
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
-        with self._query_generator() as query:
-            results = self._client.execute_query(query_text=query)
+        try:
+            results = self._client.execute_query(query_text=self._query)
             self.pyarrow_schema = results.pyarrow_schema
             return results.to_dataframe()
+        finally:
+            self._drop_temp_table()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return payrrow dataset as synchronously including on demand transforms"""
@@ -236,8 +243,7 @@ class TrinoRetrievalJob(RetrievalJob):
 
     def to_sql(self) -> str:
         """Returns the SQL query that will be executed in Trino to build the historical feature table"""
-        with self._query_generator() as query:
-            return query
+        return self._query
 
     def to_trino(
         self,
@@ -260,9 +266,11 @@ class TrinoRetrievalJob(RetrievalJob):
             destination_table = f"{self._client.catalog}.{self._config.offline_store.dataset}.historical_{today}_{rand_id}"
 
         # TODO: Implement the timeout logic
-        with self._query_generator() as query:
-            create_query = f"CREATE TABLE {destination_table} AS ({query})"
+        try:
+            create_query = f"CREATE TABLE {destination_table} AS ({self._query})"
             self._client.execute_query(query_text=create_query)
+        finally:
+            self._drop_temp_table()
         return destination_table
 
     def persist(
@@ -411,22 +419,9 @@ class TrinoOfflineStore(OfflineStore):
             full_feature_names=full_feature_names,
         )
 
-        @contextlib.contextmanager
-        def query_generator() -> Iterator[str]:
-            try:
-                yield query
-            finally:
-                if isinstance(entity_df, pd.DataFrame):
-                    try:
-                        client.execute_query(f"DROP TABLE IF EXISTS {table_reference}")
-                    except Exception:
-                        logger.exception(
-                            "Failed to drop temporary entity table %s",
-                            table_reference,
-                        )
-
         return TrinoRetrievalJob(
-            query=query_generator,
+            query=query,
+            temp_table=table_reference if isinstance(entity_df, pd.DataFrame) else None,
             client=client,
             config=config,
             full_feature_names=full_feature_names,
