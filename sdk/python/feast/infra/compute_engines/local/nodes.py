@@ -79,6 +79,10 @@ class LocalJoinNode(LocalNode):
         for val in input_values:
             val.assert_format(DAGFormat.ARROW)
 
+        # The upstream source-read node has already renamed columns via
+        # field_mapping, so use the mapped join keys for joining (see #5942).
+        join_keys = self.column_info.join_keys_columns
+
         # Convert all upstream ArrowTables to backend DataFrames
         joined_df = self.backend.from_arrow(input_values[0].data)
         for val in input_values[1:]:
@@ -86,7 +90,7 @@ class LocalJoinNode(LocalNode):
             joined_df = self.backend.join(
                 joined_df,
                 next_df,
-                on=self.column_info.join_keys,
+                on=join_keys,
                 how=self.how,
             )
 
@@ -105,7 +109,7 @@ class LocalJoinNode(LocalNode):
             joined_df = self.backend.join(
                 entity_df,
                 joined_df,
-                on=self.column_info.join_keys,
+                on=join_keys,
                 how="left",
             )
 
@@ -193,8 +197,10 @@ class LocalDedupNode(LocalNode):
 
         # Extract join_keys, timestamp, and created_ts from context
 
-        # Dedup strategy: sort and drop_duplicates
-        dedup_keys = self.column_info.join_keys
+        # Dedup strategy: sort and drop_duplicates. Use the mapped join key
+        # names so we look up the columns that the source-read node has
+        # already renamed (see issue #5942).
+        dedup_keys = self.column_info.join_keys_columns
         if dedup_keys:
             sort_keys = [self.column_info.timestamp_column]
             if (

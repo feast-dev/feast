@@ -1,6 +1,7 @@
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 
+from feast.demos import copy_demo_notebooks
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
     AthenaSource,
@@ -41,6 +42,7 @@ except PackageNotFoundError:
 __all__ = [
     "Aggregation",
     "BatchFeatureView",
+    "copy_demo_notebooks",
     "DataFrameEngine",
     "Entity",
     "KafkaSource",

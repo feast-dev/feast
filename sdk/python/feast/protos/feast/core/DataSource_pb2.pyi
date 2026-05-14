@@ -41,7 +41,7 @@ DESCRIPTOR: _descriptor.FileDescriptor
 @_typing.final
 class DataSource(_message.Message):
     """Defines a Data Source that can be used source Feature data
-    Next available id: 28
+    Next available id: 29
     """
 
     DESCRIPTOR: _descriptor.Descriptor
@@ -527,6 +527,7 @@ class DataSource(_message.Message):
     SPARK_OPTIONS_FIELD_NUMBER: _builtins.int
     TRINO_OPTIONS_FIELD_NUMBER: _builtins.int
     ATHENA_OPTIONS_FIELD_NUMBER: _builtins.int
+    TIMESTAMP_FIELD_TYPE_FIELD_NUMBER: _builtins.int
     name: _builtins.str
     """Unique name of data source within the project"""
     project: _builtins.str
@@ -542,6 +543,10 @@ class DataSource(_message.Message):
     """
     created_timestamp_column: _builtins.str
     """Must specify creation timestamp column name"""
+    timestamp_field_type: _builtins.str
+    """(Optional) Type of the timestamp_field column ("TIMESTAMP" or "DATE").
+    When set to "DATE", SQL generation uses date-only comparisons.
+    """
     data_source_class_type: _builtins.str
     """This is an internal field that is represents the python class for the data source object a proto object represents.
     This should be set by feast, and not by users.
@@ -599,6 +604,7 @@ class DataSource(_message.Message):
         timestamp_field: _builtins.str = ...,
         date_partition_column: _builtins.str = ...,
         created_timestamp_column: _builtins.str = ...,
+        timestamp_field_type: _builtins.str = ...,
         data_source_class_type: _builtins.str = ...,
         batch_source: Global___DataSource | None = ...,
         meta: Global___DataSource.SourceMeta | None = ...,
@@ -617,7 +623,7 @@ class DataSource(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "custom_options", b"custom_options", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "options", b"options", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "trino_options", b"trino_options"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "trino_options", b"trino_options", "type", b"type"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "timestamp_field_type", b"timestamp_field_type", "trino_options", b"trino_options", "type", b"type"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType_options: _TypeAlias = _typing.Literal["file_options", "bigquery_options", "kafka_options", "kinesis_options", "redshift_options", "request_data_options", "custom_options", "snowflake_options", "push_options", "spark_options", "trino_options", "athena_options"]  # noqa: Y015
     _WhichOneofArgType_options: _TypeAlias = _typing.Literal["options", b"options"]  # noqa: Y015
