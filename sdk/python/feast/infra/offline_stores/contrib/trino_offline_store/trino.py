@@ -2,7 +2,18 @@ import contextlib
 import logging
 import uuid
 from datetime import date, datetime
-from typing import Any, Callable, ContextManager, Dict, Iterator, List, Literal, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    ContextManager,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import pandas as pd
@@ -407,9 +418,7 @@ class TrinoOfflineStore(OfflineStore):
             finally:
                 if isinstance(entity_df, pd.DataFrame):
                     try:
-                        client.execute_query(
-                            f"DROP TABLE IF EXISTS {table_reference}"
-                        )
+                        client.execute_query(f"DROP TABLE IF EXISTS {table_reference}")
                     except Exception:
                         logger.exception(
                             "Failed to drop temporary entity table %s",
