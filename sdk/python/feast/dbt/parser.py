@@ -107,6 +107,7 @@ class DbtManifestParser:
         try:
             from dbt_artifacts_parser.parser import parse_manifest
 
+            assert self._raw_manifest is not None
             self._parsed_manifest = parse_manifest(manifest=self._raw_manifest)
         except ImportError:
             raise ImportError(

@@ -3,7 +3,7 @@ Utility functions for Ray compute engine.
 """
 
 import logging
-from typing import TYPE_CHECKING, Callable, Dict, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -162,7 +162,10 @@ def write_to_online_store_from_ray_ds(
     # Ray's map_batches requires a positive integer or "default" for batch_size;
     # None is not accepted.  When no explicit batch size is configured, omit the
     # argument entirely so Ray uses its own default partitioning heuristic.
-    map_batches_kwargs = {"batch_format": "pyarrow", "zero_copy_batch": True}
+    map_batches_kwargs: dict[str, Any] = {
+        "batch_format": "pyarrow",
+        "zero_copy_batch": True,
+    }
     if batch_size is not None:
         map_batches_kwargs["batch_size"] = batch_size
 
