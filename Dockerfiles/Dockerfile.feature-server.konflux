@@ -48,6 +48,7 @@ RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[
 # default user
 USER 1001
 
+
 LABEL com.redhat.component="odh-feature-server" \
       name="odh-feature-server-rhel9" \
       description="odh-feature-server" \
