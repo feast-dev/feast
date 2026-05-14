@@ -60,6 +60,10 @@ class MlflowConfig(FeastBaseModel):
     """ str: Suffix appended to the project name to form the MLflow
         experiment name for operation logs. Defaults to '-feast-ops'. """
 
+    enable_tracing: StrictBool = True
+    """ bool: When True and mlflow.enabled=True, initialize OTEL TracerProvider
+        with MlflowSpanExporter for distributed tracing. Defaults to True. """
+
     def get_tracking_uri(self) -> Optional[str]:
         """Resolve the effective tracking URI for this config instance."""
         return resolve_tracking_uri(self.tracking_uri)
