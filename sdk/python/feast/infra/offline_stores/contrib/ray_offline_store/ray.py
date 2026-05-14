@@ -872,7 +872,7 @@ class RayDataProcessor:
         )
         combined_ds = entity_windowed.union(feature_windowed)
         result_ds = combined_ds.map_batches(
-            self._apply_windowed_point_in_time_logic,
+            self._apply_windowed_point_in_time_logic,  # type: ignore[arg-type]
             batch_format="pandas",
             fn_kwargs={
                 "timestamp_field": timestamp_field,
