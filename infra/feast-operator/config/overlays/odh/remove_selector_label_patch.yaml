@@ -1,2 +1,0 @@
-- op: remove
-  path: /spec/selector/matchLabels/app.kubernetes.io~1name
