@@ -580,6 +580,12 @@ class Registry(BaseRegistry):
                 updated_fv, "enable_validation"
             )
 
+        # Enabled/disabled state
+        if hasattr(existing_proto.spec, "disabled") and hasattr(
+            updated_fv, "enabled"
+        ):
+            existing_proto.spec.disabled = not getattr(updated_fv, "enabled")
+
         # OnDemandFeatureView configuration
         if hasattr(existing_proto.spec, "write_to_online_store") and hasattr(
             updated_fv, "write_to_online_store"

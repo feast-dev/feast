@@ -59,17 +59,69 @@ def feature_view_list(ctx: click.Context, tags: list[str]):
         elif isinstance(feature_view, OnDemandFeatureView):
             for backing_fv in feature_view.source_feature_view_projections.values():
                 entities.update(store.get_feature_view(backing_fv.name).entities)
+        enabled = getattr(feature_view, "enabled", True)
         table.append(
             [
                 feature_view.name,
                 entities if len(entities) > 0 else "n/a",
                 type(feature_view).__name__,
+                "Yes" if enabled else "No",
             ]
         )
 
     from tabulate import tabulate
 
-    print(tabulate(table, headers=["NAME", "ENTITIES", "TYPE"], tablefmt="plain"))
+    print(
+        tabulate(
+            table, headers=["NAME", "ENTITIES", "TYPE", "ENABLED"], tablefmt="plain"
+        )
+    )
+
+
+@feature_views_cmd.command("enable")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def feature_view_enable(ctx: click.Context, name: str):
+    """
+    Enable a feature view for serving and materialization.
+    """
+    store = create_feature_store(ctx)
+    try:
+        fv = store.registry.get_any_feature_view(name, store.project)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    if getattr(fv, "enabled", True):
+        print(f"Feature view '{name}' is already enabled.")
+        return
+
+    fv.enabled = True
+    store.registry.apply_feature_view(fv, store.project)
+    print(f"Feature view '{name}' has been enabled.")
+
+
+@feature_views_cmd.command("disable")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def feature_view_disable(ctx: click.Context, name: str):
+    """
+    Disable a feature view to prevent serving and materialization.
+    """
+    store = create_feature_store(ctx)
+    try:
+        fv = store.registry.get_any_feature_view(name, store.project)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    if not getattr(fv, "enabled", True):
+        print(f"Feature view '{name}' is already disabled.")
+        return
+
+    fv.enabled = False
+    store.registry.apply_feature_view(fv, store.project)
+    print(f"Feature view '{name}' has been disabled.")
 
 
 @feature_views_cmd.command("list-versions")
