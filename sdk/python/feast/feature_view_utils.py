@@ -5,14 +5,27 @@ Utility functions for feature view operations including source resolution.
 import logging
 import typing
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
+
+from feast.errors import (
+    FeastObjectNotFoundException,
+    FeatureViewNotFoundException,
+    OnDemandFeatureViewNotFoundException,
+)
 
 if typing.TYPE_CHECKING:
     from feast.data_source import DataSource
+    from feast.feature_store import FeatureStore
     from feast.feature_view import FeatureView
+    from feast.infra.registry.base_registry import BaseRegistry
+    from feast.on_demand_feature_view import OnDemandFeatureView
     from feast.repo_config import RepoConfig
+    from feast.stream_feature_view import StreamFeatureView
 
 logger = logging.getLogger(__name__)
+
+
+FeatureViewLike = Union["FeatureView", "OnDemandFeatureView", "StreamFeatureView"]
 
 
 @dataclass
@@ -123,6 +136,8 @@ def resolve_feature_view_source(
 
     if not is_derived_view:
         # Regular feature view - use its batch_source directly
+        if feature_view.batch_source is None:
+            raise ValueError(f"Feature view '{feature_view.name}' has no batch_source.")
         return FeatureViewSourceInfo(
             data_source=feature_view.batch_source,
             source_type="batch_source",
@@ -165,8 +180,13 @@ def resolve_feature_view_source(
     if hasattr(parent_view, "source_views") and parent_view.source_views:
         # Parent is also a derived view - recursively find original source
         original_source_view = find_original_source_view(parent_view)
+        original_batch_source = original_source_view.batch_source
+        if original_batch_source is None:
+            raise ValueError(
+                f"Original source view '{original_source_view.name}' has no batch_source."
+            )
         return FeatureViewSourceInfo(
-            data_source=original_source_view.batch_source,
+            data_source=original_batch_source,
             source_type="original_source",
             has_transformation=view_has_transformation,
             transformation_func=transformation_func,
@@ -216,8 +236,13 @@ def resolve_feature_view_source_with_fallback(
         elif hasattr(feature_view, "source_views") and feature_view.source_views:
             # Try the original source view as last resort
             original_view = find_original_source_view(feature_view)
+            original_view_batch_source = original_view.batch_source
+            if original_view_batch_source is None:
+                raise ValueError(
+                    f"Original source view '{original_view.name}' has no batch_source."
+                )
             return FeatureViewSourceInfo(
-                data_source=original_view.batch_source,
+                data_source=original_view_batch_source,
                 source_type="fallback_original_source",
                 has_transformation=has_transformation(feature_view),
                 transformation_func=get_transformation_function(feature_view),
@@ -227,3 +252,50 @@ def resolve_feature_view_source_with_fallback(
             raise ValueError(
                 f"Unable to resolve any data source for feature view {feature_view.name}"
             )
+
+
+def get_feature_view_from_feature_store(
+    store: "FeatureStore",
+    name: str,
+    allow_registry_cache: bool = False,
+) -> FeatureViewLike:
+    try:
+        return store.get_feature_view(name, allow_registry_cache=allow_registry_cache)
+    except FeatureViewNotFoundException:
+        try:
+            return store.get_on_demand_feature_view(
+                name, allow_registry_cache=allow_registry_cache
+            )
+        except (FeatureViewNotFoundException, OnDemandFeatureViewNotFoundException):
+            try:
+                return store.get_stream_feature_view(
+                    name, allow_registry_cache=allow_registry_cache
+                )
+            except FeatureViewNotFoundException as e:
+                raise FeastObjectNotFoundException(
+                    f"Can't recognize feast object with a name {name}"
+                ) from e
+
+
+def get_feature_view_from_registry(
+    registry: "BaseRegistry",
+    name: str,
+    project: str,
+    allow_cache: bool = False,
+) -> FeatureViewLike:
+    try:
+        return registry.get_feature_view(name, project, allow_cache=allow_cache)
+    except FeatureViewNotFoundException:
+        try:
+            return registry.get_on_demand_feature_view(
+                name, project, allow_cache=allow_cache
+            )
+        except (FeatureViewNotFoundException, OnDemandFeatureViewNotFoundException):
+            try:
+                return registry.get_stream_feature_view(
+                    name, project, allow_cache=allow_cache
+                )
+            except FeatureViewNotFoundException as e:
+                raise FeastObjectNotFoundException(
+                    f"Can't recognize feast object with a name {name}"
+                ) from e

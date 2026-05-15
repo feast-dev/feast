@@ -3,9 +3,9 @@ name = "feast"
 description = "Python SDK for Feast"
 readme = "README.md"
 requires-python = ">=3.10.0"
-license = {file = "LICENSE"}
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10"
@@ -23,8 +23,8 @@ dependencies = [
     "mmh3",
     "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
-    "pyarrow<=17.0.0",
-    "pydantic==2.10.6",
+    "pyarrow>=21.0.0",
+    "pydantic>=2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -39,7 +39,7 @@ dependencies = [
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
-    "prometheus_client",
+    "prometheus_client>=0.20.0,<0.25.0",
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
@@ -59,7 +59,7 @@ clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
 docling = ["docling==2.27.0"]
-duckdb = ["ibis-framework[duckdb]>=9.0.0,<=9.5.0"]
+duckdb = ["ibis-framework[duckdb]>=10.0.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
 gcp = [
@@ -82,13 +82,7 @@ grpcio = [
 hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
 ibis = [
-    "ibis-framework>=9.0.0,<=9.5.0",
-    "ibis-substrait>=4.0.0",
-    "poetry-core<2",
-    "poetry-dynamic-versioning",
-]
-ikv = [
-    "ikvpy>=0.0.36",
+    "ibis-framework>=10.0.0",
 ]
 k8s = ["kubernetes"]
 image = [
@@ -98,12 +92,18 @@ image = [
     "scikit-learn>=1.0.0",
 ]
 milvus = [
-    "pymilvus==2.4.9",
+    "pymilvus>2.5",
     "milvus-lite==2.4.12",
     "feast[setuptools]"
 ]
-mssql = ["ibis-framework[mssql]>=9.0.0,<=9.5.0"]
+mongodb = [
+    "pymongo>=4.13.0,<5.0.0",
+    "dnspython>=2.0.0",
+]
+mssql = ["ibis-framework[mssql]>=10.0.0"]
+oracle = ["ibis-framework[oracle]>=10.0.0"]
 mysql = ["pymysql", "types-PyMySQL"]
+openlineage = ["openlineage-python>=1.40.0"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=4.0.0"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
@@ -116,53 +116,62 @@ qdrant = ["qdrant-client>=1.12.0"]
 rag = [
     "transformers>=4.36.0",
     "datasets>=3.6.0",
+    "sentence-transformers>=3.0.0",
 ]
 ray = [
 'ray>=2.47.0; python_version == "3.10"',
-'codeflare-sdk>=0.31.1; python_version != "3.10"'
+'codeflare-sdk>=0.31.1; python_version > "3.10"',
+"datasets>=3.6.0",
 ]
 redis = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<8",
+    "hiredis>=2.0.0,<4",
 ]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
-    "snowflake-connector-python[pandas]>=3.7,<4",
+    "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
 
+dbt = ["dbt-artifacts-parser"]
+
+test = [
+    "pytest>=6.0.0,<8",
+    "pytest-xdist>=3.8.0",
+    "pytest-timeout==1.4.2",
+    "pytest-lazy-fixture==0.6.3",
+    "pytest-ordering~=0.6.0",
+    "pytest-mock==1.10.4",
+    "pytest-env",
+    "pytest-benchmark>=3.4.1,<4",
+    "pytest-asyncio<=0.24.0",
+    "py>=1.11.0",
+    "testcontainers>=4.15.0rc2",
+    "minio==7.2.11",
+    "python-keycloak==4.2.2",
+    "cryptography>=43.0",
+]
+
 ci = [
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
     "virtualenv==20.23.0",
-    "cryptography>=43.0,<44",
+    "dbt-artifacts-parser",
     "ruff>=0.8.0",
     "mypy-protobuf>=3.1",
     "grpcio-tools>=1.56.2,<=1.62.3",
     "grpcio-testing>=1.56.2,<=1.62.3",
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx==0.27.2",
-    "minio==7.2.11",
     "mock==2.0.0",
     "moto<5",
     "mypy>=1.4.1,<1.11.3",
-    "urllib3>=1.25.4,<3",
+    "urllib3>=2.6.3,<3",
     "psutil==5.9.0",
-    "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
-    "pytest>=6.0.0,<8",
-    "pytest-asyncio<=0.24.0",
     "pytest-cov",
-    "pytest-xdist",
-    "pytest-benchmark>=3.4.1,<4",
-    "pytest-lazy-fixture==0.6.3",
-    "pytest-timeout==1.4.2",
-    "pytest-ordering~=0.6.0",
-    "pytest-mock==1.10.4",
-    "pytest-env",
     "Sphinx>4.0.0,<7",
     "sqlglot[rs]>=23.4",
-    "testcontainers==4.9.0",
-    "python-keycloak==4.2.2",
     "pre-commit<3.3.2",
     "assertpy==1.1",
     "pip-tools",
@@ -176,8 +185,6 @@ ci = [
     "types-requests<2.31.0",
     "types-setuptools",
     "types-tabulate",
-    "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
@@ -227,8 +234,9 @@ requires = [
   "setuptools>=60,<81",
   "setuptools_scm>=6.2",
   "sphinx!=4.0.0",
-  "wheel",
+  "wheel>=0.46.2",
 ]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = {find = {where = ["sdk/python"], exclude = ["java", "infra", "sdk/python/tests", "ui"]}}
@@ -248,14 +256,14 @@ include = ["*.py", "*.pyi"]
 
 [tool.ruff.format]
 # exclude a few common directories in the root of the project
-exclude = [ 
-  ".eggs", 
-  ".git", 
-  ".hg", 
+exclude = [
+  ".eggs",
+  ".git",
+  ".hg",
   ".mypy_cache",
-  ".tox", 
-  ".venv", 
-  "_build", 
+  ".tox",
+  ".venv",
+  "_build",
   "buck-out",
   "build",
   "dist",
@@ -263,3 +271,44 @@ exclude = [
   ".pyi",
   "protos",
   "sdk/python/feast/embedded_go/lib"]
+
+[dependency-groups]
+dev = [
+    "pytest-xdist>=3.8.0",
+]
+
+# Pixi configuration
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
+
+[tool.pixi.feature.py310.dependencies]
+python = "~=3.10.0"
+
+[tool.pixi.feature.duckdb-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["duckdb", "delta", "grpcio", "test"] }
+
+[tool.pixi.feature.duckdb-tests.tasks]
+test = { cmd = "python -m pytest -n 8 --integration -m 'not ray_offline_stores_only' --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.duckdb_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+
+[tool.pixi.feature.ray-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["ray", "grpcio", "test"] }
+
+[tool.pixi.feature.ray-tests.tasks]
+test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.ray_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+test-compute = { cmd = "python -m pytest -v --integration sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test-unit-compute-ray = { cmd = "python -m pytest -v sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test = { depends-on = ["test-offline", "test-unit-compute-ray", "test-compute"] }
+
+[tool.pixi.feature.registration-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["aws", "gcp", "grpcio", "postgres", "mysql", "redis", "snowflake", "spark", "test"] }
+grpcio-testing = ">=1.56.2,<=1.62.3"
+
+[tool.pixi.feature.registration-tests.tasks]
+test = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test-ci = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = "." } }
+
+[tool.pixi.environments]
+duckdb-tests = ["py310", "duckdb-tests"]
+ray-tests = ["py310", "ray-tests"]
+registration-tests = ["py310", "registration-tests"]

@@ -28,15 +28,27 @@ def feature_repo(feastignore_contents: Optional[str]):
         (repo_root / "bar").mkdir()
         (repo_root / "bar/subdir1").mkdir()
         (repo_root / "bar/subdir1/subdir2").mkdir()
+        (repo_root / "foo/__pycache__").mkdir()
+        (repo_root / "foo/.pytest_cache").mkdir()
+        (repo_root / "foo/.ipynb_checkpoints").mkdir()
+        (repo_root / "bar/subdir1/.ipynb_checkpoints").mkdir()
+        (repo_root / "bar/subdir1/subdir2/.ipynb_checkpoints").mkdir()
 
         (repo_root / "a.py").touch()
         (repo_root / ".ipynb_checkpoints/test-checkpoint.py").touch()
         (repo_root / "foo/b.py").touch()
+        (repo_root / "foo/__pycache__/b.cpython.pyc").touch()
+        (repo_root / "foo/.pytest_cache/test-README.md").touch()
+        (repo_root / "foo/.ipynb_checkpoints/foo-checkpoint.py").touch()
         (repo_root / "foo1/c.py").touch()
         (repo_root / "foo1/bar/d.py").touch()
         (repo_root / "bar/e.py").touch()
         (repo_root / "bar/subdir1/f.py").touch()
+        (repo_root / "bar/subdir1/.ipynb_checkpoints/subdir1-checkpoint.py").touch()
         (repo_root / "bar/subdir1/subdir2/g.py").touch()
+        (
+            repo_root / "bar/subdir1/subdir2/.ipynb_checkpoints/nested-checkpoint.py"
+        ).touch()
 
         if feastignore_contents:
             with open(repo_root / ".feastignore", "w") as f:
@@ -80,6 +92,7 @@ def test_feastignore_no_stars():
             {
                 (repo_root / "foo/b.py").resolve(),
                 (repo_root / "bar/subdir1/f.py").resolve(),
+                (repo_root / "foo/.ipynb_checkpoints/foo-checkpoint.py").resolve(),
             }
         )
         assertpy.assert_that(get_repo_files(repo_root)).is_equal_to(
@@ -110,6 +123,13 @@ def test_feastignore_with_stars():
             {
                 (repo_root / "foo/b.py").resolve(),
                 (repo_root / "bar/subdir1/f.py").resolve(),
+                (
+                    repo_root
+                    / "bar/subdir1/subdir2/.ipynb_checkpoints/nested-checkpoint.py"
+                ).resolve(),
+                (
+                    repo_root / "bar/subdir1/.ipynb_checkpoints/subdir1-checkpoint.py"
+                ).resolve(),
                 (repo_root / "bar/e.py").resolve(),
                 (repo_root / "bar/subdir1/f.py").resolve(),
                 (repo_root / "bar/subdir1/subdir2/g.py").resolve(),
@@ -135,6 +155,13 @@ def test_feastignore_with_stars2():
         assertpy.assert_that(get_ignore_files(repo_root, ignore_paths)).is_equal_to(
             {
                 (repo_root / "bar/subdir1/f.py").resolve(),
+                (
+                    repo_root
+                    / "bar/subdir1/subdir2/.ipynb_checkpoints/nested-checkpoint.py"
+                ).resolve(),
+                (
+                    repo_root / "bar/subdir1/.ipynb_checkpoints/subdir1-checkpoint.py"
+                ).resolve(),
                 (repo_root / "bar/e.py").resolve(),
                 (repo_root / "bar/subdir1/f.py").resolve(),
                 (repo_root / "bar/subdir1/subdir2/g.py").resolve(),
@@ -180,10 +207,10 @@ def test_parse_repo_with_future_annotations():
         repo_path = Path(temp_path / "my_project" / "feature_repo")
         assert result.returncode == 0
 
-        with open(repo_path / "example_repo.py", "r") as f:
+        with open(repo_path / "feature_definitions.py", "r") as f:
             existing_content = f.read()
 
-        with open(repo_path / "example_repo.py", "w") as f:
+        with open(repo_path / "feature_definitions.py", "w") as f:
             f.write("from __future__ import annotations" + "\n" + existing_content)
 
         repo_contents = parse_repo(repo_path)

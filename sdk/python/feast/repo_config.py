@@ -58,7 +58,6 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
     "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
-    "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
     "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
     "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
@@ -77,13 +76,14 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "cassandra": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "mysql": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "hazelcast": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
-    "ikv": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
     "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "qdrant": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
     "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
+    "mongodb": "feast.infra.online_stores.mongodb_online_store.MongoDBOnlineStore",
+    "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
@@ -103,6 +103,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
+    "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -119,6 +120,24 @@ AUTH_CONFIGS_CLASS_FOR_TYPE = {
     "oidc_client": "feast.permissions.auth_model.OidcClientAuthConfig",
 }
 
+_OIDC_CLIENT_KEYS = frozenset(
+    {"client_secret", "token", "token_env_var", "username", "password"}
+)
+
+
+def _is_oidc_client_config(auth_dict: dict) -> bool:
+    """Decide whether an OIDC auth dict should be routed to OidcClientAuthConfig.
+
+    True when the dict carries any client-credential key, or when it is a bare
+    ``{"type": "oidc"}`` dict with no server-side keys (auth_discovery_url /
+    client_id), which signals token-passthrough via FEAST_OIDC_TOKEN.
+    """
+    if auth_dict.get("type") != AuthType.OIDC.value:
+        return False
+    has_client_keys = bool(_OIDC_CLIENT_KEYS & auth_dict.keys())
+    has_server_keys = "auth_discovery_url" in auth_dict
+    return has_client_keys or not has_server_keys
+
 
 class FeastBaseModel(BaseModel):
     """Feast Pydantic Configuration Class"""
@@ -130,6 +149,13 @@ class FeastConfigBaseModel(BaseModel):
     """Feast Pydantic Configuration Class"""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+
+
+class McpRegistryConfig(FeastBaseModel):
+    """MCP (Model Context Protocol) configuration for the registry REST server."""
+
+    enabled: StrictBool = False
+    """ bool: Enable MCP support on the REST registry server. """
 
 
 class RegistryConfig(FeastBaseModel):
@@ -152,6 +178,12 @@ class RegistryConfig(FeastBaseModel):
      set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
+    cache_mode: StrictStr = "sync"
+    """str: Cache mode type. Possible options are 'sync' (immediate refresh after each write operation) and
+     'thread' (asynchronous background refresh at cache_ttl_seconds intervals). In 'sync' mode, registry changes
+     are immediately visible. In 'thread' mode, changes may take up to
+     cache_ttl_seconds to be visible."""
+
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
 
@@ -159,6 +191,15 @@ class RegistryConfig(FeastBaseModel):
     """ bool: Stops using feast_metadata table and delete data from feast_metadata table.
         Once this is set to True, it cannot be reverted back to False. Reverting back to False will
         only reset the project but not all the projects"""
+
+    enable_online_feature_view_versioning: StrictBool = False
+    """ bool: Enable versioned online store tables and version-qualified reads
+        (e.g., 'fv@v2:feature'). When True, each schema version gets its own
+        online store table and can be queried independently. Version history
+        tracking in the registry is always active regardless of this setting. """
+
+    mcp: Optional[McpRegistryConfig] = None
+    """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
 
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
@@ -174,6 +215,79 @@ class RegistryConfig(FeastBaseModel):
                 )
                 return path.replace("postgresql://", "postgresql+psycopg://")
         return path
+
+
+class MaterializationConfig(BaseModel):
+    """Configuration options for feature materialization behavior."""
+
+    pull_latest_features: StrictBool = False
+    """ bool: If true, feature retrieval jobs will only pull the latest feature values for each entity.
+        If false, feature retrieval jobs will pull all feature values within the specified time range. """
+
+    online_write_batch_size: Optional[int] = Field(default=None, gt=0)
+    """ int: Number of rows to write to online store per batch during materialization.
+        If None (default), all rows are written in a single batch for backward compatibility.
+        Set to a positive integer (e.g., 10000) to enable batched writes.
+        Supported compute engines: local, spark, ray. """
+
+
+class OpenLineageConfig(FeastBaseModel):
+    """Configuration for OpenLineage integration.
+
+    This enables automatic data lineage tracking for Feast operations like
+    materialization, feature retrieval, and registry changes.
+
+    Example configuration in feature_store.yaml:
+        openlineage:
+            enabled: true
+            transport_type: http
+            transport_url: http://localhost:5000
+            transport_endpoint: api/v1/lineage
+            namespace: feast
+    """
+
+    enabled: StrictBool = False
+    """ bool: Whether OpenLineage integration is enabled. Defaults to False. """
+
+    transport_type: StrictStr = "console"
+    """ str: Type of transport (http, console, file, kafka). Defaults to console. """
+
+    transport_url: Optional[StrictStr] = None
+    """ str: URL for HTTP transport. Required when transport_type is 'http'. """
+
+    transport_endpoint: StrictStr = "api/v1/lineage"
+    """ str: API endpoint for HTTP transport. Defaults to 'api/v1/lineage'. """
+
+    api_key: Optional[StrictStr] = None
+    """ str: Optional API key for authentication with the lineage server. """
+
+    namespace: StrictStr = "feast"
+    """ str: Default namespace for Feast jobs and datasets. """
+
+    producer: StrictStr = "feast"
+    """ str: Producer identifier for OpenLineage events. """
+
+    emit_on_apply: StrictBool = True
+    """ bool: Emit lineage events when 'feast apply' is called. """
+
+    emit_on_materialize: StrictBool = True
+    """ bool: Emit lineage events during materialization. """
+
+    def to_openlineage_config(self):
+        """Convert to feast.openlineage.OpenLineageConfig."""
+        from feast.openlineage.config import OpenLineageConfig as OLConfig
+
+        return OLConfig(
+            enabled=self.enabled,
+            transport_type=self.transport_type,
+            transport_url=self.transport_url,
+            transport_endpoint=self.transport_endpoint,
+            api_key=self.api_key,
+            namespace=self.namespace,
+            producer=self.producer,
+            emit_on_apply=self.emit_on_apply,
+            emit_on_materialize=self.emit_on_materialize,
+        )
 
 
 class RepoConfig(FeastBaseModel):
@@ -233,6 +347,14 @@ class RepoConfig(FeastBaseModel):
     coerce_tz_aware: Optional[bool] = True
     """ If True, coerces entity_df timestamp columns to be timezone aware (to UTC by default). """
 
+    materialization_config: MaterializationConfig = Field(
+        MaterializationConfig(), alias="materialization"
+    )
+    """ MaterializationConfig: Configuration options for feature materialization behavior. """
+
+    openlineage_config: Optional[OpenLineageConfig] = Field(None, alias="openlineage")
+    """ Configuration for OpenLineage data lineage integration (optional). """
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 
@@ -268,6 +390,11 @@ class RepoConfig(FeastBaseModel):
                 self.feature_server["type"]
             )(**self.feature_server)
 
+        # Initialize OpenLineage configuration
+        self._openlineage: Optional[OpenLineageConfig] = None
+        if "openlineage" in data:
+            self.openlineage_config = data["openlineage"]
+
         if self.entity_key_serialization_version < 3:
             warnings.warn(
                 "The serialization version below 3 are deprecated. "
@@ -287,10 +414,11 @@ class RepoConfig(FeastBaseModel):
                     # This may be a custom registry store, which does not need a 'registry_type'
                     self._registry = RegistryConfig(**self.registry_config)
             elif isinstance(self.registry_config, str):
-                # User passed in just a path to file registry
-                self._registry = get_registry_config_from_type("file")(
-                    path=self.registry_config
-                )
+                # Let Registry.__init__ auto-detect the correct store class
+                # from the URI scheme (e.g. gs:// -> GCSRegistryStore).
+                # Previously this hardcoded "file" type, which broke gs:// and
+                # s3:// paths because FileRegistryStore uses pathlib.Path.
+                self._registry = RegistryConfig(path=self.registry_config)
             elif self.registry_config:
                 self._registry = self.registry_config
         return self._registry
@@ -314,26 +442,12 @@ class RepoConfig(FeastBaseModel):
     def auth_config(self):
         if not self._auth:
             if isinstance(self.auth, Dict):
-                # treat this auth block as *client-side* OIDC when it matches
-                #   1)  ROPG            – username + password + client_secret
-                #   2)  client-credentials – client_secret only
-                #   3)  static token    – token
-                is_oidc_client = self.auth.get("type") == AuthType.OIDC.value and (
-                    (
-                        "username" in self.auth
-                        and "password" in self.auth
-                        and "client_secret" in self.auth
-                    )  # 1
-                    or (
-                        "client_secret" in self.auth
-                        and "username" not in self.auth
-                        and "password" not in self.auth
-                    )  # 2
-                    or ("token" in self.auth)  # 3
+                config_type = (
+                    "oidc_client"
+                    if _is_oidc_client_config(self.auth)
+                    else self.auth.get("type")
                 )
-                self._auth = get_auth_config_from_type(
-                    "oidc_client" if is_oidc_client else self.auth.get("type")
-                )(**self.auth)
+                self._auth = get_auth_config_from_type(config_type)(**self.auth)
             elif isinstance(self.auth, str):
                 self._auth = get_auth_config_from_type(self.auth)()
             elif self.auth:
@@ -370,6 +484,16 @@ class RepoConfig(FeastBaseModel):
                 self._batch_engine = self._batch_engine
 
         return self._batch_engine
+
+    @property
+    def openlineage(self) -> Optional[OpenLineageConfig]:
+        """Get the OpenLineage configuration."""
+        if not self._openlineage:
+            if isinstance(self.openlineage_config, Dict):
+                self._openlineage = OpenLineageConfig(**self.openlineage_config)
+            elif self.openlineage_config:
+                self._openlineage = self.openlineage_config
+        return self._openlineage
 
     @model_validator(mode="before")
     def _validate_auth_config(cls, values: Any) -> Any:
@@ -428,6 +552,7 @@ class RepoConfig(FeastBaseModel):
             online_config_class(**values["online_store"])
         except ValidationError as e:
             raise e
+
         return values
 
     @model_validator(mode="before")
@@ -483,13 +608,27 @@ class RepoConfig(FeastBaseModel):
 
     @field_validator("project")
     @classmethod
-    def _validate_project_name(cls, v: str) -> str:
+    def _validate_project_name(cls, v: str, info: ValidationInfo) -> str:
+        # Deferred import to avoid circular dependency during package initialization.
         from feast.repo_operations import is_valid_name
+
+        sqlite_compatible = False
+
+        online_store = info.data.get("online_store") if info else None
+        if online_store is None or online_store == {}:
+            sqlite_compatible = True
+        elif isinstance(online_store, dict):
+            sqlite_compatible = online_store.get("type", "sqlite") == "sqlite"
 
         if not is_valid_name(v):
             raise ValueError(
                 f"Project name, {v}, should only have "
                 f"alphanumerical values, underscores, and hyphens but not start with an underscore or hyphen."
+            )
+
+        if sqlite_compatible and "-" in v:
+            raise ValueError(
+                "Project names for SQLite online stores cannot contain hyphens because they are used in table names."
             )
         return v
 

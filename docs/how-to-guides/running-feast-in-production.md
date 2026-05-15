@@ -18,6 +18,10 @@ For example, you might not have a stream source and, thus, no need to write feat
 Additionally, please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md).
 {% endhint %}
 
+{% hint style="info" %}
+**Looking for production deployment patterns?** See the [Feast Production Deployment Topologies](./production-deployment-topologies.md) guide for three Kubernetes-ready topologies (Minimal, Standard, Enterprise), sample FeatureStore CRs, RBAC policies, infrastructure recommendations, and scaling best practices.
+{% endhint %}
+
 In this guide we will show you how to:
 
 1. Deploy your feature store and keep your infrastructure in sync with your feature repository
@@ -70,6 +74,15 @@ It is up to you to orchestrate and schedule runs of materialization.
 Feast keeps the history of materialization in its registry so that the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron). Cron util should be sufficient when you have just a few materialization jobs (it's usually one materialization job per feature view) triggered infrequently. 
 
 However, the amount of work can quickly outgrow the resources of a single machine. That happens because the materialization job needs to repackage all rows before writing them to an online store. That leads to high utilization of CPU and memory. In this case, you might want to use a job orchestrator to run multiple jobs in parallel using several workers. Kubernetes Jobs or Airflow are good choices for more comprehensive job orchestration.
+
+For large datasets, you can also reduce peak memory on the materialization worker by setting `online_write_batch_size` in `feature_store.yaml`. This breaks the proto conversion and write into chunks instead of loading the entire dataset into memory at once:
+
+```yaml
+materialization:
+  online_write_batch_size: 10000   # rows per write batch; reduces peak memory proportionally
+```
+
+See the [Materialization write performance](./online-server-performance-tuning.md#materialization-write-performance) guide for sizing recommendations and the full option reference in [feature_store.yaml](../reference/feature-repository/feature-store-yaml.md#online_write_batch_size).
 
 If you are using Airflow as a scheduler, Feast can be invoked through a  [PythonOperator](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html) after the [Python SDK](https://pypi.org/project/feast/) has been installed into a virtual environment and your feature repo has been synced:
 
@@ -204,54 +217,7 @@ feature_vector = fs.get_online_features(
 ```
 
 ### 4.2. Deploy Feast feature servers on Kubernetes
-
-To deploy a Feast feature server on Kubernetes, you should use the included [feast-operator](../../infra/feast-operator).
-
-{% embed url="https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX" %}
-
-**Basic steps**
-1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-2. Install the Operator
-
-
-Install the latest release
-```sh
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
-```
-
-OR, install a specific version -
-```
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
-```
-
-3. Deploy a Feature Store
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1alpha1_featurestore.yaml
-```
-Verify the status
-```
-$ kubectl get feast
-NAME     STATUS   AGE
-sample   Ready    2m21s
-```
-
-The above will install a simple [FeatureStore CR](../../infra/feast-operator/docs/api/markdown/ref.md) like the following. By default, it will run the [Online Store feature server](../reference/feature-servers/python-feature-server.md) -
-```yaml
-apiVersion: feast.dev/v1alpha1
-kind: FeatureStore
-metadata:
-  name: sample
-spec:
-  feastProject: my_project
-```
-> _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
-
-For first-time Operator users, it may be a good exercise to try the [Feast Operator Quickstart](../../examples/operator-quickstart). The quickstart will demonstrate some of the Operator's built-in features, e.g. git repos, `feast apply` jobs, etc.
-
-{% hint style="success" %} Important note: Scaling a Feature Store Deployment should only be done if the configured data store(s) will support it.
-
-Please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md). {% endhint %}
+See [Feast on Kubernetes](./feast-on-kubernetes.md).
 
 ## 5. Using environment variables in your yaml configuration
 

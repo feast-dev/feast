@@ -83,12 +83,28 @@ def run_demo():
             ],
         )
 
-        # Convert to DataFrame - Ray processes this efficiently
-        historical_df = historical_features.to_df()
-        print(f"   ✓ Retrieved {len(historical_df)} historical feature rows")
-        print(f"   ✓ Features: {list(historical_df.columns)}")
+        # to_ray_dataset() returns the result as a Ray Dataset — no data is
+        # collected on the driver when the Ray offline store is used.  This is
+        # the preferred output format for Ray Train, Ray Serve, and other
+        # distributed ML workloads.
+        ray_ds = historical_features.to_ray_dataset()
+        print(f"   ✓ Retrieved Ray Dataset with {ray_ds.count()} rows")
+        print(f"   ✓ Schema: {ray_ds.schema()}")
 
-        # Show sample of the data
+        # For non-Ray downstream consumers (pandas, scikit-learn, …) chain
+        # to_df() on the same RetrievalJob instead:
+        historical_df = store.get_historical_features(
+            entity_df=entity_df,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "driver_hourly_stats:avg_daily_trips",
+                "customer_daily_profile:current_balance",
+                "customer_daily_profile:avg_passenger_count",
+                "customer_daily_profile:lifetime_trip_count",
+            ],
+        ).to_df()
+        print(f"   ✓ Same features as pandas DataFrame: {list(historical_df.columns)}")
         print("\n   Sample historical features:")
         print(historical_df.head(3).to_string(index=False))
 

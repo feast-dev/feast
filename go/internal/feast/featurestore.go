@@ -7,6 +7,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/memory"
 
 	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -16,6 +17,8 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 )
+
+var tracer = otel.Tracer("github.com/feast-dev/feast/go/feast")
 
 type FeatureStore struct {
 	config                 *registry.RepoConfig
@@ -322,8 +325,8 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 	requestedFeatureNames []string,
 ) ([][]onlinestore.FeatureData, error) {
 	// Create a Datadog span from context
-	//span, _ := tracer.StartSpanFromContext(ctx, "fs.readFromOnlineStore")
-	//defer span.Finish()
+	ctx, span := tracer.Start(ctx, "fs.readFromOnlineStore")
+	defer span.End()
 
 	numRows := len(entityRows)
 	entityRowsValue := make([]*prototypes.EntityKey, numRows)

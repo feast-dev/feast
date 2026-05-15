@@ -97,7 +97,7 @@ Creating a new Feast repository in /home/Jovyan/my_project.
 Let's take a look at the resulting demo repo itself. It breaks down into
 
 * `data/` contains raw demo parquet data
-* `example_repo.py` contains demo feature definitions
+* `feature_definitions.py` contains demo feature definitions
 * `feature_store.yaml` contains a demo setup configuring where data sources are
 * `test_workflow.py` showcases how to run all key Feast commands, including defining, retrieving, and pushing features.
   You can run this with `python test_workflow.py`.
@@ -117,7 +117,7 @@ entity_key_serialization_version: 3
 ```
 {% endtab %}
 
-{% tab title="example_repo.py" %}
+{% tab title="feature_definitions.py" %}
 ```python
 # This is an example feature definition file
 
@@ -160,8 +160,10 @@ driver_stats_source = FileSource(
 # three feature column. Here we define a Feature View that will allow us to serve this
 # data to our model online.
 driver_stats_fv = FeatureView(
-    # The unique name of this feature view. Two feature views in a single
-    # project cannot have the same name
+# The unique name of this feature view. Two feature views in a single
+# project cannot have the same name, and names must be unique across
+# all feature view types (regular, stream, on-demand) to avoid conflicts
+# during `feast apply`.
     name="driver_hourly_stats",
     entities=[driver],
     ttl=timedelta(days=1),
@@ -310,7 +312,7 @@ We'll walk through some snippets of code below and explain
 ### Step 4: Register feature definitions and deploy your feature store
 
 The `apply` command scans python files in the current directory for feature view/entity definitions, registers the 
-objects, and deploys infrastructure. In this example, it reads `example_repo.py` and sets up SQLite online store tables. Note that we had specified SQLite as the default online store by 
+objects, and deploys infrastructure. In this example, it reads `feature_definitions.py` and sets up SQLite online store tables. Note that we had specified SQLite as the default online store by 
 configuring `online_store` in `feature_store.yaml`.
 
 {% tabs %}
@@ -368,6 +370,9 @@ entity_df = pd.DataFrame.from_dict(
         # entity's join key -> entity values
         "driver_id": [1001, 1002, 1003],
         # "event_timestamp" (reserved key) -> timestamps
+        # Each timestamp acts as the upper bound for the point-in-time join:
+        # Feast retrieves the latest feature values at or before this time,
+        # preventing data leakage from future events.
         "event_timestamp": [
             datetime(2021, 4, 12, 10, 59, 42),
             datetime(2021, 4, 12, 8, 12, 10),
@@ -496,7 +501,7 @@ print(training_df.head())
 {% endtabs %}
 ### Step 6: Ingest batch features into your online store
 
-We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in [feature_repo/feature_repo/example_repo.py](feature_repo/feature_repo/example_repo.py)).
+We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in `feature_definitions.py`).
 
 {% tabs %}
 {% tab title="Bash (with timestamp)" %}
@@ -661,6 +666,7 @@ show up in the upcoming concepts + architecture + tutorial pages as well.
 
 ## Next steps
 
+* Run `feast demo-notebooks` to generate tailored Jupyter notebooks for your project. See [Demo Notebooks](../tutorials/demo-notebooks.md).
 * Read the [Concepts](concepts/) page to understand the Feast data model.
 * Read the [Architecture](architecture/) page.
 * Check out our [Tutorials](../tutorials/tutorials-overview/) section for more examples on how to use Feast.

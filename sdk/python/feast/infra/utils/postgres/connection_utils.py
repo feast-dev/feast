@@ -68,12 +68,15 @@ def _get_conninfo(config: PostgreSQLConfig) -> str:
 
 def _get_conn_kwargs(config: PostgreSQLConfig) -> Dict[str, Any]:
     """Get the additional `kwargs` required for connection objects."""
+    search_path = (config.db_schema or config.user).strip()
+    if search_path != "public":
+        search_path += ",public"
     return {
         "sslmode": config.sslmode,
         "sslkey": config.sslkey_path,
         "sslcert": config.sslcert_path,
         "sslrootcert": config.sslrootcert_path,
-        "options": "-c search_path={}".format(config.db_schema or config.user),
+        "options": "-c search_path={}".format(search_path),
     }
 
 

@@ -172,7 +172,9 @@ def permitted_resources(
     """
     A utility function to invoke the `assert_permissions` method on the global security manager.
 
-    If no global `SecurityManager` is defined, the execution is permitted.
+    If no global `SecurityManager` is defined (NoAuthConfig), all resources are permitted.
+    If a SecurityManager exists but no user context and actions are requested, deny access for security.
+    If a SecurityManager exists but user is intra-communication, allow access.
 
     Args:
         resources: The resources for which we need to enforce authorized permission.
@@ -183,7 +185,21 @@ def permitted_resources(
 
     sm = get_security_manager()
     if not is_auth_necessary(sm):
-        return resources
+        # Check if this is NoAuthConfig (no security manager) vs missing user context vs intra-communication
+        if sm is None:
+            # NoAuthConfig: allow all resources
+            logger.debug("NoAuthConfig enabled - allowing access to all resources")
+            return resources
+        elif sm.current_user is not None:
+            # Intra-communication user: allow all resources
+            logger.debug("Intra-communication user - allowing access to all resources")
+            return resources
+        else:
+            # Security manager exists but no user context - deny access for security
+            logger.warning(
+                "Security manager exists but no user context - denying access to all resources"
+            )
+            return []
     return sm.assert_permissions(resources=resources, actions=actions, filter_only=True)  # type: ignore[union-attr]
 
 
@@ -222,8 +238,17 @@ def no_security_manager():
 def is_auth_necessary(sm: Optional[SecurityManager]) -> bool:
     intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
 
-    return (
-        sm is not None
-        and sm.current_user is not None
-        and sm.current_user.username != intra_communication_base64
-    )
+    # If no security manager, no auth is necessary
+    if sm is None:
+        return False
+
+    # If security manager exists but no user context, auth is necessary (security-first approach)
+    if sm.current_user is None:
+        return True
+
+    # If user is intra-communication, no auth is necessary
+    if sm.current_user.username == intra_communication_base64:
+        return False
+
+    # Otherwise, auth is necessary
+    return True

@@ -1,6 +1,15 @@
+import logging
 import uuid
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import pandas as pd
@@ -36,6 +45,8 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+
+logger = logging.getLogger(__name__)
 
 
 class BasicAuthModel(FeastConfigBaseModel):
@@ -116,7 +127,7 @@ class AuthConfig(FeastConfigBaseModel):
 
         model_cls = CLASSES_BY_AUTH_TYPE[auth_type]["auth_model"]
         model = model_cls(**self.config)
-        return trino_auth_cls(**model.dict())
+        return trino_auth_cls(**model.model_dump())
 
 
 class TrinoOfflineStoreConfig(FeastConfigBaseModel):
@@ -183,6 +194,7 @@ class TrinoRetrievalJob(RetrievalJob):
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
+        temp_table: Optional[str] = None,
     ):
         self._query = query
         self._client = client
@@ -190,6 +202,8 @@ class TrinoRetrievalJob(RetrievalJob):
         self._full_feature_names = full_feature_names
         self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
+        self._temp_table = temp_table
+        self._cleaned_up = False
 
     @property
     def full_feature_names(self) -> bool:
@@ -199,11 +213,29 @@ class TrinoRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
+    def _drop_temp_table(self) -> None:
+        if self._cleaned_up or not self._temp_table:
+            return
+        self._cleaned_up = True
+        try:
+            self._client.execute_query(f"DROP TABLE IF EXISTS {self._temp_table}")
+        except Exception:
+            logger.exception(
+                "Failed to drop temporary entity table %s",
+                self._temp_table,
+            )
+
+    def __del__(self) -> None:
+        self._drop_temp_table()
+
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
-        results = self._client.execute_query(query_text=self._query)
-        self.pyarrow_schema = results.pyarrow_schema
-        return results.to_dataframe()
+        try:
+            results = self._client.execute_query(query_text=self._query)
+            self.pyarrow_schema = results.pyarrow_schema
+            return results.to_dataframe()
+        finally:
+            self._drop_temp_table()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return payrrow dataset as synchronously including on demand transforms"""
@@ -234,8 +266,11 @@ class TrinoRetrievalJob(RetrievalJob):
             destination_table = f"{self._client.catalog}.{self._config.offline_store.dataset}.historical_{today}_{rand_id}"
 
         # TODO: Implement the timeout logic
-        query = f"CREATE TABLE {destination_table} AS ({self._query})"
-        self._client.execute_query(query_text=query)
+        try:
+            create_query = f"CREATE TABLE {destination_table} AS ({self._query})"
+            self._client.execute_query(query_text=create_query)
+        finally:
+            self._drop_temp_table()
         return destination_table
 
     def persist(
@@ -372,9 +407,12 @@ class TrinoOfflineStore(OfflineStore):
         )
 
         # Generate the Trino SQL query from the query context
+        entity_table_ref = table_reference
+        if type(entity_df) is str:
+            entity_table_ref = f"({entity_df})"
         query = offline_utils.build_point_in_time_query(
             query_context,
-            left_table_query_string=table_reference,
+            left_table_query_string=entity_table_ref,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
             entity_df_columns=entity_schema.keys(),
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
@@ -383,6 +421,7 @@ class TrinoOfflineStore(OfflineStore):
 
         return TrinoRetrievalJob(
             query=query,
+            temp_table=table_reference if isinstance(entity_df, pd.DataFrame) else None,
             client=client,
             config=config,
             full_feature_names=full_feature_names,
@@ -422,11 +461,16 @@ class TrinoOfflineStore(OfflineStore):
         )
 
         timestamp_filter = get_timestamp_filter_sql(
-            start_date, end_date, timestamp_field, quote_fields=False
+            start_date,
+            end_date,
+            timestamp_field,
+            quote_fields=False,
+            cast_style="timestamp",
+            date_time_separator=" ",
         )
         query = f"""
             SELECT {field_string}
-            FROM {from_expression}
+            FROM ( {from_expression} )
             WHERE {timestamp_filter}
         """
         return TrinoRetrievalJob(
@@ -454,9 +498,7 @@ def _upload_entity_df_and_get_entity_schema(
 ) -> Dict[str, np.dtype]:
     """Uploads a Pandas entity dataframe into a Trino table and returns the resulting table"""
     if type(entity_df) is str:
-        client.execute_query(f"CREATE TABLE {table_name} AS ({entity_df})")
-
-        results = client.execute_query(f"SELECT * FROM {table_name} LIMIT 1")
+        results = client.execute_query(f"SELECT * FROM ({entity_df}) LIMIT 1")
 
         limited_entity_df = pd.DataFrame(
             data=results.data, columns=results.columns_names
@@ -477,8 +519,6 @@ def _upload_entity_df_and_get_entity_schema(
         return entity_schema
     else:
         raise InvalidEntityType(type(entity_df))
-
-    # TODO: Ensure that the table expires after some time
 
 
 def _get_trino_client(config: RepoConfig) -> Trino:

@@ -1,11 +1,13 @@
 import { useContext } from "react";
+import { useParams } from "react-router-dom";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 
 const useLoadDataSource = (dataSourceName: string) => {
   const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
+  const { projectName } = useParams();
+  const registryQuery = useLoadRegistry(registryUrl, projectName);
 
   const data =
     registryQuery.data === undefined

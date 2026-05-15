@@ -1,6 +1,7 @@
+import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import dill
 import pandas as pd
@@ -23,6 +24,7 @@ from feast.infra.compute_engines.ray.utils import (
     write_to_online_store,
 )
 from feast.infra.compute_engines.utils import create_offline_store_retrieval_job
+from feast.infra.ray_initializer import get_ray_wrapper
 from feast.infra.ray_shared_utils import (
     apply_field_mapping,
     broadcast_join,
@@ -72,10 +74,12 @@ class RayReadNode(DAGNode):
             else:
                 try:
                     arrow_table = retrieval_job.to_arrow()
-                    ray_dataset = ray.data.from_arrow(arrow_table)
+                    ray_wrapper = get_ray_wrapper()
+                    ray_dataset = ray_wrapper.from_arrow(arrow_table)
                 except Exception:
                     df = retrieval_job.to_df()
-                    ray_dataset = ray.data.from_pandas(df)
+                    ray_wrapper = get_ray_wrapper()
+                    ray_dataset = ray_wrapper.from_pandas(df)
 
             field_mapping = getattr(self.source, "field_mapping", None)
             if field_mapping:
@@ -130,7 +134,8 @@ class RayJoinNode(DAGNode):
 
         entity_df = context.entity_df
         if isinstance(entity_df, pd.DataFrame):
-            entity_dataset = ray.data.from_pandas(entity_df)
+            ray_wrapper = get_ray_wrapper()
+            entity_dataset = ray_wrapper.from_pandas(entity_df)
         else:
             entity_dataset = entity_df
 
@@ -169,7 +174,9 @@ class RayJoinNode(DAGNode):
                 return result
 
             joined_dataset = entity_dataset.map_batches(
-                join_with_aggregated_features, batch_format="pandas"
+                join_with_aggregated_features,
+                batch_format="pandas",
+                concurrency=self.config.max_workers or 12,
             )
         else:
             if feature_size <= self.config.broadcast_join_threshold_mb * 1024 * 1024:
@@ -270,8 +277,8 @@ class RayFilterNode(DAGNode):
                     else:
                         # Use current time for TTL calculation (real-time retrieval)
                         # Check if timestamp column is timezone-aware
-                        if pd.api.types.is_datetime64tz_dtype(
-                            filtered_batch[timestamp_col]
+                        if isinstance(
+                            filtered_batch[timestamp_col].dtype, pd.DatetimeTZDtype
                         ):
                             # Use timezone-aware current time
                             current_time = datetime.now(timezone.utc)
@@ -320,12 +327,16 @@ class RayAggregationNode(DAGNode):
         group_by_keys: List[str],
         timestamp_col: str,
         config: RayComputeEngineConfig,
+        enable_tiling: bool = False,
+        hop_size: Optional[timedelta] = None,
     ):
         super().__init__(name)
         self.aggregations = aggregations
         self.group_by_keys = group_by_keys
         self.timestamp_col = timestamp_col
         self.config = config
+        self.enable_tiling = enable_tiling
+        self.hop_size = hop_size
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the aggregation operation."""
@@ -333,12 +344,124 @@ class RayAggregationNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
+        # Check if tiling should be used
+        has_time_windows = any(agg.time_window for agg in self.aggregations)
+        if self.enable_tiling and has_time_windows:
+            return self._execute_tiled_aggregation(dataset)
+        else:
+            return self._execute_standard_aggregation(dataset)
+
+    def _execute_tiled_aggregation(self, dataset: Dataset) -> DAGValue:
+        """
+        Execute tiled aggregation.
+
+        Flow:
+        1. Convert Ray Dataset → pandas
+        2. Generate cumulative tiles
+        3. Convert to windowed aggregations
+        4. Convert pandas → Ray Dataset
+        """
+        from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+        from feast.aggregation.tiling.tile_subtraction import (
+            convert_cumulative_to_windowed,
+            deduplicate_keep_latest,
+        )
+
+        ray_wrapper = get_ray_wrapper()
+
+        input_pdf = dataset.to_pandas()
+
+        for agg in self.aggregations:
+            if agg.time_window is None:
+                raise ValueError(
+                    f"Tiling is enabled but aggregation on column '{agg.column}' has no time_window set. "
+                    f"Either set time_window for all aggregations or disable tiling by setting enable_tiling=False."
+                )
+
+        # Group aggregations by time window
+        window_to_aggs: Dict[timedelta, List[Aggregation]] = {}
+        for agg in self.aggregations:
+            if agg.time_window:
+                if agg.time_window not in window_to_aggs:
+                    window_to_aggs[agg.time_window] = []
+                window_to_aggs[agg.time_window].append(agg)
+
+        # Process each time window in pandas
+        windowed_pdfs = []
+        for window_size, window_aggs in window_to_aggs.items():
+            # Step 1: Generate cumulative tiles
+            tiles_pdf = apply_sawtooth_window_tiling(
+                df=input_pdf,
+                aggregations=window_aggs,
+                group_by_keys=self.group_by_keys,
+                timestamp_col=self.timestamp_col,
+                window_size=window_size,
+                hop_size=self.hop_size or timedelta(minutes=5),
+            )
+
+            if tiles_pdf.empty:
+                continue
+
+            # Step 2: Convert to windowed aggregations
+            windowed_pdf = convert_cumulative_to_windowed(
+                tiles_df=tiles_pdf,
+                entity_keys=self.group_by_keys,
+                timestamp_col=self.timestamp_col,
+                window_size=window_size,
+                aggregations=window_aggs,
+            )
+
+            if not windowed_pdf.empty:
+                windowed_pdfs.append(windowed_pdf)
+
+        if not windowed_pdfs:
+            # No results, return empty Ray Dataset
+            aggregated_dataset = ray_wrapper.from_pandas(pd.DataFrame())
+        else:
+            # Step 3: Join all windows in pandas (outer merge on entity keys + timestamp)
+            if len(windowed_pdfs) == 1:
+                final_pdf = windowed_pdfs[0]
+            else:
+                final_pdf = windowed_pdfs[0]
+                join_keys = self.group_by_keys + [self.timestamp_col]
+                for pdf in windowed_pdfs[1:]:
+                    final_pdf = pd.merge(
+                        final_pdf,
+                        pdf,
+                        on=join_keys,
+                        how="outer",
+                        suffixes=("", "_dup"),
+                    )
+                    # Drop duplicate columns from merge
+                    final_pdf = final_pdf.loc[
+                        :, ~final_pdf.columns.str.endswith("_dup")
+                    ]
+
+            # Step 4: Deduplicate in pandas (keep latest timestamp per entity)
+            if self.timestamp_col in final_pdf.columns and not final_pdf.empty:
+                final_pdf = deduplicate_keep_latest(
+                    final_pdf, self.group_by_keys, self.timestamp_col
+                )
+
+            aggregated_dataset = ray_wrapper.from_pandas(final_pdf)
+
+        return DAGValue(
+            data=aggregated_dataset,
+            format=DAGFormat.RAY,
+            metadata={
+                "aggregated": True,
+                "aggregations": len(self.aggregations),
+                "group_by_keys": self.group_by_keys,
+                "tiled": True,
+            },
+        )
+
+    def _execute_standard_aggregation(self, dataset: Dataset) -> DAGValue:
+        """Execute standard aggregation without tiling."""
         # Convert aggregations to Ray's groupby format
         agg_dict = {}
         for agg in self.aggregations:
-            feature_name = f"{agg.function}_{agg.column}"
-            if agg.time_window:
-                feature_name += f"_{int(agg.time_window.total_seconds())}s"
+            feature_name = agg.resolved_name(agg.time_window)
 
             if agg.function == "count":
                 agg_dict[feature_name] = (agg.column, "count")
@@ -354,6 +477,8 @@ class RayAggregationNode(DAGNode):
                 agg_dict[feature_name] = (agg.column, "std")
             elif agg.function == "var":
                 agg_dict[feature_name] = (agg.column, "var")
+            elif agg.function == "count_distinct":
+                agg_dict[feature_name] = (agg.column, "nunique")
             else:
                 raise ValueError(f"Unknown aggregation function: {agg.function}.")
 
@@ -408,6 +533,8 @@ class RayAggregationNode(DAGNode):
                     result = grouped[column].std()
                 elif function == "var":
                     result = grouped[column].var()
+                elif function == "nunique":
+                    result = grouped[column].nunique()
                 else:
                     raise ValueError(f"Unknown aggregation function: {function}.")
 
@@ -423,7 +550,8 @@ class RayAggregationNode(DAGNode):
                 result_df = result_df.reset_index()
 
             # Convert back to Ray Dataset
-            return ray.data.from_pandas(result_df)
+            ray_wrapper = get_ray_wrapper()
+            return ray_wrapper.from_pandas(result_df)
         else:
             return dataset
 
@@ -431,6 +559,20 @@ class RayAggregationNode(DAGNode):
 class RayDedupNode(DAGNode):
     """
     Ray node for deduplicating records.
+
+    Two dedup strategies are provided:
+
+    * **Materialization** (``is_materialization=True``): per-block
+      ``drop_duplicates``.  This is streaming-friendly because it never needs
+      to see all blocks at once.  Any cross-block duplicates are resolved by
+      the online store, which does an UPSERT and therefore naturally keeps the
+      last-written value.  This avoids the ``groupby().map_groups()`` full
+      shuffle that would otherwise block until every single block was produced.
+
+    * **Historical retrieval** (``is_materialization=False``): global
+      ``groupby().map_groups()``.  Correctness is required here because the
+      entity-timestamp join must return exactly one feature row per
+      (entity, query-timestamp) pair.
     """
 
     def __init__(
@@ -438,10 +580,12 @@ class RayDedupNode(DAGNode):
         name: str,
         column_info,
         config: RayComputeEngineConfig,
+        is_materialization: bool = False,
     ):
         super().__init__(name)
         self.column_info = column_info
         self.config = config
+        self.is_materialization = is_materialization
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the deduplication operation."""
@@ -449,39 +593,59 @@ class RayDedupNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
-        @safe_batch_processor
-        def deduplicate_batch(batch: pd.DataFrame) -> pd.DataFrame:
-            """Remove duplicates from the batch."""
-            # Get deduplication keys
-            join_keys = self.column_info.join_keys
-            timestamp_col = self.column_info.timestamp_column
+        join_keys = self.column_info.join_keys
+        timestamp_col = self.column_info.timestamp_column
 
-            if join_keys:
-                # Sort by join keys and timestamp (most recent first)
-                sort_columns = join_keys + [timestamp_col]
-                available_columns = [
-                    col for col in sort_columns if col in batch.columns
+        if join_keys:
+            if self.is_materialization:
+                # Per-block dedup: streaming-safe, no full shuffle required.
+                # Cross-block duplicates are handled by the online-store UPSERT.
+                #
+                # IMPORTANT: do NOT call dataset.schema() here.  For streaming
+                # datasets backed by slow map_batches actors, .schema() triggers
+                # eager block execution to
+                # infer the output type.  Those blocks are consumed and LOST —
+                # they never reach the write stage.  We therefore defer the
+                # column-existence check to inside _dedup_block, which runs in
+                # a worker per block without interfering with streaming.
+                _join_keys = list(join_keys)
+                _ts_col = timestamp_col
+
+                def _dedup_block(block: pd.DataFrame) -> pd.DataFrame:
+                    available = [k for k in _join_keys if k in block.columns]
+                    if not available:
+                        return block
+                    if _ts_col and _ts_col in block.columns:
+                        block = block.sort_values(_ts_col, ascending=False)
+                    return block.drop_duplicates(subset=available)
+
+                dataset = dataset.map_batches(_dedup_block, batch_format="pandas")
+            else:
+                # Global dedup via groupby: required for historical retrieval
+                # where the entity–timestamp join must return exactly one row
+                # per (entity, query-timestamp) pair.
+                # NOTE: groupby().map_groups() is a full shuffle and blocks
+                # until ALL upstream blocks are produced.  Use only when
+                # correctness across partition boundaries is mandatory.
+                available_join_keys = [
+                    k for k in join_keys if k in dataset.schema().names
                 ]
+                available_ts_col = (
+                    timestamp_col if timestamp_col in dataset.schema().names else None
+                )
 
-                if available_columns:
-                    # Sort and deduplicate
-                    sorted_batch = batch.sort_values(
-                        available_columns,
-                        ascending=[True] * len(join_keys)
-                        + [False],  # Recent timestamps first
+                if available_join_keys:
+
+                    def _keep_latest_in_group(group: pd.DataFrame) -> pd.DataFrame:
+                        if available_ts_col and available_ts_col in group.columns:
+                            group = group.sort_values(available_ts_col, ascending=False)
+                        return group.head(1)
+
+                    dataset = dataset.groupby(available_join_keys).map_groups(
+                        _keep_latest_in_group, batch_format="pandas"
                     )
 
-                    # Keep first occurrence (most recent) for each join key combination
-                    deduped_batch = sorted_batch.drop_duplicates(
-                        subset=join_keys,
-                        keep="first",
-                    )
-
-                    return deduped_batch
-
-            return batch
-
-        deduped_dataset = dataset.map_batches(deduplicate_batch, batch_format="pandas")
+        deduped_dataset = dataset
 
         return DAGValue(
             data=deduped_dataset,
@@ -512,31 +676,85 @@ class RayTransformationNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
-        transformation_serialized = None
-        if hasattr(self.transformation, "udf") and callable(self.transformation.udf):
-            transformation_serialized = dill.dumps(self.transformation.udf)
-        elif callable(self.transformation):
-            transformation_serialized = dill.dumps(self.transformation)
+        # Check transformation mode
+        from feast.transformation.mode import TransformationMode
 
-        @safe_batch_processor
-        def apply_transformation_with_serialized_udf(
-            batch: pd.DataFrame,
-        ) -> pd.DataFrame:
-            """Apply the transformation using pre-serialized UDF."""
-            if transformation_serialized:
-                transformation_func = dill.loads(transformation_serialized)
-                transformed_batch = transformation_func(batch)
+        transformation_mode = getattr(
+            self.transformation, "mode", TransformationMode.PYTHON
+        )
+        is_ray_native = transformation_mode in (TransformationMode.RAY, "ray")
+        if is_ray_native:
+            transformation_func = None
+            if hasattr(self.transformation, "udf") and callable(
+                self.transformation.udf
+            ):
+                transformation_func = self.transformation.udf
+            elif callable(self.transformation):
+                transformation_func = self.transformation
+
+            if transformation_func:
+                transformed_dataset = transformation_func(dataset)
             else:
                 logger.warning(
-                    "No serialized transformation available, returning original batch"
+                    "No transformation function available in RAY mode, returning original dataset"
                 )
-                transformed_batch = batch
+                transformed_dataset = dataset
+        else:
+            transformation_serialized = None
+            if hasattr(self.transformation, "udf") and callable(
+                self.transformation.udf
+            ):
+                transformation_serialized = dill.dumps(self.transformation.udf)
+            elif callable(self.transformation):
+                transformation_serialized = dill.dumps(self.transformation)
 
-            return transformed_batch
+            @safe_batch_processor
+            def apply_transformation_with_serialized_udf(
+                batch: pd.DataFrame,
+            ) -> pd.DataFrame:
+                """Apply the transformation using pre-serialized UDF."""
+                if transformation_serialized:
+                    transformation_func = dill.loads(transformation_serialized)
+                    transformed_batch = transformation_func(batch)
+                else:
+                    logger.warning(
+                        "No serialized transformation available, returning original batch"
+                    )
+                    transformed_batch = batch
 
-        transformed_dataset = dataset.map_batches(
-            apply_transformation_with_serialized_udf, batch_format="pandas"
-        )
+                return transformed_batch
+
+            num_gpus = getattr(self.config, "num_gpus", None) or None
+            task_options: Dict[str, Any] = dict(
+                getattr(self.config, "worker_task_options", None) or {}
+            )
+            if num_gpus:
+                task_options["num_gpus"] = num_gpus
+            batch_format = (
+                getattr(self.config, "gpu_batch_format", "pandas")
+                if num_gpus
+                else "pandas"
+            )
+            # Only the scheduling-relevant subset flows into map_batches
+            _MAP_BATCHES_RESOURCE_KEYS = {
+                "num_gpus",
+                "num_cpus",
+                "accelerator_type",
+                "resources",
+            }
+            map_kwargs: Dict[str, Any] = {
+                "batch_format": batch_format,
+                "concurrency": self.config.max_workers or 12,
+                **{
+                    k: v
+                    for k, v in task_options.items()
+                    if k in _MAP_BATCHES_RESOURCE_KEYS
+                },
+            }
+            transformed_dataset = dataset.map_batches(
+                apply_transformation_with_serialized_udf,
+                **map_kwargs,
+            )
 
         return DAGValue(
             data=transformed_dataset,
@@ -593,7 +811,9 @@ class RayDerivedReadNode(DAGNode):
                     return transformation_func(batch)
 
                 transformed_dataset = parent_value.data.map_batches(
-                    apply_transformation
+                    apply_transformation,
+                    batch_format="pandas",
+                    concurrency=self.config.max_workers or 12,
                 )
                 return DAGValue(
                     data=transformed_dataset,
@@ -625,9 +845,11 @@ class RayWriteNode(DAGNode):
         name: str,
         feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
         inputs=None,
+        config: Optional[RayComputeEngineConfig] = None,
     ):
         super().__init__(name, inputs=inputs)
         self.feature_view = feature_view
+        self.config = config
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the write operation."""
@@ -670,8 +892,19 @@ class RayWriteNode(DAGNode):
 
             return batch
 
+        # Resolve write concurrency from config.
+        # write_concurrency takes precedence; falls back to max_workers, then 1.
+        if self.config is not None and self.config.write_concurrency is not None:
+            _write_concurrency = self.config.write_concurrency
+        elif self.config is not None and self.config.max_workers is not None:
+            _write_concurrency = self.config.max_workers
+        else:
+            _write_concurrency = 1
+
         written_dataset = dataset.map_batches(
-            write_batch_with_serialized_artifacts, batch_format="pandas"
+            write_batch_with_serialized_artifacts,
+            batch_format="pandas",
+            concurrency=_write_concurrency,
         )
         written_dataset = written_dataset.materialize()
 
@@ -688,3 +921,127 @@ class RayWriteNode(DAGNode):
                 ),
             },
         )
+
+
+class RayValidationNode(DAGNode):
+    """
+    Ray node for validating feature data against the declared schema.
+
+    Checks that all expected columns are present and logs warnings for
+    type mismatches.  Validation runs once on the first batch to avoid
+    per-batch overhead; the full dataset is passed through unchanged.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        expected_columns: Dict[str, Optional[pa.DataType]],
+        json_columns: Optional[Set[str]] = None,
+        inputs: Optional[List[DAGNode]] = None,
+    ):
+        super().__init__(name, inputs=inputs)
+        self.expected_columns = expected_columns
+        self.json_columns = json_columns or set()
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        input_value = self.get_single_input_value(context)
+        dataset = input_value.data
+
+        if not self.expected_columns:
+            context.node_outputs[self.name] = input_value
+            return input_value
+
+        expected_names = set(self.expected_columns.keys())
+
+        schema = dataset.schema()
+        actual_columns = set(schema.names)
+
+        missing = expected_names - actual_columns
+        if missing:
+            raise ValueError(
+                f"[Validation: {self.name}] Missing expected columns: {missing}. "
+                f"Actual columns: {sorted(actual_columns)}"
+            )
+
+        for col_name, expected_type in self.expected_columns.items():
+            if expected_type is None:
+                continue
+            actual_field = schema.field(col_name)
+            actual_type = actual_field.type
+            if actual_type != expected_type:
+                # Map type compatibility
+                if pa.types.is_map(expected_type) and (
+                    pa.types.is_map(actual_type)
+                    or pa.types.is_struct(actual_type)
+                    or pa.types.is_list(actual_type)
+                ):
+                    continue
+
+                # JSON type compatibility (large_string / string)
+                if pa.types.is_large_string(expected_type) and (
+                    pa.types.is_string(actual_type)
+                    or pa.types.is_large_string(actual_type)
+                ):
+                    continue
+
+                # Struct type compatibility
+                if pa.types.is_struct(expected_type) and (
+                    pa.types.is_struct(actual_type)
+                    or pa.types.is_map(actual_type)
+                    or pa.types.is_list(actual_type)
+                ):
+                    continue
+
+                logger.warning(
+                    "[Validation: %s] Column '%s' type mismatch: expected %s, got %s",
+                    self.name,
+                    col_name,
+                    expected_type,
+                    actual_type,
+                )
+
+        # Validate JSON well-formedness for declared Json columns
+        if self.json_columns:
+            try:
+                first_batch = dataset.take_batch(1000)
+            except Exception:
+                logger.debug(
+                    "[Validation: %s] Could not sample batch for JSON validation.",
+                    self.name,
+                )
+                first_batch = None
+
+            if first_batch is not None:
+                for col_name in self.json_columns:
+                    if col_name not in first_batch:
+                        continue
+
+                    values = first_batch[col_name]
+                    invalid_count = 0
+                    first_error = None
+                    first_error_row = None
+
+                    for i, value in enumerate(values):
+                        if value is None:
+                            continue
+                        if not isinstance(value, str):
+                            continue
+                        try:
+                            json.loads(value)
+                        except (json.JSONDecodeError, TypeError) as e:
+                            invalid_count += 1
+                            if first_error is None:
+                                first_error = str(e)
+                                first_error_row = i
+
+                    if invalid_count > 0:
+                        raise ValueError(
+                            f"[Validation: {self.name}] Column '{col_name}' declared "
+                            f"as Json contains {invalid_count} invalid JSON value(s) "
+                            f"in sampled batch. First error at row {first_error_row}: "
+                            f"{first_error}"
+                        )
+
+        logger.debug("[Validation: %s] Schema validation passed.", self.name)
+        context.node_outputs[self.name] = input_value
+        return input_value

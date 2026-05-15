@@ -30,8 +30,10 @@ const FeatureViewListingTable = ({
       field: "name",
       sortable: true,
       render: (name: string, item: genericFVType) => {
+        // For "All Projects" view, link to the specific project
+        const itemProject = item.object?.spec?.project || projectName;
         return (
-          <EuiCustomLink to={`/p/${projectName}/feature-view/${name}`}>
+          <EuiCustomLink to={`/p/${itemProject}/feature-view/${name}`}>
             {name}{" "}
             {(item.type === "ondemand" && <EuiBadge>ondemand</EuiBadge>) ||
               (item.type === "stream" && <EuiBadge>stream</EuiBadge>)}
@@ -47,7 +49,24 @@ const FeatureViewListingTable = ({
         return features.length;
       },
     },
+    {
+      name: "Version",
+      render: (item: genericFVType) => {
+        const ver = (item.object as any)?.meta?.currentVersionNumber;
+        return ver != null && ver > 0 ? `v${ver}` : "—";
+      },
+    },
   ];
+
+  // Add Project column when viewing all projects
+  if (projectName === "all") {
+    columns.splice(1, 0, {
+      name: "Project",
+      render: (item: genericFVType) => {
+        return <span>{item.object?.spec?.project || "Unknown"}</span>;
+      },
+    });
+  }
 
   // Add columns if they come up in search
   tagKeysSet.forEach((key) => {

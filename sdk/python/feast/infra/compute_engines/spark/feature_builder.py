@@ -1,3 +1,4 @@
+import logging
 from typing import Union
 
 from pyspark.sql import SparkSession
@@ -12,9 +13,14 @@ from feast.infra.compute_engines.spark.nodes import (
     SparkJoinNode,
     SparkReadNode,
     SparkTransformationNode,
+    SparkValidationNode,
     SparkWriteNode,
+    from_feast_to_spark_type,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.types import PrimitiveFeastType
+
+logger = logging.getLogger(__name__)
 
 
 class SparkFeatureBuilder(FeatureBuilder):
@@ -47,12 +53,20 @@ class SparkFeatureBuilder(FeatureBuilder):
         agg_specs = view.aggregations
         group_by_keys = view.entities
         timestamp_col = view.batch_source.timestamp_field
+
+        # Check if tiling is enabled for this view
+        enable_tiling = getattr(view, "enable_tiling", False)
+        hop_size = getattr(view, "tiling_hop_size", None)
+
         node = SparkAggregationNode(
             f"{view.name}:agg",
             agg_specs,
             group_by_keys,
             timestamp_col,
+            self.spark_session,
             inputs=[input_node],
+            enable_tiling=enable_tiling,
+            hop_size=hop_size,
         )
         self.nodes.append(node)
         return node
@@ -107,4 +121,30 @@ class SparkFeatureBuilder(FeatureBuilder):
         return node
 
     def build_validation_node(self, view, input_node):
-        pass
+        expected_columns = {}
+        json_columns: set = set()
+        if hasattr(view, "features"):
+            for feature in view.features:
+                spark_type = from_feast_to_spark_type(feature.dtype)
+                if spark_type is None:
+                    logger.debug(
+                        "Could not resolve Spark type for feature '%s' "
+                        "(dtype=%s), skipping type check for this column.",
+                        feature.name,
+                        feature.dtype,
+                    )
+                expected_columns[feature.name] = spark_type
+                if (
+                    isinstance(feature.dtype, PrimitiveFeastType)
+                    and feature.dtype.name == "JSON"
+                ):
+                    json_columns.add(feature.name)
+
+        node = SparkValidationNode(
+            f"{view.name}:validate",
+            expected_columns=expected_columns,
+            json_columns=json_columns,
+            inputs=[input_node],
+        )
+        self.nodes.append(node)
+        return node

@@ -24,6 +24,11 @@ class KubernetesAuthClientManager(AuthenticationClientManager):
 
             return jwt.encode(payload, "")
 
+        # Check if user token is provided in config (for external users)
+        if hasattr(self.auth_config, "user_token") and self.auth_config.user_token:
+            logger.info("Using user token from configuration")
+            return self.auth_config.user_token
+
         try:
             token = self._read_token_from_file()
             return token

@@ -13,15 +13,15 @@ from feast.feature_logging import (
 )
 from feast.feature_service import FeatureService
 from feast.wait import wait_retry_backoff
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import (
+from tests.universal.feature_repos.universal.entities import (
     customer,
     driver,
     location,
 )
-from tests.integration.feature_repos.universal.feature_views import conv_rate_plus_100
+from tests.universal.feature_repos.universal.feature_views import conv_rate_plus_100
 from tests.utils.test_log_creator import prepare_logs, to_logs_dataset
 
 

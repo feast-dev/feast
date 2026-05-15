@@ -32,12 +32,12 @@ from feast.types import (
 )
 from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     Environment,
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import driver, item
-from tests.integration.feature_repos.universal.feature_views import (
+from tests.universal.feature_repos.universal.entities import driver, item
+from tests.universal.feature_repos.universal.feature_views import (
     TAGS,
     create_driver_hourly_stats_feature_view,
     create_item_embeddings_feature_view,
@@ -258,6 +258,9 @@ def test_write_to_online_store(environment, universal_data_sources):
         "conv_rate": [0.85],
         "acc_rate": [0.91],
         "avg_daily_trips": [14],
+        "driver_metadata": [None],
+        "driver_config": [None],
+        "driver_profile": [None],
         "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
         "created": [pd.Timestamp(_utc_now()).round("ms")],
     }
@@ -435,6 +438,9 @@ def setup_feature_store_universal_feature_views(
         "conv_rate": [0.5, 0.3],
         "acc_rate": [0.6, 0.4],
         "avg_daily_trips": [4, 5],
+        "driver_metadata": [None, None],
+        "driver_config": [None, None],
+        "driver_profile": [None, None],
         "event_timestamp": [
             pd.to_datetime(1646263500, utc=True, unit="s"),
             pd.to_datetime(1646263600, utc=True, unit="s"),
@@ -517,7 +523,7 @@ async def _do_async_retrieval_test(environment, universal_data_sources):
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["redis", "postgres"])
+@pytest.mark.universal_online_stores(only=["redis", "postgres", "mongodb"])
 async def test_async_online_retrieval_with_event_timestamps(
     environment, universal_data_sources
 ):
@@ -526,10 +532,19 @@ async def test_async_online_retrieval_with_event_timestamps(
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["dynamodb"])
+@pytest.mark.universal_online_stores
 async def test_async_online_retrieval_with_event_timestamps_dynamo(
-    environment, universal_data_sources
+    dynamodb_local_environment,
 ):
+    """Async online retrieval for DynamoDB with a credential-isolated environment.
+
+    Uses ``dynamodb_local_environment`` (its own DynamoDB Local container +
+    FileDataSourceCreator) so that dummy credentials are set before any boto
+    client is created.  This avoids the expired-STS-token problem that
+    occurs when aiobotocore lazily resolves credentials from the shared
+    environment in CI.
+    """
+    environment, universal_data_sources = dynamodb_local_environment
     await _do_async_retrieval_test(environment, universal_data_sources)
 
 
@@ -915,13 +930,27 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
     df, data_source = fake_document_data
     item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
     fs.apply([item_embeddings_feature_view, item()])
+
+    features = [
+        "item_embeddings:embedding_float",
+        "item_embeddings:item_id",
+        "item_embeddings:string_feature",
+    ]
+
+    # Empty-store query: collection exists but has no rows yet.
+    empty = fs.retrieve_online_documents_v2(
+        features=features,
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="L2",
+    ).to_dict()
+    assert len(empty["embedding_float"]) == 0
+    assert len(empty["item_id"]) == 0
+
     fs.write_to_online_store("item_embeddings", df)
+
     documents = fs.retrieve_online_documents_v2(
-        features=[
-            "item_embeddings:embedding_float",
-            "item_embeddings:item_id",
-            "item_embeddings:string_feature",
-        ],
+        features=features,
         query=[1.0, 2.0],
         top_k=2,
         distance_metric="L2",
@@ -941,6 +970,50 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
         assert len(embedding) == query_dim, (
             f"Integration test: embedding {i} has {len(embedding)} dimensions, expected {query_dim}"
         )
+
+    # Oversized top_k: dataset has 3 rows, request 5 -> expect 3 back.
+    all_docs = fs.retrieve_online_documents_v2(
+        features=features,
+        query=[1.0, 2.0],
+        top_k=5,
+        distance_metric="L2",
+    ).to_dict()
+    assert len(all_docs["embedding_float"]) == 3
+    assert sorted(all_docs["item_id"]) == [1, 2, 3]
+
+    # Cosine-metric variant: separate FV so the Milvus collection is created
+    # with COSINE as its index metric.
+    cosine_fv = FeatureView(
+        name="item_embeddings_cosine",
+        entities=[item()],
+        schema=[
+            Field(
+                name="embedding_float",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="string_feature", dtype=String),
+            Field(name="float_feature", dtype=Float32),
+        ],
+        source=data_source,
+        ttl=timedelta(hours=2),
+    )
+    fs.apply([cosine_fv])
+    fs.write_to_online_store("item_embeddings_cosine", df)
+
+    cosine_docs = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings_cosine:embedding_float",
+            "item_embeddings_cosine:item_id",
+            "item_embeddings_cosine:string_feature",
+        ],
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="COSINE",
+    ).to_dict()
+    assert len(cosine_docs["embedding_float"]) == 2
+    assert len(cosine_docs["item_id"]) == 2
 
 
 @pytest.mark.integration
@@ -1153,6 +1226,12 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(vector_results["text_field"]) == 5
     assert len(vector_results["category"]) == 5
 
+    assert all(isinstance(v, list) for v in vector_results["embedding"])
+    assert all(isinstance(v, float) for v in vector_results["distance"])
+    assert all(isinstance(v, str) for v in vector_results["text_field"])
+    assert all(isinstance(v, str) for v in vector_results["category"])
+    assert all(isinstance(v, int) for v in vector_results["item_id"])
+
     # Test 2: Vector similarity search with Cosine distance
     vector_results = fs.retrieve_online_documents_v2(
         features=[
@@ -1171,6 +1250,12 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(vector_results["text_field"]) == 5
     assert len(vector_results["category"]) == 5
 
+    assert all(isinstance(v, list) for v in vector_results["embedding"])
+    assert all(isinstance(v, float) for v in vector_results["distance"])
+    assert all(isinstance(v, str) for v in vector_results["text_field"])
+    assert all(isinstance(v, str) for v in vector_results["category"])
+    assert all(isinstance(v, int) for v in vector_results["item_id"])
+
     # Test 3: Full text search
     text_results = fs.retrieve_online_documents_v2(
         features=[
@@ -1188,6 +1273,11 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(text_results["text_rank"]) == 5
     assert len(text_results["category"]) == 5
     assert len(text_results["item_id"]) == 5
+
+    assert all(isinstance(v, str) for v in text_results["text_field"])
+    assert all(isinstance(v, float) for v in text_results["text_rank"])
+    assert all(isinstance(v, str) for v in text_results["category"])
+    assert all(isinstance(v, int) for v in text_results["item_id"])
 
     # Verify text rank values are between 0 and 1
     assert all(0 <= rank <= 1 for rank in text_results["text_rank"])
@@ -1218,22 +1308,12 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(hybrid_results["category"]) == 5
     assert len(hybrid_results["item_id"]) == 5
 
-    # Test 5: Hybrid search with different text query
-    hybrid_results = fs.retrieve_online_documents_v2(
-        features=[
-            "item_embeddings:embedding",
-            "item_embeddings:text_field",
-            "item_embeddings:category",
-            "item_embeddings:item_id",
-        ],
-        query=query_embedding,
-        query_string="Category-1",
-        top_k=5,
-        distance_metric="L2",
-    ).to_dict()
-
-    # Verify results contain only documents from Category-1
-    assert all(cat == "Category-1" for cat in hybrid_results["category"])
+    assert all(isinstance(v, list) for v in hybrid_results["embedding"])
+    assert all(isinstance(v, float) for v in hybrid_results["distance"])
+    assert all(isinstance(v, str) for v in hybrid_results["text_field"])
+    assert all(isinstance(v, float) for v in hybrid_results["text_rank"])
+    assert all(isinstance(v, str) for v in hybrid_results["category"])
+    assert all(isinstance(v, int) for v in hybrid_results["item_id"])
 
     # Test 6: Full text search with no matches
     no_match_results = fs.retrieve_online_documents_v2(

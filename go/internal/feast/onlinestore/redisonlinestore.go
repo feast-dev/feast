@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
-	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
@@ -23,6 +23,8 @@ import (
 	"github.com/rs/zerolog/log"
 	//redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
+
+var tracer = otel.Tracer("github.com/feast-dev/feast/go/onlinestore")
 
 type redisType int
 
@@ -211,8 +213,8 @@ func (r *RedisOnlineStore) buildRedisKeys(entityKeys []*types.EntityKey) ([]*[]b
 }
 
 func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
-	//span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
-	//defer span.Finish()
+	ctx, span := tracer.Start(ctx, "redis.OnlineRead")
+	defer span.End()
 
 	featureCount := len(featureNames)
 	featureViewIndices, indicesFeatureView, index := r.buildFeatureViewIndices(featureViewNames, featureNames)

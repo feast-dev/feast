@@ -6,7 +6,7 @@ from feast.driver_test_data import (
     create_driver_hourly_stats_df,
     create_global_daily_stats_df,
 )
-from tests.integration.feature_repos.universal.feature_views import TAGS
+from tests.universal.feature_repos.universal.feature_views import TAGS
 from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
@@ -71,7 +71,7 @@ def test_apply_with_fv_inference() -> None:
 
             fs = store.get_feature_service("all_stats")
             assert len(fs.feature_view_projections) == 2
-            assert len(fs.feature_view_projections[0].features) == 3
+            assert len(fs.feature_view_projections[0].features) == 6
             assert len(fs.feature_view_projections[0].desired_features) == 0
             assert len(fs.feature_view_projections[1].features) == 2
             assert len(fs.feature_view_projections[1].desired_features) == 0

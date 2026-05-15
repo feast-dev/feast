@@ -16,12 +16,19 @@ from typing import Type, Union
 
 from feast.protos.feast.types.Value_pb2 import (
     BoolList,
+    BoolSet,
     BytesList,
+    BytesSet,
     DoubleList,
+    DoubleSet,
     FloatList,
+    FloatSet,
     Int32List,
+    Int32Set,
     Int64List,
+    Int64Set,
     StringList,
+    StringSet,
 )
 
 
@@ -48,8 +55,34 @@ class ValueType(enum.Enum):
     BOOL_LIST = 17
     UNIX_TIMESTAMP_LIST = 18
     NULL = 19
-    PDF_BYTES = 20
-    IMAGE_BYTES = 21
+    MAP = 20
+    MAP_LIST = 21
+    BYTES_SET = 22
+    STRING_SET = 23
+    INT32_SET = 24
+    INT64_SET = 25
+    DOUBLE_SET = 26
+    FLOAT_SET = 27
+    BOOL_SET = 28
+    UNIX_TIMESTAMP_SET = 29
+    PDF_BYTES = 30
+    IMAGE_BYTES = 31
+    JSON = 32
+    JSON_LIST = 33
+    STRUCT = 34
+    STRUCT_LIST = 35
+    UUID = 36
+    TIME_UUID = 37
+    UUID_LIST = 38
+    TIME_UUID_LIST = 39
+    UUID_SET = 40
+    TIME_UUID_SET = 41
+    VALUE_LIST = 42
+    VALUE_SET = 43
+    DECIMAL = 44
+    DECIMAL_LIST = 45
+    DECIMAL_SET = 46
+    SCALAR_MAP = 47
 
 
 ListType = Union[
@@ -60,4 +93,14 @@ ListType = Union[
     Type[Int32List],
     Type[Int64List],
     Type[StringList],
+]
+
+SetType = Union[
+    Type[BoolSet],
+    Type[BytesSet],
+    Type[DoubleSet],
+    Type[FloatSet],
+    Type[Int32Set],
+    Type[Int64Set],
+    Type[StringSet],
 ]

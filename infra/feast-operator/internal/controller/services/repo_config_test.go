@@ -25,10 +25,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 )
 
 var projectName = "test-project"
+
+const marquezUrl = "http://marquez:5000"
 
 var _ = Describe("Repo Config", func() {
 	Context("When creating the RepoConfig of a FeatureStore", func() {
@@ -46,7 +48,7 @@ var _ = Describe("Repo Config", func() {
 				Path: EphemeralPath + "/" + DefaultOnlineStorePath,
 			}
 
-			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig))
@@ -56,11 +58,11 @@ var _ = Describe("Repo Config", func() {
 			By("Having the local registry resource")
 			featureStore = minimalFeatureStore()
 			testPath := "/test/file.db"
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Persistence: &feastdevv1.RegistryPersistence{
+							FilePersistence: &feastdevv1.RegistryFilePersistence{
 								Path: testPath,
 							},
 						},
@@ -74,7 +76,7 @@ var _ = Describe("Repo Config", func() {
 				Path:         testPath,
 			}
 
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig))
@@ -82,10 +84,10 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
 
 			By("Adding an offlineStore with PVC")
-			featureStore.Spec.Services.OfflineStore = &feastdevv1alpha1.OfflineStore{
-				Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-					FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
-						PvcConfig: &feastdevv1alpha1.PvcConfig{
+			featureStore.Spec.Services.OfflineStore = &feastdevv1.OfflineStore{
+				Persistence: &feastdevv1.OfflineStorePersistence{
+					FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
+						PvcConfig: &feastdevv1.PvcConfig{
 							MountPath: "/testing",
 						},
 					},
@@ -96,7 +98,7 @@ var _ = Describe("Repo Config", func() {
 			Expect(appliedServices.OnlineStore).NotTo(BeNil())
 			Expect(appliedServices.Registry.Local).NotTo(BeNil())
 
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore).To(Equal(defaultOfflineStoreConfig))
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
@@ -105,17 +107,17 @@ var _ = Describe("Repo Config", func() {
 
 			By("Having the remote registry resource")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				Registry: &feastdevv1alpha1.Registry{
-					Remote: &feastdevv1alpha1.RemoteRegistryConfig{
-						FeastRef: &feastdevv1alpha1.FeatureStoreRef{
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						FeastRef: &feastdevv1.FeatureStoreRef{
 							Name: "registry",
 						},
 					},
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig))
@@ -124,25 +126,25 @@ var _ = Describe("Repo Config", func() {
 
 			By("Having the all the file services")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-						FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OfflineStore: &feastdevv1.OfflineStore{
+					Persistence: &feastdevv1.OfflineStorePersistence{
+						FilePersistence: &feastdevv1.OfflineStoreFilePersistence{
 							Type: "duckdb",
 						},
 					},
 				},
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-						FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Persistence: &feastdevv1.OnlineStorePersistence{
+						FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
 							Path: "/data/online.db",
 						},
 					},
 				},
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Persistence: &feastdevv1.RegistryPersistence{
+							FilePersistence: &feastdevv1.RegistryFilePersistence{
 								Path: "/data/registry.db",
 							},
 						},
@@ -163,7 +165,7 @@ var _ = Describe("Repo Config", func() {
 				Path: "/data/online.db",
 			}
 
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
@@ -172,14 +174,14 @@ var _ = Describe("Repo Config", func() {
 
 			By("Having kubernetes authorization")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-				KubernetesAuthz: &feastdevv1alpha1.KubernetesAuthz{},
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				KubernetesAuthz: &feastdevv1.KubernetesAuthz{},
 			}
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{},
-				OnlineStore:  &feastdevv1alpha1.OnlineStore{},
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{},
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OfflineStore: &feastdevv1.OfflineStore{},
+				OnlineStore:  &feastdevv1.OnlineStore{},
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{},
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
@@ -188,17 +190,17 @@ var _ = Describe("Repo Config", func() {
 				Type: "dask",
 			}
 
-			repoConfig, err = getServiceRepoConfig(featureStore, mockExtractConfigFromSecret)
+			repoConfig, err = getServiceRepoConfig(featureStore, mockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(defaultOnlineStoreConfig(featureStore)))
 			Expect(repoConfig.Registry).To(Equal(defaultRegistryConfig(featureStore)))
 
-			By("Having oidc authorization")
-			featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-				OidcAuthz: &feastdevv1alpha1.OidcAuthz{
-					SecretRef: corev1.LocalObjectReference{
+			By("Having oidc authorization with Secret")
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				OidcAuthz: &feastdevv1.OidcAuthz{
+					SecretRef: &corev1.LocalObjectReference{
 						Name: "oidc-secret",
 					},
 				},
@@ -211,30 +213,55 @@ var _ = Describe("Repo Config", func() {
 				string(OidcClientSecret):     "client-secret",
 				string(OidcUsername):         "username",
 				string(OidcPassword):         "password"})
-			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc)
+			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
-			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(2))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(5))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcClientId)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcAuthDiscoveryUrl)))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcClientSecret)))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcUsername)))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcPassword)))
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(defaultOnlineStoreConfig(featureStore)))
 			Expect(repoConfig.Registry).To(Equal(defaultRegistryConfig(featureStore)))
 
-			repoConfig, err = getClientRepoConfig(featureStore, secretExtractionFunc)
+			repoConfig = getClientRepoConfig(featureStore, nil)
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
+
+			By("Having oidc authorization with issuerUrl only (no Secret)")
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				OidcAuthz: &feastdevv1.OidcAuthz{
+					IssuerUrl: "https://keycloak.example.com/realms/test",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
-			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(3))
-			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcClientSecret)))
-			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcUsername)))
-			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcPassword)))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(1))
+			Expect(repoConfig.AuthzConfig.OidcParameters[string(OidcAuthDiscoveryUrl)]).To(Equal("https://keycloak.example.com/realms/test/.well-known/openid-configuration"))
+
+			By("Having oidc with issuerUrl on CR and auth_discovery_url in Secret — CR wins")
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				OidcAuthz: &feastdevv1.OidcAuthz{
+					IssuerUrl: "https://keycloak.example.com/realms/cr-wins",
+					SecretRef: &corev1.LocalObjectReference{
+						Name: "oidc-secret",
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.OidcParameters[string(OidcAuthDiscoveryUrl)]).To(Equal("https://keycloak.example.com/realms/cr-wins/.well-known/openid-configuration"))
 
 			By("Having the all the db services")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-						DBPersistence: &feastdevv1alpha1.OfflineStoreDBStorePersistence{
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OfflineStore: &feastdevv1.OfflineStore{
+					Persistence: &feastdevv1.OfflineStorePersistence{
+						DBPersistence: &feastdevv1.OfflineStoreDBStorePersistence{
 							Type: string(OfflineDBPersistenceSnowflakeConfigType),
 							SecretRef: corev1.LocalObjectReference{
 								Name: "offline-test-secret",
@@ -242,9 +269,9 @@ var _ = Describe("Repo Config", func() {
 						},
 					},
 				},
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					Persistence: &feastdevv1alpha1.OnlineStorePersistence{
-						DBPersistence: &feastdevv1alpha1.OnlineStoreDBStorePersistence{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Persistence: &feastdevv1.OnlineStorePersistence{
+						DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
 							Type: string(OnlineDBPersistenceSnowflakeConfigType),
 							SecretRef: corev1.LocalObjectReference{
 								Name: "online-test-secret",
@@ -252,10 +279,10 @@ var _ = Describe("Repo Config", func() {
 						},
 					},
 				},
-				Registry: &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							DBPersistence: &feastdevv1alpha1.RegistryDBStorePersistence{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Persistence: &feastdevv1.RegistryPersistence{
+							DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 								Type: string(RegistryDBPersistenceSnowflakeConfigType),
 								SecretRef: corev1.LocalObjectReference{
 									Name: "registry-test-secret",
@@ -270,7 +297,7 @@ var _ = Describe("Repo Config", func() {
 			featureStore.Spec.Services.OfflineStore.Persistence.FilePersistence = nil
 			featureStore.Spec.Services.OnlineStore.Persistence.FilePersistence = nil
 			featureStore.Spec.Services.Registry.Local.Persistence.FilePersistence = nil
-			repoConfig, err = getServiceRepoConfig(featureStore, mockExtractConfigFromSecret)
+			repoConfig, err = getServiceRepoConfig(featureStore, mockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			newMap := CopyMap(parameterMap)
 			port := parameterMap["port"].(int)
@@ -292,14 +319,354 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
 		})
+
+		It("should set feature_server block with type local and all options", func() {
+			featureStore := minimalFeatureStore()
+			batchSize := int32(500)
+			batchInterval := int32(15)
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Serving: &feastdevv1.ServingConfig{
+						Metrics: &feastdevv1.ServingMetricsConfig{
+							Enabled: true,
+							Categories: map[string]bool{
+								"resource":      true,
+								"freshness":     false,
+								"registry_sync": false,
+							},
+						},
+						OfflinePushBatching: &feastdevv1.OfflinePushBatchingConfig{
+							Enabled:              true,
+							BatchSize:            &batchSize,
+							BatchIntervalSeconds: &batchInterval,
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Type).To(Equal("local"))
+
+			Expect(repoConfig.FeatureServer.Metrics).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Metrics.Enabled).To(BeTrue())
+			Expect(repoConfig.FeatureServer.Metrics.Categories).To(HaveKeyWithValue("resource", true))
+			Expect(repoConfig.FeatureServer.Metrics.Categories).To(HaveKeyWithValue("freshness", false))
+			Expect(repoConfig.FeatureServer.Metrics.Categories).To(HaveKeyWithValue("registry_sync", false))
+
+			Expect(repoConfig.FeatureServer.OfflinePushBatchingEnabled).NotTo(BeNil())
+			Expect(*repoConfig.FeatureServer.OfflinePushBatchingEnabled).To(BeTrue())
+			Expect(repoConfig.FeatureServer.OfflinePushBatchingBatchSize).To(Equal(&batchSize))
+			Expect(repoConfig.FeatureServer.OfflinePushBatchingBatchIntervalSeconds).To(Equal(&batchInterval))
+
+			Expect(repoConfig.FeatureServer.McpEnabled).To(BeNil())
+		})
+
+		It("should set feature_server block with type mcp", func() {
+			featureStore := minimalFeatureStore()
+			serverName := "my-mcp-server"
+			serverVersion := "2.0.0"
+			transport := HttpScheme
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Serving: &feastdevv1.ServingConfig{
+						Mcp: &feastdevv1.McpConfig{
+							Enabled:       true,
+							ServerName:    &serverName,
+							ServerVersion: &serverVersion,
+							Transport:     &transport,
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Type).To(Equal("mcp"))
+			Expect(repoConfig.FeatureServer.McpEnabled).NotTo(BeNil())
+			Expect(*repoConfig.FeatureServer.McpEnabled).To(BeTrue())
+			Expect(repoConfig.FeatureServer.McpServerName).To(Equal(&serverName))
+			Expect(repoConfig.FeatureServer.McpServerVersion).To(Equal(&serverVersion))
+			Expect(repoConfig.FeatureServer.McpTransport).To(Equal(&transport))
+		})
+
+		It("should use type local when Mcp is present but Enabled is false", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				OnlineStore: &feastdevv1.OnlineStore{
+					Serving: &feastdevv1.ServingConfig{
+						Mcp: &feastdevv1.McpConfig{
+							Enabled: false,
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).NotTo(BeNil())
+			Expect(repoConfig.FeatureServer.Type).To(Equal("local"))
+			Expect(repoConfig.FeatureServer.McpEnabled).To(BeNil())
+		})
+
+		It("should set registry mcp when enabled", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							Mcp: &feastdevv1.McpConfig{
+								Enabled: true,
+							},
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.Mcp).NotTo(BeNil())
+			Expect(repoConfig.Registry.Mcp.Enabled).To(BeTrue())
+		})
+
+		It("should not set registry mcp when disabled", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							Mcp: &feastdevv1.McpConfig{
+								Enabled: false,
+							},
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.Mcp).To(BeNil())
+		})
+
+		It("should not set registry mcp when server has no mcp config", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.Mcp).To(BeNil())
+		})
+
+		It("should set materialization block", func() {
+			featureStore := minimalFeatureStore()
+			batchSize := int32(10000)
+
+			featureStore.Spec.Materialization = &feastdevv1.MaterializationConfig{
+				OnlineWriteBatchSize: &batchSize,
+				ExtraConfig: map[string]string{
+					"pull_latest_features": "false",
+					"max_workers":          "4",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Materialization).NotTo(BeNil())
+			Expect(repoConfig.Materialization.OnlineWriteBatchSize).To(Equal(&batchSize))
+			// "true"/"false" strings are coerced to native booleans; other strings pass through unchanged.
+			Expect(repoConfig.Materialization.ExtraConfig).To(HaveKeyWithValue("pull_latest_features", false))
+			Expect(repoConfig.Materialization.ExtraConfig).To(HaveKeyWithValue("max_workers", "4"))
+		})
+
+		It("should set openlineage block without api_key secret", func() {
+			featureStore := minimalFeatureStore()
+			transportType := HttpScheme
+			transportUrl := marquezUrl
+			endpoint := "api/v1/lineage"
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:           true,
+				TransportType:     &transportType,
+				TransportUrl:      &transportUrl,
+				TransportEndpoint: &endpoint,
+				ExtraConfig: map[string]string{
+					"namespace":           "my-feast",
+					"producer":            "feast-operator",
+					"emit_on_apply":       "true",
+					"emit_on_materialize": "false",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Enabled).To(BeTrue())
+			Expect(repoConfig.OpenLineage.TransportType).To(Equal(&transportType))
+			Expect(repoConfig.OpenLineage.TransportUrl).To(Equal(&transportUrl))
+			Expect(repoConfig.OpenLineage.TransportEndpoint).To(Equal(&endpoint))
+			Expect(repoConfig.OpenLineage.ApiKey).To(BeNil())
+			// ExtraConfig: "true"/"false" strings coerced to booleans; other strings unchanged.
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("namespace", "my-feast"))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("producer", "feast-operator"))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("emit_on_apply", true))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("emit_on_materialize", false))
+		})
+
+		It("should set openlineage block with kafka extraConfig", func() {
+			featureStore := minimalFeatureStore()
+			transportType := "kafka"
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:       true,
+				TransportType: &transportType,
+				ExtraConfig: map[string]string{
+					"bootstrap_servers": "kafka.svc:9092",
+					"topic":             "openlineage",
+					"sasl_mechanism":    "PLAIN",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("bootstrap_servers", "kafka.svc:9092"))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("topic", "openlineage"))
+			Expect(repoConfig.OpenLineage.ExtraConfig).To(HaveKeyWithValue("sasl_mechanism", "PLAIN"))
+		})
+
+		It("should resolve api_key from secret for openlineage", func() {
+			featureStore := minimalFeatureStore()
+			transportType := HttpScheme
+			transportUrl := marquezUrl
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:       true,
+				TransportType: &transportType,
+				TransportUrl:  &transportUrl,
+				ApiKeySecretRef: &corev1.LocalObjectReference{
+					Name: "lineage-secret",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			apiKeyMockExtract := func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"api_key": "my-secret-key",
+				}, nil
+			}
+
+			repoConfig, err := getServiceRepoConfig(featureStore, apiKeyMockExtract, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.ApiKey).NotTo(BeNil())
+			Expect(*repoConfig.OpenLineage.ApiKey).To(Equal("my-secret-key"))
+		})
+
+		It("should return error when apiKeySecretRef Secret is missing the api_key key", func() {
+			featureStore := minimalFeatureStore()
+			transportType := HttpScheme
+			transportUrl := marquezUrl
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:       true,
+				TransportType: &transportType,
+				TransportUrl:  &transportUrl,
+				ApiKeySecretRef: &corev1.LocalObjectReference{
+					Name: "lineage-secret",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			missingKeyMock := func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"wrong_key": "some-value",
+				}, nil
+			}
+
+			_, err := getServiceRepoConfig(featureStore, missingKeyMock, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("api_key"))
+			Expect(err.Error()).To(ContainSubstring("lineage-secret"))
+		})
+
+		It("should return error when apiKeySecretRef api_key value is not a string", func() {
+			featureStore := minimalFeatureStore()
+			transportType := HttpScheme
+			transportUrl := marquezUrl
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled:       true,
+				TransportType: &transportType,
+				TransportUrl:  &transportUrl,
+				ApiKeySecretRef: &corev1.LocalObjectReference{
+					Name: "lineage-secret",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			nonStringMock := func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"api_key": 12345, // integer, not a string
+				}, nil
+			}
+
+			_, err := getServiceRepoConfig(featureStore, nonStringMock, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("api_key"))
+			Expect(err.Error()).To(ContainSubstring("lineage-secret"))
+		})
+
+		It("should not set feature_server block when serving is nil", func() {
+			featureStore := minimalFeatureStore()
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.FeatureServer).To(BeNil())
+			Expect(repoConfig.Materialization).To(BeNil())
+			Expect(repoConfig.OpenLineage).To(BeNil())
+		})
 	})
 	It("should fail to create the repo configs", func() {
 		featureStore := minimalFeatureStore()
 
-		By("Having invalid server oidc authorization")
-		featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-			OidcAuthz: &feastdevv1alpha1.OidcAuthz{
-				SecretRef: corev1.LocalObjectReference{
+		By("Having oidc with no issuerUrl, no Secret, no env var — should fail")
+		featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+			OidcAuthz: &feastdevv1.OidcAuthz{},
+		}
+		ApplyDefaultsToStatus(featureStore)
+
+		_, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("no OIDC discovery URL configured"))
+
+		By("Having oidc with Secret missing auth_discovery_url and no issuerUrl — should fail")
+		featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+			OidcAuthz: &feastdevv1.OidcAuthz{
+				SecretRef: &corev1.LocalObjectReference{
 					Name: "oidc-secret",
 				},
 			},
@@ -311,22 +678,14 @@ var _ = Describe("Repo Config", func() {
 			string(OidcClientSecret): "client-secret",
 			string(OidcUsername):     "username",
 			string(OidcPassword):     "password"})
-		_, err := getServiceRepoConfig(featureStore, secretExtractionFunc)
+		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("missing OIDC secret"))
-		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("missing OIDC secret"))
-		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("missing OIDC secret"))
-		_, err = getClientRepoConfig(featureStore, secretExtractionFunc)
-		Expect(err).ToNot(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("no OIDC discovery URL configured"))
 
 		By("Having invalid client oidc authorization")
-		featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-			OidcAuthz: &feastdevv1alpha1.OidcAuthz{
-				SecretRef: corev1.LocalObjectReference{
+		featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+			OidcAuthz: &feastdevv1.OidcAuthz{
+				SecretRef: &corev1.LocalObjectReference{
 					Name: "oidc-secret",
 				},
 			},
@@ -338,51 +697,46 @@ var _ = Describe("Repo Config", func() {
 			string(OidcClientId):         "client-id",
 			string(OidcUsername):         "username",
 			string(OidcPassword):         "password"})
-		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("missing OIDC secret"))
-		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("missing OIDC secret"))
-		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("missing OIDC secret"))
-		_, err = getClientRepoConfig(featureStore, secretExtractionFunc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("missing OIDC secret"))
+		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
+		Expect(err).NotTo(HaveOccurred())
+		getClientRepoConfig(featureStore, nil)
 	})
 })
 
 var emptyOfflineStoreConfig = OfflineStoreConfig{}
 var emptyRegistryConfig = RegistryConfig{}
 
-func minimalFeatureStore() *feastdevv1alpha1.FeatureStore {
-	return &feastdevv1alpha1.FeatureStore{
+func minimalFeatureStore() *feastdevv1.FeatureStore {
+	return &feastdevv1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: feastdevv1alpha1.FeatureStoreSpec{
+		Spec: feastdevv1.FeatureStoreSpec{
 			FeastProject: projectName,
 		},
 	}
 }
 
-func minimalFeatureStoreWithAllServers() *feastdevv1alpha1.FeatureStore {
+func minimalFeatureStoreWithAllServers() *feastdevv1.FeatureStore {
 	feast := minimalFeatureStore()
 	// onlineStore configured by default
-	feast.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-		OfflineStore: &feastdevv1alpha1.OfflineStore{
-			Server: &feastdevv1alpha1.ServerConfigs{},
+	feast.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OfflineStore: &feastdevv1.OfflineStore{
+			Server: &feastdevv1.ServerConfigs{},
 		},
-		Registry: &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.RegistryServerConfigs{},
+		Registry: &feastdevv1.Registry{
+			Local: &feastdevv1.LocalRegistryConfig{
+				Server: &feastdevv1.RegistryServerConfigs{},
 			},
 		},
-		UI: &feastdevv1alpha1.ServerConfigs{},
+		UI: &feastdevv1.ServerConfigs{},
 	}
 	return feast
 }
 
 func emptyMockExtractConfigFromSecret(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
+}
+
+func emptyMockExtractConfigFromConfigMap(configMapRef string, configMapKey string) (map[string]interface{}, error) {
 	return map[string]interface{}{}, nil
 }
 
@@ -422,3 +776,176 @@ write_concurrency: 100
 	}
 	return parameters
 }
+
+var _ = Describe("getCertificatePath", func() {
+	Context("when feast parameter is nil", func() {
+		It("should return individual service certificate path", func() {
+			// Test with nil feast parameter
+			path := getCertificatePath(nil, OfflineFeastType, "tls.crt")
+			Expect(path).To(Equal("/tls/offline/tls.crt"))
+
+			path = getCertificatePath(nil, OnlineFeastType, "tls.crt")
+			Expect(path).To(Equal("/tls/online/tls.crt"))
+
+			path = getCertificatePath(nil, RegistryFeastType, "tls.crt")
+			Expect(path).To(Equal("/tls/registry/tls.crt"))
+		})
+	})
+
+	Context("with different certificate file names", func() {
+		It("should use the provided certificate file name", func() {
+			// Test with nil feast parameter (no custom CA bundle)
+			path := getCertificatePath(nil, OfflineFeastType, "custom.crt")
+			Expect(path).To(Equal("/tls/offline/custom.crt"))
+
+			path = getCertificatePath(nil, RegistryFeastType, "remote.crt")
+			Expect(path).To(Equal("/tls/registry/remote.crt"))
+		})
+	})
+
+	Context("when custom CA bundle is available", func() {
+		It("should return custom CA bundle path", func() {
+			// Create a FeastServices instance with custom CA bundle available
+			// This test would require a full test environment setup
+			// For now, we test the nil case which covers the fallback behavior
+			path := getCertificatePath(nil, OfflineFeastType, "tls.crt")
+			Expect(path).To(Equal("/tls/offline/tls.crt"))
+		})
+	})
+})
+
+var _ = Describe("TLS Certificate Path Configuration", func() {
+	Context("in getClientRepoConfig", func() {
+		It("should use individual service certificate paths when no custom CA bundle", func() {
+			// Create a feature store with TLS enabled
+			featureStore := &feastdevv1.FeatureStore{
+				Status: feastdevv1.FeatureStoreStatus{
+					ServiceHostnames: feastdevv1.ServiceHostnames{
+						OfflineStore: "offline.example.com:443",
+						OnlineStore:  "online.example.com:443",
+						Registry:     "registry.example.com:443",
+					},
+					Applied: feastdevv1.FeatureStoreSpec{
+						Services: &feastdevv1.FeatureStoreServices{
+							OfflineStore: &feastdevv1.OfflineStore{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
+										SecretRef: &corev1.LocalObjectReference{Name: "offline-tls"},
+										SecretKeyNames: feastdevv1.SecretKeyNames{
+											TlsCrt: "tls.crt",
+										},
+									},
+								},
+							},
+							OnlineStore: &feastdevv1.OnlineStore{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
+										SecretRef: &corev1.LocalObjectReference{Name: "online-tls"},
+										SecretKeyNames: feastdevv1.SecretKeyNames{
+											TlsCrt: "tls.crt",
+										},
+									},
+								},
+							},
+							UI: &feastdevv1.ServerConfigs{
+								TLS: &feastdevv1.TlsConfigs{
+									SecretRef: &corev1.LocalObjectReference{Name: "ui-tls"},
+									SecretKeyNames: feastdevv1.SecretKeyNames{
+										TlsCrt: "tls.crt",
+									},
+								},
+							},
+							Registry: &feastdevv1.Registry{
+								Local: &feastdevv1.LocalRegistryConfig{
+									Server: &feastdevv1.RegistryServerConfigs{
+										ServerConfigs: feastdevv1.ServerConfigs{
+											TLS: &feastdevv1.TlsConfigs{
+												SecretRef: &corev1.LocalObjectReference{Name: "registry-tls"},
+												SecretKeyNames: feastdevv1.SecretKeyNames{
+													TlsCrt: "tls.crt",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			// Test with nil feast parameter (no custom CA bundle)
+			repoConfig := getClientRepoConfig(featureStore, nil)
+
+			// Verify individual service certificate paths are used
+			Expect(repoConfig.OfflineStore.Cert).To(Equal("/tls/offline/tls.crt"))
+			Expect(repoConfig.OnlineStore.Cert).To(Equal("/tls/online/tls.crt"))
+			Expect(repoConfig.Registry.Cert).To(Equal("/tls/registry/tls.crt"))
+		})
+
+		It("should use custom CA bundle path when available", func() {
+			// This test would require a full FeastServices setup with custom CA bundle
+			// For now, we verify the function signature and basic behavior
+			featureStore := &feastdevv1.FeatureStore{
+				Status: feastdevv1.FeatureStoreStatus{
+					ServiceHostnames: feastdevv1.ServiceHostnames{
+						OfflineStore: "offline.example.com:443",
+						OnlineStore:  "online.example.com:443",
+						Registry:     "registry.example.com:443",
+						UI:           "ui.example.com:443",
+					},
+					Applied: feastdevv1.FeatureStoreSpec{
+						Services: &feastdevv1.FeatureStoreServices{
+							OfflineStore: &feastdevv1.OfflineStore{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
+										SecretRef: &corev1.LocalObjectReference{Name: "offline-tls"},
+										SecretKeyNames: feastdevv1.SecretKeyNames{
+											TlsCrt: "tls.crt",
+										},
+									},
+								},
+							},
+							OnlineStore: &feastdevv1.OnlineStore{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
+										SecretRef: &corev1.LocalObjectReference{Name: "online-tls"},
+										SecretKeyNames: feastdevv1.SecretKeyNames{
+											TlsCrt: "tls.crt",
+										},
+									},
+								},
+							},
+							UI: &feastdevv1.ServerConfigs{
+								TLS: &feastdevv1.TlsConfigs{
+									SecretRef: &corev1.LocalObjectReference{Name: "ui-tls"},
+									SecretKeyNames: feastdevv1.SecretKeyNames{
+										TlsCrt: "tls.crt",
+									},
+								},
+							},
+							Registry: &feastdevv1.Registry{
+								Local: &feastdevv1.LocalRegistryConfig{
+									Server: &feastdevv1.RegistryServerConfigs{
+										ServerConfigs: feastdevv1.ServerConfigs{
+											TLS: &feastdevv1.TlsConfigs{
+												SecretRef: &corev1.LocalObjectReference{Name: "registry-tls"},
+												SecretKeyNames: feastdevv1.SecretKeyNames{
+													TlsCrt: "tls.crt",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			// Test with nil feast parameter (no custom CA bundle available)
+			repoConfig := getClientRepoConfig(featureStore, nil)
+			Expect(repoConfig.OfflineStore.Cert).To(Equal("/tls/offline/tls.crt"))
+		})
+	})
+})

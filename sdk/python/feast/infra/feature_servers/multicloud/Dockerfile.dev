@@ -1,14 +1,15 @@
-FROM registry.access.redhat.com/ubi9/python-311:1
+FROM registry.access.redhat.com/ubi9/python-312-minimal:1
 
 USER 0
+RUN microdnf install -y npm git gcc libpq-devel python3.12-devel && microdnf clean all
 RUN npm install -g yarn yalc && rm -rf .npm
-USER default
+USER 1001
 
-COPY --chown=default .git ${APP_ROOT}/src/.git
-COPY --chown=default setup.py pyproject.toml README.md Makefile ${APP_ROOT}/src/
-COPY --chown=default protos ${APP_ROOT}/src/protos
-COPY --chown=default ui ${APP_ROOT}/src/ui
-COPY --chown=default sdk/python ${APP_ROOT}/src/sdk/python
+COPY --chown=1001:0 .git ${APP_ROOT}/src/.git
+COPY --chown=1001:0 pyproject.toml README.md Makefile ${APP_ROOT}/src/
+COPY --chown=1001:0 protos ${APP_ROOT}/src/protos
+COPY --chown=1001:0 ui ${APP_ROOT}/src/ui
+COPY --chown=1001:0 sdk/python ${APP_ROOT}/src/sdk/python
 
 WORKDIR ${APP_ROOT}/src/ui
 RUN npm install && \
@@ -26,8 +27,10 @@ RUN yalc add @feast-dev/feast-ui && \
     yarn cache clean --all
 
 WORKDIR ${APP_ROOT}/src
-RUN pip install --require-hashes --no-deps -r sdk/python/requirements/py3.11-minimal-requirements.txt
-RUN pip install --no-deps -e .[minimal]
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+ENV UV_CACHE_DIR=/tmp/uv-cache
+RUN uv pip install --require-hashes --no-deps -r sdk/python/requirements/py3.12-minimal-requirements.txt
+RUN uv pip install --no-deps -e .[minimal]
 
 # modify permissions to support running with a random uid
 RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json

@@ -12,7 +12,7 @@ import pyarrow.flight as fl
 import pyarrow.parquet
 from pyarrow import Schema
 from pyarrow._flight import FlightCallOptions, FlightDescriptor, Ticket
-from pydantic import StrictInt, StrictStr
+from pydantic import Field, StrictInt, StrictStr
 
 from feast import OnDemandFeatureView
 from feast.arrow_error_handler import arrow_client_error_handling_decorator
@@ -42,6 +42,10 @@ logger = logging.getLogger(__name__)
 
 
 class FeastFlightClient(fl.FlightClient):
+    def __init__(self, *args, connection_retries: int = 3, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._connection_retries = max(0, connection_retries)
+
     @arrow_client_error_handling_decorator
     def get_flight_info(
         self, descriptor: FlightDescriptor, options: FlightCallOptions = None
@@ -71,7 +75,12 @@ class FeastFlightClient(fl.FlightClient):
 
 
 def build_arrow_flight_client(
-    scheme: str, host: str, port, auth_config: AuthConfig, cert: str = ""
+    scheme: str,
+    host: str,
+    port,
+    auth_config: AuthConfig,
+    cert: str = "",
+    connection_retries: int = 3,
 ):
     arrow_scheme = "grpc+tcp"
     if scheme == "https":
@@ -88,10 +97,17 @@ def build_arrow_flight_client(
     if auth_config.type != AuthType.NONE.value:
         middlewares = [FlightAuthInterceptorFactory(auth_config)]
         return FeastFlightClient(
-            f"{arrow_scheme}://{host}:{port}", middleware=middlewares, **kwargs
+            f"{arrow_scheme}://{host}:{port}",
+            middleware=middlewares,
+            connection_retries=connection_retries,
+            **kwargs,
         )
 
-    return FeastFlightClient(f"{arrow_scheme}://{host}:{port}", **kwargs)
+    return FeastFlightClient(
+        f"{arrow_scheme}://{host}:{port}",
+        connection_retries=connection_retries,
+        **kwargs,
+    )
 
 
 class RemoteOfflineStoreConfig(FeastConfigBaseModel):
@@ -108,6 +124,9 @@ class RemoteOfflineStoreConfig(FeastConfigBaseModel):
     cert: StrictStr = ""
     """ str: Path to the public certificate when the offline server starts in TLS(SSL) mode. This may be needed if the offline server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
     If type is 'remote', then this configuration is needed to connect to remote offline server in TLS mode. """
+
+    connection_retries: int = Field(default=3, ge=0)
+    """ int: Number of retries for transient Arrow Flight errors with exponential backoff (default 3). """
 
 
 class RemoteRetrievalJob(RetrievalJob):
@@ -197,6 +216,7 @@ class RemoteOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs,
     ) -> RemoteRetrievalJob:
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
@@ -206,6 +226,7 @@ class RemoteOfflineStore(OfflineStore):
             port=config.offline_store.port,
             auth_config=config.auth_config,
             cert=config.offline_store.cert,
+            connection_retries=config.offline_store.connection_retries,
         )
 
         feature_view_names = [fv.name for fv in feature_views]
@@ -218,6 +239,19 @@ class RemoteOfflineStore(OfflineStore):
             "full_feature_names": full_feature_names,
             "name_aliases": name_aliases,
         }
+
+        # Extract and serialize start_date/end_date for remote transmission
+        start_date = kwargs.get("start_date", None)
+        end_date = kwargs.get("end_date", None)
+
+        if start_date is not None:
+            api_parameters["start_date"] = start_date.isoformat()
+        if end_date is not None:
+            api_parameters["end_date"] = end_date.isoformat()
+
+        if isinstance(entity_df, str):
+            api_parameters["entity_df_sql"] = entity_df
+            entity_df = None
 
         return RemoteRetrievalJob(
             client=client,
@@ -247,6 +281,7 @@ class RemoteOfflineStore(OfflineStore):
             port=config.offline_store.port,
             auth_config=config.auth_config,
             cert=config.offline_store.cert,
+            connection_retries=config.offline_store.connection_retries,
         )
 
         api_parameters = {
@@ -285,6 +320,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.port,
             config.auth_config,
             cert=config.offline_store.cert,
+            connection_retries=config.offline_store.connection_retries,
         )
 
         api_parameters = {
@@ -324,6 +360,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.port,
             config.auth_config,
             config.offline_store.cert,
+            connection_retries=config.offline_store.connection_retries,
         )
 
         api_parameters = {
@@ -354,6 +391,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.port,
             config.auth_config,
             config.offline_store.cert,
+            connection_retries=config.offline_store.connection_retries,
         )
 
         feature_view_names = [feature_view.name]
@@ -386,6 +424,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.port,
             config.auth_config,
             config.offline_store.cert,
+            connection_retries=config.offline_store.connection_retries,
         )
 
         api_parameters = {
@@ -411,6 +450,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.port,
             config.auth_config,
             config.offline_store.cert,
+            connection_retries=config.offline_store.connection_retries,
         )
 
         api_parameters = {
@@ -433,7 +473,16 @@ class RemoteOfflineStore(OfflineStore):
         return zip(table.column("name").to_pylist(), table.column("type").to_pylist())
 
 
-def _create_retrieval_metadata(feature_refs: List[str], entity_df: pd.DataFrame):
+def _create_retrieval_metadata(
+    feature_refs: List[str], entity_df: Optional[Union[pd.DataFrame, str]] = None
+):
+    if entity_df is None or isinstance(entity_df, str):
+        return RetrievalMetadata(
+            features=feature_refs,
+            keys=[],
+            min_event_timestamp=None,
+            max_event_timestamp=None,
+        )
     entity_schema = _get_entity_schema(
         entity_df=entity_df,
     )

@@ -235,6 +235,38 @@ infra/feast-operator/bin
 # ignore the website build directory
 infra/website/node_modules/
 infra/website/.astro/
+infra/website/dist/
 
 # offline builds
 offline_build/
+
+# Java compiled
+*.class
+*.jar
+*.war
+*.ear
+
+# Go binaries
+*.exe
+*.exe~
+*.out
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~
+\#*\#
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# AgentReady reports
+.agentready/
+
+# Claude Code project settings
+# Claude Code local state (conversation history, credentials, cache)
+.claude/settings.local.json
+.claude/todos/
+.claude/cache/

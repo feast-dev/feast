@@ -18,7 +18,7 @@ package services
 
 import (
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	handler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,10 +50,16 @@ const (
 
 	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
 	caBundleName       = "odh-trusted-ca-bundle"
+	odhCaBundleKey     = "odh-ca-bundle.crt"
+	tlsPathOdhCABundle = "/etc/pki/tls/custom-certs/odh-ca-bundle.crt"
+	tlsPathOidcCA      = "/etc/pki/tls/oidc-ca/ca.crt"
+	oidcCaVolumeName   = "oidc-ca-cert"
+	defaultCACertKey   = "ca-bundle.crt"
 
-	DefaultOfflineStorageRequest  = "20Gi"
-	DefaultOnlineStorageRequest   = "5Gi"
-	DefaultRegistryStorageRequest = "5Gi"
+	DefaultOfflineStorageRequest        = "20Gi"
+	DefaultOnlineStorageRequest         = "5Gi"
+	DefaultRegistryStorageRequest       = "5Gi"
+	MetricsPort                   int32 = 8000
 
 	AuthzFeastType    FeastServiceType = "authorization"
 	OfflineFeastType  FeastServiceType = "offline"
@@ -90,16 +96,24 @@ const (
 	OidcClientSecret     OidcPropertyType = "client_secret"
 	OidcUsername         OidcPropertyType = "username"
 	OidcPassword         OidcPropertyType = "password"
+	OidcTokenEnvVar      OidcPropertyType = "token_env_var"
+	OidcVerifySsl        OidcPropertyType = "verify_ssl"
+	OidcCaCertPath       OidcPropertyType = "ca_cert_path"
 
 	OidcMissingSecretError string = "missing OIDC secret: %s"
+)
+
+const (
+	ManagedByLabelKey   = "app.kubernetes.io/managed-by"
+	ManagedByLabelValue = "feast-operator"
 )
 
 var (
 	DefaultImage          = "quay.io/feastdev/feature-server:" + feastversion.FeastVersion
 	DefaultCronJobImage   = "quay.io/openshift/origin-cli:4.17"
 	DefaultPVCAccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-	NameLabelKey          = feastdevv1alpha1.GroupVersion.Group + "/name"
-	ServiceTypeLabelKey   = feastdevv1alpha1.GroupVersion.Group + "/service-type"
+	NameLabelKey          = feastdevv1.GroupVersion.Group + "/name"
+	ServiceTypeLabelKey   = feastdevv1.GroupVersion.Group + "/service-type"
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
@@ -129,86 +143,85 @@ var (
 	FeastServiceConditions = map[FeastServiceType]map[metav1.ConditionStatus]metav1.Condition{
 		OfflineFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.OfflineStoreReadyType,
+				Type:    feastdevv1.OfflineStoreReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.OfflineStoreReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.OfflineStoreReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.OfflineStoreReadyType,
+				Type:   feastdevv1.OfflineStoreReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.OfflineStoreFailedReason,
+				Reason: feastdevv1.OfflineStoreFailedReason,
 			},
 		},
 		OnlineFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.OnlineStoreReadyType,
+				Type:    feastdevv1.OnlineStoreReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.OnlineStoreReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.OnlineStoreReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.OnlineStoreReadyType,
+				Type:   feastdevv1.OnlineStoreReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.OnlineStoreFailedReason,
+				Reason: feastdevv1.OnlineStoreFailedReason,
 			},
 		},
 		RegistryFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.RegistryReadyType,
+				Type:    feastdevv1.RegistryReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.RegistryReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.RegistryReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.RegistryReadyType,
+				Type:   feastdevv1.RegistryReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.RegistryFailedReason,
+				Reason: feastdevv1.RegistryFailedReason,
 			},
 		},
 		UIFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.UIReadyType,
+				Type:    feastdevv1.UIReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.UIReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.UIReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.UIReadyType,
+				Type:   feastdevv1.UIReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.UIFailedReason,
+				Reason: feastdevv1.UIFailedReason,
 			},
 		},
 		ClientFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.ClientReadyType,
+				Type:    feastdevv1.ClientReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.ClientReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.ClientReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.ClientReadyType,
+				Type:   feastdevv1.ClientReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.ClientFailedReason,
+				Reason: feastdevv1.ClientFailedReason,
 			},
 		},
 		CronJobFeastType: {
 			metav1.ConditionTrue: {
-				Type:    feastdevv1alpha1.CronJobReadyType,
+				Type:    feastdevv1.CronJobReadyType,
 				Status:  metav1.ConditionTrue,
-				Reason:  feastdevv1alpha1.ReadyReason,
-				Message: feastdevv1alpha1.CronJobReadyMessage,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.CronJobReadyMessage,
 			},
 			metav1.ConditionFalse: {
-				Type:   feastdevv1alpha1.CronJobReadyType,
+				Type:   feastdevv1.CronJobReadyType,
 				Status: metav1.ConditionFalse,
-				Reason: feastdevv1alpha1.CronJobFailedReason,
+				Reason: feastdevv1.CronJobFailedReason,
 			},
 		},
 	}
 
-	OidcServerProperties = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
-	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
+	OidcOptionalSecretProperties = []OidcPropertyType{OidcAuthDiscoveryUrl, OidcClientId, OidcClientSecret, OidcUsername, OidcPassword}
 )
 
 // Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.
@@ -247,13 +260,63 @@ type FeastServices struct {
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
 // https://rtd.feast.dev/en/stable/#feast.repo_config.RepoConfig
 type RepoConfig struct {
-	Project                       string             `yaml:"project,omitempty"`
-	Provider                      FeastProviderType  `yaml:"provider,omitempty"`
-	OfflineStore                  OfflineStoreConfig `yaml:"offline_store,omitempty"`
-	OnlineStore                   OnlineStoreConfig  `yaml:"online_store,omitempty"`
-	Registry                      RegistryConfig     `yaml:"registry,omitempty"`
-	AuthzConfig                   AuthzConfig        `yaml:"auth,omitempty"`
-	EntityKeySerializationVersion int                `yaml:"entity_key_serialization_version,omitempty"`
+	Project                       string                     `yaml:"project,omitempty"`
+	Provider                      FeastProviderType          `yaml:"provider,omitempty"`
+	OfflineStore                  OfflineStoreConfig         `yaml:"offline_store,omitempty"`
+	OnlineStore                   OnlineStoreConfig          `yaml:"online_store,omitempty"`
+	Registry                      RegistryConfig             `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig                `yaml:"auth,omitempty"`
+	EntityKeySerializationVersion int                        `yaml:"entity_key_serialization_version,omitempty"`
+	BatchEngine                   *ComputeEngineConfig       `yaml:"batch_engine,omitempty"`
+	FeatureServer                 *FeatureServerYamlConfig   `yaml:"feature_server,omitempty"`
+	Materialization               *MaterializationYamlConfig `yaml:"materialization,omitempty"`
+	OpenLineage                   *OpenLineageYamlConfig     `yaml:"openlineage,omitempty"`
+}
+
+// FeatureServerYamlConfig maps to the feature_server section of feature_store.yaml.
+// Field names match Feast's Python SDK YAML keys exactly.
+type FeatureServerYamlConfig struct {
+	Type                                    string             `yaml:"type"`
+	Metrics                                 *MetricsYamlConfig `yaml:"metrics,omitempty"`
+	OfflinePushBatchingEnabled              *bool              `yaml:"offline_push_batching_enabled,omitempty"`
+	OfflinePushBatchingBatchSize            *int32             `yaml:"offline_push_batching_batch_size,omitempty"`
+	OfflinePushBatchingBatchIntervalSeconds *int32             `yaml:"offline_push_batching_batch_interval_seconds,omitempty"`
+	McpEnabled                              *bool              `yaml:"mcp_enabled,omitempty"`
+	McpServerName                           *string            `yaml:"mcp_server_name,omitempty"`
+	McpServerVersion                        *string            `yaml:"mcp_server_version,omitempty"`
+	McpTransport                            *string            `yaml:"mcp_transport,omitempty"`
+}
+
+// MetricsYamlConfig maps to the feature_server.metrics section of feature_store.yaml.
+// Category booleans are merged inline so they sit at the same YAML level as
+// "enabled". Keys must be valid Feast MetricsConfig field names for the SDK
+// version in use (e.g. resource, request, online_features, push,
+// materialization, freshness). Note: Feast's MetricsConfig uses
+// extra="forbid", so unknown keys will be rejected by SDK validation.
+type MetricsYamlConfig struct {
+	Enabled    bool                   `yaml:"enabled"`
+	Categories map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// MaterializationYamlConfig maps to the materialization section of feature_store.yaml.
+// ExtraConfig is merged inline so future Feast MaterializationConfig fields appear
+// at the same YAML level as the typed fields above.
+type MaterializationYamlConfig struct {
+	OnlineWriteBatchSize *int32                 `yaml:"online_write_batch_size,omitempty"`
+	ExtraConfig          map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// OpenLineageYamlConfig maps to the openlineage section of feature_store.yaml.
+// ExtraConfig is merged inline so all extra key-value pairs (namespace, producer,
+// emit_on_apply, emit_on_materialize, transport-specific options, etc.) appear at
+// the same YAML level as the typed connection fields.
+type OpenLineageYamlConfig struct {
+	Enabled           bool                   `yaml:"enabled"`
+	TransportType     *string                `yaml:"transport_type,omitempty"`
+	TransportUrl      *string                `yaml:"transport_url,omitempty"`
+	TransportEndpoint *string                `yaml:"transport_endpoint,omitempty"`
+	ApiKey            *string                `yaml:"api_key,omitempty"`
+	ExtraConfig       map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.
@@ -280,13 +343,27 @@ type RegistryConfig struct {
 	RegistryType       RegistryConfigType     `yaml:"registry_type,omitempty"`
 	Cert               string                 `yaml:"cert,omitempty"`
 	S3AdditionalKwargs *map[string]string     `yaml:"s3_additional_kwargs,omitempty"`
+	CacheTTLSeconds    *int32                 `yaml:"cache_ttl_seconds,omitempty"`
+	CacheMode          *string                `yaml:"cache_mode,omitempty"`
+	Mcp                *RegistryMcpYamlConfig `yaml:"mcp,omitempty"`
 	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// RegistryMcpYamlConfig maps to the registry.mcp section of feature_store.yaml.
+type RegistryMcpYamlConfig struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // AuthzConfig is the RBAC authorization configuration.
 type AuthzConfig struct {
 	Type           AuthzType              `yaml:"type,omitempty"`
 	OidcParameters map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// ComputeEngineConfig is the configuration for batch compute engine.
+type ComputeEngineConfig struct {
+	Type       string                 `yaml:"type,omitempty"`
+	Parameters map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 type deploymentSettings struct {

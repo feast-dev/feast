@@ -40,52 +40,87 @@ auth:
 With OIDC authorization, the Feast client proxies retrieve the JWT token from an OIDC server (or [Identity Provider](https://openid.net/developers/how-connect-works/))
 and append it in every request to a Feast server, using an [Authorization Bearer Token](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication#bearer).
 
-The server, in turn, uses the same OIDC server to validate the token and extract the user roles from the token itself.
+The server, in turn, uses the same OIDC server to validate the token and extract user details — including username, roles, and groups — from the token itself.
 
 Some assumptions are made in the OIDC server configuration:
 * The OIDC token refers to a client with roles matching the RBAC roles of the configured `Permission`s (*)
-* The roles are exposed in the access token that is passed to the server
+* The roles are exposed in the access token under `resource_access.<client_id>.roles`
 * The JWT token is expected to have a verified signature and not be expired. The Feast OIDC token parser logic validates for `verify_signature` and `verify_exp` so make sure that the given OIDC provider is configured to meet these requirements.
-* The preferred_username should be part of the JWT token claim.
-
+* The `preferred_username` should be part of the JWT token claim.
+* For `GroupBasedPolicy` support, the `groups` claim should be present in the access token (requires a "Group Membership" protocol mapper in Keycloak).
 
 (*) Please note that **the role match is case-sensitive**, e.g. the name of the role in the OIDC server and in the `Permission` configuration
 must be exactly the same.
 
-For example, the access token for a client `app` of a user with `reader` role should have the following `resource_access` section:
+For example, the access token for a client `app` of a user with `reader` role and membership in the `data-team` group should have the following claims:
 ```json
 {
+  "preferred_username": "alice",
   "resource_access": {
     "app": {
       "roles": [
         "reader"
       ]
     }
-  }
+  },
+  "groups": [
+    "data-team"
+  ]
 }
 ```
 
-An example of feast OIDC authorization configuration on the server side is the following: 
+#### Server-Side Configuration
+
+The server requires `auth_discovery_url` and `client_id` to validate incoming JWT tokens via JWKS:
 ```yaml
 project: my-project
 auth:
   type: oidc
-  client_id: _CLIENT_ID__
+  client_id: _CLIENT_ID_
   auth_discovery_url: _OIDC_SERVER_URL_/realms/master/.well-known/openid-configuration
 ...
 ```
 
-In case of client configuration, the following settings username, password and client_secret must be added to specify the current user:
+When the OIDC provider uses a self-signed or untrusted TLS certificate (e.g. internal Keycloak on OpenShift), set `verify_ssl` to `false` to disable certificate verification:
 ```yaml
 auth:
   type: oidc
-  ...
-  username: _USERNAME_
-  password: _PASSWORD_
-  client_secret: _CLIENT_SECRET__
+  client_id: _CLIENT_ID_
+  auth_discovery_url: https://keycloak.internal/realms/master/.well-known/openid-configuration
+  verify_ssl: false
 ```
 
-Below is an example of feast full OIDC client auth configuration:
+{% hint style="warning" %}
+Setting `verify_ssl: false` disables TLS certificate verification for all OIDC provider communication (discovery, JWKS, token endpoint). Only use this in development or internal environments where you accept the security risk.
+{% endhint %}
+
+#### Client-Side Configuration
+
+The client supports multiple token source modes. The SDK resolves tokens in the following priority order:
+
+1. **Intra-communication token** — internal server-to-server calls (via `INTRA_COMMUNICATION_BASE64` env var)
+2. **`token`** — a static JWT string provided directly in the configuration
+3. **`token_env_var`** — the name of an environment variable containing the JWT
+4. **`client_secret`** — fetches a token from the OIDC provider using client credentials or ROPC flow (requires `auth_discovery_url` and `client_id`)
+5. **`FEAST_OIDC_TOKEN`** — default fallback environment variable
+6. **Kubernetes service account token** — read from `/var/run/secrets/kubernetes.io/serviceaccount/token` when running inside a pod
+
+**Token passthrough** (for use with external token providers like [kube-authkit](https://github.com/opendatahub-io/kube-authkit)):
+```yaml
+project: my-project
+auth:
+  type: oidc
+  token_env_var: FEAST_OIDC_TOKEN
+```
+
+Or with a bare `type: oidc` (no other fields) — the SDK falls back to the `FEAST_OIDC_TOKEN` environment variable or a mounted Kubernetes service account token:
+```yaml
+project: my-project
+auth:
+  type: oidc
+```
+
+**Client credentials / ROPC flow** (existing behavior, unchanged):
 ```yaml
 project: my-project
 auth:
@@ -97,9 +132,15 @@ auth:
   auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
 ```
 
+When using client credentials or ROPC flows, the `verify_ssl` setting also applies to the discovery and token endpoint requests.
+
+#### Multi-Token Support (OIDC + Kubernetes Service Account)
+
+When the Feast server is configured with OIDC auth and deployed on Kubernetes, the `OidcTokenParser` can handle both Keycloak JWT tokens and Kubernetes service account tokens. Incoming tokens that contain a `kubernetes.io` claim are validated via the Kubernetes Token Access Review API and the namespace is extracted from the authenticated identity — no RBAC queries are performed, so the server service account only needs `tokenreviews/create` permission. All other tokens follow the standard OIDC/Keycloak JWKS validation path. This enables `NamespaceBasedPolicy` enforcement for service account tokens while using `GroupBasedPolicy` and `RoleBasedPolicy` for OIDC user tokens.
+
 ### Kubernetes RBAC Authorization
 With Kubernetes RBAC Authorization, the client uses the service account token as the authorizarion bearer token, and the
-server fetches the associated roles from the Kubernetes RBAC resources.
+server fetches the associated roles from the Kubernetes RBAC resources. Feast supports advanced authorization by extracting user groups and namespaces from Kubernetes tokens, enabling fine-grained access control beyond simple role matching. This is achieved by leveraging Kubernetes Token Access Review, which allows Feast to determine the groups and namespaces associated with a user or service account.
 
 An example of Kubernetes RBAC authorization configuration is the following: 
 {% hint style="info" %}
@@ -109,19 +150,12 @@ An example of Kubernetes RBAC authorization configuration is the following:
 project: my-project
 auth:
   type: kubernetes
+  user_token: <user_token> #Optional, else service account token Or env var is used for getting the token
 ...
 ```
 
 In case the client cannot run on the same cluster as the servers, the client token can be injected using the `LOCAL_K8S_TOKEN` 
 environment variable on the client side. The value must refer to the token of a service account created on the servers cluster
-and linked to the desired RBAC roles.
+and linked to the desired RBAC roles/groups/namespaces.
 
-#### Setting Up Kubernetes RBAC for Feast
-
-To ensure the Kubernetes RBAC environment aligns with Feast's RBAC configuration, follow these guidelines:
-* The roles defined in Feast `Permission` instances must have corresponding Kubernetes RBAC `Role` names.
-* The Kubernetes RBAC `Role` must reside in the same namespace as the Feast service.
-* The client application can run in a different namespace, using its own dedicated `ServiceAccount`.
-* Finally, the `RoleBinding` that links the client `ServiceAccount` to the RBAC `Role` must be defined in the namespace of the Feast service.
-
-If the above rules are satisfied, the Feast service must be  granted permissions to fetch `RoleBinding` instances from the local namespace.
+More details can be found in [Setting up kubernetes doc](../../reference/auth/kubernetes_auth_setup.md)

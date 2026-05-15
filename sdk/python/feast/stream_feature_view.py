@@ -6,15 +6,18 @@ from types import FunctionType
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import dill
+from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message
 from typeguard import typechecked
 
 from feast import flags_helper, utils
 from feast.aggregation import Aggregation
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.proto_utils import mode_to_string, serialize_data_source
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
@@ -56,13 +59,16 @@ class StreamFeatureView(FeatureView):
             columns. If not specified, can be inferred from the underlying data source.
         source: The stream source of data where this group of features is stored.
         aggregations: List of aggregations registered with the stream feature view.
-        mode: The mode of execution.
         timestamp_field: Must be specified if aggregations are specified. Defines the timestamp column on which to aggregate windows.
+        enable_tiling: Enable tiling optimization for efficient windowed aggregations.
+        tiling_hop_size: Time interval between tiles (e.g., 5 minutes). Defaults to 5 minutes.
         online: A boolean indicating whether online retrieval, and write to online store is enabled for this feature view.
         offline: A boolean indicating whether offline retrieval, and write to offline store is enabled for this feature view.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the stream feature view, typically the email of the primary maintainer.
+        org: The organizational unit that owns this stream feature view (e.g. "ads", "search").
+            Defaults to empty string.
         udf: The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
         udf_string: The string representation of the user defined transformation function.
         feature_transformation: The transformation to apply to the features.
@@ -84,14 +90,17 @@ class StreamFeatureView(FeatureView):
     description: str
     tags: Dict[str, str]
     owner: str
-    aggregations: List[Aggregation]
+    org: str
     mode: Union[TransformationMode, str]
-    timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     feature_transformation: Optional[Transformation]
     stream_engine: Optional[Dict[str, Any]] = None
+    aggregations: List[Aggregation]
+    timestamp_field: str
+    enable_tiling: bool
+    tiling_hop_size: Optional[timedelta]
 
     def __init__(
         self,
@@ -106,6 +115,7 @@ class StreamFeatureView(FeatureView):
         offline: bool = False,
         description: str = "",
         owner: str = "",
+        org: str = "",
         schema: Optional[List[Field]] = None,
         aggregations: Optional[List[Aggregation]] = None,
         mode: Union[str, TransformationMode] = TransformationMode.PYTHON,
@@ -114,6 +124,10 @@ class StreamFeatureView(FeatureView):
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
         stream_engine: Optional[Dict[str, Any]] = None,
+        enable_tiling: bool = False,
+        tiling_hop_size: Optional[timedelta] = None,
+        enable_validation: bool = False,
+        version: str = "latest",
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -136,15 +150,33 @@ class StreamFeatureView(FeatureView):
                 "aggregations must have a timestamp field associated with them to perform the aggregations"
             )
 
-        self.aggregations = aggregations or []
         self.mode = mode
-        self.timestamp_field = timestamp_field or ""
         self.udf = udf
         self.udf_string = udf_string
+        self.aggregations = aggregations or []
+        self.timestamp_field = timestamp_field or ""
         self.feature_transformation = (
             feature_transformation or self.get_feature_transformation()
         )
         self.stream_engine = stream_engine
+        self.enable_tiling = enable_tiling
+        self.tiling_hop_size = tiling_hop_size
+
+        if enable_tiling and self.aggregations:
+            effective_hop_size = tiling_hop_size or timedelta(minutes=5)
+            time_windows = [
+                agg.time_window
+                for agg in self.aggregations
+                if agg.time_window is not None
+            ]
+            if time_windows:
+                min_window_size = min(time_windows)
+                if effective_hop_size >= min_window_size:
+                    raise ValueError(
+                        f"tiling_hop_size ({effective_hop_size}) must be smaller than "
+                        f"the minimum aggregation time_window ({min_window_size}). "
+                        f"If hop_size >= window_size, the tiling algorithm will produce incorrect results."
+                    )
 
         super().__init__(
             name=name,
@@ -155,9 +187,13 @@ class StreamFeatureView(FeatureView):
             offline=offline,
             description=description,
             owner=owner,
+            org=org,
             schema=schema,
             source=source,  # type: ignore[arg-type]
+            mode=mode,
             sink_source=sink_source,
+            enable_validation=enable_validation,
+            version=version,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
@@ -177,6 +213,35 @@ class StreamFeatureView(FeatureView):
             raise ValueError(
                 f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
             )
+
+    def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
+        """Check for StreamFeatureView schema/UDF changes."""
+        if super()._schema_or_udf_changed(other):
+            return True
+
+        if not isinstance(other, StreamFeatureView):
+            return True
+
+        # UDF changes
+        if self.udf and other.udf:
+            self_code = getattr(self.udf, "__code__", None)
+            other_code = getattr(other.udf, "__code__", None)
+            if self_code and other_code:
+                if self_code.co_code != other_code.co_code:
+                    return True
+        elif self.udf != other.udf:  # One is None
+            return True
+
+        if self.udf_string != other.udf_string:
+            return True
+        if self.aggregations != other.aggregations:
+            return True
+        if self.timestamp_field != other.timestamp_field:
+            return True
+        if self.mode != other.mode:
+            return True
+
+        return False
 
     def __eq__(self, other):
         if not isinstance(other, StreamFeatureView):
@@ -208,15 +273,8 @@ class StreamFeatureView(FeatureView):
         meta = self.to_proto_meta()
         ttl_duration = self.get_ttl_duration()
 
-        batch_source_proto = None
-        if self.batch_source:
-            batch_source_proto = self.batch_source.to_proto()
-            batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
-
-        stream_source_proto = None
-        if self.stream_source:
-            stream_source_proto = self.stream_source.to_proto()
-            stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
+        batch_source_proto = serialize_data_source(self.batch_source)
+        stream_source_proto = serialize_data_source(self.stream_source)
 
         udf_proto, feature_transformation = None, None
         if self.udf:
@@ -235,9 +293,11 @@ class StreamFeatureView(FeatureView):
                 user_defined_function=udf_proto_v2,
             )
 
-        mode = (
-            self.mode.value if isinstance(self.mode, TransformationMode) else self.mode
-        )
+        # Serialize tiling configuration
+        tiling_hop_size_duration = None
+        if self.tiling_hop_size is not None:
+            tiling_hop_size_duration = Duration()
+            tiling_hop_size_duration.FromTimedelta(self.tiling_hop_size)
 
         spec = StreamFeatureViewSpecProto(
             name=self.name,
@@ -249,19 +309,24 @@ class StreamFeatureView(FeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            org=self.org,
             ttl=ttl_duration,
             online=self.online,
-            batch_source=batch_source_proto or None,
-            stream_source=stream_source_proto or None,
+            batch_source=batch_source_proto,
+            stream_source=stream_source_proto,
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
-            mode=mode,
+            mode=mode_to_string(self.mode),
+            enable_tiling=self.enable_tiling,
+            tiling_hop_size=tiling_hop_size_duration,
+            enable_validation=self.enable_validation,
+            version=self.version,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
-    def from_proto(cls, sfv_proto):
+    def from_proto(cls, sfv_proto, skip_udf: bool = False):
         batch_source = (
             DataSource.from_proto(sfv_proto.spec.batch_source)
             if sfv_proto.spec.HasField("batch_source")
@@ -274,7 +339,7 @@ class StreamFeatureView(FeatureView):
         )
         udf = (
             dill.loads(sfv_proto.spec.user_defined_function.body)
-            if sfv_proto.spec.HasField("user_defined_function")
+            if sfv_proto.spec.HasField("user_defined_function") and not skip_udf
             else None
         )
         udf_string = (
@@ -292,6 +357,7 @@ class StreamFeatureView(FeatureView):
             description=sfv_proto.spec.description,
             tags=dict(sfv_proto.spec.tags),
             owner=sfv_proto.spec.owner,
+            org=sfv_proto.spec.org,
             online=sfv_proto.spec.online,
             schema=[
                 Field.from_proto(field_proto) for field_proto in sfv_proto.spec.features
@@ -310,6 +376,15 @@ class StreamFeatureView(FeatureView):
                 for agg_proto in sfv_proto.spec.aggregations
             ],
             timestamp_field=sfv_proto.spec.timestamp_field,
+            enable_tiling=sfv_proto.spec.enable_tiling,
+            tiling_hop_size=(
+                sfv_proto.spec.tiling_hop_size.ToTimedelta()
+                if sfv_proto.spec.HasField("tiling_hop_size")
+                and sfv_proto.spec.tiling_hop_size.ToNanoseconds() != 0
+                else None
+            ),
+            enable_validation=sfv_proto.spec.enable_validation,
+            version=sfv_proto.spec.version or "latest",
         )
 
         if batch_source:
@@ -317,6 +392,16 @@ class StreamFeatureView(FeatureView):
 
         if stream_source:
             stream_feature_view.stream_source = stream_source
+
+        # Restore current_version_number from meta.
+        spec_version = sfv_proto.spec.version
+        cvn = sfv_proto.meta.current_version_number
+        if cvn > 0:
+            stream_feature_view.current_version_number = cvn
+        elif cvn == 0 and spec_version and spec_version.lower() != "latest":
+            stream_feature_view.current_version_number = 0
+        else:
+            stream_feature_view.current_version_number = None
 
         stream_feature_view.entities = list(sfv_proto.spec.entities)
 
@@ -356,6 +441,7 @@ class StreamFeatureView(FeatureView):
             online=self.online,
             description=self.description,
             owner=self.owner,
+            org=self.org,
             aggregations=self.aggregations,
             mode=self.mode,
             timestamp_field=self.timestamp_field,
@@ -363,6 +449,8 @@ class StreamFeatureView(FeatureView):
             udf=self.udf,
             udf_string=self.udf_string,
             feature_transformation=self.feature_transformation,
+            enable_validation=self.enable_validation,
+            version=self.version,
         )
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
@@ -383,11 +471,14 @@ def stream_feature_view(
     online: Optional[bool] = True,
     description: Optional[str] = "",
     owner: Optional[str] = "",
+    org: Optional[str] = "",
     schema: Optional[List[Field]] = None,
     source: Optional[DataSource] = None,
     aggregations: Optional[List[Aggregation]] = None,
     mode: Optional[str] = "spark",
     timestamp_field: Optional[str] = "",
+    enable_validation: bool = False,
+    version: str = "latest",
 ):
     """
     Creates an StreamFeatureView object with the given user function as udf.
@@ -416,9 +507,12 @@ def stream_feature_view(
             tags=tags,
             online=online,
             owner=owner,
+            org=org,
             aggregations=aggregations,
             mode=mode,
             timestamp_field=timestamp_field,
+            enable_validation=enable_validation,
+            version=version,
         )
         functools.update_wrapper(wrapper=stream_feature_view_obj, wrapped=user_function)
         return stream_feature_view_obj

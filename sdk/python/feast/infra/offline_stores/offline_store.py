@@ -154,17 +154,59 @@ class RetrievalJob(ABC):
         """
         features_table = self._to_arrow_internal(timeout=timeout)
         if self.on_demand_feature_views:
+            # Build a mapping of ODFV name to requested feature names
+            # This ensures we only return the features that were explicitly requested
+            odfv_feature_refs: Dict[str, set[str]] = {}
+            try:
+                metadata = self.metadata
+            except NotImplementedError:
+                metadata = None
+
+            if metadata and metadata.features:
+                for feature_ref in metadata.features:
+                    if ":" in feature_ref:
+                        view_name, feature_name = feature_ref.split(":", 1)
+                        # Check if this view_name matches any of the ODFVs
+                        for odfv in self.on_demand_feature_views:
+                            if (
+                                odfv.name == view_name
+                                or odfv.projection.name_to_use() == view_name
+                            ):
+                                if view_name not in odfv_feature_refs:
+                                    odfv_feature_refs[view_name] = set()
+                                # Store the feature name in the format that will appear in transformed_arrow
+                                expected_col_name = (
+                                    f"{odfv.projection.name_to_use()}__{feature_name}"
+                                    if self.full_feature_names
+                                    else feature_name
+                                )
+                                odfv_feature_refs[view_name].add(expected_col_name)
+
             for odfv in self.on_demand_feature_views:
                 transformed_arrow = odfv.transform_arrow(
                     features_table, self.full_feature_names
                 )
 
+                # Determine which columns to include from this ODFV
+                # If we have metadata with requested features, filter to only those
+                # Otherwise, include all columns (backward compatibility)
+                requested_features_for_odfv = (
+                    odfv_feature_refs.get(odfv.name)
+                    if odfv.name in odfv_feature_refs
+                    else odfv_feature_refs.get(odfv.projection.name_to_use())
+                )
+
                 for col in transformed_arrow.column_names:
                     if col.startswith("__index"):
                         continue
-                    features_table = features_table.append_column(
-                        col, transformed_arrow[col]
-                    )
+                    # Only append the column if it was requested, or if we don't have feature metadata
+                    if (
+                        requested_features_for_odfv is None
+                        or col in requested_features_for_odfv
+                    ):
+                        features_table = features_table.append_column(
+                            col, transformed_arrow[col]
+                        )
 
         if validation_reference:
             if not flags_helper.is_test():
@@ -216,6 +258,49 @@ class RetrievalJob(ABC):
             else:
                 tensor_dict[column] = values
         return tensor_dict
+
+    def to_ray_dataset(self) -> Any:
+        """Convert the retrieval result to a Ray Dataset.
+
+        This is a first-class method on every ``RetrievalJob`` regardless of
+        the configured offline store backend:
+
+        * **Ray offline store** – ``RayRetrievalJob`` overrides this method and
+          returns the underlying ``ray.data.Dataset`` *without* materialising the
+          result to the driver, keeping the full computation on the cluster.
+        * **All other offline stores** – the default implementation here pulls
+          the result to an Arrow table on the driver and converts it via
+          ``ray.data.from_arrow()``.  This is less efficient than the native
+          Ray path but lets every backend participate in Ray pipelines.
+
+        Example::
+
+            from feast import FeatureStore
+
+            store = FeatureStore(".")
+            ds = store.get_historical_features(
+                entity_df=entity_df,
+                features=["driver_stats:conv_rate"],
+            ).to_ray_dataset()
+
+            # Chain Ray Data transforms directly
+            predictions = ds.map_batches(MyModel, num_gpus=1)
+
+        Returns:
+            ray.data.Dataset: Dataset containing the retrieved feature rows.
+
+        Raises:
+            ImportError: If ``ray`` is not installed.  Install via
+                ``pip install 'feast[ray]'``.
+        """
+        try:
+            import ray.data
+        except ImportError as e:
+            raise ImportError(
+                "Ray is required to call to_ray_dataset(). "
+                "Install it with: pip install 'feast[ray]'"
+            ) from e
+        return ray.data.from_arrow(self.to_arrow())
 
     def to_sql(self) -> str:
         """

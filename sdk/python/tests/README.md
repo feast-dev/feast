@@ -48,19 +48,21 @@ $ tree
 │   ├── test_offline_write.py
 │   ├── test_push_features_to_offline_store.py
 │   ├── test_s3_custom_endpoint.py
-│   └── test_universal_historical_retrieval.py
+│   ├── test_universal_historical_retrieval.py
+│   └── test_universal_types.py
+├── cli
+│   └── test_universal_cli.py
 ├── online_store
 │   ├── test_online_retrieval.py
 │   ├── test_push_features_to_online_store.py
-│   └── test_universal_online.py
+│   ├── test_universal_online.py
+│   └── test_universal_online_types.py
 └── registration
     ├── test_feature_store.py
     ├── test_inference.py
     ├── test_registry.py
     ├── test_sql_registry.py
-    ├── test_universal_cli.py
-    ├── test_universal_odfv_feature_inference.py
-    └── test_universal_types.py
+    └── test_universal_odfv_feature_inference.py
 
 ```
 

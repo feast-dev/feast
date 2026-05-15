@@ -1,11 +1,12 @@
 import { EuiSelect, useGeneratedHtmlId } from "@elastic/eui";
 import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useLoadProjectsList } from "../contexts/ProjectListContext";
 
 const ProjectSelector = () => {
   const { projectName } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { isLoading, data } = useLoadProjectsList();
 
@@ -22,7 +23,20 @@ const ProjectSelector = () => {
 
   const basicSelectId = useGeneratedHtmlId({ prefix: "basicSelect" });
   const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    navigate(`/p/${e.target.value}`);
+    const newProjectId = e.target.value;
+
+    // If we're on a project page, maintain the current path context
+    if (projectName && location.pathname.startsWith(`/p/${projectName}`)) {
+      // Replace the old project name with the new one in the current path
+      const newPath = location.pathname.replace(
+        `/p/${projectName}`,
+        `/p/${newProjectId}`,
+      );
+      navigate(newPath);
+    } else {
+      // Otherwise, just navigate to the project home
+      navigate(`/p/${newProjectId}`);
+    }
   };
 
   return (

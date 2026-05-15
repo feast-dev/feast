@@ -20,6 +20,7 @@ feature_refs = [
     "driver_trips:maximum_daily_rides",
     "driver_trips:rating",
     "driver_trips:rating:trip_completed",
+    # Optionally, reference a specific version: "driver_trips@v2:average_daily_rides"
 ]
 ```
 

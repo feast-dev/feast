@@ -3,6 +3,18 @@ This is a K8s Operator that can be used to deploy and manage **Feast**, an open 
 
 ### **[FeatureStore CR API Reference](docs/api/markdown/ref.md)**
 
+### **[Operator Configuration Guides](https://docs.feast.dev/how-to-guides/feast-operator)**
+
+| Guide | Topic |
+|-------|-------|
+| [1 — Project Provisioning](https://docs.feast.dev/how-to-guides/feast-operator/01-project-provisioning) | `feastProjectDir`: git clone vs `feast init` templates |
+| [2 — Persistence](https://docs.feast.dev/how-to-guides/feast-operator/02-persistence) | File (path + PVC) vs DB store for offline/online/registry; Secret format |
+| [3 — Serving & Observability](https://docs.feast.dev/how-to-guides/feast-operator/03-serving-and-observability) | Workers, log level, Prometheus metrics, offline push batching, MCP |
+| [4 — Registry Topology](https://docs.feast.dev/how-to-guides/feast-operator/04-registry-topology) | Local, remote, cross-namespace `feastRef` |
+| [5 — Security](https://docs.feast.dev/how-to-guides/feast-operator/05-security) | Kubernetes RBAC roles vs OIDC auth; TLS for all servers |
+| [6 — Batch & Jobs](https://docs.feast.dev/how-to-guides/feast-operator/06-batch-and-jobs) | `batchEngine` ConfigMap, `cronJob` for scheduled materialization |
+| [7 — OpenLineage & Materialization](https://docs.feast.dev/how-to-guides/feast-operator/07-openlineage-and-materialization) | Lineage transports, API key Secret, materialization batch size |
+
 ## Getting Started
 
 ### Prerequisites
@@ -13,15 +25,18 @@ This is a K8s Operator that can be used to deploy and manage **Feast**, an open 
 
 ## To deploy an Operator release on a cluster
 
-Users can just run `kubectl apply -f <URL for YAML BUNDLE>` to install the project, i.e.:
+Users can deploy the operator using Server-Side Apply to avoid CRD annotation size limits:
 
 ```sh
 ## Install the latest release -
-kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
 
 ## OR, install a specific version -
-# kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
+# kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
 ```
+
+> **NOTE**: Server-Side Apply (`--server-side`) is required because the CRD includes both v1alpha1 and v1 API versions, making it too large for the standard `kubectl apply` annotation limit. If you encounter annotation size errors, use `--server-side --force-conflicts` flags.
+
 ##### Feast Operator Demo Videos
 [![](https://img.youtube.com/vi/48cb4AHxPR4/0.jpg)](https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX)
 

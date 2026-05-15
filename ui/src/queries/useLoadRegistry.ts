@@ -22,11 +22,12 @@ interface Feature {
   name: string;
   featureView: string;
   type: string;
+  project?: string;
 }
 
-const useLoadRegistry = (url: string) => {
+const useLoadRegistry = (url: string, projectName?: string) => {
   return useQuery(
-    `registry:${url}`,
+    `registry:${url}:${projectName || "all"}`,
     () => {
       return fetch(url, {
         headers: {
@@ -53,6 +54,78 @@ const useLoadRegistry = (url: string) => {
 
           if (!objects.featureViews) {
             objects.featureViews = [];
+          }
+
+          // Filter objects by project if projectName is provided
+          // Skip filtering if projectName is "all" (All Projects view)
+          // Only filter if we detect that the registry contains multiple projects
+          if (projectName && projectName !== "all") {
+            // Check if the registry actually has multiple projects
+            const projectsInRegistry = new Set();
+            objects.featureViews?.forEach((fv: any) => {
+              if (fv?.spec?.project) projectsInRegistry.add(fv.spec.project);
+            });
+            objects.entities?.forEach((entity: any) => {
+              if (entity?.spec?.project)
+                projectsInRegistry.add(entity.spec.project);
+            });
+
+            // Only apply filtering if there are actually multiple projects in the registry
+            // OR if the projectName matches one of the projects in the registry
+            const shouldFilter =
+              projectsInRegistry.size > 1 ||
+              projectsInRegistry.has(projectName);
+
+            if (shouldFilter && projectsInRegistry.has(projectName)) {
+              if (objects.featureViews) {
+                objects.featureViews = objects.featureViews.filter(
+                  (fv: any) => fv?.spec?.project === projectName,
+                );
+              }
+              if (objects.entities) {
+                objects.entities = objects.entities.filter(
+                  (entity: any) => entity?.spec?.project === projectName,
+                );
+              }
+              if (objects.dataSources) {
+                objects.dataSources = objects.dataSources.filter(
+                  (ds: any) => ds?.project === projectName,
+                );
+              }
+              if (objects.featureServices) {
+                objects.featureServices = objects.featureServices.filter(
+                  (fs: any) => fs?.spec?.project === projectName,
+                );
+              }
+              if (objects.onDemandFeatureViews) {
+                objects.onDemandFeatureViews =
+                  objects.onDemandFeatureViews.filter(
+                    (odfv: any) => odfv?.spec?.project === projectName,
+                  );
+              }
+              if (objects.streamFeatureViews) {
+                objects.streamFeatureViews = objects.streamFeatureViews.filter(
+                  (sfv: any) => sfv?.spec?.project === projectName,
+                );
+              }
+              if (objects.savedDatasets) {
+                objects.savedDatasets = objects.savedDatasets.filter(
+                  (sd: any) => sd?.spec?.project === projectName,
+                );
+              }
+              if (objects.validationReferences) {
+                objects.validationReferences =
+                  objects.validationReferences.filter(
+                    (vr: any) => vr?.project === projectName,
+                  );
+              }
+              if (objects.permissions) {
+                objects.permissions = objects.permissions.filter(
+                  (perm: any) =>
+                    perm?.spec?.project === projectName || !perm?.spec?.project,
+                );
+              }
+            }
           }
 
           if (
@@ -107,32 +180,42 @@ const useLoadRegistry = (url: string) => {
                     feature.valueType != null
                       ? feast.types.ValueType.Enum[feature.valueType]
                       : "Unknown Type",
+                  project: fv?.spec?.project, // Include project from parent feature view
                 })) || [],
             ) || [];
 
-          let projectName =
-            process.env.NODE_ENV === "test"
-              ? "credit_scoring_aws"
-              : objects.projects &&
-                  objects.projects.length > 0 &&
-                  objects.projects[0].spec &&
-                  objects.projects[0].spec.name
-                ? objects.projects[0].spec.name
-                : objects.project
-                  ? objects.project
-                  : "credit_scoring_aws";
+          // Use the provided projectName parameter if available, otherwise try to determine from registry
+          let resolvedProjectName: string =
+            projectName === "all"
+              ? "All Projects"
+              : projectName ||
+                (process.env.NODE_ENV === "test"
+                  ? "credit_scoring_aws"
+                  : objects.projects &&
+                      objects.projects.length > 0 &&
+                      objects.projects[0].spec &&
+                      objects.projects[0].spec.name
+                    ? objects.projects[0].spec.name
+                    : objects.project
+                      ? objects.project
+                      : "credit_scoring_aws");
 
           let projectDescription = undefined;
-          if (
-            objects.projects &&
-            objects.projects.length > 0 &&
-            objects.projects[0].spec
-          ) {
-            projectDescription = objects.projects[0].spec.description;
+
+          // Find project description from the projects array
+          if (projectName === "all") {
+            projectDescription = "View data across all projects";
+          } else if (objects.projects && objects.projects.length > 0) {
+            const currentProject = objects.projects.find(
+              (p: any) => p?.spec?.name === resolvedProjectName,
+            );
+            if (currentProject?.spec) {
+              projectDescription = currentProject.spec.description;
+            }
           }
 
           return {
-            project: projectName,
+            project: resolvedProjectName,
             description: projectDescription,
             objects,
             mergedFVMap,

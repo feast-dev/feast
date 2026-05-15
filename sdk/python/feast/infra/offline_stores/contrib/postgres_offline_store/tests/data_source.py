@@ -14,10 +14,10 @@ from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
 )
 from feast.infra.utils.postgres.connection_utils import df_to_postgres_table
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.online_store_creator import (
+from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 
@@ -85,6 +85,7 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
             db_schema="public",
             user=self.container.env["POSTGRES_USER"],
             password=self.container.env["POSTGRES_PASSWORD"],
+            sslmode="disable",
         )
 
     def create_data_source(
@@ -124,6 +125,7 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
             db_schema="feature_store",
             user=POSTGRES_USER,
             password=POSTGRES_PASSWORD,
+            sslmode="disable",
         )
 
     def create_saved_dataset_destination(self):

@@ -4,17 +4,11 @@ from importlib import resources as importlib_resources
 from typing import Callable, Optional
 
 import uvicorn
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
 import feast
-
-
-class SaveDocumentRequest(BaseModel):
-    file_path: str
-    data: dict
 
 
 def get_app(
@@ -61,46 +55,65 @@ def get_app(
     with importlib_resources.as_file(ui_dir_ref) as ui_dir:
         # Initialize with the projects-list.json file
         with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
-            projects_dict = {
-                "projects": [
+            # Get all projects from the registry
+            discovered_projects = []
+            registry = store.registry.proto()
+
+            # Use the projects list from the registry
+            if registry and registry.projects and len(registry.projects) > 0:
+                for proj in registry.projects:
+                    if proj.spec and proj.spec.name:
+                        discovered_projects.append(
+                            {
+                                "name": proj.spec.name.replace("_", " ").title(),
+                                "description": proj.spec.description
+                                or f"Project: {proj.spec.name}",
+                                "id": proj.spec.name,
+                                "registryPath": f"{root_path}/registry",
+                            }
+                        )
+            else:
+                # If no projects in registry, use the current project from feature_store.yaml
+                discovered_projects.append(
                     {
                         "name": "Project",
                         "description": "Test project",
                         "id": project_id,
                         "registryPath": f"{root_path}/registry",
                     }
-                ]
-            }
+                )
+
+            # Add "All Projects" option at the beginning if there are multiple projects
+            if len(discovered_projects) > 1:
+                all_projects_entry = {
+                    "name": "All Projects",
+                    "description": "View data across all projects",
+                    "id": "all",
+                    "registryPath": f"{root_path}/registry",
+                }
+                discovered_projects.insert(0, all_projects_entry)
+
+            projects_dict = {"projects": discovered_projects}
             f.write(json.dumps(projects_dict))
 
     @app.get("/registry")
     def read_registry():
         if registry_proto is None:
-            return Response(status_code=503)  # Service Unavailable
+            return Response(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+            )  # Service Unavailable
         return Response(
             content=registry_proto.SerializeToString(),
             media_type="application/octet-stream",
         )
 
-    @app.post("/save-document")
-    async def save_document_endpoint(request: SaveDocumentRequest):
-        try:
-            import os
-            from pathlib import Path
-
-            file_path = Path(request.file_path).resolve()
-            if not str(file_path).startswith(os.getcwd()):
-                return {"error": "Invalid file path"}
-
-            base_name = file_path.stem
-            labels_file = file_path.parent / f"{base_name}-labels.json"
-
-            with open(labels_file, "w", encoding="utf-8") as file:
-                json.dump(request.data, file, indent=2, ensure_ascii=False)
-
-            return {"success": True, "saved_to": str(labels_file)}
-        except Exception as e:
-            return {"error": str(e)}
+    @app.get("/health")
+    def health():
+        return (
+            Response(status_code=status.HTTP_200_OK)
+            if registry_proto
+            else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+        )
 
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])

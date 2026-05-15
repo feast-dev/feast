@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from tempfile import mkstemp
+from unittest.mock import AsyncMock, Mock, patch
 
+import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
@@ -9,19 +11,21 @@ from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
+from feast.errors import ConflictingFeatureViewNames
 from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.online_stores.dynamodb import DynamoDBOnlineStore
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
-from feast.repo_config import RepoConfig
+from feast.repo_config import RegistryConfig, RepoConfig
 from feast.stream_feature_view import stream_feature_view
 from feast.types import Array, Bytes, Float32, Int64, String, ValueType, from_value_type
-from tests.integration.feature_repos.universal.feature_views import TAGS
+from tests.universal.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.data_source_test_creator import prep_file_source
 
@@ -531,16 +535,10 @@ def test_apply_conflicting_feature_view_names(feature_store_with_local_registry)
         source=FileSource(path="customer_stats.parquet"),
         tags={},
     )
-    try:
+    with pytest.raises(ConflictingFeatureViewNames) as exc_info:
         feature_store_with_local_registry.apply([driver_stats, customer_stats])
-        error = None
-    except ValueError as e:
-        error = e
-    assert (
-        isinstance(error, ValueError)
-        and "Please ensure that all feature view names are case-insensitively unique"
-        in error.args[0]
-    )
+
+    assert "Feature view names must be case-insensitively unique" in str(exc_info.value)
 
     feature_store_with_local_registry.teardown()
 
@@ -797,3 +795,137 @@ def feature_store_with_local_registry():
             entity_key_serialization_version=3,
         )
     )
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_refreshes_registry_cache_sync_mode(test_feature_store):
+    """Test that apply() refreshes registry cache when cache_mode is 'sync' (default)"""
+    # Create a simple entity (no FeatureView to avoid file path issues)
+    entity = Entity(name="test_entity", join_keys=["id"])
+
+    # Mock the refresh_registry method to verify it's called
+    with patch.object(test_feature_store, "refresh_registry") as mock_refresh:
+        # Apply the entity
+        test_feature_store.apply([entity])
+
+        # Verify refresh_registry was called once (due to sync mode)
+        mock_refresh.assert_called_once()
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_skips_refresh_registry_cache_thread_mode(test_feature_store):
+    """Test that apply() skips registry refresh when cache_mode is 'thread'"""
+    # Create a simple entity
+    entity = Entity(name="test_entity", join_keys=["id"])
+
+    # Temporarily change cache_mode to 'thread'
+    original_cache_mode = test_feature_store.config.registry.cache_mode
+    test_feature_store.config.registry.cache_mode = "thread"
+
+    try:
+        # Mock the refresh_registry method to verify it's NOT called
+        with patch.object(test_feature_store, "refresh_registry") as mock_refresh:
+            # Apply the entity
+            test_feature_store.apply([entity])
+
+            # Verify refresh_registry was NOT called (due to thread mode)
+            mock_refresh.assert_not_called()
+    finally:
+        # Restore original cache_mode
+        test_feature_store.config.registry.cache_mode = original_cache_mode
+
+    test_feature_store.teardown()
+
+
+def test_registry_config_cache_mode_default():
+    """Test that RegistryConfig has cache_mode with default value 'sync'"""
+    config = RegistryConfig()
+    assert hasattr(config, "cache_mode")
+    assert config.cache_mode == "sync"
+
+
+def test_registry_config_cache_mode_can_be_set():
+    """Test that RegistryConfig cache_mode can be set to different values"""
+    config = RegistryConfig(cache_mode="thread")
+    assert config.cache_mode == "thread"
+
+    config = RegistryConfig(cache_mode="sync")
+    assert config.cache_mode == "sync"
+
+
+# Tests for update_online_store functionality
+
+
+@pytest.mark.asyncio
+async def test_update_online_store_not_supported():
+    """Test that update raises NotImplementedError for non-DynamoDB stores."""
+
+    fd, registry_path = mkstemp()
+    fd, online_store_path = mkstemp()
+    store = FeatureStore(
+        config=RepoConfig(
+            registry=registry_path,
+            project="default",
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=online_store_path),
+            entity_key_serialization_version=3,
+        )
+    )
+
+    df = pd.DataFrame({"entity_id": ["1", "2"], "transactions": [["tx1"], ["tx2"]]})
+
+    update_expressions = {"transactions": "list_append(transactions, :new_val)"}
+
+    with pytest.raises(NotImplementedError) as exc_info:
+        await store.update_online_store(
+            feature_view_name="test_fv", df=df, update_expressions=update_expressions
+        )
+
+    assert "does not support async update expressions" in str(exc_info.value)
+    assert "DynamoDB online store" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_update_online_store_success():
+    """Test successful update_online_store call."""
+
+    with (
+        patch(
+            "feast.feature_store.FeatureStore._get_feature_view_and_df_for_online_write"
+        ) as mock_get_fv_df,
+        patch(
+            "feast.infra.passthrough_provider.PassthroughProvider._prep_rows_to_write_for_ingestion"
+        ) as mock_prep,
+        patch("feast.feature_store.load_repo_config") as mock_load_config,
+        patch("feast.feature_store.Registry"),
+        patch("feast.feature_store.get_provider") as mock_get_provider,
+    ):
+        mock_online_store = Mock(spec=DynamoDBOnlineStore)
+        mock_online_store.update_online_store_async = AsyncMock()
+        mock_provider = Mock()
+        mock_provider.online_store = mock_online_store
+        mock_get_provider.return_value = mock_provider
+        mock_prep.return_value = []
+        mock_load_config.return_value = Mock()
+
+        df = pd.DataFrame({"entity_id": ["1", "2"], "transactions": [["tx1"], ["tx2"]]})
+        mock_feature_view = Mock()
+        mock_feature_view.features = [Field(name="transactions", dtype=Array(String))]
+        mock_get_fv_df.return_value = (mock_feature_view, df)
+
+        store = FeatureStore()
+        update_expressions = {"transactions": "list_append(transactions, :new_val)"}
+
+        await store.update_online_store(
+            feature_view_name="test_fv", df=df, update_expressions=update_expressions
+        )
+
+        mock_online_store.update_online_store_async.assert_called_once()

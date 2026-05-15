@@ -8,6 +8,51 @@ The Python feature server is an HTTP endpoint that serves features with JSON I/O
 
 There is a CLI command that starts the server: `feast serve`. By default, Feast uses port 6566; the port be overridden with a `--port` flag.
 
+### Performance Configuration
+
+For production deployments, the feature server supports several performance optimization options:
+
+```bash
+# Basic usage
+feast serve
+
+# Production configuration with multiple workers
+feast serve --workers -1 --worker-connections 1000 --registry_ttl_sec 60
+
+# Manual worker configuration
+feast serve --workers 8 --worker-connections 2000 --max-requests 1000
+```
+
+Key performance options:
+- `--workers, -w`: Number of worker processes. Use `-1` to auto-calculate based on CPU cores (recommended for production)
+- `--worker-connections`: Maximum simultaneous clients per worker process (default: 1000)
+- `--max-requests`: Maximum requests before worker restart, prevents memory leaks (default: 1000)
+- `--max-requests-jitter`: Jitter to prevent thundering herd on worker restart (default: 50)
+- `--registry_ttl_sec, -r`: Registry refresh interval in seconds. Higher values reduce overhead but increase staleness (default: 60)
+- `--keep-alive-timeout`: Keep-alive connection timeout in seconds (default: 30)
+
+### Performance Best Practices
+
+**Worker Configuration:**
+- For production: Use `--workers -1` to auto-calculate optimal worker count (2 × CPU cores + 1)
+- For development: Use default single worker (`--workers 1`)
+- Monitor CPU and memory usage to tune worker count manually if needed
+
+**Registry TTL:**
+- Production: Use `--registry_ttl_sec 60` or higher to reduce refresh overhead
+- Development: Use lower values (5-10s) for faster iteration when schemas change frequently
+- Balance between performance (higher TTL) and freshness (lower TTL)
+
+**Connection Tuning:**
+- Increase `--worker-connections` for high-concurrency workloads
+- Use `--max-requests` to prevent memory leaks in long-running deployments
+- Adjust `--keep-alive-timeout` based on client connection patterns
+
+**Container Deployments:**
+- Set appropriate CPU/memory limits in Kubernetes to match worker configuration
+- Use HTTP health checks instead of TCP for better application-level monitoring
+- Consider horizontal pod autoscaling based on request latency metrics
+
 ## Deploying as a service
 
 See [this](../../how-to-guides/running-feast-in-production.md#id-4.2.-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.
@@ -199,6 +244,26 @@ requests.post(
     "http://localhost:6566/push",
     data=json.dumps(push_data))
 ```
+#### Offline write batching for `/push`
+
+The Python feature server  supports configurable batching for the **offline**
+portion of writes executed via the `/push` endpoint.
+
+Only the offline part of a push is affected:
+
+- `to: "offline"` → **fully batched**
+- `to: "online_and_offline"` → **online written immediately**, **offline batched**
+- `to: "online"` → unaffected, always immediate
+
+Enable batching in your `feature_store.yaml`:
+
+```yaml
+feature_server:
+  type: local
+  offline_push_batching_enabled: true
+  offline_push_batching_batch_size: 1000
+  offline_push_batching_batch_interval_seconds: 10
+```
 
 ### Materializing features
 
@@ -246,6 +311,152 @@ requests.post(
     data=json.dumps(materialize_data))
 ```
 
+## Prometheus Metrics
+
+The Python feature server can expose Prometheus-compatible metrics on a dedicated
+HTTP endpoint (default port `8000`). Metrics are **opt-in** and carry zero overhead
+when disabled.
+
+### Enabling metrics
+
+**Option 1 — CLI flag** (useful for one-off runs):
+
+```bash
+feast serve --metrics
+```
+
+**Option 2 — `feature_store.yaml`** (recommended for production):
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+```
+
+Either option is sufficient. When both are set, metrics are enabled.
+
+### Per-category control
+
+By default, enabling metrics turns on **all** categories. You can selectively
+disable individual categories within the same `metrics` block:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    resource: true          # CPU / memory gauges
+    request: false          # disable endpoint latency & request counters
+    online_features: true   # online feature retrieval counters
+    push: true              # push request counters
+    materialization: true   # materialization counters & duration
+    freshness: true         # feature freshness gauges
+```
+
+Any category set to `false` will emit no metrics and start no background
+threads (e.g., setting `freshness: false` prevents the registry polling
+thread from starting). All categories default to `true`.
+
+### Available metrics
+
+| Metric | Type | Labels | Category | Description |
+|--------|------|--------|----------|-------------|
+| `feast_feature_server_cpu_usage` | Gauge | — | `resource` | Process CPU usage % |
+| `feast_feature_server_memory_usage` | Gauge | — | `resource` | Process memory usage % |
+| `feast_feature_server_request_total` | Counter | `endpoint`, `status` | `request` | Total requests per endpoint |
+| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support |
+| `feast_online_features_request_total` | Counter | — | `online_features` | Total online feature retrieval requests |
+| `feast_online_features_entity_count` | Histogram | — | `online_features` | Entity rows per online feature request |
+| `feast_feature_server_online_store_read_duration_seconds` | Histogram | — | `online_features` | Online store read phase duration (sync and async) |
+| `feast_feature_server_transformation_duration_seconds` | Histogram | `odfv_name`, `mode` | `online_features` | ODFV read-path transformation duration (requires `track_metrics=True` on the ODFV) |
+| `feast_feature_server_write_transformation_duration_seconds` | Histogram | `odfv_name`, `mode` | `online_features` | ODFV write-path transformation duration (requires `track_metrics=True` on the ODFV) |
+| `feast_push_request_total` | Counter | `push_source`, `mode` | `push` | Push requests by source and mode |
+| `feast_materialization_result_total` | Counter | `feature_view`, `status` | `materialization` | Materialization runs (success/failure) |
+| `feast_materialization_duration_seconds` | Histogram | `feature_view` | `materialization` | Materialization duration per feature view |
+| `feast_feature_freshness_seconds` | Gauge | `feature_view`, `project` | `freshness` | Seconds since last materialization |
+
+### Per-ODFV transformation metrics
+
+The `transformation_duration_seconds` and `write_transformation_duration_seconds`
+metrics are gated behind **two** conditions — both must be true for any
+instrumentation to run:
+
+1. **Server-level**: the `online_features` category must be enabled in the
+   metrics configuration.
+2. **ODFV-level**: the `OnDemandFeatureView` must have `track_metrics=True`.
+
+This defaults to `False`, so no ODFV incurs timing overhead unless explicitly
+opted in:
+
+```python
+from feast.on_demand_feature_view import on_demand_feature_view
+
+@on_demand_feature_view(
+    sources=[my_feature_view, my_request_source],
+    schema=[Field(name="output", dtype=Float64)],
+    track_metrics=True,   # opt in to transformation timing
+)
+def my_transform(inputs: pd.DataFrame) -> pd.DataFrame:
+    ...
+```
+
+The `odfv_name` label lets you filter or group by individual ODFV,
+and the `mode` label (`python`, `pandas`, `substrait`) lets you compare
+transformation engines.
+
+### Scraping with Prometheus
+
+```yaml
+scrape_configs:
+  - job_name: feast
+    static_configs:
+      - targets: ["localhost:8000"]
+```
+
+### Kubernetes / Feast Operator
+
+Set `metrics: true` in your FeatureStore CR:
+
+```yaml
+spec:
+  services:
+    onlineStore:
+      server:
+        metrics: true
+```
+
+The operator automatically exposes port 8000 and creates the corresponding
+Service port so Prometheus can discover it.
+
+### Multi-worker and multi-replica (HPA) support
+
+Feast uses Prometheus **multiprocess mode** so that metrics are correct
+regardless of the number of Gunicorn workers or Kubernetes replicas.
+
+**How it works:**
+
+* Each Gunicorn worker writes metric values to shared files in a
+  temporary directory (`PROMETHEUS_MULTIPROCESS_DIR`).  Feast creates
+  this directory automatically; you can override it by setting the
+  environment variable yourself.
+* The metrics HTTP server on port 8000 aggregates all workers'
+  metric files using `MultiProcessCollector`, so a single scrape
+  returns accurate totals.
+* Gunicorn hooks clean up dead-worker files automatically
+  (`child_exit` → `mark_process_dead`).
+* CPU and memory gauges use `multiprocess_mode=liveall` — Prometheus
+  shows per-worker values distinguished by a `pid` label.
+* Feature freshness gauges use `multiprocess_mode=max` — Prometheus
+  shows the worst-case staleness (all workers compute the same value).
+* Counters and histograms (request counts, latency, materialization)
+  are automatically summed across workers.
+
+**Multiple replicas (HPA):** Each pod runs its own metrics endpoint.
+Prometheus adds an `instance` label per pod, so there is no
+duplication.  Use `sum(rate(...))` or `histogram_quantile(...)` across
+instances as usual.
+
 ## Starting the feature server in TLS(SSL) mode
 
 Enabling TLS mode ensures that data between the Feast client and server is transmitted securely. For an ideal production environment, it is recommended to start the feature server in TLS mode.
@@ -267,6 +478,48 @@ To start the feature server in TLS mode, you need to provide the private and pub
 ```shell
 feast serve --key /path/to/key.pem --cert /path/to/cert.pem
 ```
+
+# [Alpha] Static Artifacts Loading
+
+**Warning**: This is an experimental feature. To our knowledge, this is stable, but there are still rough edges in the experience.
+
+Static artifacts loading allows you to load models, lookup tables, and other static resources once during feature server startup instead of loading them on each request. This improves performance for on-demand feature views that require external resources.
+
+## Quick Example
+
+Create a `static_artifacts.py` file in your feature repository:
+
+```python
+# static_artifacts.py
+from fastapi import FastAPI
+from transformers import pipeline
+
+def load_artifacts(app: FastAPI):
+    """Load static artifacts into app.state."""
+    app.state.sentiment_model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
+    # Update global references for access from feature views
+    import example_repo
+    example_repo._sentiment_model = app.state.sentiment_model
+```
+
+Access pre-loaded artifacts in your on-demand feature views:
+
+```python
+# example_repo.py
+_sentiment_model = None
+
+@on_demand_feature_view(...)
+def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
+    global _sentiment_model
+    return _sentiment_model(inputs["text"])
+```
+
+## Documentation
+
+For comprehensive documentation, examples, and best practices, see the [Alpha Static Artifacts Loading](../alpha-static-artifacts.md) reference guide.
+
+The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/python/feast/templates/pytorch_nlp) provides a complete working example.
 
 # Online Feature Server Permissions and Access Control
 

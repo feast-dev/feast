@@ -1,4 +1,5 @@
 import React, { useContext, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   EuiEmptyPrompt,
   EuiLoadingSpinner,
@@ -16,7 +17,11 @@ import { filterPermissionsByAction } from "../utils/permissionUtils";
 
 const RegistryVisualizationTab = () => {
   const registryUrl = useContext(RegistryPathContext);
-  const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
+  const { projectName } = useParams();
+  const { isLoading, isSuccess, isError, data } = useLoadRegistry(
+    registryUrl,
+    projectName,
+  );
   const [selectedObjectType, setSelectedObjectType] = useState("");
   const [selectedObjectName, setSelectedObjectName] = useState("");
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");

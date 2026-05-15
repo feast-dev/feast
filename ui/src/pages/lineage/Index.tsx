@@ -16,8 +16,44 @@ import { useParams } from "react-router-dom";
 const LineagePage = () => {
   useDocumentTitle("Feast Lineage");
   const registryUrl = useContext(RegistryPathContext);
-  const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
   const { projectName } = useParams<{ projectName: string }>();
+  const { isLoading, isSuccess, isError, data } = useLoadRegistry(
+    registryUrl,
+    projectName,
+  );
+
+  // Show message for "All Projects" view
+  if (projectName === "all") {
+    return (
+      <EuiPageTemplate panelled>
+        <EuiPageTemplate.Section>
+          <EuiTitle size="l">
+            <h1>Lineage Visualization</h1>
+          </EuiTitle>
+          <EuiSpacer />
+          <EuiEmptyPrompt
+            iconType="branch"
+            title={<h2>Project Selection Required</h2>}
+            body={
+              <>
+                <p>
+                  Lineage visualization requires a specific project context to
+                  show the relationships between Feature Views, Entities, and
+                  Data Sources.
+                </p>
+                <p>
+                  <strong>
+                    Please select a specific project from the dropdown above
+                  </strong>{" "}
+                  to view its lineage graph.
+                </p>
+              </>
+            }
+          />
+        </EuiPageTemplate.Section>
+      </EuiPageTemplate>
+    );
+  }
 
   return (
     <EuiPageTemplate panelled>

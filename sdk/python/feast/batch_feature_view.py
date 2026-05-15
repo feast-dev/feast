@@ -57,7 +57,6 @@ class BatchFeatureView(FeatureView):
     """
 
     name: str
-    mode: Union[TransformationMode, str]
     entities: List[str]
     ttl: Optional[timedelta]
     source: DataSource
@@ -83,7 +82,9 @@ class BatchFeatureView(FeatureView):
         *,
         name: str,
         mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
-        source: Union[DataSource, "BatchFeatureView", List["BatchFeatureView"]],
+        source: Optional[
+            Union[DataSource, "BatchFeatureView", List["BatchFeatureView"]]
+        ] = None,
         sink_source: Optional[DataSource] = None,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,
@@ -92,12 +93,15 @@ class BatchFeatureView(FeatureView):
         offline: bool = False,
         description: str = "",
         owner: str = "",
+        org: str = "",
         schema: Optional[List[Field]] = None,
         udf: Optional[Callable[[Any], Any]] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
         batch_engine: Optional[Dict[str, Any]] = None,
         aggregations: Optional[List[Aggregation]] = None,
+        enable_validation: bool = False,
+        version: str = "latest",
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -113,6 +117,21 @@ class BatchFeatureView(FeatureView):
             raise ValueError(
                 f"Batch feature views need a batch source, expected one of {SUPPORTED_BATCH_SOURCES} "
                 f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
+            )
+
+        if source is None and aggregations:
+            raise ValueError(
+                "BatchFeatureView with aggregations requires a source to aggregate from."
+            )
+
+        if (
+            source is None
+            and not udf
+            and not feature_transformation
+            and not aggregations
+        ):
+            raise ValueError(
+                "BatchFeatureView requires at least one of: source, udf, feature_transformation, or aggregations."
             )
 
         self.mode = mode
@@ -133,9 +152,13 @@ class BatchFeatureView(FeatureView):
             offline=offline,
             description=description,
             owner=owner,
+            org=org,
             schema=schema,
             source=source,  # type: ignore[arg-type]
             sink_source=sink_source,
+            mode=mode,
+            enable_validation=enable_validation,
+            version=version,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
@@ -145,7 +168,8 @@ class BatchFeatureView(FeatureView):
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
             TransformationMode.SQL,
-        ) or self.mode in ("pandas", "python", "sql"):
+            TransformationMode.RAY,
+        ) or self.mode in ("pandas", "python", "sql", "ray"):
             return Transformation(
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )
@@ -167,7 +191,10 @@ def batch_feature_view(
     offline: bool = True,
     description: str = "",
     owner: str = "",
+    org: str = "",
     schema: Optional[List[Field]] = None,
+    enable_validation: bool = False,
+    version: str = "latest",
 ):
     """
     Creates a BatchFeatureView object with the given user-defined function (UDF) as the transformation.
@@ -195,9 +222,12 @@ def batch_feature_view(
             offline=offline,
             description=description,
             owner=owner,
+            org=org,
             schema=schema,
             udf=user_function,
             udf_string=udf_string,
+            enable_validation=enable_validation,
+            version=version,
         )
         functools.update_wrapper(wrapper=batch_feature_view_obj, wrapped=user_function)
         return batch_feature_view_obj

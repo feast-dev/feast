@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "pixi-feast"
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64"]

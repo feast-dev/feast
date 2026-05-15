@@ -13,6 +13,7 @@ ENV THIRD_PARTY_PATH=/tmp/hermeto-generic-output/deps/generic
 # unecessary for konflux build
 ENV RPM_PATH=/tmp/hermeto-rpm-output/deps/rpm/x86_64
 USER 0
+RUN microdnf install -y shadow-utils && microdnf clean all
 RUN useradd mockbuild
 RUN groupadd mock
 RUN usermod -G mock mockbuild
@@ -71,7 +72,7 @@ RUN mkdir ${APP_ROOT}/src/arrow ${ARROW_HOME} ${APP_ROOT}/src/arrow-build && \
     ARROW_ZLIB_URL="${THIRD_PARTY_PATH}/zlib-1.3.1.tar.gz" \
     ARROW_ZSTD_URL="${THIRD_PARTY_PATH}/zstd-1.5.6.tar.gz" \
     && \
-    cmake \
+    cmake -G Ninja \
     -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
     -DARROW_COMPUTE=ON \
     -DARROW_ACERO=ON \
@@ -130,11 +131,11 @@ RUN source /tmp/hermeto.env && \
 
 # This section only necessary when building from local feast source ... e.g. ".[minimal]"
 ########################
-COPY --chown=default .git ${APP_ROOT}/src/.git
-COPY --chown=default setup.py pyproject.toml README.md Makefile ${APP_ROOT}/src/
-COPY --chown=default protos ${APP_ROOT}/src/protos
-COPY --chown=default ui ${APP_ROOT}/src/ui
-COPY --chown=default sdk/python ${APP_ROOT}/src/sdk/python
+COPY --chown=1001:0 .git ${APP_ROOT}/src/.git
+COPY --chown=1001:0 pyproject.toml README.md Makefile ${APP_ROOT}/src/
+COPY --chown=1001:0 protos ${APP_ROOT}/src/protos
+COPY --chown=1001:0 ui ${APP_ROOT}/src/ui
+COPY --chown=1001:0 sdk/python ${APP_ROOT}/src/sdk/python
 
 WORKDIR ${APP_ROOT}/src/ui
 ENV NPM_TOKEN=

@@ -1,4 +1,5 @@
 import base64
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -18,6 +19,7 @@ from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     serialize_entity_key,
 )
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -42,6 +44,8 @@ from feast.utils import (
     to_naive_utc,
 )
 
+logger = logging.getLogger(__name__)
+
 PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.VARCHAR,
     ValueType.IMAGE_BYTES: DataType.VARCHAR,
@@ -56,6 +60,12 @@ PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["int64_list_val"]: DataType.FLOAT_VECTOR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["double_list_val"]: DataType.FLOAT_VECTOR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_list_val"]: DataType.BINARY_VECTOR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["map_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["map_list_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["json_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["json_list_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["struct_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["struct_list_val"]: DataType.VARCHAR,
 }
 
 FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING: Dict[
@@ -81,6 +91,10 @@ for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.VARCHAR
         elif base_value_type == ValueType.BOOL:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.BINARY_VECTOR
+    elif isinstance(feast_type, ComplexFeastType):
+        milvus_type = PROTO_TO_MILVUS_TYPE_MAPPING.get(value_type)
+        if milvus_type:
+            FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = milvus_type
 
 
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -130,11 +144,13 @@ class MilvusOnlineStore(OnlineStore):
         if not self.client:
             if config.provider == "local" and config.online_store.path:
                 db_path = self._get_db_path(config)
-                print(f"Connecting to Milvus in local mode using {db_path}")
+                logger.info("Connecting to Milvus in local mode using %s", db_path)
                 self.client = MilvusClient(db_path)
             else:
-                print(
-                    f"Connecting to Milvus remotely at {config.online_store.host}:{config.online_store.port}"
+                logger.info(
+                    "Connecting to Milvus remotely at %s:%s",
+                    config.online_store.host,
+                    config.online_store.port,
                 )
                 self.client = MilvusClient(
                     uri=f"{config.online_store.host}:{config.online_store.port}",
@@ -149,7 +165,9 @@ class MilvusOnlineStore(OnlineStore):
     ) -> Dict[str, Any]:
         self.client = self._connect(config)
         vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
             composite_key_name = _get_composite_key_name(table)
@@ -167,10 +185,14 @@ class MilvusOnlineStore(OnlineStore):
             fields_to_exclude = [
                 "event_ts",
                 "created_ts",
+                "event_timestamp",
+                "created_timestamp",
             ]
             fields_to_add = [f for f in table.schema if f.name not in fields_to_exclude]
             for field in fields_to_add:
                 dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
+                if dtype is None and isinstance(field.dtype, ComplexFeastType):
+                    dtype = DataType.VARCHAR
                 if dtype:
                     if dtype == DataType.FLOAT_VECTOR:
                         fields.append(
@@ -202,6 +224,7 @@ class MilvusOnlineStore(OnlineStore):
                     schema=schema,
                 )
                 index_params = self.client.prepare_index_params()
+                indices_added = False
                 for vector_field in schema.fields:
                     if (
                         vector_field.dtype
@@ -222,10 +245,12 @@ class MilvusOnlineStore(OnlineStore):
                             index_name=f"vector_index_{vector_field.name}",
                             params={"nlist": config.online_store.nlist},
                         )
-                self.client.create_index(
-                    collection_name=collection_name,
-                    index_params=index_params,
-                )
+                        indices_added = True
+                if indices_added:
+                    self.client.create_index(
+                        collection_name=collection_name,
+                        index_params=index_params,
+                    )
             else:
                 self.client.load_collection(collection_name)
             self._collections[collection_name] = self.client.describe_collection(
@@ -280,6 +305,16 @@ class MilvusOnlineStore(OnlineStore):
                 serialize_to_string=True,
             )
 
+            # Remove timestamp fields that are handled separately to avoid conflicts
+            timestamp_fields = [
+                "event_timestamp",
+                "created_timestamp",
+                "event_ts",
+                "created_ts",
+            ]
+            for field in timestamp_fields:
+                values_dict.pop(field, None)
+
             single_entity_record = {
                 composite_key_name: entity_key_str,
                 "event_ts": timestamp_int,
@@ -312,10 +347,11 @@ class MilvusOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-        full_feature_names: bool = False,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         collection = self._get_or_create_collection(config, table)
 
         composite_key_name = _get_composite_key_name(table)
@@ -418,6 +454,19 @@ class MilvusOnlineStore(OnlineStore):
                                 "double_list_val",
                             ]:
                                 getattr(val, proto_attr).val.extend(field_value)
+                            elif proto_attr in [
+                                "map_val",
+                                "map_list_val",
+                                "struct_val",
+                                "struct_list_val",
+                                "json_list_val",
+                            ]:
+                                if isinstance(field_value, str) and field_value:
+                                    try:
+                                        proto_bytes = base64.b64decode(field_value)
+                                        val.ParseFromString(proto_bytes)
+                                    except Exception:
+                                        setattr(val, "string_val", field_value)
                             else:
                                 setattr(val, proto_attr, field_value)
                         else:
@@ -447,18 +496,19 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self.client = self._connect(config)
         for table in tables_to_keep:
-            self._collections = self._get_or_create_collection(config, table)
+            self._get_or_create_collection(config, table)
 
+        # Always drop the base collection plus any "_v{N}" siblings, regardless of
+        # the current versioning flag. This handles mixed-state repos where
+        # versioning was toggled on/off across applies and would otherwise leave
+        # orphan collections behind in Milvus.
         for table in tables_to_delete:
-            collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
     ) -> List[InfraObject]:
-        raise NotImplementedError
+        return []
 
     def teardown(
         self,
@@ -467,11 +517,9 @@ class MilvusOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         self.client = self._connect(config)
+        # See update(): drop base + all "_v{N}" siblings to handle mixed-state repos.
         for table in tables:
-            collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def retrieve_online_documents_v2(
         self,
@@ -482,6 +530,7 @@ class MilvusOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -506,7 +555,9 @@ class MilvusOnlineStore(OnlineStore):
             k.name: k.dtype for k in table.entity_columns
         }
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         collection = self._get_or_create_collection(config, table)
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
@@ -645,9 +696,8 @@ class MilvusOnlineStore(OnlineStore):
             for hit in hits:
                 res = {}
                 res_ts = None
-                entity_key_bytes = bytes.fromhex(
-                    hit.get("entity", {}).get(composite_key_name, None)
-                )
+                raw_key = hit.get("entity", {}).get(composite_key_name)
+                entity_key_bytes = bytes.fromhex(raw_key) if raw_key else None
                 entity_key_proto = (
                     deserialize_entity_key(entity_key_bytes)
                     if entity_key_bytes
@@ -704,9 +754,28 @@ class MilvusOnlineStore(OnlineStore):
                 result_list.append((res_ts, entity_key_proto, res if res else None))
         return result_list
 
+    def _drop_all_version_collections(self, project: str, table: FeatureView) -> None:
+        """Drop the base collection and every ``_v{N}`` versioned sibling.
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+        Mirrors the ``_drop_all_version_tables`` helpers in the MySQL/PostgreSQL
+        online stores. Always called from ``update`` and ``teardown`` so a
+        repo that toggles versioning on and off does not leave orphan
+        collections behind in Milvus.
+        """
+        base = f"{project}_{table.name}"
+        versioned_prefix = f"{base}_v"
+        assert self.client is not None, "Milvus client is not initialized"
+        for collection_name in self.client.list_collections():
+            if collection_name == base or (
+                collection_name.startswith(versioned_prefix)
+                and collection_name[len(versioned_prefix) :].isdigit()
+            ):
+                self.client.drop_collection(collection_name)
+                self._collections.pop(collection_name, None)
+
+
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 def _get_composite_key_name(table: FeatureView) -> str:
@@ -721,7 +790,7 @@ def _extract_proto_values_to_dict(
     numeric_vector_list_types = [
         k
         for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
-        if k is not None and "list" in k and "string" not in k
+        if k is not None and ("list" in k or "set" in k) and "string" not in k
     ]
     numeric_types = [
         "double_val",
@@ -746,9 +815,13 @@ def _extract_proto_values_to_dict(
                         if (
                             serialize_to_string
                             and proto_val_type
-                            not in ["string_val", "bytes_val"] + numeric_types
+                            not in ["string_val", "bytes_val", "unix_timestamp_val"]
+                            + numeric_types
                         ):
-                            vector_values = feature_values.SerializeToString().decode()
+                            # For complex types, use base64 encoding instead of decode
+                            vector_values = base64.b64encode(
+                                feature_values.SerializeToString()
+                            ).decode("utf-8")
                         elif proto_val_type == "bytes_val":
                             byte_data = getattr(feature_values, proto_val_type)
                             vector_values = base64.b64encode(byte_data).decode("utf-8")

@@ -10,6 +10,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    FeatureViewVersionNotFound,
     PermissionObjectNotFoundException,
     ProjectObjectNotFoundException,
     SavedDatasetNotFound,
@@ -145,6 +146,49 @@ def get_any_feature_view(
             return OnDemandFeatureView.from_proto(on_demand_feature_view)
 
     raise FeatureViewNotFoundException(name, project)
+
+
+def get_feature_view_by_version(
+    registry_proto: RegistryProto, name: str, project: str, version_number: int
+) -> BaseFeatureView:
+    """Retrieve a feature view snapshot for a specific version from version history."""
+    from feast.protos.feast.core.FeatureView_pb2 import (
+        FeatureView as FeatureViewProto,
+    )
+    from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+        OnDemandFeatureView as OnDemandFeatureViewProto,
+    )
+    from feast.protos.feast.core.StreamFeatureView_pb2 import (
+        StreamFeatureView as StreamFeatureViewProto,
+    )
+    from feast.version_utils import version_tag
+
+    for record in registry_proto.feature_view_version_history.records:
+        if (
+            record.feature_view_name == name
+            and record.project_id == project
+            and record.version_number == version_number
+        ):
+            if record.feature_view_type == "feature_view":
+                fv_proto = FeatureViewProto.FromString(record.feature_view_proto)
+                fv = FeatureView.from_proto(fv_proto)
+            elif record.feature_view_type == "stream_feature_view":
+                sfv_proto = StreamFeatureViewProto.FromString(record.feature_view_proto)
+                fv = StreamFeatureView.from_proto(sfv_proto)
+            elif record.feature_view_type == "on_demand_feature_view":
+                odfv_proto = OnDemandFeatureViewProto.FromString(
+                    record.feature_view_proto
+                )
+                fv = OnDemandFeatureView.from_proto(odfv_proto)
+            else:
+                raise ValueError(
+                    f"Unknown feature view type: {record.feature_view_type}"
+                )
+
+            fv.current_version_number = version_number
+            return fv
+
+    raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
 
 
 def get_feature_view(

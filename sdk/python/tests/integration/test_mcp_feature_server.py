@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from feast.feature_store import FeatureStore
 from feast.infra.mcp_servers.mcp_config import McpFeatureServerConfig
@@ -49,7 +50,7 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
                     mcp_server_version="1.0.0",
                 )
 
-                mock_mcp_instance = Mock()
+                mock_mcp_instance = Mock(spec_set=["mount_sse", "mount_http", "mount"])
                 mock_fast_api_mcp.return_value = mock_mcp_instance
 
                 result = add_mcp_support_to_app(mock_app, mock_store, config)
@@ -58,7 +59,7 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
                 self.assertIsNotNone(result)
                 self.assertEqual(result, mock_mcp_instance)
                 mock_fast_api_mcp.assert_called_once()
-                mock_mcp_instance.mount.assert_called_once()
+                mock_mcp_instance.mount_sse.assert_called_once()
 
     @patch("feast.infra.mcp_servers.mcp_server.MCP_AVAILABLE", True)
     @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
@@ -77,7 +78,7 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
             transformation_service_endpoint="localhost:6566",
         )
 
-        mock_mcp_instance = Mock()
+        mock_mcp_instance = Mock(spec_set=["mount_sse", "mount_http", "mount"])
         mock_fast_api_mcp.return_value = mock_mcp_instance
 
         # Execute the flow
@@ -90,7 +91,7 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
             name="e2e-test-server",
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
         )
-        mock_mcp_instance.mount.assert_called_once()
+        mock_mcp_instance.mount_sse.assert_called_once()
         self.assertEqual(result, mock_mcp_instance)
 
     @pytest.mark.skipif(
@@ -160,36 +161,29 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
     def test_mcp_server_configuration_validation(self):
         """Test comprehensive MCP server configuration validation."""
         # Test various configuration combinations
-        test_configs = [
-            {
-                "enabled": True,
-                "mcp_enabled": True,
-                "mcp_server_name": "test-server-1",
-                "mcp_server_version": "1.0.0",
-                "mcp_transport": "sse",
-            },
-            {
-                "enabled": True,
-                "mcp_enabled": True,
-                "mcp_server_name": "test-server-2",
-                "mcp_server_version": "2.0.0",
-                "mcp_transport": "websocket",
-            },
-            {
-                "enabled": False,
-                "mcp_enabled": False,
-                "mcp_server_name": "disabled-server",
-                "mcp_server_version": "1.0.0",
-                "mcp_transport": None,
-            },
-        ]
-
-        for config_dict in test_configs:
-            config = McpFeatureServerConfig(**config_dict)
-            self.assertEqual(config.enabled, config_dict["enabled"])
-            self.assertEqual(config.mcp_enabled, config_dict["mcp_enabled"])
-            self.assertEqual(config.mcp_server_name, config_dict["mcp_server_name"])
-            self.assertEqual(
-                config.mcp_server_version, config_dict["mcp_server_version"]
+        for transport in ["sse", "http"]:
+            config = McpFeatureServerConfig(
+                enabled=True,
+                mcp_enabled=True,
+                mcp_server_name="test-server",
+                mcp_server_version="1.0.0",
+                mcp_transport=transport,
             )
-            self.assertEqual(config.mcp_transport, config_dict["mcp_transport"])
+            self.assertEqual(config.mcp_transport, transport)
+
+        config_default = McpFeatureServerConfig(
+            enabled=True,
+            mcp_enabled=True,
+            mcp_server_name="test-server-default",
+            mcp_server_version="1.0.0",
+        )
+        self.assertEqual(config_default.mcp_transport, "sse")
+
+        with self.assertRaises(ValidationError):
+            McpFeatureServerConfig(
+                enabled=True,
+                mcp_enabled=True,
+                mcp_server_name="bad-transport",
+                mcp_server_version="1.0.0",
+                mcp_transport="websocket",
+            )

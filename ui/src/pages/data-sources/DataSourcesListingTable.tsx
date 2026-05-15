@@ -18,9 +18,11 @@ const DatasourcesListingTable = ({
       name: "Name",
       field: "name",
       sortable: true,
-      render: (name: string) => {
+      render: (name: string, item: feast.core.IDataSource) => {
+        // For "All Projects" view, link to the specific project
+        const itemProject = item?.project || projectName;
         return (
-          <EuiCustomLink to={`/p/${projectName}/data-source/${name}`}>
+          <EuiCustomLink to={`/p/${itemProject}/data-source/${name}`}>
             {name}
           </EuiCustomLink>
         );
@@ -35,6 +37,18 @@ const DatasourcesListingTable = ({
       },
     },
   ];
+
+  // Add Project column when viewing all projects
+  if (projectName === "all") {
+    columns.splice(1, 0, {
+      name: "Project",
+      field: "project",
+      sortable: true,
+      render: (project: string) => {
+        return <span>{project || "Unknown"}</span>;
+      },
+    });
+  }
 
   const getRowProps = (item: feast.core.IDataSource) => {
     return {

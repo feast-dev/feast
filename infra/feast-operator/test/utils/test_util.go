@@ -16,7 +16,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
-	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 )
 
 const (
@@ -26,6 +26,7 @@ const (
 	FeastPrefix              = "feast-"
 	FeatureStoreName         = "simple-feast-setup"
 	FeastResourceName        = FeastPrefix + FeatureStoreName
+	FeatureStoreResourceName = "featurestores.feast.dev"
 )
 
 // dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
@@ -33,7 +34,7 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	// Wait 10 seconds to lets the feature store status update
 	time.Sleep(1 * time.Minute)
 
-	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace, "-o", "json")
+	cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace, "-o", "json")
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -46,7 +47,7 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	}
 
 	// Parse the JSON into FeatureStore
-	var resource v1alpha1.FeatureStore
+	var resource feastdevv1.FeatureStore
 	if err := json.Unmarshal(out.Bytes(), &resource); err != nil {
 		return fmt.Errorf("failed to parse the resource JSON. Error: %v", err)
 	}
@@ -174,12 +175,21 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 }
 
 func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (bool, error) {
-	timeout := time.Second * 30
+	timeout := 5 * time.Minute
 	interval := time.Second * 2 // Poll every 2 seconds
 	startTime := time.Now()
 
 	for time.Since(startTime) < timeout {
-		cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
+		// First check if the resource exists
+		checkCmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace)
+		if err := checkCmd.Run(); err != nil {
+			// Resource doesn't exist yet, retry
+			fmt.Printf("FeatureStore %s/%s does not exist yet, waiting...\n", namespace, featureStoreName)
+			time.Sleep(interval)
+			continue
+		}
+
+		cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace,
 			"-o=jsonpath='{.status.applied.services.registry}'")
 
 		output, err := cmd.Output()
@@ -206,7 +216,7 @@ func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (boo
 		}
 
 		// Parse the JSON into a map
-		var registryConfig v1alpha1.Registry
+		var registryConfig feastdevv1.Registry
 		if err := json.Unmarshal([]byte(result), &registryConfig); err != nil {
 			return false, err // Return false on JSON parsing failure
 		}
@@ -399,6 +409,10 @@ func DeployOperatorFromCode(testDir string, skipBuilds bool) {
 		_, err = Run(cmd, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+		By("deleting existing controller-manager deployment to allow selector changes on upgrade")
+		cmd = exec.Command("kubectl", "delete", "deployment", ControllerDeploymentName, "-n", FeastControllerNamespace, "--ignore-not-found=true")
+		_, _ = Run(cmd, testDir)
+
 		By("deploying the controller-manager")
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectimage), fmt.Sprintf("FS_IMG=%s", feastLocalImage))
 		_, err = Run(cmd, testDir)
@@ -429,7 +443,17 @@ func DeleteOperatorDeployment(testDir string) {
 func DeployPreviousVersionOperator() {
 	var err error
 
-	cmd := exec.Command("kubectl", "apply", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
+	// Delete existing CRD first to avoid version conflicts when downgrading
+	// The old operator version may not have v1, but the cluster might have v1 in status.storedVersions
+	By("Deleting existing CRD to allow downgrade to previous version")
+	cmd := exec.Command("kubectl", "delete", "crd", "featurestores.feast.dev", "--ignore-not-found=true")
+	_, err = Run(cmd, "/test/upgrade")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	// Wait a bit for CRD deletion to complete
+	time.Sleep(2 * time.Second)
+
+	cmd = exec.Command("kubectl", "apply", "--server-side", "--force-conflicts", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
 	_, err = Run(cmd, "/test/upgrade")
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -475,7 +499,7 @@ func DeleteNamespace(namespace string, testDir string) error {
 func RunTestApplyAndMaterializeFunc(testDir string, namespace string, feastCRName string, feastDeploymentName string) func() {
 	return func() {
 		ApplyFeastInfraManifestsAndVerify(namespace, testDir)
-		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName)
+		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName, "test/testdata/feast_integration_test_crs/feast.yaml")
 		VerifyApplyFeatureStoreDefinitions(namespace, feastCRName, feastDeploymentName)
 		VerifyFeastMethods(namespace, feastDeploymentName, testDir)
 	}
@@ -637,10 +661,10 @@ func validateFeatureStoreYaml(namespace, deployment string) {
 }
 
 // apply and verifies the Feast deployment becomes available, the CR status is "Ready
-func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentName string, feastCRName string) {
+func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentName string, feastCRName string, feastYAMLFilePath string) {
 	By("Applying Feast yaml for secrets and Feature store CR")
 	cmd := exec.Command("kubectl", "apply", "-n", namespace,
-		"-f", "test/testdata/feast_integration_test_crs/feast.yaml")
+		"-f", feastYAMLFilePath)
 	_, err := Run(cmd, testDir)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	checkDeployment(namespace, feastDeploymentName)
@@ -675,21 +699,4 @@ func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentNa
 
 	By("Verifying client feature_store.yaml for expected store types")
 	validateFeatureStoreYaml(namespace, feastDeploymentName)
-}
-
-// ReplaceNamespaceInYaml reads a YAML file, replaces all existingNamespace with the actual namespace
-func ReplaceNamespaceInYamlFilesInPlace(filePaths []string, existingNamespace string, actualNamespace string) error {
-	for _, filePath := range filePaths {
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to read YAML file %s: %w", filePath, err)
-		}
-		updated := strings.ReplaceAll(string(data), existingNamespace, actualNamespace)
-
-		err = os.WriteFile(filePath, []byte(updated), 0644)
-		if err != nil {
-			return fmt.Errorf("failed to write updated YAML file %s: %w", filePath, err)
-		}
-	}
-	return nil
 }

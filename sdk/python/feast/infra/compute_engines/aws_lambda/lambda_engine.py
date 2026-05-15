@@ -108,9 +108,14 @@ class LambdaComputeEngine(ComputeEngine):
         r = self.lambda_client.create_function(
             FunctionName=self.lambda_name,
             PackageType="Image",
-            Role=self.repo_config.batch_engine.lambda_role,
-            Code={"ImageUri": self.repo_config.batch_engine.materialization_image},
+            Role=self.repo_config.batch_engine_config.lambda_role,
+            Code={
+                "ImageUri": self.repo_config.batch_engine_config.materialization_image
+            },
             Timeout=DEFAULT_TIMEOUT,
+            LoggingConfig={
+                "LogFormat": "JSON",
+            },
             Tags={
                 "feast-owned": "True",
                 "project": project,
@@ -188,7 +193,7 @@ class LambdaComputeEngine(ComputeEngine):
 
         offline_job = self.offline_store.pull_latest_from_table_or_query(
             config=self.repo_config,
-            data_source=feature_view.batch_source,
+            data_source=feature_view.batch_source,  # type: ignore[arg-type]
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
             timestamp_field=timestamp_field,

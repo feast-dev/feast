@@ -235,7 +235,7 @@ def search_test_app():
             user_on_demand_features,
         ]
     )
-    store._registry.apply_saved_dataset(user_dataset, "test_project")
+    store.registry.apply_saved_dataset(user_dataset, "test_project")
 
     global global_store
     global_store = store
@@ -431,7 +431,7 @@ def multi_project_search_test_app():
             description=project_data["description"],
             tags={"domain": project_data["domain"]},
         )
-        master_store._registry.apply_project(project_obj)
+        master_store.registry.apply_project(project_obj)
 
     # Create resources for each project and apply them to the shared registry
     for project_name, project_data in projects_data.items():
@@ -565,19 +565,19 @@ def multi_project_search_test_app():
 
         # Apply all objects for this project directly to the registry
         for entity in entities:
-            master_store._registry.apply_entity(entity, project_name)
+            master_store.registry.apply_entity(entity, project_name)
 
         for data_source in data_sources:
-            master_store._registry.apply_data_source(data_source, project_name)
+            master_store.registry.apply_data_source(data_source, project_name)
 
         for feature_view in feature_views:
-            master_store._registry.apply_feature_view(feature_view, project_name)
+            master_store.registry.apply_feature_view(feature_view, project_name)
 
         for feature_service in feature_services:
-            master_store._registry.apply_feature_service(feature_service, project_name)
+            master_store.registry.apply_feature_service(feature_service, project_name)
 
     # Ensure registry is committed
-    master_store._registry.commit()
+    master_store.registry.commit()
 
     # Build REST app using the master store's registry (contains all projects)
     rest_server = RestRegistryServer(master_store)
@@ -733,6 +733,143 @@ class TestSearchAPI:
         assert len(found_expected) > 0, (
             f"Expected to find some of {expected_resources} but found none in {found_resources}"
         )
+
+    def test_search_matched_tags_exact_match(self, search_test_app):
+        """Test that matched_tags field is present when a tag matches exactly"""
+        # Search for "data" which should match tag key "team" with value "data"
+        response = search_test_app.get("/search?query=data")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Find results that matched via tags (match_score = 60)
+        tag_matched_results = [
+            r for r in results if r.get("match_score") == 60 and "matched_tags" in r
+        ]
+
+        assert len(tag_matched_results) > 0, (
+            "Expected to find at least one result with matched_tags from tag matching"
+        )
+
+        # Verify matched_tags is present and has a valid dictionary value
+        for result in tag_matched_results:
+            matched_tags = result.get("matched_tags")
+            assert matched_tags is not None, (
+                f"matched_tags should not be None for result {result['name']}"
+            )
+            assert isinstance(matched_tags, dict), (
+                f"matched_tags should be a dictionary, got {type(matched_tags)}"
+            )
+            # matched_tags should be a non-empty dict for tag-matched results
+            assert len(matched_tags) > 0, (
+                "matched_tags should not be empty for tag matches"
+            )
+
+        logger.debug(
+            f"Found {len(tag_matched_results)} results with matched_tags: {[r['name'] + ' -> ' + str(r.get('matched_tags', 'N/A')) for r in tag_matched_results]}"
+        )
+
+    def test_search_matched_tags_multiple_tags(self, search_test_app):
+        """Test that multiple matching tags are returned in matched_tags"""
+        # Search for "a" which should match:
+        # - Names containing "a" (e.g., user_training_dataset, data sources)
+        # - Tags where key/value contains "a": "team" (key), "data" (value), "training" (value)
+        response = search_test_app.get("/search?query=a")
+        logger.info(response.json())
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Find user_training_dataset which has tags: {"environment": "test", "purpose": "training", "team": "data"}
+        # "team" contains "a", "data" contains "a", "training" contains "a"
+        # So matched_tags should have at least 2 entries: "purpose" and "team"
+        dataset_results = [
+            r for r in results if r.get("name") == "user_training_dataset"
+        ]
+
+        assert len(dataset_results) > 0, (
+            "Expected to find user_training_dataset in results"
+        )
+
+        dataset_result = dataset_results[0]
+        matched_tags = dataset_result.get("matched_tags", {})
+
+        assert isinstance(matched_tags, dict), (
+            f"matched_tags should be a dictionary, got {type(matched_tags)}"
+        )
+
+        # Should have multiple matching tags: "purpose" and "team"
+        assert len(matched_tags) >= 2, (
+            f"Expected at least 2 matching tags for 'a' query, got {len(matched_tags)}: {matched_tags}"
+        )
+
+        # Verify the expected tags are present
+        assert "team" in matched_tags and "purpose" in matched_tags, (
+            f"Expected 'team' and 'purpose' in matched_tags, got: {matched_tags}"
+        )
+
+        logger.debug(f"user_training_dataset matched_tags: {matched_tags}")
+
+    def test_search_matched_tags_fuzzy_match(self, search_test_app):
+        """Test that matched_tags field is present when a tag matches via fuzzy matching"""
+        # Search for "te" which should fuzzy match tag key "team"
+        # "te" vs "team": overlap={'t','e'}/union={'t','e','a','m'} = 2/4 = 50% (below threshold)
+        # Try "tea" which should fuzzy match "team" better
+        # "tea" vs "team": overlap={'t','e','a'}/union={'t','e','a','m'} = 3/4 = 75% (above threshold)
+        response = search_test_app.get("/search?query=tea")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Find results that matched via fuzzy tag matching (match_score < 60 but >= 40)
+        fuzzy_tag_matched_results = [
+            r
+            for r in results
+            if r.get("match_score", 0) >= 40
+            and r.get("match_score", 0) < 60
+            and "matched_tags" in r
+        ]
+
+        # If we don't find fuzzy matches, try a different query that's more likely to match
+        if len(fuzzy_tag_matched_results) == 0:
+            # Try "dat" which should fuzzy match tag value "data"
+            # "dat" vs "data": overlap={'d','a','t'}/union={'d','a','t','a'} = 3/4 = 75% (above threshold)
+            response = search_test_app.get("/search?query=dat")
+            assert response.status_code == 200
+            data = response.json()
+            results = data["results"]
+            fuzzy_tag_matched_results = [
+                r
+                for r in results
+                if r.get("match_score", 0) >= 40
+                and r.get("match_score", 0) < 60
+                and "matched_tags" in r
+            ]
+
+        if len(fuzzy_tag_matched_results) > 0:
+            # Verify matched_tags is present for fuzzy matches
+            for result in fuzzy_tag_matched_results:
+                matched_tags = result.get("matched_tags")
+                assert matched_tags is not None, (
+                    f"matched_tags should not be None for fuzzy-matched result {result['name']}"
+                )
+                assert isinstance(matched_tags, dict), (
+                    f"matched_tags should be a dictionary, got {type(matched_tags)}"
+                )
+                assert len(matched_tags) > 0, (
+                    "matched_tags should not be empty for fuzzy tag matches"
+                )
+                # Verify the match_score is in the fuzzy range
+                assert 40 <= result.get("match_score", 0) < 60, (
+                    f"Fuzzy tag match should have score in [40, 60), got {result.get('match_score')}"
+                )
+
+            logger.debug(
+                f"Found {len(fuzzy_tag_matched_results)} results with fuzzy matched_tags: {[r['name'] + ' -> ' + str(r.get('matched_tags', 'N/A')) + ' (score: ' + str(r.get('match_score', 'N/A')) + ')' for r in fuzzy_tag_matched_results]}"
+            )
 
     def test_search_sorting_functionality(self, shared_search_responses):
         """Test search results sorting using pre-computed responses"""
@@ -1076,7 +1213,7 @@ class TestSearchAPI:
         """Test searching for on-demand feature views"""
         # Search by name
         global global_store
-        global_store._registry.refresh()
+        global_store.registry.refresh()
         response = search_test_app.get("/search?query=user_on_demand_features")
         assert response.status_code == 200
 

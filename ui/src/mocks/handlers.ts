@@ -8,12 +8,12 @@ const registry = readFileSync(
 
 const projectsListWithDefaultProject = http.get("/projects-list.json", () =>
   HttpResponse.json({
-    default: "credit_score_project",
+    default: "credit_scoring_aws",
     projects: [
       {
         name: "Credit Score Project",
         description: "Project for credit scoring team and associated models.",
-        id: "credit_score_project",
+        id: "credit_scoring_aws",
         registryPath: "/registry.db", // Changed to match what the test expects
       },
     ],

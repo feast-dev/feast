@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import ibis
-import ibis.selectors as s
 import numpy as np
 import pandas as pd
 import pyarrow
@@ -131,7 +130,7 @@ def _generate_row_id(
         else:
             all_entities.extend([e.name for e in fv.entity_columns])
 
-    r = ibis.literal("")
+    r = ibis.literal("_")
 
     for e in set(all_entities):
         r = r.concat(entity_table[e].cast("string"))  # type: ignore
@@ -175,6 +174,10 @@ def get_historical_features_ibis(
     def read_fv(
         feature_view: FeatureView, feature_refs: List[str], full_feature_names: bool
     ) -> Tuple:
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source and cannot be queried."
+            )
         fv_table: Table = data_source_reader(
             feature_view.batch_source, str(config.repo_path)
         )
@@ -194,7 +197,7 @@ def get_historical_features_ibis(
             }
         )
 
-        full_name_prefix = feature_view.projection.name_alias or feature_view.name
+        full_name_prefix = feature_view.projection.name_to_use()
 
         feature_refs = [
             fr.split(":")[1]
@@ -202,13 +205,16 @@ def get_historical_features_ibis(
             if fr.startswith(f"{full_name_prefix}:")
         ]
 
+        # Use base name (without version) for column naming
+        base_name_prefix = feature_view.projection.name_alias or feature_view.name
+
         if full_feature_names:
             fv_table = fv_table.rename(
-                {f"{full_name_prefix}__{feature}": feature for feature in feature_refs}
+                {f"{base_name_prefix}__{feature}": feature for feature in feature_refs}
             )
 
             feature_refs = [
-                f"{full_name_prefix}__{feature}" for feature in feature_refs
+                f"{base_name_prefix}__{feature}" for feature in feature_refs
             ]
 
         return (
@@ -336,6 +342,8 @@ def offline_write_batch_ibis(
     progress: Optional[Callable[[int], Any]],
     data_source_writer: Callable[[pyarrow.Table, DataSource, str], None],
 ):
+    if feature_view.batch_source is None:
+        raise ValueError(f"Feature view '{feature_view.name}' has no batch_source.")
     pa_schema, column_names = get_pyarrow_schema_from_batch_source(
         config, feature_view.batch_source
     )
@@ -384,7 +392,7 @@ def point_in_time_join(
     ) in feature_tables:
         all_entities.extend(join_key_map.values())
 
-    r = ibis.literal("")
+    r = ibis.literal("_")
 
     for e in set(all_entities):
         r = r.concat(entity_table[e].cast("string"))  # type: ignore
@@ -392,6 +400,10 @@ def point_in_time_join(
     entity_table = entity_table.mutate(entity_row_id=r)
 
     acc_table = entity_table
+
+    # Track the columns we want to keep explicitly
+    entity_columns = list(entity_table.columns)
+    all_feature_cols: List[str] = []
 
     for (
         feature_table,
@@ -410,7 +422,7 @@ def point_in_time_join(
             else:
                 alias = "".join(random.choices(string.ascii_uppercase, k=10))
 
-                feature_table = feature_table.alias(alias=alias).sql(
+                feature_table = feature_table.alias(alias).sql(
                     f"SELECT *, {event_expire_timestamp_fn(timestamp_field, ttl)} AS event_expire_timestamp FROM {alias}"
                 )
 
@@ -432,7 +444,8 @@ def point_in_time_join(
             entity_table, predicates, lname="", rname="{name}_y"
         )
 
-        feature_table = feature_table.drop(s.endswith("_y"))
+        cols_to_drop_y = [c for c in feature_table.columns if c.endswith("_y")]
+        feature_table = feature_table.drop(*cols_to_drop_y)
 
         feature_table = deduplicate(
             table=feature_table,
@@ -445,6 +458,9 @@ def point_in_time_join(
         select_cols.extend(feature_refs)
         feature_table = feature_table.select(select_cols)
 
+        # Track the feature columns we're adding
+        all_feature_cols.extend(feature_refs)
+
         acc_table = acc_table.left_join(
             feature_table,
             predicates=[feature_table.entity_row_id == acc_table.entity_row_id],
@@ -452,9 +468,9 @@ def point_in_time_join(
             rname="{name}_yyyy",
         )
 
-        acc_table = acc_table.drop(s.endswith("_yyyy"))
-
-    acc_table = acc_table.drop("entity_row_id")
+    # Select only the columns we want: entity columns (minus entity_row_id) + all feature columns
+    final_cols = [c for c in entity_columns if c != "entity_row_id"] + all_feature_cols
+    acc_table = acc_table.select(final_cols)
 
     return acc_table
 

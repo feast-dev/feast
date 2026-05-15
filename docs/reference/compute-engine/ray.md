@@ -2,6 +2,24 @@
 
 The Ray compute engine is a distributed compute implementation that leverages [Ray](https://www.ray.io/) for executing feature pipelines including transformations, aggregations, joins, and materializations. It provides scalable and efficient distributed processing for both `materialize()` and `get_historical_features()` operations.
 
+## Quick Start with Ray Template
+
+### Ray RAG Template - Batch Embedding at Scale
+
+For RAG (Retrieval-Augmented Generation) applications with distributed embedding generation:
+
+```bash
+feast init -t ray_rag my_rag_project
+cd my_rag_project/feature_repo
+```
+
+The Ray RAG template demonstrates:
+- **Parallel Embedding Generation**: Uses Ray compute engine to generate embeddings across multiple workers
+- **Vector Search Integration**: Works with Milvus for semantic similarity search
+- **Complete RAG Pipeline**: Data → Embeddings → Search workflow
+
+The Ray compute engine automatically distributes the embedding generation across available workers, making it ideal for processing large datasets efficiently.
+
 ## Overview
 
 The Ray compute engine provides:
@@ -10,6 +28,7 @@ The Ray compute engine provides:
 - **Lazy Evaluation**: Deferred execution for optimal performance
 - **Resource Management**: Automatic scaling and resource optimization
 - **Point-in-Time Joins**: Efficient temporal joins for historical feature retrieval
+- **GPU Support**: Schedule transformation workers on GPU nodes via `num_gpus` config (all modes including KubeRay)
 
 ## Architecture
 
@@ -62,11 +81,25 @@ batch_engine:
 | `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
 | `target_partition_size_mb` | int | 64 | Target partition size (MB) |
 | `window_size_for_joins` | string | "1H" | Time window for distributed joins |
-| `ray_address` | string | None | Ray cluster address (None = local Ray) |
+| `ray_address` | string | None | Ray cluster address (triggers REMOTE mode) |
+| `use_kuberay` | boolean | None | Enable KubeRay mode (overrides ray_address) |
+| `kuberay_conf` | dict | None | **KubeRay configuration dict** with keys: `cluster_name` (required), `namespace` (default: "default"), `auth_token`, `auth_server`, `skip_tls` (default: false) |
+| `enable_ray_logging` | boolean | false | Enable Ray progress bars and logging |
 | `enable_distributed_joins` | boolean | true | Enable distributed joins for large datasets |
 | `staging_location` | string | None | Remote path for batch materialization jobs |
-| `ray_conf` | dict | None | Ray configuration parameters |
-| `execution_timeout_seconds` | int | None | Timeout for job execution in seconds |
+| `ray_conf` | dict | None | Ray configuration parameters (memory, CPU limits) |
+| `num_gpus` | float | None | Number of GPUs to request per worker task. Requires GPU nodes in the Ray cluster. Fractional values (e.g. `0.5`) are supported. Supported in all modes including KubeRay. |
+| `gpu_batch_format` | string | `"pandas"` | Batch format for `map_batches` when `num_gpus` is set. Use `"numpy"` or `"pyarrow"` for GPU-native libraries (e.g. cuDF, PyTorch). |
+| `worker_task_options` | dict | None | Arbitrary Ray `.options()` kwargs applied to every worker task. See [Worker Resource Scheduling](#worker-resource-scheduling) for the full reference. |
+
+### Mode Detection Precedence
+
+The Ray compute engine automatically detects the execution mode:
+
+1. **Environment Variables** → KubeRay mode (if `FEAST_RAY_USE_KUBERAY=true`)
+2. **Config `kuberay_conf`** → KubeRay mode
+3. **Config `ray_address`** → Remote mode
+4. **Default** → Local mode
 
 ## Usage Examples
 
@@ -315,11 +348,95 @@ import ray
 # Check cluster resources
 resources = ray.cluster_resources()
 print(f"Available CPUs: {resources.get('CPU', 0)}")
+print(f"Available GPUs: {resources.get('GPU', 0)}")
 print(f"Available memory: {resources.get('memory', 0) / 1e9:.2f} GB")
 
 # Monitor job progress
 job = store.get_historical_features(...)
 # Ray compute engine provides built-in progress tracking
+```
+
+## Worker Resource Scheduling
+
+`worker_task_options` is a passthrough dict of [Ray `.options()` kwargs](https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html) applied to every worker task Feast dispatches. It pairs with `ray_conf` (cluster-level `ray.init` options) — `worker_task_options` targets individual worker tasks. Options are forwarded at two levels so Ray schedules correctly:
+
+1. On the `@ray.remote` orchestration task via `.options(**worker_task_options)` — controls node selection.
+2. Inside `map_batches` for the scheduling-relevant subset (`num_gpus`, `num_cpus`, `accelerator_type`, `resources`) — controls which nodes run the data workers.
+
+This is supported across **all execution modes**: local, remote, and KubeRay.
+
+### Common `worker_task_options` keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `num_cpus` | float | CPUs per task (default: 1). Fractional values supported. |
+| `memory` | int | Heap memory in **bytes** (e.g. `8589934592` for 8 GB). |
+| `accelerator_type` | string | Pin tasks to a specific GPU model — `"A100"`, `"T4"`, `"V100"`, etc. Useful on KubeRay clusters with mixed GPU node pools. |
+| `resources` | dict | Custom/Kubernetes extended resource labels, e.g. `{"intel.com/gpu": 1}`. |
+| `runtime_env` | dict | Per-task [Ray runtime environment](https://docs.ray.io/en/latest/ray-core/handling-dependencies.html) — `pip`, `conda`, `env_vars`, `working_dir`, etc. For KubeRay, use this to install packages on worker pods without rebuilding images. |
+| `max_retries` | int | Task retry count on worker failure (default: 3). |
+| `scheduling_strategy` | string | `"DEFAULT"`, `"SPREAD"`, or a placement group strategy. |
+
+> For the full list of supported keys see the [Ray RemoteFunction.options() API docs](https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html).
+
+### GPU support
+
+`num_gpus` is the only first-class GPU field because it also drives `gpu_batch_format` selection inside Feast. Set it directly rather than inside `worker_task_options`:
+
+```yaml
+batch_engine:
+    type: ray.engine
+    num_gpus: 1               # GPUs per task (fractional values like 0.5 supported)
+    gpu_batch_format: numpy   # numpy/pyarrow for GPU-native libs (cuDF, PyTorch)
+```
+
+When `num_gpus` is set your transformation UDF runs on a GPU worker:
+
+```python
+import cudf  # RAPIDS cuDF – GPU-accelerated DataFrame library
+
+def gpu_transform(batch):
+    gpu_df = cudf.from_pandas(batch)
+    gpu_df["score"] = gpu_df["raw_value"] * 2.0
+    return gpu_df.to_pandas()
+```
+
+### Full example — KubeRay with GPU + all common options
+
+```yaml
+batch_engine:
+    type: ray.engine
+    use_kuberay: true
+    kuberay_conf:
+        cluster_name: "feast-gpu-cluster"
+        namespace: "feast-system"
+        auth_token: "${RAY_AUTH_TOKEN}"
+        auth_server: "https://api.openshift.com:6443"
+    num_gpus: 1
+    gpu_batch_format: numpy
+    worker_task_options:
+        num_cpus: 4
+        memory: 8589934592        # 8 GB
+        accelerator_type: "A100"  # pin to A100 nodes on mixed GPU pool
+        max_retries: 5
+        runtime_env:
+            pip:
+                - cudf-cu12==24.10.0
+                - torch==2.4.0
+            env_vars:
+                CUDA_VISIBLE_DEVICES: "0"
+```
+
+### Checking cluster resources
+
+```python
+import ray
+
+ray.init(address="auto")
+resources = ray.cluster_resources()
+print(f"Available CPUs: {resources.get('CPU', 0)}")
+print(f"Available GPUs: {resources.get('GPU', 0)}")
+print(f"Available memory: {resources.get('memory', 0) / 1e9:.2f} GB")
 ```
 
 ## Integration Examples
@@ -354,6 +471,8 @@ batch_engine:
 
 ### With Feature Transformations
 
+#### On-Demand Transformations
+
 ```python
 from feast import FeatureView, Field
 from feast.types import Float64
@@ -371,6 +490,29 @@ def trips_per_hour(features_df):
 features = store.get_historical_features(
     entity_df=entity_df,
     features=["trips_per_hour:trips_per_hour"]
+)
+```
+
+#### Ray Native Transformations
+
+For distributed transformations that leverage Ray's dataset and parallel processing capabilities, use `mode="ray"` in your `BatchFeatureView`:
+
+```python
+# Feature view with Ray transformation mode
+document_embeddings_view = BatchFeatureView(
+    name="document_embeddings",
+    entities=[document],
+    mode="ray",  # Enable Ray native transformation
+    ttl=timedelta(days=365),
+    schema=[
+        Field(name="document_id", dtype=String),
+        Field(name="embedding", dtype=Array(Float32), vector_index=True),
+        Field(name="movie_name", dtype=String),
+        Field(name="movie_director", dtype=String),
+    ],
+    source=movies_source,
+    udf=generate_embeddings_ray_native,
+    online=True,
 )
 ```
 

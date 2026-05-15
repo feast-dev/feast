@@ -22,10 +22,6 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [dragonfly.md](dragonfly.md)
 {% endcontent-ref %}
 
-{% content-ref url="ikv.md" %}
-[ikv.md](ikv.md)
-{% endcontent-ref %}
-
 {% content-ref url="datastore.md" %}
 [datastore.md](datastore.md)
 {% endcontent-ref %}
@@ -42,6 +38,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [postgres.md](postgres.md)
 {% endcontent-ref %}
 
+{% content-ref url="hbase.md" %}
+[hbase.md](hbase.md)
+{% endcontent-ref %}
+
 {% content-ref url="cassandra.md" %}
 [cassandra.md](cassandra.md)
 {% endcontent-ref %}
@@ -52,6 +52,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 
 {% content-ref url="mysql.md" %}
 [mysql.md](mysql.md)
+{% endcontent-ref %}
+
+{% content-ref url="mongodb.md" %}
+[mongodb.md](mongodb.md)
 {% endcontent-ref %}
 
 {% content-ref url="hazelcast.md" %}
@@ -68,4 +72,24 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 
 {% content-ref url="singlestore.md" %}
 [singlestore.md](singlestore.md)
+{% endcontent-ref %}
+
+{% content-ref url="elasticsearch.md" %}
+[elasticsearch.md](elasticsearch.md)
+{% endcontent-ref %}
+
+{% content-ref url="qdrant.md" %}
+[qdrant.md](qdrant.md)
+{% endcontent-ref %}
+
+{% content-ref url="milvus.md" %}
+[milvus.md](milvus.md)
+{% endcontent-ref %}
+
+{% content-ref url="faiss.md" %}
+[faiss.md](faiss.md)
+{% endcontent-ref %}
+
+{% content-ref url="hybrid.md" %}
+[hybrid.md](hybrid.md)
 {% endcontent-ref %}

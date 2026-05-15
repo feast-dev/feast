@@ -185,7 +185,9 @@ class SnowflakeOfflineStore(OfflineStore):
             )
             select_timestamps = list(
                 map(
-                    lambda field_name: f"TO_VARCHAR({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') AS {field_name}",
+                    lambda field_name: (
+                        f"TO_VARCHAR({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') AS {field_name}"
+                    ),
                     timestamp_columns,
                 )
             )
@@ -407,7 +409,7 @@ class SnowflakeOfflineStore(OfflineStore):
             )
 
         if table.schema != pa_schema:
-            table = table.cast(pa_schema)
+            table = offline_utils.cast_arrow_table_to_schema(table, pa_schema)
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn

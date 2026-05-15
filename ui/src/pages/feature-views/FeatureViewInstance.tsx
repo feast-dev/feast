@@ -14,9 +14,9 @@ import useLoadRegistry from "../../queries/useLoadRegistry";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 
 const FeatureViewInstance = () => {
-  const { featureViewName } = useParams();
+  const { featureViewName, projectName } = useParams();
   const registryUrl = React.useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
+  const registryQuery = useLoadRegistry(registryUrl, projectName);
 
   const fvName = featureViewName === undefined ? "" : featureViewName;
 

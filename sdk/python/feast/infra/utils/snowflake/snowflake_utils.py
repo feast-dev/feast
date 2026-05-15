@@ -86,9 +86,9 @@ class GetSnowflakeConnection:
             # https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication
             if "private_key" in kwargs or "private_key_content" in kwargs:
                 kwargs["private_key"] = parse_private_key_path(
-                    kwargs.get("private_key_passphrase"),
-                    kwargs.get("private_key"),
-                    kwargs.get("private_key_content"),
+                    kwargs.pop("private_key_passphrase", None),
+                    kwargs.pop("private_key", None),
+                    kwargs.pop("private_key_content", None),
                 )
 
             try:

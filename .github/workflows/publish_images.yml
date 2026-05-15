@@ -11,6 +11,10 @@ on:
         required: true
         default: ""
         type: string
+      ref:
+        description: 'Git ref to checkout (branch, tag, or SHA). Defaults to the triggering ref. Use to rebuild images from a different branch (e.g., master) when the release tag has a broken Dockerfile.'
+        required: false
+        type: string
   workflow_call: # Allows trigger of the workflow from another workflow
     inputs:
       custom_version: # Optional input for a custom version
@@ -29,13 +33,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: [ feature-server, feature-transformation-server, feast-operator ]
+        component: [ feature-server, feature-transformation-server, feast-operator, go-feature-server ]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: quay.io/feastdev
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
           submodules: 'true'
       - id: get-version
         uses: ./.github/actions/get-semantic-release-version
@@ -55,11 +60,11 @@ jobs:
           username: ${{ secrets.QUAYIO_USERNAME }}
           password: ${{ secrets.QUAYIO_TOKEN }}
       - name: Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v1'
+        uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Use gcloud CLI
@@ -69,17 +74,29 @@ jobs:
         env:
           VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: |
-          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
+          if [ "${{ matrix.component }}" = "feature-server" ]; then
+            make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX} DOCKER_PUSH=true DOCKER_PLATFORMS=linux/amd64,linux/arm64
+          else
+            make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
+          fi
       - name: Push versioned images
         env:
           VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ steps.get-version.outputs.highest_semver_tag }}
         run: |
-          make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
+          if [ "${{ matrix.component }}" = "feature-server" ]; then
+            echo "feature-server image pushed via buildx during build step"
+          else
+            make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
+          fi
 
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
           then
-            docker tag ${REGISTRY}/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} ${REGISTRY}/${{ matrix.component }}:latest
-            docker push ${REGISTRY}/${{ matrix.component }}:latest
+            if [ "${{ matrix.component }}" = "feature-server" ]; then
+              docker buildx imagetools create -t ${REGISTRY}/feature-server:latest ${REGISTRY}/feature-server:${VERSION_WITHOUT_PREFIX}
+            else
+              docker tag ${REGISTRY}/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} ${REGISTRY}/${{ matrix.component }}:latest
+              docker push ${REGISTRY}/${{ matrix.component }}:latest
+            fi
           fi

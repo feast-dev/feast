@@ -5,14 +5,33 @@
 
 The Ray offline store is a data I/O implementation that leverages [Ray](https://www.ray.io/) for reading and writing data from various sources. It focuses on efficient data access operations, while complex feature computation is handled by the [Ray Compute Engine](../compute-engine/ray.md).
 
+## Quick Start with Ray Template
+
+The easiest way to get started with Ray offline store is to use the built-in Ray template:
+
+```bash
+feast init -t ray my_ray_project
+cd my_ray_project/feature_repo
+```
+
+This template includes:
+- Pre-configured Ray offline store and compute engine setup
+- Sample feature definitions optimized for Ray processing
+- Demo workflow showcasing Ray capabilities
+- Resource settings for local development
+
+The template provides a complete working example with sample datasets and demonstrates both Ray offline store data I/O operations and Ray compute engine distributed processing.
+
 ## Overview
 
 The Ray offline store provides:
 - Ray-based data reading from file sources (Parquet, CSV, etc.)
-- Support for both local and distributed Ray clusters
-- Integration with various storage backends (local files, S3, GCS, HDFS)
+- Support for local, remote, and KubeRay (Kubernetes-managed) clusters
+- Integration with various storage backends (local files, S3, GCS, HDFS, Azure Blob)
 - Efficient data filtering and column selection
 - Timestamp-based data processing with timezone awareness
+- Enterprise-ready KubeRay cluster support via CodeFlare SDK
+- **GPU support**: schedule worker tasks on GPU nodes via `num_gpus` config (all modes including KubeRay)
 
 
 ## Functionality Matrix
@@ -59,9 +78,15 @@ For complex feature processing, historical feature retrieval, and distributed jo
 
 ## Configuration
 
-The Ray offline store can be configured in your `feature_store.yaml` file. Below are two main configuration patterns:
+The Ray offline store can be configured in your `feature_store.yaml` file. It supports **three execution modes**:
 
-### Basic Ray Offline Store
+1. **LOCAL**: Ray runs locally on the same machine (default)
+2. **REMOTE**: Connects to a remote Ray cluster via `ray_address`
+3. **KUBERAY**: Connects to Ray clusters on Kubernetes via CodeFlare SDK
+
+### Execution Modes
+
+#### Local Mode (Default)
 
 For simple data I/O operations without distributed processing:
 
@@ -72,7 +97,44 @@ provider: local
 offline_store:
     type: ray
     storage_path: data/ray_storage        # Optional: Path for storing datasets
-    ray_address: localhost:10001          # Optional: Ray cluster address
+```
+
+#### Remote Ray Cluster
+
+Connect to an existing Ray cluster:
+
+```yaml
+offline_store:
+    type: ray
+    storage_path: s3://my-bucket/feast-data
+    ray_address: "ray://my-cluster.example.com:10001"
+```
+
+#### KubeRay Cluster (Kubernetes)
+
+Connect to Ray clusters on Kubernetes using CodeFlare SDK:
+
+```yaml
+offline_store:
+    type: ray
+    storage_path: s3://my-bucket/feast-data
+    use_kuberay: true
+    kuberay_conf:
+        cluster_name: "feast-ray-cluster"
+        namespace: "feast-system"
+        auth_token: "${RAY_AUTH_TOKEN}"
+        auth_server: "https://api.openshift.com:6443"
+        skip_tls: false
+    enable_ray_logging: false
+```
+
+**Environment Variables** (alternative to config file):
+```bash
+export FEAST_RAY_USE_KUBERAY=true
+export FEAST_RAY_CLUSTER_NAME=feast-ray-cluster
+export FEAST_RAY_AUTH_TOKEN=your-token
+export FEAST_RAY_AUTH_SERVER=https://api.openshift.com:6443
+export FEAST_RAY_NAMESPACE=feast-system
 ```
 
 ### Ray Offline Store + Compute Engine
@@ -175,8 +237,32 @@ batch_engine:
 |--------|------|---------|-------------|
 | `type` | string | Required | Must be `feast.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore` or `ray` |
 | `storage_path` | string | None | Path for storing temporary files and datasets |
-| `ray_address` | string | None | Address of the Ray cluster (e.g., "localhost:10001") |
+| `ray_address` | string | None | Ray cluster address (triggers REMOTE mode, e.g., "ray://host:10001") |
+| `use_kuberay` | boolean | None | Enable KubeRay mode (overrides ray_address) |
+| `kuberay_conf` | dict | None | **KubeRay configuration dict** with keys: `cluster_name` (required), `namespace` (default: "default"), `auth_token`, `auth_server`, `skip_tls` (default: false) |
+| `enable_ray_logging` | boolean | false | Enable Ray progress bars and verbose logging |
 | `ray_conf` | dict | None | Ray initialization parameters for resource management (e.g., memory, CPU limits) |
+| `broadcast_join_threshold_mb` | int | 100 | Size threshold for broadcast joins (MB) |
+| `enable_distributed_joins` | boolean | true | Enable distributed joins for large datasets |
+| `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
+| `target_partition_size_mb` | int | 64 | Target partition size (MB) |
+| `window_size_for_joins` | string | "1H" | Time window for distributed joins |
+| `num_gpus` | float | None | GPUs per worker task. Supported in all modes. See [Worker Resource Scheduling](../compute-engine/ray.md#worker-resource-scheduling). |
+| `gpu_batch_format` | string | `"pandas"` | Batch format for `map_batches` when `num_gpus` is set (`"numpy"` or `"pyarrow"` for GPU-native libs). |
+| `worker_task_options` | dict | None | Arbitrary Ray `.options()` kwargs (num_cpus, memory, accelerator_type, resources, runtime_env, …). See [Worker Resource Scheduling](../compute-engine/ray.md#worker-resource-scheduling) for the full reference. |
+
+#### Mode Detection Precedence
+
+The Ray offline store automatically detects the execution mode using the following precedence:
+
+1. **Environment Variables** (highest priority)
+   - `FEAST_RAY_USE_KUBERAY`, `FEAST_RAY_CLUSTER_NAME`, etc.
+2. **Config `kuberay_conf`**
+   - If present → KubeRay mode
+3. **Config `ray_address`**
+   - If present → Remote mode
+4. **Default**
+   - Local mode (lowest priority)
 
 #### Ray Compute Engine Options
 
@@ -381,9 +467,16 @@ job.persist(gcs_storage, allow_overwrite=True)
 # HDFS
 hdfs_storage = SavedDatasetFileStorage(path="hdfs://namenode:8020/datasets/driver_features.parquet")
 job.persist(hdfs_storage, allow_overwrite=True)
+
+# Azure Blob Storage / Azure Data Lake Storage Gen2
+# By setting AZURE_STORAGE_ANON=False it uses DefaultAzureCredential
+az_storage = SavedDatasetFileStorage(path="abfss://container@stc_account.dfs.core.windows.net/datasets/driver_features.parquet")
+job.persist(az_storage, allow_overwrite=True)
 ```
 
 ### Using Ray Cluster
+
+#### Standard Ray Cluster
 
 To use Ray in cluster mode for distributed data access:
 
@@ -406,6 +499,59 @@ offline_store:
 ray start --address='head-node-ip:10001'
 ```
 
+#### KubeRay Cluster (Kubernetes)
+
+To use Feast with Ray clusters on Kubernetes via CodeFlare SDK:
+
+**Prerequisites:**
+- KubeRay cluster deployed on Kubernetes
+- CodeFlare SDK installed: `pip install codeflare-sdk`
+- Access credentials for the Kubernetes cluster
+
+**Configuration:**
+
+1. Using configuration file:
+```yaml
+offline_store:
+    type: ray
+    use_kuberay: true
+    storage_path: s3://my-bucket/feast-data
+    kuberay_conf:
+        cluster_name: "feast-ray-cluster"
+        namespace: "feast-system"
+        auth_token: "${RAY_AUTH_TOKEN}"
+        auth_server: "https://api.openshift.com:6443"
+        skip_tls: false
+    enable_ray_logging: false
+```
+
+2. Using environment variables:
+```bash
+export FEAST_RAY_USE_KUBERAY=true
+export FEAST_RAY_CLUSTER_NAME=feast-ray-cluster
+export FEAST_RAY_AUTH_TOKEN=your-k8s-token
+export FEAST_RAY_AUTH_SERVER=https://api.openshift.com:6443
+export FEAST_RAY_NAMESPACE=feast-system
+export FEAST_RAY_SKIP_TLS=false
+
+# Then use standard Feast code
+python your_feast_script.py
+```
+
+**Features:**
+- The CodeFlare SDK handles cluster connection and authentication
+- Automatic TLS certificate management
+- Authentication with Kubernetes clusters
+- Namespace isolation
+- Secure communication between client and Ray cluster
+- Automatic cluster discovery
+
+### GPU Support
+
+The Ray offline store supports GPU scheduling via the `num_gpus` and `gpu_batch_format` config options. This works across all execution modes (local, remote, and KubeRay).
+
+For full configuration details, examples, and KubeRay GPU setup, see the [Ray Compute Engine GPU Support](../compute-engine/ray.md#gpu-support) section.
+
 ### Data Source Validation
 
 The Ray offline store validates data sources to ensure compatibility:
@@ -421,14 +567,45 @@ except Exception as e:
     print(f"Data source validation failed: {e}")
 ```
 
+## Data Sources
+
+[`RaySource`](../data-sources/ray.md) is the recommended data source for the
+Ray offline store. It is a pure-metadata descriptor that tells Feast how to
+load a Ray Dataset from any source Ray Data supports — Parquet, CSV, JSON,
+HuggingFace datasets, MongoDB, binary files, images, TFRecords, WebDataset,
+SQL, and more.
+
+```python
+from feast.infra.offline_stores.contrib.ray_offline_store.ray_source import RaySource
+
+# Load directly from the HuggingFace Hub 
+cheque_source = RaySource(
+    name="cheque_images_hf",
+    reader_type="huggingface",
+    reader_options={
+        "dataset_name": "cheques_sample_data",
+        "split": "train",
+    },
+    timestamp_field="event_timestamp",
+)
+```
+
+See the [RaySource reference](../data-sources/ray.md) for a full list of
+`reader_type` values and configuration options.
+
+> **Note:** `FileSource` (Parquet) remains supported for backward compatibility
+> but `RaySource(reader_type="parquet")` is preferred for new projects.
+
 ## Limitations
 
-The Ray offline store has the following limitations:
+The Ray offline store has one known limitation:
 
-1. **File Sources Only**: Currently supports only `FileSource` data sources
-2. **No Direct SQL**: Does not support SQL query interfaces
-3. **No Online Writes**: Cannot write directly to online stores
-4. **No Complex Transformations**: The Ray offline store focuses on data I/O operations. For complex feature transformations (aggregations, joins, custom UDFs), use the [Ray Compute Engine](../compute-engine/ray.md) instead
+* **`online_write_batch` not implemented**: The `OfflineStore.online_write_batch()` interface
+  is not supported by the Ray offline store. This does **not** affect materialization —
+  `feast materialize` writes to the online store correctly via the
+  [Ray Compute Engine](../compute-engine/ray.md). The restriction only applies to callers
+  that invoke `online_write_batch` on the offline store object directly, which is an
+  uncommon pattern outside of custom tooling.
 
 ## Integration with Ray Compute Engine
 

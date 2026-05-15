@@ -1,3 +1,4 @@
+import json
 import subprocess
 from datetime import datetime
 
@@ -45,6 +46,11 @@ def run_demo():
             "conv_rate": [1.0],
             "acc_rate": [1.0],
             "avg_daily_trips": [1000],
+            "driver_metadata": [{"vehicle_type": "truck", "rating": "5.0"}],
+            "driver_config": [
+                json.dumps({"max_distance_km": 500, "preferred_zones": ["north"]})
+            ],
+            "driver_profile": [{"name": "driver_1001_updated", "age": "30"}],
         }
     )
     print(event_df)
@@ -115,6 +121,9 @@ def fetch_online_features(store, source: str = ""):
     else:
         features_to_fetch = [
             "driver_hourly_stats:acc_rate",
+            "driver_hourly_stats:driver_metadata",
+            "driver_hourly_stats:driver_config",
+            "driver_hourly_stats:driver_profile",
             "transformed_conv_rate:conv_rate_plus_val1",
             "transformed_conv_rate:conv_rate_plus_val2",
         ]

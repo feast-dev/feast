@@ -139,7 +139,7 @@ def fastapi_test_app():
             test_on_demand_feature_view,
         ]
     )
-    store._registry.apply_saved_dataset(test_saved_dataset, "demo_project")
+    store.registry.apply_saved_dataset(test_saved_dataset, "demo_project")
 
     # Build REST app with registered routes
     rest_server = RestRegistryServer(store)
@@ -773,7 +773,7 @@ def fastapi_test_app_with_multiple_objects():
     store.apply(entities + data_sources + feature_views + feature_services)
 
     for dataset in saved_datasets:
-        store._registry.apply_saved_dataset(dataset, "demo_project")
+        store.registry.apply_saved_dataset(dataset, "demo_project")
 
     rest_server = RestRegistryServer(store)
     client = TestClient(rest_server.app)
@@ -1503,10 +1503,49 @@ def test_metrics_resource_counts_via_rest(fastapi_test_app):
     assert "featureViews" in counts
     assert "featureServices" in counts
 
-    # Verify counts are integers
     for key, value in counts.items():
         assert isinstance(value, int)
         assert value >= 0
+
+    # Verify feature services summaries
+    assert "featureServices" in data
+    assert isinstance(data["featureServices"], list)
+    assert len(data["featureServices"]) == counts["featureServices"]
+    for fs in data["featureServices"]:
+        assert "name" in fs
+        assert "project" in fs
+        assert fs["project"] == "demo_project"
+    service_names = [fs["name"] for fs in data["featureServices"]]
+    assert "user_service" in service_names
+
+    # Verify feature views summaries with detail
+    assert "featureViews" in data
+    assert isinstance(data["featureViews"], list)
+    assert len(data["featureViews"]) == counts["featureViews"]
+    for fv in data["featureViews"]:
+        assert "name" in fv
+        assert "project" in fv
+        assert "type" in fv
+        assert "featureCount" in fv
+        assert isinstance(fv["featureCount"], int)
+        assert fv["featureCount"] >= 0
+        assert fv["project"] == "demo_project"
+    fv_names = [fv["name"] for fv in data["featureViews"]]
+    assert "user_profile" in fv_names
+    user_profile_fv = next(
+        fv for fv in data["featureViews"] if fv["name"] == "user_profile"
+    )
+    assert user_profile_fv["featureCount"] == 2
+
+    # Verify projects list
+    assert "projects" in data
+    assert isinstance(data["projects"], list)
+    assert len(data["projects"]) == 1
+    assert data["projects"][0]["name"] == "demo_project"
+
+    # Verify registry last updated
+    assert "registryLastUpdated" in data
+    assert data["registryLastUpdated"] is not None
 
     # Test without project parameter (should return all projects)
     response = fastapi_test_app.get("/metrics/resource_counts")
@@ -1526,6 +1565,200 @@ def test_metrics_resource_counts_via_rest(fastapi_test_app):
     per_project = data["perProject"]
     assert "demo_project" in per_project
     assert isinstance(per_project["demo_project"], dict)
+
+    # Verify metadata in all-projects mode
+    assert "featureServices" in data
+    assert isinstance(data["featureServices"], list)
+
+    assert "featureViews" in data
+    assert isinstance(data["featureViews"], list)
+    for fv in data["featureViews"]:
+        assert "name" in fv
+        assert "project" in fv
+        assert "type" in fv
+        assert "featureCount" in fv
+
+    assert "projects" in data
+    assert isinstance(data["projects"], list)
+    assert len(data["projects"]) >= 1
+    for proj in data["projects"]:
+        assert "name" in proj
+        assert "description" in proj
+
+    assert "registryLastUpdated" in data
+    assert data["registryLastUpdated"] is not None
+
+
+def test_metrics_resource_counts_with_permission_errors(fastapi_test_app):
+    """
+    Test that /metrics/resource_counts returns 200 with zero counts for
+    resource types that raise FeastPermissionError, instead of failing
+    the entire request. This simulates the scenario where access is
+    restricted for some resource types via GroupBasedPolicy,
+    NamespaceBasedPolicy, or CombinedGroupNamespacePolicy.
+    """
+    from unittest.mock import patch
+
+    from feast.errors import FeastPermissionError
+
+    original_get = fastapi_test_app.get
+
+    # First, get the baseline counts to know which resources have data
+    baseline = original_get("/metrics/resource_counts?project=demo_project").json()
+    baseline_counts = baseline["counts"]
+
+    # Patch grpc_call to raise FeastPermissionError for entities and data sources
+    # while allowing other resource types to succeed
+    original_grpc_call = None
+
+    def grpc_call_entities_denied(handler_fn, request):
+        handler_name = getattr(handler_fn, "__name__", "")
+        if handler_name in ("ListEntities", "ListDataSources"):
+            raise FeastPermissionError(f"Permission denied for {handler_name}")
+        return original_grpc_call(handler_fn, request)
+
+    with patch("feast.api.registry.rest.metrics.grpc_call") as mock_grpc_call:
+        import feast.api.registry.rest.metrics as metrics_module
+
+        original_grpc_call = metrics_module.__dict__.get("grpc_call")
+        # Restore actual import since patch replaces it
+        from feast.api.registry.rest.rest_utils import grpc_call as real_grpc_call
+
+        original_grpc_call = real_grpc_call
+        mock_grpc_call.side_effect = grpc_call_entities_denied
+
+        response = fastapi_test_app.get("/metrics/resource_counts?project=demo_project")
+
+    assert response.status_code == 200, (
+        f"Expected 200 but got {response.status_code}: {response.text}"
+    )
+    data = response.json()
+    assert "counts" in data
+    counts = data["counts"]
+
+    # Denied resource types should have 0 counts
+    assert counts["entities"] == 0
+    assert counts["dataSources"] == 0
+
+    # Permitted resource types should still have their original counts
+    assert counts["featureViews"] == baseline_counts["featureViews"]
+    assert counts["featureServices"] == baseline_counts["featureServices"]
+    assert counts["features"] == baseline_counts["features"]
+    assert counts["savedDatasets"] == baseline_counts["savedDatasets"]
+
+    # Permitted metadata summaries should still be populated
+    assert len(data["featureViews"]) == baseline_counts["featureViews"]
+    assert len(data["featureServices"]) == baseline_counts["featureServices"]
+
+    # Now test with ALL resource types denied
+    def grpc_call_all_denied(handler_fn, request):
+        handler_name = getattr(handler_fn, "__name__", "")
+        if handler_name.startswith("List") and handler_name != "ListProjects":
+            raise FeastPermissionError(f"Permission denied for {handler_name}")
+        return real_grpc_call(handler_fn, request)
+
+    with patch("feast.api.registry.rest.metrics.grpc_call") as mock_grpc_call:
+        mock_grpc_call.side_effect = grpc_call_all_denied
+
+        response = fastapi_test_app.get("/metrics/resource_counts?project=demo_project")
+
+    assert response.status_code == 200
+    data = response.json()
+    counts = data["counts"]
+
+    # All counts should be 0 when all resource types are denied
+    for resource_type, count in counts.items():
+        assert count == 0, (
+            f"Expected 0 for {resource_type} when permission denied, got {count}"
+        )
+
+    # Metadata summaries should be empty when all permissions are denied
+    assert data["featureViews"] == []
+    assert data["featureServices"] == []
+
+
+def test_feature_views_all_types_and_resource_counts_match(fastapi_test_app):
+    """
+    Test that verifies:
+    1. All types of feature views (regular, on-demand, stream) are returned in /feature_views/all
+    2. The count from /metrics/resource_counts matches the count from /feature_views/all
+    """
+    response_all = fastapi_test_app.get("/feature_views/all")
+    assert response_all.status_code == 200
+    data_all = response_all.json()
+    assert "featureViews" in data_all
+
+    feature_views = data_all["featureViews"]
+
+    # Count should include at least:
+    # - 3 regular feature views: user_profile, user_behavior, user_preferences
+    # - 1 on-demand feature view: test_on_demand_feature_view
+    assert len(feature_views) >= 4, (
+        f"Expected at least 4 feature views, got {len(feature_views)}"
+    )
+
+    # Verify we have different types of feature views
+    feature_view_names = {fv["spec"]["name"] for fv in feature_views}
+
+    # Check for regular feature views
+    assert "user_profile" in feature_view_names, (
+        "Regular feature view 'user_profile' not found"
+    )
+    assert "user_behavior" in feature_view_names, (
+        "Regular feature view 'user_behavior' not found"
+    )
+    assert "user_preferences" in feature_view_names, (
+        "Regular feature view 'user_preferences' not found"
+    )
+
+    # Check for on-demand feature view
+    assert "test_on_demand_feature_view" in feature_view_names, (
+        "On-demand feature view 'test_on_demand_feature_view' not found"
+    )
+
+    # Verify all have the correct project
+    for fv in feature_views:
+        assert fv["project"] == "demo_project", (
+            f"Feature view has incorrect project: {fv.get('project')}"
+        )
+
+    # Now get resource counts from /metrics/resource_counts endpoint
+    response_metrics = fastapi_test_app.get(
+        "/metrics/resource_counts?project=demo_project"
+    )
+    assert response_metrics.status_code == 200
+    data_metrics = response_metrics.json()
+    assert "counts" in data_metrics
+
+    counts = data_metrics["counts"]
+    assert "featureViews" in counts
+
+    # Verify that the count from metrics matches the count from feature_views/all
+    feature_views_count_from_all = len(feature_views)
+    feature_views_count_from_metrics = counts["featureViews"]
+
+    assert feature_views_count_from_all == feature_views_count_from_metrics, (
+        f"Feature views count mismatch: /feature_views/all returned {feature_views_count_from_all} "
+        f"but /metrics/resource_counts returned {feature_views_count_from_metrics}"
+    )
+
+    # Test without project parameter (all projects)
+    response_all_projects = fastapi_test_app.get("/feature_views/all")
+    assert response_all_projects.status_code == 200
+    data_all_projects = response_all_projects.json()
+
+    response_metrics_all = fastapi_test_app.get("/metrics/resource_counts")
+    assert response_metrics_all.status_code == 200
+    data_metrics_all = response_metrics_all.json()
+
+    total_fv_count_from_all = len(data_all_projects["featureViews"])
+    total_fv_count_from_metrics = data_metrics_all["total"]["featureViews"]
+
+    assert total_fv_count_from_all == total_fv_count_from_metrics, (
+        f"Total feature views count mismatch across all projects: "
+        f"/feature_views/all returned {total_fv_count_from_all} "
+        f"but /metrics/resource_counts returned {total_fv_count_from_metrics}"
+    )
 
 
 def test_metrics_recently_visited_via_rest(fastapi_test_app):
@@ -1767,3 +2000,19 @@ def test_all_endpoints_return_404_for_invalid_objects(fastapi_test_app):
     data = response.json()
     assert data["status_code"] == 404
     assert data["error_type"] == "FeastObjectNotFoundException"
+
+
+def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
+    """Test /metrics/resource_counts with a non-existent project returns empty data."""
+    response = fastapi_test_app.get(
+        "/metrics/resource_counts?project=nonexistent_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    counts = data["counts"]
+    for value in counts.values():
+        assert value == 0
+    assert data["featureServices"] == []
+    assert data["featureViews"] == []
+    assert "registryLastUpdated" in data

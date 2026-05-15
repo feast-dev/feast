@@ -226,13 +226,14 @@ class SnowflakeComputeEngine(ComputeEngine):
             timestamp_field,
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
+        assert feature_view.batch_source is not None  # guaranteed by _get_column_names
 
         job_id = f"{feature_view.name}-{start_date}-{end_date}"
 
         try:
             offline_job = self.offline_store.pull_latest_from_table_or_query(
                 config=self.repo_config,
-                data_source=feature_view.batch_source,
+                data_source=feature_view.batch_source,  # type: ignore[arg-type]
                 join_key_columns=join_key_columns,
                 feature_name_columns=feature_name_columns,
                 timestamp_field=timestamp_field,
@@ -341,6 +342,7 @@ class SnowflakeComputeEngine(ComputeEngine):
         feature_batch: list,
         project: str,
     ) -> str:
+        assert feature_view.batch_source is not None
         if feature_view.batch_source.created_timestamp_column:
             fv_created_str = f',"{feature_view.batch_source.created_timestamp_column}"'
         else:
@@ -406,6 +408,7 @@ class SnowflakeComputeEngine(ComputeEngine):
         project: str,
     ) -> None:
         assert_snowflake_feature_names(feature_view)
+        assert feature_view.batch_source is not None
 
         feature_names_str = '", "'.join(
             [feature.name for feature in feature_view.features]
@@ -467,6 +470,7 @@ class SnowflakeComputeEngine(ComputeEngine):
         feature_view: Union[StreamFeatureView, FeatureView],
         pbar: tqdm,
     ) -> None:
+        assert feature_view.batch_source is not None
         feature_names = [feature.name for feature in feature_view.features]
 
         with GetSnowflakeConnection(repo_config.batch_engine) as conn:

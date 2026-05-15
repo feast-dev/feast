@@ -78,15 +78,19 @@ feature_store.get_historical_features(features=feature_service, entity_df=entity
 
 This mechanism of retrieving features is only recommended as you're experimenting. Once you want to launch experiments or serve models, feature services are recommended.
 
-Feature references uniquely identify feature values in Feast. The structure of a feature reference in string form is as follows: `<feature_view>:<feature>`
+Feature references uniquely identify feature values in Feast. The structure of a feature reference in string form is as follows: `<feature_view>[@version]:<feature>`
+
+The `@version` part is optional. When omitted, the latest (active) version is used. You can specify a version like `@v2` to read from a specific historical version snapshot.
 
 Feature references are used for the retrieval of features from Feast:
 
 ```python
 online_features = fs.get_online_features(
     features=[
-        'driver_locations:lon',
-        'drivers_activity:trips_today'
+        'driver_locations:lon',                # latest version (default)
+        'drivers_activity:trips_today',        # latest version (default)
+        'drivers_activity@v2:trips_today',     # specific version
+        'drivers_activity@latest:trips_today', # explicit latest
     ],
     entity_rows=[
         # {join_key: entity_value}
@@ -94,6 +98,10 @@ online_features = fs.get_online_features(
     ]
 )
 ```
+
+{% hint style="info" %}
+Version-qualified reads (`@v<N>`) require `enable_online_feature_view_versioning: true` in your registry config and are currently supported only on the SQLite online store. See the [feature view versioning docs](feature-view.md#version-qualified-feature-references) for details.
+{% endhint %}
 
 It is possible to retrieve features from multiple feature views with a single request, and Feast is able to join features from multiple tables in order to build a training dataset. However, it is not possible to reference (or retrieve) features from multiple projects at the same time.
 
@@ -106,6 +114,46 @@ Note, if you're using [Feature views without entities](feature-view.md#feature-v
 The timestamp on which an event occurred, as found in a feature view's data source. The event timestamp describes the event time at which a feature was observed or generated.
 
 Event timestamps are used during point-in-time joins to ensure that the latest feature values are joined from feature views onto entity rows. Event timestamps are also used to ensure that old feature values aren't served to models during online serving.
+
+#### Why `event_timestamp` is required in the entity dataframe
+
+When calling `get_historical_features()`, the `entity_df` must include an `event_timestamp` column. This timestamp acts as the **upper bound (inclusive)** for which feature values are allowed to be retrieved for each entity row. Feast performs a point-in-time join (also called a "last known good value" temporal join): for each entity row, it retrieves the latest feature values with a timestamp **at or before** the entity row's `event_timestamp`.
+
+This ensures **point-in-time correctness**, which is critical to prevent **data leakage** during model training. Without this constraint, features generated *after* the prediction time could leak into training data—effectively letting the model "see the future"—leading to inflated offline metrics that do not translate to real-world performance.
+
+For example, if you want to predict whether a driver will be rated well on April 12 at 10:00 AM, the entity dataframe row should have `event_timestamp = datetime(2021, 4, 12, 10, 0, 0)`. Feast will then only join feature values observed on or before that time, excluding any data generated after 10:00 AM.
+
+#### Retrieving features without an entity dataframe
+
+While the entity dataframe is the standard way to retrieve historical features, Feast also supports **entity-less historical feature retrieval** by datetime range. This is useful when:
+
+- You are training **time-series or population-level models** and don't have a pre-defined list of entity IDs.
+- You want **all features in a time window** for exploratory analysis or batch training on full history.
+- Constructing an entity dataframe upfront is unnecessarily complex or expensive.
+
+Instead of passing `entity_df`, you specify a time window with `start_date` and/or `end_date`:
+
+```python
+from datetime import datetime
+
+training_df = store.get_historical_features(
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_hourly_stats:avg_daily_trips",
+    ],
+    start_date=datetime(2025, 7, 1),
+    end_date=datetime(2025, 7, 2),
+).to_df()
+```
+
+If `start_date` is omitted, it defaults to `end_date` minus the feature view TTL. If `end_date` is omitted, it defaults to the current time. Point-in-time correctness is still preserved.
+
+{% hint style="warning" %}
+Entity-less retrieval is currently supported for the **Postgres**, **Dask**, **Spark**, and **Ray** offline stores. You cannot mix `entity_df` with `start_date`/`end_date` in the same call.
+{% endhint %}
+
+For more details, see the [FAQ](../faq.md#how-do-i-run-get_historical_features-without-providing-an-entity-dataframe) and [this blog post on entity-less historical feature retrieval](https://feast.dev/blog/entity-less-historical-features-retrieval/).
 
 ### Dataset
 
@@ -248,6 +296,59 @@ training_df = store.get_historical_features(
     ],
 ).to_df()
 ```
+
+### Step 3: Choosing an output format
+
+`get_historical_features()` returns a `RetrievalJob` object. You can convert it
+to the format that suits your downstream pipeline:
+
+**Data conversion methods**
+
+| Method | Returns | When to use |
+|---|---|---|
+| `.to_df()` | `pandas.DataFrame` | General-purpose; scikit-learn, XGBoost, statsmodels |
+| `.to_feast_df()` | `FeastDataFrame` | Feast-native wrapper with engine metadata; preferred for Feast-internal tooling |
+| `.to_arrow()` | `pyarrow.Table` | Arrow-native pipelines, Polars, DuckDB, zero-copy interchange |
+| `.to_tensor(kind="torch")` | `Dict[str, torch.Tensor]` | Direct PyTorch training loops; numeric columns become tensors |
+| `.to_ray_dataset()` | `ray.data.Dataset` | Ray Train, Ray Serve, distributed ML workloads |
+
+**Persistence methods**
+
+| Method | Effect | When to use |
+|---|---|---|
+| `.persist(storage)` | Writes result to offline storage | Save a training dataset for later reuse or auditing |
+| `.to_remote_storage()` | Exports result to S3/GCS as Parquet files | Hand off to external systems or data pipelines |
+
+#### Retrieving as a Ray Dataset
+
+`to_ray_dataset()` is a **first-class method** on every `RetrievalJob`. When
+the underlying offline store is a `RayOfflineStore`, the dataset is returned
+directly without a copy through Arrow. For all other offline stores, a
+zero-copy Arrow → Ray Dataset conversion is used as a fallback.
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(".")
+
+# to_ray_dataset() is a first-class method on the RetrievalJob — chain it
+# directly after get_historical_features().
+ray_ds = store.get_historical_features(
+    entity_df=entity_df,
+    features=["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"],
+).to_ray_dataset()
+
+# Use with Ray Train
+import ray.train
+trainer = ray.train.torch.TorchTrainer(
+    train_loop_per_worker=...,
+    datasets={"train": ray_ds},
+)
+```
+
+> **Note:** `to_ray_dataset()` requires `feast[ray]` to be installed.
+
+---
 
 ## Retrieving online features (for model inference)
 Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.

@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { useParams } from "react-router-dom";
 
 import { EuiPageTemplate, EuiLoadingSpinner } from "@elastic/eui";
 
@@ -13,7 +14,8 @@ import ExportButton from "../../components/ExportButton";
 
 const useLoadEntities = () => {
   const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
+  const { projectName } = useParams();
+  const registryQuery = useLoadRegistry(registryUrl, projectName);
 
   const data =
     registryQuery.data === undefined

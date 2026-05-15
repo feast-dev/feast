@@ -42,8 +42,19 @@ const Layout = () => {
   });
 
   const registryPath = currentProject?.registryPath || "";
-  const { data } = useLoadRegistry(registryPath);
 
+  // For global search, use the first available registry path (typically all projects share the same registry)
+  // If projects have different registries, we use the first one as the "global" registry
+  const globalRegistryPath =
+    projectsData?.projects?.[0]?.registryPath || registryPath;
+
+  // Load filtered data for current project (for sidebar and page-level search)
+  const { data } = useLoadRegistry(registryPath, projectName);
+
+  // Load unfiltered data for global search (across all projects)
+  const { data: globalData } = useLoadRegistry(globalRegistryPath);
+
+  // Categories for page-level search (filtered to current project)
   const categories = data
     ? [
         {
@@ -84,31 +95,92 @@ const Layout = () => {
       ]
     : [];
 
+  // Helper function to extract project ID from an item
+  const getProjectId = (item: any): string => {
+    // Try different possible locations for the project field
+    return item?.spec?.project || item?.project || projectName || "unknown";
+  };
+
+  // Categories for global search (includes all projects)
+  const globalCategories = globalData
+    ? [
+        {
+          name: "Data Sources",
+          data: (globalData.objects.dataSources || []).map((item: any) => ({
+            ...item,
+            projectId: getProjectId(item),
+          })),
+          getLink: (item: any) => {
+            const project = item?.projectId || getProjectId(item);
+            return `/p/${project}/data-source/${item.name}`;
+          },
+        },
+        {
+          name: "Entities",
+          data: (globalData.objects.entities || []).map((item: any) => ({
+            ...item,
+            projectId: getProjectId(item),
+          })),
+          getLink: (item: any) => {
+            const project = item?.projectId || getProjectId(item);
+            return `/p/${project}/entity/${item.name}`;
+          },
+        },
+        {
+          name: "Features",
+          data: (globalData.allFeatures || []).map((item: any) => ({
+            ...item,
+            projectId: getProjectId(item),
+          })),
+          getLink: (item: any) => {
+            const featureView = item?.featureView;
+            const project = item?.projectId || getProjectId(item);
+            return featureView
+              ? `/p/${project}/feature-view/${featureView}/feature/${item.name}`
+              : "#";
+          },
+        },
+        {
+          name: "Feature Views",
+          data: (globalData.mergedFVList || []).map((item: any) => ({
+            ...item,
+            projectId: getProjectId(item),
+          })),
+          getLink: (item: any) => {
+            const project = item?.projectId || getProjectId(item);
+            return `/p/${project}/feature-view/${item.name}`;
+          },
+        },
+        {
+          name: "Feature Services",
+          data: (globalData.objects.featureServices || []).map((item: any) => ({
+            ...item,
+            projectId: getProjectId(item),
+          })),
+          getLink: (item: any) => {
+            const serviceName = item?.name || item?.spec?.name;
+            const project = item?.projectId || getProjectId(item);
+            return serviceName
+              ? `/p/${project}/feature-service/${serviceName}`
+              : "#";
+          },
+        },
+      ]
+    : [];
+
   const handleSearchOpen = () => {
-    console.log("Opening command palette - before state update"); // Debug log
     setIsCommandPaletteOpen(true);
-    console.log("Command palette state should be updated to true");
   };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      console.log(
-        "Layout key pressed:",
-        event.key,
-        "metaKey:",
-        event.metaKey,
-        "ctrlKey:",
-        event.ctrlKey,
-      );
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        console.log("Layout detected Cmd+K, preventing default");
         event.preventDefault();
         event.stopPropagation();
         handleSearchOpen();
       }
     };
 
-    console.log("Layout adding keydown event listener");
     window.addEventListener("keydown", handleKeyDown, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
@@ -121,7 +193,7 @@ const Layout = () => {
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        categories={categories}
+        categories={globalCategories}
       />
       <EuiPage paddingSize="none" style={{ background: "transparent" }}>
         <EuiPageSidebar
@@ -179,7 +251,10 @@ const Layout = () => {
                       grow={false}
                       style={{ width: "600px", maxWidth: "90%" }}
                     >
-                      <RegistrySearch ref={searchRef} categories={categories} />
+                      <RegistrySearch
+                        ref={searchRef}
+                        categories={globalCategories}
+                      />
                     </EuiFlexItem>
                   </EuiFlexGroup>
                 </div>

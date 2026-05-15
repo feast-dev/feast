@@ -38,7 +38,7 @@ online_store:
 ```
 {% endcode %}
 
-Note that `sslmode`, `sslkey_path`, `sslcert_path`, and `sslrootcert_path` are optional parameters.
+Note that `sslmode` defaults to `require`, which encrypts the connection without certificate verification. To disable SSL (e.g. for local development), set `sslmode: disable`. For certificate verification, set `sslmode` to `verify-ca` or `verify-full` and provide the corresponding `sslrootcert_path` (and optionally `sslcert_path` and `sslkey_path` for mutual TLS).
 The full set of configuration options is available in [PostgreSQLOfflineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStoreConfig).
 
 Additionally, a new optional parameter `entity_select_mode` was added to tell how Postgres should load the entity data. By default(`temp_table`), a temporary table is created and the entity data frame or sql is loaded into that table. A new value of `embed_query` was added to allow directly loading the SQL query into a CTE, providing improved performance and skipping the need to CREATE and DROP the temporary table.

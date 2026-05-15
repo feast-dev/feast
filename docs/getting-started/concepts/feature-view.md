@@ -23,7 +23,10 @@ Feature views consist of:
 * a name to uniquely identify this feature view in the project.
 * (optional, but recommended) a schema specifying one or more [features](feature-view.md#field) (without this, Feast will infer the schema by reading from the data source)
 * (optional, but recommended) metadata (for example, description, or other free-form metadata via `tags`)
+* (optional) `owner`: the email of the primary maintainer
+* (optional) `org`: the organizational unit that owns the feature view (e.g. `"ads"`, `"search"`); useful for grouping feature views by team or product area
 * (optional) a TTL, which limits how far back Feast will look when generating historical datasets
+* (optional) `enable_validation=True`, which enables schema validation during materialization (see [Schema Validation](#schema-validation) below)
 
 Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view.
 
@@ -159,6 +162,62 @@ Feature names must be unique within a [feature view](feature-view.md#feature-vie
 
 Each field can have additional metadata associated with it, specified as key-value [tags](https://rtd.feast.dev/en/master/feast.html#feast.field.Field).
 
+## \[Alpha\] Versioning
+
+Feature views support automatic version tracking. Every time `feast apply` detects a schema or UDF change, a versioned snapshot is saved to the registry. This enables auditing what changed, reverting to a prior version, querying specific versions via `@v<N>` syntax, and staging new versions without promoting them.
+
+Version history tracking is **always active** with no configuration needed. The `version` parameter is fully optional — omitting it preserves existing behavior.
+
+```python
+# Pin to a specific version (reverts the active definition to v2's snapshot)
+driver_stats = FeatureView(
+    name="driver_stats",
+    entities=[driver],
+    schema=[...],
+    source=my_source,
+    version="v2",
+)
+```
+
+For full details on version pinning, version-qualified reads, staged publishing (`--no-promote`), online store support, and known limitations, see the **[\[Alpha\] Feature View Versioning](../../reference/alpha-feature-view-versioning.md)** reference page.
+
+## Schema Validation
+
+Feature views support an optional `enable_validation` parameter that enables schema validation during materialization and historical feature retrieval. When enabled, Feast verifies that:
+
+- All declared feature columns are present in the input data.
+- Column data types match the expected Feast types (mismatches are logged as warnings).
+
+This is useful for catching data quality issues early in the pipeline. To enable it:
+
+```python
+from feast import FeatureView, Field
+from feast.types import Int32, Int64, Float32, Json, Map, String, Struct
+
+validated_fv = FeatureView(
+    name="validated_features",
+    entities=[driver],
+    schema=[
+        Field(name="trips_today", dtype=Int64),
+        Field(name="rating", dtype=Float32),
+        Field(name="preferences", dtype=Map),
+        Field(name="config", dtype=Json),  # opaque JSON data
+        Field(name="address", dtype=Struct({"street": String, "city": String, "zip": Int32})),  # typed struct
+    ],
+    source=my_source,
+    enable_validation=True,  # enables schema checks
+)
+```
+
+**JSON vs Map vs Struct**: These three complex types serve different purposes:
+- **`Map`**: Schema-free dictionary with string keys. Use when the keys and values are dynamic.
+- **`Json`**: Opaque JSON data stored as a string. Backends use native JSON types (`jsonb`, `VARIANT`). Use for configuration blobs or API responses where you don't need field-level typing.
+- **`Struct`**: Schema-aware structured type with named, typed fields. Persisted through the registry via Field tags. Use when you know the exact structure and want type safety.
+
+Validation is supported in all compute engines (Local, Spark, and Ray). When a required column is missing, a `ValueError` is raised. Type mismatches are logged as warnings but do not block execution, allowing for safe gradual adoption.
+
+The `enable_validation` parameter is also available on `BatchFeatureView` and `StreamFeatureView`, as well as their respective decorators (`@batch_feature_view` and `@stream_feature_view`).
+
 ## \[Alpha] On demand feature views
 
 On demand feature views allows data scientists to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both the historical retrieval and online retrieval paths.
@@ -213,7 +272,7 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
 
 A stream feature view is an extension of a normal feature view. The primary difference is that stream feature views have both stream and batch data sources, whereas a normal feature view only has a batch data source.
 
-Stream feature views should be used instead of normal feature views when there are stream data sources (e.g. Kafka and Kinesis) available to provide fresh features in an online setting. Here is an example definition of a stream feature view with an attached transformation:
+Stream feature views should be used instead of normal feature views when there are stream data sources (e.g. Kafka and Kinesis) available to provide fresh features in an online setting. Like regular feature views, stream feature views support the optional `org` field for grouping by organizational unit. Here is an example definition of a stream feature view with an attached transformation:
 
 ```python
 from datetime import timedelta
@@ -251,6 +310,7 @@ driver_stats_stream_source = KafkaSource(
     timestamp_field="event_timestamp",
     online=True,
     source=driver_stats_stream_source,
+    org="ads",  # optional
 )
 def driver_hourly_stats_stream(df: DataFrame):
     from pyspark.sql.functions import col

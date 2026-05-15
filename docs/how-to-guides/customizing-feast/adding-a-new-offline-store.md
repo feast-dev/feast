@@ -385,7 +385,7 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
     ```
 3.  Next, set up your offline store to run the universal integration tests. These are integration tests specifically intended to test offline and online stores against Feast API functionality, to ensure that the Feast APIs works with your offline store.
 
-    * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different offline store classes for testing.
+    * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/universal/feature_repos/repo_configuration.py` which stores different offline store classes for testing.
     * To overwrite the default configurations to use your own offline store, you can simply create your own file that contains a `FULL_REPO_CONFIGS` dictionary, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline store that you would like Feast to test with.
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
@@ -440,10 +440,10 @@ test-python-universal-spark:
 
 ### 7. Dependencies
 
-Add any dependencies for your offline store to our `sdk/python/setup.py` under a new `<OFFLINE_STORE>__REQUIRED` list with the packages and add it to the setup script so that if your offline store is needed, users can install the necessary python packages. These packages should be defined as extras so that they are not installed by users by default. You will need to regenerate our requirements files:
+Add any dependencies for your offline store to `pyproject.toml` under `[project.optional-dependencies]` as a new extra (e.g. `<offline_store> = ["package1>=1.0", "package2"]`). These packages should be defined as extras so that they are not installed by users by default. You will need to regenerate our requirements lock files:
 
 ```
-make lock-python-ci-dependencies-all
+make lock-python-dependencies-all
 ```
 
 ### 8. Add Documentation

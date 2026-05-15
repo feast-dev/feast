@@ -25,7 +25,7 @@
 # BigQuery
 /sdk/python/feast/infra/offline_stores/bigquery.py @sudohainguyen
 /sdk/python/feast/infra/offline_stores/bigquery_source.py @sudohainguyen
-/sdk/python/tests/integration/feature_repos/universal/data_sources/bigquery.py @sudohainguyen
+/sdk/python/tests/universal/feature_repos/universal/data_sources/bigquery.py @sudohainguyen
 
 # ==== Online Stores ====
 

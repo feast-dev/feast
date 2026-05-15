@@ -15,6 +15,7 @@ from google.protobuf.json_format import Parse
 from feast import FeatureStore, FeatureView, utils
 from feast.arrow_error_handler import arrow_server_error_handling_decorator
 from feast.data_source import DataSource
+from feast.errors import FeatureViewNotFoundException
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
@@ -199,7 +200,7 @@ class OfflineServer(fl.FlightServerBase):
                             )
                             fv = fv.with_projection(p)
             return fv
-        except Exception:
+        except FeatureViewNotFoundException:
             try:
                 return self.store.registry.get_stream_feature_view(
                     name=fv_name, project=project
@@ -431,6 +432,13 @@ class OfflineServer(fl.FlightServerBase):
             # Extract parameters from the internal flights dictionary
             entity_df_value = self.flights[key]
             entity_df = pa.Table.to_pandas(entity_df_value)
+            # Check if this is a mock/empty table (contains only 'key' column)
+            if len(entity_df.columns) == 1 and "key" in entity_df.columns:
+                entity_df = None
+
+        # If the client sent a SQL string, use it directly
+        if entity_df is None and "entity_df_sql" in command:
+            entity_df = command["entity_df_sql"]
 
         feature_view_names = command["feature_view_names"]
         name_aliases = command["name_aliases"]
@@ -449,6 +457,17 @@ class OfflineServer(fl.FlightServerBase):
                 resource=feature_view, actions=[AuthzedAction.READ_OFFLINE]
             )
 
+        # Extract and deserialize start_date/end_date if present
+        kwargs = {}
+        if "start_date" in command and command["start_date"] is not None:
+            kwargs["start_date"] = utils.make_tzaware(
+                datetime.fromisoformat(command["start_date"])
+            )
+        if "end_date" in command and command["end_date"] is not None:
+            kwargs["end_date"] = utils.make_tzaware(
+                datetime.fromisoformat(command["end_date"])
+            )
+
         retJob = self.offline_store.get_historical_features(
             config=self.store.config,
             feature_views=feature_views,
@@ -457,6 +476,7 @@ class OfflineServer(fl.FlightServerBase):
             registry=self.store.registry,
             project=project,
             full_feature_names=full_feature_names,
+            **kwargs,
         )
 
         return retJob

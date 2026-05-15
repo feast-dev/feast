@@ -27,9 +27,9 @@ import RequestDataSourceSchemaTable from "./RequestDataSourceSchemaTable";
 import useLoadDataSource from "./useLoadDataSource";
 
 const DataSourceOverviewTab = () => {
-  let { dataSourceName } = useParams();
+  let { dataSourceName, projectName } = useParams();
   const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
+  const registryQuery = useLoadRegistry(registryUrl, projectName);
 
   const dsName = dataSourceName === undefined ? "" : dataSourceName;
   const { isLoading, isSuccess, isError, data, consumingFeatureViews } =

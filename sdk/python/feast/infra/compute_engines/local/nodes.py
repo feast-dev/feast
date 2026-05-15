@@ -1,15 +1,17 @@
+import json
+import logging
 from datetime import datetime, timedelta
-from typing import List, Optional, Union
+from typing import List, Optional, Set, Union
 
 import pyarrow as pa
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.data_source import DataSource
+from feast.infra.compute_engines.backends.base import DataFrameBackend
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
-from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.local_node import LocalNode
 from feast.infra.compute_engines.utils import (
     create_offline_store_retrieval_job,
@@ -18,6 +20,8 @@ from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
 from feast.utils import _convert_arrow_to_proto
+
+logger = logging.getLogger(__name__)
 
 ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
@@ -75,6 +79,10 @@ class LocalJoinNode(LocalNode):
         for val in input_values:
             val.assert_format(DAGFormat.ARROW)
 
+        # The upstream source-read node has already renamed columns via
+        # field_mapping, so use the mapped join keys for joining (see #5942).
+        join_keys = self.column_info.join_keys_columns
+
         # Convert all upstream ArrowTables to backend DataFrames
         joined_df = self.backend.from_arrow(input_values[0].data)
         for val in input_values[1:]:
@@ -82,7 +90,7 @@ class LocalJoinNode(LocalNode):
             joined_df = self.backend.join(
                 joined_df,
                 next_df,
-                on=self.column_info.join_keys,
+                on=join_keys,
                 how=self.how,
             )
 
@@ -101,7 +109,7 @@ class LocalJoinNode(LocalNode):
             joined_df = self.backend.join(
                 entity_df,
                 joined_df,
-                on=self.column_info.join_keys,
+                on=join_keys,
                 how="left",
             )
 
@@ -189,8 +197,10 @@ class LocalDedupNode(LocalNode):
 
         # Extract join_keys, timestamp, and created_ts from context
 
-        # Dedup strategy: sort and drop_duplicates
-        dedup_keys = self.column_info.join_keys
+        # Dedup strategy: sort and drop_duplicates. Use the mapped join key
+        # names so we look up the columns that the source-read node has
+        # already renamed (see issue #5942).
+        dedup_keys = self.column_info.join_keys_columns
         if dedup_keys:
             sort_keys = [self.column_info.timestamp_column]
             if (
@@ -236,14 +246,113 @@ class LocalValidationNode(LocalNode):
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
-        df = self.backend.from_arrow(input_table)
-        # Placeholder for actual validation logic
+
         if self.validation_config:
-            print(f"[Validation: {self.name}] Passed.")
-        result = self.backend.to_arrow(df)
-        output = ArrowTableValue(result)
+            self._validate_schema(input_table)
+
+        output = ArrowTableValue(input_table)
         context.node_outputs[self.name] = output
         return output
+
+    def _validate_schema(self, table: pa.Table):
+        """Validate that the input table conforms to the expected schema.
+
+        Checks that all expected columns are present, that their types
+        are compatible with the declared Feast types, and that Json columns
+        contain well-formed JSON. Logs warnings for type mismatches but
+        raises on missing columns or invalid JSON content.
+        """
+        expected_columns = self.validation_config.get("columns", {})
+        if not expected_columns:
+            logger.debug(
+                "[Validation: %s] No column schema to validate against.",
+                self.name,
+            )
+            return
+
+        actual_columns = set(table.column_names)
+        expected_names = set(expected_columns.keys())
+
+        missing = expected_names - actual_columns
+        if missing:
+            raise ValueError(
+                f"[Validation: {self.name}] Missing expected columns: {missing}. "
+                f"Actual columns: {sorted(actual_columns)}"
+            )
+
+        for col_name, expected_type in expected_columns.items():
+            actual_type = table.schema.field(col_name).type
+            if expected_type is not None and actual_type != expected_type:
+                # PyArrow map columns and struct columns are compatible
+                # with the Feast Map type — skip warning for these cases
+                if pa.types.is_map(expected_type) and (
+                    pa.types.is_map(actual_type)
+                    or pa.types.is_struct(actual_type)
+                    or pa.types.is_large_list(actual_type)
+                    or pa.types.is_list(actual_type)
+                ):
+                    continue
+
+                # JSON type (large_string) is compatible with string types
+                if pa.types.is_large_string(expected_type) and (
+                    pa.types.is_string(actual_type)
+                    or pa.types.is_large_string(actual_type)
+                ):
+                    continue
+
+                # Struct type — expected struct is compatible with actual
+                # struct or map representations
+                if pa.types.is_struct(expected_type) and (
+                    pa.types.is_struct(actual_type)
+                    or pa.types.is_map(actual_type)
+                    or pa.types.is_list(actual_type)
+                ):
+                    continue
+
+                logger.warning(
+                    "[Validation: %s] Column '%s' type mismatch: expected %s, got %s",
+                    self.name,
+                    col_name,
+                    expected_type,
+                    actual_type,
+                )
+
+        # Validate JSON well-formedness for declared Json columns
+        json_columns: Set[str] = self.validation_config.get("json_columns", set())
+        for col_name in json_columns:
+            if col_name not in actual_columns:
+                continue
+
+            column = table.column(col_name)
+            invalid_count = 0
+            first_error = None
+            first_error_row = None
+
+            for i in range(len(column)):
+                value = column[i]
+                if not value.is_valid:
+                    continue
+
+                str_value = value.as_py()
+                if not isinstance(str_value, str):
+                    continue
+
+                try:
+                    json.loads(str_value)
+                except (json.JSONDecodeError, TypeError) as e:
+                    invalid_count += 1
+                    if first_error is None:
+                        first_error = str(e)
+                        first_error_row = i
+
+            if invalid_count > 0:
+                raise ValueError(
+                    f"[Validation: {self.name}] Column '{col_name}' declared as Json "
+                    f"contains {invalid_count} invalid JSON value(s). "
+                    f"First error at row {first_error_row}: {first_error}"
+                )
+
+        logger.debug("[Validation: %s] Schema validation passed.", self.name)
 
 
 class LocalOutputNode(LocalNode):
@@ -258,10 +367,11 @@ class LocalOutputNode(LocalNode):
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
-        context.node_outputs[self.name] = input_table
+        output = ArrowTableValue(data=input_table)
+        context.node_outputs[self.name] = output
 
         if input_table.num_rows == 0:
-            return input_table
+            return output
 
         if self.feature_view.online:
             online_store = context.online_store
@@ -271,16 +381,25 @@ class LocalOutputNode(LocalNode):
                 for entity in self.feature_view.entity_columns
             }
 
-            rows_to_write = _convert_arrow_to_proto(
-                input_table, self.feature_view, join_key_to_value_type
+            batch_size = (
+                context.repo_config.materialization_config.online_write_batch_size
             )
-
-            online_store.online_write_batch(
-                config=context.repo_config,
-                table=self.feature_view,
-                data=rows_to_write,
-                progress=lambda x: None,
+            # Single batch if None (backward compatible), otherwise use configured batch_size
+            batches = (
+                [input_table]
+                if batch_size is None
+                else input_table.to_batches(max_chunksize=batch_size)
             )
+            for batch in batches:
+                rows_to_write = _convert_arrow_to_proto(
+                    batch, self.feature_view, join_key_to_value_type
+                )
+                online_store.online_write_batch(
+                    config=context.repo_config,
+                    table=self.feature_view,
+                    data=rows_to_write,
+                    progress=lambda x: None,
+                )
 
         if self.feature_view.offline:
             offline_store = context.offline_store
@@ -291,4 +410,4 @@ class LocalOutputNode(LocalNode):
                 progress=lambda x: None,
             )
 
-        return input_table
+        return output

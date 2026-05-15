@@ -33,6 +33,7 @@ interface Feature {
   name: string;
   featureView: string;
   type: string;
+  project?: string;
   permissions?: any[];
 }
 
@@ -43,7 +44,10 @@ type FeatureColumn =
 const FeatureListPage = () => {
   const { projectName } = useParams();
   const registryUrl = useContext(RegistryPathContext);
-  const { data, isLoading, isError } = useLoadRegistry(registryUrl);
+  const { data, isLoading, isError } = useLoadRegistry(
+    registryUrl,
+    projectName,
+  );
   const [searchText, setSearchText] = useState("");
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
 
@@ -95,23 +99,31 @@ const FeatureListPage = () => {
       name: "Feature Name",
       field: "name",
       sortable: true,
-      render: (name: string, feature: Feature) => (
-        <EuiCustomLink
-          to={`/p/${projectName}/feature-view/${feature.featureView}/feature/${name}`}
-        >
-          {name}
-        </EuiCustomLink>
-      ),
+      render: (name: string, feature: Feature) => {
+        // For "All Projects" view, link to the specific project
+        const itemProject = feature.project || projectName;
+        return (
+          <EuiCustomLink
+            to={`/p/${itemProject}/feature-view/${feature.featureView}/feature/${name}`}
+          >
+            {name}
+          </EuiCustomLink>
+        );
+      },
     },
     {
       name: "Feature View",
       field: "featureView",
       sortable: true,
-      render: (featureView: string) => (
-        <EuiCustomLink to={`/p/${projectName}/feature-view/${featureView}`}>
-          {featureView}
-        </EuiCustomLink>
-      ),
+      render: (featureView: string, feature: Feature) => {
+        // For "All Projects" view, link to the specific project
+        const itemProject = feature.project || projectName;
+        return (
+          <EuiCustomLink to={`/p/${itemProject}/feature-view/${featureView}`}>
+            {featureView}
+          </EuiCustomLink>
+        );
+      },
     },
     { name: "Type", field: "type", sortable: true },
     {
@@ -143,6 +155,18 @@ const FeatureListPage = () => {
       },
     },
   ];
+
+  // Add Project column when viewing all projects
+  if (projectName === "all") {
+    columns.splice(1, 0, {
+      name: "Project",
+      field: "project",
+      sortable: true,
+      render: (project: string) => {
+        return <span>{project || "Unknown"}</span>;
+      },
+    });
+  }
 
   const onTableChange = ({ page, sort }: CriteriaWithPagination<Feature>) => {
     if (sort) {

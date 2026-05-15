@@ -47,9 +47,13 @@ class FeatureViewProjection:
     date_partition_column: Optional[str] = None
     created_timestamp_column: Optional[str] = None
     batch_source: Optional[DataSource] = None
+    version_tag: Optional[int] = None
 
     def name_to_use(self):
-        return self.name_alias or self.name
+        base = self.name_alias or self.name
+        if self.version_tag is not None:
+            return f"{base}@v{self.version_tag}"
+        return base
 
     def to_proto(self) -> FeatureViewProjectionProto:
         batch_source = None
@@ -69,6 +73,9 @@ class FeatureViewProjection:
         )
         for feature in self.features:
             feature_reference_proto.feature_columns.append(feature.to_proto())
+
+        if self.version_tag is not None:
+            feature_reference_proto.version_tag = self.version_tag
 
         return feature_reference_proto
 
@@ -93,24 +100,25 @@ class FeatureViewProjection:
         for feature_column in proto.feature_columns:
             feature_view_projection.features.append(Field.from_proto(feature_column))
 
+        if proto.HasField("version_tag"):
+            feature_view_projection.version_tag = proto.version_tag
+
         return feature_view_projection
 
     @staticmethod
     def from_feature_view_definition(feature_view: "FeatureView"):
         # TODO need to implement this for StreamFeatureViews
-        if getattr(feature_view, "batch_source", None):
+        batch_source = getattr(feature_view, "batch_source", None)
+        if batch_source:
             return FeatureViewProjection(
                 name=feature_view.name,
                 name_alias=None,
                 features=feature_view.features,
                 desired_features=[],
-                timestamp_field=feature_view.batch_source.created_timestamp_column
-                or None,
-                created_timestamp_column=feature_view.batch_source.created_timestamp_column
-                or None,
-                date_partition_column=feature_view.batch_source.date_partition_column
-                or None,
-                batch_source=feature_view.batch_source or None,
+                timestamp_field=batch_source.created_timestamp_column or None,
+                created_timestamp_column=batch_source.created_timestamp_column or None,
+                date_partition_column=batch_source.date_partition_column or None,
+                batch_source=batch_source or None,
             )
         else:
             return FeatureViewProjection(

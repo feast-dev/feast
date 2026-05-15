@@ -1,0 +1,45 @@
+project: my_project
+registry: data/registry.db
+provider: local
+
+# Ray offline store configuration for distributed data processing
+offline_store:
+  type: ray
+  storage_path: data/ray_storage              # Path for storing Ray datasets
+  broadcast_join_threshold_mb: 100
+  max_parallelism_multiplier: 2
+  target_partition_size_mb: 64
+  enable_ray_logging: true
+  # ray_address: "127.0.0.1:10001"
+  
+# Ray compute engine configuration for batch embedding processing
+batch_engine:
+  type: ray.engine
+  max_workers: 12                              # Maximum parallel workers (adjust based on CPU cores)
+  enable_optimization: true
+  broadcast_join_threshold_mb: 100
+  target_partition_size_mb: 64                 # Size of each data partition for processing
+  window_size_for_joins: "1H"
+  enable_ray_logging: true
+  # ray_address: "127.0.0.1:10001"
+
+# Online store for serving features with vector search capabilities
+online_store:
+  type: milvus
+  path: data/online_store.db
+  vector_enabled: true
+  embedding_dim: 384
+  index_type: "FLAT"
+  metric_type: "COSINE"
+
+# For production with remote Milvus, use:
+# online_store:
+#   type: milvus
+#   host: "localhost"
+#   port: 19530
+#   vector_enabled: true
+#   embedding_dim: 384
+#   index_type: "IVF_FLAT"
+#   metric_type: "COSINE"
+
+entity_key_serialization_version: 3

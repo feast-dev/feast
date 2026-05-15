@@ -12,8 +12,12 @@ import (
 )
 
 const (
-	defaultCacheTtlSeconds = int64(600)
-	defaultClientID        = "Unknown"
+	defaultCacheTtlSeconds             = int64(600)
+	defaultClientID                    = "Unknown"
+	defaultMySQLMaxOpenConns           = 20
+	defaultMySQLMaxIdleConns           = 10
+	defaultMySQLConnMaxLifetimeSeconds = int64(300)
+	defaultMySQLQueryTimeoutSeconds    = int64(30)
 )
 
 type RepoConfig struct {
@@ -39,10 +43,14 @@ type RepoConfig struct {
 }
 
 type RegistryConfig struct {
-	RegistryStoreType string `json:"registry_store_type"`
-	Path              string `json:"path"`
-	ClientId          string `json:"client_id" default:"Unknown"`
-	CacheTtlSeconds   int64  `json:"cache_ttl_seconds" default:"600"`
+	RegistryStoreType           string `json:"registry_store_type"`
+	Path                        string `json:"path"`
+	ClientId                    string `json:"client_id" default:"Unknown"`
+	CacheTtlSeconds             int64  `json:"cache_ttl_seconds" default:"600"`
+	MySQLMaxOpenConns           int    `json:"mysql_max_open_conns"`
+	MySQLMaxIdleConns           int    `json:"mysql_max_idle_conns"`
+	MySQLConnMaxLifetimeSeconds int64  `json:"mysql_conn_max_lifetime_seconds"`
+	MySQLQueryTimeoutSeconds    int64  `json:"mysql_query_timeout_seconds"`
 }
 
 // NewRepoConfigFromJSON converts a JSON string into a RepoConfig struct and also sets the repo path.
@@ -111,7 +119,14 @@ func (r *RepoConfig) GetLoggingOptions() (*logging.LoggingOptions, error) {
 
 func (r *RepoConfig) GetRegistryConfig() (*RegistryConfig, error) {
 	if registryConfigMap, ok := r.Registry.(map[string]interface{}); ok {
-		registryConfig := RegistryConfig{CacheTtlSeconds: defaultCacheTtlSeconds, ClientId: defaultClientID}
+		registryConfig := RegistryConfig{
+			CacheTtlSeconds:             defaultCacheTtlSeconds,
+			ClientId:                    defaultClientID,
+			MySQLMaxOpenConns:           defaultMySQLMaxOpenConns,
+			MySQLMaxIdleConns:           defaultMySQLMaxIdleConns,
+			MySQLConnMaxLifetimeSeconds: defaultMySQLConnMaxLifetimeSeconds,
+			MySQLQueryTimeoutSeconds:    defaultMySQLQueryTimeoutSeconds,
+		}
 		for k, v := range registryConfigMap {
 			switch k {
 			case "path":
@@ -127,23 +142,70 @@ func (r *RepoConfig) GetRegistryConfig() (*RegistryConfig, error) {
 					registryConfig.ClientId = value
 				}
 			case "cache_ttl_seconds":
-				// cache_ttl_seconds defaulted to type float64. Ex: "cache_ttl_seconds": 60 in registryConfigMap
-				switch value := v.(type) {
-				case float64:
-					registryConfig.CacheTtlSeconds = int64(value)
-				case int:
-					registryConfig.CacheTtlSeconds = int64(value)
-				case int32:
-					registryConfig.CacheTtlSeconds = int64(value)
-				case int64:
-					registryConfig.CacheTtlSeconds = value
-				default:
-					return nil, fmt.Errorf("unexpected type %T for CacheTtlSeconds", v)
+				parsed, err := parseInt64Field("cache_ttl_seconds", v)
+				if err != nil {
+					return nil, err
 				}
+				registryConfig.CacheTtlSeconds = parsed
+			case "mysql_max_open_conns":
+				parsed, err := parseIntField("mysql_max_open_conns", v)
+				if err != nil {
+					return nil, err
+				}
+				registryConfig.MySQLMaxOpenConns = parsed
+			case "mysql_max_idle_conns":
+				parsed, err := parseIntField("mysql_max_idle_conns", v)
+				if err != nil {
+					return nil, err
+				}
+				registryConfig.MySQLMaxIdleConns = parsed
+			case "mysql_conn_max_lifetime_seconds":
+				parsed, err := parseInt64Field("mysql_conn_max_lifetime_seconds", v)
+				if err != nil {
+					return nil, err
+				}
+				registryConfig.MySQLConnMaxLifetimeSeconds = parsed
+			case "mysql_query_timeout_seconds":
+				parsed, err := parseInt64Field("mysql_query_timeout_seconds", v)
+				if err != nil {
+					return nil, err
+				}
+				registryConfig.MySQLQueryTimeoutSeconds = parsed
 			}
 		}
 		return &registryConfig, nil
 	} else {
-		return &RegistryConfig{Path: r.Registry.(string), ClientId: defaultClientID, CacheTtlSeconds: defaultCacheTtlSeconds}, nil
+		return &RegistryConfig{
+			Path:                        r.Registry.(string),
+			ClientId:                    defaultClientID,
+			CacheTtlSeconds:             defaultCacheTtlSeconds,
+			MySQLMaxOpenConns:           defaultMySQLMaxOpenConns,
+			MySQLMaxIdleConns:           defaultMySQLMaxIdleConns,
+			MySQLConnMaxLifetimeSeconds: defaultMySQLConnMaxLifetimeSeconds,
+			MySQLQueryTimeoutSeconds:    defaultMySQLQueryTimeoutSeconds,
+		}, nil
 	}
+}
+
+func parseInt64Field(field string, value interface{}) (int64, error) {
+	switch parsed := value.(type) {
+	case float64:
+		return int64(parsed), nil
+	case int:
+		return int64(parsed), nil
+	case int32:
+		return int64(parsed), nil
+	case int64:
+		return parsed, nil
+	default:
+		return 0, fmt.Errorf("unexpected type %T for %s", value, field)
+	}
+}
+
+func parseIntField(field string, value interface{}) (int, error) {
+	parsed, err := parseInt64Field(field, value)
+	if err != nil {
+		return 0, err
+	}
+	return int(parsed), nil
 }

@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: redis
-          image: 'quay.io/sclorg/redis-7-c9s'
+          image: 'quay.io/feastdev-ci/feast-test-images:redis-7-alpine'
+          command: ["redis-server", "--save", ""]
           ports:
             - containerPort: 6379
           env:

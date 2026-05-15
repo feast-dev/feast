@@ -19,26 +19,24 @@ package services
 import (
 	"context"
 
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
-func ptr[T any](v T) *T {
-	return &v
-}
-
 func (feast *FeastServices) refreshFeatureStore(ctx context.Context, key types.NamespacedName) {
-	fs := &feastdevv1alpha1.FeatureStore{}
+	fs := &feastdevv1.FeatureStore{}
 	Expect(k8sClient.Get(ctx, key, fs)).To(Succeed())
 	feast.Handler.FeatureStore = fs
 }
 
-func applySpecToStatus(fs *feastdevv1alpha1.FeatureStore) {
+func applySpecToStatus(fs *feastdevv1.FeatureStore) {
 	fs.Status.Applied.Services = fs.Spec.Services.DeepCopy()
 	fs.Status.Applied.FeastProject = fs.Spec.FeastProject
 	Expect(k8sClient.Status().Update(context.Background(), fs)).To(Succeed())
@@ -46,15 +44,15 @@ func applySpecToStatus(fs *feastdevv1alpha1.FeatureStore) {
 
 var _ = Describe("Registry Service", func() {
 	var (
-		featureStore       *feastdevv1alpha1.FeatureStore
+		featureStore       *feastdevv1.FeatureStore
 		feast              *FeastServices
 		typeNamespacedName types.NamespacedName
 		ctx                context.Context
 	)
 
 	var setFeatureStoreServerConfig = func(grpcEnabled, restEnabled bool) {
-		featureStore.Spec.Services.Registry.Local.Server.GRPC = ptr(grpcEnabled)
-		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr(restEnabled)
+		featureStore.Spec.Services.Registry.Local.Server.GRPC = ptr.To(grpcEnabled)
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(restEnabled)
 		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
 		Expect(feast.ApplyDefaults()).To(Succeed())
 		applySpecToStatus(featureStore)
@@ -68,26 +66,26 @@ var _ = Describe("Registry Service", func() {
 			Namespace: "default",
 		}
 
-		featureStore = &feastdevv1alpha1.FeatureStore{
+		featureStore = &feastdevv1.FeatureStore{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      typeNamespacedName.Name,
 				Namespace: typeNamespacedName.Namespace,
 			},
-			Spec: feastdevv1alpha1.FeatureStoreSpec{
+			Spec: feastdevv1.FeatureStoreSpec{
 				FeastProject: "testproject",
-				Services: &feastdevv1alpha1.FeatureStoreServices{
-					Registry: &feastdevv1alpha1.Registry{
-						Local: &feastdevv1alpha1.LocalRegistryConfig{
-							Server: &feastdevv1alpha1.RegistryServerConfigs{
-								ServerConfigs: feastdevv1alpha1.ServerConfigs{
-									ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
-										DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
-											Image: ptr("test-image"),
+				Services: &feastdevv1.FeatureStoreServices{
+					Registry: &feastdevv1.Registry{
+						Local: &feastdevv1.LocalRegistryConfig{
+							Server: &feastdevv1.RegistryServerConfigs{
+								ServerConfigs: feastdevv1.ServerConfigs{
+									ContainerConfigs: feastdevv1.ContainerConfigs{
+										DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+											Image: ptr.To("test-image"),
 										},
 									},
 								},
-								GRPC:    ptr(true),
-								RestAPI: ptr(false),
+								GRPC:    ptr.To(true),
+								RestAPI: ptr.To(false),
 							},
 						},
 					},
@@ -202,5 +200,550 @@ var _ = Describe("Registry Service", func() {
 			Expect(ports[1].ContainerPort).To(Equal(FeastServiceConstants[RegistryFeastType].TargetRestHttpPort))
 			Expect(ports[1].Name).To(Equal(string(RegistryFeastType) + "-rest"))
 		})
+	})
+
+	Describe("PodAnnotations Configuration", func() {
+		It("should apply podAnnotations to deployment pod template", func() {
+			featureStore.Spec.Services.PodAnnotations = map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+				"sidecar.istio.io/inject":                        "true",
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Annotations).To(Equal(map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+				"sidecar.istio.io/inject":                        "true",
+			}))
+		})
+
+		It("should have no pod template annotations when podAnnotations is not set", func() {
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Annotations).To(BeNil())
+		})
+
+		It("should remove pod template annotations when podAnnotations is removed", func() {
+			featureStore.Spec.Services.PodAnnotations = map[string]string{
+				"instrumentation.opentelemetry.io/inject-python": "true",
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Annotations).To(HaveKey("instrumentation.opentelemetry.io/inject-python"))
+
+			featureStore.Spec.Services.PodAnnotations = nil
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Annotations).To(BeNil())
+		})
+	})
+
+	Describe("NodeSelector Configuration", func() {
+		It("should apply NodeSelector to pod spec when configured", func() {
+			// Set NodeSelector for registry service
+			nodeSelector := map[string]string{
+				"kubernetes.io/os": "linux",
+				"node-type":        "compute",
+			}
+			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &nodeSelector
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify NodeSelector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify NodeSelector is applied to pod spec
+			expectedNodeSelector := map[string]string{
+				"kubernetes.io/os": "linux",
+				"node-type":        "compute",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should merge NodeSelectors from multiple services", func() {
+			// Set NodeSelector for registry service
+			registryNodeSelector := map[string]string{
+				"kubernetes.io/os": "linux",
+				"node-type":        "compute",
+			}
+			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &registryNodeSelector
+
+			// Set NodeSelector for online store service
+			onlineNodeSelector := map[string]string{
+				"node-type": "online",
+				"zone":      "us-west-1a",
+			}
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr.To("test-image"),
+						},
+						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
+							NodeSelector: &onlineNodeSelector,
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify merged NodeSelector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify NodeSelector merges all service selectors (online overrides registry for node-type)
+			expectedNodeSelector := map[string]string{
+				"kubernetes.io/os": "linux",
+				"node-type":        "online",
+				"zone":             "us-west-1a",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should merge operator NodeSelector with existing selectors (mutating webhook scenario)", func() {
+			// Set NodeSelector for UI service
+			uiNodeSelector := map[string]string{
+				"node-type": "ui",
+			}
+			featureStore.Spec.Services.UI = &feastdevv1.ServerConfigs{
+				ContainerConfigs: feastdevv1.ContainerConfigs{
+					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+						Image: ptr.To("test-image"),
+					},
+					OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
+						NodeSelector: &uiNodeSelector,
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment first
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Simulate a mutating webhook or admission controller adding node selectors
+			// This would happen after the operator creates the pod spec but before scheduling
+			existingNodeSelector := map[string]string{
+				"team":        "ml",
+				"environment": "prod",
+			}
+			deployment.Spec.Template.Spec.NodeSelector = existingNodeSelector
+
+			// Apply the node selector logic again to test merging
+			// This simulates the operator reconciling and re-applying node selectors
+			feast.applyNodeSelector(&deployment.Spec.Template.Spec)
+
+			// Verify NodeSelector merges existing and operator selectors
+			expectedNodeSelector := map[string]string{
+				"team":        "ml",
+				"environment": "prod",
+				"node-type":   "ui",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should apply UI service NodeSelector when UI has highest precedence", func() {
+			// Set NodeSelector for online service
+			onlineNodeSelector := map[string]string{
+				"node-type": "online",
+			}
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr.To("test-image"),
+						},
+						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
+							NodeSelector: &onlineNodeSelector,
+						},
+					},
+				},
+			}
+
+			// Set NodeSelector for UI service (should win)
+			uiNodeSelector := map[string]string{
+				"node-type": "ui",
+				"zone":      "us-east-1",
+			}
+			featureStore.Spec.Services.UI = &feastdevv1.ServerConfigs{
+				ContainerConfigs: feastdevv1.ContainerConfigs{
+					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+						Image: ptr.To("test-image"),
+					},
+					OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
+						NodeSelector: &uiNodeSelector,
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify UI service selector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify NodeSelector is applied with UI service's selector (UI wins)
+			expectedNodeSelector := map[string]string{
+				"node-type": "ui",
+				"zone":      "us-east-1",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should enable metrics on the online service when configured", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{Metrics: ptr.To(true)},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+			Expect(onlineContainer.Command).To(Equal([]string{"feast", "serve", "--metrics", "-h", "0.0.0.0", "-p", "6566"}))
+			Expect(onlineContainer.Ports).To(ContainElement(corev1.ContainerPort{
+				Name:          "metrics",
+				ContainerPort: MetricsPort,
+				Protocol:      corev1.ProtocolTCP,
+			}))
+			metricsPortCount := 0
+			for _, port := range onlineContainer.Ports {
+				if port.Name == "metrics" {
+					metricsPortCount++
+				}
+			}
+			Expect(metricsPortCount).To(Equal(1))
+
+			svc := feast.initFeastSvc(OnlineFeastType)
+			Expect(svc).NotTo(BeNil())
+			Expect(feast.setService(svc, OnlineFeastType, false)).To(Succeed())
+			Expect(svc.Spec.Ports).To(ContainElement(corev1.ServicePort{
+				Name:       "metrics",
+				Port:       MetricsPort,
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(int(MetricsPort)),
+			}))
+		})
+
+		It("should handle empty NodeSelector gracefully", func() {
+			// Set empty NodeSelector
+			emptyNodeSelector := map[string]string{}
+			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &emptyNodeSelector
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify no NodeSelector is applied (empty selector)
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			// Verify no NodeSelector is applied (empty selector)
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(BeEmpty())
+		})
+	})
+
+	Describe("WorkerConfigs Configuration", func() {
+		It("should apply WorkerConfigs to the online store command", func() {
+			// Set WorkerConfigs for online store
+			workers := int32(4)
+			workerConnections := int32(2000)
+			maxRequests := int32(500)
+			maxRequestsJitter := int32(100)
+			keepAliveTimeout := int32(60)
+			registryTTLSeconds := int32(120)
+
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr.To("test-image"),
+						},
+					},
+					WorkerConfigs: &feastdevv1.WorkerConfigs{
+						Workers:            &workers,
+						WorkerConnections:  &workerConnections,
+						MaxRequests:        &maxRequests,
+						MaxRequestsJitter:  &maxRequestsJitter,
+						KeepAliveTimeout:   &keepAliveTimeout,
+						RegistryTTLSeconds: &registryTTLSeconds,
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+
+			// Verify all worker config options are present in the command
+			Expect(onlineContainer.Command).To(ContainElement("--workers"))
+			Expect(onlineContainer.Command).To(ContainElement("4"))
+			Expect(onlineContainer.Command).To(ContainElement("--worker-connections"))
+			Expect(onlineContainer.Command).To(ContainElement("2000"))
+			Expect(onlineContainer.Command).To(ContainElement("--max-requests"))
+			Expect(onlineContainer.Command).To(ContainElement("500"))
+			Expect(onlineContainer.Command).To(ContainElement("--max-requests-jitter"))
+			Expect(onlineContainer.Command).To(ContainElement("100"))
+			Expect(onlineContainer.Command).To(ContainElement("--keep-alive-timeout"))
+			Expect(onlineContainer.Command).To(ContainElement("60"))
+			Expect(onlineContainer.Command).To(ContainElement("--registry_ttl_sec"))
+			Expect(onlineContainer.Command).To(ContainElement("120"))
+		})
+
+		It("should apply partial WorkerConfigs to the online store command", func() {
+			// Set only some WorkerConfigs options
+			workers := int32(-1) // Auto-calculate
+			registryTTLSeconds := int32(300)
+
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr.To("test-image"),
+						},
+					},
+					WorkerConfigs: &feastdevv1.WorkerConfigs{
+						Workers:            &workers,
+						RegistryTTLSeconds: &registryTTLSeconds,
+					},
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+
+			// Verify specified options are present
+			Expect(onlineContainer.Command).To(ContainElement("--workers"))
+			Expect(onlineContainer.Command).To(ContainElement("-1"))
+			Expect(onlineContainer.Command).To(ContainElement("--registry_ttl_sec"))
+			Expect(onlineContainer.Command).To(ContainElement("300"))
+
+			// Verify unspecified options are not present
+			Expect(onlineContainer.Command).NotTo(ContainElement("--worker-connections"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--max-requests"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--max-requests-jitter"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--keep-alive-timeout"))
+		})
+
+		It("should not add worker config options when WorkerConfigs is nil", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr.To("test-image"),
+						},
+					},
+					// WorkerConfigs is not set (nil)
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+
+			// Verify no worker config options are present (defaults are used by the CLI)
+			Expect(onlineContainer.Command).NotTo(ContainElement("--workers"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--worker-connections"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--max-requests"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--max-requests-jitter"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--keep-alive-timeout"))
+			Expect(onlineContainer.Command).NotTo(ContainElement("--registry_ttl_sec"))
+		})
+	})
+})
+
+var _ = Describe("Pod Container Failure Messages", func() {
+	It("should detect init container in CrashLoopBackOff", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "feast-init",
+						State: corev1.ContainerState{
+							Terminated: &corev1.ContainerStateTerminated{ExitCode: 0},
+						},
+					},
+					{
+						Name: "feast-apply",
+						State: corev1.ContainerState{
+							Waiting: &corev1.ContainerStateWaiting{
+								Reason:  "CrashLoopBackOff",
+								Message: "back-off 5m0s restarting failed container",
+							},
+						},
+					},
+				},
+			},
+		}
+		msg := initContainerFailureMessage(pod)
+		Expect(msg).To(ContainSubstring("feast-apply"))
+		Expect(msg).To(ContainSubstring("CrashLoopBackOff"))
+		Expect(msg).To(ContainSubstring("back-off 5m0s"))
+	})
+
+	It("should detect init container terminated with non-zero exit code", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "feast-apply",
+						State: corev1.ContainerState{
+							Terminated: &corev1.ContainerStateTerminated{
+								ExitCode: 1,
+								Message:  "feast apply failed",
+							},
+						},
+					},
+				},
+			},
+		}
+		msg := initContainerFailureMessage(pod)
+		Expect(msg).To(ContainSubstring("feast-apply"))
+		Expect(msg).To(ContainSubstring("exit code 1"))
+		Expect(msg).To(ContainSubstring("feast apply failed"))
+	})
+
+	It("should return empty for init containers still initializing", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "feast-init",
+						State: corev1.ContainerState{
+							Waiting: &corev1.ContainerStateWaiting{
+								Reason: "PodInitializing",
+							},
+						},
+					},
+				},
+			},
+		}
+		Expect(initContainerFailureMessage(pod)).To(BeEmpty())
+	})
+
+	It("should detect regular container failure", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "registry",
+						State: corev1.ContainerState{
+							Waiting: &corev1.ContainerStateWaiting{
+								Reason:  "ImagePullBackOff",
+								Message: "image not found",
+							},
+						},
+					},
+				},
+			},
+		}
+		msg := containerFailureMessage(pod)
+		Expect(msg).To(ContainSubstring("registry"))
+		Expect(msg).To(ContainSubstring("ImagePullBackOff"))
+	})
+
+	It("should return empty for healthy pods", func() {
+		pod := &corev1.Pod{
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "feast-init",
+						State: corev1.ContainerState{
+							Terminated: &corev1.ContainerStateTerminated{ExitCode: 0},
+						},
+					},
+				},
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name: "registry",
+						State: corev1.ContainerState{
+							Running: &corev1.ContainerStateRunning{},
+						},
+					},
+				},
+			},
+		}
+		Expect(initContainerFailureMessage(pod)).To(BeEmpty())
+		Expect(containerFailureMessage(pod)).To(BeEmpty())
 	})
 })

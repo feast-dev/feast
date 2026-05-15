@@ -23,7 +23,7 @@ from feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase_source
 )
 from feast.infra.utils.couchbase.couchbase_utils import normalize_timestamp
 from feast.repo_config import FeastConfigBaseModel
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 

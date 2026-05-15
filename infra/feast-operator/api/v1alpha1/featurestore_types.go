@@ -105,12 +105,15 @@ type GitCloneOptions struct {
 type FeastInitOptions struct {
 	Minimal bool `json:"minimal,omitempty"`
 	// Template for the created project
-	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase;clickhouse
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;couchbase;clickhouse
 	Template string `json:"template,omitempty"`
 }
 
 // FeastCronJob defines a CronJob to execute against a Feature Store deployment.
 type FeastCronJob struct {
+	// Annotations to be added to the CronJob metadata.
+	Annotations map[string]string `json:"annotations,omitempty"`
+
 	// Specification of the desired behavior of a job.
 	JobSpec          *JobSpec                 `json:"jobSpec,omitempty"`
 	ContainerConfigs *CronJobContainerConfigs `json:"containerConfigs,omitempty"`
@@ -154,6 +157,11 @@ type FeastCronJob struct {
 
 // JobSpec describes how the job execution will look like.
 type JobSpec struct {
+	// PodTemplateAnnotations are annotations to be applied to the CronJob's PodTemplate
+	// metadata. This is separate from the CronJob-level annotations and must be
+	// set explicitly by users if they want annotations on the PodTemplate.
+	PodTemplateAnnotations map[string]string `json:"podTemplateAnnotations,omitempty"`
+
 	// Specifies the maximum desired number of pods the job should
 	// run at any given time. The actual number of pods running in steady state will
 	// be less than this number when ((.spec.completions - .status.successful) < .spec.parallelism),
@@ -281,6 +289,8 @@ type FeatureStoreServices struct {
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
+	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
@@ -363,7 +373,7 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus
+	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -374,7 +384,6 @@ type OnlineStoreDBStorePersistence struct {
 var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"snowflake.online",
 	"redis",
-	"ikv",
 	"datastore",
 	"dynamodb",
 	"bigtable",
@@ -388,6 +397,8 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"qdrant",
 	"couchbase.online",
 	"milvus",
+	"hybrid",
+	"mongodb",
 }
 
 // LocalRegistryConfig configures the registry service
@@ -413,6 +424,17 @@ type RegistryFilePersistence struct {
 	Path               string             `json:"path,omitempty"`
 	PvcConfig          *PvcConfig         `json:"pvc,omitempty"`
 	S3AdditionalKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
+
+	// CacheTTLSeconds defines the TTL (in seconds) for the registry cache.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	CacheTTLSeconds *int32 `json:"cache_ttl_seconds,omitempty"`
+
+	// CacheMode defines the registry cache update strategy.
+	// Allowed values are "sync" and "thread".
+	// +kubebuilder:validation:Enum=none;sync;thread
+	// +optional
+	CacheMode *string `json:"cache_mode,omitempty"`
 }
 
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
@@ -496,11 +518,51 @@ type ServerConfigs struct {
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
 	LogLevel *string `json:"logLevel,omitempty"`
+	// Metrics exposes Prometheus-compatible metrics for the Feast server when enabled.
+	Metrics *bool `json:"metrics,omitempty"`
 	// VolumeMounts defines the list of volumes that should be mounted into the feast container.
 	// This allows attaching persistent storage, config files, secrets, or other resources
 	// required by the Feast components. Ensure that each volume mount has a corresponding
 	// volume definition in the Volumes field.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// WorkerConfigs defines the worker configuration for the Feast server.
+	// These options are primarily used for production deployments to optimize performance.
+	WorkerConfigs *WorkerConfigs `json:"workerConfigs,omitempty"`
+}
+
+// WorkerConfigs defines the worker configuration for Feast servers.
+// These settings control gunicorn worker processes for production deployments.
+type WorkerConfigs struct {
+	// Workers is the number of worker processes. Use -1 to auto-calculate based on CPU cores (2 * CPU + 1).
+	// Defaults to 1 if not specified.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	Workers *int32 `json:"workers,omitempty"`
+	// WorkerConnections is the maximum number of simultaneous clients per worker process.
+	// Defaults to 1000.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	WorkerConnections *int32 `json:"workerConnections,omitempty"`
+	// MaxRequests is the maximum number of requests a worker will process before restarting.
+	// This helps prevent memory leaks. Defaults to 1000.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	MaxRequests *int32 `json:"maxRequests,omitempty"`
+	// MaxRequestsJitter is the maximum jitter to add to max-requests to prevent
+	// thundering herd effect on worker restart. Defaults to 50.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	MaxRequestsJitter *int32 `json:"maxRequestsJitter,omitempty"`
+	// KeepAliveTimeout is the timeout for keep-alive connections in seconds.
+	// Defaults to 30.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	KeepAliveTimeout *int32 `json:"keepAliveTimeout,omitempty"`
+	// RegistryTTLSeconds is the number of seconds after which the registry is refreshed.
+	// Higher values reduce refresh overhead but increase staleness. Defaults to 60.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	RegistryTTLSeconds *int32 `json:"registryTTLSeconds,omitempty"`
 }
 
 // RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
@@ -541,6 +603,7 @@ type OptionalCtrConfigs struct {
 	EnvFrom         *[]corev1.EnvFromSource      `json:"envFrom,omitempty"`
 	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
+	NodeSelector    *map[string]string           `json:"nodeSelector,omitempty"`
 }
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
@@ -635,6 +698,7 @@ type ServiceHostnames struct {
 // +kubebuilder:resource:shortName=feast
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:deprecatedversion:warning="v1alpha1 is deprecated and will be removed in a future release. Please migrate to v1."
 
 // FeatureStore is the Schema for the featurestores API
 type FeatureStore struct {

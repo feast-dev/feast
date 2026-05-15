@@ -17,7 +17,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SavedDatasetSparkStorage,
     SparkSource,
 )
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 

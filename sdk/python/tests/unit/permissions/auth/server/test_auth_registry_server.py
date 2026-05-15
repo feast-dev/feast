@@ -142,6 +142,11 @@ def _test_get_historical_features(client_fs: FeatureStore):
 
 
 def _test_get_entity(client_fs: FeatureStore, permissions: list[Permission]):
+    if _is_auth_enabled(client_fs) and len(permissions) == 0:
+        with pytest.raises(FeastPermissionError):
+            client_fs.get_entity("driver")
+        return
+
     if not _is_auth_enabled(client_fs) or _is_permission_enabled(
         client_fs, permissions, read_entities_perm
     ):
@@ -156,6 +161,18 @@ def _test_get_entity(client_fs: FeatureStore, permissions: list[Permission]):
 
 
 def _test_list_entities(client_fs: FeatureStore, permissions: list[Permission]):
+    if _is_auth_enabled(client_fs) and len(permissions) == 0:
+        with pytest.raises(FeastPermissionError):
+            client_fs.list_entities()
+        return
+
+    if _is_auth_enabled(client_fs) and _permissions_exist_in_permission_list(
+        [invalid_list_entities_perm], permissions
+    ):
+        with pytest.raises(FeastPermissionError):
+            client_fs.list_entities()
+        return
+
     entities = client_fs.list_entities()
 
     if not _is_auth_enabled(client_fs) or _is_permission_enabled(
@@ -170,7 +187,8 @@ def _test_list_entities(client_fs: FeatureStore, permissions: list[Permission]):
 
 
 def _no_permission_retrieved(permissions: list[Permission]) -> bool:
-    return len(permissions) == 0
+    # With security-first approach, no permissions means access should be denied
+    return False
 
 
 def _test_list_permissions(
@@ -180,6 +198,10 @@ def _test_list_permissions(
         [invalid_list_entities_perm], applied_permissions
     ):
         with pytest.raises(Exception):
+            client_fs.list_permissions()
+        return []
+    elif _is_auth_enabled(client_fs) and len(applied_permissions) == 0:
+        with pytest.raises(FeastPermissionError):
             client_fs.list_permissions()
         return []
     else:
@@ -228,6 +250,11 @@ def _is_auth_enabled(client_fs: FeatureStore) -> bool:
 
 
 def _test_get_fv(client_fs: FeatureStore, permissions: list[Permission]):
+    if _is_auth_enabled(client_fs) and len(permissions) == 0:
+        with pytest.raises(FeastPermissionError):
+            client_fs.get_feature_view("driver_hourly_stats")
+        return
+
     if not _is_auth_enabled(client_fs) or _is_permission_enabled(
         client_fs, permissions, read_fv_perm
     ):
@@ -246,6 +273,10 @@ def _test_list_fvs(client_fs: FeatureStore, permissions: list[Permission]):
         [invalid_list_entities_perm], permissions
     ):
         with pytest.raises(Exception):
+            client_fs.list_feature_views()
+        return []
+    elif _is_auth_enabled(client_fs) and len(permissions) == 0:
+        with pytest.raises(FeastPermissionError):
             client_fs.list_feature_views()
         return []
     else:
@@ -278,13 +309,17 @@ def _is_permission_enabled(
     permissions: list[Permission],
     permission: Permission,
 ):
-    return _is_auth_enabled(client_fs) and (
-        _no_permission_retrieved(permissions)
-        or (
-            _permissions_exist_in_permission_list(
-                [read_permissions_perm, permission], permissions
-            )
-        )
+    # With security-first approach, if no permissions are defined, access should be denied
+    if not _is_auth_enabled(client_fs):
+        return True  # No auth enabled, allow access
+
+    # If auth is enabled but no permissions are defined, deny access (security-first)
+    if len(permissions) == 0:
+        return False
+
+    # Check if the specific permission exists
+    return _permissions_exist_in_permission_list(
+        [read_permissions_perm, permission], permissions
     )
 
 

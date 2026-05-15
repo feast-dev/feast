@@ -35,9 +35,75 @@ When defining an ODFV, you can specify the transformation mode using the `mode` 
 
 ### Singleton Transformations in Native Python Mode
 
-Native Python mode supports transformations on singleton dictionaries by setting `singleton=True`. This allows you to 
-write transformation functions that operate on a single row at a time, making the code more intuitive and aligning with 
+Native Python mode supports transformations on singleton dictionaries by setting `singleton=True`. This allows you to
+write transformation functions that operate on a single row at a time, making the code more intuitive and aligning with
 how data scientists typically think about data transformations.
+
+## Aggregations
+
+On Demand Feature Views support aggregations that compute aggregate statistics over groups of rows. When using aggregations, data is grouped by entity columns (e.g., `driver_id`) and aggregated before being passed to the transformation function.
+
+**Important**: Aggregations and transformations are mutually exclusive. When aggregations are specified, they replace the transformation function.
+
+### Usage
+
+```python
+from feast import Aggregation
+from datetime import timedelta
+
+@on_demand_feature_view(
+    sources=[driver_hourly_stats_view],
+    schema=[
+        Field(name="total_trips", dtype=Int64),
+        Field(name="avg_rating", dtype=Float64),
+    ],
+    aggregations=[
+        Aggregation(column="trips", function="sum"),
+        Aggregation(column="rating", function="mean"),
+    ],
+)
+def driver_aggregated_stats(inputs):
+    # No transformation function needed when using aggregations
+    pass
+```
+
+Aggregated columns are automatically named using the pattern `{function}_{column}` (e.g., `sum_trips`, `mean_rating`).
+
+### Using `input_schema` with Aggregations
+
+When the input data is not already stored as a feature view, use `input_schema` instead of `sources` to describe the fields that will be passed at request time. Feast will create an internal `RequestSource` automatically.
+
+```python
+from datetime import timedelta
+from feast import Field, on_demand_feature_view
+from feast.aggregation import Aggregation
+from feast.types import Float64, Int64
+
+@on_demand_feature_view(
+    input_schema=[
+        Field(name="txn_amount", dtype=Float64),
+    ],
+    schema=[
+        Field(name="txn_count", dtype=Int64),
+        Field(name="total_txn_amount", dtype=Float64),
+        Field(name="avg_txn_amount", dtype=Float64),
+    ],
+    aggregations=[
+        Aggregation(column="txn_amount", function="count", name="txn_count",
+                    time_window=timedelta(days=30)),
+        Aggregation(column="txn_amount", function="sum", name="total_txn_amount",
+                    time_window=timedelta(days=30)),
+        Aggregation(column="txn_amount", function="mean", name="avg_txn_amount",
+                    time_window=timedelta(days=30)),
+    ],
+    entities=[user],
+)
+def user_transaction_stats(inputs):
+    # Aggregations replace the transformation function — no body needed.
+    pass
+```
+
+`input_schema` also accepts fields that are not aggregation columns — for example, thresholds, currency codes, or other contextual values passed at request time that your UDF needs but that are not stored as features.
 
 ## Example
 See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.com/feast-dev/on-demand-feature-views-demo) for an example on how to use on demand feature views.
@@ -278,5 +344,45 @@ There are new CLI commands to manage on demand feature views:
 
 feast on-demand-feature-views list: Lists all registered on demand feature views after feast apply is run.
 feast on-demand-feature-views describe [NAME]: Describes the definition of an on demand feature view.
+
+## Troubleshooting
+
+### Validation Issues with Complex Transformations
+
+When defining On Demand Feature Views with complex transformations, you may encounter validation errors during `feast apply`. Feast validates ODFVs by constructing random inputs and running the transformation function to infer the output schema. This validation can sometimes be overly strict or fail for complex transformation logic.
+
+If you encounter validation errors that you believe are incorrect, you can skip feature view validation:
+
+**Python SDK:**
+```python
+from feast import FeatureStore
+
+store = FeatureStore(repo_path=".")
+store.apply([my_odfv], skip_feature_view_validation=True)
+```
+
+**CLI:**
+```bash
+feast apply --skip-feature-view-validation
+```
+
+{% hint style="warning" %}
+Skipping validation bypasses important checks. Use this option only when the validation system is being overly strict. We encourage you to report validation issues on the [Feast GitHub repository](https://github.com/feast-dev/feast/issues) so the team can improve the validation system.
+{% endhint %}
+
+**When to use skip_feature_view_validation:**
+- Your ODFV transformation uses complex logic that fails the random input validation
+- You've verified your transformation works correctly with real data
+- The validation error doesn't reflect an actual issue with your transformation
+
+**What validation is skipped:**
+- Feature view name uniqueness checks
+- ODFV transformation validation via `_construct_random_input()`
+- Schema inference for features
+
+**What is NOT skipped:**
+- Data source validation (use `--skip-source-validation` to skip)
+- Registry operations
+- Infrastructure updates
 
 

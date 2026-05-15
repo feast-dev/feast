@@ -20,7 +20,7 @@ project: my_feature_repo
 registry: data/registry.db
 provider: local
 online_store:
-  type: hybrid_online_store.HybridOnlineStore
+  type: hybrid
   routing_tag: team  # or any tag name you want to use in FeatureView's for routing
   online_stores:
     - type: bigtable

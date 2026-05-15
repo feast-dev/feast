@@ -49,6 +49,12 @@ Here's how Feast types map to Pandas types for Feast APIs that take in or return
 | DOUBLE\_LIST | `list[float]`|
 | FLOAT\_LIST | `list[float]`|
 | BOOL\_LIST | `list[bool]`|
+| MAP | `dict` (`Dict[str, Any]`)|
+| MAP\_LIST | `list[dict]` (`List[Dict[str, Any]]`)|
+| JSON | `object` (parsed Python dict/list/str)|
+| JSON\_LIST | `list[object]`|
+| STRUCT | `dict` (`Dict[str, Any]`)|
+| STRUCT\_LIST | `list[dict]` (`List[Dict[str, Any]]`)|
 
 Note that this mapping is non-injective, that is more than one Pandas type may corresponds to one Feast type (but not vice versa). In these cases, when converting Feast values to Pandas, the **first** Pandas type in the table above is used.
 
@@ -78,6 +84,12 @@ Here's how Feast types map to BigQuery types when using BigQuery for offline sto
 | DOUBLE\_LIST | `ARRAY<FLOAT64>`|
 | FLOAT\_LIST | `ARRAY<FLOAT64>`|
 | BOOL\_LIST | `ARRAY<BOOL>`|
+| MAP | `JSON` / `STRUCT` |
+| MAP\_LIST | `ARRAY<JSON>` / `ARRAY<STRUCT>` |
+| JSON | `JSON` |
+| JSON\_LIST | `ARRAY<JSON>` |
+| STRUCT | `STRUCT` / `RECORD` |
+| STRUCT\_LIST | `ARRAY<STRUCT>` |
 
 Values that are not specified by the table above will cause an error on conversion.
 
@@ -94,3 +106,23 @@ https://docs.snowflake.com/en/user-guide/python-connector-pandas.html#snowflake-
 | INT32 | `INT8 / UINT8 / INT16 / UINT16 / INT32 / UINT32` |
 | INT64 | `INT64 / UINT64` |
 | DOUBLE | `FLOAT64` |
+| MAP | `VARIANT` / `OBJECT` |
+| JSON | `JSON` / `VARIANT` |
+
+#### Redshift Types
+Here's how Feast types map to Redshift types when using Redshift for offline storage:
+
+| Feast Type | Redshift Type |
+|-------------|--|
+| Event Timestamp | `TIMESTAMP` / `TIMESTAMPTZ` |
+| BYTES | `VARBYTE` |
+| STRING | `VARCHAR` |
+| INT32 | `INT4` / `SMALLINT` |
+| INT64 | `INT8` / `BIGINT` |
+| DOUBLE | `FLOAT8` / `DOUBLE PRECISION` |
+| FLOAT | `FLOAT4` / `REAL` |
+| BOOL | `BOOL` |
+| MAP | `SUPER` |
+| JSON | `json` / `SUPER` |
+
+Note: Redshift's `SUPER` type stores semi-structured JSON data. During materialization, Feast automatically handles `SUPER` columns that are exported as JSON strings by parsing them back into Python dictionaries before converting to `MAP` proto values.

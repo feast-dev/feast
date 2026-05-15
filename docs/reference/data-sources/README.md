@@ -57,3 +57,19 @@ Please see [Data Source](../../getting-started/concepts/data-ingestion.md) for a
 {% content-ref url="clickhouse.md" %}
 [clickhouse.md](clickhouse.md)
 {% endcontent-ref %}
+
+{% content-ref url="athena.md" %}
+[athena.md](athena.md)
+{% endcontent-ref %}
+
+{% content-ref url="oracle.md" %}
+[oracle.md](oracle.md)
+{% endcontent-ref %}
+
+{% content-ref url="ray.md" %}
+[ray.md](ray.md)
+{% endcontent-ref %}
+
+{% content-ref url="mongodb.md" %}
+[mongodb.md](mongodb.md)
+{% endcontent-ref %}
