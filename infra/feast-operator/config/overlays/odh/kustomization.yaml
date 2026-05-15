@@ -6,19 +6,12 @@ namespace: opendatahub
 
 resources:
   - ../../default
+  - selector_migration_job.yaml
 
 
 patches:
   # patch to remove default `system` namespace in ../../manager/manager.yaml
   - path: delete-namespace.yaml
-  # Remove app.kubernetes.io/name from the Deployment selector to avoid
-  # immutable spec.selector errors on upgrade. The label remains in the
-  # pod template so the metrics Service selector still targets only
-  # feast-operator pods.
-  - path: remove_selector_label_patch.yaml
-    target:
-      kind: Deployment
-      name: controller-manager
 
 configMapGenerator:
   - name:  feast-operator-parameters
@@ -70,3 +63,13 @@ replacements:
           name: controller-manager
         fieldPaths:
           - spec.template.spec.containers.[name=manager].env.[name=OIDC_ISSUER_URL].value
+  - source:
+      kind: ConfigMap
+      name: feast-operator-parameters
+      fieldPath: data.RELATED_IMAGE_CRON_JOB
+    targets:
+      - select:
+          kind: Job
+          name: selector-migration
+        fieldPaths:
+          - spec.template.spec.containers.[name=migrate].image
