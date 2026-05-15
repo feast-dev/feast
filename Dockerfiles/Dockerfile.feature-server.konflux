@@ -3,26 +3,16 @@ FROM registry.access.redhat.com/ubi9/python-312:1 AS builder
 
 USER 0
 
-# Upgrade base packages for consistency across all arches
-RUN dnf upgrade -y --refresh && dnf clean all
-
-# Copy Power prebuild script
-COPY prebuild-power.sh /prebuild-power.sh
-RUN chmod +x /prebuild-power.sh
+COPY requirements.txt requirements.txt
 
 # Run prebuild script conditionally (Power only)
 RUN if [ "$(uname -m)" = "ppc64le" ]; then \
-        echo "Power architecture detected. Running prebuild script..."; \
-        /prebuild-power.sh && pip install /wheelhouse/*.whl; \
-        echo "Listing built wheels:" && ls -lh /wheelhouse; \
+        echo "Power architecture detected. installing required packages..."; \
+        pip install pyarrow==22.0.0 duckdb==1.4.3; \
     else \
         echo "Non-Power architecture detected; skipping Power prebuild"; \
     fi
 
-# pkg_resources was removed in setuptools>=78; pin to a version that still includes it
-RUN pip install 'setuptools<78'
-
-COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 # Stage 2: Minimal runtime image (no compilers or dev headers)
@@ -33,7 +23,7 @@ USER 0
 # Runtime shared libraries required by compiled Python extensions:
 #   libicu  - pyarrow (Arrow C++ depends on ICU)
 #   libpq   - psycopg[c] (PostgreSQL C adapter)
-RUN microdnf install -y git libicu libpq && microdnf clean all
+RUN microdnf install -y git libicu libpq python3.12-devel postgresql-devel gcc && microdnf clean all
 
 # Copy installed Python packages and entry-point scripts from builder
 COPY --from=builder /opt/app-root/lib /opt/app-root/lib
