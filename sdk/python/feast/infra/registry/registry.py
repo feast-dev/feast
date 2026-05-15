@@ -386,6 +386,12 @@ class Registry(BaseRegistry):
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
+        """Apply a data source to the registry with project-scoped deduplication.
+
+        Filters existing data sources by both name and project (fixes feast-dev/feast#6206),
+        preserving the original created_timestamp if the source already exists in the
+        target project.
+        """
         now = _utc_now()
         if not data_source.created_timestamp:
             data_source.created_timestamp = now
@@ -394,7 +400,10 @@ class Registry(BaseRegistry):
         registry = self._prepare_registry_for_changes(project)
 
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
-            if existing_data_source_proto.name == data_source.name:
+            if (
+                existing_data_source_proto.name == data_source.name
+                and existing_data_source_proto.project == project
+            ):
                 existing_data_source = DataSource.from_proto(existing_data_source_proto)
                 # Check if the data source has actually changed
                 if existing_data_source == data_source:
@@ -423,7 +432,7 @@ class Registry(BaseRegistry):
         for idx, data_source_proto in enumerate(
             self.cached_registry_proto.data_sources
         ):
-            if data_source_proto.name == name:
+            if data_source_proto.name == name and data_source_proto.project == project:
                 del self.cached_registry_proto.data_sources[idx]
                 if commit:
                     self.commit()
@@ -755,7 +764,7 @@ class Registry(BaseRegistry):
         self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
-        self._check_conflicting_feature_view_names(feature_view)
+        self._check_conflicting_feature_view_names(feature_view, project)
         existing_feature_views_of_same_type: RepeatedCompositeFieldContainer
         if isinstance(feature_view, StreamFeatureView):
             existing_feature_views_of_same_type = (
@@ -1351,23 +1360,32 @@ class Registry(BaseRegistry):
 
             return registry_proto
 
-    def _check_conflicting_feature_view_names(self, feature_view: BaseFeatureView):
-        name_to_fv_protos = self._existing_feature_view_names_to_fvs()
+    def _check_conflicting_feature_view_names(
+        self, feature_view: BaseFeatureView, project: str
+    ):
+        name_to_fv_protos = self._existing_feature_view_names_to_fvs(project)
         if feature_view.name in name_to_fv_protos:
             if not isinstance(
                 name_to_fv_protos.get(feature_view.name), feature_view.proto_class
             ):
                 raise ConflictingFeatureViewNames(feature_view.name)
 
-    def _existing_feature_view_names_to_fvs(self) -> Dict[str, Message]:
+    def _existing_feature_view_names_to_fvs(self, project: str) -> Dict[str, Message]:
         assert self.cached_registry_proto
         odfvs = {
             fv.spec.name: fv
             for fv in self.cached_registry_proto.on_demand_feature_views
+            if fv.spec.project == project
         }
-        fvs = {fv.spec.name: fv for fv in self.cached_registry_proto.feature_views}
+        fvs = {
+            fv.spec.name: fv
+            for fv in self.cached_registry_proto.feature_views
+            if fv.spec.project == project
+        }
         sfv = {
-            fv.spec.name: fv for fv in self.cached_registry_proto.stream_feature_views
+            fv.spec.name: fv
+            for fv in self.cached_registry_proto.stream_feature_views
+            if fv.spec.project == project
         }
         return {**odfvs, **fvs, **sfv}
 

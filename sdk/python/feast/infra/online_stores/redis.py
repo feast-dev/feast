@@ -22,6 +22,7 @@ from typing import (
     Dict,
     List,
     Literal,
+    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -32,6 +33,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig, utils
+from feast.feature_service import FeatureService
 from feast.infra.online_stores.helpers import (
     _mmh3,
     _redis_key,
@@ -39,7 +41,10 @@ from feast.infra.online_stores.helpers import (
     compute_versioned_name,
 )
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.online_response import OnlineResponse
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 
@@ -91,6 +96,11 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     full_scan_for_deletion: Optional[bool] = True
     """(Optional) whether to scan for deletion of features"""
 
+    skip_dedup: bool = False
+    """(Optional) Skip timestamp deduplication check on writes for higher throughput.
+    When True, writes proceed in a single pipeline without reading existing timestamps first.
+    This may cause older feature values to overwrite newer ones under concurrent writers."""
+
 
 class RedisOnlineStore(OnlineStore):
     """
@@ -125,28 +135,43 @@ class RedisOnlineStore(OnlineStore):
 
     def delete_table(self, config: RepoConfig, table: FeatureView):
         """
-        Delete all rows in Redis for a specific feature view
+        Delete all rows in Redis for a specific feature view.
+
+        Uses a two-phase pipelined approach to avoid an O(K) synchronous hkeys
+        call inside the scan loop (N+1 pattern).
 
         Args:
             config: Feast config
             table: Feature view to delete
         """
         client = self._get_client(config.online_store)
-        deleted_count = 0
         prefix = _redis_key_prefix(table.join_keys)
 
         fv_name = _versioned_fv_name(table, config)
+        fv_name_bytes = bytes(fv_name, "utf8")
         redis_hash_keys = [_mmh3(f"{fv_name}:{f.name}") for f in table.features]
         redis_hash_keys.append(bytes(f"_ts:{fv_name}", "utf8"))
 
+        # Phase 1: collect all matching entity keys from SCAN (no per-key round trips)
+        scan_pattern = b"".join([prefix, b"*", config.project.encode("utf8")])
+        all_keys = list(client.scan_iter(scan_pattern))
+
+        if not all_keys:
+            logger.debug(f"Deleted 0 rows for feature view {fv_name}")
+            return
+
+        # Phase 2: pipeline hkeys for all collected entity keys (1 round trip)
         with client.pipeline(transaction=False) as pipe:
-            for _k in client.scan_iter(
-                b"".join([prefix, b"*", config.project.encode("utf8")])
-            ):
-                _tables = {
-                    _hk[4:] for _hk in client.hgetall(_k) if _hk.startswith(b"_ts:")
-                }
-                if bytes(fv_name, "utf8") not in _tables:
+            for _k in all_keys:
+                pipe.hkeys(_k)
+            all_hkeys = pipe.execute()
+
+        # Phase 3: pipeline all deletions based on phase 2 results (1 round trip)
+        deleted_count = 0
+        with client.pipeline(transaction=False) as pipe:
+            for _k, field_names in zip(all_keys, all_hkeys):
+                _tables = {_hk[4:] for _hk in field_names if _hk.startswith(b"_ts:")}
+                if fv_name_bytes not in _tables:
                     continue
                 if len(_tables) == 1:
                     pipe.delete(_k)
@@ -296,6 +321,36 @@ class RedisOnlineStore(OnlineStore):
 
         feature_view = _versioned_fv_name(table, config)
         ts_key = f"_ts:{feature_view}"
+
+        if online_store_config.skip_dedup:
+            # Single-pipeline fast path: no timestamp read, directly write all rows.
+            # Reduces round trips from 2 to 1. Suitable for initial loads or
+            # append-only pipelines where out-of-order writes are not a concern.
+            with client.pipeline(transaction=False) as pipe:
+                for entity_key, values, timestamp, _ in data:
+                    redis_key_bin = _redis_key(
+                        project,
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    )
+                    aware_ts = utils.make_tzaware(timestamp)
+                    ts = Timestamp()
+                    ts.FromDatetime(aware_ts)
+                    entity_hset: Dict[Any, Any] = {ts_key: ts.SerializeToString()}
+                    for feature_name, val in values.items():
+                        f_key = _mmh3(f"{feature_view}:{feature_name}")
+                        entity_hset[f_key] = val.SerializeToString()
+                    pipe.hset(redis_key_bin, mapping=entity_hset)
+                    if online_store_config.key_ttl_seconds:
+                        pipe.expire(
+                            name=redis_key_bin,
+                            time=online_store_config.key_ttl_seconds,
+                        )
+                results = pipe.execute()
+            if progress:
+                progress(len(results))
+            return
+
         keys = []
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
@@ -348,6 +403,98 @@ class RedisOnlineStore(OnlineStore):
                         name=redis_key_bin, time=online_store_config.key_ttl_seconds
                     )
             results = pipe.execute()
+            if progress:
+                progress(len(results))
+
+    async def online_write_batch_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        """Async version of online_write_batch using the async Redis client."""
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        client = await self._get_client_async(online_store_config)
+        project = config.project
+
+        feature_view = _versioned_fv_name(table, config)
+        ts_key = f"_ts:{feature_view}"
+
+        if online_store_config.skip_dedup:
+            async with client.pipeline(transaction=False) as pipe:
+                for entity_key, values, timestamp, _ in data:
+                    redis_key_bin = _redis_key(
+                        project,
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    )
+                    aware_ts = utils.make_tzaware(timestamp)
+                    ts = Timestamp()
+                    ts.FromDatetime(aware_ts)
+                    entity_hset: Dict[Any, Any] = {ts_key: ts.SerializeToString()}
+                    for feature_name, val in values.items():
+                        f_key = _mmh3(f"{feature_view}:{feature_name}")
+                        entity_hset[f_key] = val.SerializeToString()
+                    pipe.hset(redis_key_bin, mapping=entity_hset)
+                    if online_store_config.key_ttl_seconds:
+                        pipe.expire(
+                            name=redis_key_bin,
+                            time=online_store_config.key_ttl_seconds,
+                        )
+                results = await pipe.execute()
+            if progress:
+                progress(len(results))
+            return
+
+        keys = []
+        async with client.pipeline(transaction=False) as pipe:
+            for entity_key, _, _, _ in data:
+                redis_key_bin = _redis_key(
+                    project,
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
+                keys.append(redis_key_bin)
+                pipe.hmget(redis_key_bin, ts_key)
+            prev_event_timestamps = await pipe.execute()
+
+        prev_event_timestamps = [i[0] for i in prev_event_timestamps]
+
+        async with client.pipeline(transaction=False) as pipe:
+            for redis_key_bin, prev_event_time, (_, values, timestamp, _) in zip(
+                keys, prev_event_timestamps, data
+            ):
+                aware_ts = utils.make_tzaware(timestamp)
+                ts = Timestamp()
+                ts.FromDatetime(aware_ts)
+                new_total_nanos = ts.seconds * 1_000_000_000 + ts.nanos
+
+                if prev_event_time:
+                    prev_ts = Timestamp()
+                    prev_ts.ParseFromString(prev_event_time)
+                    prev_total_nanos = prev_ts.seconds * 1_000_000_000 + prev_ts.nanos
+                    if prev_total_nanos and new_total_nanos <= prev_total_nanos:
+                        if progress:
+                            progress(1)
+                        continue
+
+                entity_hset = {ts_key: ts.SerializeToString()}
+                for feature_name, val in values.items():
+                    f_key = _mmh3(f"{feature_view}:{feature_name}")
+                    entity_hset[f_key] = val.SerializeToString()
+
+                pipe.hset(redis_key_bin, mapping=entity_hset)
+                if online_store_config.key_ttl_seconds:
+                    pipe.expire(
+                        name=redis_key_bin, time=online_store_config.key_ttl_seconds
+                    )
+
+            results = await pipe.execute()
             if progress:
                 progress(len(results))
 
@@ -450,6 +597,155 @@ class RedisOnlineStore(OnlineStore):
             redis_values, fv_name, requested_features
         )
 
+    def get_online_features(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
+    ) -> OnlineResponse:
+        """
+        Fetch online features for multiple feature views in a single Redis pipeline.
+
+        Overrides the base class implementation which issues one pipeline per feature view
+        (O(N_feature_views) round trips). This implementation batches all HMGET commands
+        across all feature views into a single pipeline execution (O(1) round trips),
+        exploiting the fact that all feature views for the same entity share the same
+        Redis hash key.
+        """
+        if isinstance(entity_rows, list):
+            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            for entity_row in entity_rows:
+                for key, value in entity_row.items():
+                    try:
+                        columnar[key].append(value)
+                    except KeyError as e:
+                        raise ValueError(
+                            "All entity_rows must have the same keys."
+                        ) from e
+            entity_rows = columnar
+
+        (
+            join_key_values,
+            grouped_refs,
+            entity_name_to_join_key_map,
+            requested_on_demand_feature_views,
+            feature_refs,
+            requested_result_row_names,
+            online_features_response,
+        ) = utils._prepare_entities_to_read_from_online_store(
+            registry=registry,
+            project=project,
+            features=features,
+            entity_values=entity_rows,
+            full_feature_names=full_feature_names,
+            native_entity_values=True,
+        )
+
+        self._check_versioned_read_support(grouped_refs)
+
+        _track_read = False
+        try:
+            from feast.metrics import _config as _metrics_config
+
+            _track_read = _metrics_config.online_features
+        except Exception:
+            pass
+
+        if _track_read:
+            import time as _time
+
+            _read_start = _time.monotonic()
+
+        # Pre-compute all Redis keys and hash field keys for every feature view so we
+        # can issue all HMGET commands in a single pipeline execution below.
+        work_items = []
+        for table, requested_features in grouped_refs:
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
+                table,
+                join_key_values,
+                entity_name_to_join_key_map,
+            )
+            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+            fv_name = _versioned_fv_name(table, config)
+            redis_keys = self._generate_redis_keys_for_entities(
+                config, entity_key_protos
+            )
+
+            # Mutates requested_features in place (appends ts_key) — consistent with
+            # the base class behavior so _populate_response_from_feature_data works correctly.
+            req_features, hset_keys = self._generate_hset_keys_for_features(
+                table, requested_features, fv_name_override=fv_name
+            )
+            work_items.append(
+                (table, req_features, fv_name, hset_keys, redis_keys, idxs, output_len)
+            )
+
+        # Single pipeline across all feature views: O(1) round trips instead of O(N_fv).
+        if work_items:
+            client = self._get_client(config.online_store)
+            with client.pipeline(transaction=False) as pipe:
+                for _, _, _, hset_keys, redis_keys, _, _ in work_items:
+                    for redis_key in redis_keys:
+                        pipe.hmget(redis_key, hset_keys)
+                all_results = pipe.execute()
+
+            offset = 0
+            for (
+                table,
+                req_features,
+                fv_name,
+                _,
+                redis_keys,
+                idxs,
+                output_len,
+            ) in work_items:
+                n = len(redis_keys)
+                redis_values = all_results[offset : offset + n]
+                offset += n
+
+                read_rows = self._convert_redis_values_to_protobuf(
+                    redis_values, fv_name, req_features
+                )
+
+                utils._populate_response_from_feature_data(
+                    req_features,
+                    read_rows,
+                    idxs,
+                    online_features_response,
+                    full_feature_names,
+                    table,
+                    output_len,
+                    include_feature_view_version_metadata,
+                )
+
+        if _track_read:
+            from feast.metrics import track_online_store_read
+
+            track_online_store_read(_time.monotonic() - _read_start)
+
+        feature_types = self._build_feature_types(grouped_refs)
+
+        if requested_on_demand_feature_views:
+            utils._augment_response_with_on_demand_transforms(
+                online_features_response,
+                feature_refs,
+                requested_on_demand_feature_views,
+                full_feature_names,
+                feature_types=feature_types,
+            )
+
+        utils._drop_unneeded_columns(
+            online_features_response, requested_result_row_names
+        )
+        return OnlineResponse(online_features_response, feature_types=feature_types)
+
     def _get_features_for_entity(
         self,
         values: List[ByteString],
@@ -476,4 +772,5 @@ class RedisOnlineStore(OnlineStore):
 
         total_seconds = res_ts.seconds + res_ts.nanos / 1_000_000_000.0
         timestamp = datetime.fromtimestamp(total_seconds, tz=timezone.utc)
+
         return timestamp, res

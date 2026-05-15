@@ -47,8 +47,41 @@ def test_push_features_and_read(store):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["dynamodb", "mongodb"])
+@pytest.mark.universal_online_stores(only=["mongodb"])
 async def test_push_features_and_read_async(store):
+    await store.push_async("location_stats_push_source", _ingest_df())
+
+    online_resp = await store.get_online_features_async(
+        features=["pushable_location_stats:temperature"],
+        entity_rows=[{"location_id": 1}],
+    )
+    assert_response(online_resp)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.universal_online_stores
+async def test_push_features_and_read_async_dynamodb(dynamodb_local_environment):
+    """Async push + async read for DynamoDB with a credential-isolated environment.
+
+    DynamoDB Local 2.x rejects requests that carry an expired AWS session
+    token.  In CI, real (possibly expired) STS credentials exist in the
+    environment.  The shared ``environment`` fixture resolves credentials
+    before the async client is created, so those bad credentials bleed in.
+
+    This test uses ``dynamodb_local_environment``, which sets dummy
+    credentials *before* any boto client is instantiated, guaranteeing that
+    both the sync boto3 table-provisioning client and the async aiobotocore
+    client start with clean, token-free credentials.
+    """
+    environment, universal_test_data = dynamodb_local_environment
+    store = environment.feature_store
+    _, _, data_sources = universal_test_data
+
+    feature_views = construct_universal_feature_views(data_sources)
+    location_fv = feature_views.pushed_locations
+    store.apply([location(), location_fv])
+
     await store.push_async("location_stats_push_source", _ingest_df())
 
     online_resp = await store.get_online_features_async(

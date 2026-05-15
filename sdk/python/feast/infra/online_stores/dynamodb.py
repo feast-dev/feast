@@ -504,7 +504,7 @@ class DynamoDBOnlineStore(OnlineStore):
         # For single batch, no parallelization overhead needed
         if len(batches) == 1:
             batch_entity_ids = self._to_resource_batch_get_payload(
-                online_config, table_name, batches[0]
+                online_config, table_name, batches[0], requested_features
             )
             response = dynamodb_resource.batch_get_item(RequestItems=batch_entity_ids)
             return self._process_batch_get_response(table_name, response, batches[0])
@@ -520,7 +520,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         def fetch_batch(batch: List[str]) -> Dict[str, Any]:
             batch_entity_ids = self._to_client_batch_get_payload(
-                online_config, table_name, batch
+                online_config, table_name, batch, requested_features
             )
             return dynamodb_client.batch_get_item(RequestItems=batch_entity_ids)
 
@@ -599,7 +599,7 @@ class DynamoDBOnlineStore(OnlineStore):
             if not batch:
                 break
             entity_id_batch = self._to_client_batch_get_payload(
-                online_config, table_name, batch
+                online_config, table_name, batch, requested_features
             )
             batches.append(batch)
             entity_id_batches.append(entity_id_batch)
@@ -760,21 +760,56 @@ class DynamoDBOnlineStore(OnlineStore):
         ]
 
     @staticmethod
-    def _to_resource_batch_get_payload(online_config, table_name, batch):
-        return {
-            table_name: {
-                "Keys": [{"entity_id": entity_id} for entity_id in batch],
-                "ConsistentRead": online_config.consistent_reads,
-            }
+    def _to_resource_batch_get_payload(
+        online_config, table_name, batch, requested_features=None
+    ):
+        payload: Dict[str, Any] = {
+            "Keys": [{"entity_id": entity_id} for entity_id in batch],
+            "ConsistentRead": online_config.consistent_reads,
         }
+        projection = DynamoDBOnlineStore._build_projection_expression(
+            requested_features
+        )
+        if projection:
+            payload["ProjectionExpression"] = projection["ProjectionExpression"]
+            payload["ExpressionAttributeNames"] = projection["ExpressionAttributeNames"]
+        return {table_name: payload}
 
     @staticmethod
-    def _to_client_batch_get_payload(online_config, table_name, batch):
+    def _to_client_batch_get_payload(
+        online_config, table_name, batch, requested_features=None
+    ):
+        payload: Dict[str, Any] = {
+            "Keys": [{"entity_id": {"S": entity_id}} for entity_id in batch],
+            "ConsistentRead": online_config.consistent_reads,
+        }
+        projection = DynamoDBOnlineStore._build_projection_expression(
+            requested_features
+        )
+        if projection:
+            payload["ProjectionExpression"] = projection["ProjectionExpression"]
+            payload["ExpressionAttributeNames"] = projection["ExpressionAttributeNames"]
+        return {table_name: payload}
+
+    @staticmethod
+    def _build_projection_expression(
+        requested_features: Optional[List[str]],
+    ) -> Optional[Dict[str, Any]]:
+        if not requested_features:
+            return None
+        attr_names: Dict[str, str] = {
+            "#entity_id": "entity_id",
+            "#event_ts": "event_ts",
+            "#vals": "values",
+        }
+        projections = ["#entity_id", "#event_ts"]
+        for i, feat in enumerate(requested_features):
+            alias = f"#feat{i}"
+            attr_names[alias] = feat
+            projections.append(f"#vals.{alias}")
         return {
-            table_name: {
-                "Keys": [{"entity_id": {"S": entity_id}} for entity_id in batch],
-                "ConsistentRead": online_config.consistent_reads,
-            }
+            "ProjectionExpression": ", ".join(projections),
+            "ExpressionAttributeNames": attr_names,
         }
 
     def update_online_store(

@@ -19,6 +19,7 @@ from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     serialize_entity_key,
 )
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -164,7 +165,9 @@ class MilvusOnlineStore(OnlineStore):
     ) -> Dict[str, Any]:
         self.client = self._connect(config)
         vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
             composite_key_name = _get_composite_key_name(table)
@@ -346,7 +349,9 @@ class MilvusOnlineStore(OnlineStore):
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         collection = self._get_or_create_collection(config, table)
 
         composite_key_name = _get_composite_key_name(table)
@@ -493,11 +498,12 @@ class MilvusOnlineStore(OnlineStore):
         for table in tables_to_keep:
             self._get_or_create_collection(config, table)
 
+        # Always drop the base collection plus any "_v{N}" siblings, regardless of
+        # the current versioning flag. This handles mixed-state repos where
+        # versioning was toggled on/off across applies and would otherwise leave
+        # orphan collections behind in Milvus.
         for table in tables_to_delete:
-            collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
@@ -511,11 +517,9 @@ class MilvusOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         self.client = self._connect(config)
+        # See update(): drop base + all "_v{N}" siblings to handle mixed-state repos.
         for table in tables:
-            collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def retrieve_online_documents_v2(
         self,
@@ -551,7 +555,9 @@ class MilvusOnlineStore(OnlineStore):
             k.name: k.dtype for k in table.entity_columns
         }
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         collection = self._get_or_create_collection(config, table)
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
@@ -748,9 +754,28 @@ class MilvusOnlineStore(OnlineStore):
                 result_list.append((res_ts, entity_key_proto, res if res else None))
         return result_list
 
+    def _drop_all_version_collections(self, project: str, table: FeatureView) -> None:
+        """Drop the base collection and every ``_v{N}`` versioned sibling.
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+        Mirrors the ``_drop_all_version_tables`` helpers in the MySQL/PostgreSQL
+        online stores. Always called from ``update`` and ``teardown`` so a
+        repo that toggles versioning on and off does not leave orphan
+        collections behind in Milvus.
+        """
+        base = f"{project}_{table.name}"
+        versioned_prefix = f"{base}_v"
+        assert self.client is not None, "Milvus client is not initialized"
+        for collection_name in self.client.list_collections():
+            if collection_name == base or (
+                collection_name.startswith(versioned_prefix)
+                and collection_name[len(versioned_prefix) :].isdigit()
+            ):
+                self.client.drop_collection(collection_name)
+                self._collections.pop(collection_name, None)
+
+
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 def _get_composite_key_name(table: FeatureView) -> str:

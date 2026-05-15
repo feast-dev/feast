@@ -6,6 +6,7 @@ import pyarrow
 import pytest
 
 from feast.protos.feast.types.Value_pb2 import Map, MapList
+from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.type_map import (
     _convert_value_type_str_to_value_type,
     _python_dict_to_map_proto,
@@ -1953,3 +1954,114 @@ class TestEmptyArrayAsNull:
             "non-empty array in UNIX_TIMESTAMP scalar column should produce null"
         )
         assert result[1].unix_timestamp_val == int(ts.timestamp())
+
+
+class TestValueMapTypes:
+    """Tests for SCALAR_MAP: maps with non-string keys encoded via ScalarMap proto."""
+
+    def test_int_key_roundtrip(self):
+        """Int keys are encoded as int64_key and round-trip back as int."""
+        data = {1: "one", 2: "two", 3: "three"}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        assert protos[0].WhichOneof("val") == "scalar_map_val"
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result == {1: "one", 2: "two", 3: "three"}
+
+    def test_long_key_roundtrip(self):
+        """Large int keys (simulating int64/Long) round-trip correctly."""
+        data = {1513185957000: {"svacct_id": 123, "amount": 99.5}}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result[1513185957000]["svacct_id"] == 123
+        assert result[1513185957000]["amount"] == 99.5
+
+    def test_uuid_key_roundtrip(self):
+        """UUID keys are encoded as uuid_key strings and decoded back to uuid.UUID."""
+        key1 = uuid.UUID("12345678-1234-5678-1234-567812345678")
+        key2 = uuid.UUID("87654321-4321-8765-4321-876543218765")
+        data = {key1: "first", key2: "second"}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result[key1] == "first"
+        assert result[key2] == "second"
+
+    def test_type_inference_non_string_keys_returns_scalar_map(self):
+        """python_type_to_feast_value_type infers SCALAR_MAP for non-string-keyed dicts."""
+        assert python_type_to_feast_value_type("f", {1: "a"}) == ValueType.SCALAR_MAP
+        assert (
+            python_type_to_feast_value_type("f", {uuid.uuid4(): "x"})
+            == ValueType.SCALAR_MAP
+        )
+
+    def test_type_inference_string_keys_returns_map(self):
+        """python_type_to_feast_value_type still infers MAP for string-keyed dicts."""
+        assert python_type_to_feast_value_type("f", {"k": "v"}) == ValueType.MAP
+
+    def test_type_inference_empty_dict_returns_map(self):
+        """Empty dict infers MAP (no key to inspect)."""
+        assert python_type_to_feast_value_type("f", {}) == ValueType.MAP
+
+    def test_none_value_roundtrip(self):
+        """None values in SCALAR_MAP are preserved as None."""
+        data = {10: "present", 20: None}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result[10] == "present"
+        assert result[20] is None
+
+    def test_null_value_map(self):
+        """None SCALAR_MAP encodes to empty ProtoValue and decodes to None."""
+        protos = python_values_to_proto_values([None], ValueType.SCALAR_MAP)
+        assert protos[0] == ProtoValue()
+        assert feast_value_type_to_python_type(protos[0]) is None
+
+    def test_empty_value_map(self):
+        """Empty dict encodes and decodes as empty SCALAR_MAP."""
+        protos = python_values_to_proto_values([{}], ValueType.SCALAR_MAP)
+        # empty dict has no non-string key to trigger SCALAR_MAP via inference,
+        # but explicit type forces the path
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, dict)
+
+    def test_multiple_value_maps_in_batch(self):
+        """Batch of SCALAR_MAP values all encode correctly."""
+        batch = [{1: "a", 2: "b"}, {10: "x"}, None]
+
+        protos = python_values_to_proto_values(batch, ValueType.SCALAR_MAP)
+        assert feast_value_type_to_python_type(protos[0]) == {1: "a", 2: "b"}
+        assert feast_value_type_to_python_type(protos[1]) == {10: "x"}
+        assert feast_value_type_to_python_type(protos[2]) is None
+
+    def test_nested_map_value_in_value_map(self):
+        """SCALAR_MAP can hold nested dicts as values (encoded as MAP vals)."""
+        inner = {"name": "alice", "score": 42}
+        data = {100: inner}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result[100]["name"] == "alice"
+        assert result[100]["score"] == 42
+
+    def test_invalid_key_type_raises(self):
+        """Passing an unsupported key type raises TypeError."""
+
+        class Unsupported:
+            pass
+
+        with pytest.raises(TypeError, match="Unsupported key type for SCALAR_MAP"):
+            python_values_to_proto_values([{Unsupported(): "v"}], ValueType.SCALAR_MAP)
+
+    def test_proto_field_name_in_map(self):
+        """scalar_map_val maps to ValueType.SCALAR_MAP in PROTO_VALUE_TO_VALUE_TYPE_MAP."""
+        from feast.type_map import PROTO_VALUE_TO_VALUE_TYPE_MAP
+
+        assert PROTO_VALUE_TO_VALUE_TYPE_MAP["scalar_map_val"] == ValueType.SCALAR_MAP

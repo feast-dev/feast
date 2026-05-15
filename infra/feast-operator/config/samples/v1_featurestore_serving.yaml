@@ -1,0 +1,34 @@
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-serving
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      server: {}
+      # serving configures the Feast feature_server section in feature_store.yaml.
+      # It controls fine-grained metrics and offline push batching.
+      # This section only applies to the online feature server (feast serve).
+      serving:
+        metrics:
+          enabled: true
+          # categories selectively enables or disables Feast metric categories.
+          # All categories default to true when metrics is enabled.
+          # Keys must match Feast MetricsConfig field names for your SDK version.
+          # When a newer Feast SDK adds a metric category you can toggle it here
+          # immediately — no operator update needed, the key passes through to
+          # feature_store.yaml and is validated by the running Feast SDK.
+          categories:
+            resource: true        # CPU / memory gauges
+            request: true         # per-endpoint latency and request counters
+            online_features: true # online feature retrieval metrics
+            push: true            # push/write request counters
+            materialization: true # materialization counters and duration histograms
+            freshness: false      # feature freshness gauges (can be expensive at scale)
+            # Example: when a future SDK adds "registry_sync", enable it here
+            # registry_sync: false
+        offlinePushBatching:
+          enabled: true
+          batchSize: 1000          # max rows per offline write batch
+          batchIntervalSeconds: 10 # flush batch every 10 s

@@ -53,7 +53,7 @@ func NewDynamodbOnlineStore(project string, config *registry.RepoConfig, onlineS
 	ctx := context.Background()
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	store.client = dynamodb.NewFromConfig(cfg)
 
@@ -237,24 +237,64 @@ func (d *DynamodbOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 
 				// process response from dynamodb
 				for j := 0; j < batchSize; j++ {
-					entityId := Responses[j]["entity_id"].(*dtypes.AttributeValueMemberS).Value
-					timestampString := Responses[j]["event_ts"].(*dtypes.AttributeValueMemberS).Value
+					entityIdAttr, ok := Responses[j]["entity_id"]
+					if !ok || entityIdAttr == nil {
+						continue
+					}
+					entityIdMember, ok := entityIdAttr.(*dtypes.AttributeValueMemberS)
+					if !ok {
+						return fmt.Errorf("unexpected DynamoDB attribute type for 'entity_id' in table %s", tableName)
+					}
+					entityId := entityIdMember.Value
+
+					tsAttr, ok := Responses[j]["event_ts"]
+					if !ok || tsAttr == nil {
+						continue
+					}
+					tsMember, ok := tsAttr.(*dtypes.AttributeValueMemberS)
+					if !ok {
+						return fmt.Errorf("unexpected DynamoDB attribute type for 'event_ts' in table %s", tableName)
+					}
+					timestampString := tsMember.Value
+
 					t, err := time.Parse("2006-01-02 15:04:05-07:00", timestampString)
 					if err != nil {
 						return err
 					}
 					timeStamp := timestamppb.New(t)
 
-					featureValues := Responses[j]["values"].(*dtypes.AttributeValueMemberM).Value
+					rawValues, ok := Responses[j]["values"]
+					if !ok || rawValues == nil {
+						continue
+					}
+					valuesMap, ok := rawValues.(*dtypes.AttributeValueMemberM)
+					if !ok {
+						return fmt.Errorf("unexpected DynamoDB attribute type for 'values' in table %s", tableName)
+					}
+					featureValues := valuesMap.Value
 					entityIndex := entityIndexMap[entityId]
 
 					for _, featureName := range featureNames {
-						featureValue := featureValues[featureName].(*dtypes.AttributeValueMemberB).Value
+						featureIndex := featureNamesIndex[featureName]
+						rawVal, exists := featureValues[featureName]
+						if !exists || rawVal == nil {
+							mu.Lock()
+							results[entityIndex][featureIndex] = FeatureData{
+								Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
+								Timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
+								Value:     types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}},
+							}
+							mu.Unlock()
+							continue
+						}
+						memberB, ok := rawVal.(*dtypes.AttributeValueMemberB)
+						if !ok {
+							return fmt.Errorf("unexpected DynamoDB attribute type for feature %q in view %q", featureName, featureViewName)
+						}
 						var value types.Value
-						if err := proto.Unmarshal(featureValue, &value); err != nil {
+						if err := proto.Unmarshal(memberB.Value, &value); err != nil {
 							return err
 						}
-						featureIndex := featureNamesIndex[featureName]
 
 						mu.Lock()
 						results[entityIndex][featureIndex] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},

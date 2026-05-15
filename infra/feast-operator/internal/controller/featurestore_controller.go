@@ -43,6 +43,7 @@ import (
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/authz"
 	feasthandler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
+	feastmetrics "github.com/feast-dev/feast/infra/feast-operator/internal/controller/metrics"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	routev1 "github.com/openshift/api/route/v1"
 )
@@ -55,7 +56,8 @@ const (
 // FeatureStoreReconciler reconciles a FeatureStore object
 type FeatureStoreReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme  *runtime.Scheme
+	Metrics *feastmetrics.FeatureStoreMetrics
 }
 
 // +kubebuilder:rbac:groups=feast.dev,resources=featurestores,verbs=get;list;watch;create;update;patch;delete
@@ -87,6 +89,9 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if apierrors.IsNotFound(err) {
 			// CR deleted since request queued, child objects getting GC'd, no requeue
 			logger.V(1).Info("FeatureStore CR not found, has been deleted")
+			if r.Metrics != nil {
+				r.Metrics.DeleteFeatureStore(req.NamespacedName.Namespace, req.NamespacedName.Name)
+			}
 			// Clean up namespace registry entry even if the CR is not found
 			if err := r.cleanupNamespaceRegistry(ctx, &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{
@@ -107,6 +112,9 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Handle deletion - clean up namespace registry entry
 	if cr.DeletionTimestamp != nil {
 		logger.Info("FeatureStore is being deleted, cleaning up namespace registry entry")
+		if r.Metrics != nil {
+			r.Metrics.DeleteFeatureStore(cr.Namespace, cr.Name)
+		}
 		if err := r.cleanupNamespaceRegistry(ctx, cr); err != nil {
 			logger.Error(err, "Failed to clean up namespace registry entry")
 			return ctrl.Result{}, err
@@ -115,6 +123,9 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	result, recErr = r.deployFeast(ctx, cr)
+	if recErr == nil && r.Metrics != nil {
+		r.Metrics.RecordFeatureStore(cr)
+	}
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
 		if err = r.Client.Status().Update(ctx, cr); err != nil {
 			if apierrors.IsConflict(err) {

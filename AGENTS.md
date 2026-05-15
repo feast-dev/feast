@@ -17,98 +17,51 @@ Feast (Feature Store) is a Python-based project that provides:
 
 ### Setup
 ```bash
-# Install development dependencies
 make install-python-dependencies-dev
-
-# Install minimal dependencies
 make install-python-dependencies-minimal
 ```
 
 ### Code Quality
 ```bash
-# Format Python code
+# Format Python code (entire codebase)
 make format-python
 
-# Lint Python code
+# Lint Python code (entire codebase)
 make lint-python
 
-# Type check
-cd sdk/python && python -m mypy feast
+# Full type check (entire codebase)
+uv run bash -c "cd sdk/python && mypy feast"
+
+# Full type check including tests
+make mypy-full
+```
+
+#### Single-file lint and type-check
+When working on a specific file, run checks scoped to that file to get fast feedback:
+```bash
+uv run ruff check sdk/python/feast/path/to/file.py          # lint
+uv run ruff check --fix sdk/python/feast/path/to/file.py    # lint + auto-fix
+uv run ruff format sdk/python/feast/path/to/file.py         # format
+uv run bash -c "cd sdk/python && mypy feast/path/to/file.py" # type-check
 ```
 
 ### Testing
 ```bash
-# Run unit tests
-make test-python-unit
-
-# Run integration tests (local)
-make test-python-integration-local
-
-# Run integration tests (CI)
-make test-python-integration
-
-# Run all Python tests
-make test-python-universal
+make test-python-unit                  # unit tests
+make test-python-integration-local    # integration tests (local)
+make test-python-integration          # integration tests (CI)
+make test-python-universal            # all Python tests
 ```
 
 ### Protobuf Compilation
 ```bash
-# Compile Python protobuf files
-make compile-protos-python
-
-# Compile all protos
-make protos
+make compile-protos-python   # Python protobufs
+make protos                  # all protos
 ```
 
 ### Go Development
 ```bash
-# Build Go code
-make build-go
-
-# Test Go code
-make test-go
-
-# Format Go code
-make format-go
-
-# Lint Go code
-make lint-go
-```
-
-### Docker
-```bash
-# Build all Docker images
-make build-docker
-
-# Build feature server Docker image
-make build-feature-server-docker
-```
-
-### Documentation
-```bash
-# Build Sphinx documentation
-make build-sphinx
-
-# Build templates
-make build-templates
-
-# Build Helm docs
-make build-helm-docs
-```
-
-## Project Structure
-
-```
-feast/
-├── sdk/python/          # Python SDK and core implementation
-├── go/                 # Go implementation
-├── ui/                 # Web UI
-├── docs/               # Documentation
-├── examples/           # Example projects
-├── infra/              # Infrastructure and deployment
-│   ├── charts/         # Helm charts
-│   └── feast-operator/ # Kubernetes operator
-└── protos/             # Protocol buffer definitions
+make build-go && make test-go && make format-go && make lint-go
 ```
 
 ## Key Technologies
@@ -120,24 +73,30 @@ feast/
 - **Offline Stores**: BigQuery, Snowflake, Redshift, Spark, Dask, DuckDB
 - **Cloud Providers**: AWS, GCP, Azure
 
-## Common Development Tasks
+## Agent Skills
 
-### Running Tests
-The project uses pytest for Python testing with extensive integration test suites for different data sources and stores.
+The `skills/` directory contains tool-agnostic skills (compatible with Claude Code, OpenAI Codex, and other agent tools):
 
-### Code Style
+| Skill | Path | Use when… |
+|---|---|---|
+| **feast-user-guide** | `skills/feast-user-guide/SKILL.md` | Working with Feast as a user: defining features, retrieval, CLI, RAG |
+| **feast-dev** | `skills/feast-dev/SKILL.md` | Contributing to Feast: setup, tests, Docker, docs, PR workflow |
+| **feast-architecture** | `skills/feast-architecture/SKILL.md` | Understanding how each component works: registry, materialization, feature server, data flows |
+| **feast-testing** | `skills/feast-testing/SKILL.md` | Writing tests, running targeted tests, debugging registry/online store issues |
+
+Reference docs: `skills/references/` — feature definitions, configuration, retrieval & RAG.
+
+Architecture & design intent: `docs/getting-started/architecture/` (overview, write patterns, RBAC), `docs/getting-started/components/` (per-component pages), `docs/adr/` (design decisions).
+
+## Code Style
+
 - Use type hints on all Python function signatures
 - Follow existing patterns in the module you are modifying
 - PR titles must follow semantic conventions: `feat:`, `fix:`, `ci:`, `chore:`, `docs:`
 - Sign off commits with `git commit -s` (DCO requirement)
-- Uses `ruff` for Python linting and formatting
-- Go uses standard `gofmt`
-
-### Protobuf Development
-Protocol buffers are used for data serialization and gRPC APIs. Recompile protos after making changes to `.proto` files.
-
-### Multi-language Support
-Feast supports Python and Go SDKs. Changes to core functionality may require updates across both languages.
+- Uses `ruff` for Python linting and formatting; Go uses standard `gofmt`
+- Recompile protos after making changes to `.proto` files (`make protos`)
+- Changes to core functionality may require updates across both Python and Go SDKs
 
 ## Documentation and Blog Posts
 

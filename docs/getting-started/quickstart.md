@@ -666,6 +666,7 @@ show up in the upcoming concepts + architecture + tutorial pages as well.
 
 ## Next steps
 
+* Run `feast demo-notebooks` to generate tailored Jupyter notebooks for your project. See [Demo Notebooks](../tutorials/demo-notebooks.md).
 * Read the [Concepts](concepts/) page to understand the Feast data model.
 * Read the [Architecture](architecture/) page.
 * Check out our [Tutorials](../tutorials/tutorials-overview/) section for more examples on how to use Feast.

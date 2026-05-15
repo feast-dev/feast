@@ -16,52 +16,60 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
-import builtins
-import google.protobuf.descriptor
-import google.protobuf.message
-import google.protobuf.wrappers_pb2
+
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf import wrappers_pb2 as _wrappers_pb2
+import builtins as _builtins
 import sys
+import typing as _typing
 
-if sys.version_info >= (3, 8):
-    import typing as typing_extensions
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-class DatastoreTable(google.protobuf.message.Message):
+@_typing.final
+class DatastoreTable(_message.Message):
     """Represents a Datastore table"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    PROJECT_FIELD_NUMBER: builtins.int
-    NAME_FIELD_NUMBER: builtins.int
-    PROJECT_ID_FIELD_NUMBER: builtins.int
-    NAMESPACE_FIELD_NUMBER: builtins.int
-    DATABASE_FIELD_NUMBER: builtins.int
-    project: builtins.str
+    PROJECT_FIELD_NUMBER: _builtins.int
+    NAME_FIELD_NUMBER: _builtins.int
+    PROJECT_ID_FIELD_NUMBER: _builtins.int
+    NAMESPACE_FIELD_NUMBER: _builtins.int
+    DATABASE_FIELD_NUMBER: _builtins.int
+    project: _builtins.str
     """Feast project of the table"""
-    name: builtins.str
+    name: _builtins.str
     """Name of the table"""
-    @property
-    def project_id(self) -> google.protobuf.wrappers_pb2.StringValue:
+    @_builtins.property
+    def project_id(self) -> _wrappers_pb2.StringValue:
         """GCP project id"""
-    @property
-    def namespace(self) -> google.protobuf.wrappers_pb2.StringValue:
+
+    @_builtins.property
+    def namespace(self) -> _wrappers_pb2.StringValue:
         """Datastore namespace"""
-    @property
-    def database(self) -> google.protobuf.wrappers_pb2.StringValue:
+
+    @_builtins.property
+    def database(self) -> _wrappers_pb2.StringValue:
         """Firestore database"""
+
     def __init__(
         self,
         *,
-        project: builtins.str = ...,
-        name: builtins.str = ...,
-        project_id: google.protobuf.wrappers_pb2.StringValue | None = ...,
-        namespace: google.protobuf.wrappers_pb2.StringValue | None = ...,
-        database: google.protobuf.wrappers_pb2.StringValue | None = ...,
+        project: _builtins.str = ...,
+        name: _builtins.str = ...,
+        project_id: _wrappers_pb2.StringValue | None = ...,
+        namespace: _wrappers_pb2.StringValue | None = ...,
+        database: _wrappers_pb2.StringValue | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["database", b"database", "namespace", b"namespace", "project_id", b"project_id"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["database", b"database", "name", b"name", "namespace", b"namespace", "project", b"project", "project_id", b"project_id"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["database", b"database", "namespace", b"namespace", "project_id", b"project_id"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["database", b"database", "name", b"name", "namespace", b"namespace", "project", b"project", "project_id", b"project_id"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-global___DatastoreTable = DatastoreTable
+Global___DatastoreTable: _TypeAlias = DatastoreTable  # noqa: Y015

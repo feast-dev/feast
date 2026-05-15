@@ -99,6 +99,7 @@ class ValueType(_message.Message):
         DECIMAL: ValueType._Enum.ValueType  # 44
         DECIMAL_LIST: ValueType._Enum.ValueType  # 45
         DECIMAL_SET: ValueType._Enum.ValueType  # 46
+        SCALAR_MAP: ValueType._Enum.ValueType  # 47
 
     class Enum(_Enum, metaclass=_EnumEnumTypeWrapper): ...
     INVALID: ValueType.Enum.ValueType  # 0
@@ -144,6 +145,7 @@ class ValueType(_message.Message):
     DECIMAL: ValueType.Enum.ValueType  # 44
     DECIMAL_LIST: ValueType.Enum.ValueType  # 45
     DECIMAL_SET: ValueType.Enum.ValueType  # 46
+    SCALAR_MAP: ValueType.Enum.ValueType  # 47
 
     def __init__(
         self,
@@ -197,6 +199,7 @@ class Value(_message.Message):
     DECIMAL_VAL_FIELD_NUMBER: _builtins.int
     DECIMAL_LIST_VAL_FIELD_NUMBER: _builtins.int
     DECIMAL_SET_VAL_FIELD_NUMBER: _builtins.int
+    SCALAR_MAP_VAL_FIELD_NUMBER: _builtins.int
     bytes_val: _builtins.bytes
     string_val: _builtins.str
     int32_val: _builtins.int
@@ -268,6 +271,8 @@ class Value(_message.Message):
     def decimal_list_val(self) -> Global___StringList: ...
     @_builtins.property
     def decimal_set_val(self) -> Global___StringSet: ...
+    @_builtins.property
+    def scalar_map_val(self) -> Global___ScalarMap: ...
     def __init__(
         self,
         *,
@@ -313,12 +318,13 @@ class Value(_message.Message):
         decimal_val: _builtins.str = ...,
         decimal_list_val: Global___StringList | None = ...,
         decimal_set_val: Global___StringSet | None = ...,
+        scalar_map_val: Global___ScalarMap | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "scalar_map_val", b"scalar_map_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "scalar_map_val", b"scalar_map_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_val: _TypeAlias = _typing.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val", "map_val", "map_list_val", "bytes_set_val", "string_set_val", "int32_set_val", "int64_set_val", "double_set_val", "float_set_val", "bool_set_val", "unix_timestamp_set_val", "json_val", "json_list_val", "struct_val", "struct_list_val", "uuid_val", "time_uuid_val", "uuid_list_val", "time_uuid_list_val", "uuid_set_val", "time_uuid_set_val", "list_val", "set_val", "decimal_val", "decimal_list_val", "decimal_set_val"]  # noqa: Y015
+    _WhichOneofReturnType_val: _TypeAlias = _typing.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val", "map_val", "map_list_val", "bytes_set_val", "string_set_val", "int32_set_val", "int64_set_val", "double_set_val", "float_set_val", "bool_set_val", "unix_timestamp_set_val", "json_val", "json_list_val", "struct_val", "struct_list_val", "uuid_val", "time_uuid_val", "uuid_list_val", "time_uuid_list_val", "uuid_set_val", "time_uuid_set_val", "list_val", "set_val", "decimal_val", "decimal_list_val", "decimal_set_val", "scalar_map_val"]  # noqa: Y015
     _WhichOneofArgType_val: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_val) -> _WhichOneofReturnType_val | None: ...
 
@@ -636,3 +642,97 @@ class RepeatedValue(_message.Message):
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
 Global___RepeatedValue: _TypeAlias = RepeatedValue  # noqa: Y015
+
+@_typing.final
+class MapKey(_message.Message):
+    """Map key for maps with non-string keys.
+    Excludes string (handled by Map) and all collection types (not valid as keys).
+    """
+
+    DESCRIPTOR: _descriptor.Descriptor
+
+    INT32_KEY_FIELD_NUMBER: _builtins.int
+    INT64_KEY_FIELD_NUMBER: _builtins.int
+    FLOAT_KEY_FIELD_NUMBER: _builtins.int
+    DOUBLE_KEY_FIELD_NUMBER: _builtins.int
+    BOOL_KEY_FIELD_NUMBER: _builtins.int
+    UNIX_TIMESTAMP_KEY_FIELD_NUMBER: _builtins.int
+    BYTES_KEY_FIELD_NUMBER: _builtins.int
+    UUID_KEY_FIELD_NUMBER: _builtins.int
+    TIME_UUID_KEY_FIELD_NUMBER: _builtins.int
+    DECIMAL_KEY_FIELD_NUMBER: _builtins.int
+    int32_key: _builtins.int
+    int64_key: _builtins.int
+    float_key: _builtins.float
+    double_key: _builtins.float
+    bool_key: _builtins.bool
+    unix_timestamp_key: _builtins.int
+    bytes_key: _builtins.bytes
+    uuid_key: _builtins.str
+    time_uuid_key: _builtins.str
+    decimal_key: _builtins.str
+    def __init__(
+        self,
+        *,
+        int32_key: _builtins.int = ...,
+        int64_key: _builtins.int = ...,
+        float_key: _builtins.float = ...,
+        double_key: _builtins.float = ...,
+        bool_key: _builtins.bool = ...,
+        unix_timestamp_key: _builtins.int = ...,
+        bytes_key: _builtins.bytes = ...,
+        uuid_key: _builtins.str = ...,
+        time_uuid_key: _builtins.str = ...,
+        decimal_key: _builtins.str = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["bool_key", b"bool_key", "bytes_key", b"bytes_key", "decimal_key", b"decimal_key", "double_key", b"double_key", "float_key", b"float_key", "int32_key", b"int32_key", "int64_key", b"int64_key", "key", b"key", "time_uuid_key", b"time_uuid_key", "unix_timestamp_key", b"unix_timestamp_key", "uuid_key", b"uuid_key"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["bool_key", b"bool_key", "bytes_key", b"bytes_key", "decimal_key", b"decimal_key", "double_key", b"double_key", "float_key", b"float_key", "int32_key", b"int32_key", "int64_key", b"int64_key", "key", b"key", "time_uuid_key", b"time_uuid_key", "unix_timestamp_key", b"unix_timestamp_key", "uuid_key", b"uuid_key"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType_key: _TypeAlias = _typing.Literal["int32_key", "int64_key", "float_key", "double_key", "bool_key", "unix_timestamp_key", "bytes_key", "uuid_key", "time_uuid_key", "decimal_key"]  # noqa: Y015
+    _WhichOneofArgType_key: _TypeAlias = _typing.Literal["key", b"key"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_key) -> _WhichOneofReturnType_key | None: ...
+
+Global___MapKey: _TypeAlias = MapKey  # noqa: Y015
+
+@_typing.final
+class ScalarMapEntry(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    KEY_FIELD_NUMBER: _builtins.int
+    VALUE_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def key(self) -> Global___MapKey: ...
+    @_builtins.property
+    def value(self) -> Global___Value: ...
+    def __init__(
+        self,
+        *,
+        key: Global___MapKey | None = ...,
+        value: Global___Value | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+
+Global___ScalarMapEntry: _TypeAlias = ScalarMapEntry  # noqa: Y015
+
+@_typing.final
+class ScalarMap(_message.Message):
+    """Map with non-string keys. For string-keyed maps use Map."""
+
+    DESCRIPTOR: _descriptor.Descriptor
+
+    VAL_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def val(self) -> _containers.RepeatedCompositeFieldContainer[Global___ScalarMapEntry]: ...
+    def __init__(
+        self,
+        *,
+        val: _abc.Iterable[Global___ScalarMapEntry] | None = ...,
+    ) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["val", b"val"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+
+Global___ScalarMap: _TypeAlias = ScalarMap  # noqa: Y015

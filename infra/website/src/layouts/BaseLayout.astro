@@ -4,9 +4,17 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description?: string;
+  socialImage?: string;
+  ogUrl?: string;
 }
 
-const { title, description = "Feast is an end-to-end open source feature store for machine learning. It allows teams to define, manage, discover, and serve features." } = Astro.props;
+const defaultSocialImage = "https://feast.dev/wp-content/uploads/2023/01/feast-og@2x.png";
+const {
+  title,
+  description = "Feast is an end-to-end open source feature store for machine learning. It allows teams to define, manage, discover, and serve features.",
+  socialImage = defaultSocialImage,
+  ogUrl = "https://feast.dev/",
+} = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -25,16 +33,16 @@ const { title, description = "Feast is an end-to-end open source feature store f
     <meta property="og:type" content="website">
     <meta property="og:title" content={title}>
     <meta property="og:description" content={description}>
-    <meta property="og:url" content="https://feast.dev/">
+    <meta property="og:url" content={ogUrl}>
     <meta property="og:site_name" content="Feast">
-    <meta property="og:image" content="https://feast.dev/wp-content/uploads/2023/01/feast-og@2x.png">
+    <meta property="og:image" content={socialImage}>
     <meta property="og:image:width" content="1201">
     <meta property="og:image:height" content="630">
     <meta property="og:image:type" content="image/png">
     
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://feast.dev/wp-content/uploads/2023/01/feast-og@2x.png">
+    <meta name="twitter:image" content={socialImage}>
 
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400&display=swap" rel="stylesheet">

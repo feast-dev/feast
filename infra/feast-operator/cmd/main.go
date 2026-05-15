@@ -49,6 +49,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller"
+	feastmetrics "github.com/feast-dev/feast/infra/feast-operator/internal/controller/metrics"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	// +kubebuilder:scaffold:imports
 )
@@ -95,6 +96,7 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var featureStoreMetrics bool
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -106,6 +108,9 @@ func main() {
 		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.BoolVar(&featureStoreMetrics, "feature-store-metrics", true,
+		"Enable Prometheus gauges exposing online/offline store and registry configuration per FeatureStore. "+
+			"Disable with --feature-store-metrics=false.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -206,9 +211,19 @@ func main() {
 
 	services.SetIsOpenShift(mgr.GetConfig())
 
+	var fsMetrics *feastmetrics.FeatureStoreMetrics
+	if featureStoreMetrics {
+		fsMetrics = feastmetrics.NewFeatureStoreMetrics()
+		fsMetrics.Register()
+		setupLog.Info("FeatureStore installation metrics enabled")
+	} else {
+		setupLog.Info("FeatureStore installation metrics disabled (--feature-store-metrics=false)")
+	}
+
 	if err = (&controller.FeatureStoreReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Metrics: fsMetrics,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "FeatureStore")
 		os.Exit(1)

@@ -1,12 +1,22 @@
 """
 CLI test utilities for Feast testing.
 
-Note: This module contains workarounds for a known PySpark JVM cleanup issue on macOS
-with Python 3.11+. The 'feast teardown' command can hang indefinitely due to py4j
-(PySpark's Java bridge) not properly terminating JVM processes. This is a PySpark
-environmental issue, not a Feast logic error.
+Note: This module contains a workaround for a known subprocess hang issue:
 
-The timeout handling ensures tests fail gracefully rather than hanging CI.
+Dask atexit handler: when a Feast materialization fails mid-execution, Dask's
+global ThreadPoolExecutor registers an atexit.register(default_pool.shutdown)
+handler. If the pool has active or recently-used threads, shutdown(wait=True)
+can block for an extended period, preventing the subprocess from exiting. This
+causes the parent's subprocess.check_output / communicate() to block forever.
+
+The fix is to use subprocess.Popen with communicate(timeout=...) so we can kill
+the subprocess if it hangs and still recover any partial output (which contains
+the error message printed before the hang).
+
+Teardown is intentionally performed in-process (store.teardown()) rather than
+via a 'feast teardown' subprocess. This eliminates per-repo subprocess startup
+overhead and avoids atexit-handler (Dask thread pool, PySpark JVM) hang risks
+that can push the cumulative test time past the pytest global timeout budget.
 """
 
 import random
@@ -44,12 +54,9 @@ class CliRunner:
     """
 
     def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
-        # Handle known PySpark JVM cleanup issue on macOS
-        # The 'feast teardown' command can hang indefinitely on macOS with Python 3.11+
-        # due to py4j (PySpark's Java bridge) not properly cleaning up JVM processes.
-        # This is a known environmental issue, not a test logic error.
-        # See: https://issues.apache.org/jira/browse/SPARK-XXXXX (PySpark JVM cleanup)
-        timeout = 120 if "teardown" in args else None
+        # Apply a conservative timeout to prevent CI hangs from Dask atexit-handler
+        # stalls or other subprocess blockages.
+        timeout = 120
 
         try:
             return subprocess.run(
@@ -59,41 +66,46 @@ class CliRunner:
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired:
-            # For teardown timeouts, return a controlled failure rather than hanging CI.
-            # This allows the test to fail gracefully and continue with other tests.
-            if "teardown" in args:
-                return subprocess.CompletedProcess(
-                    args=[sys.executable, cli.__file__] + args,
-                    returncode=-1,
-                    stdout=b"",
-                    stderr=b"Teardown timed out (known PySpark JVM cleanup issue on macOS)",
-                )
-            else:
-                # For non-teardown commands, re-raise as this indicates a real issue
-                raise
+            return subprocess.CompletedProcess(
+                args=[sys.executable, cli.__file__] + args,
+                returncode=-1,
+                stdout=b"",
+                stderr=f"Command timed out after {timeout}s: {args}".encode(),
+            )
 
     def run_with_output(self, args: List[str], cwd: Path) -> Tuple[int, bytes]:
-        timeout = 120 if "teardown" in args else None
+        is_teardown = "teardown" in args
+        # Use subprocess.Popen + communicate(timeout=...) so that on a hang we can
+        # kill the process and still recover any output already buffered in the pipe.
+        # This matters when feast prints an error and then hangs in the Dask atexit
+        # handler — the error text is already in the pipe buffer and can be read after
+        # the process is killed.
+        timeout = 120 if is_teardown else 60
+
+        proc = subprocess.Popen(
+            [sys.executable, cli.__file__] + args,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
         try:
-            return (
-                0,
-                subprocess.check_output(
-                    [sys.executable, cli.__file__] + args,
-                    cwd=cwd,
-                    stderr=subprocess.STDOUT,
-                    timeout=timeout,
-                ),
-            )
-        except subprocess.CalledProcessError as e:
-            return e.returncode, e.output
+            stdout, _ = proc.communicate(timeout=timeout)
+            returncode = proc.returncode
+            if returncode != 0:
+                return returncode, stdout
+            return 0, stdout
         except subprocess.TimeoutExpired:
-            if "teardown" in args:
+            proc.kill()
+            stdout, _ = proc.communicate()
+            if is_teardown:
                 return (
                     -1,
                     b"Teardown timed out (known PySpark JVM cleanup issue on macOS)",
                 )
             else:
-                raise
+                # Return partial output (likely contains the error printed before hang)
+                # with a non-zero returncode so callers can inspect it.
+                return -1, stdout or b""
 
     @contextmanager
     def local_repo(
@@ -179,23 +191,13 @@ class CliRunner:
                     f"stdout: {result.stdout}\nstderr: {result.stderr}"
                 )
 
-            yield FeatureStore(repo_path=str(repo_path), config=None)
+            store_instance = FeatureStore(repo_path=str(repo_path), config=None)
+            yield store_instance
 
             if teardown:
-                result = self.run(["teardown"], cwd=repo_path)
-                stdout = result.stdout.decode("utf-8")
-                stderr = result.stderr.decode("utf-8")
-                print(f"Teardown stdout:\n{stdout}")
-                print(f"Teardown stderr:\n{stderr}")
-
-                # Handle PySpark JVM cleanup timeout gracefully on macOS
-                # This is a known environmental issue, not a test failure
-                if result.returncode == -1 and "PySpark JVM cleanup issue" in stderr:
-                    print(
-                        "Warning: Teardown timed out due to known PySpark JVM cleanup issue on macOS"
-                    )
-                    print("This is an environmental issue, not a test logic failure")
-                else:
-                    assert result.returncode == 0, (
-                        f"stdout: {result.stdout}\nstderr: {result.stderr}"
-                    )
+                # Use in-process teardown instead of a 'feast teardown' subprocess.
+                # Subprocess teardown adds per-repo startup overhead and risks
+                # blocking indefinitely in Dask/PySpark atexit handlers, which
+                # can push the cumulative test time past the pytest timeout budget.
+                # store.teardown() performs the same SQLite/registry cleanup directly.
+                store_instance.teardown()

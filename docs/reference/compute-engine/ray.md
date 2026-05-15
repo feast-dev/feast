@@ -28,6 +28,7 @@ The Ray compute engine provides:
 - **Lazy Evaluation**: Deferred execution for optimal performance
 - **Resource Management**: Automatic scaling and resource optimization
 - **Point-in-Time Joins**: Efficient temporal joins for historical feature retrieval
+- **GPU Support**: Schedule transformation workers on GPU nodes via `num_gpus` config (all modes including KubeRay)
 
 ## Architecture
 
@@ -87,6 +88,9 @@ batch_engine:
 | `enable_distributed_joins` | boolean | true | Enable distributed joins for large datasets |
 | `staging_location` | string | None | Remote path for batch materialization jobs |
 | `ray_conf` | dict | None | Ray configuration parameters (memory, CPU limits) |
+| `num_gpus` | float | None | Number of GPUs to request per worker task. Requires GPU nodes in the Ray cluster. Fractional values (e.g. `0.5`) are supported. Supported in all modes including KubeRay. |
+| `gpu_batch_format` | string | `"pandas"` | Batch format for `map_batches` when `num_gpus` is set. Use `"numpy"` or `"pyarrow"` for GPU-native libraries (e.g. cuDF, PyTorch). |
+| `worker_task_options` | dict | None | Arbitrary Ray `.options()` kwargs applied to every worker task. See [Worker Resource Scheduling](#worker-resource-scheduling) for the full reference. |
 
 ### Mode Detection Precedence
 
@@ -344,11 +348,95 @@ import ray
 # Check cluster resources
 resources = ray.cluster_resources()
 print(f"Available CPUs: {resources.get('CPU', 0)}")
+print(f"Available GPUs: {resources.get('GPU', 0)}")
 print(f"Available memory: {resources.get('memory', 0) / 1e9:.2f} GB")
 
 # Monitor job progress
 job = store.get_historical_features(...)
 # Ray compute engine provides built-in progress tracking
+```
+
+## Worker Resource Scheduling
+
+`worker_task_options` is a passthrough dict of [Ray `.options()` kwargs](https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html) applied to every worker task Feast dispatches. It pairs with `ray_conf` (cluster-level `ray.init` options) — `worker_task_options` targets individual worker tasks. Options are forwarded at two levels so Ray schedules correctly:
+
+1. On the `@ray.remote` orchestration task via `.options(**worker_task_options)` — controls node selection.
+2. Inside `map_batches` for the scheduling-relevant subset (`num_gpus`, `num_cpus`, `accelerator_type`, `resources`) — controls which nodes run the data workers.
+
+This is supported across **all execution modes**: local, remote, and KubeRay.
+
+### Common `worker_task_options` keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `num_cpus` | float | CPUs per task (default: 1). Fractional values supported. |
+| `memory` | int | Heap memory in **bytes** (e.g. `8589934592` for 8 GB). |
+| `accelerator_type` | string | Pin tasks to a specific GPU model — `"A100"`, `"T4"`, `"V100"`, etc. Useful on KubeRay clusters with mixed GPU node pools. |
+| `resources` | dict | Custom/Kubernetes extended resource labels, e.g. `{"intel.com/gpu": 1}`. |
+| `runtime_env` | dict | Per-task [Ray runtime environment](https://docs.ray.io/en/latest/ray-core/handling-dependencies.html) — `pip`, `conda`, `env_vars`, `working_dir`, etc. For KubeRay, use this to install packages on worker pods without rebuilding images. |
+| `max_retries` | int | Task retry count on worker failure (default: 3). |
+| `scheduling_strategy` | string | `"DEFAULT"`, `"SPREAD"`, or a placement group strategy. |
+
+> For the full list of supported keys see the [Ray RemoteFunction.options() API docs](https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html).
+
+### GPU support
+
+`num_gpus` is the only first-class GPU field because it also drives `gpu_batch_format` selection inside Feast. Set it directly rather than inside `worker_task_options`:
+
+```yaml
+batch_engine:
+    type: ray.engine
+    num_gpus: 1               # GPUs per task (fractional values like 0.5 supported)
+    gpu_batch_format: numpy   # numpy/pyarrow for GPU-native libs (cuDF, PyTorch)
+```
+
+When `num_gpus` is set your transformation UDF runs on a GPU worker:
+
+```python
+import cudf  # RAPIDS cuDF – GPU-accelerated DataFrame library
+
+def gpu_transform(batch):
+    gpu_df = cudf.from_pandas(batch)
+    gpu_df["score"] = gpu_df["raw_value"] * 2.0
+    return gpu_df.to_pandas()
+```
+
+### Full example — KubeRay with GPU + all common options
+
+```yaml
+batch_engine:
+    type: ray.engine
+    use_kuberay: true
+    kuberay_conf:
+        cluster_name: "feast-gpu-cluster"
+        namespace: "feast-system"
+        auth_token: "${RAY_AUTH_TOKEN}"
+        auth_server: "https://api.openshift.com:6443"
+    num_gpus: 1
+    gpu_batch_format: numpy
+    worker_task_options:
+        num_cpus: 4
+        memory: 8589934592        # 8 GB
+        accelerator_type: "A100"  # pin to A100 nodes on mixed GPU pool
+        max_retries: 5
+        runtime_env:
+            pip:
+                - cudf-cu12==24.10.0
+                - torch==2.4.0
+            env_vars:
+                CUDA_VISIBLE_DEVICES: "0"
+```
+
+### Checking cluster resources
+
+```python
+import ray
+
+ray.init(address="auto")
+resources = ray.cluster_resources()
+print(f"Available CPUs: {resources.get('CPU', 0)}")
+print(f"Available GPUs: {resources.get('GPU', 0)}")
+print(f"Available memory: {resources.get('memory', 0) / 1e9:.2f} GB")
 ```
 
 ## Integration Examples

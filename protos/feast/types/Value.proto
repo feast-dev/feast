@@ -68,6 +68,7 @@ message ValueType {
     DECIMAL = 44;
     DECIMAL_LIST = 45;
     DECIMAL_SET = 46;
+    SCALAR_MAP = 47;
   }
 }
 
@@ -118,6 +119,7 @@ message Value {
     string decimal_val = 44;
     StringList decimal_list_val = 45;
     StringSet decimal_set_val = 46;
+    ScalarMap scalar_map_val = 47;
   }
 }
 
@@ -193,4 +195,31 @@ message MapList {
 // In JSON "val" field can be omitted
 message RepeatedValue {
   repeated Value val = 1;
+}
+
+// Map key for maps with non-string keys.
+// Excludes string (handled by Map) and all collection types (not valid as keys).
+message MapKey {
+  oneof key {
+    int32 int32_key = 1;
+    int64 int64_key = 2;
+    float float_key = 3;
+    double double_key = 4;
+    bool bool_key = 5;
+    int64 unix_timestamp_key = 6;
+    bytes bytes_key = 7;
+    string uuid_key = 8;
+    string time_uuid_key = 9;
+    string decimal_key = 10;
+  }
+}
+
+message ScalarMapEntry {
+  MapKey key = 1;
+  Value value = 2;
+}
+
+// Map with non-string keys. For string-keyed maps use Map.
+message ScalarMap {
+  repeated ScalarMapEntry val = 1;
 }

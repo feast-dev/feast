@@ -501,7 +501,7 @@ class RemoteOnlineStore(OnlineStore):
         for row in entity_keys:
             entity_key = row.join_keys[0]
             entity_values.append(
-                getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))
+                getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))  # type: ignore[arg-type]
             )
 
         return {

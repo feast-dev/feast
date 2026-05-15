@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.62.0
+VERSION ?= 0.63.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -241,7 +241,7 @@ ENVSUBST = $(LOCALBIN)/envsubst
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.4.3
 CONTROLLER_TOOLS_VERSION ?= v0.18.0
-CRD_REF_DOCS_VERSION ?= v0.3.0
+CRD_REF_DOCS_VERSION ?= v0.2.0
 ENVTEST_VERSION ?= release-0.21
 GOLANGCI_LINT_VERSION ?= v2.1.0
 ENVSUBST_VERSION ?= v1.4.2
