@@ -118,7 +118,8 @@ FeastObjectProto = TypeVar(
 )
 
 
-FIELDS_TO_IGNORE = {"project"}
+# "version" is handled separately below with human-readable pin display.
+FIELDS_TO_IGNORE = {"project", "version"}
 
 
 def diff_registry_objects(
@@ -189,6 +190,30 @@ def diff_registry_objects(
                             getattr(new_spec, _field.name),
                         )
                     )
+    # Show version pin/unpin changes using the resolved numeric version from meta
+    # rather than the raw spec.version string, giving more useful plan output.
+    # e.g. "version: v2 -> v1 (pin)" or "version: v1 (pin) -> latest"
+    if hasattr(current_proto, "meta") and hasattr(new_proto, "meta"):
+        from feast.version_utils import parse_version, version_tag
+
+        cur_pin = getattr(current_proto.meta, "current_version_number", 0)
+        new_ver_str = getattr(new_spec, "version", None) or "latest"
+        is_latest, pin_target = parse_version(new_ver_str)
+
+        if not is_latest and pin_target is not None:
+            # User is pinning to a specific version.
+            cur_display = version_tag(cur_pin) if cur_pin else "latest"
+            new_display = f"{version_tag(pin_target)} (pin)"
+            if cur_display != new_display:
+                transition = TransitionType.UPDATE
+                property_diffs.append(PropertyDiff("version", cur_display, new_display))
+        elif cur_pin:
+            # User is moving back to latest (unpinning).
+            property_diffs.append(
+                PropertyDiff("version", f"{version_tag(cur_pin)} (pin)", "latest")
+            )
+            transition = TransitionType.UPDATE
+
     return FeastObjectDiff(
         name=new_spec.name,
         feast_object_type=object_type,
