@@ -215,10 +215,13 @@ class OnDemandFeatureViewMeta(_message.Message):
     LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
     CURRENT_VERSION_NUMBER_FIELD_NUMBER: _builtins.int
     VERSION_ID_FIELD_NUMBER: _builtins.int
+    STATE_FIELD_NUMBER: _builtins.int
     current_version_number: _builtins.int
     """The current version number of this feature view in the version history."""
     version_id: _builtins.str
     """Auto-generated UUID identifying this specific version."""
+    state: _FeatureView_pb2.FeatureViewState.ValueType
+    """Lifecycle state of this feature view."""
     @_builtins.property
     def created_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Time where this Feature View is created"""
@@ -234,10 +237,11 @@ class OnDemandFeatureViewMeta(_message.Message):
         last_updated_timestamp: _timestamp_pb2.Timestamp | None = ...,
         current_version_number: _builtins.int = ...,
         version_id: _builtins.str = ...,
+        state: _FeatureView_pb2.FeatureViewState.ValueType = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "version_id", b"version_id"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "state", b"state", "version_id", b"version_id"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
 Global___OnDemandFeatureViewMeta: _TypeAlias = OnDemandFeatureViewMeta  # noqa: Y015

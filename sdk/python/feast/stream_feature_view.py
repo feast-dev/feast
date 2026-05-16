@@ -406,6 +406,11 @@ class StreamFeatureView(FeatureView):
 
         stream_feature_view.enabled = not sfv_proto.spec.disabled
 
+        # Restore lifecycle state from meta (SFV uses FeatureViewMeta which has state).
+        from feast.feature_view import FeatureViewState
+
+        stream_feature_view.state = FeatureViewState.from_proto(sfv_proto.meta.state)
+
         stream_feature_view.entities = list(sfv_proto.spec.entities)
 
         stream_feature_view.features = [
@@ -456,6 +461,7 @@ class StreamFeatureView(FeatureView):
             version=self.version,
         )
         fv.enabled = self.enabled
+        fv.state = self.state
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)

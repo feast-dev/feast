@@ -1252,6 +1252,20 @@ def _get_feature_views_to_use(
                 f"Enable it with `feast feature-views enable {name}` or set enabled=True."
             )
 
+        # Enforce lifecycle state gate: only serve if state is AVAILABLE_ONLINE
+        # or STATE_UNSPECIFIED (backward compat for pre-state feature views).
+        if hasattr(fv, "state"):
+            from feast.feature_view import FeatureViewState
+
+            if fv.state not in (
+                FeatureViewState.STATE_UNSPECIFIED,
+                FeatureViewState.AVAILABLE_ONLINE,
+            ):
+                raise ValueError(
+                    f"Feature view '{name}' is in state '{fv.state.name}' "
+                    f"and cannot serve features. Only AVAILABLE_ONLINE feature views can serve."
+                )
+
         if isinstance(fv, OnDemandFeatureView):
             od_fvs_to_use.append(
                 fv.with_projection(copy.copy(projection)) if projection else fv

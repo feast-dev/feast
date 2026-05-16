@@ -581,10 +581,16 @@ class Registry(BaseRegistry):
             )
 
         # Enabled/disabled state
-        if hasattr(existing_proto.spec, "disabled") and hasattr(
-            updated_fv, "enabled"
-        ):
+        if hasattr(existing_proto.spec, "disabled") and hasattr(updated_fv, "enabled"):
             existing_proto.spec.disabled = not getattr(updated_fv, "enabled")
+
+        # Lifecycle state
+        if hasattr(existing_proto.meta, "state") and hasattr(updated_fv, "state"):
+            from feast.feature_view import FeatureViewState
+
+            state_val = getattr(updated_fv, "state")
+            if isinstance(state_val, FeatureViewState):
+                existing_proto.meta.state = state_val.to_proto()
 
         # OnDemandFeatureView configuration
         if hasattr(existing_proto.spec, "write_to_online_store") and hasattr(
@@ -697,6 +703,15 @@ class Registry(BaseRegistry):
         if not feature_view.created_timestamp:
             feature_view.created_timestamp = now
         feature_view.last_updated_timestamp = now
+
+        # Auto-set lifecycle state to CREATED on first apply if unspecified.
+        from feast.feature_view import FeatureViewState
+
+        if (
+            hasattr(feature_view, "state")
+            and feature_view.state == FeatureViewState.STATE_UNSPECIFIED
+        ):
+            feature_view.state = FeatureViewState.CREATED
 
         fv_type_str = self._infer_fv_type_string(feature_view)
         is_latest, pin_version = parse_version(feature_view.version)
@@ -947,6 +962,11 @@ class Registry(BaseRegistry):
                     (start_date, end_date)
                 )
                 existing_feature_view.last_updated_timestamp = _utc_now()
+                # Transition state to AVAILABLE_ONLINE after materialization.
+                from feast.feature_view import FeatureViewState
+
+                if hasattr(existing_feature_view, "state"):
+                    existing_feature_view.state = FeatureViewState.AVAILABLE_ONLINE
                 feature_view_proto = existing_feature_view.to_proto()
                 feature_view_proto.spec.project = project
                 del self.cached_registry_proto.feature_views[idx]
@@ -969,6 +989,13 @@ class Registry(BaseRegistry):
                     (start_date, end_date)
                 )
                 existing_stream_feature_view.last_updated_timestamp = _utc_now()
+                # Transition state to AVAILABLE_ONLINE after materialization.
+                from feast.feature_view import FeatureViewState
+
+                if hasattr(existing_stream_feature_view, "state"):
+                    existing_stream_feature_view.state = (
+                        FeatureViewState.AVAILABLE_ONLINE
+                    )
                 stream_feature_view_proto = existing_stream_feature_view.to_proto()
                 stream_feature_view_proto.spec.project = project
                 del self.cached_registry_proto.stream_feature_views[idx]

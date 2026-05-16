@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import enum
 import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type, Union
@@ -47,6 +48,31 @@ from feast.value_type import ValueType
 from feast.version_utils import normalize_version_string
 
 warnings.simplefilter("once", DeprecationWarning)
+
+
+class FeatureViewState(enum.IntEnum):
+    """Lifecycle state of a feature view.
+
+    Maps to the ``FeatureViewState`` proto enum defined in
+    ``protos/feast/core/FeatureView.proto``.
+    """
+
+    STATE_UNSPECIFIED = 0
+    CREATED = 1
+    GENERATED = 2
+    MATERIALIZING = 3
+    AVAILABLE_ONLINE = 4
+
+    @classmethod
+    def from_proto(cls, proto_val: int) -> "FeatureViewState":
+        try:
+            return cls(proto_val)
+        except ValueError:
+            return cls.STATE_UNSPECIFIED
+
+    def to_proto(self) -> int:
+        return self.value
+
 
 # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
 DUMMY_ENTITY_ID = "__dummy_id"
@@ -114,6 +140,7 @@ class FeatureView(BaseFeatureView):
     mode: Optional[Union["TransformationMode", str]]
     enable_validation: bool
     enabled: bool
+    state: FeatureViewState
 
     def __init__(
         self,
@@ -292,6 +319,7 @@ class FeatureView(BaseFeatureView):
         self.mode = mode
         self.materialization_intervals = []
         self.enabled = enabled
+        self.state = FeatureViewState.STATE_UNSPECIFIED
 
     def __hash__(self):
         return super().__hash__()
@@ -321,6 +349,7 @@ class FeatureView(BaseFeatureView):
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)
         fv.projection = copy.copy(self.projection)
+        fv.state = self.state
         return fv
 
     def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
@@ -525,6 +554,8 @@ class FeatureView(BaseFeatureView):
             meta.materialization_intervals.append(interval_proto)
         if self.current_version_number is not None:
             meta.current_version_number = self.current_version_number
+        if self.state != FeatureViewState.STATE_UNSPECIFIED:
+            meta.state = self.state.to_proto()
         return meta
 
     def get_ttl_duration(self):
@@ -694,6 +725,9 @@ class FeatureView(BaseFeatureView):
         # Proto bool defaults to False, so old protos without this field
         # will correctly default to enabled=True.
         feature_view.enabled = not feature_view_proto.spec.disabled
+
+        # Restore lifecycle state from meta.
+        feature_view.state = FeatureViewState.from_proto(feature_view_proto.meta.state)
 
         # Restore version fields.
         spec_version = feature_view_proto.spec.version

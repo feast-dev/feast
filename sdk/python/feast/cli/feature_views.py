@@ -4,7 +4,7 @@ import yaml
 from feast import utils
 from feast.cli.cli_options import tagsOption
 from feast.errors import FeastObjectNotFoundException
-from feast.feature_view import FeatureView
+from feast.feature_view import FeatureView, FeatureViewState
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_operations import create_feature_store
 
@@ -60,12 +60,17 @@ def feature_view_list(ctx: click.Context, tags: list[str]):
             for backing_fv in feature_view.source_feature_view_projections.values():
                 entities.update(store.get_feature_view(backing_fv.name).entities)
         enabled = getattr(feature_view, "enabled", True)
+        state = getattr(feature_view, "state", FeatureViewState.STATE_UNSPECIFIED)
+        state_display = (
+            state.name if isinstance(state, FeatureViewState) else str(state)
+        )
         table.append(
             [
                 feature_view.name,
                 entities if len(entities) > 0 else "n/a",
                 type(feature_view).__name__,
                 "Yes" if enabled else "No",
+                state_display,
             ]
         )
 
@@ -73,7 +78,9 @@ def feature_view_list(ctx: click.Context, tags: list[str]):
 
     print(
         tabulate(
-            table, headers=["NAME", "ENTITIES", "TYPE", "ENABLED"], tablefmt="plain"
+            table,
+            headers=["NAME", "ENTITIES", "TYPE", "ENABLED", "STATE"],
+            tablefmt="plain",
         )
     )
 
@@ -122,6 +129,37 @@ def feature_view_disable(ctx: click.Context, name: str):
     fv.enabled = False
     store.registry.apply_feature_view(fv, store.project)
     print(f"Feature view '{name}' has been disabled.")
+
+
+@feature_views_cmd.command("set-state")
+@click.argument("name", type=click.STRING)
+@click.argument(
+    "state",
+    type=click.Choice(
+        ["CREATED", "GENERATED", "MATERIALIZING", "AVAILABLE_ONLINE"],
+        case_sensitive=False,
+    ),
+)
+@click.pass_context
+def feature_view_set_state(ctx: click.Context, name: str, state: str):
+    """
+    Set the lifecycle state of a feature view.
+    """
+    store = create_feature_store(ctx)
+    try:
+        fv = store.registry.get_any_feature_view(name, store.project)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    new_state = FeatureViewState[state.upper()]
+    if hasattr(fv, "state") and fv.state == new_state:
+        print(f"Feature view '{name}' is already in state {new_state.name}.")
+        return
+
+    fv.state = new_state
+    store.registry.apply_feature_view(fv, store.project)
+    print(f"Feature view '{name}' state set to {new_state.name}.")
 
 
 @feature_views_cmd.command("list-versions")

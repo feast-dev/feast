@@ -37,6 +37,24 @@ else:
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class _FeatureViewState:
+    ValueType = _builtins.int
+    STATE_UNSPECIFIED: FeatureViewState.ValueType
+    CREATED: FeatureViewState.ValueType
+    GENERATED: FeatureViewState.ValueType
+    MATERIALIZING: FeatureViewState.ValueType
+    AVAILABLE_ONLINE: FeatureViewState.ValueType
+
+class FeatureViewState(_FeatureViewState, metaclass=_builtins.type): ...
+
+STATE_UNSPECIFIED: FeatureViewState.ValueType
+CREATED: FeatureViewState.ValueType
+GENERATED: FeatureViewState.ValueType
+MATERIALIZING: FeatureViewState.ValueType
+AVAILABLE_ONLINE: FeatureViewState.ValueType
+
+Global___FeatureViewState: _TypeAlias = FeatureViewState
+
 @_typing.final
 class FeatureView(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
@@ -215,10 +233,13 @@ class FeatureViewMeta(_message.Message):
     MATERIALIZATION_INTERVALS_FIELD_NUMBER: _builtins.int
     CURRENT_VERSION_NUMBER_FIELD_NUMBER: _builtins.int
     VERSION_ID_FIELD_NUMBER: _builtins.int
+    STATE_FIELD_NUMBER: _builtins.int
     current_version_number: _builtins.int
     """The current version number of this feature view in the version history."""
     version_id: _builtins.str
     """Auto-generated UUID identifying this specific version."""
+    state: Global___FeatureViewState.ValueType
+    """Lifecycle state of this feature view."""
     @_builtins.property
     def created_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Time where this Feature View is created"""
@@ -239,6 +260,7 @@ class FeatureViewMeta(_message.Message):
         materialization_intervals: _abc.Iterable[Global___MaterializationInterval] | None = ...,
         current_version_number: _builtins.int = ...,
         version_id: _builtins.str = ...,
+        state: Global___FeatureViewState.ValueType = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...

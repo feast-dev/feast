@@ -68,7 +68,12 @@ from feast.errors import (
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
-from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view import (
+    DUMMY_ENTITY,
+    DUMMY_ENTITY_NAME,
+    FeatureView,
+    FeatureViewState,
+)
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -834,7 +839,11 @@ class FeatureStore:
                 hide_dummy_entity=False
             )
             feature_views_to_materialize.extend(
-                [sfv for sfv in stream_feature_views_to_materialize if sfv.online and sfv.enabled]
+                [
+                    sfv
+                    for sfv in stream_feature_views_to_materialize
+                    if sfv.online and sfv.enabled
+                ]
             )
             on_demand_feature_views_to_materialize = self.list_on_demand_feature_views()
             feature_views_to_materialize.extend(
@@ -1825,6 +1834,13 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date) or _utc_now()
 
+                # Transition state to MATERIALIZING before starting.
+                if hasattr(feature_view, "state"):
+                    feature_view.state = FeatureViewState.MATERIALIZING
+                    self.registry.apply_feature_view(
+                        feature_view, self.project, commit=True
+                    )
+
                 fv_start = time.monotonic()
                 fv_success = True
                 try:
@@ -1848,6 +1864,11 @@ class FeatureStore:
                             fv_success,
                             time.monotonic() - fv_start,
                         )
+
+                # Transition state to AVAILABLE_ONLINE after successful materialization.
+                if hasattr(feature_view, "state"):
+                    feature_view.state = FeatureViewState.AVAILABLE_ONLINE
+
                 if not isinstance(feature_view, OnDemandFeatureView):
                     self.registry.apply_materialization(
                         feature_view,
@@ -1952,6 +1973,13 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date)
 
+                # Transition state to MATERIALIZING before starting.
+                if hasattr(feature_view, "state"):
+                    feature_view.state = FeatureViewState.MATERIALIZING
+                    self.registry.apply_feature_view(
+                        feature_view, self.project, commit=True
+                    )
+
                 fv_start = time.monotonic()
                 fv_success = True
                 try:
@@ -1976,6 +2004,10 @@ class FeatureStore:
                             fv_success,
                             time.monotonic() - fv_start,
                         )
+
+                # Transition state to AVAILABLE_ONLINE after successful materialization.
+                if hasattr(feature_view, "state"):
+                    feature_view.state = FeatureViewState.AVAILABLE_ONLINE
 
                 self.registry.apply_materialization(
                     feature_view,
