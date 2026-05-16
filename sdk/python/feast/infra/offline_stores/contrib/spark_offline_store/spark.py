@@ -1053,20 +1053,33 @@ class SparkRetrievalJob(RetrievalJob):
     ):
         """
         Run the retrieval and persist the results in the same offline store used for read.
-        Please note the persisting is done only within the scope of the spark session for local warehouse directory.
+        Supports both table-based and path-based SparkSource configurations.
+        For table-based: persists via saveAsTable (remote warehouse) or createOrReplaceTempView (local).
+        For path-based: writes directly to the specified path in the given file format.
         """
         assert isinstance(storage, SavedDatasetSparkStorage)
+
         table_name = storage.spark_options.table
-        if not table_name:
-            raise ValueError("Cannot persist, table_name is not defined")
-        if self._has_remote_warehouse_in_config():
-            file_format = storage.spark_options.file_format
+        path = storage.spark_options.path
+        file_format = storage.spark_options.file_format
+
+        if path:
             if not file_format:
-                self.to_spark_df().write.saveAsTable(table_name)
+                file_format = "parquet"
+            write_mode = "overwrite" if allow_overwrite else "error"
+            self.to_spark_df().write.format(file_format).mode(write_mode).save(path)
+        elif table_name:
+            if self._has_remote_warehouse_in_config():
+                if not file_format:
+                    self.to_spark_df().write.saveAsTable(table_name)
+                else:
+                    self.to_spark_df().write.format(file_format).saveAsTable(table_name)
             else:
-                self.to_spark_df().write.format(file_format).saveAsTable(table_name)
+                self.to_spark_df().createOrReplaceTempView(table_name)
         else:
-            self.to_spark_df().createOrReplaceTempView(table_name)
+            raise ValueError(
+                "Cannot persist: either 'table' or 'path' must be specified in SavedDatasetSparkStorage"
+            )
 
     def _has_remote_warehouse_in_config(self) -> bool:
         """
