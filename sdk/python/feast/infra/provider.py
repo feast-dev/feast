@@ -43,6 +43,7 @@ PROVIDERS_CLASS_FOR_TYPE = {
     "aws": "feast.infra.passthrough_provider.PassthroughProvider",
     "local": "feast.infra.passthrough_provider.PassthroughProvider",
     "azure": "feast.infra.passthrough_provider.PassthroughProvider",
+    "chronon": "feast.infra.chronon_provider.ChrononProvider",
 }
 
 
