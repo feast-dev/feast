@@ -1835,6 +1835,7 @@ class FeatureStore:
                 end_date = utils.make_tzaware(end_date) or _utc_now()
 
                 # Transition state to MATERIALIZING before starting.
+                previous_state = getattr(feature_view, "state", None)
                 if hasattr(feature_view, "state"):
                     feature_view.state = FeatureViewState.MATERIALIZING
                     self.registry.apply_feature_view(
@@ -1855,6 +1856,12 @@ class FeatureStore:
                     )
                 except Exception:
                     fv_success = False
+                    # Roll back state to previous value on failure.
+                    if hasattr(feature_view, "state") and previous_state is not None:
+                        feature_view.state = previous_state
+                        self.registry.apply_feature_view(
+                            feature_view, self.project, commit=True
+                        )
                     raise
                 finally:
                     _tracker = _get_track_materialization()
@@ -1974,6 +1981,7 @@ class FeatureStore:
                 end_date = utils.make_tzaware(end_date)
 
                 # Transition state to MATERIALIZING before starting.
+                previous_state = getattr(feature_view, "state", None)
                 if hasattr(feature_view, "state"):
                     feature_view.state = FeatureViewState.MATERIALIZING
                     self.registry.apply_feature_view(
@@ -1995,6 +2003,12 @@ class FeatureStore:
                     )
                 except Exception:
                     fv_success = False
+                    # Roll back state to previous value on failure.
+                    if hasattr(feature_view, "state") and previous_state is not None:
+                        feature_view.state = previous_state
+                        self.registry.apply_feature_view(
+                            feature_view, self.project, commit=True
+                        )
                     raise
                 finally:
                     _tracker = _get_track_materialization()
