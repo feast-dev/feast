@@ -57,14 +57,18 @@ def test_apply_with_fv_inference() -> None:
         driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
         driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
 
+        driver_stats_path_posix = driver_stats_path.replace("\\", "/")
+
         global_df = create_global_daily_stats_df(start_date, end_date)
         global_stats_path = os.path.join(data_dir, "global_stats.parquet")
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
+        global_stats_path_posix = global_stats_path.replace("\\", "/")
+
         with runner.local_repo(
             get_example_repo("example_feature_repo_with_feature_service_3.py")
-            .replace("%PARQUET_PATH%", driver_stats_path)
-            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            .replace("%PARQUET_PATH%", driver_stats_path_posix)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path_posix),
             "file",
         ) as store:
             assert len(store.list_feature_services()) == 2

@@ -150,6 +150,16 @@ def get_registry_store_class_from_type(registry_store_type: str):
 
 def get_registry_store_class_from_scheme(registry_path: str):
     uri = urlparse(registry_path)
+    # urlparse("/abs/path") => scheme == "" (POSIX absolute path)
+    # urlparse("C:\\abs\\path") => scheme == "c" (Windows drive letter)
+    # Both should be treated as local file paths.
+    if uri.scheme == "":
+        registry_store_type = REGISTRY_STORE_CLASS_FOR_SCHEME["file"]
+        return get_registry_store_class_from_type(registry_store_type)
+    if len(uri.scheme) == 1 and registry_path[1:3] in (":\\", ":/"):
+        registry_store_type = REGISTRY_STORE_CLASS_FOR_SCHEME["file"]
+        return get_registry_store_class_from_type(registry_store_type)
+
     if uri.scheme not in REGISTRY_STORE_CLASS_FOR_SCHEME:
         raise Exception(
             f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "

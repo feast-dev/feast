@@ -16,6 +16,7 @@ import logging
 import os
 import sqlite3
 import sys
+import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import (
@@ -340,10 +341,23 @@ class SqliteOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
-        try:
-            os.unlink(self._get_db_path(config))
-        except FileNotFoundError:
-            pass
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            finally:
+                self._conn = None
+
+        db_path = self._get_db_path(config)
+        for attempt in range(10):
+            try:
+                os.unlink(db_path)
+                return
+            except FileNotFoundError:
+                return
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.25)
 
     def retrieve_online_documents(
         self,
