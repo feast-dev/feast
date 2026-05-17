@@ -115,6 +115,51 @@ def test_python_values_to_proto_values_int_list_with_null_not_supported():
         _ = python_values_to_proto_values(arr, ValueType.INT32_LIST)
 
 
+class TestAthenaArrayStringConversion:
+    """Regression tests for Array(String) materialisation via Athena offline store.
+
+    Arrow/Athena deserialises Array(String) columns as numpy.ndarray with object
+    dtype rather than plain Python lists.  Two bugs were present:
+    - _validate_collection_item_types raised TypeError on None elements inside ndarrays.
+    - The generic list conversion path passed the ndarray directly to protobuf, which
+      rejects non-list inputs with TypeError.
+    """
+
+    def test_string_list_from_ndarray(self):
+        """Plain ndarray of strings converts without error."""
+        values = [np.array(["a", "b", "c"], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == ["a", "b", "c"]
+
+    def test_string_list_from_ndarray_with_none_elements(self):
+        """ndarray containing None elements (nullable Arrow column) converts without TypeError."""
+        values = [np.array(["a", None, "c"], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        # None elements are stripped (protobuf StringList cannot hold nulls)
+        assert result == ["a", "c"]
+
+    def test_string_list_from_empty_ndarray(self):
+        """Empty ndarray (entity row with no array values) converts to empty list."""
+        values = [np.array([], dtype=object)]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == []
+
+    def test_string_list_mixed_null_and_ndarray_rows(self):
+        """Mix of None rows (null feature) and ndarray rows converts correctly."""
+        values = [
+            np.array(["x", "y"], dtype=object),
+            None,
+            np.array(["z"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert feast_value_type_to_python_type(protos[0]) == ["x", "y"]
+        assert feast_value_type_to_python_type(protos[1]) is None
+        assert feast_value_type_to_python_type(protos[2]) == ["z"]
+
+
 class TestMapTypes:
     """Test cases for MAP and MAP_LIST value types."""
 

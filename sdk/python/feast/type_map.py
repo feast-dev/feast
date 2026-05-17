@@ -739,7 +739,11 @@ def _validate_collection_item_types(
     """
     if sample is None:
         return
-    if all(type(item) in valid_types for item in sample):
+    # Arrow/Athena deserialises Array columns as numpy.ndarray with object dtype;
+    # coerce to a plain list so element-level checks work uniformly.
+    items = sample.tolist() if isinstance(sample, np.ndarray) else sample
+    # None elements are valid in nullable Arrow columns — skip them when checking types.
+    if all(type(item) in valid_types for item in items if item is not None):
         return
 
     # to_numpy() upcasts INT32/INT64 with NULL to Float64 automatically
@@ -749,11 +753,13 @@ def _validate_collection_item_types(
         ValueType.INT32_SET,
         ValueType.INT64_SET,
     ]
-    for item in sample:
+    for item in items:
+        if item is None:
+            continue
         if type(item) not in valid_types:
             if feast_value_type in int_collection_types:
                 # Check if the float values are due to NULL upcast
-                if not any(np.isnan(i) for i in sample if isinstance(i, float)):
+                if not any(np.isnan(i) for i in items if isinstance(i, float)):
                     logger.error(
                         f"{feast_value_type.name} has NULL values. to_numpy() upcasts to Float64 automatically."
                     )
@@ -945,9 +951,24 @@ def _convert_list_values_to_proto(
             for value in values
         ]
 
-    # Generic list conversion
+    # Generic list conversion.
+    # Arrow/Athena may return each row as a numpy.ndarray (object dtype) rather
+    # than a plain Python list.  Protobuf rejects ndarray directly, so coerce to
+    # list and strip None elements (which protobuf fixed-type lists cannot hold).
     return [
-        ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore[arg-type]
+        ProtoValue(
+            **{
+                field_name: proto_type(  # type: ignore[arg-type]
+                    val=[
+                        v
+                        for v in (
+                            value.tolist() if isinstance(value, np.ndarray) else value
+                        )
+                        if v is not None
+                    ]
+                )
+            }
+        )
         if value is not None
         else ProtoValue()
         for value in values
