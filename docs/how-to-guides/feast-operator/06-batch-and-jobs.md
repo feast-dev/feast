@@ -63,6 +63,33 @@ spec:
 > For engine-specific YAML options (Spark conf, Ray address, etc.) see the
 > [Feast SDK — Compute Engine](../reference/compute-engine/) docs.
 
+### KubeRay clusters — auto-generated RBAC
+
+When the batch-engine ConfigMap selects the Ray engine in KubeRay mode:
+
+```yaml
+data:
+  config: |
+    type: ray.engine
+    use_kuberay: true
+    cluster_name: my-ray-cluster
+```
+
+the operator creates a namespace-scoped `Role` and `RoleBinding` named
+`feast-<crName>-kuberay`, owner-referenced to the `FeatureStore`. The Role
+grants the Feast service account:
+
+| API group | Resource | Verbs |
+|-----------|----------|-------|
+| `ray.io` | `rayclusters` | `get`, `list`, `watch` |
+| (core) | `secrets` | `get`, `list`, `watch`, `create`, `update`, `delete` |
+
+This is what the CodeFlare SDK needs to discover the `RayCluster` and read
+the mTLS Secrets used for the Ray client connection. When you flip
+`use_kuberay` back to `false` (or remove the `batchEngine` field), the
+Role and RoleBinding are deleted on the next reconcile. No manual RBAC
+setup is required.
+
 ---
 
 ## Scheduled Materialization (`spec.cronJob`)
