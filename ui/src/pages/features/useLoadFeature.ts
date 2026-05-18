@@ -9,10 +9,6 @@ const useLoadFeature = (featureViewName: string, featureName: string) => {
   const fvQuery = useResourceQuery<any>({
     resourceType: `feature:${featureViewName}:${featureName}`,
     project: projectName,
-    protoSelect: (d) =>
-      d.objects.featureViews?.find(
-        (fv: any) => fv?.spec?.name === featureViewName,
-      ),
     restPath: featureDetailPath(
       featureViewName,
       featureName,

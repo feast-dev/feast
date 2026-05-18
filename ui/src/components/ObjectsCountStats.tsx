@@ -26,7 +26,6 @@ const ObjectsCountStats = () => {
   const { data: featureServices, isSuccess: fsOk } = useResourceQuery<any[]>({
     resourceType: "stats-fs",
     project: projectName,
-    protoSelect: (d) => d.objects.featureServices,
     restPath: featureServiceListPath(projectName),
     restSelect: (d) => d.featureServices,
   });
@@ -36,7 +35,6 @@ const ObjectsCountStats = () => {
   >({
     resourceType: "stats-fvs",
     project: projectName,
-    protoSelect: (d) => d.mergedFVList,
     restPath: featureViewListPath(projectName),
     restSelect: restFeatureViewsToMergedList,
   });
@@ -44,7 +42,6 @@ const ObjectsCountStats = () => {
   const { data: entities, isSuccess: entOk } = useResourceQuery<any[]>({
     resourceType: "stats-ent",
     project: projectName,
-    protoSelect: (d) => d.objects.entities,
     restPath: entityListPath(projectName),
     restSelect: (d) => d.entities,
   });
@@ -52,7 +49,6 @@ const ObjectsCountStats = () => {
   const { data: dataSources, isSuccess: dsOk } = useResourceQuery<any[]>({
     resourceType: "stats-ds",
     project: projectName,
-    protoSelect: (d) => d.objects.dataSources,
     restPath: dataSourceListPath(projectName),
     restSelect: (d) => d.dataSources,
   });

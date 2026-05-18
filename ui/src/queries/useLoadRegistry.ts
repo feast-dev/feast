@@ -4,16 +4,14 @@ import parseEntityRelationships, {
   EntityRelation,
 } from "../parsers/parseEntityRelationships";
 import parseIndirectRelationships from "../parsers/parseIndirectRelationships";
-import { feast } from "../protos";
 import { useDataMode } from "../contexts/DataModeContext";
-import { useLoadProjectsList } from "../contexts/ProjectListContext";
 import restFetch from "./restApiClient";
-import type { DataMode, FetchOptions } from "../contexts/DataModeContext";
+import type { FetchOptions } from "../contexts/DataModeContext";
 
 interface FeatureStoreAllData {
   project: string;
   description?: string;
-  objects: feast.core.Registry;
+  objects: any;
   relationships: EntityRelation[];
   mergedFVMap: Record<string, genericFVType>;
   mergedFVList: genericFVType[];
@@ -30,7 +28,7 @@ interface Feature {
 }
 
 // ---------------------------------------------------------------------------
-// Shared post-processing
+// Shared post-processing (used by the bulk REST fetch)
 // ---------------------------------------------------------------------------
 
 const assembleFeatureStoreData = (
@@ -53,7 +51,7 @@ const assembleFeatureStoreData = (
           type:
             feature.valueType != null
               ? typeof feature.valueType === "number"
-                ? feast.types.ValueType.Enum[feature.valueType]
+                ? String(feature.valueType)
                 : feature.valueType
               : "Unknown Type",
           project: fv?.spec?.project || fv?.project,
@@ -64,16 +62,14 @@ const assembleFeatureStoreData = (
     projectName === "all"
       ? "All Projects"
       : projectName ||
-        (process.env.NODE_ENV === "test"
-          ? "credit_scoring_aws"
-          : objects.projects &&
-              objects.projects.length > 0 &&
-              objects.projects[0].spec &&
-              objects.projects[0].spec.name
-            ? objects.projects[0].spec.name
-            : objects.project
-              ? objects.project
-              : "credit_scoring_aws");
+        (objects.projects &&
+        objects.projects.length > 0 &&
+        objects.projects[0].spec &&
+        objects.projects[0].spec.name
+          ? objects.projects[0].spec.name
+          : objects.project
+            ? objects.project
+            : "default");
 
   let projectDescription: string | undefined;
   if (projectName === "all") {
@@ -96,172 +92,12 @@ const assembleFeatureStoreData = (
     relationships,
     indirectRelationships,
     allFeatures,
-    permissions:
-      objects.permissions && objects.permissions.length > 0
-        ? objects.permissions
-        : [
-            {
-              spec: {
-                name: "zipcode-features-reader",
-                types: [2],
-                name_patterns: ["zipcode_features"],
-                policy: { roles: ["analyst", "data_scientist"] },
-                actions: [1, 4, 5],
-              },
-            },
-            {
-              spec: {
-                name: "zipcode-source-writer",
-                types: [7],
-                name_patterns: ["zipcode"],
-                policy: { roles: ["admin", "data_engineer"] },
-                actions: [0, 2, 7],
-              },
-            },
-            {
-              spec: {
-                name: "credit-score-v1-reader",
-                types: [6],
-                name_patterns: ["credit_score_v1"],
-                policy: { roles: ["model_user", "data_scientist"] },
-                actions: [1, 4],
-              },
-            },
-            {
-              spec: {
-                name: "risky-features-reader",
-                types: [2, 6],
-                name_patterns: [],
-                required_tags: { stage: "prod" },
-                policy: { roles: ["trusted_analyst"] },
-                actions: [5],
-              },
-            },
-          ],
+    permissions: objects.permissions || [],
   };
 };
 
 // ---------------------------------------------------------------------------
-// Proto fetch strategy (original behaviour)
-// ---------------------------------------------------------------------------
-
-const fetchProto = async (
-  url: string,
-  projectName?: string,
-): Promise<FeatureStoreAllData> => {
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-  });
-
-  const contentType = res.headers.get("content-type");
-  let data;
-  if (contentType && contentType.includes("application/json")) {
-    data = await res.json();
-  } else {
-    data = await res.arrayBuffer();
-  }
-
-  let objects: any;
-  if (data instanceof ArrayBuffer) {
-    objects = feast.core.Registry.decode(new Uint8Array(data));
-  } else {
-    objects = data;
-  }
-
-  if (!objects.featureViews) {
-    objects.featureViews = [];
-  }
-
-  if (projectName && projectName !== "all") {
-    const projectsInRegistry = new Set<string>();
-    objects.featureViews?.forEach((fv: any) => {
-      if (fv?.spec?.project) projectsInRegistry.add(fv.spec.project);
-    });
-    objects.entities?.forEach((entity: any) => {
-      if (entity?.spec?.project) projectsInRegistry.add(entity.spec.project);
-    });
-
-    const shouldFilter =
-      projectsInRegistry.size > 1 || projectsInRegistry.has(projectName);
-
-    if (shouldFilter && projectsInRegistry.has(projectName)) {
-      if (objects.featureViews) {
-        objects.featureViews = objects.featureViews.filter(
-          (fv: any) => fv?.spec?.project === projectName,
-        );
-      }
-      if (objects.entities) {
-        objects.entities = objects.entities.filter(
-          (entity: any) => entity?.spec?.project === projectName,
-        );
-      }
-      if (objects.dataSources) {
-        objects.dataSources = objects.dataSources.filter(
-          (ds: any) => ds?.project === projectName,
-        );
-      }
-      if (objects.featureServices) {
-        objects.featureServices = objects.featureServices.filter(
-          (fs: any) => fs?.spec?.project === projectName,
-        );
-      }
-      if (objects.onDemandFeatureViews) {
-        objects.onDemandFeatureViews = objects.onDemandFeatureViews.filter(
-          (odfv: any) => odfv?.spec?.project === projectName,
-        );
-      }
-      if (objects.streamFeatureViews) {
-        objects.streamFeatureViews = objects.streamFeatureViews.filter(
-          (sfv: any) => sfv?.spec?.project === projectName,
-        );
-      }
-      if (objects.savedDatasets) {
-        objects.savedDatasets = objects.savedDatasets.filter(
-          (sd: any) => sd?.spec?.project === projectName,
-        );
-      }
-      if (objects.validationReferences) {
-        objects.validationReferences = objects.validationReferences.filter(
-          (vr: any) => vr?.project === projectName,
-        );
-      }
-      if (objects.permissions) {
-        objects.permissions = objects.permissions.filter(
-          (perm: any) =>
-            perm?.spec?.project === projectName || !perm?.spec?.project,
-        );
-      }
-    }
-  }
-
-  if (
-    process.env.NODE_ENV === "test" &&
-    objects.featureViews.length === 0
-  ) {
-    try {
-      const fs = require("fs");
-      const path = require("path");
-      const { feast } = require("../protos");
-      const registry = fs.readFileSync(
-        path.resolve(__dirname, "../../public/registry.db"),
-      );
-      const parsedRegistry = feast.core.Registry.decode(registry);
-      if (
-        parsedRegistry.featureViews &&
-        parsedRegistry.featureViews.length > 0
-      ) {
-        objects.featureViews = parsedRegistry.featureViews;
-      }
-    } catch (e) {
-      console.error("Error loading test registry:", e);
-    }
-  }
-
-  return assembleFeatureStoreData(objects, projectName);
-};
-
-// ---------------------------------------------------------------------------
-// REST fetch strategy (rest / rest-external)
+// REST fetch strategy
 // ---------------------------------------------------------------------------
 
 const fetchREST = async (
@@ -358,55 +194,21 @@ const fetchREST = async (
 };
 
 // ---------------------------------------------------------------------------
-// Resolve effective mode
-// ---------------------------------------------------------------------------
-
-const useResolvedMode = (): DataMode => {
-  const { mode: configMode } = useDataMode();
-  const { data: projectsData } = useLoadProjectsList();
-  const projectListMode = (projectsData as any)?.mode as
-    | DataMode
-    | undefined;
-
-  if (configMode && configMode !== "proto") {
-    return configMode;
-  }
-  if (projectListMode) {
-    return projectListMode;
-  }
-  return configMode || "proto";
-};
-
-// ---------------------------------------------------------------------------
 // Public hook
 // ---------------------------------------------------------------------------
 
 const useLoadRegistry = (url: string, projectName?: string) => {
-  const resolvedMode = useResolvedMode();
   const { fetchOptions } = useDataMode();
 
-  // Proto mode uses the same key format as useResourceQuery so all hooks
-  // that need the proto registry share a single cached fetch.
-  const queryKey =
-    resolvedMode === "proto"
-      ? ["proto-registry", url, projectName || "all"]
-      : ["registry-rest-bulk", url, projectName || "all"];
-
   return useQuery(
-    queryKey,
-    () => {
-      if (resolvedMode === "proto") {
-        return fetchProto(url, projectName);
-      }
-      return fetchREST(url, projectName, fetchOptions);
-    },
+    ["registry-rest-bulk", url, projectName || "all"],
+    () => fetchREST(url, projectName, fetchOptions),
     {
-      staleTime: resolvedMode === "proto" ? Infinity : 30_000,
+      staleTime: 30_000,
       enabled: !!url,
     },
   );
 };
 
 export default useLoadRegistry;
-export { fetchProto, useResolvedMode };
 export type { FeatureStoreAllData };

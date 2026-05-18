@@ -18,7 +18,6 @@ const useLoadEntities = () => {
   return useResourceQuery<any[]>({
     resourceType: "entities-list",
     project: projectName,
-    protoSelect: (d) => d.objects.entities,
     restPath: entityListPath(projectName),
     restSelect: (d) => d.entities,
   });

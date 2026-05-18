@@ -44,17 +44,19 @@ type FeatureColumn =
 
 const FeatureListPage = () => {
   const { projectName } = useParams();
-  const { data: features, isLoading, isError } = useResourceQuery<any[]>({
+  const {
+    data: features,
+    isLoading,
+    isError,
+  } = useResourceQuery<any[]>({
     resourceType: "features-list",
     project: projectName,
-    protoSelect: (d) => d.allFeatures,
     restPath: featuresListPath(projectName),
     restSelect: (d) => d.features,
   });
   const { data: permissions } = useResourceQuery<any[]>({
     resourceType: "permissions",
     project: projectName,
-    protoSelect: (d) => d.permissions,
     restPath: `/permissions?project=${encodeURIComponent(projectName || "")}`,
     restSelect: (d) => d.permissions,
   });
@@ -67,23 +69,18 @@ const FeatureListPage = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(100);
 
-  const featuresWithPermissions: Feature[] = (features || []).map(
-    (feature) => {
-      return {
-        ...feature,
-        permissions: getEntityPermissions(
-          selectedPermissionAction
-            ? filterPermissionsByAction(
-                permissions,
-                selectedPermissionAction,
-              )
-            : permissions,
-          FEAST_FCO_TYPES.featureView,
-          feature.featureView,
-        ),
-      };
-    },
-  );
+  const featuresWithPermissions: Feature[] = (features || []).map((feature) => {
+    return {
+      ...feature,
+      permissions: getEntityPermissions(
+        selectedPermissionAction
+          ? filterPermissionsByAction(permissions, selectedPermissionAction)
+          : permissions,
+        FEAST_FCO_TYPES.featureView,
+        feature.featureView,
+      ),
+    };
+  });
 
   const enrichedFeatures: Feature[] = featuresWithPermissions;
 

@@ -35,7 +35,6 @@ const useLoadFeatureServices = () => {
   return useResourceQuery<any[]>({
     resourceType: "feature-services-list",
     project: projectName,
-    protoSelect: (d) => d.objects.featureServices,
     restPath: featureServiceListPath(projectName),
     restSelect: (d) => d.featureServices,
   });

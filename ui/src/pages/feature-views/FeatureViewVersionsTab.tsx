@@ -160,7 +160,7 @@ const FeatureViewVersionsTab = ({
         r.featureViewName === featureViewName,
     ) || [];
 
-  const decodedVersions = useMemo(
+  const decodedVersions: DecodedVersion[] = useMemo(
     () => records.map(decodeVersionProto),
     [records],
   );

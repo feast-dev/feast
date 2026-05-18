@@ -17,7 +17,6 @@ const useLoadSavedDataSets = () => {
   return useResourceQuery<any[]>({
     resourceType: "saved-datasets-list",
     project: projectName,
-    protoSelect: (d) => d.objects.savedDatasets,
     restPath: savedDatasetListPath(projectName),
     restSelect: (d) => d.savedDatasets,
   });

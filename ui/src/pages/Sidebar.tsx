@@ -29,7 +29,6 @@ const SideNav = () => {
   const { isSuccess: dsSuccess, data: dataSources } = useResourceQuery<any[]>({
     resourceType: "sidebar-ds",
     project: projectName,
-    protoSelect: (d) => d.objects.dataSources,
     restPath: dataSourceListPath(projectName),
     restSelect: (d) => d.dataSources,
   });
@@ -37,7 +36,6 @@ const SideNav = () => {
   const { isSuccess: entSuccess, data: entities } = useResourceQuery<any[]>({
     resourceType: "sidebar-entities",
     project: projectName,
-    protoSelect: (d) => d.objects.entities,
     restPath: entityListPath(projectName),
     restSelect: (d) => d.entities,
   });
@@ -47,7 +45,6 @@ const SideNav = () => {
   >({
     resourceType: "sidebar-fvs",
     project: projectName,
-    protoSelect: (d) => d.mergedFVList,
     restPath: featureViewListPath(projectName),
     restSelect: restFeatureViewsToMergedList,
   });
@@ -55,7 +52,6 @@ const SideNav = () => {
   const { isSuccess: featSuccess, data: features } = useResourceQuery<any[]>({
     resourceType: "sidebar-features",
     project: projectName,
-    protoSelect: (d) => d.allFeatures,
     restPath: featuresListPath(projectName),
     restSelect: (d) => d.features,
   });
@@ -65,20 +61,18 @@ const SideNav = () => {
   >({
     resourceType: "sidebar-fs",
     project: projectName,
-    protoSelect: (d) => d.objects.featureServices,
     restPath: featureServiceListPath(projectName),
     restSelect: (d) => d.featureServices,
   });
 
-  const { isSuccess: sdSuccess, data: savedDatasets } = useResourceQuery<
-    any[]
-  >({
-    resourceType: "sidebar-sd",
-    project: projectName,
-    protoSelect: (d) => d.objects.savedDatasets,
-    restPath: savedDatasetListPath(projectName),
-    restSelect: (d) => d.savedDatasets,
-  });
+  const { isSuccess: sdSuccess, data: savedDatasets } = useResourceQuery<any[]>(
+    {
+      resourceType: "sidebar-sd",
+      project: projectName,
+      restPath: savedDatasetListPath(projectName),
+      restSelect: (d) => d.savedDatasets,
+    },
+  );
 
   const [isSideNavOpenOnMobile, setisSideNavOpenOnMobile] = useState(false);
 
@@ -134,9 +128,7 @@ const SideNav = () => {
           name: featureListLabel,
           id: htmlIdGenerator("featureList")(),
           icon: <EuiIcon type={FeatureIcon} />,
-          renderItem: (props) => (
-            <Link {...props} to={`${baseUrl}/features`} />
-          ),
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/features`} />,
           isSelected: useMatchSubpath(`${baseUrl}/features`),
         },
         {
@@ -161,9 +153,7 @@ const SideNav = () => {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
           icon: <EuiIcon type={DatasetIcon} />,
-          renderItem: (props) => (
-            <Link {...props} to={`${baseUrl}/data-set`} />
-          ),
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/data-set`} />,
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
         {

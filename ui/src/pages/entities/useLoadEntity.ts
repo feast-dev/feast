@@ -9,8 +9,6 @@ const useLoadEntity = (entityName: string) => {
   return useResourceQuery<any>({
     resourceType: `entity:${entityName}`,
     project: projectName,
-    protoSelect: (d) =>
-      d.objects.entities?.find((e: any) => e?.spec?.name === entityName),
     restPath: entityDetailPath(entityName, projectName || ""),
     restSelect: (d) => d,
     enabled: !!entityName,

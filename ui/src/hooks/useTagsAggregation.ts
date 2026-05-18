@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { feast } from "../protos";
 import useResourceQuery, {
   featureViewListPath,
   featureServiceListPath,
@@ -43,7 +42,6 @@ const useFeatureViewTagsAggregation = () => {
   const query = useResourceQuery<any[]>({
     resourceType: "tags-fvs",
     project: projectName,
-    protoSelect: (d) => d.objects.featureViews,
     restPath: featureViewListPath(projectName),
     restSelect: (d) => d.featureViews,
   });
@@ -65,7 +63,6 @@ const useFeatureServiceTagsAggregation = () => {
   const query = useResourceQuery<any[]>({
     resourceType: "tags-fss",
     project: projectName,
-    protoSelect: (d) => d.objects.featureServices,
     restPath: featureServiceListPath(projectName),
     restSelect: (d) => d.featureServices,
   });

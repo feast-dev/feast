@@ -32,35 +32,30 @@ const AllProjectsDashboard = () => {
 
   const { data: allFVs } = useResourceQuery<genericFVType[]>({
     resourceType: "all-proj-fvs",
-    protoSelect: (d) => d.mergedFVList,
     restPath: "/feature_views/all?limit=100&include_relationships=true",
     restSelect: restFeatureViewsToMergedList,
   });
 
   const { data: allEntities } = useResourceQuery<any[]>({
     resourceType: "all-proj-entities",
-    protoSelect: (d) => d.objects.entities,
     restPath: "/entities/all?limit=100",
     restSelect: (d) => d.entities,
   });
 
   const { data: allDS } = useResourceQuery<any[]>({
     resourceType: "all-proj-ds",
-    protoSelect: (d) => d.objects.dataSources,
     restPath: "/data_sources/all?limit=100",
     restSelect: (d) => d.dataSources,
   });
 
   const { data: allFS } = useResourceQuery<any[]>({
     resourceType: "all-proj-fs",
-    protoSelect: (d) => d.objects.featureServices,
     restPath: "/feature_services/all?limit=100",
     restSelect: (d) => d.featureServices,
   });
 
   const { data: allFeatures } = useResourceQuery<any[]>({
     resourceType: "all-proj-features",
-    protoSelect: (d) => d.allFeatures,
     restPath: "/features/all?limit=100",
     restSelect: (d) => d.features,
   });
@@ -86,9 +81,8 @@ const AllProjectsDashboard = () => {
     return {
       ...project,
       counts: {
-        featureViews: allFVs.filter((fv) =>
-          matchesProject(fv.object || fv),
-        ).length,
+        featureViews: allFVs.filter((fv) => matchesProject(fv.object || fv))
+          .length,
         entities: allEntities.filter(matchesProject).length,
         features: allFeatures.filter(matchesProject).length,
       },
@@ -261,10 +255,10 @@ const ProjectOverviewPage = () => {
                   Services registered in Feast.
                 </p>
                 <p>
-                  It looks like this project already has some objects registered.
-                  If you are new to this project, we suggest starting by
-                  exploring the Feature Services, as they represent the
-                  collection of Feature Views serving a particular model.
+                  It looks like this project already has some objects
+                  registered. If you are new to this project, we suggest
+                  starting by exploring the Feature Services, as they represent
+                  the collection of Feature Views serving a particular model.
                 </p>
                 <p>
                   <strong>Note</strong>: We encourage you to replace this

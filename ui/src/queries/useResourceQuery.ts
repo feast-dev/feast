@@ -2,63 +2,42 @@ import { useContext } from "react";
 import { useQuery, UseQueryResult } from "react-query";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import { useDataMode } from "../contexts/DataModeContext";
-import { useResolvedMode, fetchProto } from "./useLoadRegistry";
 import restFetch from "./restApiClient";
-import type { FeatureStoreAllData } from "./useLoadRegistry";
 import { FEAST_FV_TYPES, genericFVType } from "../parsers/mergedFVTypes";
 
 interface ResourceQueryOptions<T> {
   resourceType: string;
   project?: string;
-  protoSelect: (data: FeatureStoreAllData) => T | undefined;
   restPath: string;
   restSelect?: (data: any) => T | undefined;
   enabled?: boolean;
 }
 
 /**
- * Generic mode-aware hook for fetching a specific resource slice.
+ * Generic hook for fetching a specific resource slice via REST API.
  *
- * Proto mode: all callers sharing the same (registryUrl, project) key
- * hit one cached fetch; each caller uses `select` to extract its slice.
- *
- * REST mode: each caller fires its own lightweight endpoint request.
+ * Each caller fires its own lightweight endpoint request, and react-query
+ * deduplicates identical keys automatically.
  */
 function useResourceQuery<T>({
   resourceType,
   project,
-  protoSelect,
   restPath,
   restSelect,
   enabled = true,
 }: ResourceQueryOptions<T>): UseQueryResult<T | undefined> {
-  const mode = useResolvedMode();
   const registryUrl = useContext(RegistryPathContext);
   const { fetchOptions } = useDataMode();
 
-  const protoResult = useQuery<FeatureStoreAllData, Error, T | undefined>(
-    ["proto-registry", registryUrl, project || "all"],
-    () => fetchProto(registryUrl, project),
-    {
-      enabled: mode === "proto" && !!registryUrl && enabled,
-      staleTime: Infinity,
-      select: protoSelect,
-    },
-  );
-
-  const restResult = useQuery<any, Error, T | undefined>(
+  return useQuery<any, Error, T | undefined>(
     ["rest", resourceType, registryUrl, project || "all"],
     () => restFetch<any>(registryUrl, restPath, fetchOptions),
     {
-      enabled: mode !== "proto" && !!registryUrl && enabled,
+      enabled: !!registryUrl && enabled,
       staleTime: 30_000,
       select: restSelect,
     },
   );
-
-  return (mode === "proto" ? protoResult : restResult) as UseQueryResult<
-    T | undefined
-  >;
 }
 
 // ---------------------------------------------------------------------------

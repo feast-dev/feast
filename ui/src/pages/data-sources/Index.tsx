@@ -27,7 +27,6 @@ const useLoadDatasources = () => {
   return useResourceQuery<any[]>({
     resourceType: "data-sources-list",
     project: projectName,
-    protoSelect: (d) => d.objects.dataSources,
     restPath: dataSourceListPath(projectName),
     restSelect: (d) => d.dataSources,
   });

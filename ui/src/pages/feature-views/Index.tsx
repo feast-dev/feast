@@ -35,7 +35,6 @@ const useLoadFeatureViews = () => {
   return useResourceQuery<genericFVType[]>({
     resourceType: "feature-views-list",
     project: projectName,
-    protoSelect: (d) => d.mergedFVList,
     restPath: featureViewListPath(projectName),
     restSelect: restFeatureViewsToMergedList,
   });
