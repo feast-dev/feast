@@ -309,18 +309,9 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
         for f in body.features or []:
             feature_specs.append(FeatureSpecV2(name=f.name, value_type=f.value_type))
 
-        batch_source_proto = None
-        if body.batch_source:
-            try:
-                ds_req = RegistryServer_pb2.GetDataSourceRequest(
-                    name=body.batch_source,
-                    project=body.project,
-                    allow_cache=False,
-                )
-                grpc_call(grpc_handler.GetDataSource, ds_req)
-                batch_source_proto = DataSourceProto(name=body.batch_source)
-            except Exception:
-                batch_source_proto = DataSourceProto(name=body.batch_source)
+        batch_source_proto = (
+            DataSourceProto(name=body.batch_source) if body.batch_source else None
+        )
 
         ttl = Duration(seconds=body.ttl_seconds) if body.ttl_seconds else None
 
