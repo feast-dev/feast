@@ -65,7 +65,7 @@ const buildEditFormData = (
     const secs =
       typeof fv.spec.ttl.seconds === "number"
         ? fv.spec.ttl.seconds
-        : (fv.spec.ttl.seconds as any).toNumber?.() ?? 0;
+        : ((fv.spec.ttl.seconds as any).toNumber?.() ?? 0);
     if (secs > 0 && secs % 86400 === 0) {
       ttlValue = secs / 86400;
       ttlUnit = "days";
@@ -143,9 +143,7 @@ const RegularFeatureViewOverviewTab = ({
       description: formData.description,
       owner: formData.owner,
       tags: Object.fromEntries(
-        formData.tags
-          .filter((t) => t.key.trim())
-          .map((t) => [t.key, t.value]),
+        formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
       ),
     };
     applyFeatureView.mutate(payload, {

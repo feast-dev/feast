@@ -34,7 +34,12 @@ export const UIVersionProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <UIVersionContext.Provider
-      value={{ uiVersion, isV2: uiVersion === "v2", setUIVersion, toggleVersion }}
+      value={{
+        uiVersion,
+        isV2: uiVersion === "v2",
+        setUIVersion,
+        toggleVersion,
+      }}
     >
       {children}
     </UIVersionContext.Provider>

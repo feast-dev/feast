@@ -223,7 +223,10 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
               placeholder="project:dataset.table"
             />
           </EuiFormRow>
-          <EuiFormRow label="Query" helpText="Alternative to table: a SQL query">
+          <EuiFormRow
+            label="Query"
+            helpText="Alternative to table: a SQL query"
+          >
             <EuiFieldText
               value={formData.bigqueryQuery}
               onChange={(e) => updateField("bigqueryQuery", e.target.value)}
@@ -252,9 +255,7 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
           <EuiFormRow label="Database">
             <EuiFieldText
               value={formData.snowflakeDatabase}
-              onChange={(e) =>
-                updateField("snowflakeDatabase", e.target.value)
-              }
+              onChange={(e) => updateField("snowflakeDatabase", e.target.value)}
               placeholder="MY_DATABASE"
             />
           </EuiFormRow>
@@ -282,9 +283,7 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
           <EuiFormRow label="Database">
             <EuiFieldText
               value={formData.redshiftDatabase}
-              onChange={(e) =>
-                updateField("redshiftDatabase", e.target.value)
-              }
+              onChange={(e) => updateField("redshiftDatabase", e.target.value)}
               placeholder="my_database"
             />
           </EuiFormRow>

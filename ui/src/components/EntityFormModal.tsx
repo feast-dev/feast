@@ -198,9 +198,7 @@ const EntityFormModal: React.FC<EntityFormModalProps> = ({
               value={key}
               onChange={(e) => updateJoinKey(index, e.target.value)}
               placeholder={
-                index === 0
-                  ? "e.g. customer_id"
-                  : "e.g. timestamp_field"
+                index === 0 ? "e.g. customer_id" : "e.g. timestamp_field"
               }
               compressed
               isInvalid={!!errors.joinKeys && !key.trim()}
