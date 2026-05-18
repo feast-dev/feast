@@ -2058,7 +2058,9 @@ def test_apply_and_delete_data_source_via_rest(fastapi_test_app):
     assert data["status"] == "applied"
 
     # Verify it exists
-    response = fastapi_test_app.get("/data_sources/test_file_source?project=demo_project")
+    response = fastapi_test_app.get(
+        "/data_sources/test_file_source?project=demo_project"
+    )
     assert response.status_code == 200
     assert response.json()["name"] == "test_file_source"
 
@@ -2072,7 +2074,9 @@ def test_apply_and_delete_data_source_via_rest(fastapi_test_app):
     assert data["status"] == "deleted"
 
     # Verify it's gone
-    response = fastapi_test_app.get("/data_sources/test_file_source?project=demo_project")
+    response = fastapi_test_app.get(
+        "/data_sources/test_file_source?project=demo_project"
+    )
     assert response.status_code == 404
 
 
