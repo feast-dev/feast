@@ -32,6 +32,7 @@ import FeatureViewEdgesList from "./FeatureViewEdgesList";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
 import { useUIVersion } from "../../contexts/UIVersionContext";
+import { useApplyEntity } from "../../queries/mutations/useEntityMutations";
 
 const buildEditFormData = (entity: feast.core.IEntity): EntityFormData => {
   const tags = entity.spec?.tags
@@ -73,14 +74,36 @@ const EntityOverviewTab = () => {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const applyEntity = useApplyEntity();
 
   const handleEditSubmit = (formData: EntityFormData) => {
-    console.log("Entity edit payload:", formData);
-    setIsEditModalOpen(false);
-    setSuccessMessage(
-      `Changes to "${formData.name}" are ready to apply. Backend integration coming soon.`,
-    );
-    setTimeout(() => setSuccessMessage(null), 5000);
+    const payload = {
+      name: formData.name,
+      project: projectName || "",
+      join_key: formData.joinKeys[0] || formData.name,
+      value_type: parseInt(formData.valueType, 10),
+      description: formData.description,
+      tags: Object.fromEntries(
+        formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
+      ),
+      owner: "",
+    };
+    applyEntity.mutate(payload, {
+      onSuccess: () => {
+        setIsEditModalOpen(false);
+        setErrorMessage(null);
+        setSuccessMessage(
+          `Entity "${formData.name}" updated successfully.`,
+        );
+        setTimeout(() => setSuccessMessage(null), 5000);
+      },
+      onError: (err: unknown) => {
+        const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+        setErrorMessage(message);
+        setTimeout(() => setErrorMessage(null), 8000);
+      },
+    });
   };
 
   return (
@@ -100,6 +123,17 @@ const EntityOverviewTab = () => {
                 title={successMessage}
                 color="success"
                 iconType="check"
+                size="s"
+              />
+              <EuiSpacer size="m" />
+            </>
+          )}
+          {errorMessage && (
+            <>
+              <EuiCallOut
+                title={errorMessage}
+                color="danger"
+                iconType="alert"
                 size="s"
               />
               <EuiSpacer size="m" />
