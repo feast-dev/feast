@@ -23,6 +23,7 @@ import ExportButton from "../../components/ExportButton";
 import DataSourceFormModal, {
   DataSourceFormData,
 } from "../../components/DataSourceFormModal";
+import { useApplyDataSource } from "../../queries/mutations/useDataSourceMutations";
 import { useUIVersion } from "../../contexts/UIVersionContext";
 import useResourceQuery, {
   dataSourceListPath,
@@ -42,23 +43,78 @@ const filterFn = (data: feast.core.IDataSource[], searchTokens: string[]) => {
   let filteredByTags = data;
 
   if (searchTokens.length) {
-    return filteredByTags.filter((entry) => {
+    return data.filter((entry) => {
+      const name = entry.name || entry.spec?.name || "";
       return searchTokens.find((token) => {
-        return (
-          token.length >= 3 && entry.name && entry.name.indexOf(token) >= 0
-        );
+        return token.length >= 3 && name.indexOf(token) >= 0;
       });
     });
   }
 
-  return filteredByTags;
+  return data;
+};
+
+const formDataToPayload = (formData: DataSourceFormData, project: string) => {
+  const payload: Record<string, any> = {
+    name: formData.name,
+    project,
+    type: parseInt(formData.sourceType, 10),
+    timestamp_field: formData.timestampField,
+    created_timestamp_column: formData.createdTimestampColumn,
+    description: formData.description,
+    owner: formData.owner,
+    tags: Object.fromEntries(
+      formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
+    ),
+  };
+
+  const st = formData.sourceType;
+  if (st === String(feast.core.DataSource.SourceType.BATCH_FILE)) {
+    payload.file_options = { uri: formData.fileUri };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_BIGQUERY)) {
+    payload.bigquery_options = {
+      table: formData.bigqueryTable,
+      query: formData.bigqueryQuery,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)) {
+    payload.snowflake_options = {
+      table: formData.snowflakeTable,
+      database: formData.snowflakeDatabase,
+      schema_: formData.snowflakeSchema,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
+    payload.redshift_options = {
+      table: formData.redshiftTable,
+      database: formData.redshiftDatabase,
+      schema_: formData.redshiftSchema,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
+    payload.kafka_options = {
+      kafka_bootstrap_servers: formData.kafkaBootstrapServers,
+      topic: formData.kafkaTopic,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
+    payload.spark_options = {
+      table: formData.sparkTable,
+      path: formData.sparkPath,
+    };
+  }
+
+  return payload;
 };
 
 const Index = () => {
-  const { isLoading, isSuccess, isError, data } = useLoadDatasources();
+  const { projectName } = useParams();
   const { isV2 } = useUIVersion();
+
+  const { isLoading, isSuccess, isError, data: queryData } =
+    useLoadDataSourcesREST(projectName || "");
+  const data = queryData?.dataSources;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const applyDataSource = useApplyDataSource();
 
   useDocumentTitle(`Data Sources | Feast`);
 
@@ -67,12 +123,23 @@ const Index = () => {
   const filterResult = data ? filterFn(data, searchTokens) : data;
 
   const handleCreateSubmit = (formData: DataSourceFormData) => {
-    console.log("Data source create payload:", formData);
-    setIsModalOpen(false);
-    setSuccessMessage(
-      `Data source "${formData.name}" is ready to be created. Backend integration coming soon.`,
-    );
-    setTimeout(() => setSuccessMessage(null), 5000);
+    const payload = formDataToPayload(formData, projectName || "");
+    applyDataSource.mutate(payload as any, {
+      onSuccess: () => {
+        setIsModalOpen(false);
+        setErrorMessage(null);
+        setSuccessMessage(
+          `Data source "${formData.name}" created successfully.`,
+        );
+        setTimeout(() => setSuccessMessage(null), 5000);
+      },
+      onError: (err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
+        setErrorMessage(message);
+        setTimeout(() => setErrorMessage(null), 8000);
+      },
+    });
   };
 
   return (
@@ -109,6 +176,17 @@ const Index = () => {
               title={successMessage}
               color="success"
               iconType="check"
+              size="s"
+            />
+            <EuiSpacer size="m" />
+          </>
+        )}
+        {errorMessage && (
+          <>
+            <EuiCallOut
+              title={errorMessage}
+              color="danger"
+              iconType="alert"
               size="s"
             />
             <EuiSpacer size="m" />

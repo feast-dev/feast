@@ -26,6 +26,7 @@ import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
 import useLoadFeatureUsage from "../../queries/useLoadFeatureUsage";
+import { useApplyFeatureView } from "../../queries/mutations/useFeatureViewMutations";
 import { getEntityPermissions } from "../../utils/permissionUtils";
 import BatchSourcePropertiesView from "../data-sources/BatchSourcePropertiesView";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
@@ -121,14 +122,52 @@ const RegularFeatureViewOverviewTab = ({
   const { isV2 } = useUIVersion();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const applyFeatureView = useApplyFeatureView();
+
+  const TTL_UNITS: Record<string, number> = {
+    days: 86400,
+    hours: 3600,
+    minutes: 60,
+    seconds: 1,
+  };
 
   const handleEditSubmit = (formData: FeatureViewFormData) => {
-    console.log("Feature view edit payload:", formData);
-    setIsEditModalOpen(false);
-    setSuccessMessage(
-      `Changes to "${formData.name}" are ready to apply. Backend integration coming soon.`,
-    );
-    setTimeout(() => setSuccessMessage(null), 5000);
+    const payload = {
+      name: formData.name,
+      project: projectName || "",
+      entities: formData.entities,
+      features: formData.features.map((f) => ({
+        name: f.name,
+        value_type: parseInt(f.valueType, 10),
+      })),
+      batch_source: formData.batchSource,
+      ttl_seconds: formData.ttlValue * (TTL_UNITS[formData.ttlUnit] || 1),
+      online: formData.online,
+      description: formData.description,
+      owner: formData.owner,
+      tags: Object.fromEntries(
+        formData.tags
+          .filter((t) => t.key.trim())
+          .map((t) => [t.key, t.value]),
+      ),
+    };
+    applyFeatureView.mutate(payload, {
+      onSuccess: () => {
+        setIsEditModalOpen(false);
+        setErrorMessage(null);
+        setSuccessMessage(
+          `Feature view "${formData.name}" updated successfully.`,
+        );
+        setTimeout(() => setSuccessMessage(null), 5000);
+      },
+      onError: (err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
+        setErrorMessage(message);
+        setTimeout(() => setErrorMessage(null), 8000);
+      },
+    });
   };
 
   const fvUsage = usageData?.feature_usage?.[fvName];
@@ -145,6 +184,17 @@ const RegularFeatureViewOverviewTab = ({
             title={successMessage}
             color="success"
             iconType="check"
+            size="s"
+          />
+          <EuiSpacer size="m" />
+        </>
+      )}
+      {errorMessage && (
+        <>
+          <EuiCallOut
+            title={errorMessage}
+            color="danger"
+            iconType="alert"
             size="s"
           />
           <EuiSpacer size="m" />

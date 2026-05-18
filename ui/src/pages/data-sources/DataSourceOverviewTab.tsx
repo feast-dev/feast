@@ -15,56 +15,115 @@ import {
   EuiDescriptionListDescription,
   EuiSpacer,
 } from "@elastic/eui";
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useParams } from "react-router-dom";
-import PermissionsDisplay from "../../components/PermissionsDisplay";
 import DataSourceFormModal, {
   DataSourceFormData,
 } from "../../components/DataSourceFormModal";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
-import { FEAST_FCO_TYPES } from "../../parsers/types";
 import { feast } from "../../protos";
-import useLoadRegistry from "../../queries/useLoadRegistry";
-import { getEntityPermissions } from "../../utils/permissionUtils";
+import { useApplyDataSource } from "../../queries/mutations/useDataSourceMutations";
 import BatchSourcePropertiesView from "./BatchSourcePropertiesView";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import RequestDataSourceSchemaTable from "./RequestDataSourceSchemaTable";
 import useLoadDataSource from "./useLoadDataSource";
 import { useUIVersion } from "../../contexts/UIVersionContext";
 
-const buildEditFormData = (ds: feast.core.IDataSource): DataSourceFormData => {
-  const tags = ds.tags
-    ? Object.entries(ds.tags).map(([key, value]) => ({ key, value }))
+const buildEditFormData = (ds: any): DataSourceFormData => {
+  const spec = ds.spec || ds;
+  const tags = spec.tags
+    ? Object.entries(spec.tags).map(([key, value]) => ({
+        key,
+        value: value as string,
+      }))
     : [];
 
   return {
-    name: ds.name || "",
-    description: ds.description || "",
-    owner: ds.owner || "",
-    sourceType: String(ds.type ?? 0),
-    timestampField: ds.timestampField || "",
-    createdTimestampColumn: ds.createdTimestampColumn || "",
+    name: spec.name || ds.name || "",
+    description: spec.description || ds.description || "",
+    owner: spec.owner || ds.owner || "",
+    sourceType: String(spec.type ?? ds.type ?? 0),
+    timestampField: spec.timestampField || ds.timestampField || "",
+    createdTimestampColumn:
+      spec.createdTimestampColumn || ds.createdTimestampColumn || "",
     tags,
-    fileUri: ds.fileOptions?.uri || "",
-    bigqueryTable: ds.bigqueryOptions?.table || "",
-    bigqueryQuery: ds.bigqueryOptions?.query || "",
-    snowflakeTable: ds.snowflakeOptions?.table || "",
-    snowflakeDatabase: ds.snowflakeOptions?.database || "",
-    snowflakeSchema: ds.snowflakeOptions?.schema || "",
-    redshiftTable: ds.redshiftOptions?.table || "",
-    redshiftDatabase: ds.redshiftOptions?.database || "",
-    redshiftSchema: ds.redshiftOptions?.schema || "",
-    kafkaBootstrapServers: ds.kafkaOptions?.kafkaBootstrapServers || "",
-    kafkaTopic: ds.kafkaOptions?.topic || "",
-    sparkTable: ds.sparkOptions?.table || "",
-    sparkPath: ds.sparkOptions?.path || "",
+    fileUri: spec.fileOptions?.uri || ds.fileOptions?.uri || "",
+    bigqueryTable:
+      spec.bigqueryOptions?.table || ds.bigqueryOptions?.table || "",
+    bigqueryQuery:
+      spec.bigqueryOptions?.query || ds.bigqueryOptions?.query || "",
+    snowflakeTable:
+      spec.snowflakeOptions?.table || ds.snowflakeOptions?.table || "",
+    snowflakeDatabase:
+      spec.snowflakeOptions?.database || ds.snowflakeOptions?.database || "",
+    snowflakeSchema:
+      spec.snowflakeOptions?.schema || ds.snowflakeOptions?.schema || "",
+    redshiftTable:
+      spec.redshiftOptions?.table || ds.redshiftOptions?.table || "",
+    redshiftDatabase:
+      spec.redshiftOptions?.database || ds.redshiftOptions?.database || "",
+    redshiftSchema:
+      spec.redshiftOptions?.schema || ds.redshiftOptions?.schema || "",
+    kafkaBootstrapServers:
+      spec.kafkaOptions?.kafkaBootstrapServers ||
+      ds.kafkaOptions?.kafkaBootstrapServers ||
+      "",
+    kafkaTopic: spec.kafkaOptions?.topic || ds.kafkaOptions?.topic || "",
+    sparkTable: spec.sparkOptions?.table || ds.sparkOptions?.table || "",
+    sparkPath: spec.sparkOptions?.path || ds.sparkOptions?.path || "",
   };
 };
 
+const formDataToPayload = (formData: DataSourceFormData, project: string) => {
+  const payload: Record<string, any> = {
+    name: formData.name,
+    project,
+    type: parseInt(formData.sourceType, 10),
+    timestamp_field: formData.timestampField,
+    created_timestamp_column: formData.createdTimestampColumn,
+    description: formData.description,
+    owner: formData.owner,
+    tags: Object.fromEntries(
+      formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
+    ),
+  };
+
+  const st = formData.sourceType;
+  if (st === String(feast.core.DataSource.SourceType.BATCH_FILE)) {
+    payload.file_options = { uri: formData.fileUri };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_BIGQUERY)) {
+    payload.bigquery_options = {
+      table: formData.bigqueryTable,
+      query: formData.bigqueryQuery,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)) {
+    payload.snowflake_options = {
+      table: formData.snowflakeTable,
+      database: formData.snowflakeDatabase,
+      schema_: formData.snowflakeSchema,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
+    payload.redshift_options = {
+      table: formData.redshiftTable,
+      database: formData.redshiftDatabase,
+      schema_: formData.redshiftSchema,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
+    payload.kafka_options = {
+      kafka_bootstrap_servers: formData.kafkaBootstrapServers,
+      topic: formData.kafkaTopic,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
+    payload.spark_options = {
+      table: formData.sparkTable,
+      path: formData.sparkPath,
+    };
+  }
+
+  return payload;
+};
+
 const DataSourceOverviewTab = () => {
-  let { dataSourceName, projectName } = useParams();
-  const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl, projectName);
+  const { dataSourceName, projectName } = useParams();
 
   const dsName = dataSourceName === undefined ? "" : dataSourceName;
   const { isLoading, isSuccess, isError, data, consumingFeatureViews } =
@@ -82,15 +141,31 @@ const DataSourceOverviewTab = () => {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const applyDataSource = useApplyDataSource();
 
   const handleEditSubmit = (formData: DataSourceFormData) => {
-    console.log("Data source edit payload:", formData);
-    setIsEditModalOpen(false);
-    setSuccessMessage(
-      `Changes to "${formData.name}" are ready to apply. Backend integration coming soon.`,
-    );
-    setTimeout(() => setSuccessMessage(null), 5000);
+    const payload = formDataToPayload(formData, projectName || "");
+    applyDataSource.mutate(payload as any, {
+      onSuccess: () => {
+        setIsEditModalOpen(false);
+        setErrorMessage(null);
+        setSuccessMessage(
+          `Data source "${formData.name}" updated successfully.`,
+        );
+        setTimeout(() => setSuccessMessage(null), 5000);
+      },
+      onError: (err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
+        setErrorMessage(message);
+        setTimeout(() => setErrorMessage(null), 8000);
+      },
+    });
   };
+
+  const spec = data?.spec || data;
+  const sourceType = spec?.type;
 
   return (
     <React.Fragment>
@@ -109,6 +184,17 @@ const DataSourceOverviewTab = () => {
                 title={successMessage}
                 color="success"
                 iconType="check"
+                size="s"
+              />
+              <EuiSpacer size="m" />
+            </>
+          )}
+          {errorMessage && (
+            <>
+              <EuiCallOut
+                title={errorMessage}
+                color="danger"
+                iconType="alert"
                 size="s"
               />
               <EuiSpacer size="m" />
@@ -138,19 +224,16 @@ const DataSourceOverviewTab = () => {
                       <h2>Properties</h2>
                     </EuiTitle>
                     <EuiHorizontalRule margin="xs" />
-                    {data.fileOptions || data.bigqueryOptions ? (
-                      <BatchSourcePropertiesView batchSource={data} />
-                    ) : data.type ? (
+                    {spec?.fileOptions || spec?.bigqueryOptions ? (
+                      <BatchSourcePropertiesView batchSource={spec} />
+                    ) : sourceType ? (
                       <React.Fragment>
                         <EuiDescriptionList>
                           <EuiDescriptionListTitle>
                             Source Type
                           </EuiDescriptionListTitle>
                           <EuiDescriptionListDescription>
-                            {typeof data.type === "string"
-                              ? data.type
-                              : feast.core.DataSource.SourceType[data.type] ||
-                                String(data.type)}
+                            {sourceType}
                           </EuiDescriptionListDescription>
                         </EuiDescriptionList>
                       </React.Fragment>
@@ -163,7 +246,7 @@ const DataSourceOverviewTab = () => {
               <EuiSpacer size="m" />
               <EuiFlexGroup>
                 <EuiFlexItem>
-                  {data.requestDataOptions ? (
+                  {spec?.requestDataOptions ? (
                     <EuiPanel hasBorder={true}>
                       <EuiTitle size="xs">
                         <h2>Request Source Schema</h2>
@@ -218,9 +301,7 @@ const DataSourceOverviewTab = () => {
                     )}
                   />
                 ) : (
-                  <EuiText>
-                    No permissions defined for this data source.
-                  </EuiText>
+                  <EuiText>No consuming feature views</EuiText>
                 )}
               </EuiPanel>
             </EuiFlexItem>

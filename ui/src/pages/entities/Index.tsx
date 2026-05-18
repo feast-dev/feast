@@ -50,13 +50,9 @@ const Index = () => {
   const { projectName } = useParams();
   const { isV2 } = useUIVersion();
 
-  const v1Query = useLoadEntitiesV1();
-  const v2Query = useLoadEntitiesREST(projectName || "");
-
-  const isLoading = isV2 ? v2Query.isLoading : v1Query.isLoading;
-  const isSuccess = isV2 ? v2Query.isSuccess : v1Query.isSuccess;
-  const isError = isV2 ? v2Query.isError : v1Query.isError;
-  const data = isV2 ? v2Query.data?.entities : v1Query.data;
+  const { isLoading, isSuccess, isError, data: queryData } =
+    useLoadEntitiesREST(projectName || "");
+  const data = queryData?.entities;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);

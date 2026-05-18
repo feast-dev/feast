@@ -21,7 +21,11 @@ import {
   useSearchQuery,
   useTagsWithSuggestions,
 } from "../../hooks/useSearchInputWithTags";
-import { genericFVType, regularFVInterface } from "../../parsers/mergedFVTypes";
+import {
+  FEAST_FV_TYPES,
+  genericFVType,
+  regularFVInterface,
+} from "../../parsers/mergedFVTypes";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import FeatureViewIndexEmptyState from "./FeatureViewIndexEmptyState";
 import { useFeatureViewTagsAggregation } from "../../hooks/useTagsAggregation";
@@ -30,6 +34,7 @@ import ExportButton from "../../components/ExportButton";
 import FeatureViewFormModal, {
   FeatureViewFormData,
 } from "../../components/FeatureViewFormModal";
+import { useApplyFeatureView } from "../../queries/mutations/useFeatureViewMutations";
 import { useUIVersion } from "../../contexts/UIVersionContext";
 import useResourceQuery, {
   featureViewListPath,
@@ -51,13 +56,12 @@ const shouldIncludeFVsGivenTokenGroups = (
   tagTokenGroups: Record<string, string[]>,
 ) => {
   return Object.entries(tagTokenGroups).every(([key, values]) => {
-    const entryTagValue = entry?.object?.spec!.tags
-      ? entry.object.spec.tags[key]
-      : undefined;
+    const tags = entry?.object?.spec?.tags;
+    const entryTagValue = tags ? (tags as any)[key] : undefined;
 
     if (entryTagValue) {
       return values.every((value) => {
-        return value.length > 0 ? entryTagValue.indexOf(value) >= 0 : true; // Don't filter if the string is empty
+        return value.length > 0 ? entryTagValue.indexOf(value) >= 0 : true;
       });
     } else {
       return false;
@@ -65,7 +69,10 @@ const shouldIncludeFVsGivenTokenGroups = (
   });
 };
 
-const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
+const filterFn = (
+  data: genericFVType[],
+  filterInput: filterInputInterface,
+) => {
   let filteredByTags = data;
 
   if (Object.keys(filterInput.tagTokenGroups).length) {
@@ -76,7 +83,7 @@ const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
           filterInput.tagTokenGroups,
         );
       } else {
-        return false; // ODFVs don't have tags yet
+        return false;
       }
     });
   }
@@ -92,12 +99,70 @@ const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
   return filteredByTags;
 };
 
+const TTL_UNITS: Record<string, number> = {
+  days: 86400,
+  hours: 3600,
+  minutes: 60,
+  seconds: 1,
+};
+
+const formDataToPayload = (
+  formData: FeatureViewFormData,
+  project: string,
+) => ({
+  name: formData.name,
+  project,
+  entities: formData.entities,
+  features: formData.features.map((f) => ({
+    name: f.name,
+    value_type: parseInt(f.valueType, 10),
+  })),
+  batch_source: formData.batchSource,
+  ttl_seconds: formData.ttlValue * (TTL_UNITS[formData.ttlUnit] || 1),
+  online: formData.online,
+  description: formData.description,
+  owner: formData.owner,
+  tags: Object.fromEntries(
+    formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
+  ),
+});
+
 const Index = () => {
-  const { isLoading, isSuccess, isError, data } = useLoadFeatureViews();
+  const { projectName } = useParams();
   const { isV2 } = useUIVersion();
+
+  const { isLoading, isSuccess, isError, data: queryData } =
+    useLoadFeatureViewsREST(projectName || "");
+
+  const data = queryData?.featureViews
+    ? queryData.featureViews.map(mapRestFvToGenericType)
+    : undefined;
+
+  const entitiesQuery = useLoadEntitiesREST(projectName || "");
+  const dataSourcesQuery = useLoadDataSourcesREST(projectName || "");
+
   const tagAggregationQuery = useFeatureViewTagsAggregation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [prereqWarning, setPrereqWarning] = useState<string | null>(null);
+  const applyFeatureView = useApplyFeatureView();
+
+  const handleCreateClick = () => {
+    const missingDeps: string[] = [];
+    const entities = entitiesQuery.data?.entities || [];
+    const dataSources = dataSourcesQuery.data?.dataSources || [];
+
+    if (entities.length === 0) missingDeps.push("entities");
+    if (dataSources.length === 0) missingDeps.push("data sources");
+
+    if (missingDeps.length > 0) {
+      setPrereqWarning(
+        `Feature views require at least one entity and one data source. Missing: ${missingDeps.join(" and ")}. You can still proceed — the form will let you create them inline.`,
+      );
+    }
+    setIsModalOpen(true);
+  };
 
   useDocumentTitle(`Feature Views | Feast`);
 
@@ -120,12 +185,24 @@ const Index = () => {
     : data;
 
   const handleCreateSubmit = (formData: FeatureViewFormData) => {
-    console.log("Feature view create payload:", formData);
-    setIsModalOpen(false);
-    setSuccessMessage(
-      `Feature view "${formData.name}" is ready to be created. Backend integration coming soon.`,
-    );
-    setTimeout(() => setSuccessMessage(null), 5000);
+    const payload = formDataToPayload(formData, projectName || "");
+    applyFeatureView.mutate(payload, {
+      onSuccess: () => {
+        setIsModalOpen(false);
+        setErrorMessage(null);
+        setPrereqWarning(null);
+        setSuccessMessage(
+          `Feature view "${formData.name}" created successfully.`,
+        );
+        setTimeout(() => setSuccessMessage(null), 5000);
+      },
+      onError: (err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
+        setErrorMessage(message);
+        setTimeout(() => setErrorMessage(null), 8000);
+      },
+    });
   };
 
   return (
@@ -140,7 +217,7 @@ const Index = () => {
                 <EuiButton
                   fill
                   iconType="plus"
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={handleCreateClick}
                   key="create"
                 >
                   Create Feature View
@@ -156,12 +233,36 @@ const Index = () => {
         ]}
       />
       <EuiPageTemplate.Section>
+        {prereqWarning && (
+          <>
+            <EuiCallOut
+              title="Missing prerequisites"
+              color="warning"
+              iconType="alert"
+              size="s"
+            >
+              <p>{prereqWarning}</p>
+            </EuiCallOut>
+            <EuiSpacer size="m" />
+          </>
+        )}
         {successMessage && (
           <>
             <EuiCallOut
               title={successMessage}
               color="success"
               iconType="check"
+              size="s"
+            />
+            <EuiSpacer size="m" />
+          </>
+        )}
+        {errorMessage && (
+          <>
+            <EuiCallOut
+              title={errorMessage}
+              color="danger"
+              iconType="alert"
               size="s"
             />
             <EuiSpacer size="m" />
@@ -212,7 +313,10 @@ const Index = () => {
 
       {isModalOpen && (
         <FeatureViewFormModal
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setPrereqWarning(null);
+          }}
           onSubmit={handleCreateSubmit}
         />
       )}
