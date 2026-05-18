@@ -16,39 +16,35 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
-
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import message as _message
-import builtins as _builtins
+import builtins
+import google.protobuf.descriptor
+import google.protobuf.message
 import sys
-import typing as _typing
 
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias as _TypeAlias
+if sys.version_info >= (3, 8):
+    import typing as typing_extensions
 else:
-    from typing_extensions import TypeAlias as _TypeAlias
+    import typing_extensions
 
-DESCRIPTOR: _descriptor.FileDescriptor
+DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@_typing.final
-class SqliteTable(_message.Message):
+class SqliteTable(google.protobuf.message.Message):
     """Represents a Sqlite table"""
 
-    DESCRIPTOR: _descriptor.Descriptor
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    PATH_FIELD_NUMBER: _builtins.int
-    NAME_FIELD_NUMBER: _builtins.int
-    path: _builtins.str
+    PATH_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
+    path: builtins.str
     """Absolute path of the table"""
-    name: _builtins.str
+    name: builtins.str
     """Name of the table"""
     def __init__(
         self,
         *,
-        path: _builtins.str = ...,
-        name: _builtins.str = ...,
+        path: builtins.str = ...,
+        name: builtins.str = ...,
     ) -> None: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["name", b"name", "path", b"path"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "path", b"path"]) -> None: ...
 
-Global___SqliteTable: _TypeAlias = SqliteTable  # noqa: Y015
+global___SqliteTable = SqliteTable

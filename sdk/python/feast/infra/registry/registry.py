@@ -39,7 +39,7 @@ from feast.errors import (
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
-from feast.feature_view import FeatureView
+from feast.feature_view import FeatureView, FeatureViewState
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
@@ -586,8 +586,6 @@ class Registry(BaseRegistry):
 
         # Lifecycle state
         if hasattr(existing_proto.meta, "state") and hasattr(updated_fv, "state"):
-            from feast.feature_view import FeatureViewState
-
             state_val = getattr(updated_fv, "state")
             if isinstance(state_val, FeatureViewState):
                 existing_proto.meta.state = state_val.to_proto()
@@ -954,8 +952,6 @@ class Registry(BaseRegistry):
                 )
                 existing_feature_view.last_updated_timestamp = _utc_now()
                 # Transition state to AVAILABLE_ONLINE after materialization.
-                from feast.feature_view import FeatureViewState
-
                 if hasattr(existing_feature_view, "state"):
                     existing_feature_view.state = FeatureViewState.AVAILABLE_ONLINE
                 feature_view_proto = existing_feature_view.to_proto()
@@ -981,8 +977,6 @@ class Registry(BaseRegistry):
                 )
                 existing_stream_feature_view.last_updated_timestamp = _utc_now()
                 # Transition state to AVAILABLE_ONLINE after materialization.
-                from feast.feature_view import FeatureViewState
-
                 if hasattr(existing_stream_feature_view, "state"):
                     existing_stream_feature_view.state = (
                         FeatureViewState.AVAILABLE_ONLINE
