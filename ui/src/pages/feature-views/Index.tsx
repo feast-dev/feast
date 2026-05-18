@@ -69,10 +69,7 @@ const shouldIncludeFVsGivenTokenGroups = (
   });
 };
 
-const filterFn = (
-  data: genericFVType[],
-  filterInput: filterInputInterface,
-) => {
+const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
   let filteredByTags = data;
 
   if (Object.keys(filterInput.tagTokenGroups).length) {
@@ -106,10 +103,7 @@ const TTL_UNITS: Record<string, number> = {
   seconds: 1,
 };
 
-const formDataToPayload = (
-  formData: FeatureViewFormData,
-  project: string,
-) => ({
+const formDataToPayload = (formData: FeatureViewFormData, project: string) => ({
   name: formData.name,
   project,
   entities: formData.entities,
@@ -131,8 +125,12 @@ const Index = () => {
   const { projectName } = useParams();
   const { isV2 } = useUIVersion();
 
-  const { isLoading, isSuccess, isError, data: queryData } =
-    useLoadFeatureViewsREST(projectName || "");
+  const {
+    isLoading,
+    isSuccess,
+    isError,
+    data: queryData,
+  } = useLoadFeatureViewsREST(projectName || "");
 
   const data = queryData?.featureViews
     ? queryData.featureViews.map(mapRestFvToGenericType)

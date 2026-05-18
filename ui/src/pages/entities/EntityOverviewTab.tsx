@@ -93,13 +93,12 @@ const EntityOverviewTab = () => {
       onSuccess: () => {
         setIsEditModalOpen(false);
         setErrorMessage(null);
-        setSuccessMessage(
-          `Entity "${formData.name}" updated successfully.`,
-        );
+        setSuccessMessage(`Entity "${formData.name}" updated successfully.`);
         setTimeout(() => setSuccessMessage(null), 5000);
       },
       onError: (err: unknown) => {
-        const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
         setErrorMessage(message);
         setTimeout(() => setErrorMessage(null), 8000);
       },

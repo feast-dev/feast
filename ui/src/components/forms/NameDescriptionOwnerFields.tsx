@@ -15,9 +15,7 @@ interface NameDescriptionOwnerFieldsProps {
   descriptionPlaceholder?: string;
 }
 
-const NameDescriptionOwnerFields: React.FC<
-  NameDescriptionOwnerFieldsProps
-> = ({
+const NameDescriptionOwnerFields: React.FC<NameDescriptionOwnerFieldsProps> = ({
   name,
   description,
   owner,

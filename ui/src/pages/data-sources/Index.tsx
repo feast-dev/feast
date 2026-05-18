@@ -107,8 +107,12 @@ const Index = () => {
   const { projectName } = useParams();
   const { isV2 } = useUIVersion();
 
-  const { isLoading, isSuccess, isError, data: queryData } =
-    useLoadDataSourcesREST(projectName || "");
+  const {
+    isLoading,
+    isSuccess,
+    isError,
+    data: queryData,
+  } = useLoadDataSourcesREST(projectName || "");
   const data = queryData?.dataSources;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
