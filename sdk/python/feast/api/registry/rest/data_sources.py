@@ -212,7 +212,7 @@ def get_data_source_router(grpc_handler) -> APIRouter:
     def apply_data_source(body: ApplyDataSourceRequestBody):
         ds_proto = DataSourceProto(
             name=body.name,
-            type=body.type,
+            type=body.type or 1,  # type: ignore[arg-type]
             timestamp_field=body.timestamp_field or "",
             created_timestamp_column=body.created_timestamp_column or "",
             description=body.description or "",
