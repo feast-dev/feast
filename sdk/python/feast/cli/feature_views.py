@@ -99,7 +99,11 @@ def feature_view_enable(ctx: click.Context, name: str):
         print(e)
         exit(1)
 
-    if getattr(fv, "enabled", True):
+    if not isinstance(fv, (FeatureView, OnDemandFeatureView)):
+        print(f"Feature view '{name}' does not support enable/disable.")
+        return
+
+    if fv.enabled:
         print(f"Feature view '{name}' is already enabled.")
         return
 
@@ -122,7 +126,11 @@ def feature_view_disable(ctx: click.Context, name: str):
         print(e)
         exit(1)
 
-    if not getattr(fv, "enabled", True):
+    if not isinstance(fv, (FeatureView, OnDemandFeatureView)):
+        print(f"Feature view '{name}' does not support enable/disable.")
+        return
+
+    if not fv.enabled:
         print(f"Feature view '{name}' is already disabled.")
         return
 
@@ -152,8 +160,12 @@ def feature_view_set_state(ctx: click.Context, name: str, state: str):
         print(e)
         exit(1)
 
+    if not isinstance(fv, (FeatureView, OnDemandFeatureView)):
+        print(f"Feature view '{name}' does not support state management.")
+        return
+
     new_state = FeatureViewState[state.upper()]
-    if hasattr(fv, "state") and fv.state == new_state:
+    if fv.state == new_state:
         print(f"Feature view '{name}' is already in state {new_state.name}.")
         return
 

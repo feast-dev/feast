@@ -1257,7 +1257,7 @@ def _get_feature_views_to_use(
         if hasattr(fv, "state"):
             from feast.feature_view import FeatureViewState
 
-            if fv.state not in (
+            if isinstance(fv.state, FeatureViewState) and fv.state not in (
                 FeatureViewState.STATE_UNSPECIFIED,
                 FeatureViewState.AVAILABLE_ONLINE,
             ):

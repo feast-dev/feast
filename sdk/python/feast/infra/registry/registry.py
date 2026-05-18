@@ -704,15 +704,6 @@ class Registry(BaseRegistry):
             feature_view.created_timestamp = now
         feature_view.last_updated_timestamp = now
 
-        # Auto-set lifecycle state to CREATED on first apply if unspecified.
-        from feast.feature_view import FeatureViewState
-
-        if (
-            hasattr(feature_view, "state")
-            and feature_view.state == FeatureViewState.STATE_UNSPECIFIED
-        ):
-            feature_view.state = FeatureViewState.CREATED
-
         fv_type_str = self._infer_fv_type_string(feature_view)
         is_latest, pin_version = parse_version(feature_view.version)
 
