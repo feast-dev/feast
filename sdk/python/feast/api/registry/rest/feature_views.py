@@ -40,7 +40,7 @@ class ApplyFeatureViewRequestBody(BaseModel):
     entities: Optional[List[str]] = []
     features: Optional[List[FeatureModel]] = []
     batch_source: Optional[str] = ""
-    ttl_seconds: Optional[int] = 0
+    ttl_seconds: Optional[int] = None
     online: Optional[bool] = True
     description: Optional[str] = ""
     tags: Optional[Dict[str, str]] = {}
@@ -313,7 +313,9 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             DataSourceProto(name=body.batch_source) if body.batch_source else None
         )
 
-        ttl = Duration(seconds=body.ttl_seconds) if body.ttl_seconds else None
+        ttl = (
+            Duration(seconds=body.ttl_seconds) if body.ttl_seconds is not None else None
+        )
 
         spec = FeatureViewSpec(
             name=body.name,
@@ -324,7 +326,7 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             description=body.description or "",
             owner=body.owner or "",
         )
-        if ttl:
+        if ttl is not None:
             spec.ttl.CopyFrom(ttl)
         if batch_source_proto:
             spec.batch_source.CopyFrom(batch_source_proto)

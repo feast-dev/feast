@@ -63,7 +63,7 @@ class SparkOptionsModel(BaseModel):
 class ApplyDataSourceRequestBody(BaseModel):
     name: str
     project: str
-    type: Optional[int] = 1
+    type: Optional[int] = None
     timestamp_field: Optional[str] = ""
     created_timestamp_column: Optional[str] = ""
     description: Optional[str] = ""
@@ -212,13 +212,14 @@ def get_data_source_router(grpc_handler) -> APIRouter:
     def apply_data_source(body: ApplyDataSourceRequestBody):
         ds_proto = DataSourceProto(
             name=body.name,
-            type=body.type or 1,  # type: ignore[arg-type]
             timestamp_field=body.timestamp_field or "",
             created_timestamp_column=body.created_timestamp_column or "",
             description=body.description or "",
             tags=body.tags or {},
             owner=body.owner or "",
         )
+        if body.type is not None:
+            ds_proto.type = body.type  # type: ignore[assignment]
 
         if body.file_options:
             ds_proto.file_options.uri = body.file_options.uri
