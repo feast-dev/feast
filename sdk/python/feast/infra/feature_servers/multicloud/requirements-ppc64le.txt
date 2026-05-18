@@ -1,4 +1,4 @@
---index-url https://wheels-staging.developerfirst.ibm.com/ppc64le/linux/+simple/
+--index-url https://wheels.developerfirst.ibm.com/ppc64le/linux/+simple/
 
 pyarrow==22.0.0+ppc64le1 \
     --hash=sha256:c88347a7a3ff447a893a9354d94cf4e8cd8af85ef635048f7938056d9baa8475
