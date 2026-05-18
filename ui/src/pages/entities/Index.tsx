@@ -18,6 +18,7 @@ import ExportButton from "../../components/ExportButton";
 import EntityFormModal, {
   EntityFormData,
 } from "../../components/EntityFormModal";
+import { useApplyEntity } from "../../queries/mutations/useEntityMutations";
 import { useUIVersion } from "../../contexts/UIVersionContext";
 import useResourceQuery, {
   entityListPath,
@@ -33,22 +34,53 @@ const useLoadEntities = () => {
   });
 };
 
+const formDataToPayload = (formData: EntityFormData, project: string) => ({
+  name: formData.name,
+  project,
+  join_key: formData.joinKeys[0] || formData.name,
+  value_type: parseInt(formData.valueType, 10),
+  description: formData.description,
+  tags: Object.fromEntries(
+    formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
+  ),
+  owner: "",
+});
+
 const Index = () => {
-  const { isLoading, isSuccess, isError, data } = useLoadEntities();
+  const { projectName } = useParams();
   const { isV2 } = useUIVersion();
+
+  const v1Query = useLoadEntitiesV1();
+  const v2Query = useLoadEntitiesREST(projectName || "");
+
+  const isLoading = isV2 ? v2Query.isLoading : v1Query.isLoading;
+  const isSuccess = isV2 ? v2Query.isSuccess : v1Query.isSuccess;
+  const isError = isV2 ? v2Query.isError : v1Query.isError;
+  const data = isV2 ? v2Query.data?.entities : v1Query.data;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const applyEntity = useApplyEntity();
 
   useDocumentTitle(`Entities | Feast`);
 
   const handleCreateSubmit = (formData: EntityFormData) => {
-    // TODO: Wire to REST API when backend write endpoints are available
-    console.log("Entity create payload:", formData);
-    setIsModalOpen(false);
-    setSuccessMessage(
-      `Entity "${formData.name}" is ready to be created. Backend integration coming soon.`,
-    );
-    setTimeout(() => setSuccessMessage(null), 5000);
+    const payload = formDataToPayload(formData, projectName || "");
+    applyEntity.mutate(payload, {
+      onSuccess: () => {
+        setIsModalOpen(false);
+        setErrorMessage(null);
+        setSuccessMessage(`Entity "${formData.name}" created successfully.`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+      },
+      onError: (err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
+        setErrorMessage(message);
+        setTimeout(() => setErrorMessage(null), 8000);
+      },
+    });
   };
 
   return (
@@ -85,6 +117,17 @@ const Index = () => {
               title={successMessage}
               color="success"
               iconType="check"
+              size="s"
+            />
+            <EuiSpacer size="m" />
+          </>
+        )}
+        {errorMessage && (
+          <>
+            <EuiCallOut
+              title={errorMessage}
+              color="danger"
+              iconType="alert"
               size="s"
             />
             <EuiSpacer size="m" />
