@@ -396,7 +396,7 @@ class FeatureStore:
     def embedding_provider(self) -> "EmbeddingProvider":
         """Return the active embedding provider, creating one from config if needed."""
         if self._embedding_provider is None:
-            from feast.embedder import LiteLLMEmbeddingProvider
+            from feast.embedder import get_embedding_provider
 
             embed_cfg = self.config.embedding_model
             if embed_cfg is None:
@@ -405,12 +405,18 @@ class FeatureStore:
                     "configured in feature_store.yaml. Either pass an "
                     "embedding_provider to FeatureStore() or add an "
                     "'embedding_model' section to feature_store.yaml.\n"
-                    "Example:\n"
+                    "Examples:\n"
+                    "  # LiteLLM (API-backed — OpenAI, Azure, Ollama, …)\n"
                     "  embedding_model:\n"
+                    "    provider: litellm\n"
                     "    model: text-embedding-3-small\n"
-                    "    api_key: sk-..."
+                    "    api_key: sk-...\n\n"
+                    "  # Sentence Transformers (local, no API key required)\n"
+                    "  embedding_model:\n"
+                    "    provider: sentence_transformers\n"
+                    "    model: all-MiniLM-L6-v2"
                 )
-            self._embedding_provider = LiteLLMEmbeddingProvider.from_config(embed_cfg)
+            self._embedding_provider = get_embedding_provider(embed_cfg)
         return self._embedding_provider
 
     @embedding_provider.setter

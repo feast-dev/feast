@@ -347,7 +347,9 @@ def get_app(
 
     The app provides the following endpoints:
     - `/get-online-features`: Get online features
-    - `/retrieve-online-documents`: Retrieve online documents
+    - `/search`: Vector similarity search (RAG)
+    - `/retrieve-online-documents`: Deprecated alias for `/search`
+    - `/v1/vector_stores/{vector_store_id}/search`: OpenAI-compatible vector search
     - `/push`: Push features to the feature store
     - `/write-to-online-store`: Write to the online store
     - `/health`: Health check
@@ -479,18 +481,12 @@ def get_app(
             )
             return JSONResponse(content=response_dict)
 
-    @app.post(
-        "/retrieve-online-documents",
-        dependencies=[Depends(inject_user_details)],
-        response_model=OnlineFeaturesResponse,
-    )
-    async def retrieve_online_documents(
+    async def _search_online_documents(
         request: GetOnlineDocumentsRequest,
-    ) -> Any:
-        with feast_metrics.track_request_latency("/retrieve-online-documents"):
-            logger.warning(
-                "This endpoint is in alpha and will be moved to /get-online-features when stable."
-            )
+        *,
+        metrics_path: str,
+    ) -> JSONResponse:
+        with feast_metrics.track_request_latency(metrics_path):
             features = await _get_features(request, store)
 
             read_params = dict(
@@ -523,10 +519,35 @@ def get_app(
             return JSONResponse(content=response_dict)
 
     @app.post(
+        "/search",
+        dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
+    )
+    async def search(request: GetOnlineDocumentsRequest) -> JSONResponse:
+        """Vector similarity search against online document embeddings."""
+        return await _search_online_documents(request, metrics_path="/search")
+
+    @app.post(
+        "/retrieve-online-documents",
+        dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
+        include_in_schema=False,
+    )
+    async def retrieve_online_documents(
+        request: GetOnlineDocumentsRequest,
+    ) -> JSONResponse:
+        logger.warning(
+            "POST /retrieve-online-documents is deprecated; use POST /search instead."
+        )
+        return await _search_online_documents(
+            request, metrics_path="/retrieve-online-documents"
+        )
+
+    @app.post(
         "/v1/vector_stores/{vector_store_id}/search",
         dependencies=[Depends(inject_user_details)],
     )
-    async def openai_vector_store_search(
+    async def vector_store_search(
         vector_store_id: str,
         request: OpenAISearchRequest,
     ) -> JSONResponse:

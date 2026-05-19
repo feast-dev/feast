@@ -777,16 +777,20 @@ def get_remote_online_features(
 def get_remote_online_documents(
     session: requests.Session, config: RepoConfig, req_body: dict
 ) -> requests.Response:
-    if config.online_store.cert:
-        return session.post(
-            f"{config.online_store.path}/retrieve-online-documents",
-            json=req_body,
-            verify=config.online_store.cert,
-        )
-    else:
-        return session.post(
-            f"{config.online_store.path}/retrieve-online-documents", json=req_body
-        )
+    search_paths = ("/search", "/retrieve-online-documents")
+    last_response: Optional[requests.Response] = None
+    for path in search_paths:
+        url = f"{config.online_store.path}{path}"
+        if config.online_store.cert:
+            last_response = session.post(
+                url, json=req_body, verify=config.online_store.cert
+            )
+        else:
+            last_response = session.post(url, json=req_body)
+        if last_response.status_code != 404:
+            return last_response
+    assert last_response is not None
+    return last_response
 
 
 @rest_error_handling_decorator

@@ -11,7 +11,7 @@ authors: ["Chaitanya Patel", "Nikhil Kathole"]
 
 If you've tried to connect an AI agent to Feast's vector search, you've probably hit this wall: the agent needs to search your feature store, but Feast expects a raw embedding vector. The agent doesn't have one. It has a question in English.
 
-Until now, the workaround was ugly. You'd call an embedding provider (OpenAI, Ollama, whatever) to turn the text into a float array, then pass that array to Feast's `retrieve-online-documents` endpoint. Every client had to know both APIs, carry both sets of credentials, and run glue code whose only job was bridging the gap.
+Until now, the workaround was ugly. You'd call an embedding provider (OpenAI, Ollama, whatever) to turn the text into a float array, then pass that array to Feast's vector search endpoint (`POST /search`, formerly `retrieve-online-documents`). Every client had to know both APIs, carry both sets of credentials, and run glue code whose only job was bridging the gap.
 
 Feast now has a new endpoint: `POST /v1/vector_stores/{feature_view}/search`. It follows the [OpenAI Vector Store Search API](https://platform.openai.com/docs/api-reference/vector-stores-search) format. You send text, Feast handles the embedding internally, and you get results back in the same JSON shape that OpenAI returns. No float arrays, no extra SDK.
 
@@ -31,7 +31,7 @@ embed_response = openai.embeddings.create(
 query_vector = embed_response.data[0].embedding  # 1536 floats
 
 # Step 2: Call Feast's proprietary API with the raw vector
-result = requests.post("http://feast-server:6566/retrieve-online-documents", json={
+result = requests.post("http://feast-server:6566/search", json={
     "features": [
         "product_catalog:vector",
         "product_catalog:name",
@@ -276,9 +276,11 @@ Now the search tool is just text in, structured results out. An agent calls it t
 | Capability | Endpoint | What it does |
 |---|---|---|
 | Structured feature lookup | `get-online-features` | Get customer profiles, account data, etc. |
-| Vector search (proprietary) | `retrieve-online-documents` | Search with a pre-computed embedding vector |
+| Vector search | `search` | Search with a pre-computed embedding vector (or text via `api_version: 2`) |
 | Vector search (OpenAI format) | `/v1/vector_stores/{id}/search` | Search with plain text, embedding handled server-side |
 | Write features / memory | `write-to-online-store` | Persist agent state, update features |
+
+`POST /retrieve-online-documents` remains available as a deprecated alias for `POST /search`.
 
 That last row is what this post is about. Before it existed, agents could read structured features and write state back, but they couldn't search vectors without help from glue code.
 

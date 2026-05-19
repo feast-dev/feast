@@ -338,37 +338,68 @@ class OpenLineageConfig(FeastBaseModel):
 
 
 class EmbeddingModelConfig(FeastConfigBaseModel):
-    """Configuration for the LiteLLM-based query embedding model.
+    """Configuration for the query-time embedding model used by the feature server.
 
     Required when using ``retrieve_online_documents_openai`` or the
     ``/v1/vector_stores/{vector_store_id}/search`` endpoint.
 
+    Two providers are supported:
+
+    **LiteLLM** (default) — API-backed: OpenAI, Azure, Ollama, Cohere, HuggingFace, etc.
+
     Example in ``feature_store.yaml``::
 
         embedding_model:
-            model: text-embedding-3-small
-            api_key: sk-...
-            api_base: https://api.openai.com/v1
+          provider: litellm                 # default; can be omitted
+          model: text-embedding-3-small
+          api_key: ${OPENAI_API_KEY}
+          api_base: https://api.openai.com/v1
+
+    **Sentence Transformers** — runs locally, no API key required.  Ideal for
+    air-gapped or cost-sensitive deployments.  Requires the
+    ``sentence-transformers`` package (``pip install sentence-transformers``).
+
+    Example in ``feature_store.yaml``::
+
+        embedding_model:
+          provider: sentence_transformers
+          model: all-MiniLM-L6-v2
     """
 
+    provider: str = "litellm"
+    """Embedding backend to use.  Supported values:
+    ``'litellm'`` (default) or ``'sentence_transformers'``."""
+
     model: str
-    """LiteLLM model identifier (e.g. 'text-embedding-3-small',
-    'cohere/embed-english-v3.0', 'azure/my-deployment')."""
+    """Model identifier.
+
+    * For ``litellm``: any LiteLLM-supported model string, e.g.
+      ``'text-embedding-3-small'``, ``'cohere/embed-english-v3.0'``,
+      ``'azure/my-deployment'``.
+    * For ``sentence_transformers``: any HuggingFace model name compatible
+      with ``SentenceTransformer``, e.g. ``'all-MiniLM-L6-v2'``,
+      ``'BAAI/bge-small-en-v1.5'``.
+    """
 
     api_key: Optional[str] = None
-    """API key for the embedding provider. If not set, LiteLLM falls back
-    to the relevant environment variable (e.g. OPENAI_API_KEY)."""
+    """API key for the embedding provider (LiteLLM only).  If not set,
+    LiteLLM falls back to the relevant environment variable (e.g.
+    ``OPENAI_API_KEY``).  Ignored for ``sentence_transformers``."""
 
     api_base: Optional[str] = None
-    """Custom API base URL for the embedding provider
-    (e.g. 'https://my-azure-deployment.openai.azure.com/')."""
+    """Custom API base URL (LiteLLM only), e.g.
+    ``'https://my-azure-deployment.openai.azure.com/'``.
+    Ignored for ``sentence_transformers``."""
 
     api_version: Optional[str] = None
-    """API version for the embedding provider (used by Azure OpenAI)."""
+    """API version (LiteLLM / Azure OpenAI only).
+    Ignored for ``sentence_transformers``."""
 
     dimensions: Optional[StrictInt] = None
-    """Output embedding dimensionality. Supported by text-embedding-3 and
-    newer models. If not set, the model's default dimension is used."""
+    """Output embedding dimensionality (LiteLLM only).  Supported by
+    ``text-embedding-3`` and newer models.  If not set, the model's default
+    dimension is used.  Ignored for ``sentence_transformers`` (dimension is
+    determined by the model)."""
 
 
 class RepoConfig(FeastBaseModel):
