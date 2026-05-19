@@ -32,6 +32,15 @@ backwards compatibility and the adopt industry standard naming conventions.
 
 **Note**: Milvus and SQLite implement the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
 
+## Feature server search endpoints
+
+| Endpoint | Use when |
+|----------|----------|
+| `POST /search` | You have an embedding vector (or use `api_version: 2` with `query_string`) and want Feast's native online-features response format. |
+| `POST /v1/vector_stores/{feature_view}/search` | You want plain-text queries with server-side embedding and an OpenAI-compatible response. |
+
+`POST /retrieve-online-documents` is deprecated; use `POST /search` instead.
+
 ## OpenAI-Compatible Vector Store Search
 
 Feast exposes an OpenAI-compatible vector store search endpoint at `POST /v1/vector_stores/{feature_view}/search`. This endpoint accepts plain text queries, handles embedding server-side, and returns results in the [OpenAI Vector Store Search API](https://platform.openai.com/docs/api-reference/vector-stores-search) format.

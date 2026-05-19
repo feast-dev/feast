@@ -121,6 +121,88 @@ class LiteLLMEmbeddingProvider(EmbeddingProvider):
         return [item["embedding"] for item in response.data]
 
 
+class SentenceTransformersEmbeddingProvider:
+    """EmbeddingProvider backed by Sentence Transformers (local inference).
+
+    Runs entirely on-device — no external API key required.  Ideal for
+    air-gapped deployments, cost-sensitive workloads, or environments where
+    outbound API calls are restricted.
+
+    Requires the ``sentence-transformers`` package::
+
+        pip install sentence-transformers
+
+    Configuration in ``feature_store.yaml``::
+
+        embedding_model:
+          provider: sentence_transformers
+          model: all-MiniLM-L6-v2   # any HuggingFace sentence-transformers model
+
+    The model is loaded lazily on the first call to :meth:`embed` or
+    :meth:`aembed` so that import cost is paid only when the provider is
+    actually used.
+    """
+
+    def __init__(self, model: str = "all-MiniLM-L6-v2"):
+        self.model_name = model
+        self._model = None
+
+    @classmethod
+    def from_config(
+        cls, config: "EmbeddingModelConfig"
+    ) -> "SentenceTransformersEmbeddingProvider":
+        """Build a provider from a :class:`~feast.repo_config.EmbeddingModelConfig`."""
+        return cls(model=config.model)
+
+    def _load_model(self):
+        if self._model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError:
+                raise ImportError(
+                    "sentence-transformers is required for the "
+                    "'sentence_transformers' embedding provider. "
+                    "Install with: pip install sentence-transformers"
+                )
+            self._model = SentenceTransformer(self.model_name)
+        return self._model
+
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        model = self._load_model()
+        embeddings = model.encode(texts, convert_to_numpy=True)
+        return [emb.tolist() for emb in embeddings]
+
+    async def aembed(self, texts: List[str]) -> List[List[float]]:
+        import asyncio
+
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.embed, texts)
+
+
+def get_embedding_provider(
+    config: "EmbeddingModelConfig",
+) -> "EmbeddingProvider":
+    """Factory that returns the appropriate :class:`EmbeddingProvider` for *config*.
+
+    Dispatches on ``config.provider``:
+
+    * ``"litellm"`` (default) → :class:`LiteLLMEmbeddingProvider`
+    * ``"sentence_transformers"`` → :class:`SentenceTransformersEmbeddingProvider`
+
+    Raises:
+        ValueError: If ``config.provider`` is not a recognised value.
+    """
+    provider = (config.provider or "litellm").lower()
+    if provider == "litellm":
+        return LiteLLMEmbeddingProvider.from_config(config)
+    if provider == "sentence_transformers":
+        return SentenceTransformersEmbeddingProvider.from_config(config)
+    raise ValueError(
+        f"Unknown embedding provider: '{config.provider}'. "
+        "Supported values: 'litellm', 'sentence_transformers'."
+    )
+
+
 @dataclass
 class EmbeddingConfig:
     batch_size: int = 64
