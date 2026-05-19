@@ -25,6 +25,8 @@ from .embedder import (
     EmbeddingProvider,
     LiteLLMEmbeddingProvider,
     MultiModalEmbedder,
+    SentenceTransformersEmbeddingProvider,
+    get_embedding_provider,
 )
 from .entity import Entity
 from .feature import Feature
@@ -88,5 +90,7 @@ __all__ = [
     "EmbeddingConfig",
     "EmbeddingProvider",
     "LiteLLMEmbeddingProvider",
+    "SentenceTransformersEmbeddingProvider",
+    "get_embedding_provider",
     "FilterTranslator",
 ]

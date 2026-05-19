@@ -527,6 +527,12 @@ Prometheus adds an `instance` label per pod, so there is no
 duplication.  Use `sum(rate(...))` or `histogram_quantile(...)` across
 instances as usual.
 
+## Vector Search (`POST /search`)
+
+The feature server exposes `POST /search` for vector similarity search against online document embeddings. Pass a pre-computed embedding in `query`, or use `api_version: 2` with `query_string` for text-based search when the online store supports it.
+
+`POST /retrieve-online-documents` is a deprecated alias with the same request body and response; new integrations should use `/search`.
+
 ## OpenAI-Compatible Vector Store Search
 
 The feature server exposes an OpenAI-compatible vector store search endpoint. This allows clients (including LLM agents and tool-calling frameworks) to search vector data with plain text queries, without computing embeddings client-side.
@@ -658,7 +664,8 @@ The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/pyth
 | Endpoint                   | Resource Type                   | Permission                                            | Description                                                    |
 |----------------------------|---------------------------------|-------------------------------------------------------|----------------------------------------------------------------|
 | /get-online-features       | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
-| /retrieve-online-documents | FeatureView                     | Read Online                                           | Retrieve online documents from the feature store for RAG       |
+| /search | FeatureView                     | Read Online                                           | Vector similarity search for RAG (embedding vector or text query) |
+| /retrieve-online-documents | FeatureView              | Read Online                                           | **Deprecated.** Use `/search` instead.                           |
 | /v1/vector_stores/{id}/search | FeatureView                  | Read Online                                           | OpenAI-compatible vector search with server-side embedding     |
 | /push                      | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
 | /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
