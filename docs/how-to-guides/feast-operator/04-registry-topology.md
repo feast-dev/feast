@@ -75,6 +75,32 @@ registry:
       grpc: true       # enable gRPC (default: true when server is set)
 ```
 
+### MCP on the registry server
+
+When the REST API is enabled, you can additionally expose registry metadata as
+MCP (Model Context Protocol) tool endpoints for LLM agents:
+
+```yaml
+services:
+  registry:
+    local:
+      server:
+        restAPI: true
+        mcp:
+          enabled: true
+      persistence:
+        store:
+          type: sql
+          secretRef:
+            name: feast-data-stores
+```
+
+The operator writes `registry.mcp.enabled: true` into `feature_store.yaml`.
+A validation rule enforces that `restAPI` must be `true` when `mcp.enabled` is `true`.
+
+See [Guide 3 — Serving & Observability](03-serving-and-observability.md#registry-mcp)
+for more details and the full MCP configuration reference.
+
 ---
 
 ## Remote registry
@@ -188,4 +214,5 @@ spec:
 - [API reference — `RemoteRegistryConfig`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#remoteregistryconfig)
 - [Sample: all remote servers](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_all_remote_servers.yaml)
 - [Sample: DB persistence](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_db_persistence.yaml)
+- [Sample: MCP](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_mcp.yaml)
 - [Feast SDK — Registries](../reference/registries/)

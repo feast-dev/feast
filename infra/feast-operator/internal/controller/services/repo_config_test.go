@@ -417,6 +417,66 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.FeatureServer.McpEnabled).To(BeNil())
 		})
 
+		It("should set registry mcp when enabled", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							Mcp: &feastdevv1.McpConfig{
+								Enabled: true,
+							},
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.Mcp).NotTo(BeNil())
+			Expect(repoConfig.Registry.Mcp.Enabled).To(BeTrue())
+		})
+
+		It("should not set registry mcp when disabled", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{
+							Mcp: &feastdevv1.McpConfig{
+								Enabled: false,
+							},
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.Mcp).To(BeNil())
+		})
+
+		It("should not set registry mcp when server has no mcp config", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Local: &feastdevv1.LocalRegistryConfig{
+						Server: &feastdevv1.RegistryServerConfigs{},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.Mcp).To(BeNil())
+		})
+
 		It("should set materialization block", func() {
 			featureStore := minimalFeatureStore()
 			batchSize := int32(10000)

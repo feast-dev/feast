@@ -85,18 +85,14 @@ def load_ray_dataset_from_source(source: Any) -> Any:
         return ray_wrapper.read_webdataset(path, **opts)
 
     if reader_type == "huggingface":
-        from datasets import load_dataset
-
         dataset_name = opts.get("dataset_name") or path
         split = opts.get("split", "train")
-        # trust_remote_code was removed in datasets>=3.0; skip silently if present.
         extra = {
             k: v
             for k, v in opts.items()
             if k not in ("dataset_name", "split", "trust_remote_code")
         }
-        hf_dataset = load_dataset(dataset_name, split=split, **extra)
-        return ray_wrapper.from_huggingface(hf_dataset)
+        return ray_wrapper.from_huggingface(dataset_name, split=split, **extra)
 
     if reader_type == "mongo":
         return ray_wrapper.read_mongo(

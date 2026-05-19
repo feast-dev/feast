@@ -1,6 +1,10 @@
-from typing import Dict
+import logging
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
+from google.protobuf.duration_pb2 import Duration
+from pydantic import BaseModel
 
 from feast.api.registry.rest.codegen_utils import render_feature_view_code
 from feast.api.registry.rest.rest_utils import (
@@ -14,9 +18,33 @@ from feast.api.registry.rest.rest_utils import (
     paginate_and_sort,
     parse_tags,
 )
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2
+from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.FeatureView_pb2 import FeatureViewSpec
 from feast.registry_server import RegistryServer_pb2
 from feast.type_map import _convert_value_type_str_to_value_type
 from feast.types import from_value_type
+
+logger = logging.getLogger(__name__)
+
+
+class FeatureModel(BaseModel):
+    name: str
+    value_type: int = 2
+
+
+class ApplyFeatureViewRequestBody(BaseModel):
+    name: str
+    project: str
+    entities: Optional[List[str]] = []
+    features: Optional[List[FeatureModel]] = []
+    batch_source: Optional[str] = ""
+    ttl_seconds: Optional[int] = None
+    online: Optional[bool] = True
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = {}
+    owner: Optional[str] = ""
 
 
 def _extract_feature_view_from_any(any_feature_view: dict) -> dict:
@@ -274,5 +302,65 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             result["relationships"] = relationships
 
         return result
+
+    @router.post("/feature_views", status_code=201)
+    def apply_feature_view(body: ApplyFeatureViewRequestBody):
+        feature_specs = []
+        for f in body.features or []:
+            feature_specs.append(FeatureSpecV2(name=f.name, value_type=f.value_type))
+
+        batch_source_proto = (
+            DataSourceProto(name=body.batch_source) if body.batch_source else None
+        )
+
+        ttl = (
+            Duration(seconds=body.ttl_seconds) if body.ttl_seconds is not None else None
+        )
+
+        spec = FeatureViewSpec(
+            name=body.name,
+            entities=body.entities or [],
+            features=feature_specs,
+            tags=body.tags or {},
+            online=body.online if body.online is not None else True,
+            description=body.description or "",
+            owner=body.owner or "",
+        )
+        if ttl is not None:
+            spec.ttl.CopyFrom(ttl)
+        if batch_source_proto:
+            spec.batch_source.CopyFrom(batch_source_proto)
+
+        fv_proto = FeatureViewProto(spec=spec)
+
+        req = RegistryServer_pb2.ApplyFeatureViewRequest(
+            feature_view=fv_proto,
+            project=body.project,
+            commit=True,
+        )
+        grpc_call(grpc_handler.ApplyFeatureView, req)
+
+        return JSONResponse(
+            status_code=201,
+            content={
+                "name": body.name,
+                "project": body.project,
+                "status": "applied",
+            },
+        )
+
+    @router.delete("/feature_views/{name}")
+    def delete_feature_view(
+        name: str,
+        project: str = Query(...),
+    ):
+        req = RegistryServer_pb2.DeleteFeatureViewRequest(
+            name=name,
+            project=project,
+            commit=True,
+        )
+        grpc_call(grpc_handler.DeleteFeatureView, req)
+
+        return {"name": name, "project": project, "status": "deleted"}
 
     return router

@@ -1491,6 +1491,109 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err.Error()).To(ContainSubstring("At least one of restAPI or grpc must be true"))
 		})
 
+		It("should generate correct feature_store.yaml when registry MCP is enabled", func() {
+			const mcpName = "mcp-registry"
+			mcpNsName := types.NamespacedName{
+				Name:      mcpName,
+				Namespace: "default",
+			}
+
+			resource := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      mcpName,
+					Namespace: "default",
+				},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: feastProject,
+					Services: &feastdevv1.FeatureStoreServices{
+						Registry: &feastdevv1.Registry{
+							Local: &feastdevv1.LocalRegistryConfig{
+								Server: &feastdevv1.RegistryServerConfigs{
+									RestAPI: ptr(true),
+									Mcp: &feastdevv1.McpConfig{
+										Enabled: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			resource.SetGroupVersionKind(feastdevv1.GroupVersion.WithKind("FeatureStore"))
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: mcpNsName})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, mcpNsName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			feast := services.FeastServices{
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
+			}
+
+			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+
+			registryContainer := services.GetRegistryContainer(*deploy)
+			Expect(registryContainer).NotTo(BeNil())
+
+			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
+			Expect(env).NotTo(BeNil())
+
+			envByte, err := base64.StdEncoding.DecodeString(env.Value)
+			Expect(err).NotTo(HaveOccurred())
+			repoConfig := &services.RepoConfig{}
+			err = yaml.Unmarshal(envByte, repoConfig)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.Mcp).NotTo(BeNil())
+			Expect(repoConfig.Registry.Mcp.Enabled).To(BeTrue())
+		})
+
+		It("should reject registry MCP without restAPI enabled", func() {
+			mcpNoRestResource := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mcp-no-rest",
+					Namespace: "default",
+				},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: feastProject,
+					Services: &feastdevv1.FeatureStoreServices{
+						Registry: &feastdevv1.Registry{
+							Local: &feastdevv1.LocalRegistryConfig{
+								Server: &feastdevv1.RegistryServerConfigs{
+									RestAPI: ptr(false),
+									GRPC:    ptr(true),
+									Mcp: &feastdevv1.McpConfig{
+										Enabled: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			mcpNoRestResource.SetGroupVersionKind(feastdevv1.GroupVersion.WithKind("FeatureStore"))
+
+			err := k8sClient.Create(ctx, mcpNoRestResource)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("MCP requires restAPI to be true"))
+		})
+
 		It("should error on reconcile", func() {
 			By("Trying to set the controller OwnerRef of a Deployment that already has a controller")
 			controllerReconciler := &FeatureStoreReconciler{

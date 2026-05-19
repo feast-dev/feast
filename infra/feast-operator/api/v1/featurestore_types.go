@@ -770,6 +770,7 @@ type WorkerConfigs struct {
 
 // RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
 // +kubebuilder:validation:XValidation:rule="self.restAPI == true || self.grpc == true || !has(self.grpc)", message="At least one of restAPI or grpc must be true"
+// +kubebuilder:validation:XValidation:rule="!has(self.mcp) || !self.mcp.enabled || (has(self.restAPI) && self.restAPI == true)", message="MCP requires restAPI to be true"
 type RegistryServerConfigs struct {
 	ServerConfigs `json:",inline"`
 
@@ -778,6 +779,11 @@ type RegistryServerConfigs struct {
 
 	// Enable gRPC registry server. Defaults to true if unset.
 	GRPC *bool `json:"grpc,omitempty"`
+
+	// Mcp enables MCP (Model Context Protocol) on the REST registry server.
+	// Requires restAPI to be true. Reuses the same McpConfig struct as the online store.
+	// +optional
+	Mcp *McpConfig `json:"mcp,omitempty"`
 }
 
 // CronJobContainerConfigs k8s container settings for the CronJob

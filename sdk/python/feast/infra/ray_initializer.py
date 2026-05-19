@@ -262,9 +262,14 @@ class StandardRayWrapper:
 
         return ray.data.read_sql(sql, _connection_factory, **kwargs)
 
-    def from_huggingface(self, dataset: Any, **kwargs) -> Any:
-        """Convert a HuggingFace datasets.Dataset to a Ray Dataset."""
-        return ray.data.from_huggingface(dataset, **kwargs)
+    def from_huggingface(
+        self, dataset_name: str, split: str = "train", **kwargs
+    ) -> Any:
+        """Load a HuggingFace dataset and convert to a Ray Dataset."""
+        from datasets import load_dataset
+
+        hf_dataset = load_dataset(dataset_name, split=split, **kwargs)
+        return ray.data.from_huggingface(hf_dataset)
 
     def from_pandas(self, df: Any) -> Any:
         """Create dataset from pandas DataFrame using standard Ray."""
@@ -282,12 +287,13 @@ class CodeFlareRayWrapper:
         self,
         cluster_name: str,
         namespace: str,
-        auth_token: str,
-        auth_server: str,
+        auth_token: str = "",
+        auth_server: str = "",
         skip_tls: bool = False,
         enable_logging: bool = False,
         num_gpus: float = 0,
         worker_task_options: Optional[Dict[str, Any]] = None,
+        runtime_env: Optional[Dict[str, Any]] = None,
     ):
         """Initialize CodeFlare Ray wrapper with cluster connection parameters."""
         self.cluster_name = cluster_name
@@ -298,6 +304,7 @@ class CodeFlareRayWrapper:
         self.enable_logging = enable_logging
         self.num_gpus = num_gpus
         self.worker_task_options = worker_task_options or {}
+        self.extra_runtime_env = runtime_env or {}
         self.cluster = None
 
         # Authenticate and setup Ray connection
@@ -305,7 +312,12 @@ class CodeFlareRayWrapper:
         self._setup_ray_connection()
 
     def _authenticate_codeflare(self):
-        """Authenticate with CodeFlare SDK."""
+        """Authenticate with CodeFlare SDK. Skipped for in-cluster pods with no explicit token."""
+        if not self.auth_token or not self.auth_server:
+            logger.info(
+                "No auth_token/auth_server provided; assuming in-cluster auth via service account"
+            )
+            return
         try:
             from codeflare_sdk import TokenAuthentication
 
@@ -339,6 +351,18 @@ class CodeFlareRayWrapper:
                 "pip": ["feast"],
                 "env_vars": {"RAY_DISABLE_IMPORT_WARNING": "1"},
             }
+            if self.extra_runtime_env:
+                extra_pip = self.extra_runtime_env.get("pip", [])
+                if extra_pip:
+                    runtime_env["pip"] = list(
+                        dict.fromkeys(runtime_env["pip"] + extra_pip)
+                    )
+                extra_env_vars = self.extra_runtime_env.get("env_vars", {})
+                if extra_env_vars:
+                    runtime_env["env_vars"].update(extra_env_vars)
+                for k, v in self.extra_runtime_env.items():
+                    if k not in ("pip", "env_vars"):
+                        runtime_env[k] = v
 
             ray.shutdown()
 
@@ -527,23 +551,28 @@ class CodeFlareRayWrapper:
         remote_fn = _remote.options(**opts) if opts else _remote
         return RemoteDatasetProxy(remote_fn.remote(sql, connection_url, kwargs))
 
-    def from_huggingface(self, dataset: Any, **kwargs) -> Any:
-        """Convert a HuggingFace dataset - dispatched via @ray.remote to cluster workers.
+    def from_huggingface(
+        self, dataset_name: str, split: str = "train", **kwargs
+    ) -> Any:
+        """Load a HuggingFace dataset on a remote Ray worker and return a Ray Dataset.
 
-        Serialises the HuggingFace dataset and runs ray.data.from_huggingface()
-        on the cluster so the Ray Client driver is not involved in Ray Data ops.
+        The dataset is loaded directly on the worker to avoid serializing
+        memory-mapped HF Dataset objects across the network and to keep
+        driver memory usage near zero.
         """
         from feast.infra.ray_shared_utils import RemoteDatasetProxy
 
         @ray.remote
-        def _remote(hf_dataset, read_kwargs):
+        def _remote(ds_name, ds_split, extra_kwargs):
             import ray
+            from datasets import load_dataset
 
-            return ray.data.from_huggingface(hf_dataset, **read_kwargs)
+            hf_dataset = load_dataset(ds_name, split=ds_split, **extra_kwargs)
+            return ray.data.from_huggingface(hf_dataset)
 
         opts = self._get_task_options()
         remote_fn = _remote.options(**opts) if opts else _remote
-        return RemoteDatasetProxy(remote_fn.remote(dataset, kwargs))
+        return RemoteDatasetProxy(remote_fn.remote(dataset_name, split, kwargs))
 
     def from_pandas(self, df: Any) -> Any:
         """Create dataset from pandas DataFrame - dispatched via @ray.remote."""
@@ -764,12 +793,13 @@ def _initialize_kuberay(config: Any, enable_logging: bool = False) -> None:
     _ray_wrapper = CodeFlareRayWrapper(
         cluster_name=kuberay_config["cluster_name"],
         namespace=kuberay_config["namespace"],
-        auth_token=kuberay_config["auth_token"],
-        auth_server=kuberay_config["auth_server"],
+        auth_token=kuberay_config.get("auth_token", ""),
+        auth_server=kuberay_config.get("auth_server", ""),
         skip_tls=kuberay_config.get("skip_tls", False),
         enable_logging=enable_logging,
         num_gpus=getattr(config, "num_gpus", 0) or 0,
         worker_task_options=getattr(config, "worker_task_options", None),
+        runtime_env=kuberay_config.get("runtime_env"),
     )
 
     logger.info("KubeRay cluster connection established via CodeFlare SDK")
