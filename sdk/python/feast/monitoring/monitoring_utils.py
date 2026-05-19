@@ -6,6 +6,7 @@ here avoids ~8x duplication and prevents column-list drift.
 """
 
 import json
+import math
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -152,8 +153,13 @@ def monitoring_table_meta(
 
 
 def opt_float(val: Any) -> Optional[float]:
-    """Safely cast a value to float, returning None if input is None."""
-    return float(val) if val is not None else None
+    """Safely cast a value to float, returning None for None/NaN/Inf."""
+    if val is None:
+        return None
+    f = float(val)
+    if math.isnan(f) or math.isinf(f):
+        return None
+    return f
 
 
 def empty_numeric_metric(feature_name: str) -> Dict[str, Any]:
