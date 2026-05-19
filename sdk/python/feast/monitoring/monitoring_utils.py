@@ -6,6 +6,7 @@ here avoids ~8x duplication and prevents column-list drift.
 """
 
 import json
+import math
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -152,8 +153,13 @@ def monitoring_table_meta(
 
 
 def opt_float(val: Any) -> Optional[float]:
-    """Safely cast a value to float, returning None if input is None."""
-    return float(val) if val is not None else None
+    """Safely cast a value to float, returning None for None/NaN/Inf."""
+    if val is None:
+        return None
+    f = float(val)
+    if math.isnan(f) or math.isinf(f):
+        return None
+    return f
 
 
 def empty_numeric_metric(feature_name: str) -> Dict[str, Any]:
@@ -206,10 +212,17 @@ def empty_categorical_metric(feature_name: str) -> Dict[str, Any]:
 def normalize_monitoring_row(record: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize a monitoring metric dict for JSON serialization.
 
+    - Replaces float NaN / Inf with None (not JSON-serializable).
     - Parses ``histogram`` from JSON string if needed.
     - Converts ``metric_date`` / ``computed_at`` to ISO strings.
     - Normalizes ``is_baseline`` to Python bool.
     """
+    import math
+
+    for key, val in record.items():
+        if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+            record[key] = None
+
     hist = record.get("histogram")
     if isinstance(hist, str):
         try:

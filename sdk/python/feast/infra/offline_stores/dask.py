@@ -47,6 +47,7 @@ from feast.monitoring.monitoring_utils import (
     JOB_COLUMNS,
     JOB_PK,
     normalize_monitoring_row,
+    opt_float,
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -840,8 +841,8 @@ def _dask_compute_numeric_metrics(
         return result
 
     float_array = pc.cast(valid, pyarrow.float64())
-    result["mean"] = pc.mean(float_array).as_py()  # type: ignore[attr-defined]
-    result["stddev"] = pc.stddev(float_array, ddof=1).as_py()  # type: ignore[attr-defined]
+    result["mean"] = opt_float(pc.mean(float_array).as_py())  # type: ignore[attr-defined]
+    result["stddev"] = opt_float(pc.stddev(float_array, ddof=1).as_py())  # type: ignore[attr-defined]
 
     min_max = pc.min_max(float_array)  # type: ignore[attr-defined]
     result["min_val"] = min_max["min"].as_py()
