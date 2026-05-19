@@ -26,10 +26,15 @@ import DocumentLabelingPage from "./pages/document-labeling/DocumentLabelingPage
 import PermissionsIndex from "./pages/permissions/Index";
 import LineageIndex from "./pages/lineage/Index";
 import NoProjectGuard from "./components/NoProjectGuard";
+import MonitoringIndex from "./pages/monitoring/Index";
+import FeatureMetricsDetail from "./pages/monitoring/FeatureMetricsDetail";
 
 import TabsRegistryContext, {
   FeastTabsRegistryInterface,
 } from "./custom-tabs/TabsRegistryContext";
+import MonitoringContext, {
+  MonitoringConfig,
+} from "./contexts/MonitoringContext";
 import CurlGeneratorTab from "./pages/feature-views/CurlGeneratorTab";
 import FeatureFlagsContext, {
   FeatureFlags,
@@ -46,6 +51,7 @@ interface FeastUIConfigs {
   featureFlags?: FeatureFlags;
   projectListPromise?: Promise<any>;
   fetchOptions?: FetchOptions;
+  monitoringConfig?: MonitoringConfig;
 }
 
 const defaultProjectListPromise = (basename: string) => {
@@ -134,13 +140,21 @@ const FeastUISansProvidersInner = ({
                 feastUIConfigs?.tabsRegistry?.DatasetCustomTabs || [],
             }}
           >
-            <FeatureFlagsContext.Provider
-              value={feastUIConfigs?.featureFlags || {}}
+            <MonitoringContext.Provider
+              value={
+                feastUIConfigs?.monitoringConfig || {
+                  apiBaseUrl: "/api/v1",
+                  enabled: true,
+                }
+              }
             >
-              <ProjectListContext.Provider value={projectListContext}>
-                <Routes>
-                  <Route path="/" element={<Layout />}>
-                    <Route index element={<RootProjectSelectionPage />} />
+            <ProjectListContext.Provider value={projectListContext}>
+              <Routes>
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<RootProjectSelectionPage />} />
+                  <Route path="/p/:projectName/*" element={<NoProjectGuard />}>
+                    <Route index element={<ProjectOverviewPage />} />
+                    <Route path="data-source/" element={<DatasourceIndex />} />
                     <Route
                       path="/p/:projectName/*"
                       element={<NoProjectGuard />}
@@ -181,28 +195,33 @@ const FeastUISansProvidersInner = ({
                         element={<EntityInstance />}
                       />
 
-                      <Route path="data-set/" element={<DatasetIndex />} />
-                      <Route
-                        path="data-set/:datasetName/*"
-                        element={<DatasetInstance />}
-                      />
-                      <Route
-                        path="data-labeling/"
-                        element={<DocumentLabelingPage />}
-                      />
-                      <Route
-                        path="permissions/"
-                        element={<PermissionsIndex />}
-                      />
-                      <Route path="lineage/" element={<LineageIndex />} />
-                    </Route>
+                    <Route path="data-set/" element={<DatasetIndex />} />
+                    <Route
+                      path="data-set/:datasetName/*"
+                      element={<DatasetInstance />}
+                    />
+                    <Route
+                      path="data-labeling/"
+                      element={<DocumentLabelingPage />}
+                    />
+                    <Route path="permissions/" element={<PermissionsIndex />} />
+                    <Route path="lineage/" element={<LineageIndex />} />
+                    <Route
+                      path="monitoring/"
+                      element={<MonitoringIndex />}
+                    />
+                    <Route
+                      path="monitoring/feature/:featureViewName/:featureName"
+                      element={<FeatureMetricsDetail />}
+                    />
                   </Route>
-                  <Route path="*" element={<NoMatch />} />
-                </Routes>
-              </ProjectListContext.Provider>
-            </FeatureFlagsContext.Provider>
-          </TabsRegistryContext.Provider>
-        </DataModeContext.Provider>
+                </Route>
+                <Route path="*" element={<NoMatch />} />
+              </Routes>
+            </ProjectListContext.Provider>
+            </MonitoringContext.Provider>
+          </FeatureFlagsContext.Provider>
+        </TabsRegistryContext.Provider>
       </EuiErrorBoundary>
     </EuiProvider>
   );
