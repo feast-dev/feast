@@ -355,6 +355,9 @@ class RepoConfig(FeastBaseModel):
     openlineage_config: Optional[OpenLineageConfig] = Field(None, alias="openlineage")
     """ Configuration for OpenLineage data lineage integration (optional). """
 
+    mlflow: Optional[Any] = None
+    """ MlflowConfig: MLflow integration and tracing configuration (optional). """
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 
@@ -394,6 +397,12 @@ class RepoConfig(FeastBaseModel):
         self._openlineage: Optional[OpenLineageConfig] = None
         if "openlineage" in data:
             self.openlineage_config = data["openlineage"]
+
+        # Initialize MLflow configuration
+        if "mlflow" in data and isinstance(data["mlflow"], dict):
+            from feast.mlflow_integration.config import MlflowConfig
+
+            self.mlflow = MlflowConfig(**data["mlflow"])
 
         if self.entity_key_serialization_version < 3:
             warnings.warn(

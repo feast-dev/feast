@@ -32,7 +32,9 @@ mlflow = pytest.importorskip("mlflow", reason="mlflow is not installed")
 try:
     from opentelemetry import trace as otel_trace  # noqa: F401
     from opentelemetry.sdk.trace import TracerProvider  # noqa: F401
-    from opentelemetry.sdk.trace.export.in_memory import InMemorySpanExporter  # type: ignore[import-untyped] # noqa: F401
+    from opentelemetry.sdk.trace.export.in_memory import (
+        InMemorySpanExporter,  # type: ignore[import-untyped] # noqa: F401
+    )
 
     HAS_OTEL = True
 except ImportError:
@@ -57,9 +59,13 @@ def _isolate_globals():
 
     import feast.tracing
 
-    feast.tracing._tracer_initialized = False
+    feast.tracing._initialized = False
+    feast.tracing._enabled = False
+    feast.tracing._tracer = None
     yield
-    feast.tracing._tracer_initialized = False
+    feast.tracing._initialized = False
+    feast.tracing._enabled = False
+    feast.tracing._tracer = None
 
 
 @pytest.fixture()
@@ -165,13 +171,22 @@ def store_with_tracing(driver_parquet, tracking_uri, feast_objects):
 
 
 class TestTracingInitialization:
-    def test_tracer_is_set_when_enabled(self, store_with_tracing):
-        assert store_with_tracing._tracer is not None
+    def test_lazy_init_enables_when_configured(self, store_with_tracing):
+        import feast.tracing
 
-    def test_tracer_is_none_when_disabled(self, driver_parquet, tracking_uri, feast_objects):
+        result = feast.tracing._lazy_init(store_with_tracing)
+        assert result is True
+        assert feast.tracing._enabled is True
+
+    def test_lazy_init_disabled_when_tracing_off(
+        self, driver_parquet, tracking_uri, feast_objects
+    ):
+        import feast.tracing
+
         tmp_path, _ = driver_parquet
         store = _make_store(tmp_path, tracking_uri, enable_tracing=False)
-        assert store._tracer is None
+        result = feast.tracing._lazy_init(store)
+        assert result is False
 
 
 class TestOnlineFeatureTracing:

@@ -19,9 +19,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # tracing_context tests
 # ---------------------------------------------------------------------------
@@ -199,9 +196,7 @@ class TestInstallFeastSpanProcessor:
         try:
             import mlflow.tracing
 
-            with patch.object(
-                mlflow.tracing, "configure", side_effect=AttributeError
-            ):
+            with patch.object(mlflow.tracing, "configure", side_effect=AttributeError):
                 install_feast_span_processor()
         except (ImportError, AttributeError):
             install_feast_span_processor()
@@ -212,139 +207,104 @@ class TestInstallFeastSpanProcessor:
 # ---------------------------------------------------------------------------
 
 
-class TestInitTracing:
+class TestLazyInit:
     def setup_method(self):
         import feast.tracing
 
-        feast.tracing._tracer_initialized = False
+        feast.tracing._initialized = False
+        feast.tracing._enabled = False
+        feast.tracing._tracer = None
 
-    def test_returns_none_when_otel_missing(self):
-        with patch.dict("sys.modules", {"opentelemetry": None}):
-            import importlib
+    def test_disabled_when_no_mlflow_config(self):
+        import feast.tracing
 
-            import feast.tracing
+        feast.tracing._initialized = False
+        store = MagicMock()
+        store.config.mlflow = None
+        assert feast.tracing._lazy_init(store) is False
 
-            importlib.reload(feast.tracing)
-            feast.tracing._tracer_initialized = False
-            result = feast.tracing.init_tracing(MagicMock())
-            assert result is None
+    def test_disabled_when_mlflow_not_enabled(self):
+        import feast.tracing
 
-    def test_returns_tracer_with_mocked_deps(self):
-        mock_trace = MagicMock()
-        mock_tracer = MagicMock()
-        mock_trace.get_tracer.return_value = mock_tracer
-        mock_provider_cls = MagicMock()
-        mock_processor_cls = MagicMock()
-        mock_exporter_cls = MagicMock()
+        feast.tracing._initialized = False
+        store = MagicMock()
+        store.config.mlflow.enabled = False
+        assert feast.tracing._lazy_init(store) is False
 
-        modules = {
-            "opentelemetry": MagicMock(trace=mock_trace),
-            "opentelemetry.trace": mock_trace,
-            "opentelemetry.sdk": MagicMock(),
-            "opentelemetry.sdk.trace": MagicMock(TracerProvider=mock_provider_cls),
-            "opentelemetry.sdk.trace.export": MagicMock(SimpleSpanProcessor=mock_processor_cls),
-            "mlflow": MagicMock(),
-            "mlflow.tracing": MagicMock(),
-            "mlflow.tracing.export": MagicMock(MlflowSpanExporter=mock_exporter_cls),
-        }
+    def test_disabled_when_enable_tracing_false(self):
+        import feast.tracing
 
-        with patch.dict("sys.modules", modules):
-            import importlib
-
-            import feast.tracing
-
-            importlib.reload(feast.tracing)
-            feast.tracing._tracer_initialized = False
-
-            result = feast.tracing.init_tracing(MagicMock())
-            assert result is mock_tracer
-            mock_trace.set_tracer_provider.assert_called_once()
+        feast.tracing._initialized = False
+        store = MagicMock()
+        store.config.mlflow.enabled = True
+        store.config.mlflow.enable_tracing = False
+        assert feast.tracing._lazy_init(store) is False
 
     def test_idempotent(self):
-        mock_trace = MagicMock()
-        mock_tracer = MagicMock()
-        mock_trace.get_tracer.return_value = mock_tracer
+        import feast.tracing
 
-        modules = {
-            "opentelemetry": MagicMock(trace=mock_trace),
-            "opentelemetry.trace": mock_trace,
-            "opentelemetry.sdk": MagicMock(),
-            "opentelemetry.sdk.trace": MagicMock(TracerProvider=MagicMock()),
-            "opentelemetry.sdk.trace.export": MagicMock(SimpleSpanProcessor=MagicMock()),
-            "mlflow": MagicMock(),
-            "mlflow.tracing": MagicMock(),
-            "mlflow.tracing.export": MagicMock(MlflowSpanExporter=MagicMock()),
-        }
-
-        with patch.dict("sys.modules", modules):
-            import importlib
-
-            import feast.tracing
-
-            importlib.reload(feast.tracing)
-            feast.tracing._tracer_initialized = False
-
-            feast.tracing.init_tracing(MagicMock())
-            feast.tracing.init_tracing(MagicMock())
-            mock_trace.set_tracer_provider.assert_called_once()
+        feast.tracing._initialized = False
+        store = MagicMock()
+        store.config.mlflow = None
+        feast.tracing._lazy_init(store)
+        feast.tracing._lazy_init(store)
+        # Should only set _initialized once (no crash on second call)
+        assert feast.tracing._initialized is True
 
 
-class TestTracedDecorator:
-    def test_noop_without_tracer(self):
-        from feast.tracing import traced
+class TestIsEmbeddedStore:
+    def test_milvus_with_path_no_host(self):
+        from feast.tracing import _is_embedded_store
 
-        @traced("test.span")
-        def my_method(self_):
-            return 42
-
-        obj = SimpleNamespace()
-        assert my_method(obj) == 42
-
-    def test_creates_span_with_tracer(self):
-        from feast.tracing import traced
-
-        mock_tracer = MagicMock()
-        mock_span = MagicMock()
-        mock_tracer.start_as_current_span.return_value.__enter__ = MagicMock(
-            return_value=mock_span
+        store = MagicMock()
+        store.config.online_config = SimpleNamespace(
+            type="milvus", path="data/online.db", host=None
         )
-        mock_tracer.start_as_current_span.return_value.__exit__ = MagicMock(
-            return_value=False
+        assert _is_embedded_store(store) is True
+
+    def test_milvus_with_host(self):
+        from feast.tracing import _is_embedded_store
+
+        store = MagicMock()
+        store.config.online_config = SimpleNamespace(
+            type="milvus", path=None, host="localhost"
         )
+        assert _is_embedded_store(store) is False
 
-        @traced("test.span")
-        def my_method(self_):
-            return 99
+    def test_sqlite_not_embedded(self):
+        from feast.tracing import _is_embedded_store
 
-        obj = SimpleNamespace(_tracer=mock_tracer, project="test_project")
-        result = my_method(obj)
-        assert result == 99
-        mock_tracer.start_as_current_span.assert_called_once_with("test.span")
-        mock_span.set_attribute.assert_called_with("feast.project", "test_project")
-
-    def test_records_exception(self):
-        from feast.tracing import traced
-
-        mock_tracer = MagicMock()
-        mock_span = MagicMock()
-        mock_tracer.start_as_current_span.return_value.__enter__ = MagicMock(
-            return_value=mock_span
+        store = MagicMock()
+        store.config.online_config = SimpleNamespace(
+            type="sqlite", path="data/online.db"
         )
-        mock_tracer.start_as_current_span.return_value.__exit__ = MagicMock(
-            return_value=False
-        )
+        assert _is_embedded_store(store) is False
 
-        @traced("test.span")
-        def bad_method(self_):
-            raise ValueError("boom")
+    def test_none_config(self):
+        from feast.tracing import _is_embedded_store
 
-        obj = SimpleNamespace(_tracer=mock_tracer, project="p")
+        store = MagicMock()
+        store.config.online_config = None
+        assert _is_embedded_store(store) is False
 
-        with patch("feast.tracing._StatusCode_ERROR") as mock_status:
-            with pytest.raises(ValueError, match="boom"):
-                bad_method(obj)
-            mock_span.record_exception.assert_called_once()
-            mock_span.set_status.assert_called_once()
+    def test_dict_config(self):
+        from feast.tracing import _is_embedded_store
+
+        store = MagicMock()
+        store.config.online_config = {"type": "milvus", "path": "data/db", "host": ""}
+        assert _is_embedded_store(store) is True
+
+
+class TestTracedToolSpan:
+    def test_noop_when_disabled(self):
+        import feast.tracing
+
+        feast.tracing._initialized = False
+        store = MagicMock()
+        store.config.mlflow = None
+
+        with feast.tracing.traced_tool_span(store, "test.span") as span:
+            assert span is None
 
 
 # ---------------------------------------------------------------------------

@@ -37,12 +37,19 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
         return None
 
     try:
-        # Create MCP server from the FastAPI app
+        # Create MCP server from the FastAPI app.
+        # Forward mcp-session-id so endpoint handlers can tag spans with it.
         mcp = FastApiMCP(
             app,
             name=getattr(config, "mcp_server_name", "feast-feature-store"),
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
+            headers=["authorization", "mcp-session-id"],
         )
+
+        # Instrument the internal httpx client with OTEL so that trace
+        # context propagates from the /mcp server span into the internal
+        # ASGI calls to the actual FastAPI endpoints (Tier 3 enabler).
+        _instrument_mcp_http_client(mcp)
 
         transport = getattr(config, "mcp_transport", "sse")
         if transport == "http":
@@ -83,3 +90,28 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
     except Exception as e:
         logger.error(f"Failed to initialize MCP integration: {e}", exc_info=True)
         return None
+
+
+def _instrument_mcp_http_client(mcp: "FastApiMCP") -> None:
+    """Instrument fastapi_mcp's internal httpx client with OTEL.
+
+    This ensures that when fastapi_mcp makes internal ASGI calls to
+    the actual FastAPI endpoints, the current OTEL trace context
+    (from the /mcp server span) is propagated via traceparent headers.
+    Without this, the endpoint spans would be orphaned from the
+    incoming trace.
+    """
+    try:
+        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+
+        http_client = getattr(mcp, "_http_client", None)
+        if http_client is not None:
+            HTTPXClientInstrumentor.instrument_client(http_client)
+            logger.info("MCP internal httpx client instrumented for trace propagation")
+        else:
+            logger.debug("Could not access fastapi_mcp internal httpx client")
+    except ImportError:
+        logger.debug(
+            "opentelemetry-instrumentation-httpx not installed; "
+            "internal trace propagation disabled"
+        )
