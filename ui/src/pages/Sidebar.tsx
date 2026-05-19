@@ -177,6 +177,24 @@ const SideNav = () => {
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
         {
+          name: "Monitoring",
+          id: htmlIdGenerator("monitoring")(),
+          icon: <EuiIcon type="monitoringApp" />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/monitoring`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/monitoring`),
+        },
+        {
+          name: "Data Labeling",
+          id: htmlIdGenerator("dataLabeling")(),
+          icon: <EuiIcon type="documentEdit" color="#006BB4" />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/data-labeling`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/data-labeling`),
+        },
+        {
           name: "Permissions",
           id: htmlIdGenerator("permissions")(),
           icon: <EuiIcon type={PermissionsIcon} />,
