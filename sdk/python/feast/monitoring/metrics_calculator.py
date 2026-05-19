@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -8,6 +9,17 @@ import pyarrow.compute as pc
 from feast.types import PrimitiveFeastType
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_float(val):
+    """Return None for None/NaN/Inf, otherwise float."""
+    if val is None:
+        return None
+    f = float(val)
+    if math.isnan(f) or math.isinf(f):
+        return None
+    return f
+
 
 _NUMERIC_TYPES = {
     PrimitiveFeastType.INT32,
@@ -83,8 +95,8 @@ class MetricsCalculator:
             return result
 
         float_array = pc.cast(valid, pa.float64())
-        result["mean"] = pc.mean(float_array).as_py()  # type: ignore[attr-defined]
-        result["stddev"] = pc.stddev(float_array, ddof=1).as_py()  # type: ignore[attr-defined]
+        result["mean"] = _safe_float(pc.mean(float_array).as_py())  # type: ignore[attr-defined]
+        result["stddev"] = _safe_float(pc.stddev(float_array, ddof=1).as_py())  # type: ignore[attr-defined]
 
         min_max = pc.min_max(float_array)  # type: ignore[attr-defined]
         result["min_val"] = min_max["min"].as_py()

@@ -260,17 +260,17 @@ type FeastServices struct {
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
 // https://rtd.feast.dev/en/stable/#feast.repo_config.RepoConfig
 type RepoConfig struct {
-	Project                       string                     `yaml:"project,omitempty"`
-	Provider                      FeastProviderType          `yaml:"provider,omitempty"`
-	OfflineStore                  OfflineStoreConfig         `yaml:"offline_store,omitempty"`
-	OnlineStore                   OnlineStoreConfig          `yaml:"online_store,omitempty"`
-	Registry                      RegistryConfig             `yaml:"registry,omitempty"`
-	AuthzConfig                   AuthzConfig                `yaml:"auth,omitempty"`
-	EntityKeySerializationVersion int                        `yaml:"entity_key_serialization_version,omitempty"`
-	BatchEngine                   *ComputeEngineConfig       `yaml:"batch_engine,omitempty"`
-	FeatureServer                 *FeatureServerYamlConfig   `yaml:"feature_server,omitempty"`
-	Materialization               *MaterializationYamlConfig `yaml:"materialization,omitempty"`
-	OpenLineage                   *OpenLineageYamlConfig     `yaml:"openlineage,omitempty"`
+	Project                       string                           `yaml:"project,omitempty"`
+	Provider                      FeastProviderType                `yaml:"provider,omitempty"`
+	OfflineStore                  OfflineStoreConfig               `yaml:"offline_store,omitempty"`
+	OnlineStore                   OnlineStoreConfig                `yaml:"online_store,omitempty"`
+	Registry                      RegistryConfig                   `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig                      `yaml:"auth,omitempty"`
+	EntityKeySerializationVersion int                              `yaml:"entity_key_serialization_version,omitempty"`
+	BatchEngine                   *ComputeEngineConfig             `yaml:"batch_engine,omitempty"`
+	FeatureServer                 *FeatureServerYamlConfig         `yaml:"feature_server,omitempty"`
+	Materialization               *MaterializationYamlConfig       `yaml:"materialization,omitempty"`
+	OpenLineage                   *OpenLineageYamlConfig           `yaml:"openlineage,omitempty"`
 	DataQualityMonitoring         *DataQualityMonitoringYamlConfig `yaml:"dqm,omitempty"`
 }
 

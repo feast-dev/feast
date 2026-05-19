@@ -1,4 +1,5 @@
 import logging
+import math
 import time
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
@@ -27,6 +28,32 @@ GRANULARITY_WINDOWS = {
     "monthly": timedelta(days=30),
     "quarterly": timedelta(days=90),
 }
+
+_FLOAT_FIELDS = frozenset(
+    {
+        "null_rate",
+        "mean",
+        "stddev",
+        "min_val",
+        "max_val",
+        "p50",
+        "p75",
+        "p90",
+        "p95",
+        "p99",
+        "avg_null_rate",
+        "max_null_rate",
+    }
+)
+
+
+def _sanitize_floats(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Replace NaN/Inf float values with None so JSON serialization succeeds."""
+    for key in _FLOAT_FIELDS:
+        val = row.get(key)
+        if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+            row[key] = None
+    return row
 
 
 class MonitoringService:
@@ -524,7 +551,7 @@ class MonitoringService:
         end_date=None,
     ):
         self._ensure_monitoring_tables()
-        return self._get_offline_store().query_monitoring_metrics(
+        rows = self._get_offline_store().query_monitoring_metrics(
             config=self._store.config,
             project=project,
             metric_type=metric_type,
@@ -532,6 +559,7 @@ class MonitoringService:
             start_date=start_date,
             end_date=end_date,
         )
+        return [_sanitize_floats(r) for r in rows]
 
     def get_feature_metrics(
         self,

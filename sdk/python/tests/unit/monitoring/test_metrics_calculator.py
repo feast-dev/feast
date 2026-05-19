@@ -1,7 +1,11 @@
+import json
+import math
+
 import pyarrow as pa
 import pytest
 
 from feast.monitoring.metrics_calculator import MetricsCalculator
+from feast.monitoring.monitoring_utils import opt_float
 from feast.types import PrimitiveFeastType
 
 
@@ -80,6 +84,7 @@ class TestComputeNumeric:
         assert result["mean"] == 42.0
         assert result["min_val"] == 42.0
         assert result["max_val"] == 42.0
+        assert result["stddev"] is None  # STDDEV_SAMP of 1 value is NaN → None
 
     def test_histogram_bin_count(self):
         calc = _make_calc(bins=5)
@@ -167,3 +172,118 @@ class TestComputeAll:
 
         assert len(results) == 1
         assert results[0]["feature_name"] == "age"
+
+
+class TestNaNSanitization:
+    """Verify that NaN/Inf values never leak into metric results."""
+
+    def test_opt_float_none(self):
+        assert opt_float(None) is None
+
+    def test_opt_float_normal(self):
+        assert opt_float(3.14) == pytest.approx(3.14)
+
+    def test_opt_float_nan(self):
+        assert opt_float(float("nan")) is None
+
+    def test_opt_float_inf(self):
+        assert opt_float(float("inf")) is None
+
+    def test_opt_float_neg_inf(self):
+        assert opt_float(float("-inf")) is None
+
+    def test_opt_float_zero(self):
+        assert opt_float(0) == 0.0
+
+    def test_opt_float_integer(self):
+        assert opt_float(42) == 42.0
+
+    def test_single_value_stddev_is_none_not_nan(self):
+        """pc.stddev(ddof=1) on a single value returns NaN; we must convert to None."""
+        calc = _make_calc()
+        arr = pa.array([7.0])
+        result = calc.compute_numeric(arr)
+
+        assert result["stddev"] is None
+        assert result["mean"] == pytest.approx(7.0)
+
+    def test_two_values_stddev_is_valid(self):
+        calc = _make_calc()
+        arr = pa.array([4.0, 6.0])
+        result = calc.compute_numeric(arr)
+
+        assert result["stddev"] is not None
+        assert result["stddev"] == pytest.approx(math.sqrt(2.0))
+
+    def test_all_numeric_results_json_serializable(self):
+        """Every field in a numeric result must be JSON-serializable (no NaN/Inf)."""
+        calc = _make_calc(bins=5)
+        for test_data in [
+            [42.0],  # single value
+            [1.0, 2.0],  # two values
+            [1.0, None, 3.0],  # with nulls
+            list(range(100)),  # many values
+        ]:
+            arr = pa.array(test_data, type=pa.float64())
+            result = calc.compute_numeric(arr)
+            json.dumps(result)  # raises ValueError if NaN/Inf present
+
+    def test_all_categorical_results_json_serializable(self):
+        calc = _make_calc()
+        for test_data in [
+            ["a", "b", "a"],
+            ["x", None, "y"],
+            [None, None],
+        ]:
+            arr = pa.array(test_data, type=pa.string())
+            result = calc.compute_categorical(arr)
+            json.dumps(result)
+
+    def test_sanitize_floats_cleans_nan(self):
+        from feast.monitoring.monitoring_service import _sanitize_floats
+
+        row = {
+            "feature_name": "test",
+            "mean": float("nan"),
+            "stddev": float("inf"),
+            "null_rate": float("-inf"),
+            "min_val": 1.0,
+            "max_val": 10.0,
+            "p50": 5.0,
+            "p75": None,
+            "row_count": 100,
+        }
+        result = _sanitize_floats(row)
+
+        assert result["mean"] is None
+        assert result["stddev"] is None
+        assert result["null_rate"] is None
+        assert result["min_val"] == 1.0
+        assert result["max_val"] == 10.0
+        assert result["p50"] == 5.0
+        assert result["p75"] is None
+        assert result["row_count"] == 100  # non-float fields untouched
+        assert result["feature_name"] == "test"
+        json.dumps(result)
+
+    def test_sanitize_floats_preserves_valid_values(self):
+        from feast.monitoring.monitoring_service import _sanitize_floats
+
+        row = {
+            "mean": 5.5,
+            "stddev": 2.3,
+            "null_rate": 0.0,
+            "min_val": 0.0,
+            "max_val": 10.0,
+            "p50": 5.0,
+            "p75": 7.5,
+            "p90": 9.0,
+            "p95": 9.5,
+            "p99": 9.9,
+            "avg_null_rate": 0.05,
+            "max_null_rate": 0.1,
+        }
+        result = _sanitize_floats(row)
+
+        for key, val in row.items():
+            assert result[key] == val
