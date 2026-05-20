@@ -641,11 +641,15 @@ class TestModelResolver:
 
     @pytest.mark.integration
     def test_resolve_from_model_version_tag(
-        self, store_enabled, entity_df, tracking_uri
+        self, store_enabled, entity_df, tracking_uri, feast_objects
     ):
         self._train_and_register(
             store_enabled, entity_df, tracking_uri, "test_resolve_mv_tag"
         )
+
+        _, _, fv, _ = feast_objects
+        override_fs = FeatureService(name="overridden_service", features=[fv])
+        store_enabled.apply([override_fs])
 
         client = MlflowClient(tracking_uri=tracking_uri)
         client.set_model_version_tag(
@@ -659,11 +663,15 @@ class TestModelResolver:
 
     @pytest.mark.integration
     def test_model_version_tag_takes_priority_over_run_tag(
-        self, store_enabled, entity_df, tracking_uri
+        self, store_enabled, entity_df, tracking_uri, feast_objects
     ):
         self._train_and_register(
             store_enabled, entity_df, tracking_uri, "test_priority"
         )
+
+        _, _, fv, _ = feast_objects
+        override_fs = FeatureService(name="explicit_override", features=[fv])
+        store_enabled.apply([override_fs])
 
         client = MlflowClient(tracking_uri=tracking_uri)
         client.set_model_version_tag(
