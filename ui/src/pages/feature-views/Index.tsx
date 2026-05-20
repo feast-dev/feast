@@ -39,6 +39,8 @@ import { useUIVersion } from "../../contexts/UIVersionContext";
 import useResourceQuery, {
   featureViewListPath,
   restFeatureViewsToMergedList,
+  entityListPath,
+  dataSourceListPath,
 } from "../../queries/useResourceQuery";
 
 const useLoadFeatureViews = () => {
@@ -125,19 +127,20 @@ const Index = () => {
   const { projectName } = useParams();
   const { isV2 } = useUIVersion();
 
-  const {
-    isLoading,
-    isSuccess,
-    isError,
-    data: queryData,
-  } = useLoadFeatureViewsREST(projectName || "");
+  const { isLoading, isSuccess, isError, data } = useLoadFeatureViews();
 
-  const data = queryData?.featureViews
-    ? queryData.featureViews.map(mapRestFvToGenericType)
-    : undefined;
-
-  const entitiesQuery = useLoadEntitiesREST(projectName || "");
-  const dataSourcesQuery = useLoadDataSourcesREST(projectName || "");
+  const entitiesQuery = useResourceQuery<any[]>({
+    resourceType: "entities-list-fv-prereq",
+    project: projectName,
+    restPath: entityListPath(projectName),
+    restSelect: (d) => d.entities,
+  });
+  const dataSourcesQuery = useResourceQuery<any[]>({
+    resourceType: "data-sources-list-fv-prereq",
+    project: projectName,
+    restPath: dataSourceListPath(projectName),
+    restSelect: (d) => d.dataSources,
+  });
 
   const tagAggregationQuery = useFeatureViewTagsAggregation();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -148,8 +151,8 @@ const Index = () => {
 
   const handleCreateClick = () => {
     const missingDeps: string[] = [];
-    const entities = entitiesQuery.data?.entities || [];
-    const dataSources = dataSourcesQuery.data?.dataSources || [];
+    const entities = entitiesQuery.data || [];
+    const dataSources = dataSourcesQuery.data || [];
 
     if (entities.length === 0) missingDeps.push("entities");
     if (dataSources.length === 0) missingDeps.push("data sources");

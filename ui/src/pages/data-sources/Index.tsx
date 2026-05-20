@@ -39,7 +39,7 @@ const useLoadDatasources = () => {
   });
 };
 
-const filterFn = (data: feast.core.IDataSource[], searchTokens: string[]) => {
+const filterFn = (data: any[], searchTokens: string[]) => {
   let filteredByTags = data;
 
   if (searchTokens.length) {
@@ -107,13 +107,7 @@ const Index = () => {
   const { projectName } = useParams();
   const { isV2 } = useUIVersion();
 
-  const {
-    isLoading,
-    isSuccess,
-    isError,
-    data: queryData,
-  } = useLoadDataSourcesREST(projectName || "");
-  const data = queryData?.dataSources;
+  const { isLoading, isSuccess, isError, data } = useLoadDatasources();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
