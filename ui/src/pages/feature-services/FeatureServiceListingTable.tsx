@@ -30,7 +30,8 @@ const FeatureServiceListingTable = ({
       field: "spec.name",
       render: (name: string, item: feast.core.IFeatureService) => {
         // For "All Projects" view, link to the specific project
-        const itemProject = item?.spec?.project || projectName;
+        const itemProject =
+          item?.spec?.project || (item as any)?.project || projectName;
         return (
           <EuiCustomLink to={`/p/${itemProject}/feature-service/${name}`}>
             {name}
@@ -62,7 +63,7 @@ const FeatureServiceListingTable = ({
   if (projectName === "all") {
     columns.splice(1, 0, {
       name: "Project",
-      field: "spec.project",
+      field: "project",
       sortable: true,
       render: (project: string) => {
         return project || "Unknown";

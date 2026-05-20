@@ -1,35 +1,33 @@
-import { useContext } from "react";
 import { useParams } from "react-router-dom";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
-import { FEAST_FCO_TYPES } from "../../parsers/types";
-import useLoadRegistry from "../../queries/useLoadRegistry";
+import useResourceQuery, {
+  dataSourceDetailPath,
+} from "../../queries/useResourceQuery";
 
 const useLoadDataSource = (dataSourceName: string) => {
-  const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams();
-  const registryQuery = useLoadRegistry(registryUrl, projectName);
 
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.objects.dataSources?.find(
-          (ds) => ds.name === dataSourceName,
-        );
+  const dsQuery = useResourceQuery<any>({
+    resourceType: `data-source:${dataSourceName}`,
+    project: projectName,
+    restPath: dataSourceDetailPath(dataSourceName, projectName || ""),
+    restSelect: (d) => ({
+      dataSource: d,
+      relationships: d?.relationships || [],
+    }),
+    enabled: !!dataSourceName,
+  });
 
-  const consumingFeatureViews =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.relationships.filter((relationship) => {
-          return (
-            relationship.source.type === FEAST_FCO_TYPES.dataSource &&
-            relationship.source.name === data?.name &&
-            relationship.target.type === FEAST_FCO_TYPES.featureView
-          );
-        });
+  const dataSource = dsQuery.data?.dataSource;
+  const relationships = dsQuery.data?.relationships || [];
+
+  const consumingFeatureViews = relationships.filter(
+    (rel: any) =>
+      rel?.source?.type === "dataSource" && rel?.target?.type === "featureView",
+  );
 
   return {
-    ...registryQuery,
-    data,
+    ...dsQuery,
+    data: dataSource,
     consumingFeatureViews,
   };
 };

@@ -23,12 +23,10 @@ def _create_mock_ui_files(temp_dir):
     ui_dir = os.path.join(temp_dir, "ui", "build")
     os.makedirs(ui_dir, exist_ok=True)
 
-    # Create projects-list.json file
     projects_file = os.path.join(ui_dir, "projects-list.json")
     with open(projects_file, "w") as f:
         json.dump({"projects": []}, f)
 
-    # Create index.html file
     index_file = os.path.join(ui_dir, "index.html")
     with open(index_file, "w") as f:
         f.write("<html><body>Test UI</body></html>")
@@ -36,20 +34,13 @@ def _create_mock_ui_files(temp_dir):
 
 @contextlib.contextmanager
 def _setup_importlib_mocks(temp_dir):
-    """Helper function to setup importlib resource mocks.
-
-    This function mocks the importlib_resources functionality used by the UI server
-    to serve static files. It creates a proper context manager that returns the
-    temporary directory path when used with importlib_resources.as_file().
-    """
+    """Helper function to setup importlib resource mocks."""
     mock_path = Path(temp_dir)
 
-    # Create a proper context manager mock
     mock_context_manager = MagicMock()
     mock_context_manager.__enter__.return_value = mock_path
     mock_context_manager.__exit__.return_value = None
 
-    # Mock the files() method to return a mock that supports division
     mock_file_ref = MagicMock()
     mock_file_ref.__truediv__.return_value = MagicMock()
 
@@ -73,15 +64,11 @@ def mock_feature_store():
 
 @pytest.fixture
 def ui_app_with_registry(mock_feature_store):
-    """Fixture for UI app with valid registry data.
-
-    Creates a UI app instance with a properly configured feature store
-    that has valid registry data available for testing endpoints that
-    require registry access.
-    """
+    """Fixture for UI app with valid registry data."""
     mock_registry = MagicMock()
     mock_proto = MagicMock()
     mock_proto.SerializeToString.return_value = b"mock_proto_data"
+    mock_proto.projects = []
     mock_registry.proto.return_value = mock_proto
     mock_feature_store.registry = mock_registry
 
@@ -95,12 +82,7 @@ def ui_app_with_registry(mock_feature_store):
 
 @pytest.fixture
 def ui_app_without_registry(mock_feature_store):
-    """Fixture for UI app with None registry data.
-
-    Creates a UI app instance with a feature store that has no registry
-    data available, used for testing error conditions and service
-    unavailable responses.
-    """
+    """Fixture for UI app with None registry data."""
     mock_registry = MagicMock()
     mock_registry.proto.return_value = None
     mock_feature_store.registry = mock_registry
@@ -114,50 +96,16 @@ def ui_app_without_registry(mock_feature_store):
 
 
 def test_ui_server_health_endpoint(ui_app_with_registry):
-    """Test the UI server health endpoint returns 200 when registry is available.
-
-    This test verifies that the /health endpoint correctly returns HTTP 200
-    when the feature store registry is properly initialized and contains data.
-    """
+    """Health endpoint returns 200 when registry is available."""
     client = TestClient(ui_app_with_registry)
     response = client.get("/health")
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
 
 
 def test_ui_server_health_endpoint_with_none_registry(ui_app_without_registry):
-    """Test the UI server health endpoint returns 503 when registry is None.
-
-    This test verifies that the /health endpoint correctly returns HTTP 503
-    (Service Unavailable) when the feature store registry is not available
-    or contains no data.
-    """
+    """Health endpoint returns 503 when registry is None."""
     client = TestClient(ui_app_without_registry)
     response = client.get("/health")
-    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_ERROR_STATUS)
-
-
-def test_registry_endpoint_with_valid_data(ui_app_with_registry):
-    """Test the registry endpoint returns valid data with correct content type.
-
-    This test verifies that the /registry endpoint correctly returns HTTP 200
-    with the proper content-type header when registry data is available.
-    """
-    client = TestClient(ui_app_with_registry)
-    response = client.get("/registry")
-    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
-    assertpy.assert_that(response.headers["content-type"]).is_equal_to(
-        "application/octet-stream"
-    )
-
-
-def test_registry_endpoint_with_none_data(ui_app_without_registry):
-    """Test the registry endpoint returns 503 when registry data is None.
-
-    This test verifies that the /registry endpoint correctly returns HTTP 503
-    (Service Unavailable) when no registry data is available.
-    """
-    client = TestClient(ui_app_without_registry)
-    response = client.get("/registry")
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_ERROR_STATUS)
 
 
@@ -168,15 +116,12 @@ def test_registry_endpoint_with_none_data(ui_app_without_registry):
 def test_health_endpoint_status(
     registry_available, expected_status, mock_feature_store
 ):
-    """Test the health endpoint returns correct status based on registry availability.
-
-    This parametrized test verifies that the /health endpoint returns the
-    appropriate HTTP status code based on whether registry data is available.
-    """
+    """Health endpoint returns correct status based on registry availability."""
     if registry_available:
         mock_registry = MagicMock()
         mock_proto = MagicMock()
         mock_proto.SerializeToString.return_value = b"mock_proto_data"
+        mock_proto.projects = []
         mock_registry.proto.return_value = mock_proto
         mock_feature_store.registry = mock_registry
     else:
@@ -195,15 +140,93 @@ def test_health_endpoint_status(
 
 
 def test_catch_all_route(ui_app_with_registry):
-    """Test the catch-all route for React router paths.
-
-    This test reveals a bug in the original UI server code where ui_dir
-    is not in scope for the catch_all function. The ui_dir variable is defined
-    inside the importlib_resources context manager but used outside of it.
-    This causes a NameError when the route is accessed.
-    """
+    """Test the catch-all route for React router paths."""
     client = TestClient(ui_app_with_registry)
 
-    # The route will fail due to the scope issue with ui_dir
-    with pytest.raises(Exception):  # Expecting NameError or FileNotFoundError
+    with pytest.raises(Exception):
         client.get("/p/some/react/path")
+
+
+# ---------- projects-list.json tests ----------
+
+
+def _read_projects_list(temp_dir):
+    """Read the projects-list.json written by get_app via the mock (ui_dir = temp_dir)."""
+    projects_file = os.path.join(temp_dir, "projects-list.json")
+    with open(projects_file) as f:
+        return json.load(f)
+
+
+def test_projects_list_registry_path(mock_feature_store):
+    """projects-list.json uses /api/v1 as registryPath."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to("/api/v1")
+
+
+def test_projects_list_with_root_path(mock_feature_store):
+    """root_path prefix is included in registryPath."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+    mock_proto.projects = []
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                REGISTRY_TTL_SECS,
+                root_path="/feast",
+            )
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to(
+            "/feast/api/v1"
+        )
+
+
+def test_projects_list_multiple_projects(mock_feature_store):
+    """Multiple projects get an 'All Projects' entry prepended."""
+    mock_registry = MagicMock()
+    mock_proto = MagicMock()
+    mock_proto.SerializeToString.return_value = b"data"
+
+    proj1 = MagicMock()
+    proj1.spec.name = "project_alpha"
+    proj1.spec.description = "Alpha project"
+    proj2 = MagicMock()
+    proj2.spec.name = "project_beta"
+    proj2.spec.description = "Beta project"
+    mock_proto.projects = [proj1, proj2]
+
+    mock_registry.proto.return_value = mock_proto
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(len(data["projects"])).is_equal_to(3)
+        assertpy.assert_that(data["projects"][0]["id"]).is_equal_to("all")
+        assertpy.assert_that(data["projects"][1]["id"]).is_equal_to("project_alpha")
+        assertpy.assert_that(data["projects"][2]["id"]).is_equal_to("project_beta")
