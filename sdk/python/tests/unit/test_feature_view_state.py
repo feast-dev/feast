@@ -99,6 +99,43 @@ class TestFeatureViewState:
         for state in FeatureViewState:
             assert FeatureViewState.from_proto(state.to_proto()) == state
 
+    def test_valid_transitions(self):
+        """Verify that valid transitions are accepted."""
+        assert FeatureViewState.STATE_UNSPECIFIED.can_transition_to(
+            FeatureViewState.CREATED
+        )
+        assert FeatureViewState.CREATED.can_transition_to(FeatureViewState.GENERATED)
+        assert FeatureViewState.GENERATED.can_transition_to(
+            FeatureViewState.MATERIALIZING
+        )
+        assert FeatureViewState.MATERIALIZING.can_transition_to(
+            FeatureViewState.AVAILABLE_ONLINE
+        )
+        assert FeatureViewState.MATERIALIZING.can_transition_to(
+            FeatureViewState.GENERATED
+        )
+        assert FeatureViewState.AVAILABLE_ONLINE.can_transition_to(
+            FeatureViewState.MATERIALIZING
+        )
+
+    def test_invalid_transitions(self):
+        """Verify that invalid transitions are rejected."""
+        assert not FeatureViewState.STATE_UNSPECIFIED.can_transition_to(
+            FeatureViewState.AVAILABLE_ONLINE
+        )
+        assert not FeatureViewState.CREATED.can_transition_to(
+            FeatureViewState.MATERIALIZING
+        )
+        assert not FeatureViewState.CREATED.can_transition_to(
+            FeatureViewState.AVAILABLE_ONLINE
+        )
+        assert not FeatureViewState.GENERATED.can_transition_to(
+            FeatureViewState.AVAILABLE_ONLINE
+        )
+        assert not FeatureViewState.AVAILABLE_ONLINE.can_transition_to(
+            FeatureViewState.CREATED
+        )
+
 
 # ---------------------------------------------------------------------------
 # FeatureView enabled / state defaults
@@ -339,6 +376,26 @@ class TestRegistryEnabledState:
         # State should be updated via registry apply
         fv.state = FeatureViewState.AVAILABLE_ONLINE
         store.registry.apply_feature_view(fv, store.project)
+        retrieved = store.get_feature_view("test_fv")
+        assert retrieved.state == FeatureViewState.AVAILABLE_ONLINE
+        store.teardown()
+
+    def test_reapply_does_not_reset_state(self, local_feature_store):
+        """feast apply with a default-state FV must not reset an existing state."""
+        store = local_feature_store
+        fv = _simple_feature_view()
+        store.apply([fv])
+
+        # Simulate materialization having moved state to AVAILABLE_ONLINE
+        fv.state = FeatureViewState.AVAILABLE_ONLINE
+        store.registry.apply_feature_view(fv, store.project)
+        retrieved = store.get_feature_view("test_fv")
+        assert retrieved.state == FeatureViewState.AVAILABLE_ONLINE
+
+        # Re-apply with a fresh FV (default STATE_UNSPECIFIED) — should preserve state
+        fresh_fv = _simple_feature_view()
+        assert fresh_fv.state == FeatureViewState.STATE_UNSPECIFIED
+        store.apply([fresh_fv])
         retrieved = store.get_feature_view("test_fv")
         assert retrieved.state == FeatureViewState.AVAILABLE_ONLINE
         store.teardown()

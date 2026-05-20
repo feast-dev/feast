@@ -4,7 +4,11 @@ import yaml
 from feast import utils
 from feast.cli.cli_options import tagsOption
 from feast.errors import FeastObjectNotFoundException
-from feast.feature_view import FeatureView, FeatureViewState
+from feast.feature_view import (
+    _VALID_STATE_TRANSITIONS,
+    FeatureView,
+    FeatureViewState,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_operations import create_feature_store
 
@@ -167,6 +171,16 @@ def feature_view_set_state(ctx: click.Context, name: str, state: str):
     new_state = FeatureViewState[state.upper()]
     if fv.state == new_state:
         print(f"Feature view '{name}' is already in state {new_state.name}.")
+        return
+
+    if not fv.state.can_transition_to(new_state):
+        current = fv.state.name
+        allowed = _VALID_STATE_TRANSITIONS.get(fv.state, set())
+        allowed_names = ", ".join(sorted(s.name for s in allowed)) or "none"
+        print(
+            f"Invalid state transition: {current} -> {new_state.name}. "
+            f"Allowed transitions from {current}: {allowed_names}."
+        )
         return
 
     fv.state = new_state

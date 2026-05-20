@@ -404,8 +404,15 @@ def apply_diff_to_registry(
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.STREAM_FEATURE_VIEW,
             ]:
+                new_fv = cast(BaseFeatureView, feast_object_diff.new_feast_object)
+                # Preserve lifecycle state from the existing registry object so
+                # that ``feast apply`` does not reset e.g. AVAILABLE_ONLINE back
+                # to STATE_UNSPECIFIED.
+                existing_fv = feast_object_diff.current_feast_object
+                if existing_fv is not None and hasattr(existing_fv, "state"):
+                    new_fv.state = existing_fv.state  # type: ignore[union-attr]
                 registry.apply_feature_view(
-                    cast(BaseFeatureView, feast_object_diff.new_feast_object),
+                    new_fv,
                     project,
                     commit=False,
                     no_promote=no_promote,

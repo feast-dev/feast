@@ -63,6 +63,11 @@ class FeatureViewState(enum.IntEnum):
     MATERIALIZING = 3
     AVAILABLE_ONLINE = 4
 
+    def can_transition_to(self, target: "FeatureViewState") -> bool:
+        """Return True if transitioning from this state to *target* is allowed."""
+        allowed = _VALID_STATE_TRANSITIONS.get(self, set())
+        return target in allowed
+
     @classmethod
     def from_proto(cls, proto_val: int) -> "FeatureViewState":
         try:
@@ -72,6 +77,19 @@ class FeatureViewState(enum.IntEnum):
 
     def to_proto(self) -> int:
         return self.value
+
+
+# Valid state transitions: maps each state to the set of states it can move to.
+_VALID_STATE_TRANSITIONS: dict[FeatureViewState, set[FeatureViewState]] = {
+    FeatureViewState.STATE_UNSPECIFIED: {FeatureViewState.CREATED},
+    FeatureViewState.CREATED: {FeatureViewState.GENERATED},
+    FeatureViewState.GENERATED: {FeatureViewState.MATERIALIZING},
+    FeatureViewState.MATERIALIZING: {
+        FeatureViewState.AVAILABLE_ONLINE,
+        FeatureViewState.GENERATED,
+    },
+    FeatureViewState.AVAILABLE_ONLINE: {FeatureViewState.MATERIALIZING},
+}
 
 
 # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews

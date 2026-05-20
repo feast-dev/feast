@@ -1211,6 +1211,20 @@ class FeatureStore:
         for ds in data_sources_to_update:
             self.registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
+            # Preserve lifecycle state from the registry so that apply does
+            # not reset e.g. AVAILABLE_ONLINE back to STATE_UNSPECIFIED.
+            if (
+                hasattr(view, "state")
+                and view.state == FeatureViewState.STATE_UNSPECIFIED
+            ):
+                try:
+                    existing = self.registry.get_any_feature_view(
+                        view.name, self.project
+                    )
+                    if hasattr(existing, "state"):
+                        view.state = existing.state
+                except Exception:
+                    pass
             self.registry.apply_feature_view(
                 view, project=self.project, commit=False, no_promote=no_promote
             )
@@ -1872,10 +1886,6 @@ class FeatureStore:
                             time.monotonic() - fv_start,
                         )
 
-                # Transition state to AVAILABLE_ONLINE after successful materialization.
-                if hasattr(feature_view, "state"):
-                    feature_view.state = FeatureViewState.AVAILABLE_ONLINE
-
                 if not isinstance(feature_view, OnDemandFeatureView):
                     self.registry.apply_materialization(
                         feature_view,
@@ -2018,10 +2028,6 @@ class FeatureStore:
                             fv_success,
                             time.monotonic() - fv_start,
                         )
-
-                # Transition state to AVAILABLE_ONLINE after successful materialization.
-                if hasattr(feature_view, "state"):
-                    feature_view.state = FeatureViewState.AVAILABLE_ONLINE
 
                 self.registry.apply_materialization(
                     feature_view,
