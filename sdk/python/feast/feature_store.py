@@ -1210,9 +1210,12 @@ class FeatureStore:
             self.registry.apply_project(project, commit=False)
         for ds in data_sources_to_update:
             self.registry.apply_data_source(ds, project=self.project, commit=False)
+        # Preserve lifecycle state from the registry so that apply does
+        # not reset e.g. AVAILABLE_ONLINE back to STATE_UNSPECIFIED.
+        # Collected before the apply loop to avoid registry cache refreshes
+        # that would discard uncommitted (commit=False) changes.
+        existing_states: dict[str, FeatureViewState] = {}
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
-            # Preserve lifecycle state from the registry so that apply does
-            # not reset e.g. AVAILABLE_ONLINE back to STATE_UNSPECIFIED.
             if (
                 hasattr(view, "state")
                 and view.state == FeatureViewState.STATE_UNSPECIFIED
@@ -1222,9 +1225,13 @@ class FeatureStore:
                         view.name, self.project
                     )
                     if hasattr(existing, "state"):
-                        view.state = existing.state
+                        existing_states[view.name] = existing.state
                 except Exception:
                     pass
+
+        for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
+            if view.name in existing_states:
+                view.state = existing_states[view.name]
             self.registry.apply_feature_view(
                 view, project=self.project, commit=False, no_promote=no_promote
             )
