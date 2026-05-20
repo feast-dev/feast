@@ -286,24 +286,6 @@ const DataSourceOverviewTab = () => {
                   <EuiText>No consuming views</EuiText>
                 )}
               </EuiPanel>
-              <EuiSpacer size="m" />
-              <EuiPanel hasBorder={true}>
-                <EuiTitle size="xs">
-                  <h2>Permissions</h2>
-                </EuiTitle>
-                <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
-                {registryQuery.data?.permissions ? (
-                  <PermissionsDisplay
-                    permissions={getEntityPermissions(
-                      registryQuery.data.permissions,
-                      FEAST_FCO_TYPES.dataSource,
-                      dsName,
-                    )}
-                  />
-                ) : (
-                  <EuiText>No consuming feature views</EuiText>
-                )}
-              </EuiPanel>
             </EuiFlexItem>
           </EuiFlexGroup>
         </React.Fragment>
