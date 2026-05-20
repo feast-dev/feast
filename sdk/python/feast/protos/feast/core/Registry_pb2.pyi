@@ -25,6 +25,7 @@ from feast.core import FeatureTable_pb2 as _FeatureTable_pb2
 from feast.core import FeatureViewVersion_pb2 as _FeatureViewVersion_pb2
 from feast.core import FeatureView_pb2 as _FeatureView_pb2
 from feast.core import InfraObject_pb2 as _InfraObject_pb2
+from feast.core import LabelView_pb2 as _LabelView_pb2
 from feast.core import OnDemandFeatureView_pb2 as _OnDemandFeatureView_pb2
 from feast.core import Permission_pb2 as _Permission_pb2
 from feast.core import Project_pb2 as _Project_pb2
@@ -53,7 +54,7 @@ DESCRIPTOR: _descriptor.FileDescriptor
 
 @_typing.final
 class Registry(_message.Message):
-    """Next id: 19"""
+    """Next id: 20"""
 
     DESCRIPTOR: _descriptor.Descriptor
 
@@ -74,6 +75,7 @@ class Registry(_message.Message):
     PERMISSIONS_FIELD_NUMBER: _builtins.int
     PROJECTS_FIELD_NUMBER: _builtins.int
     FEATURE_VIEW_VERSION_HISTORY_FIELD_NUMBER: _builtins.int
+    LABEL_VIEWS_FIELD_NUMBER: _builtins.int
     registry_schema_version: _builtins.str
     """to support migrations; incremented when schema is changed"""
     version_id: _builtins.str
@@ -111,6 +113,8 @@ class Registry(_message.Message):
     def projects(self) -> _containers.RepeatedCompositeFieldContainer[_Project_pb2.Project]: ...
     @_builtins.property
     def feature_view_version_history(self) -> _FeatureViewVersion_pb2.FeatureViewVersionHistory: ...
+    @_builtins.property
+    def label_views(self) -> _containers.RepeatedCompositeFieldContainer[_LabelView_pb2.LabelView]: ...
     def __init__(
         self,
         *,
@@ -131,10 +135,11 @@ class Registry(_message.Message):
         permissions: _abc.Iterable[_Permission_pb2.Permission] | None = ...,
         projects: _abc.Iterable[_Project_pb2.Project] | None = ...,
         feature_view_version_history: _FeatureViewVersion_pb2.FeatureViewVersionHistory | None = ...,
+        label_views: _abc.Iterable[_LabelView_pb2.LabelView] | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["feature_view_version_history", b"feature_view_version_history", "infra", b"infra", "last_updated", b"last_updated"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_view_version_history", b"feature_view_version_history", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_view_version_history", b"feature_view_version_history", "feature_views", b"feature_views", "infra", b"infra", "label_views", b"label_views", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
 Global___Registry: _TypeAlias = Registry  # noqa: Y015

@@ -9,6 +9,7 @@ from feast.errors import FeatureViewMissingDuringFeatureServiceInference
 from feast.feature_logging import LoggingConfig
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -40,7 +41,7 @@ class FeatureService:
     """
 
     name: str
-    _features: List[Union[FeatureView, OnDemandFeatureView]]
+    _features: List[Union[FeatureView, OnDemandFeatureView, LabelView]]
     feature_view_projections: List[FeatureViewProjection]
     description: str
     tags: Dict[str, str]
@@ -53,7 +54,7 @@ class FeatureService:
         self,
         *,
         name: str,
-        features: List[Union[FeatureView, OnDemandFeatureView]],
+        features: List[Union[FeatureView, OnDemandFeatureView, LabelView]],
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
