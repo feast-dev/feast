@@ -15,7 +15,6 @@ from feast.ui_server import get_app
 EXPECTED_SUCCESS_STATUS = 200
 EXPECTED_ERROR_STATUS = 503
 TEST_PROJECT_NAME = "test_project"
-REGISTRY_TTL_SECS = 60
 
 
 def _create_mock_ui_files(temp_dir):
@@ -54,11 +53,18 @@ def _setup_importlib_mocks(temp_dir):
         yield mock_files, mock_as_file
 
 
+def _make_project_mock(name, description=""):
+    """Create a mock project object with the given name and description."""
+    proj = MagicMock()
+    proj.name = name
+    proj.description = description
+    return proj
+
+
 @pytest.fixture
 def mock_feature_store():
     """Fixture for creating a mock feature store"""
     mock_store = MagicMock()
-    mock_store.refresh_registry = MagicMock()
     return mock_store
 
 
@@ -66,32 +72,29 @@ def mock_feature_store():
 def ui_app_with_registry(mock_feature_store):
     """Fixture for UI app with valid registry data."""
     mock_registry = MagicMock()
-    mock_proto = MagicMock()
-    mock_proto.SerializeToString.return_value = b"mock_proto_data"
-    mock_proto.projects = []
-    mock_registry.proto.return_value = mock_proto
+    mock_registry.list_projects.return_value = []
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
             yield app
 
 
 @pytest.fixture
 def ui_app_without_registry(mock_feature_store):
-    """Fixture for UI app with None registry data."""
+    """Fixture for UI app where registry raises on list_projects."""
     mock_registry = MagicMock()
-    mock_registry.proto.return_value = None
+    mock_registry.list_projects.side_effect = Exception("registry unavailable")
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
             yield app
 
 
@@ -102,8 +105,8 @@ def test_ui_server_health_endpoint(ui_app_with_registry):
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
 
 
-def test_ui_server_health_endpoint_with_none_registry(ui_app_without_registry):
-    """Health endpoint returns 503 when registry is None."""
+def test_ui_server_health_endpoint_with_unavailable_registry(ui_app_without_registry):
+    """Health endpoint returns 503 when registry is unavailable."""
     client = TestClient(ui_app_without_registry)
     response = client.get("/health")
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_ERROR_STATUS)
@@ -117,23 +120,18 @@ def test_health_endpoint_status(
     registry_available, expected_status, mock_feature_store
 ):
     """Health endpoint returns correct status based on registry availability."""
+    mock_registry = MagicMock()
     if registry_available:
-        mock_registry = MagicMock()
-        mock_proto = MagicMock()
-        mock_proto.SerializeToString.return_value = b"mock_proto_data"
-        mock_proto.projects = []
-        mock_registry.proto.return_value = mock_proto
-        mock_feature_store.registry = mock_registry
+        mock_registry.list_projects.return_value = []
     else:
-        mock_registry = MagicMock()
-        mock_registry.proto.return_value = None
-        mock_feature_store.registry = mock_registry
+        mock_registry.list_projects.side_effect = Exception("unavailable")
+    mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
             client = TestClient(app)
             response = client.get("/health")
             assertpy.assert_that(response.status_code).is_equal_to(expected_status)
@@ -160,17 +158,14 @@ def _read_projects_list(temp_dir):
 def test_projects_list_registry_path(mock_feature_store):
     """projects-list.json uses /api/v1 as registryPath."""
     mock_registry = MagicMock()
-    mock_proto = MagicMock()
-    mock_proto.SerializeToString.return_value = b"data"
-    mock_proto.projects = []
-    mock_registry.proto.return_value = mock_proto
+    mock_registry.list_projects.return_value = []
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+            get_app(mock_feature_store, TEST_PROJECT_NAME)
 
         data = _read_projects_list(temp_dir)
         assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to("/api/v1")
@@ -179,10 +174,7 @@ def test_projects_list_registry_path(mock_feature_store):
 def test_projects_list_with_root_path(mock_feature_store):
     """root_path prefix is included in registryPath."""
     mock_registry = MagicMock()
-    mock_proto = MagicMock()
-    mock_proto.SerializeToString.return_value = b"data"
-    mock_proto.projects = []
-    mock_registry.proto.return_value = mock_proto
+    mock_registry.list_projects.return_value = []
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -192,7 +184,6 @@ def test_projects_list_with_root_path(mock_feature_store):
             get_app(
                 mock_feature_store,
                 TEST_PROJECT_NAME,
-                REGISTRY_TTL_SECS,
                 root_path="/feast",
             )
 
@@ -205,28 +196,54 @@ def test_projects_list_with_root_path(mock_feature_store):
 def test_projects_list_multiple_projects(mock_feature_store):
     """Multiple projects get an 'All Projects' entry prepended."""
     mock_registry = MagicMock()
-    mock_proto = MagicMock()
-    mock_proto.SerializeToString.return_value = b"data"
-
-    proj1 = MagicMock()
-    proj1.spec.name = "project_alpha"
-    proj1.spec.description = "Alpha project"
-    proj2 = MagicMock()
-    proj2.spec.name = "project_beta"
-    proj2.spec.description = "Beta project"
-    mock_proto.projects = [proj1, proj2]
-
-    mock_registry.proto.return_value = mock_proto
+    mock_registry.list_projects.return_value = [
+        _make_project_mock("project_alpha", "Alpha project"),
+        _make_project_mock("project_beta", "Beta project"),
+    ]
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+            get_app(mock_feature_store, TEST_PROJECT_NAME)
 
         data = _read_projects_list(temp_dir)
         assertpy.assert_that(len(data["projects"])).is_equal_to(3)
         assertpy.assert_that(data["projects"][0]["id"]).is_equal_to("all")
         assertpy.assert_that(data["projects"][1]["id"]).is_equal_to("project_alpha")
         assertpy.assert_that(data["projects"][2]["id"]).is_equal_to("project_beta")
+
+
+def test_projects_list_fallback_on_empty(mock_feature_store):
+    """When list_projects returns empty, fallback project is used."""
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = []
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(len(data["projects"])).is_equal_to(1)
+        assertpy.assert_that(data["projects"][0]["id"]).is_equal_to(TEST_PROJECT_NAME)
+
+
+def test_projects_list_fallback_on_exception(mock_feature_store):
+    """When list_projects raises, fallback project is used."""
+    mock_registry = MagicMock()
+    mock_registry.list_projects.side_effect = Exception("not implemented")
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        data = _read_projects_list(temp_dir)
+        assertpy.assert_that(len(data["projects"])).is_equal_to(1)
+        assertpy.assert_that(data["projects"][0]["id"]).is_equal_to(TEST_PROJECT_NAME)
