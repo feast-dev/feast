@@ -59,7 +59,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.24.12
+          go-version: 1.25.0
       - name: Operator Data Source types test
         run: make -C infra/feast-operator test-datasources
       - name: Minimize uv cache
