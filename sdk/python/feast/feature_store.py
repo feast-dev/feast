@@ -1205,15 +1205,10 @@ class FeatureStore:
             services_to_update,
         )
 
-        # Add all objects to the registry and update the provider's infrastructure.
-        for project in projects_to_update:
-            self.registry.apply_project(project, commit=False)
-        for ds in data_sources_to_update:
-            self.registry.apply_data_source(ds, project=self.project, commit=False)
         # Preserve lifecycle state from the registry so that apply does
         # not reset e.g. AVAILABLE_ONLINE back to STATE_UNSPECIFIED.
-        # Collected before the apply loop to avoid registry cache refreshes
-        # that would discard uncommitted (commit=False) changes.
+        # Must run before any commit=False operations to avoid registry
+        # cache refreshes that would discard uncommitted changes.
         existing_states: dict[str, FeatureViewState] = {}
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
             if (
@@ -1229,9 +1224,14 @@ class FeatureStore:
                 except Exception:
                     pass
 
+        # Add all objects to the registry and update the provider's infrastructure.
+        for project in projects_to_update:
+            self.registry.apply_project(project, commit=False)
+        for ds in data_sources_to_update:
+            self.registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
             if view.name in existing_states:
-                view.state = existing_states[view.name]
+                view.state = existing_states[view.name]  # type: ignore[attr-defined]
             self.registry.apply_feature_view(
                 view, project=self.project, commit=False, no_promote=no_promote
             )

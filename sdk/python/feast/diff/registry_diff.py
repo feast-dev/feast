@@ -410,7 +410,7 @@ def apply_diff_to_registry(
                 # to STATE_UNSPECIFIED.
                 existing_fv = feast_object_diff.current_feast_object
                 if existing_fv is not None and hasattr(existing_fv, "state"):
-                    new_fv.state = existing_fv.state  # type: ignore[union-attr]
+                    new_fv.state = existing_fv.state  # type: ignore[attr-defined]
                 registry.apply_feature_view(
                     new_fv,
                     project,
