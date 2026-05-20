@@ -1,7 +1,16 @@
 FROM registry.access.redhat.com/ubi9/python-312-minimal:1
 
 USER 0
-RUN microdnf install -y npm git gcc libpq-devel python3.12-devel && microdnf clean all
+RUN microdnf install -y npm git gcc make libpq-devel python3.12-devel tar gzip && microdnf clean all
+# python3.12-devel upgrades python3.12-libs to a version whose _sqlite3
+# extension requires sqlite3_deserialize — absent from UBI9's sqlite-libs
+# (3.34.1). Install a compatible SQLite to provide the missing symbol.
+RUN curl -sSL https://www.sqlite.org/2025/sqlite-autoconf-3490200.tar.gz | tar xz && \
+    cd sqlite-autoconf-3490200 && \
+    ./configure --prefix=/usr --libdir=/usr/lib64 && \
+    make -j$(nproc) && make install && \
+    rm -f /usr/lib64/libsqlite3.so.0.8.6 && \
+    ldconfig && cd .. && rm -rf sqlite-autoconf-3490200
 RUN npm install -g yarn yalc && rm -rf .npm
 USER 1001
 
