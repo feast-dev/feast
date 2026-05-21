@@ -57,15 +57,19 @@ def registry_proto_cache_with_tags(func):
         registry_proto: RegistryProto,
         project: str,
         tags: Optional[dict[str, str]],
+        **kwargs,
     ):
         nonlocal cache_key, cache_value
 
-        key = tuple([id(registry_proto), registry_proto.version_id, project, tags])
+        kwargs_key = tuple(sorted(kwargs.items())) if kwargs else ()
+        key = tuple(
+            [id(registry_proto), registry_proto.version_id, project, tags, kwargs_key]
+        )
 
         if key == cache_key:
             return cache_value
         else:
-            cache_value = func(registry_proto, project, tags)
+            cache_value = func(registry_proto, project, tags, **kwargs)
             cache_key = key
             return cache_value
 
@@ -279,31 +283,42 @@ def list_feature_services(
 
 @registry_proto_cache_with_tags
 def list_all_feature_views(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
 ) -> List[BaseFeatureView]:
     return (
-        list_feature_views(registry_proto, project, tags)
-        + list_stream_feature_views(registry_proto, project, tags)
-        + list_on_demand_feature_views(registry_proto, project, tags)
+        list_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_stream_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_on_demand_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
     )
 
 
 @registry_proto_cache_with_tags
 def list_feature_views(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
 ) -> List[FeatureView]:
     feature_views: List[FeatureView] = []
     for feature_view_proto in registry_proto.feature_views:
         if feature_view_proto.spec.project == project and utils.has_all_tags(
             feature_view_proto.spec.tags, tags
         ):
-            feature_views.append(FeatureView.from_proto(feature_view_proto))
+            feature_views.append(
+                FeatureView.from_proto(feature_view_proto, skip_udf=skip_udf)
+            )
     return feature_views
 
 
 @registry_proto_cache_with_tags
 def list_stream_feature_views(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
 ) -> List[StreamFeatureView]:
     stream_feature_views = []
     for stream_feature_view in registry_proto.stream_feature_views:
@@ -311,14 +326,17 @@ def list_stream_feature_views(
             stream_feature_view.spec.tags, tags
         ):
             stream_feature_views.append(
-                StreamFeatureView.from_proto(stream_feature_view)
+                StreamFeatureView.from_proto(stream_feature_view, skip_udf=skip_udf)
             )
     return stream_feature_views
 
 
 @registry_proto_cache_with_tags
 def list_on_demand_feature_views(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
 ) -> List[OnDemandFeatureView]:
     on_demand_feature_views = []
     for on_demand_feature_view in registry_proto.on_demand_feature_views:
@@ -326,7 +344,9 @@ def list_on_demand_feature_views(
             on_demand_feature_view.spec.tags, tags
         ):
             on_demand_feature_views.append(
-                OnDemandFeatureView.from_proto(on_demand_feature_view)
+                OnDemandFeatureView.from_proto(
+                    on_demand_feature_view, skip_udf=skip_udf
+                )
             )
     return on_demand_feature_views
 

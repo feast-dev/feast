@@ -113,6 +113,7 @@ class FeatureView(BaseFeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
     enable_validation: bool
+    _raw_feature_transformation_proto: Optional[Message] = None
 
     def __init__(
         self,
@@ -481,7 +482,9 @@ class FeatureView(BaseFeatureView):
             ]
 
         feature_transformation_proto = None
-        if hasattr(self, "feature_transformation") and self.feature_transformation:
+        if getattr(self, "_raw_feature_transformation_proto", None) is not None:
+            feature_transformation_proto = self._raw_feature_transformation_proto
+        elif hasattr(self, "feature_transformation") and self.feature_transformation:
             feature_transformation_proto = transformation_to_proto(
                 self.feature_transformation
             )
@@ -636,8 +639,14 @@ class FeatureView(BaseFeatureView):
                 source=source_views if source_views else batch_source,  # type: ignore[arg-type]
                 sink_source=batch_source if source_views else None,
                 mode=mode,
-                feature_transformation=transformation,
+                feature_transformation=transformation
+                if not skip_udf
+                else feature_transformation_proto,  # type: ignore[arg-type]
             )
+            if skip_udf:
+                feature_view._raw_feature_transformation_proto = (
+                    feature_transformation_proto
+                )
         else:
             mode_from_spec = (
                 feature_view_proto.spec.mode if feature_view_proto.spec.mode else None
