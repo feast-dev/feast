@@ -1221,7 +1221,7 @@ class FeatureStore:
                     )
                     if hasattr(existing, "state"):
                         existing_states[view.name] = existing.state
-                except Exception:
+                except FeastObjectNotFoundException:
                     pass
 
         # Add all objects to the registry and update the provider's infrastructure.
