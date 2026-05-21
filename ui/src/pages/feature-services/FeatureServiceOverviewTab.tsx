@@ -36,7 +36,7 @@ const FeatureServiceOverviewTab = () => {
   let numFeatures = 0;
   let numFeatureViews = 0;
   if (data) {
-    data?.spec?.features?.forEach((featureView) => {
+    data?.spec?.features?.forEach((featureView: any) => {
       numFeatureViews += 1;
       numFeatures += featureView?.featureColumns!.length;
     });
@@ -159,7 +159,7 @@ const FeatureServiceOverviewTab = () => {
                 {data?.spec?.features?.length! > 0 ? (
                   <FeatureViewEdgesList
                     fvNames={
-                      data?.spec?.features?.map((f) => {
+                      data?.spec?.features?.map((f: any) => {
                         return f.featureViewName!;
                       })!
                     }
