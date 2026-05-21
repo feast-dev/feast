@@ -1,3 +1,5 @@
+import sys
+
 import click
 import yaml
 
@@ -101,7 +103,7 @@ def feature_view_enable(ctx: click.Context, name: str):
         fv = store.registry.get_any_feature_view(name, store.project)
     except FeastObjectNotFoundException as e:
         print(e)
-        exit(1)
+        sys.exit(1)
 
     if not isinstance(fv, (FeatureView, OnDemandFeatureView)):
         print(f"Feature view '{name}' does not support enable/disable.")
@@ -128,7 +130,7 @@ def feature_view_disable(ctx: click.Context, name: str):
         fv = store.registry.get_any_feature_view(name, store.project)
     except FeastObjectNotFoundException as e:
         print(e)
-        exit(1)
+        sys.exit(1)
 
     if not isinstance(fv, (FeatureView, OnDemandFeatureView)):
         print(f"Feature view '{name}' does not support enable/disable.")
@@ -162,7 +164,7 @@ def feature_view_set_state(ctx: click.Context, name: str, state: str):
         fv = store.registry.get_any_feature_view(name, store.project)
     except FeastObjectNotFoundException as e:
         print(e)
-        exit(1)
+        sys.exit(1)
 
     if not isinstance(fv, (FeatureView, OnDemandFeatureView)):
         print(f"Feature view '{name}' does not support state management.")
