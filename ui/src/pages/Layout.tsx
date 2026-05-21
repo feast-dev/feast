@@ -26,6 +26,7 @@ import RegistrySearch, {
 } from "../components/RegistrySearch";
 import GlobalSearchShortcut from "../components/GlobalSearchShortcut";
 import CommandPalette from "../components/CommandPalette";
+import UIVersionToggle from "../components/UIVersionToggle";
 
 const Layout = () => {
   // Registry Path Context has to be inside Layout
@@ -246,7 +247,7 @@ const Layout = () => {
                     width: "100%",
                   }}
                 >
-                  <EuiFlexGroup justifyContent="center">
+                  <EuiFlexGroup justifyContent="center" alignItems="center">
                     <EuiFlexItem
                       grow={false}
                       style={{ width: "600px", maxWidth: "90%" }}
@@ -255,6 +256,9 @@ const Layout = () => {
                         ref={searchRef}
                         categories={globalCategories}
                       />
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      <UIVersionToggle />
                     </EuiFlexItem>
                   </EuiFlexGroup>
                 </div>
