@@ -1,6 +1,6 @@
 import click
 
-from feast.repo_operations import create_feature_store, registry_dump
+from feast.repo_operations import create_feature_store
 
 
 @click.command()
@@ -19,14 +19,6 @@ from feast.repo_operations import create_feature_store, registry_dump
     default=8888,
     show_default=True,
     help="Specify a port for the server",
-)
-@click.option(
-    "--registry_ttl_sec",
-    "-r",
-    help="Number of seconds after which the registry is refreshed",
-    type=click.INT,
-    default=5,
-    show_default=True,
 )
 @click.option(
     "--root_path",
@@ -57,7 +49,6 @@ def ui(
     ctx: click.Context,
     host: str,
     port: int,
-    registry_ttl_sec: int,
     root_path: str = "",
     tls_key_path: str = "",
     tls_cert_path: str = "",
@@ -73,8 +64,6 @@ def ui(
     store.serve_ui(
         host=host,
         port=port,
-        get_registry_dump=registry_dump,
-        registry_ttl_sec=registry_ttl_sec,
         root_path=root_path,
         tls_key_path=tls_key_path,
         tls_cert_path=tls_cert_path,
