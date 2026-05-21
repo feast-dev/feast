@@ -101,6 +101,8 @@ class StreamFeatureView(FeatureView):
     timestamp_field: str
     enable_tiling: bool
     tiling_hop_size: Optional[timedelta]
+    _raw_udf_proto: Optional[Any] = None
+    _raw_feature_transformation_proto: Optional[Any] = None
 
     def __init__(
         self,
@@ -277,7 +279,12 @@ class StreamFeatureView(FeatureView):
         stream_source_proto = serialize_data_source(self.stream_source)
 
         udf_proto, feature_transformation = None, None
-        if self.udf:
+        if getattr(self, "_raw_udf_proto", None) is not None:
+            udf_proto = self._raw_udf_proto
+            feature_transformation = getattr(
+                self, "_raw_feature_transformation_proto", None
+            )
+        elif self.udf:
             udf_proto = UserDefinedFunctionProto(
                 name=self.udf.__name__,
                 body=dill.dumps(self.udf, recurse=True),
@@ -402,6 +409,13 @@ class StreamFeatureView(FeatureView):
             stream_feature_view.current_version_number = 0
         else:
             stream_feature_view.current_version_number = None
+
+        if skip_udf and sfv_proto.spec.HasField("user_defined_function"):
+            stream_feature_view._raw_udf_proto = sfv_proto.spec.user_defined_function
+        if skip_udf and sfv_proto.spec.HasField("feature_transformation"):
+            stream_feature_view._raw_feature_transformation_proto = (
+                sfv_proto.spec.feature_transformation
+            )
 
         stream_feature_view.entities = list(sfv_proto.spec.entities)
 
