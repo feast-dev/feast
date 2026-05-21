@@ -9,6 +9,7 @@ rules:
   resources:
   - configmaps
   - persistentvolumeclaims
+  - secrets
   - serviceaccounts
   - services
   verbs:
@@ -23,7 +24,6 @@ rules:
   resources:
   - namespaces
   - pods
-  - secrets
   verbs:
   - get
   - list
@@ -123,6 +123,14 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ray.io
+  resources:
+  - rayclusters
+  verbs:
+  - get
+  - list
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io

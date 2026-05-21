@@ -78,6 +78,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.createServiceAccount(); err != nil {
 		return err
 	}
+	if err := feast.applyOrDeleteKubeRayRBAC(); err != nil {
+		return err
+	}
 	if err := feast.createDeployment(); err != nil {
 		return err
 	}
