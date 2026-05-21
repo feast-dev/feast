@@ -16,6 +16,11 @@ offline_store:
 
 entity_key_serialization_version: 3
 
+mlflow:
+  enabled: true
+  tracking_uri: "http://localhost:5000"
+  enable_tracing: true
+
 feature_server:
   type: mcp
   enabled: true
