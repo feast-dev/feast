@@ -106,6 +106,10 @@ func getServiceRepoConfig(
 		}
 	}
 
+	if appliedSpec.DataQualityMonitoring != nil {
+		setRepoConfigDataQualityMonitoring(appliedSpec.DataQualityMonitoring, &repoConfig)
+	}
+
 	return repoConfig, nil
 }
 
@@ -484,6 +488,15 @@ func coerceStringToYamlType(v string) interface{} {
 		return false
 	}
 	return v
+}
+
+func setRepoConfigDataQualityMonitoring(dqmConfig *feastdevv1.DataQualityMonitoringConfig, repoConfig *RepoConfig) {
+	if dqmConfig.AutoBaseline == nil {
+		return
+	}
+	repoConfig.DataQualityMonitoring = &DataQualityMonitoringYamlConfig{
+		AutoBaseline: *dqmConfig.AutoBaseline,
+	}
 }
 
 func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {

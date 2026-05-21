@@ -1,6 +1,6 @@
 module github.com/feast-dev/feast/infra/feast-operator
 
-go 1.24.12
+go 1.25.0
 
 require (
 	github.com/onsi/ginkgo/v2 v2.22.2
