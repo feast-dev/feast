@@ -16,39 +16,37 @@ isort:skip_file
 * See the License for the specific language governing permissions and
 * limitations under the License.
 """
-
-from collections import abc as _abc
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import message as _message
-from google.protobuf.internal import containers as _containers
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-import builtins as _builtins
+import builtins
+import collections.abc
+import google.protobuf.descriptor
+import google.protobuf.internal.containers
+import google.protobuf.internal.enum_type_wrapper
+import google.protobuf.message
 import sys
-import typing as _typing
+import typing
 
 if sys.version_info >= (3, 10):
-    from typing import TypeAlias as _TypeAlias
+    import typing as typing_extensions
 else:
-    from typing_extensions import TypeAlias as _TypeAlias
+    import typing_extensions
 
-DESCRIPTOR: _descriptor.FileDescriptor
+DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-@_typing.final
-class Store(_message.Message):
+class Store(google.protobuf.message.Message):
     """Store provides a location where Feast reads and writes feature values.
     Feature values will be written to the Store in the form of FeatureRow elements.
     The way FeatureRow is encoded and decoded when it is written to and read from
     the Store depends on the type of the Store.
     """
 
-    DESCRIPTOR: _descriptor.Descriptor
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     class _StoreType:
-        ValueType = _typing.NewType("ValueType", _builtins.int)
-        V: _TypeAlias = ValueType  # noqa: Y015
+        ValueType = typing.NewType("ValueType", builtins.int)
+        V: typing_extensions.TypeAlias = ValueType
 
-    class _StoreTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[Store._StoreType.ValueType], _builtins.type):
-        DESCRIPTOR: _descriptor.EnumDescriptor
+    class _StoreTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Store._StoreType.ValueType], builtins.type):  # noqa: F821
+        DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
         INVALID: Store._StoreType.ValueType  # 0
         REDIS: Store._StoreType.ValueType  # 1
         """Redis stores a FeatureRow element as a key, value pair.
@@ -78,51 +76,48 @@ class Store(_message.Message):
     """
     REDIS_CLUSTER: Store.StoreType.ValueType  # 4
 
-    @_typing.final
-    class RedisConfig(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
+    class RedisConfig(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        HOST_FIELD_NUMBER: _builtins.int
-        PORT_FIELD_NUMBER: _builtins.int
-        INITIAL_BACKOFF_MS_FIELD_NUMBER: _builtins.int
-        MAX_RETRIES_FIELD_NUMBER: _builtins.int
-        FLUSH_FREQUENCY_SECONDS_FIELD_NUMBER: _builtins.int
-        SSL_FIELD_NUMBER: _builtins.int
-        host: _builtins.str
-        port: _builtins.int
-        initial_backoff_ms: _builtins.int
+        HOST_FIELD_NUMBER: builtins.int
+        PORT_FIELD_NUMBER: builtins.int
+        INITIAL_BACKOFF_MS_FIELD_NUMBER: builtins.int
+        MAX_RETRIES_FIELD_NUMBER: builtins.int
+        FLUSH_FREQUENCY_SECONDS_FIELD_NUMBER: builtins.int
+        SSL_FIELD_NUMBER: builtins.int
+        host: builtins.str
+        port: builtins.int
+        initial_backoff_ms: builtins.int
         """Optional. The number of milliseconds to wait before retrying failed Redis connection.
         By default, Feast uses exponential backoff policy and "initial_backoff_ms" sets the initial wait duration.
         """
-        max_retries: _builtins.int
+        max_retries: builtins.int
         """Optional. Maximum total number of retries for connecting to Redis. Default to zero retries."""
-        flush_frequency_seconds: _builtins.int
+        flush_frequency_seconds: builtins.int
         """Optional. How often flush data to redis"""
-        ssl: _builtins.bool
+        ssl: builtins.bool
         """Optional. Connect over SSL."""
         def __init__(
             self,
             *,
-            host: _builtins.str = ...,
-            port: _builtins.int = ...,
-            initial_backoff_ms: _builtins.int = ...,
-            max_retries: _builtins.int = ...,
-            flush_frequency_seconds: _builtins.int = ...,
-            ssl: _builtins.bool = ...,
+            host: builtins.str = ...,
+            port: builtins.int = ...,
+            initial_backoff_ms: builtins.int = ...,
+            max_retries: builtins.int = ...,
+            flush_frequency_seconds: builtins.int = ...,
+            ssl: builtins.bool = ...,
         ) -> None: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["flush_frequency_seconds", b"flush_frequency_seconds", "host", b"host", "initial_backoff_ms", b"initial_backoff_ms", "max_retries", b"max_retries", "port", b"port", "ssl", b"ssl"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["flush_frequency_seconds", b"flush_frequency_seconds", "host", b"host", "initial_backoff_ms", b"initial_backoff_ms", "max_retries", b"max_retries", "port", b"port", "ssl", b"ssl"]) -> None: ...
 
-    @_typing.final
-    class RedisClusterConfig(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
+    class RedisClusterConfig(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
         class _ReadFrom:
-            ValueType = _typing.NewType("ValueType", _builtins.int)
-            V: _TypeAlias = ValueType  # noqa: Y015
+            ValueType = typing.NewType("ValueType", builtins.int)
+            V: typing_extensions.TypeAlias = ValueType
 
-        class _ReadFromEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[Store.RedisClusterConfig._ReadFrom.ValueType], _builtins.type):
-            DESCRIPTOR: _descriptor.EnumDescriptor
+        class _ReadFromEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Store.RedisClusterConfig._ReadFrom.ValueType], builtins.type):  # noqa: F821
+            DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
             MASTER: Store.RedisClusterConfig._ReadFrom.ValueType  # 0
             MASTER_PREFERRED: Store.RedisClusterConfig._ReadFrom.ValueType  # 1
             REPLICA: Store.RedisClusterConfig._ReadFrom.ValueType  # 2
@@ -136,52 +131,50 @@ class Store(_message.Message):
         REPLICA: Store.RedisClusterConfig.ReadFrom.ValueType  # 2
         REPLICA_PREFERRED: Store.RedisClusterConfig.ReadFrom.ValueType  # 3
 
-        CONNECTION_STRING_FIELD_NUMBER: _builtins.int
-        INITIAL_BACKOFF_MS_FIELD_NUMBER: _builtins.int
-        MAX_RETRIES_FIELD_NUMBER: _builtins.int
-        FLUSH_FREQUENCY_SECONDS_FIELD_NUMBER: _builtins.int
-        KEY_PREFIX_FIELD_NUMBER: _builtins.int
-        ENABLE_FALLBACK_FIELD_NUMBER: _builtins.int
-        FALLBACK_PREFIX_FIELD_NUMBER: _builtins.int
-        READ_FROM_FIELD_NUMBER: _builtins.int
-        connection_string: _builtins.str
+        CONNECTION_STRING_FIELD_NUMBER: builtins.int
+        INITIAL_BACKOFF_MS_FIELD_NUMBER: builtins.int
+        MAX_RETRIES_FIELD_NUMBER: builtins.int
+        FLUSH_FREQUENCY_SECONDS_FIELD_NUMBER: builtins.int
+        KEY_PREFIX_FIELD_NUMBER: builtins.int
+        ENABLE_FALLBACK_FIELD_NUMBER: builtins.int
+        FALLBACK_PREFIX_FIELD_NUMBER: builtins.int
+        READ_FROM_FIELD_NUMBER: builtins.int
+        connection_string: builtins.str
         """List of Redis Uri for all the nodes in Redis Cluster, comma separated. Eg. host1:6379, host2:6379"""
-        initial_backoff_ms: _builtins.int
-        max_retries: _builtins.int
-        flush_frequency_seconds: _builtins.int
+        initial_backoff_ms: builtins.int
+        max_retries: builtins.int
+        flush_frequency_seconds: builtins.int
         """Optional. How often flush data to redis"""
-        key_prefix: _builtins.str
+        key_prefix: builtins.str
         """Optional. Append a prefix to the Redis Key"""
-        enable_fallback: _builtins.bool
+        enable_fallback: builtins.bool
         """Optional. Enable fallback to another key prefix if the original key is not present.
         Useful for migrating key prefix without re-ingestion. Disabled by default.
         """
-        fallback_prefix: _builtins.str
+        fallback_prefix: builtins.str
         """Optional. This would be the fallback prefix to use if enable_fallback is true."""
-        read_from: Global___Store.RedisClusterConfig.ReadFrom.ValueType
+        read_from: global___Store.RedisClusterConfig.ReadFrom.ValueType
         def __init__(
             self,
             *,
-            connection_string: _builtins.str = ...,
-            initial_backoff_ms: _builtins.int = ...,
-            max_retries: _builtins.int = ...,
-            flush_frequency_seconds: _builtins.int = ...,
-            key_prefix: _builtins.str = ...,
-            enable_fallback: _builtins.bool = ...,
-            fallback_prefix: _builtins.str = ...,
-            read_from: Global___Store.RedisClusterConfig.ReadFrom.ValueType = ...,
+            connection_string: builtins.str = ...,
+            initial_backoff_ms: builtins.int = ...,
+            max_retries: builtins.int = ...,
+            flush_frequency_seconds: builtins.int = ...,
+            key_prefix: builtins.str = ...,
+            enable_fallback: builtins.bool = ...,
+            fallback_prefix: builtins.str = ...,
+            read_from: global___Store.RedisClusterConfig.ReadFrom.ValueType = ...,
         ) -> None: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["connection_string", b"connection_string", "enable_fallback", b"enable_fallback", "fallback_prefix", b"fallback_prefix", "flush_frequency_seconds", b"flush_frequency_seconds", "initial_backoff_ms", b"initial_backoff_ms", "key_prefix", b"key_prefix", "max_retries", b"max_retries", "read_from", b"read_from"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["connection_string", b"connection_string", "enable_fallback", b"enable_fallback", "fallback_prefix", b"fallback_prefix", "flush_frequency_seconds", b"flush_frequency_seconds", "initial_backoff_ms", b"initial_backoff_ms", "key_prefix", b"key_prefix", "max_retries", b"max_retries", "read_from", b"read_from"]) -> None: ...
 
-    @_typing.final
-    class Subscription(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
+    class Subscription(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        PROJECT_FIELD_NUMBER: _builtins.int
-        NAME_FIELD_NUMBER: _builtins.int
-        EXCLUDE_FIELD_NUMBER: _builtins.int
-        project: _builtins.str
+        PROJECT_FIELD_NUMBER: builtins.int
+        NAME_FIELD_NUMBER: builtins.int
+        EXCLUDE_FIELD_NUMBER: builtins.int
+        project: builtins.str
         """Name of project that the feature sets belongs to. This can be one of
         - [project_name]
         - *
@@ -189,7 +182,7 @@ class Store(_message.Message):
         be matched. It is NOT possible to provide an asterisk with a string in order to do
         pattern matching.
         """
-        name: _builtins.str
+        name: builtins.str
         """Name of the desired feature set. Asterisks can be used as wildcards in the name.
         Matching on names is only permitted if a specific project is defined. It is disallowed
         If the project name is set to "*"
@@ -198,50 +191,44 @@ class Store(_message.Message):
         - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         - my-feature-set-6 can be used to select a single feature set
         """
-        exclude: _builtins.bool
+        exclude: builtins.bool
         """All matches with exclude enabled will be filtered out instead of added"""
         def __init__(
             self,
             *,
-            project: _builtins.str = ...,
-            name: _builtins.str = ...,
-            exclude: _builtins.bool = ...,
+            project: builtins.str = ...,
+            name: builtins.str = ...,
+            exclude: builtins.bool = ...,
         ) -> None: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["exclude", b"exclude", "name", b"name", "project", b"project"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["exclude", b"exclude", "name", b"name", "project", b"project"]) -> None: ...
 
-    NAME_FIELD_NUMBER: _builtins.int
-    TYPE_FIELD_NUMBER: _builtins.int
-    SUBSCRIPTIONS_FIELD_NUMBER: _builtins.int
-    REDIS_CONFIG_FIELD_NUMBER: _builtins.int
-    REDIS_CLUSTER_CONFIG_FIELD_NUMBER: _builtins.int
-    name: _builtins.str
+    NAME_FIELD_NUMBER: builtins.int
+    TYPE_FIELD_NUMBER: builtins.int
+    SUBSCRIPTIONS_FIELD_NUMBER: builtins.int
+    REDIS_CONFIG_FIELD_NUMBER: builtins.int
+    REDIS_CLUSTER_CONFIG_FIELD_NUMBER: builtins.int
+    name: builtins.str
     """Name of the store."""
-    type: Global___Store.StoreType.ValueType
+    type: global___Store.StoreType.ValueType
     """Type of store."""
-    @_builtins.property
-    def subscriptions(self) -> _containers.RepeatedCompositeFieldContainer[Global___Store.Subscription]:
+    @property
+    def subscriptions(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Store.Subscription]:
         """Feature sets to subscribe to."""
-
-    @_builtins.property
-    def redis_config(self) -> Global___Store.RedisConfig: ...
-    @_builtins.property
-    def redis_cluster_config(self) -> Global___Store.RedisClusterConfig: ...
+    @property
+    def redis_config(self) -> global___Store.RedisConfig: ...
+    @property
+    def redis_cluster_config(self) -> global___Store.RedisClusterConfig: ...
     def __init__(
         self,
         *,
-        name: _builtins.str = ...,
-        type: Global___Store.StoreType.ValueType = ...,
-        subscriptions: _abc.Iterable[Global___Store.Subscription] | None = ...,
-        redis_config: Global___Store.RedisConfig | None = ...,
-        redis_cluster_config: Global___Store.RedisClusterConfig | None = ...,
+        name: builtins.str = ...,
+        type: global___Store.StoreType.ValueType = ...,
+        subscriptions: collections.abc.Iterable[global___Store.Subscription] | None = ...,
+        redis_config: global___Store.RedisConfig | None = ...,
+        redis_cluster_config: global___Store.RedisClusterConfig | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["config", b"config", "redis_cluster_config", b"redis_cluster_config", "redis_config", b"redis_config"]  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["config", b"config", "name", b"name", "redis_cluster_config", b"redis_cluster_config", "redis_config", b"redis_config", "subscriptions", b"subscriptions", "type", b"type"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_config: _TypeAlias = _typing.Literal["redis_config", "redis_cluster_config"]  # noqa: Y015
-    _WhichOneofArgType_config: _TypeAlias = _typing.Literal["config", b"config"]  # noqa: Y015
-    def WhichOneof(self, oneof_group: _WhichOneofArgType_config) -> _WhichOneofReturnType_config | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["config", b"config", "redis_cluster_config", b"redis_cluster_config", "redis_config", b"redis_config"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["config", b"config", "name", b"name", "redis_cluster_config", b"redis_cluster_config", "redis_config", b"redis_config", "subscriptions", b"subscriptions", "type", b"type"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["config", b"config"]) -> typing_extensions.Literal["redis_config", "redis_cluster_config"] | None: ...
 
-Global___Store: _TypeAlias = Store  # noqa: Y015
+global___Store = Store

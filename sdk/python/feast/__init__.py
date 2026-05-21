@@ -24,7 +24,7 @@ from .entity import Entity
 from .feature import Feature
 from .feature_service import FeatureService
 from .feature_store import FeatureStore
-from .feature_view import FeatureView
+from .feature_view import FeatureView, FeatureViewState
 from .field import Field
 from .on_demand_feature_view import OnDemandFeatureView
 from .project import Project
@@ -53,6 +53,7 @@ __all__ = [
     "FeatureService",
     "FeatureStore",
     "FeatureView",
+    "FeatureViewState",
     "OnDemandFeatureView",
     "RepoConfig",
     "StreamFeatureView",
