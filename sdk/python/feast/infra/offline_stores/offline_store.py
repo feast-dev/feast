@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
+import time
 import warnings
 from abc import ABC
-from datetime import datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -68,6 +70,21 @@ class RetrievalMetadata:
         self.keys = keys
         self.min_event_timestamp = min_event_timestamp
         self.max_event_timestamp = max_event_timestamp
+
+
+def _extract_retrieval_metadata(job: "RetrievalJob") -> tuple:
+    """Return ``(feature_view_names, feature_count)`` from a RetrievalJob's metadata."""
+    try:
+        meta = job.metadata
+        if meta:
+            feature_count = len(meta.features)
+            feature_views = list(
+                {ref.split(":")[0] for ref in meta.features if ":" in ref}
+            )
+            return feature_views, feature_count
+    except (NotImplementedError, AttributeError):
+        pass
+    return [], 0
 
 
 class RetrievalJob(ABC):
@@ -152,7 +169,51 @@ class RetrievalJob(ABC):
             validation_reference (optional): The validation to apply against the retrieved dataframe.
             timeout (optional): The query timeout if applicable.
         """
-        features_table = self._to_arrow_internal(timeout=timeout)
+        start_wall = time.monotonic()
+        status_label = "success"
+        row_count = 0
+        try:
+            features_table = self._to_arrow_internal(timeout=timeout)
+            row_count = features_table.num_rows
+        except Exception:
+            status_label = "error"
+            raise
+        finally:
+            try:
+                from feast import metrics as feast_metrics
+
+                elapsed = time.monotonic() - start_wall
+
+                if feast_metrics._config.offline_features:
+                    feast_metrics.offline_store_request_total.labels(
+                        method="to_arrow", status=status_label
+                    ).inc()
+                    feast_metrics.offline_store_request_latency_seconds.labels(
+                        method="to_arrow"
+                    ).observe(elapsed)
+                    feast_metrics.offline_store_row_count.labels(
+                        method="to_arrow"
+                    ).observe(row_count)
+
+                if feast_metrics._config.audit_logging:
+                    feature_views, feature_count = _extract_retrieval_metadata(self)
+                    end_dt = datetime.now(tz=timezone.utc)
+                    start_dt = end_dt - timedelta(seconds=elapsed)
+                    feast_metrics.emit_offline_audit_log(
+                        method="to_arrow",
+                        feature_views=feature_views,
+                        feature_count=feature_count,
+                        row_count=row_count,
+                        status=status_label,
+                        start_time=start_dt.isoformat(),
+                        end_time=end_dt.isoformat(),
+                        duration_ms=elapsed * 1000,
+                    )
+            except Exception:
+                logging.getLogger(__name__).debug(
+                    "Failed to record offline store metrics", exc_info=True
+                )
+
         if self.on_demand_feature_views:
             # Build a mapping of ODFV name to requested feature names
             # This ensures we only return the features that were explicitly requested
@@ -559,3 +620,137 @@ class OfflineStore(ABC):
             data_source: DataSource object
         """
         return data_source.get_table_column_names_and_types(config=config)
+
+    @staticmethod
+    def compute_monitoring_metrics(
+        config: RepoConfig,
+        data_source: DataSource,
+        feature_columns: List[Tuple[str, str]],
+        timestamp_field: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        histogram_bins: int = 20,
+        top_n: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Compute monitoring metrics (stats, percentiles, histograms) directly
+        in the offline store using its native compute engine.
+
+        Backends that don't support this should leave it unimplemented;
+        the monitoring service will fall back to Python-based computation.
+
+        Args:
+            config: The config for the current feature store.
+            data_source: The data source to compute metrics from.
+            feature_columns: List of (feature_name, feature_type) where
+                feature_type is "numeric" or "categorical".
+            timestamp_field: Column used for time-range filtering.
+            start_date: Start of the time range.
+            end_date: End of the time range.
+            histogram_bins: Number of bins for numeric histograms.
+            top_n: Number of top values for categorical histograms.
+
+        Returns:
+            A list of metric dicts, one per feature, matching the format
+            produced by MetricsCalculator.compute_all.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        """
+        Return the maximum event timestamp from the data source.
+
+        Used by the monitoring service to determine date ranges for
+        auto-compute. Backends that don't support this should leave it
+        unimplemented; the caller will fall back to a full-table scan.
+
+        Args:
+            config: The config for the current feature store.
+            data_source: The data source to query.
+            timestamp_field: The timestamp column name.
+
+        Returns:
+            The maximum timestamp, or None if no data exists.
+        """
+        raise NotImplementedError
+
+    # ------------------------------------------------------------------ #
+    #  Monitoring metrics storage (native)
+    # ------------------------------------------------------------------ #
+
+    MONITORING_VALID_GRANULARITIES = (
+        "daily",
+        "weekly",
+        "biweekly",
+        "monthly",
+        "quarterly",
+    )
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        """Create the monitoring metrics tables if they do not exist.
+
+        Backends that don't support native monitoring storage should
+        leave this unimplemented; the monitoring service will raise an
+        error indicating the backend lacks storage support.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        """Persist monitoring metrics (upsert semantics).
+
+        Args:
+            config: The config for the current feature store.
+            metric_type: One of "feature", "feature_view", "feature_service".
+            metrics: List of metric dicts to upsert.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[Dict[str, Any]]:
+        """Read monitoring metrics with optional filtering.
+
+        Args:
+            config: The config for the current feature store.
+            project: Feast project name.
+            metric_type: One of "feature", "feature_view", "feature_service".
+            filters: Column-value pairs for WHERE clauses.
+            start_date: Inclusive lower bound on metric_date.
+            end_date: Inclusive upper bound on metric_date.
+
+        Returns:
+            List of metric dicts ordered by metric_date ascending.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        """Set is_baseline=FALSE for matching feature metric rows.
+
+        Used to ensure only one baseline exists per feature before
+        writing a new baseline.
+        """
+        raise NotImplementedError

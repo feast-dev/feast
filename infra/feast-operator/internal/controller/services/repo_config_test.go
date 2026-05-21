@@ -318,6 +318,30 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
+
+			By("Having DQM config with auto_baseline disabled")
+			featureStore = minimalFeatureStore()
+			dqmAutoBaseline := false
+			featureStore.Spec.DataQualityMonitoring = &feastdevv1.DataQualityMonitoringConfig{
+				AutoBaseline: &dqmAutoBaseline,
+			}
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.DataQualityMonitoring).NotTo(BeNil())
+			Expect(repoConfig.DataQualityMonitoring.AutoBaseline).To(BeFalse())
+
+			fsYaml, marshalErr := yaml.Marshal(repoConfig)
+			Expect(marshalErr).NotTo(HaveOccurred())
+			Expect(string(fsYaml)).To(ContainSubstring("dqm:"))
+			Expect(string(fsYaml)).To(ContainSubstring("auto_baseline: false"))
+
+			By("Having no DQM config — dqm should be nil")
+			featureStore = minimalFeatureStore()
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.DataQualityMonitoring).To(BeNil())
 		})
 
 		It("should set feature_server block with type local and all options", func() {

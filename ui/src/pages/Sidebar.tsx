@@ -157,6 +157,15 @@ const SideNav = () => {
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
         {
+          name: "Monitoring",
+          id: htmlIdGenerator("monitoring")(),
+          icon: <EuiIcon type="monitoringApp" />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/monitoring`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/monitoring`),
+        },
+        {
           name: "Data Labeling",
           id: htmlIdGenerator("dataLabeling")(),
           icon: <EuiIcon type="documentEdit" color="#006BB4" />,

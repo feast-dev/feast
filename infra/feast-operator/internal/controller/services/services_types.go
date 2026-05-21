@@ -271,6 +271,7 @@ type RepoConfig struct {
 	FeatureServer                 *FeatureServerYamlConfig   `yaml:"feature_server,omitempty"`
 	Materialization               *MaterializationYamlConfig `yaml:"materialization,omitempty"`
 	OpenLineage                   *OpenLineageYamlConfig     `yaml:"openlineage,omitempty"`
+	DataQualityMonitoring         *DataQualityMonitoringYamlConfig `yaml:"dqm,omitempty"`
 }
 
 // FeatureServerYamlConfig maps to the feature_server section of feature_store.yaml.
@@ -296,6 +297,11 @@ type FeatureServerYamlConfig struct {
 type MetricsYamlConfig struct {
 	Enabled    bool                   `yaml:"enabled"`
 	Categories map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// DataQualityMonitoringYamlConfig mirrors the Python DqmConfig in feature_store.yaml.
+type DataQualityMonitoringYamlConfig struct {
+	AutoBaseline bool `yaml:"auto_baseline"`
 }
 
 // MaterializationYamlConfig maps to the materialization section of feature_store.yaml.
