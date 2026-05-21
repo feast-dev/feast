@@ -1,7 +1,7 @@
 import json
 import logging
 from importlib import resources as importlib_resources
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List
 
 import uvicorn
 from fastapi import FastAPI, Response, status
