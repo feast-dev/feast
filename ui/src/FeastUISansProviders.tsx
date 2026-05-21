@@ -38,11 +38,14 @@ import {
   ProjectListContext,
   ProjectsListContextInterface,
 } from "./contexts/ProjectListContext";
+import DataModeContext from "./contexts/DataModeContext";
+import type { DataModeConfig, FetchOptions } from "./contexts/DataModeContext";
 
 interface FeastUIConfigs {
   tabsRegistry?: FeastTabsRegistryInterface;
   featureFlags?: FeatureFlags;
   projectListPromise?: Promise<any>;
+  fetchOptions?: FetchOptions;
 }
 
 const defaultProjectListPromise = (basename: string) => {
@@ -95,95 +98,111 @@ const FeastUISansProvidersInner = ({
 }) => {
   const { colorMode } = useTheme();
 
+  const dataModeConfig: DataModeConfig = {
+    fetchOptions: feastUIConfigs?.fetchOptions,
+  };
+
   return (
     <EuiProvider colorMode={colorMode}>
       <EuiErrorBoundary>
-        <TabsRegistryContext.Provider
-          value={{
-            RegularFeatureViewCustomTabs: [
-              {
-                label: "CURL Generator",
-                path: "curl-generator",
-                Component: CurlGeneratorTab,
-              },
-              ...(feastUIConfigs?.tabsRegistry?.RegularFeatureViewCustomTabs ||
-                []),
-            ],
-            OnDemandFeatureViewCustomTabs:
-              feastUIConfigs?.tabsRegistry?.OnDemandFeatureViewCustomTabs || [],
-            StreamFeatureViewCustomTabs:
-              feastUIConfigs?.tabsRegistry?.StreamFeatureViewCustomTabs || [],
-            FeatureServiceCustomTabs:
-              feastUIConfigs?.tabsRegistry?.FeatureServiceCustomTabs || [],
-            FeatureCustomTabs:
-              feastUIConfigs?.tabsRegistry?.FeatureCustomTabs || [],
-            DataSourceCustomTabs:
-              feastUIConfigs?.tabsRegistry?.DataSourceCustomTabs || [],
-            EntityCustomTabs:
-              feastUIConfigs?.tabsRegistry?.EntityCustomTabs || [],
-            DatasetCustomTabs:
-              feastUIConfigs?.tabsRegistry?.DatasetCustomTabs || [],
-          }}
-        >
-          <FeatureFlagsContext.Provider
-            value={feastUIConfigs?.featureFlags || {}}
+        <DataModeContext.Provider value={dataModeConfig}>
+          <TabsRegistryContext.Provider
+            value={{
+              RegularFeatureViewCustomTabs: [
+                {
+                  label: "CURL Generator",
+                  path: "curl-generator",
+                  Component: CurlGeneratorTab,
+                },
+                ...(feastUIConfigs?.tabsRegistry
+                  ?.RegularFeatureViewCustomTabs || []),
+              ],
+              OnDemandFeatureViewCustomTabs:
+                feastUIConfigs?.tabsRegistry?.OnDemandFeatureViewCustomTabs ||
+                [],
+              StreamFeatureViewCustomTabs:
+                feastUIConfigs?.tabsRegistry?.StreamFeatureViewCustomTabs || [],
+              FeatureServiceCustomTabs:
+                feastUIConfigs?.tabsRegistry?.FeatureServiceCustomTabs || [],
+              FeatureCustomTabs:
+                feastUIConfigs?.tabsRegistry?.FeatureCustomTabs || [],
+              DataSourceCustomTabs:
+                feastUIConfigs?.tabsRegistry?.DataSourceCustomTabs || [],
+              EntityCustomTabs:
+                feastUIConfigs?.tabsRegistry?.EntityCustomTabs || [],
+              DatasetCustomTabs:
+                feastUIConfigs?.tabsRegistry?.DatasetCustomTabs || [],
+            }}
           >
-            <ProjectListContext.Provider value={projectListContext}>
-              <Routes>
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<RootProjectSelectionPage />} />
-                  <Route path="/p/:projectName/*" element={<NoProjectGuard />}>
-                    <Route index element={<ProjectOverviewPage />} />
-                    <Route path="data-source/" element={<DatasourceIndex />} />
+            <FeatureFlagsContext.Provider
+              value={feastUIConfigs?.featureFlags || {}}
+            >
+              <ProjectListContext.Provider value={projectListContext}>
+                <Routes>
+                  <Route path="/" element={<Layout />}>
+                    <Route index element={<RootProjectSelectionPage />} />
                     <Route
-                      path="data-source/:dataSourceName/*"
-                      element={<DataSourceInstance />}
-                    />
-                    <Route path="features/" element={<FeatureListPage />} />
-                    <Route
-                      path="feature-view/"
-                      element={<FeatureViewIndex />}
-                    />
-                    <Route
-                      path="feature-view/:featureViewName/*"
-                      element={<FeatureViewInstance />}
-                    ></Route>
-                    <Route
-                      path="feature-view/:FeatureViewName/feature/:FeatureName/*"
-                      element={<FeatureInstance />}
-                    />
-                    <Route
-                      path="feature-service/"
-                      element={<FeatureServiceIndex />}
-                    />
-                    <Route
-                      path="feature-service/:featureServiceName/*"
-                      element={<FeatureServiceInstance />}
-                    />
-                    <Route path="entity/" element={<EntityIndex />} />
-                    <Route
-                      path="entity/:entityName/*"
-                      element={<EntityInstance />}
-                    />
+                      path="/p/:projectName/*"
+                      element={<NoProjectGuard />}
+                    >
+                      <Route index element={<ProjectOverviewPage />} />
+                      <Route
+                        path="data-source/"
+                        element={<DatasourceIndex />}
+                      />
+                      <Route
+                        path="data-source/:dataSourceName/*"
+                        element={<DataSourceInstance />}
+                      />
+                      <Route path="features/" element={<FeatureListPage />} />
+                      <Route
+                        path="feature-view/"
+                        element={<FeatureViewIndex />}
+                      />
+                      <Route
+                        path="feature-view/:featureViewName/*"
+                        element={<FeatureViewInstance />}
+                      ></Route>
+                      <Route
+                        path="feature-view/:FeatureViewName/feature/:FeatureName/*"
+                        element={<FeatureInstance />}
+                      />
+                      <Route
+                        path="feature-service/"
+                        element={<FeatureServiceIndex />}
+                      />
+                      <Route
+                        path="feature-service/:featureServiceName/*"
+                        element={<FeatureServiceInstance />}
+                      />
+                      <Route path="entity/" element={<EntityIndex />} />
+                      <Route
+                        path="entity/:entityName/*"
+                        element={<EntityInstance />}
+                      />
 
-                    <Route path="data-set/" element={<DatasetIndex />} />
-                    <Route
-                      path="data-set/:datasetName/*"
-                      element={<DatasetInstance />}
-                    />
-                    <Route
-                      path="data-labeling/"
-                      element={<DocumentLabelingPage />}
-                    />
-                    <Route path="permissions/" element={<PermissionsIndex />} />
-                    <Route path="lineage/" element={<LineageIndex />} />
+                      <Route path="data-set/" element={<DatasetIndex />} />
+                      <Route
+                        path="data-set/:datasetName/*"
+                        element={<DatasetInstance />}
+                      />
+                      <Route
+                        path="data-labeling/"
+                        element={<DocumentLabelingPage />}
+                      />
+                      <Route
+                        path="permissions/"
+                        element={<PermissionsIndex />}
+                      />
+                      <Route path="lineage/" element={<LineageIndex />} />
+                    </Route>
                   </Route>
-                </Route>
-                <Route path="*" element={<NoMatch />} />
-              </Routes>
-            </ProjectListContext.Provider>
-          </FeatureFlagsContext.Provider>
-        </TabsRegistryContext.Provider>
+                  <Route path="*" element={<NoMatch />} />
+                </Routes>
+              </ProjectListContext.Provider>
+            </FeatureFlagsContext.Provider>
+          </TabsRegistryContext.Provider>
+        </DataModeContext.Provider>
       </EuiErrorBoundary>
     </EuiProvider>
   );

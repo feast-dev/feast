@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 from importlib import resources as importlib_resources
 from typing import Callable, Optional
@@ -10,24 +11,59 @@ from fastapi.staticfiles import StaticFiles
 
 import feast
 
+logger = logging.getLogger(__name__)
 
-def get_app(
+
+def _build_projects_list(
     store: "feast.FeatureStore",
     project_id: str,
-    registry_ttl_secs: int,
-    root_path: str = "",
+    root_path: str,
 ):
-    app = FastAPI()
+    """Build the projects list for the UI."""
+    discovered_projects = []
+    registry = store.registry.proto()
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    registry_path_template = f"{root_path}/api/v1"
 
-    # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
+    if registry and registry.projects and len(registry.projects) > 0:
+        for proj in registry.projects:
+            if proj.spec and proj.spec.name:
+                discovered_projects.append(
+                    {
+                        "name": proj.spec.name.replace("_", " ").title(),
+                        "description": proj.spec.description
+                        or f"Project: {proj.spec.name}",
+                        "id": proj.spec.name,
+                        "registryPath": registry_path_template,
+                    }
+                )
+    else:
+        discovered_projects.append(
+            {
+                "name": "Project",
+                "description": "Test project",
+                "id": project_id,
+                "registryPath": registry_path_template,
+            }
+        )
+
+    if len(discovered_projects) > 1:
+        all_projects_entry = {
+            "name": "All Projects",
+            "description": "View data across all projects",
+            "id": "all",
+            "registryPath": registry_path_template,
+        }
+        discovered_projects.insert(0, all_projects_entry)
+
+    return {"projects": discovered_projects}
+
+
+def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore", registry_ttl_secs: int):
+    """Mount the REST registry API routes on the UI server under /api/v1."""
+    from feast.api.registry.rest import register_all_routes
+    from feast.registry_server import RegistryServer
+
     registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
@@ -51,61 +87,11 @@ def get_app(
 
     async_refresh()
 
-    ui_dir_ref = importlib_resources.files(__spec__.parent) / "ui/build/"  # type: ignore[name-defined, arg-type]
-    with importlib_resources.as_file(ui_dir_ref) as ui_dir:
-        # Initialize with the projects-list.json file
-        with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
-            # Get all projects from the registry
-            discovered_projects = []
-            registry = store.registry.proto()
+    grpc_handler = RegistryServer(store.registry)
 
-            # Use the projects list from the registry
-            if registry and registry.projects and len(registry.projects) > 0:
-                for proj in registry.projects:
-                    if proj.spec and proj.spec.name:
-                        discovered_projects.append(
-                            {
-                                "name": proj.spec.name.replace("_", " ").title(),
-                                "description": proj.spec.description
-                                or f"Project: {proj.spec.name}",
-                                "id": proj.spec.name,
-                                "registryPath": f"{root_path}/registry",
-                            }
-                        )
-            else:
-                # If no projects in registry, use the current project from feature_store.yaml
-                discovered_projects.append(
-                    {
-                        "name": "Project",
-                        "description": "Test project",
-                        "id": project_id,
-                        "registryPath": f"{root_path}/registry",
-                    }
-                )
-
-            # Add "All Projects" option at the beginning if there are multiple projects
-            if len(discovered_projects) > 1:
-                all_projects_entry = {
-                    "name": "All Projects",
-                    "description": "View data across all projects",
-                    "id": "all",
-                    "registryPath": f"{root_path}/registry",
-                }
-                discovered_projects.insert(0, all_projects_entry)
-
-            projects_dict = {"projects": discovered_projects}
-            f.write(json.dumps(projects_dict))
-
-    @app.get("/registry")
-    def read_registry():
-        if registry_proto is None:
-            return Response(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
-            )  # Service Unavailable
-        return Response(
-            content=registry_proto.SerializeToString(),
-            media_type="application/octet-stream",
-        )
+    rest_app = FastAPI(root_path="/api/v1")
+    register_all_routes(rest_app, grpc_handler)
+    app.mount("/api/v1", rest_app)
 
     @app.get("/health")
     def health():
@@ -115,14 +101,38 @@ def get_app(
             else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
         )
 
-    # For all other paths (such as paths that would otherwise be handled by react router), pass to React
+    logger.info("REST registry API mounted at /api/v1")
+
+
+def get_app(
+    store: "feast.FeatureStore",
+    project_id: str,
+    registry_ttl_secs: int,
+    root_path: str = "",
+):
+    app = FastAPI()
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    _setup_rest_mode(app, store, registry_ttl_secs)
+
+    ui_dir_ref = importlib_resources.files(__spec__.parent) / "ui/build/"  # type: ignore[name-defined, arg-type]
+    with importlib_resources.as_file(ui_dir_ref) as ui_dir:
+        projects_dict = _build_projects_list(store, project_id, root_path)
+        with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
+            f.write(json.dumps(projects_dict))
+
     @app.api_route("/p/{path_name:path}", methods=["GET"])
     def catch_all():
         filename = ui_dir.joinpath("index.html")
-
         with open(filename) as f:
             content = f.read()
-
         return Response(content, media_type="text/html")
 
     app.mount(
@@ -151,6 +161,9 @@ def start_server(
         registry_ttl_sec,
         root_path,
     )
+
+    logger.info(f"Starting Feast UI server on {host}:{port}")
+
     if tls_key_path and tls_cert_path:
         uvicorn.run(
             app,

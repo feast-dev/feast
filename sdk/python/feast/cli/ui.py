@@ -70,7 +70,6 @@ def ui(
             "Please configure --key and --cert args to start the feature server in SSL mode."
         )
     store = create_feature_store(ctx)
-    # Pass in the registry_dump method to get around a circular dependency
     store.serve_ui(
         host=host,
         port=port,
