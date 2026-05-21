@@ -1205,33 +1205,12 @@ class FeatureStore:
             services_to_update,
         )
 
-        # Preserve lifecycle state from the registry so that apply does
-        # not reset e.g. AVAILABLE_ONLINE back to STATE_UNSPECIFIED.
-        # Must run before any commit=False operations to avoid registry
-        # cache refreshes that would discard uncommitted changes.
-        existing_states: dict[str, FeatureViewState] = {}
-        for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
-            if (
-                hasattr(view, "state")
-                and view.state == FeatureViewState.STATE_UNSPECIFIED
-            ):
-                try:
-                    existing = self.registry.get_any_feature_view(
-                        view.name, self.project
-                    )
-                    if hasattr(existing, "state"):
-                        existing_states[view.name] = existing.state
-                except FeastObjectNotFoundException:
-                    pass
-
         # Add all objects to the registry and update the provider's infrastructure.
         for project in projects_to_update:
             self.registry.apply_project(project, commit=False)
         for ds in data_sources_to_update:
             self.registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
-            if view.name in existing_states:
-                view.state = existing_states[view.name]  # type: ignore[attr-defined]
             self.registry.apply_feature_view(
                 view, project=self.project, commit=False, no_promote=no_promote
             )
@@ -1856,8 +1835,19 @@ class FeatureStore:
                 end_date = utils.make_tzaware(end_date) or _utc_now()
 
                 # Transition state to MATERIALIZING before starting.
+                # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
                 previous_state = getattr(feature_view, "state", None)
-                if hasattr(feature_view, "state"):
+                if (
+                    hasattr(feature_view, "state")
+                    and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
+                ):
+                    if not feature_view.state.can_transition_to(
+                        FeatureViewState.MATERIALIZING
+                    ):
+                        raise ValueError(
+                            f"FeatureView {feature_view.name} cannot transition "
+                            f"from {feature_view.state.name} to MATERIALIZING."
+                        )
                     feature_view.state = FeatureViewState.MATERIALIZING
                     self.registry.apply_feature_view(
                         feature_view, self.project, commit=True
@@ -1878,7 +1868,11 @@ class FeatureStore:
                 except Exception:
                     fv_success = False
                     # Roll back state to previous value on failure.
-                    if hasattr(feature_view, "state") and previous_state is not None:
+                    if (
+                        hasattr(feature_view, "state")
+                        and previous_state is not None
+                        and previous_state != FeatureViewState.STATE_UNSPECIFIED
+                    ):
                         feature_view.state = previous_state
                         self.registry.apply_feature_view(
                             feature_view, self.project, commit=True
@@ -1998,8 +1992,19 @@ class FeatureStore:
                 end_date = utils.make_tzaware(end_date)
 
                 # Transition state to MATERIALIZING before starting.
+                # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
                 previous_state = getattr(feature_view, "state", None)
-                if hasattr(feature_view, "state"):
+                if (
+                    hasattr(feature_view, "state")
+                    and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
+                ):
+                    if not feature_view.state.can_transition_to(
+                        FeatureViewState.MATERIALIZING
+                    ):
+                        raise ValueError(
+                            f"FeatureView {feature_view.name} cannot transition "
+                            f"from {feature_view.state.name} to MATERIALIZING."
+                        )
                     feature_view.state = FeatureViewState.MATERIALIZING
                     self.registry.apply_feature_view(
                         feature_view, self.project, commit=True
@@ -2021,7 +2026,11 @@ class FeatureStore:
                 except Exception:
                     fv_success = False
                     # Roll back state to previous value on failure.
-                    if hasattr(feature_view, "state") and previous_state is not None:
+                    if (
+                        hasattr(feature_view, "state")
+                        and previous_state is not None
+                        and previous_state != FeatureViewState.STATE_UNSPECIFIED
+                    ):
                         feature_view.state = previous_state
                         self.registry.apply_feature_view(
                             feature_view, self.project, commit=True

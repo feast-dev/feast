@@ -584,10 +584,14 @@ class Registry(BaseRegistry):
         if hasattr(existing_proto.spec, "disabled") and hasattr(updated_fv, "enabled"):
             existing_proto.spec.disabled = not getattr(updated_fv, "enabled")
 
-        # Lifecycle state
+        # Lifecycle state — skip STATE_UNSPECIFIED so that ``feast apply``
+        # does not accidentally reset an AVAILABLE_ONLINE view.
         if hasattr(existing_proto.meta, "state") and hasattr(updated_fv, "state"):
             state_val = getattr(updated_fv, "state")
-            if isinstance(state_val, FeatureViewState):
+            if (
+                isinstance(state_val, FeatureViewState)
+                and state_val != FeatureViewState.STATE_UNSPECIFIED
+            ):
                 existing_proto.meta.state = state_val.to_proto()
 
         # OnDemandFeatureView configuration
