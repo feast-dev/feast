@@ -1117,15 +1117,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
     def Commit(self, request, context):
+        for project in self.proxied_registry.list_projects(allow_cache=True):
+            assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
         self.proxied_registry.commit()
         return Empty()
 
     def Refresh(self, request, context):
+        project = self.proxied_registry.get_project(
+            name=request.project, allow_cache=True
+        )
+        assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
         self.proxied_registry.refresh(request.project)
         return Empty()
-
-    def Proto(self, request, context):
-        return self.proxied_registry.proto()
 
     def ListFeatures(self, request: RegistryServer_pb2.ListFeaturesRequest, context):
         """

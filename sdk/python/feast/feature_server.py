@@ -288,7 +288,6 @@ def get_app(
     """
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
-    registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
     # --- Offline write batching config and batcher ---
@@ -338,8 +337,6 @@ def get_app(
             return
 
         store.refresh_registry()
-        nonlocal registry_proto
-        registry_proto = store.registry.proto()
 
         if registry_ttl_sec:
             nonlocal active_timer
@@ -569,11 +566,11 @@ def get_app(
 
     @app.get("/health")
     async def health():
-        return (
-            Response(status_code=status.HTTP_200_OK)
-            if registry_proto
-            else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
-        )
+        try:
+            store.registry.list_projects(allow_cache=True)
+            return Response(status_code=status.HTTP_200_OK)
+        except Exception:
+            return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     @app.post("/chat")
     async def chat(request: ChatRequest):

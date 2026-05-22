@@ -75,11 +75,19 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
         """
 
         def get_registry_last_updated() -> Optional[str]:
+            """Read registry last_updated from in-process registry (not the Proto gRPC RPC)."""
             try:
-                from google.protobuf.empty_pb2 import Empty as EmptyProto
+                from google.protobuf.json_format import MessageToDict
 
-                registry_proto = grpc_call(grpc_handler.Proto, EmptyProto())
-                return registry_proto.get("lastUpdated", None)
+                registry = getattr(grpc_handler, "proxied_registry", None)
+                if registry is None:
+                    return None
+                registry_proto = registry.proto()
+                if registry_proto is None or not registry_proto.HasField(
+                    "last_updated"
+                ):
+                    return None
+                return MessageToDict(registry_proto).get("lastUpdated")
             except Exception:
                 return None
 
