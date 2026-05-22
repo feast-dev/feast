@@ -38,11 +38,13 @@ def feature_view_describe(ctx: click.Context, name: str):
         print(e)
         exit(1)
 
-    print(
-        yaml.dump(
-            yaml.safe_load(str(feature_view)), default_flow_style=False, sort_keys=False
-        )
-    )
+    data = yaml.safe_load(str(feature_view))
+    # Always show enabled and state even when they are at default values.
+    if hasattr(feature_view, "enabled"):
+        data["enabled"] = feature_view.enabled
+    if hasattr(feature_view, "state"):
+        data["state"] = feature_view.state.name
+    print(yaml.dump(data, default_flow_style=False, sort_keys=False))
 
 
 @feature_views_cmd.command(name="list")

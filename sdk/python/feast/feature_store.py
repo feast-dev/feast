@@ -665,6 +665,44 @@ class FeatureStore:
         """
         return self.registry.delete_feature_view(name, self.project)
 
+    def enable_feature_view(self, name: str):
+        """
+        Enable a feature view for serving and materialization.
+
+        Args:
+            name: Name of feature view.
+        """
+        fv = self.registry.get_any_feature_view(name, self.project)
+        fv.enabled = True
+        self.registry.apply_feature_view(fv, self.project)
+
+    def disable_feature_view(self, name: str):
+        """
+        Disable a feature view to prevent serving and materialization.
+
+        Args:
+            name: Name of feature view.
+        """
+        fv = self.registry.get_any_feature_view(name, self.project)
+        fv.enabled = False
+        self.registry.apply_feature_view(fv, self.project)
+
+    def set_feature_view_state(self, name: str, state: FeatureViewState):
+        """
+        Set the lifecycle state of a feature view.
+
+        Args:
+            name: Name of feature view.
+            state: Target state.
+        """
+        fv = self.registry.get_any_feature_view(name, self.project)
+        if not fv.state.can_transition_to(state):
+            raise ValueError(
+                f"Invalid state transition: {fv.state.name} -> {state.name}."
+            )
+        fv.state = state
+        self.registry.apply_feature_view(fv, self.project)
+
     def delete_feature_service(self, name: str):
         """
         Deletes a feature service.
