@@ -81,6 +81,10 @@ func (r *Registry) InitializeRegistry() error {
 }
 
 func (r *Registry) RefreshRegistryOnInterval() {
+	if r.cachedRegistryProtoTtl <= 0 {
+		log.Info().Msg("Registry cache TTL is non-positive; skipping periodic refresh")
+		return
+	}
 	ticker := time.NewTicker(r.cachedRegistryProtoTtl)
 	for ; true; <-ticker.C {
 		err := r.refresh()
