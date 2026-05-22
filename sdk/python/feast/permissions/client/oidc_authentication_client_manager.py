@@ -24,7 +24,7 @@ class OidcAuthClientManager(AuthenticationClientManager):
             payload = {
                 "preferred_username": f"{intra_communication_base64}",
             }
-            return jwt.encode(payload, "")
+            return jwt.encode(payload, "", algorithm="none")
 
         if self.auth_config.token:
             return self.auth_config.token
