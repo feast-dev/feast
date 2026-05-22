@@ -806,7 +806,7 @@ class FeatureStore:
             name: Name of feature view.
         """
         fv = self.registry.get_any_feature_view(name, self.project)
-        fv.enabled = True
+        fv.enabled = True  # type: ignore[attr-defined]
         self.registry.apply_feature_view(fv, self.project)
 
     def disable_feature_view(self, name: str):
@@ -817,7 +817,7 @@ class FeatureStore:
             name: Name of feature view.
         """
         fv = self.registry.get_any_feature_view(name, self.project)
-        fv.enabled = False
+        fv.enabled = False  # type: ignore[attr-defined]
         self.registry.apply_feature_view(fv, self.project)
 
     def set_feature_view_state(self, name: str, state: FeatureViewState):
@@ -829,11 +829,11 @@ class FeatureStore:
             state: Target state.
         """
         fv = self.registry.get_any_feature_view(name, self.project)
-        if not fv.state.can_transition_to(state):
+        if not fv.state.can_transition_to(state):  # type: ignore[attr-defined]
             raise ValueError(
-                f"Invalid state transition: {fv.state.name} -> {state.name}."
+                f"Invalid state transition: {fv.state.name} -> {state.name}."  # type: ignore[attr-defined]
             )
-        fv.state = state
+        fv.state = state  # type: ignore[attr-defined]
         self.registry.apply_feature_view(fv, self.project)
 
     def delete_feature_service(self, name: str):
