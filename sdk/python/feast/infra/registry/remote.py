@@ -268,6 +268,7 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[StreamFeatureView]:
         request = RegistryServer_pb2.ListStreamFeatureViewsRequest(
             project=project, allow_cache=allow_cache, tags=tags
@@ -292,6 +293,7 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[OnDemandFeatureView]:
         request = RegistryServer_pb2.ListOnDemandFeatureViewsRequest(
             project=project, allow_cache=allow_cache, tags=tags
@@ -320,6 +322,7 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[BaseFeatureView]:
         request = RegistryServer_pb2.ListAllFeatureViewsRequest(
             project=project, allow_cache=allow_cache, tags=tags
@@ -347,6 +350,7 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[FeatureView]:
         request = RegistryServer_pb2.ListFeatureViewsRequest(
             project=project, allow_cache=allow_cache, tags=tags

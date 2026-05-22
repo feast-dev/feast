@@ -157,6 +157,7 @@ class OnDemandFeatureView(BaseFeatureView):
     aggregations: List[Aggregation]
     enabled: bool
     state: FeatureViewState
+    _raw_feature_transformation_proto: Optional[Any] = None
 
     def __init__(  # noqa: C901
         self,
@@ -619,7 +620,12 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=self._input_schema_sentinel.to_proto()
             )
 
-        feature_transformation = transformation_to_proto(self.feature_transformation)
+        if getattr(self, "_raw_feature_transformation_proto", None) is not None:
+            feature_transformation = self._raw_feature_transformation_proto
+        else:
+            feature_transformation = transformation_to_proto(
+                self.feature_transformation
+            )
 
         tags = dict(self.tags) if self.tags else {}
         if self.track_metrics:
@@ -745,6 +751,13 @@ class OnDemandFeatureView(BaseFeatureView):
             on_demand_feature_view_obj.current_version_number = 0
         else:
             on_demand_feature_view_obj.current_version_number = None
+
+        if skip_udf and on_demand_feature_view_proto.spec.HasField(
+            "feature_transformation"
+        ):
+            on_demand_feature_view_obj._raw_feature_transformation_proto = (
+                on_demand_feature_view_proto.spec.feature_transformation
+            )
 
         # Set timestamps if present
         cls._set_timestamps_from_proto(

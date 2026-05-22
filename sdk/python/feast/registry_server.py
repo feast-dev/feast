@@ -392,6 +392,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         project=request.project,
                         allow_cache=request.allow_cache,
                         tags=dict(request.tags),
+                        skip_udf=True,
                     ),
                 ),
                 actions=AuthzedAction.DESCRIBE,
@@ -416,6 +417,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
                 tags=dict(request.tags),
+                skip_udf=True,
             ),
         )
 
@@ -588,6 +590,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             project=request.project,
                             allow_cache=request.allow_cache,
                             tags=dict(request.tags),
+                            skip_udf=True,
                         ),
                     ),
                     actions=AuthzedAction.DESCRIBE,
@@ -629,6 +632,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             project=request.project,
                             allow_cache=request.allow_cache,
                             tags=dict(request.tags),
+                            skip_udf=True,
                         ),
                     ),
                     actions=AuthzedAction.DESCRIBE,
@@ -1138,6 +1142,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         feature_views = self.proxied_registry.list_all_feature_views(
             project=request.project,
             allow_cache=allow_cache,
+            skip_udf=True,
         )
         permitted_fvs = permitted_resources(
             resources=cast(list[FeastObject], feature_views),
