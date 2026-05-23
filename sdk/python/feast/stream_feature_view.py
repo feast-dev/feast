@@ -328,6 +328,7 @@ class StreamFeatureView(FeatureView):
             tiling_hop_size=tiling_hop_size_duration,
             enable_validation=self.enable_validation,
             version=self.version,
+            disabled=not self.enabled,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -410,6 +411,13 @@ class StreamFeatureView(FeatureView):
         else:
             stream_feature_view.current_version_number = None
 
+        stream_feature_view.enabled = not sfv_proto.spec.disabled
+
+        # Restore lifecycle state from meta (SFV uses FeatureViewMeta which has state).
+        from feast.feature_view import FeatureViewState
+
+        stream_feature_view.state = FeatureViewState.from_proto(sfv_proto.meta.state)
+
         if skip_udf and sfv_proto.spec.HasField("user_defined_function"):
             stream_feature_view._raw_udf_proto = sfv_proto.spec.user_defined_function
         if skip_udf and sfv_proto.spec.HasField("feature_transformation"):
@@ -466,6 +474,8 @@ class StreamFeatureView(FeatureView):
             enable_validation=self.enable_validation,
             version=self.version,
         )
+        fv.enabled = self.enabled
+        fv.state = self.state
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)

@@ -80,6 +80,11 @@ message OnDemandFeatureViewSpec {
 
     // Organizational unit that owns this feature view (e.g. "ads", "search").
     string org = 18;
+
+    // Whether this feature view is disabled for serving.
+    // When true, the feature view will not serve features.
+    // Defaults to false (enabled) for backward compatibility.
+    bool disabled = 19;
 }
 
 message OnDemandFeatureViewMeta {
@@ -94,6 +99,9 @@ message OnDemandFeatureViewMeta {
 
     // Auto-generated UUID identifying this specific version.
     string version_id = 4;
+
+    // Lifecycle state of this feature view.
+    FeatureViewState state = 5;
 }
 
 message OnDemandSource {

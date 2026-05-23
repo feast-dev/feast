@@ -28,6 +28,26 @@ import "feast/core/DataSource.proto";
 import "feast/core/Feature.proto";
 import "feast/core/Transformation.proto";
 
+// Lifecycle state of a feature view.
+enum FeatureViewState {
+    // Default value for backward compatibility. Treated as AVAILABLE_ONLINE
+    // for existing feature views that predate the state machine.
+    STATE_UNSPECIFIED = 0;
+
+    // Feature view has been registered via feast apply but no data is available.
+    CREATED = 1;
+
+    // Feature engineering / offline data generation is complete.
+    // The feature view is ready to be materialized.
+    GENERATED = 2;
+
+    // Materialization is currently in progress.
+    MATERIALIZING = 3;
+
+    // Materialization completed. Features are available in the online store.
+    AVAILABLE_ONLINE = 4;
+}
+
 message FeatureView {
     // User-specified specifications of this feature view.
     FeatureViewSpec spec = 1;
@@ -100,6 +120,11 @@ message FeatureViewSpec {
 
     // Organizational unit that owns this feature view (e.g. "ads", "search").
     string org = 19;
+
+    // Whether this feature view is disabled for serving and materialization.
+    // When true, the feature view will not serve online features or be materialized.
+    // Defaults to false (enabled) for backward compatibility.
+    bool disabled = 20;
 }
 
 message FeatureViewMeta {
@@ -117,6 +142,9 @@ message FeatureViewMeta {
 
     // Auto-generated UUID identifying this specific version.
     string version_id = 5;
+
+    // Lifecycle state of this feature view.
+    FeatureViewState state = 6;
 }
 
 message MaterializationInterval {
