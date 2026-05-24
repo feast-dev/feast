@@ -63,6 +63,9 @@ func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 	} else if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
+	} else if onlineStoreType == "valkey" {
+		onlineStore, err := NewValkeyOnlineStore(config.Project, config, config.OnlineStore)
+		return onlineStore, err
 	} else if onlineStoreType == "dynamodb" {
 		onlineStore, err := NewDynamodbOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
