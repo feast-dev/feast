@@ -368,6 +368,7 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[StreamFeatureView]:
         """
         Retrieve a list of stream feature views from the registry
@@ -376,6 +377,7 @@ class BaseRegistry(ABC):
             project: Filter stream feature views based on project name
             allow_cache: Whether to allow returning stream feature views from a cached registry
             tags: Filter by tags
+            skip_udf: Skip deserializing UDFs (for metadata-only operations)
 
         Returns:
             List of stream feature views
@@ -407,6 +409,7 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[OnDemandFeatureView]:
         """
         Retrieve a list of on demand feature views from the registry
@@ -415,6 +418,7 @@ class BaseRegistry(ABC):
             project: Filter on demand feature views based on project name
             allow_cache: Whether to allow returning on demand feature views from a cached registry
             tags: Filter by tags
+            skip_udf: Skip deserializing UDFs (for metadata-only operations)
 
         Returns:
             List of on demand feature views
@@ -446,6 +450,7 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
@@ -454,6 +459,7 @@ class BaseRegistry(ABC):
             allow_cache: Allow returning feature views from the cached registry
             project: Filter feature views based on project name
             tags: Filter by tags
+            skip_udf: Skip deserializing UDFs (for metadata-only operations)
 
         Returns:
             List of feature views
@@ -484,6 +490,7 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[BaseFeatureView]:
         """
         Retrieve a list of feature views of all types from the registry
@@ -492,6 +499,7 @@ class BaseRegistry(ABC):
             allow_cache: Allow returning feature views from the cached registry
             project: Filter feature views based on project name
             tags: Filter by tags
+            skip_udf: Skip deserializing UDFs (for metadata-only operations)
 
         Returns:
             List of feature views

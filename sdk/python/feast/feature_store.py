@@ -68,7 +68,12 @@ from feast.errors import (
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
-from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view import (
+    DUMMY_ENTITY,
+    DUMMY_ENTITY_NAME,
+    FeatureView,
+    FeatureViewState,
+)
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -793,6 +798,44 @@ class FeatureStore:
         """
         return self.registry.delete_feature_view(name, self.project)
 
+    def enable_feature_view(self, name: str):
+        """
+        Enable a feature view for serving and materialization.
+
+        Args:
+            name: Name of feature view.
+        """
+        fv = self.registry.get_any_feature_view(name, self.project)
+        fv.enabled = True  # type: ignore[attr-defined]
+        self.registry.apply_feature_view(fv, self.project)
+
+    def disable_feature_view(self, name: str):
+        """
+        Disable a feature view to prevent serving and materialization.
+
+        Args:
+            name: Name of feature view.
+        """
+        fv = self.registry.get_any_feature_view(name, self.project)
+        fv.enabled = False  # type: ignore[attr-defined]
+        self.registry.apply_feature_view(fv, self.project)
+
+    def set_feature_view_state(self, name: str, state: FeatureViewState):
+        """
+        Set the lifecycle state of a feature view.
+
+        Args:
+            name: Name of feature view.
+            state: Target state.
+        """
+        fv = self.registry.get_any_feature_view(name, self.project)
+        if not fv.state.can_transition_to(state):  # type: ignore[attr-defined]
+            raise ValueError(
+                f"Invalid state transition: {fv.state.name} -> {state.name}."  # type: ignore[attr-defined]
+            )
+        fv.state = state  # type: ignore[attr-defined]
+        self.registry.apply_feature_view(fv, self.project)
+
     def delete_feature_service(self, name: str):
         """
         Deletes a feature service.
@@ -961,20 +1004,24 @@ class FeatureStore:
                 self.registry, self.project, hide_dummy_entity=False
             )
             feature_views_to_materialize.extend(
-                [fv for fv in regular_feature_views if fv.online]
+                [fv for fv in regular_feature_views if fv.online and fv.enabled]
             )
             stream_feature_views_to_materialize = self._list_stream_feature_views(
                 hide_dummy_entity=False
             )
             feature_views_to_materialize.extend(
-                [sfv for sfv in stream_feature_views_to_materialize if sfv.online]
+                [
+                    sfv
+                    for sfv in stream_feature_views_to_materialize
+                    if sfv.online and sfv.enabled
+                ]
             )
             on_demand_feature_views_to_materialize = self.list_on_demand_feature_views()
             feature_views_to_materialize.extend(
                 [
                     odfv
                     for odfv in on_demand_feature_views_to_materialize
-                    if odfv.write_to_online_store
+                    if odfv.write_to_online_store and odfv.enabled
                 ]
             )
         else:
@@ -1000,6 +1047,11 @@ class FeatureStore:
                         except FeatureViewNotFoundException:
                             feature_view = self.get_on_demand_feature_view(name)
 
+                if hasattr(feature_view, "enabled") and not feature_view.enabled:
+                    raise ValueError(
+                        f"FeatureView {feature_view.name} is disabled. "
+                        f"Enable it before materializing."
+                    )
                 if hasattr(feature_view, "online") and not feature_view.online:
                     raise ValueError(
                         f"FeatureView {feature_view.name} is not configured to be served online."
@@ -2038,6 +2090,25 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date) or _utc_now()
 
+                # Transition state to MATERIALIZING before starting.
+                # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
+                previous_state = getattr(feature_view, "state", None)
+                if (
+                    hasattr(feature_view, "state")
+                    and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
+                ):
+                    if not feature_view.state.can_transition_to(
+                        FeatureViewState.MATERIALIZING
+                    ):
+                        raise ValueError(
+                            f"FeatureView {feature_view.name} cannot transition "
+                            f"from {feature_view.state.name} to MATERIALIZING."
+                        )
+                    feature_view.state = FeatureViewState.MATERIALIZING
+                    self.registry.apply_feature_view(
+                        feature_view, self.project, commit=True
+                    )
+
                 fv_start = time.monotonic()
                 fv_success = True
                 try:
@@ -2052,6 +2123,16 @@ class FeatureStore:
                     )
                 except Exception:
                     fv_success = False
+                    # Roll back state to previous value on failure.
+                    if (
+                        hasattr(feature_view, "state")
+                        and previous_state is not None
+                        and previous_state != FeatureViewState.STATE_UNSPECIFIED
+                    ):
+                        feature_view.state = previous_state
+                        self.registry.apply_feature_view(
+                            feature_view, self.project, commit=True
+                        )
                     raise
                 finally:
                     _tracker = _get_track_materialization()
@@ -2061,6 +2142,7 @@ class FeatureStore:
                             fv_success,
                             time.monotonic() - fv_start,
                         )
+
                 if not isinstance(feature_view, OnDemandFeatureView):
                     self.registry.apply_materialization(
                         feature_view,
@@ -2176,6 +2258,25 @@ class FeatureStore:
                 start_date = utils.make_tzaware(start_date)
                 end_date = utils.make_tzaware(end_date)
 
+                # Transition state to MATERIALIZING before starting.
+                # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
+                previous_state = getattr(feature_view, "state", None)
+                if (
+                    hasattr(feature_view, "state")
+                    and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
+                ):
+                    if not feature_view.state.can_transition_to(
+                        FeatureViewState.MATERIALIZING
+                    ):
+                        raise ValueError(
+                            f"FeatureView {feature_view.name} cannot transition "
+                            f"from {feature_view.state.name} to MATERIALIZING."
+                        )
+                    feature_view.state = FeatureViewState.MATERIALIZING
+                    self.registry.apply_feature_view(
+                        feature_view, self.project, commit=True
+                    )
+
                 fv_start = time.monotonic()
                 fv_success = True
                 try:
@@ -2191,6 +2292,16 @@ class FeatureStore:
                     )
                 except Exception:
                     fv_success = False
+                    # Roll back state to previous value on failure.
+                    if (
+                        hasattr(feature_view, "state")
+                        and previous_state is not None
+                        and previous_state != FeatureViewState.STATE_UNSPECIFIED
+                    ):
+                        feature_view.state = previous_state
+                        self.registry.apply_feature_view(
+                            feature_view, self.project, commit=True
+                        )
                     raise
                 finally:
                     _tracker = _get_track_materialization()

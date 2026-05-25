@@ -121,7 +121,7 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
     ) -> List[BaseFeatureView]:
         pass
 
@@ -130,13 +130,14 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[BaseFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_all_feature_views(
-                self.cached_registry_proto, project, tags
+                self.cached_registry_proto, project, tags, skip_udf=skip_udf
             )
-        return self._list_all_feature_views(project, tags)
+        return self._list_all_feature_views(project, tags, skip_udf=skip_udf)
 
     @abstractmethod
     def _get_feature_view(self, name: str, project: str) -> FeatureView:
@@ -154,7 +155,7 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
     ) -> List[FeatureView]:
         pass
 
@@ -163,13 +164,14 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[FeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_views(
-                self.cached_registry_proto, project, tags
+                self.cached_registry_proto, project, tags, skip_udf=skip_udf
             )
-        return self._list_feature_views(project, tags)
+        return self._list_feature_views(project, tags, skip_udf=skip_udf)
 
     @abstractmethod
     def _get_on_demand_feature_view(
@@ -189,7 +191,7 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_on_demand_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
     ) -> List[OnDemandFeatureView]:
         pass
 
@@ -198,13 +200,14 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_on_demand_feature_views(
-                self.cached_registry_proto, project, tags
+                self.cached_registry_proto, project, tags, skip_udf=skip_udf
             )
-        return self._list_on_demand_feature_views(project, tags)
+        return self._list_on_demand_feature_views(project, tags, skip_udf=skip_udf)
 
     @abstractmethod
     def _get_stream_feature_view(self, name: str, project: str) -> StreamFeatureView:
@@ -222,7 +225,7 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_stream_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
     ) -> List[StreamFeatureView]:
         pass
 
@@ -231,13 +234,14 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[StreamFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_stream_feature_views(
-                self.cached_registry_proto, project, tags
+                self.cached_registry_proto, project, tags, skip_udf=skip_udf
             )
-        return self._list_stream_feature_views(project, tags)
+        return self._list_stream_feature_views(project, tags, skip_udf=skip_udf)
 
     @abstractmethod
     def _get_feature_service(self, name: str, project: str) -> FeatureService:

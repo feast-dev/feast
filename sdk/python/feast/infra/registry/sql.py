@@ -387,7 +387,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_stream_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[StreamFeatureView]:
         return self._list_objects(
             stream_feature_views,
@@ -396,6 +396,7 @@ class SqlRegistry(CachingRegistry):
             StreamFeatureView,
             "feature_view_proto",
             tags=tags,
+            **kwargs,
         )
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -457,20 +458,22 @@ class SqlRegistry(CachingRegistry):
         return fv
 
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[BaseFeatureView]:
         return (
             cast(
                 list[BaseFeatureView],
-                self._list_feature_views(project=project, tags=tags),
+                self._list_feature_views(project=project, tags=tags, **kwargs),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_stream_feature_views(project=project, tags=tags),
+                self._list_stream_feature_views(project=project, tags=tags, **kwargs),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_on_demand_feature_views(project=project, tags=tags),
+                self._list_on_demand_feature_views(
+                    project=project, tags=tags, **kwargs
+                ),
             )
         )
 
@@ -537,7 +540,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_validation_references(
-        self, project: str, tags: Optional[dict[str, str]] = None
+        self, project: str, tags: Optional[dict[str, str]] = None, **kwargs
     ) -> List[ValidationReference]:
         return self._list_objects(
             table=validation_references,
@@ -546,13 +549,20 @@ class SqlRegistry(CachingRegistry):
             python_class=ValidationReference,
             proto_field_name="validation_reference_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_entities(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[Entity]:
         return self._list_objects(
-            entities, project, EntityProto, Entity, "entity_proto", tags=tags
+            entities,
+            project,
+            EntityProto,
+            Entity,
+            "entity_proto",
+            tags=tags,
+            **kwargs,
         )
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
@@ -614,7 +624,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_data_sources(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[DataSource]:
         return self._list_objects(
             data_sources,
@@ -623,6 +633,7 @@ class SqlRegistry(CachingRegistry):
             DataSource,
             "data_source_proto",
             tags=tags,
+            **kwargs,
         )
 
     def apply_data_source(
@@ -878,7 +889,7 @@ class SqlRegistry(CachingRegistry):
                 raise DataSourceObjectNotFoundException(name, project)
 
     def _list_feature_services(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[FeatureService]:
         return self._list_objects(
             feature_services,
@@ -887,10 +898,11 @@ class SqlRegistry(CachingRegistry):
             FeatureService,
             "feature_service_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[FeatureView]:
         return self._list_objects(
             feature_views,
@@ -899,10 +911,11 @@ class SqlRegistry(CachingRegistry):
             FeatureView,
             "feature_view_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_saved_datasets(
-        self, project: str, tags: Optional[dict[str, str]] = None
+        self, project: str, tags: Optional[dict[str, str]] = None, **kwargs
     ) -> List[SavedDataset]:
         return self._list_objects(
             saved_datasets,
@@ -911,10 +924,11 @@ class SqlRegistry(CachingRegistry):
             SavedDataset,
             "saved_dataset_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_on_demand_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[OnDemandFeatureView]:
         return self._list_objects(
             on_demand_feature_views,
@@ -923,6 +937,7 @@ class SqlRegistry(CachingRegistry):
             OnDemandFeatureView,
             "feature_view_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
@@ -1232,26 +1247,29 @@ class SqlRegistry(CachingRegistry):
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
 
+            # proto_only=True: return raw protos without calling from_proto(),
+            # which would trigger dill.loads() on UDFs and fail for cross-project
+            # modules. The _list_* helpers hit the DB directly (no cache), avoiding
+            # infinite recursion since proto() itself builds the cache.
             for lister, registry_proto_field in [
-                (self.list_entities, r.entities),
-                (self.list_feature_views, r.feature_views),
-                (self.list_data_sources, r.data_sources),
-                (self.list_on_demand_feature_views, r.on_demand_feature_views),
-                (self.list_stream_feature_views, r.stream_feature_views),
-                (self.list_feature_services, r.feature_services),
-                (self.list_saved_datasets, r.saved_datasets),
-                (self.list_validation_references, r.validation_references),
-                (self.list_permissions, r.permissions),
+                (self._list_entities, r.entities),
+                (self._list_feature_views, r.feature_views),
+                (self._list_data_sources, r.data_sources),
+                (self._list_on_demand_feature_views, r.on_demand_feature_views),
+                (self._list_stream_feature_views, r.stream_feature_views),
+                (self._list_feature_services, r.feature_services),
+                (self._list_saved_datasets, r.saved_datasets),
+                (self._list_validation_references, r.validation_references),
+                (self._list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project_name, allow_cache=False)  # type: ignore
+                objs: List[Any] = lister(project_name, tags=None, proto_only=True)  # type: ignore
                 if objs:
-                    obj_protos = [obj.to_proto() for obj in objs]
-                    for obj_proto in obj_protos:
+                    for obj_proto in objs:
                         if "spec" in obj_proto.DESCRIPTOR.fields_by_name:
                             obj_proto.spec.project = project_name
                         else:
                             obj_proto.project = project_name
-                    registry_proto_field.extend(obj_protos)
+                    registry_proto_field.extend(objs)
 
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
@@ -1486,18 +1504,37 @@ class SqlRegistry(CachingRegistry):
         python_class: Any,
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
+        proto_only: bool = False,
+        skip_udf: bool = False,
     ):
+        """
+        Args:
+            proto_only: If True, return raw protobuf objects without calling
+                from_proto(). Used by proto() to build the RegistryProto cache
+                efficiently — avoids the from_proto()/to_proto() round-trip and
+                works uniformly for all object types (entities, data sources, etc.).
+            skip_udf: If True, call from_proto() but skip deserializing UDFs
+                (dill.loads). Returns Python objects suitable for filtering and
+                display without requiring the UDF's source module to be installed.
+                Only relevant for feature view types.
+        """
         with self.read_engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
             rows = conn.execute(stmt).all()
             if rows:
                 objects = []
                 for row in rows:
-                    obj = python_class.from_proto(
-                        proto_class.FromString(row._mapping[proto_field_name])
-                    )
-                    if utils.has_all_tags(obj.tags, tags):
-                        objects.append(obj)
+                    proto = proto_class.FromString(row._mapping[proto_field_name])
+                    if proto_only:
+                        objects.append(proto)
+                    else:
+                        obj = (
+                            python_class.from_proto(proto, skip_udf=skip_udf)
+                            if skip_udf
+                            else python_class.from_proto(proto)
+                        )
+                        if utils.has_all_tags(obj.tags, tags):
+                            objects.append(obj)
                 return objects
         return []
 
@@ -1568,7 +1605,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_permissions(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[Permission]:
         return self._list_objects(
             permissions,
@@ -1577,6 +1614,7 @@ class SqlRegistry(CachingRegistry):
             Permission,
             "permission_proto",
             tags=tags,
+            **kwargs,
         )
 
     def apply_permission(
