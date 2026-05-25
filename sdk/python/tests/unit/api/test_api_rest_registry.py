@@ -2137,3 +2137,59 @@ def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
     assert data["featureServices"] == []
     assert data["featureViews"] == []
     assert "registryLastUpdated" in data
+
+
+def test_enable_feature_view_via_rest(fastapi_test_app):
+    response = fastapi_test_app.put(
+        "/feature_views/user_profile/enable?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "user_profile"
+    assert data["enabled"] is True
+
+
+def test_disable_feature_view_via_rest(fastapi_test_app):
+    response = fastapi_test_app.put(
+        "/feature_views/user_profile/disable?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "user_profile"
+    assert data["enabled"] is False
+
+
+def test_set_feature_view_state_via_rest(fastapi_test_app):
+    # First set to CREATED, then to GENERATED (valid transition)
+    response = fastapi_test_app.put(
+        "/feature_views/user_profile/set-state?state=CREATED&project=demo_project"
+    )
+    assert response.status_code == 200
+    assert response.json()["state"] == "CREATED"
+
+    response = fastapi_test_app.put(
+        "/feature_views/user_profile/set-state?state=GENERATED&project=demo_project"
+    )
+    assert response.status_code == 200
+    assert response.json()["state"] == "GENERATED"
+
+
+def test_set_feature_view_state_invalid_transition_via_rest(fastapi_test_app):
+    # Set to CREATED first
+    fastapi_test_app.put(
+        "/feature_views/user_profile/set-state?state=CREATED&project=demo_project"
+    )
+    # CREATED -> AVAILABLE_ONLINE is not a valid transition
+    response = fastapi_test_app.put(
+        "/feature_views/user_profile/set-state?state=AVAILABLE_ONLINE&project=demo_project"
+    )
+    assert response.status_code == 400
+    assert "Invalid state transition" in response.json()["error"]
+
+
+def test_set_feature_view_state_invalid_state_via_rest(fastapi_test_app):
+    response = fastapi_test_app.put(
+        "/feature_views/user_profile/set-state?state=INVALID&project=demo_project"
+    )
+    assert response.status_code == 400
+    assert "Invalid state" in response.json()["error"]

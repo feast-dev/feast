@@ -406,6 +406,52 @@ class TestRegistryEnabledState:
 # ---------------------------------------------------------------------------
 
 
+class TestFeatureStoreMethods:
+    """Tests for store.enable_feature_view / disable_feature_view / set_feature_view_state."""
+
+    def test_enable_feature_view(self, local_feature_store):
+        store = local_feature_store
+        fv = _simple_feature_view(enabled=False)
+        store.apply([fv])
+        store.enable_feature_view("test_fv")
+        retrieved = store.get_feature_view("test_fv")
+        assert retrieved.enabled is True
+        store.teardown()
+
+    def test_disable_feature_view(self, local_feature_store):
+        store = local_feature_store
+        fv = _simple_feature_view(enabled=True)
+        store.apply([fv])
+        store.disable_feature_view("test_fv")
+        retrieved = store.get_feature_view("test_fv")
+        assert retrieved.enabled is False
+        store.teardown()
+
+    def test_set_feature_view_state(self, local_feature_store):
+        store = local_feature_store
+        fv = _simple_feature_view()
+        fv.state = FeatureViewState.CREATED
+        store.apply([fv])
+        store.set_feature_view_state("test_fv", FeatureViewState.GENERATED)
+        retrieved = store.get_feature_view("test_fv")
+        assert retrieved.state == FeatureViewState.GENERATED
+        store.teardown()
+
+    def test_set_feature_view_state_invalid_transition(self, local_feature_store):
+        store = local_feature_store
+        fv = _simple_feature_view()
+        fv.state = FeatureViewState.CREATED
+        store.apply([fv])
+        with pytest.raises(ValueError, match="Invalid state transition"):
+            store.set_feature_view_state("test_fv", FeatureViewState.AVAILABLE_ONLINE)
+        store.teardown()
+
+
+# ---------------------------------------------------------------------------
+# Materialization blocks disabled feature views
+# ---------------------------------------------------------------------------
+
+
 class TestMaterializationDisabledBlocking:
     def test_materialize_disabled_fv_by_name_raises(self, local_feature_store):
         store = local_feature_store

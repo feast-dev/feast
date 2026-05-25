@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
@@ -363,14 +363,32 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             project=project,
         )
         resp = grpc_call(grpc_handler.GetAnyFeatureView, req)
-        any_fv = resp.any_feature_view
+        any_fv = resp.get("anyFeatureView", {})
 
-        if any_fv.HasField("feature_view"):
-            fv = FeatureView.from_proto(any_fv.feature_view)
-        elif any_fv.HasField("on_demand_feature_view"):
-            fv = OnDemandFeatureView.from_proto(any_fv.on_demand_feature_view)
-        elif any_fv.HasField("stream_feature_view"):
-            fv = StreamFeatureView.from_proto(any_fv.stream_feature_view)
+        from google.protobuf.json_format import ParseDict
+
+        fv: Any = None
+        proto: Any = None
+        if "featureView" in any_fv and any_fv["featureView"]:
+            proto = FeatureViewProto()
+            ParseDict(any_fv["featureView"], proto)
+            fv = FeatureView.from_proto(proto)
+        elif "onDemandFeatureView" in any_fv and any_fv["onDemandFeatureView"]:
+            from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+                OnDemandFeatureView as OnDemandFeatureViewProto,
+            )
+
+            proto = OnDemandFeatureViewProto()
+            ParseDict(any_fv["onDemandFeatureView"], proto)
+            fv = OnDemandFeatureView.from_proto(proto)
+        elif "streamFeatureView" in any_fv and any_fv["streamFeatureView"]:
+            from feast.protos.feast.core.StreamFeatureView_pb2 import (
+                StreamFeatureView as StreamFeatureViewProto,
+            )
+
+            proto = StreamFeatureViewProto()
+            ParseDict(any_fv["streamFeatureView"], proto)
+            fv = StreamFeatureView.from_proto(proto)
         else:
             return JSONResponse(
                 status_code=404,
@@ -405,14 +423,32 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             project=project,
         )
         resp = grpc_call(grpc_handler.GetAnyFeatureView, req)
-        any_fv = resp.any_feature_view
+        any_fv = resp.get("anyFeatureView", {})
 
-        if any_fv.HasField("feature_view"):
-            fv = FeatureView.from_proto(any_fv.feature_view)
-        elif any_fv.HasField("on_demand_feature_view"):
-            fv = OnDemandFeatureView.from_proto(any_fv.on_demand_feature_view)
-        elif any_fv.HasField("stream_feature_view"):
-            fv = StreamFeatureView.from_proto(any_fv.stream_feature_view)
+        from google.protobuf.json_format import ParseDict
+
+        fv: Any = None
+        proto: Any = None
+        if "featureView" in any_fv and any_fv["featureView"]:
+            proto = FeatureViewProto()
+            ParseDict(any_fv["featureView"], proto)
+            fv = FeatureView.from_proto(proto)
+        elif "onDemandFeatureView" in any_fv and any_fv["onDemandFeatureView"]:
+            from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+                OnDemandFeatureView as OnDemandFeatureViewProto,
+            )
+
+            proto = OnDemandFeatureViewProto()
+            ParseDict(any_fv["onDemandFeatureView"], proto)
+            fv = OnDemandFeatureView.from_proto(proto)
+        elif "streamFeatureView" in any_fv and any_fv["streamFeatureView"]:
+            from feast.protos.feast.core.StreamFeatureView_pb2 import (
+                StreamFeatureView as StreamFeatureViewProto,
+            )
+
+            proto = StreamFeatureViewProto()
+            ParseDict(any_fv["streamFeatureView"], proto)
+            fv = StreamFeatureView.from_proto(proto)
         else:
             return JSONResponse(
                 status_code=404,
@@ -463,14 +499,32 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             project=project,
         )
         resp = grpc_call(grpc_handler.GetAnyFeatureView, req)
-        any_fv = resp.any_feature_view
+        any_fv = resp.get("anyFeatureView", {})
 
-        if any_fv.HasField("feature_view"):
-            fv = FeatureView.from_proto(any_fv.feature_view)
-        elif any_fv.HasField("on_demand_feature_view"):
-            fv = OnDemandFeatureView.from_proto(any_fv.on_demand_feature_view)
-        elif any_fv.HasField("stream_feature_view"):
-            fv = StreamFeatureView.from_proto(any_fv.stream_feature_view)
+        from google.protobuf.json_format import ParseDict
+
+        fv: Any = None
+        proto: Any = None
+        if "featureView" in any_fv and any_fv["featureView"]:
+            proto = FeatureViewProto()
+            ParseDict(any_fv["featureView"], proto)
+            fv = FeatureView.from_proto(proto)
+        elif "onDemandFeatureView" in any_fv and any_fv["onDemandFeatureView"]:
+            from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+                OnDemandFeatureView as OnDemandFeatureViewProto,
+            )
+
+            proto = OnDemandFeatureViewProto()
+            ParseDict(any_fv["onDemandFeatureView"], proto)
+            fv = OnDemandFeatureView.from_proto(proto)
+        elif "streamFeatureView" in any_fv and any_fv["streamFeatureView"]:
+            from feast.protos.feast.core.StreamFeatureView_pb2 import (
+                StreamFeatureView as StreamFeatureViewProto,
+            )
+
+            proto = StreamFeatureViewProto()
+            ParseDict(any_fv["streamFeatureView"], proto)
+            fv = StreamFeatureView.from_proto(proto)
         else:
             return JSONResponse(
                 status_code=404,
