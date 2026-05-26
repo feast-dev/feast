@@ -256,20 +256,11 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
 
     This enables automatic extraction of ``traceparent`` HTTP headers from
     incoming requests, creating server spans that link to the caller's trace.
-    This is the Tier 3 bridge: when an agent sends traceparent, server spans
-    become children of the agent's trace tree.
+    When an agent sends traceparent, server spans become children of the
+    agent's trace tree.
     """
     mlflow_cfg = store.config.mlflow
     if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.enable_tracing:
-        return
-
-    from feast.tracing import _is_embedded_store
-
-    tracking_uri = mlflow_cfg.get_tracking_uri()
-    if _is_embedded_store(store) and tracking_uri and tracking_uri.startswith("http"):
-        logger.info(
-            "Skipping FastAPI OTEL instrumentation (embedded store + HTTP tracking)"
-        )
         return
 
     try:
@@ -419,6 +410,7 @@ def get_app(
                 "feast.project": store.config.project,
                 "feast.retrieval_type": "online",
             },
+            request_headers=dict(raw_request.headers),
         ):
             with feast_metrics.track_request_latency(
                 "/get-online-features",
@@ -476,6 +468,7 @@ def get_app(
                 "feast.project": store.config.project,
                 "feast.retrieval_type": "document",
             },
+            request_headers=dict(raw_request.headers),
         ):
             with feast_metrics.track_request_latency("/retrieve-online-documents"):
                 logger.warning(
@@ -635,6 +628,7 @@ def get_app(
                 "feast.feature_view": request.feature_view_name,
                 "feast.project": store.config.project,
             },
+            request_headers=dict(raw_request.headers),
         ):
             df = pd.DataFrame(request.df)
             feature_view_name = request.feature_view_name

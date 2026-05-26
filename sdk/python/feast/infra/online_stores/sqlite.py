@@ -275,11 +275,14 @@ class SqliteOnlineStore(OnlineStore):
                 val = ValueProto()
                 val.ParseFromString(val_bin)
                 res[feature_name] = val
-                ts = cast(datetime, ts)
-                if ts.tzinfo is not None:
-                    res_ts = ts.astimezone(timezone.utc)
+                if isinstance(ts, (int, float)):
+                    res_ts = datetime.fromtimestamp(ts, tz=timezone.utc)
                 else:
-                    res_ts = ts.replace(tzinfo=timezone.utc)
+                    ts = cast(datetime, ts)
+                    if ts.tzinfo is not None:
+                        res_ts = ts.astimezone(timezone.utc)
+                    else:
+                        res_ts = ts.replace(tzinfo=timezone.utc)
 
             if not res:
                 result.append((None, None))
@@ -701,7 +704,6 @@ def _initialize_conn(
     Path(db_path).parent.mkdir(exist_ok=True)
     db = sqlite3.connect(
         db_path,
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         check_same_thread=False,
     )
     if enable_sqlite_vec:

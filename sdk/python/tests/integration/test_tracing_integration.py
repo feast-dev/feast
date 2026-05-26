@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Integration tests for OTEL tracing with MLflow backend."""
+"""Integration tests for MLflow-native distributed tracing."""
 
 from __future__ import annotations
 
@@ -29,21 +29,8 @@ from feast.types import Float32, Int64
 
 mlflow = pytest.importorskip("mlflow", reason="mlflow is not installed")
 
-try:
-    from opentelemetry import trace as otel_trace  # noqa: F401
-    from opentelemetry.sdk.trace import TracerProvider  # noqa: F401
-    from opentelemetry.sdk.trace.export.in_memory import (
-        InMemorySpanExporter,  # type: ignore[import-untyped] # noqa: F401
-    )
-
-    HAS_OTEL = True
-except ImportError:
-    HAS_OTEL = False
-
-pytestmark = pytest.mark.skipif(not HAS_OTEL, reason="opentelemetry-sdk not installed")
-
-
-import feast.mlflow  # noqa: E402
+import feast.mlflow as feast_mlflow  # noqa: E402
+import feast.tracing as feast_tracing  # noqa: E402
 from feast.mlflow_integration import MlflowConfig  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -54,23 +41,23 @@ from feast.mlflow_integration import MlflowConfig  # noqa: E402
 @pytest.fixture(autouse=True)
 def _isolate_globals():
     """Reset module-level state between tests."""
-    feast.mlflow._client = None
-    feast.mlflow._registered_store = None
+    feast_mlflow._client = None
+    feast_mlflow._registered_store = None
 
-    import feast.tracing
-
-    feast.tracing._initialized = False
-    feast.tracing._enabled = False
-    feast.tracing._tracer = None
+    feast_tracing._initialized = False
+    feast_tracing._enabled = False
+    feast_tracing._mlflow_mod = None
+    feast_tracing._HAS_DISTRIBUTED_CTX = False
     yield
-    feast.tracing._initialized = False
-    feast.tracing._enabled = False
-    feast.tracing._tracer = None
+    feast_tracing._initialized = False
+    feast_tracing._enabled = False
+    feast_tracing._mlflow_mod = None
+    feast_tracing._HAS_DISTRIBUTED_CTX = False
 
 
 @pytest.fixture()
 def tracking_uri(tmp_path):
-    uri = str(tmp_path / "mlruns")
+    uri = f"sqlite:///{tmp_path / 'mlflow.db'}"
     mlflow.set_tracking_uri(uri)
     mlflow.set_experiment("test_tracing")
     yield uri
@@ -166,27 +153,34 @@ def store_with_tracing(driver_parquet, tracking_uri, feast_objects):
 
 
 # ---------------------------------------------------------------------------
-# Tests
+# Tests — Initialization
 # ---------------------------------------------------------------------------
 
 
 class TestTracingInitialization:
-    def test_lazy_init_enables_when_configured(self, store_with_tracing):
-        import feast.tracing
-
-        result = feast.tracing._lazy_init(store_with_tracing)
+    def test_lazy_init_enables_when_configured(
+        self, driver_parquet, tracking_uri, feast_objects
+    ):
+        tmp_path, _ = driver_parquet
+        store = _make_store(tmp_path, tracking_uri, enable_tracing=True)
+        store.apply(list(feast_objects))
+        result = feast_tracing._lazy_init(store)
         assert result is True
-        assert feast.tracing._enabled is True
+        assert feast_tracing._enabled is True
+        assert feast_tracing._mlflow_mod is not None
 
     def test_lazy_init_disabled_when_tracing_off(
         self, driver_parquet, tracking_uri, feast_objects
     ):
-        import feast.tracing
-
         tmp_path, _ = driver_parquet
         store = _make_store(tmp_path, tracking_uri, enable_tracing=False)
-        result = feast.tracing._lazy_init(store)
+        result = feast_tracing._lazy_init(store)
         assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Tests — Online features + trace context
+# ---------------------------------------------------------------------------
 
 
 class TestOnlineFeatureTracing:
@@ -201,6 +195,32 @@ class TestOnlineFeatureTracing:
             assert len(ctx.feature_refs) > 0
             assert any("conv_rate" in ref for ref in ctx.feature_refs)
 
+    def test_trace_context_with_multiple_features(self, store_with_tracing):
+        from feast.tracing_context import feast_trace_scope
+
+        with feast_trace_scope() as ctx:
+            store_with_tracing.get_online_features(
+                features=[
+                    "driver_hourly_stats:conv_rate",
+                    "driver_hourly_stats:acc_rate",
+                ],
+                entity_rows=[{"driver_id": 1001}],
+            )
+            assert len(ctx.feature_refs) >= 2
+            assert ctx.feature_views == {"driver_hourly_stats"}
+
+    def test_trace_context_with_feature_service(self, store_with_tracing):
+        from feast.tracing_context import feast_trace_scope
+
+        with feast_trace_scope() as ctx:
+            fs = store_with_tracing.get_feature_service("driver_activity_v1")
+            store_with_tracing.get_online_features(
+                features=fs,
+                entity_rows=[{"driver_id": 1001}],
+            )
+            assert len(ctx.feature_refs) > 0
+            assert ctx.feature_service == "driver_activity_v1"
+
     def test_get_online_features_returns_data(self, store_with_tracing):
         response = store_with_tracing.get_online_features(
             features=[
@@ -212,6 +232,35 @@ class TestOnlineFeatureTracing:
         result = response.to_dict()
         assert "driver_id" in result
         assert "conv_rate" in result
+
+    def test_no_context_when_scope_not_active(self, store_with_tracing):
+        """Retrieval without feast_trace_scope should not crash."""
+        from feast.tracing_context import get_current_context
+
+        store_with_tracing.get_online_features(
+            features=["driver_hourly_stats:conv_rate"],
+            entity_rows=[{"driver_id": 1001}],
+        )
+        assert get_current_context() is None
+
+    def test_multiple_retrievals_accumulate(self, store_with_tracing):
+        from feast.tracing_context import feast_trace_scope
+
+        with feast_trace_scope() as ctx:
+            store_with_tracing.get_online_features(
+                features=["driver_hourly_stats:conv_rate"],
+                entity_rows=[{"driver_id": 1001}],
+            )
+            store_with_tracing.get_online_features(
+                features=["driver_hourly_stats:acc_rate"],
+                entity_rows=[{"driver_id": 1002}],
+            )
+            assert len(ctx.feature_refs) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Tests — Historical features + trace context
+# ---------------------------------------------------------------------------
 
 
 class TestHistoricalFeatureTracing:
@@ -233,3 +282,48 @@ class TestHistoricalFeatureTracing:
                 features=["driver_hourly_stats:conv_rate"],
             ).to_df()
             assert len(ctx.feature_refs) > 0
+            assert any("conv_rate" in ref for ref in ctx.feature_refs)
+
+    def test_historical_with_feature_service(self, store_with_tracing):
+        from feast.tracing_context import feast_trace_scope
+
+        entity_df = pd.DataFrame(
+            {
+                "driver_id": [1001],
+                "event_timestamp": [datetime.now() - timedelta(hours=1)],
+            }
+        )
+
+        with feast_trace_scope() as ctx:
+            fs = store_with_tracing.get_feature_service("driver_activity_v1")
+            store_with_tracing.get_historical_features(
+                entity_df=entity_df,
+                features=fs,
+            ).to_df()
+            assert len(ctx.feature_refs) > 0
+            assert ctx.feature_service == "driver_activity_v1"
+
+
+# ---------------------------------------------------------------------------
+# Tests — Span attribute output format
+# ---------------------------------------------------------------------------
+
+
+class TestSpanAttributeFormat:
+    def test_context_attributes_match_expected_schema(self, store_with_tracing):
+        from feast.tracing_context import feast_trace_scope
+
+        with feast_trace_scope() as ctx:
+            fs = store_with_tracing.get_feature_service("driver_activity_v1")
+            store_with_tracing.get_online_features(
+                features=fs,
+                entity_rows=[{"driver_id": 1001}],
+            )
+
+            attrs = ctx.get_context_attributes()
+            assert "feast.context_features" in attrs
+            assert "feast.context_feature_count" in attrs
+            assert "feast.context_feature_views" in attrs
+            assert "feast.context_feature_service" in attrs
+            assert attrs["feast.context_feature_service"] == "driver_activity_v1"
+            assert int(attrs["feast.context_feature_count"]) > 0

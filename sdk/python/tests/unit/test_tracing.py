@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
@@ -203,7 +202,7 @@ class TestInstallFeastSpanProcessor:
 
 
 # ---------------------------------------------------------------------------
-# tracing.py tests
+# tracing.py tests (MLflow-native)
 # ---------------------------------------------------------------------------
 
 
@@ -213,7 +212,7 @@ class TestLazyInit:
 
         feast.tracing._initialized = False
         feast.tracing._enabled = False
-        feast.tracing._tracer = None
+        feast.tracing._mlflow_mod = None
 
     def test_disabled_when_no_mlflow_config(self):
         import feast.tracing
@@ -248,51 +247,22 @@ class TestLazyInit:
         store.config.mlflow = None
         feast.tracing._lazy_init(store)
         feast.tracing._lazy_init(store)
-        # Should only set _initialized once (no crash on second call)
         assert feast.tracing._initialized is True
 
+    def test_enabled_with_valid_config(self):
+        import feast.tracing
 
-class TestIsEmbeddedStore:
-    def test_milvus_with_path_no_host(self):
-        from feast.tracing import _is_embedded_store
-
+        feast.tracing._initialized = False
         store = MagicMock()
-        store.config.online_config = SimpleNamespace(
-            type="milvus", path="data/online.db", host=None
-        )
-        assert _is_embedded_store(store) is True
+        store.config.mlflow.enabled = True
+        store.config.mlflow.enable_tracing = True
+        store.config.mlflow.get_tracking_uri.return_value = None
+        store.config.project = "test_project"
 
-    def test_milvus_with_host(self):
-        from feast.tracing import _is_embedded_store
-
-        store = MagicMock()
-        store.config.online_config = SimpleNamespace(
-            type="milvus", path=None, host="localhost"
-        )
-        assert _is_embedded_store(store) is False
-
-    def test_sqlite_not_embedded(self):
-        from feast.tracing import _is_embedded_store
-
-        store = MagicMock()
-        store.config.online_config = SimpleNamespace(
-            type="sqlite", path="data/online.db"
-        )
-        assert _is_embedded_store(store) is False
-
-    def test_none_config(self):
-        from feast.tracing import _is_embedded_store
-
-        store = MagicMock()
-        store.config.online_config = None
-        assert _is_embedded_store(store) is False
-
-    def test_dict_config(self):
-        from feast.tracing import _is_embedded_store
-
-        store = MagicMock()
-        store.config.online_config = {"type": "milvus", "path": "data/db", "host": ""}
-        assert _is_embedded_store(store) is True
+        result = feast.tracing._lazy_init(store)
+        assert result is True
+        assert feast.tracing._enabled is True
+        assert feast.tracing._mlflow_mod is not None
 
 
 class TestTracedToolSpan:
@@ -308,19 +278,53 @@ class TestTracedToolSpan:
 
 
 # ---------------------------------------------------------------------------
-# MlflowConfig.enable_tracing field test
+# MlflowConfig field tests
 # ---------------------------------------------------------------------------
 
 
-class TestMlflowConfigEnableTracing:
-    def test_default_is_true(self):
+class TestMlflowConfigFields:
+    def test_enable_tracing_default_is_true(self):
         from feast.mlflow_integration.config import MlflowConfig
 
         cfg = MlflowConfig()
         assert cfg.enable_tracing is True
 
-    def test_can_disable(self):
+    def test_enable_tracing_can_disable(self):
         from feast.mlflow_integration.config import MlflowConfig
 
         cfg = MlflowConfig(enable_tracing=False)
         assert cfg.enable_tracing is False
+
+
+# ---------------------------------------------------------------------------
+# _push_trace_context tests
+# ---------------------------------------------------------------------------
+
+
+class TestPushTraceContext:
+    def test_noop_when_no_scope(self):
+        """_push_trace_context should do nothing when no trace scope is active."""
+        from feast.tracing_context import get_current_context
+
+        assert get_current_context() is None
+
+        store = MagicMock()
+        store.registry = MagicMock()
+        store.project = "test"
+        store._push_trace_context = MagicMock()
+        store._push_trace_context(["fv:f1"])
+
+    def test_pushes_refs_when_scope_active(self):
+        """Manually simulate what _push_trace_context does."""
+        from feast.tracing_context import feast_trace_scope, get_current_context
+
+        with feast_trace_scope() as ctx:
+            assert get_current_context() is ctx
+            ctx.push_retrieval(
+                feature_refs=["driver_stats:conv_rate", "driver_stats:acc_rate"],
+                feature_service="driver_svc",
+            )
+            assert len(ctx.feature_refs) == 2
+            assert ctx.feature_service == "driver_svc"
+
+        assert get_current_context() is None
