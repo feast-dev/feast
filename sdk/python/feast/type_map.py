@@ -897,8 +897,6 @@ def _sanitize_list_value(value: Any, feast_value_type: ValueType) -> Any:
     """
     if isinstance(value, np.ndarray):
         value = value.tolist()
-        if isinstance(value, list) and len(value) == 0:
-            return None
     none_default = _LIST_NONE_DEFAULTS.get(feast_value_type)
     if none_default is not None and isinstance(value, list):
         value = [none_default if v is None else v for v in value]

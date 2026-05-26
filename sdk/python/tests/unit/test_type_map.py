@@ -87,6 +87,9 @@ def test_python_values_to_proto_values_bool(values):
         (np.array([None]), ValueType.BYTES_LIST, None),
         (np.array([None]), ValueType.STRING_LIST, None),
         (np.array([None]), ValueType.UNIX_TIMESTAMP_LIST, None),
+        ([np.array([], dtype=np.int32)], ValueType.INT32_LIST, []),
+        ([np.array([], dtype=np.float32)], ValueType.FLOAT_LIST, []),
+        ([np.array([], dtype=np.bool_)], ValueType.BOOL_LIST, []),
         ([b"[1,2,3]"], ValueType.INT64_LIST, [1, 2, 3]),
         ([b"[1,2,3]"], ValueType.INT32_LIST, [1, 2, 3]),
         ([b"[1.5,2.5,3.5]"], ValueType.FLOAT_LIST, [1.5, 2.5, 3.5]),
@@ -2094,12 +2097,12 @@ class TestArrowArrayStringListMaterialization:
         assert isinstance(result, list)
 
     def test_sanitize_list_value_empty_ndarray(self):
-        """Empty ndarray is converted to None (treated as a missing row)."""
+        """Empty ndarray is converted to an empty Python list."""
         from feast.type_map import _sanitize_list_value
 
         arr = np.array([], dtype=object)
         result = _sanitize_list_value(arr, ValueType.STRING_LIST)
-        assert result is None
+        assert result == []
 
     def test_sanitize_list_value_ndarray_with_none(self):
         """None elements inside a STRING_LIST ndarray are replaced with empty string."""
