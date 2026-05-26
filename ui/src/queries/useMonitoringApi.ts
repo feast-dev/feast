@@ -77,6 +77,7 @@ interface MonitoringFilters {
   data_source_type?: string;
   start_date?: string;
   end_date?: string;
+  is_baseline?: boolean;
 }
 
 const toQueryParams = (
@@ -91,6 +92,7 @@ const toQueryParams = (
     data_source_type: filters.data_source_type,
     start_date: filters.start_date,
     end_date: filters.end_date,
+    is_baseline: filters.is_baseline ? "true" : undefined,
   };
 };
 
@@ -121,12 +123,15 @@ const STALE_TIME = 30_000;
 
 const useFeatureMetrics = (filters: MonitoringFilters) => {
   const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const path = filters.is_baseline
+    ? "/monitoring/metrics/baseline"
+    : "/monitoring/metrics/features";
   return useQuery<FeatureMetric[]>(
     ["monitoring-features", filters],
     () =>
       fetchMonitoring<FeatureMetric[]>(
         apiBaseUrl,
-        "/monitoring/metrics/features",
+        path,
         toQueryParams(filters),
       ),
     { staleTime: STALE_TIME, enabled, retry: 1 },
@@ -135,12 +140,15 @@ const useFeatureMetrics = (filters: MonitoringFilters) => {
 
 const useFeatureViewMetrics = (filters: MonitoringFilters) => {
   const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const path = filters.is_baseline
+    ? "/monitoring/metrics/baseline"
+    : "/monitoring/metrics/feature_views";
   return useQuery<FeatureViewMetric[]>(
     ["monitoring-feature-views", filters],
     () =>
       fetchMonitoring<FeatureViewMetric[]>(
         apiBaseUrl,
-        "/monitoring/metrics/feature_views",
+        path,
         toQueryParams(filters),
       ),
     { staleTime: STALE_TIME, enabled, retry: 1 },
@@ -206,13 +214,8 @@ const useComputeMetrics = () => {
     async (body: {
       project: string;
       feature_view_name?: string;
-      feature_names?: string[];
-      start_date?: string;
-      end_date?: string;
-      granularity?: string;
-      set_baseline?: boolean;
     }) => {
-      const res = await fetch(`${apiBaseUrl}/monitoring/compute`, {
+      const res = await fetch(`${apiBaseUrl}/monitoring/auto_compute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

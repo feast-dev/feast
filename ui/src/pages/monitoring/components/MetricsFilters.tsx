@@ -25,7 +25,7 @@ interface MetricsFiltersProps {
 }
 
 const GRANULARITY_OPTIONS = [
-  { value: "", text: "All" },
+  { value: "baseline", text: "Baseline" },
   { value: "daily", text: "Daily" },
   { value: "weekly", text: "Weekly" },
   { value: "biweekly", text: "Biweekly" },

@@ -3,9 +3,15 @@ import {
   EuiBasicTable,
   EuiBasicTableColumn,
   EuiBadge,
+  EuiButtonIcon,
+  EuiDescriptionList,
+  EuiFlexGroup,
+  EuiFlexItem,
   EuiHealth,
   EuiLink,
+  EuiPopover,
   EuiProgress,
+  EuiTitle,
   EuiToolTip,
   Criteria,
 } from "@elastic/eui";
@@ -31,6 +37,27 @@ const formatNum = (val: number | null, decimals = 2): string => {
   if (val === null || val === undefined) return "—";
   if (Number.isInteger(val)) return val.toLocaleString();
   return val.toFixed(decimals);
+};
+
+const formatFreshness = (computedAt: string | null): string => {
+  if (!computedAt) return "—";
+  const diff = Date.now() - new Date(computedAt).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+};
+
+const freshnessColor = (computedAt: string | null): string => {
+  if (!computedAt) return "subdued";
+  const hrs = (Date.now() - new Date(computedAt).getTime()) / 3_600_000;
+  if (hrs < 24) return "success";
+  if (hrs < 72) return "warning";
+  return "danger";
 };
 
 const MiniHistogram = ({ metric }: { metric: FeatureMetric }) => {
@@ -179,6 +206,22 @@ const FeatureMetricsTable = ({
     }
   };
 
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
+
+  const columnLegend = [
+    { title: "Feature", description: "Name of the individual feature. Click to view full distribution and detailed statistics." },
+    { title: "Feature View", description: "The feature view this feature belongs to — a logical grouping of related features sharing the same data source." },
+    { title: "Type", description: "Data type: numeric (continuous/discrete numbers) or categorical (strings/labels)." },
+    { title: "Distribution", description: "Compact histogram showing the value distribution. Blue bars = numeric, orange bars = categorical." },
+    { title: "Rows", description: "Total number of rows (data points) observed for this feature in the computed time window." },
+    { title: "Null Rate", description: "Percentage of rows with missing (null) values. Shown as a progress bar colored by severity." },
+    { title: "Health", description: "Data quality indicator based on null rate: Healthy (< 10%), Moderate (10–49%), High (>= 50%)." },
+    { title: "Mean", description: "Arithmetic mean of the feature values. Only shown for numeric features." },
+    { title: "Std Dev", description: "Standard deviation — measures how spread out the values are from the mean. Only for numeric features." },
+    { title: "Freshness", description: "Recency of the underlying data. Green (< 24h old), Yellow (24–72h), Red (> 72h). Hover for the data date." },
+    { title: "Source", description: "Data source type used for metric computation (e.g. batch, stream)." },
+  ];
+
   const columns: EuiBasicTableColumn<FeatureMetric>[] = [
     {
       field: "feature_name",
@@ -261,6 +304,19 @@ const FeatureMetricsTable = ({
       render: (val: number | null) => formatNum(val),
     },
     {
+      field: "metric_date",
+      name: "Freshness",
+      sortable: true,
+      width: "110px",
+      render: (val: string) => (
+        <EuiToolTip content={val ? `Data from: ${val}` : "Unknown"}>
+          <EuiHealth color={freshnessColor(val)}>
+            {formatFreshness(val)}
+          </EuiHealth>
+        </EuiToolTip>
+      ),
+    },
+    {
       field: "data_source_type",
       name: "Source",
       width: "80px",
@@ -269,27 +325,59 @@ const FeatureMetricsTable = ({
   ];
 
   return (
-    <EuiBasicTable
-      items={pageOfItems}
-      columns={columns}
-      loading={isLoading}
-      pagination={pagination}
-      sorting={{
-        sort: {
-          field: sortField,
-          direction: sortDirection,
-        },
-      }}
-      onChange={onTableChange}
-      rowProps={(item: FeatureMetric) => ({
-        "data-test-subj": `row-${item.feature_name}`,
-      })}
-      noItemsMessage={
-        isLoading
-          ? "Loading metrics..."
-          : "No metrics found. Run a monitoring compute job to generate metrics."
-      }
-    />
+    <>
+      <EuiFlexGroup justifyContent="flexEnd" gutterSize="none">
+        <EuiFlexItem grow={false}>
+          <EuiPopover
+            button={
+              <EuiButtonIcon
+                iconType="questionInCircle"
+                aria-label="Column legend"
+                color="text"
+                onClick={() => setIsLegendOpen(!isLegendOpen)}
+              />
+            }
+            isOpen={isLegendOpen}
+            closePopover={() => setIsLegendOpen(false)}
+            anchorPosition="downRight"
+            panelPaddingSize="m"
+            panelStyle={{ maxWidth: 420 }}
+          >
+            <EuiTitle size="xxs">
+              <h4>Column Legend</h4>
+            </EuiTitle>
+            <EuiDescriptionList
+              type="column"
+              compressed
+              listItems={columnLegend}
+              style={{ marginTop: 8 }}
+              titleProps={{ style: { fontWeight: 600, width: 100 } }}
+            />
+          </EuiPopover>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      <EuiBasicTable
+        items={pageOfItems}
+        columns={columns}
+        loading={isLoading}
+        pagination={pagination}
+        sorting={{
+          sort: {
+            field: sortField,
+            direction: sortDirection,
+          },
+        }}
+        onChange={onTableChange}
+        rowProps={(item: FeatureMetric) => ({
+          "data-test-subj": `row-${item.feature_name}`,
+        })}
+        noItemsMessage={
+          isLoading
+            ? "Loading metrics..."
+            : "No metrics found. Run a monitoring compute job to generate metrics."
+        }
+      />
+    </>
   );
 };
 

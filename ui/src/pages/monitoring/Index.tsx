@@ -33,31 +33,35 @@ const MonitoringIndex = () => {
   const { data: registryData } = useLoadRegistry(registryUrl, projectName);
 
   const [selectedFV, setSelectedFV] = useState("");
-  const [granularity, setGranularity] = useState("");
+  const [granularity, setGranularity] = useState("baseline");
   const [dataSourceType, setDataSourceType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const isBaseline = granularity === "baseline";
 
   const filters = useMemo(
     () => ({
       project: projectName || "",
       feature_view_name: selectedFV || undefined,
-      granularity: granularity || undefined,
+      granularity: isBaseline ? undefined : granularity || undefined,
       data_source_type: dataSourceType || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
+      is_baseline: isBaseline || undefined,
     }),
-    [projectName, selectedFV, granularity, dataSourceType, startDate, endDate],
+    [projectName, selectedFV, granularity, isBaseline, dataSourceType, startDate, endDate],
   );
 
   const featureQuery = useFeatureMetrics(filters);
   const fvQuery = useFeatureViewMetrics(filters);
   const fsQuery = useFeatureServiceMetrics({
     project: projectName || "",
-    granularity: granularity || undefined,
+    granularity: isBaseline ? undefined : granularity || undefined,
     data_source_type: dataSourceType || undefined,
     start_date: startDate || undefined,
     end_date: endDate || undefined,
+    is_baseline: isBaseline || undefined,
   });
   const computeMutation = useComputeMetrics();
 
