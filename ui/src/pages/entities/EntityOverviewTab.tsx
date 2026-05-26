@@ -31,7 +31,6 @@ import { toDate } from "../../utils/timestamp";
 import FeatureViewEdgesList from "./FeatureViewEdgesList";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
-import { useUIVersion } from "../../contexts/UIVersionContext";
 import { useApplyEntity } from "../../queries/mutations/useEntityMutations";
 
 const buildEditFormData = (entity: feast.core.IEntity): EntityFormData => {
@@ -138,21 +137,17 @@ const EntityOverviewTab = () => {
               <EuiSpacer size="m" />
             </>
           )}
-          {isV2 && (
-            <>
-              <EuiFlexGroup justifyContent="flexEnd">
-                <EuiFlexItem grow={false}>
-                  <EuiButtonEmpty
-                    iconType="pencil"
-                    onClick={() => setIsEditModalOpen(true)}
-                  >
-                    Edit Entity
-                  </EuiButtonEmpty>
-                </EuiFlexItem>
-              </EuiFlexGroup>
-              <EuiSpacer size="s" />
-            </>
-          )}
+          <EuiFlexGroup justifyContent="flexEnd">
+            <EuiFlexItem grow={false}>
+              <EuiButtonEmpty
+                iconType="pencil"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                Edit Entity
+              </EuiButtonEmpty>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          <EuiSpacer size="s" />
           <EuiFlexGroup>
             <EuiFlexItem>
               <EuiPanel hasBorder={true}>

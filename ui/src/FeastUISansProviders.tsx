@@ -5,7 +5,6 @@ import "./index.css";
 import { Routes, Route } from "react-router-dom";
 import { EuiProvider, EuiErrorBoundary } from "@elastic/eui";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
-import { UIVersionProvider } from "./contexts/UIVersionContext";
 
 import ProjectOverviewPage from "./pages/ProjectOverviewPage";
 import Layout from "./pages/Layout";
@@ -80,13 +79,11 @@ const FeastUISansProviders = ({
 
   return (
     <ThemeProvider>
-      <UIVersionProvider>
-        <FeastUISansProvidersInner
-          basename={basename}
-          projectListContext={projectListContext}
-          feastUIConfigs={feastUIConfigs}
-        />
-      </UIVersionProvider>
+      <FeastUISansProvidersInner
+        basename={basename}
+        projectListContext={projectListContext}
+        feastUIConfigs={feastUIConfigs}
+      />
     </ThemeProvider>
   );
 };

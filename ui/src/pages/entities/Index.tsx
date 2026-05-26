@@ -19,7 +19,6 @@ import EntityFormModal, {
   EntityFormData,
 } from "../../components/EntityFormModal";
 import { useApplyEntity } from "../../queries/mutations/useEntityMutations";
-import { useUIVersion } from "../../contexts/UIVersionContext";
 import useResourceQuery, {
   entityListPath,
 } from "../../queries/useResourceQuery";
@@ -48,8 +47,6 @@ const formDataToPayload = (formData: EntityFormData, project: string) => ({
 
 const Index = () => {
   const { projectName } = useParams();
-  const { isV2 } = useUIVersion();
-
   const { isLoading, isSuccess, isError, data } = useLoadEntities();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -84,18 +81,14 @@ const Index = () => {
         iconType={EntityIcon}
         pageTitle="Entities"
         rightSideItems={[
-          ...(isV2
-            ? [
-                <EuiButton
-                  fill
-                  iconType="plus"
-                  onClick={() => setIsModalOpen(true)}
-                  key="create"
-                >
-                  Create Entity
-                </EuiButton>,
-              ]
-            : []),
+          <EuiButton
+            fill
+            iconType="plus"
+            onClick={() => setIsModalOpen(true)}
+            key="create"
+          >
+            Create Entity
+          </EuiButton>,
           <ExportButton
             data={data ?? []}
             fileName="entities"

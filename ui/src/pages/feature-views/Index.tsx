@@ -35,7 +35,6 @@ import FeatureViewFormModal, {
   FeatureViewFormData,
 } from "../../components/FeatureViewFormModal";
 import { useApplyFeatureView } from "../../queries/mutations/useFeatureViewMutations";
-import { useUIVersion } from "../../contexts/UIVersionContext";
 import useResourceQuery, {
   featureViewListPath,
   restFeatureViewsToMergedList,
@@ -125,8 +124,6 @@ const formDataToPayload = (formData: FeatureViewFormData, project: string) => ({
 
 const Index = () => {
   const { projectName } = useParams();
-  const { isV2 } = useUIVersion();
-
   const { isLoading, isSuccess, isError, data } = useLoadFeatureViews();
 
   const entitiesQuery = useResourceQuery<any[]>({
@@ -213,18 +210,14 @@ const Index = () => {
         iconType={FeatureViewIcon}
         pageTitle="Feature Views"
         rightSideItems={[
-          ...(isV2
-            ? [
-                <EuiButton
-                  fill
-                  iconType="plus"
-                  onClick={handleCreateClick}
-                  key="create"
-                >
-                  Create Feature View
-                </EuiButton>,
-              ]
-            : []),
+          <EuiButton
+            fill
+            iconType="plus"
+            onClick={handleCreateClick}
+            key="create"
+          >
+            Create Feature View
+          </EuiButton>,
           <ExportButton
             data={filterResult ?? []}
             fileName="feature_views"

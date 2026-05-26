@@ -24,7 +24,6 @@ import DataSourceFormModal, {
   DataSourceFormData,
 } from "../../components/DataSourceFormModal";
 import { useApplyDataSource } from "../../queries/mutations/useDataSourceMutations";
-import { useUIVersion } from "../../contexts/UIVersionContext";
 import useResourceQuery, {
   dataSourceListPath,
 } from "../../queries/useResourceQuery";
@@ -105,8 +104,6 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
 
 const Index = () => {
   const { projectName } = useParams();
-  const { isV2 } = useUIVersion();
-
   const { isLoading, isSuccess, isError, data } = useLoadDatasources();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -147,18 +144,14 @@ const Index = () => {
         iconType={DataSourceIcon}
         pageTitle="Data Sources"
         rightSideItems={[
-          ...(isV2
-            ? [
-                <EuiButton
-                  fill
-                  iconType="plus"
-                  onClick={() => setIsModalOpen(true)}
-                  key="create"
-                >
-                  Create Data Source
-                </EuiButton>,
-              ]
-            : []),
+          <EuiButton
+            fill
+            iconType="plus"
+            onClick={() => setIsModalOpen(true)}
+            key="create"
+          >
+            Create Data Source
+          </EuiButton>,
           <ExportButton
             data={filterResult ?? []}
             fileName="data_sources"

@@ -26,7 +26,6 @@ import BatchSourcePropertiesView from "./BatchSourcePropertiesView";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import RequestDataSourceSchemaTable from "./RequestDataSourceSchemaTable";
 import useLoadDataSource from "./useLoadDataSource";
-import { useUIVersion } from "../../contexts/UIVersionContext";
 
 const buildEditFormData = (ds: any): DataSourceFormData => {
   const spec = ds.spec || ds;
@@ -200,21 +199,17 @@ const DataSourceOverviewTab = () => {
               <EuiSpacer size="m" />
             </>
           )}
-          {isV2 && (
-            <>
-              <EuiFlexGroup justifyContent="flexEnd">
-                <EuiFlexItem grow={false}>
-                  <EuiButtonEmpty
-                    iconType="pencil"
-                    onClick={() => setIsEditModalOpen(true)}
-                  >
-                    Edit Data Source
-                  </EuiButtonEmpty>
-                </EuiFlexItem>
-              </EuiFlexGroup>
-              <EuiSpacer size="s" />
-            </>
-          )}
+          <EuiFlexGroup justifyContent="flexEnd">
+            <EuiFlexItem grow={false}>
+              <EuiButtonEmpty
+                iconType="pencil"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                Edit Data Source
+              </EuiButtonEmpty>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          <EuiSpacer size="s" />
           <EuiFlexGroup>
             <EuiFlexItem>
               <EuiFlexGroup>
