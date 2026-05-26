@@ -51,7 +51,7 @@ class ComputeTransientRequest(BaseModel):
     end_date: Optional[str] = None
 
 
-def get_monitoring_router(grpc_handler, server=None):
+def get_monitoring_router(grpc_handler, store=None):
     router = APIRouter()
 
     _monitoring_service = None
@@ -59,14 +59,23 @@ def get_monitoring_router(grpc_handler, server=None):
     def _get_monitoring_service():
         nonlocal _monitoring_service
         if _monitoring_service is None:
+            if store is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Monitoring service is not available: no FeatureStore configured",
+                )
             from feast.monitoring.monitoring_service import MonitoringService
 
-            store = server.store if server else grpc_handler.store
             _monitoring_service = MonitoringService(store)
         return _monitoring_service
 
     def _get_store():
-        return server.store if server else grpc_handler.store
+        if store is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Monitoring service is not available: no FeatureStore configured",
+            )
+        return store
 
     # ------------------------------------------------------------------ #
     #  DQM Job: submit and track
@@ -74,14 +83,11 @@ def get_monitoring_router(grpc_handler, server=None):
 
     @router.post("/monitoring/compute", tags=["Monitoring"])
     async def compute_metrics(request: ComputeMetricsRequest):
-        """Submit a DQM job to compute and store metrics. Returns job_id."""
-        if request.granularity not in VALID_GRANULARITIES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid granularity '{request.granularity}'. "
-                f"Must be one of {VALID_GRANULARITIES}",
-            )
+        """Submit a DQM job to compute and store metrics. Returns job_id.
 
+        When set_baseline is True and no date range is provided, computes
+        baseline from all available source data.
+        """
         store = _get_store()
         if request.feature_view_name:
             fv = store.registry.get_feature_view(
@@ -90,6 +96,24 @@ def get_monitoring_router(grpc_handler, server=None):
             assert_permissions(fv, actions=[AuthzedAction.UPDATE])
 
         svc = _get_monitoring_service()
+
+        if request.set_baseline and not request.start_date and not request.end_date:
+            try:
+                result = svc.compute_baseline(
+                    project=request.project,
+                    feature_view_name=request.feature_view_name,
+                    feature_names=request.feature_names,
+                )
+                return result
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+
+        if request.granularity not in VALID_GRANULARITIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid granularity '{request.granularity}'. "
+                f"Must be one of {VALID_GRANULARITIES}",
+            )
 
         params: Dict[str, Any] = {}
         if request.start_date:
@@ -108,7 +132,6 @@ def get_monitoring_router(grpc_handler, server=None):
             parameters=params,
         )
 
-        # Execute synchronously for now; async worker is a future enhancement
         try:
             result = svc.execute_job(job_id)
             return {"job_id": job_id, **result}

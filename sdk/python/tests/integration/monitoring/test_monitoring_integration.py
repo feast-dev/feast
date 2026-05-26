@@ -482,17 +482,18 @@ class TestRESTEndpoints:
         from feast.api.registry.rest.monitoring import get_monitoring_router
 
         mock_handler = MagicMock()
-        mock_server = MagicMock()
 
         fv = _make_feature_view(
             "driver_stats",
             [_make_feature_field("conv_rate", PrimitiveFeastType.FLOAT64)],
         )
-        mock_server.store = _make_mock_store([fv])
+        mock_store = _make_mock_store([fv])
 
         app = FastAPI()
-        app.include_router(get_monitoring_router(mock_handler, mock_server))
+        app.include_router(get_monitoring_router(mock_handler, store=mock_store))
 
+        mock_server = MagicMock()
+        mock_server.store = mock_store
         return TestClient(app), mock_server
 
     @patch("feast.api.registry.rest.monitoring.assert_permissions")
@@ -569,17 +570,18 @@ class TestRBACEnforcement:
         from feast.api.registry.rest.monitoring import get_monitoring_router
 
         mock_handler = MagicMock()
-        mock_server = MagicMock()
 
         fv = _make_feature_view(
             "driver_stats",
             [_make_feature_field("conv_rate", PrimitiveFeastType.FLOAT64)],
         )
-        mock_server.store = _make_mock_store([fv])
+        mock_store = _make_mock_store([fv])
 
         app = FastAPI()
-        app.include_router(get_monitoring_router(mock_handler, mock_server))
+        app.include_router(get_monitoring_router(mock_handler, store=mock_store))
 
+        mock_server = MagicMock()
+        mock_server.store = mock_store
         return TestClient(app), mock_server
 
     @patch("feast.api.registry.rest.monitoring.assert_permissions")

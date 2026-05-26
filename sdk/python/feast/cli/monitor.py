@@ -131,7 +131,19 @@ def _run_batch_monitoring(
     set_baseline,
     auto_mode,
 ):
-    if auto_mode and not set_baseline:
+    if auto_mode and set_baseline and not start_date and not end_date:
+        click.echo("Computing baseline from all available source data...")
+        result = svc.compute_baseline(
+            project=project,
+            feature_view_name=feature_view,
+            feature_names=feat_names,
+        )
+        click.echo(f"Status: {result['status']}")
+        click.echo(f"Features computed: {result['computed_features']}")
+        click.echo(f"Feature views computed: {result['computed_feature_views']}")
+        click.echo(f"Duration: {result['duration_ms']}ms")
+        click.echo("Baseline: SET")
+    elif auto_mode and not set_baseline:
         click.echo("Auto-computing batch metrics for all granularities...")
         result = svc.auto_compute(
             project=project,

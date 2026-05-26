@@ -446,6 +446,15 @@ def _submit_baseline_jobs_if_needed(store, project_name, repo):
         )
         for job_id in job_ids:
             click.echo(f"  → Queued baseline metrics computation (DQM job: {job_id})")
+            try:
+                svc.execute_job(job_id)
+                click.echo(f"  ✓ Baseline computed (job: {job_id})")
+            except Exception:
+                logging.getLogger(__name__).debug(
+                    "Baseline job %s execution failed (non-critical)",
+                    job_id,
+                    exc_info=True,
+                )
     except Exception:
         logging.getLogger(__name__).debug(
             "Monitoring baseline submission skipped (non-critical)", exc_info=True
