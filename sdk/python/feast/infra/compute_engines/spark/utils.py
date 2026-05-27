@@ -284,9 +284,7 @@ def write_to_online_store(
             if not chunk:
                 break
             pdf = pd.DataFrame([r.asDict(recursive=True) for r in chunk])
-            table = pa.Table.from_pandas(
-                pdf, schema=arrow_schema, preserve_index=False
-            )
+            table = pa.Table.from_pandas(pdf, schema=arrow_schema, preserve_index=False)
             online_store.online_write_batch(
                 config=repo_config,
                 table=feature_view,
@@ -332,9 +330,7 @@ def write_to_offline_store(
             if not chunk:
                 break
             pdf = pd.DataFrame([r.asDict(recursive=True) for r in chunk])
-            table = pa.Table.from_pandas(
-                pdf, schema=arrow_schema, preserve_index=False
-            )
+            table = pa.Table.from_pandas(pdf, schema=arrow_schema, preserve_index=False)
             offline_store.offline_write_batch(
                 config=repo_config,
                 feature_view=feature_view,
