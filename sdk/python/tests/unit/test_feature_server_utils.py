@@ -21,6 +21,7 @@ the output format of MessageToDict with proto_json.patch() applied.
 Related issue: https://github.com/feast-dev/feast/issues/6013
 """
 
+import base64
 import json
 import time
 
@@ -104,7 +105,7 @@ class TestValueToNative:
         data = b"\x00\x01\x02\x03"
         v = Value(bytes_val=data)
         result = _value_to_native(v)
-        assert result == data
+        assert result == base64.b64encode(data).decode("ascii")
 
     def test_double_list_val(self):
         v = Value(double_list_val=DoubleList(val=[1.1, 2.2, 3.3]))
@@ -144,7 +145,10 @@ class TestValueToNative:
     def test_bytes_list_val(self):
         v = Value(bytes_list_val=BytesList(val=[b"\x00\x01", b"\x02\x03"]))
         result = _value_to_native(v)
-        assert result == [b"\x00\x01", b"\x02\x03"]
+        assert result == [
+            base64.b64encode(b"\x00\x01").decode("ascii"),
+            base64.b64encode(b"\x02\x03").decode("ascii"),
+        ]
 
     def test_unix_timestamp_list_val(self):
         v = Value(unix_timestamp_list_val=Int64List(val=[1609459200, 1609545600]))
@@ -458,7 +462,6 @@ class TestConvertResponseToDictConsistency:
         the only difference is how many trailing digits appear in the JSON string.
         This is an intentional trade-off for speed and is safe for all ML feature values.
         """
-        import json
         import struct
 
         # Use a value with many significant digits
@@ -496,20 +499,25 @@ class TestConvertResponseToDictConsistency:
         assert isinstance(values[0], list), "set type should be a flat list"
         assert set(values[0]) == {"a", "b", "c"}
 
-    def test_bytes_values_match_patched_message_to_dict(self):
-        """Ensure bytes serialization matches proto_json.patch() format (raw bytes)."""
+    def test_bytes_val_is_base64_encoded(self):
+        """bytes_val is base64-encoded so JSONResponse can serialize it.
+
+        This intentionally differs from proto_json.patch() which returns raw bytes.
+        Raw bytes are not JSON-serializable; base64 is the standard protobuf JSON
+        encoding for bytes fields and is safe for all HTTP clients.
+        """
         response = GetOnlineFeaturesResponse()
         fv = response.results.add()
-        fv.values.append(Value(bytes_val=b"\x00\x01\x02\xff"))
+        data = b"\x00\x01\x02\xff"
+        fv.values.append(Value(bytes_val=data))
         fv.statuses.append(FieldStatus.PRESENT)
 
-        fast_result = convert_response_to_dict(response)
-        standard_result = MessageToDict(response, preserving_proto_field_name=True)
+        result = convert_response_to_dict(response)
+        encoded = result["results"][0]["values"][0]
 
-        assert (
-            fast_result["results"][0]["values"]
-            == standard_result["results"][0]["values"]
-        )
+        assert encoded == base64.b64encode(data).decode("ascii")
+        # Must be JSON-serializable
+        assert json.dumps(encoded)
 
 
 class TestJsonSerializability:

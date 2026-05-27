@@ -4,6 +4,7 @@ Matches the output format of MessageToDict with proto_json.patch() applied.
 Values are serialized as native Python types (not wrapped dicts).
 """
 
+import base64
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -67,14 +68,18 @@ def convert_response_to_dict(response: GetOnlineFeaturesResponse) -> Dict[str, A
 
 
 def _value_to_native(v: Value) -> Optional[Any]:
-    """Convert a Value proto to native Python type (matches proto_json.patch() format).
+    """Convert a Value proto to a JSON-serializable Python type.
 
-    Note: proto_json.patch() modifies MessageToDict to return raw bytes instead of
-    base64 encoding, so we return raw bytes here to match that behavior.
+    bytes_val and bytes_list_val are base64-encoded (RFC 4648) so that
+    JSONResponse can serialize them without TypeError. This matches standard
+    protobuf JSON encoding for bytes fields and is safe for all HTTP clients.
     """
     which = v.WhichOneof("val")
     if which is None or which == "null_val":
         return None
+    # bytes must be base64-encoded for JSON serialization
+    elif which == "bytes_val":
+        return base64.b64encode(v.bytes_val).decode("ascii")
     # RepeatedValue — nested Values that must be recursively converted
     elif which in ("list_val", "set_val"):
         return [_value_to_native(nested) for nested in getattr(v, which).val]
@@ -94,11 +99,15 @@ def _value_to_native(v: Value) -> Optional[Any]:
             "scalar_map_val is not yet supported by convert_response_to_dict; value will be None"
         )
         return None
-    # All simple list/set types (.val is a repeated scalar field)
+    # bytes_list_val / bytes_set_val — base64-encode each element
+    elif which in ("bytes_list_val", "bytes_set_val"):
+        return [base64.b64encode(b).decode("ascii") for b in getattr(v, which).val]
+    # All other list/set types have scalar .val fields
     elif "_list_" in which or "_set_" in which:
         return list(getattr(v, which).val)
     else:
         return getattr(v, which)
+
 
 
 def _timestamp_to_str(ts) -> str:
