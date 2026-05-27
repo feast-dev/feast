@@ -38,7 +38,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
 
@@ -394,7 +394,7 @@ def get_app(
             response_dict = await run_in_threadpool(
                 convert_response_to_dict, response.proto
             )
-            return ORJSONResponse(content=response_dict)
+            return JSONResponse(content=response_dict)
 
     @app.post(
         "/retrieve-online-documents",
@@ -433,7 +433,7 @@ def get_app(
             response_dict = await run_in_threadpool(
                 convert_response_to_dict, response.proto
             )
-            return ORJSONResponse(content=response_dict)
+            return JSONResponse(content=response_dict)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
