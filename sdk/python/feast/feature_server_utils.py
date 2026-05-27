@@ -109,7 +109,6 @@ def _value_to_native(v: Value) -> Optional[Any]:
         return getattr(v, which)
 
 
-
 def _timestamp_to_str(ts) -> str:
     """Convert protobuf Timestamp to RFC 3339 format with Z suffix.
 
