@@ -6,12 +6,35 @@ Values are serialized as native Python types (not wrapped dicts).
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
+
+from starlette.responses import Response
 
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.protos.feast.types.Value_pb2 import Value
 
 logger = logging.getLogger(__name__)
+
+try:
+    import orjson
+
+    def _make_json_response(data: Dict[str, Any]) -> Response:
+        return Response(
+            content=orjson.dumps(data),
+            media_type="application/json",
+        )
+
+except ImportError:
+    import json
+
+    def _make_json_response(data: Dict[str, Any]) -> Response:  # type: ignore[misc]
+        return Response(
+            content=json.dumps(data).encode(),
+            media_type="application/json",
+        )
+
+
+_make_json_response: Callable[[Dict[str, Any]], Response]
 
 # FieldStatus enum mapping (protos/feast/serving/ServingService.proto)
 _STATUS_NAMES: Dict[int, str] = {
@@ -24,7 +47,17 @@ _STATUS_NAMES: Dict[int, str] = {
 
 
 def convert_response_to_dict(response: GetOnlineFeaturesResponse) -> Dict[str, Any]:
-    """Convert GetOnlineFeaturesResponse to dict (matches proto_json.patch() format)."""
+    """Convert GetOnlineFeaturesResponse to a JSON-serializable dict.
+
+    Matches the structure produced by MessageToDict(proto, preserving_proto_field_name=True)
+    with proto_json.patch() applied, with one intentional difference:
+
+    - double_val fields are returned as Python float objects (json.dumps uses Python 3.1+
+      shortest round-trip form, ~15-17 sig digits) rather than 18 fixed significant digits
+      (float_precision=18). Values are numerically identical; only the JSON string length
+      may differ. This is safe for all ML feature types and avoids unnecessary precision
+      overhead.
+    """
     result: Dict[str, Any] = {
         "results": [
             {

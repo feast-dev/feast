@@ -448,6 +448,36 @@ class TestConvertResponseToDictConsistency:
             == standard_result["results"][0]["values"]
         )
 
+    def test_double_val_precision(self):
+        """double_val is returned as a Python float (shortest round-trip form).
+
+        The upstream code passed float_precision=18 to MessageToDict, which forced 18
+        significant digits for doubles. Our implementation returns native Python floats
+        serialized by json.dumps using Python 3.1+ shortest-round-trip representation
+        (~15–17 sig digits). The value is identical when round-tripped through float64;
+        the only difference is how many trailing digits appear in the JSON string.
+        This is an intentional trade-off for speed and is safe for all ML feature values.
+        """
+        import json
+        import struct
+
+        # Use a value with many significant digits
+        pi = 3.141592653589793
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+        fv.values.append(Value(double_val=pi))
+        fv.statuses.append(FieldStatus.PRESENT)
+
+        result = convert_response_to_dict(response)
+        value = result["results"][0]["values"][0]
+
+        # Value must round-trip correctly through json.dumps
+        assert value == pi
+        round_tripped = json.loads(json.dumps(value))
+        assert round_tripped == pi
+        # Verify it encodes as the same float64 bit pattern
+        assert struct.pack("d", value) == struct.pack("d", pi)
+
     def test_set_types_return_flat_list(self):
         """set types (string_set_val, int64_set_val, etc.) return flat lists.
 
