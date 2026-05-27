@@ -18,6 +18,8 @@ from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.feature_records import validate_online_features
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",
