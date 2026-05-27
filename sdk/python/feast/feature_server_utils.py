@@ -62,7 +62,23 @@ def _value_to_native(v: Value) -> Optional[Any]:
     which = v.WhichOneof("val")
     if which is None or which == "null_val":
         return None
-    elif "_list_" in which:
+    # RepeatedValue — nested Values that must be recursively converted
+    elif which in ("list_val", "set_val"):
+        return [_value_to_native(nested) for nested in getattr(v, which).val]
+    # Map<string, Value> — recursively convert nested Values
+    elif which in ("map_val", "struct_val"):
+        return {k: _value_to_native(vv) for k, vv in getattr(v, which).val.items()}
+    # MapList — list of Map<string, Value>
+    elif which in ("map_list_val", "struct_list_val"):
+        return [
+            {k: _value_to_native(vv) for k, vv in m.val.items()}
+            for m in getattr(v, which).val
+        ]
+    # scalar_map_val has non-string keys and is not JSON-serializable without extra work
+    elif which == "scalar_map_val":
+        return None
+    # All simple list/set types (.val is a repeated scalar field)
+    elif "_list_" in which or "_set_" in which:
         return list(getattr(v, which).val)
     else:
         return getattr(v, which)

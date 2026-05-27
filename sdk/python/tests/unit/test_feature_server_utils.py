@@ -42,11 +42,16 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.Value_pb2 import (
     BoolList,
+    BytesList,
     DoubleList,
     FloatList,
     Int32List,
     Int64List,
+    Int64Set,
+    Map,
+    RepeatedValue,
     StringList,
+    StringSet,
     Value,
 )
 
@@ -134,6 +139,65 @@ class TestValueToNative:
         v = Value(unix_timestamp_val=1609459200)
         result = _value_to_native(v)
         assert result == 1609459200
+
+    def test_bytes_list_val(self):
+        v = Value(bytes_list_val=BytesList(val=[b"\x00\x01", b"\x02\x03"]))
+        result = _value_to_native(v)
+        assert result == [b"\x00\x01", b"\x02\x03"]
+
+    def test_unix_timestamp_list_val(self):
+        v = Value(int64_list_val=Int64List(val=[1609459200, 1609545600]))
+        result = _value_to_native(v)
+        assert result == [1609459200, 1609545600]
+
+    def test_string_set_val(self):
+        v = Value(string_set_val=StringSet(val=["x", "y", "z"]))
+        result = _value_to_native(v)
+        assert set(result) == {"x", "y", "z"}
+
+    def test_int64_set_val(self):
+        v = Value(int64_set_val=Int64Set(val=[10, 20, 30]))
+        result = _value_to_native(v)
+        assert set(result) == {10, 20, 30}
+
+    def test_list_val_nested_values(self):
+        inner = RepeatedValue()
+        inner.val.append(Value(int64_val=1))
+        inner.val.append(Value(string_val="a"))
+        inner.val.append(Value())
+        v = Value(list_val=inner)
+        result = _value_to_native(v)
+        assert result == [1, "a", None]
+
+    def test_set_val_nested_values(self):
+        inner = RepeatedValue()
+        inner.val.append(Value(bool_val=True))
+        inner.val.append(Value(double_val=3.14))
+        v = Value(set_val=inner)
+        result = _value_to_native(v)
+        assert result == [True, 3.14]
+
+    def test_map_val(self):
+        m = Map()
+        m.val["key1"].CopyFrom(Value(int64_val=42))
+        m.val["key2"].CopyFrom(Value(string_val="hello"))
+        v = Value(map_val=m)
+        result = _value_to_native(v)
+        assert result == {"key1": 42, "key2": "hello"}
+
+    def test_map_val_nested_null(self):
+        m = Map()
+        m.val["present"].CopyFrom(Value(int32_val=7))
+        m.val["missing"].CopyFrom(Value())
+        v = Value(map_val=m)
+        result = _value_to_native(v)
+        assert result["present"] == 7
+        assert result["missing"] is None
+
+    def test_json_val(self):
+        v = Value(json_val='{"foo": 1}')
+        result = _value_to_native(v)
+        assert result == '{"foo": 1}'
 
 
 class TestTimestampToStr:
@@ -365,6 +429,23 @@ class TestConvertResponseToDictConsistency:
                 fast_result["metadata"]["feature_names"]
                 == standard_result["metadata"]["feature_names"]
             )
+
+    def test_float_val_precision_matches_message_to_dict(self):
+        """float32 storage causes truncation; both paths must return identical values."""
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+        # 3.14 is not exactly representable as float32; both implementations
+        # should return the same truncated float64 representation
+        fv.values.append(Value(float_val=3.14))
+        fv.statuses.append(FieldStatus.PRESENT)
+
+        fast_result = convert_response_to_dict(response)
+        standard_result = MessageToDict(response, preserving_proto_field_name=True)
+
+        assert (
+            fast_result["results"][0]["values"]
+            == standard_result["results"][0]["values"]
+        )
 
     def test_bytes_values_match_patched_message_to_dict(self):
         """Ensure bytes serialization matches proto_json.patch() format (raw bytes)."""
