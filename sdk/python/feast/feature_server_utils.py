@@ -4,11 +4,14 @@ Matches the output format of MessageToDict with proto_json.patch() applied.
 Values are serialized as native Python types (not wrapped dicts).
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.protos.feast.types.Value_pb2 import Value
+
+logger = logging.getLogger(__name__)
 
 # FieldStatus enum mapping (protos/feast/serving/ServingService.proto)
 _STATUS_NAMES: Dict[int, str] = {
@@ -74,8 +77,12 @@ def _value_to_native(v: Value) -> Optional[Any]:
             {k: _value_to_native(vv) for k, vv in m.val.items()}
             for m in getattr(v, which).val
         ]
-    # scalar_map_val has non-string keys and is not JSON-serializable without extra work
+    # scalar_map_val has non-string keys; full conversion requires extra work and
+    # this type is not returned by standard get_online_features paths today.
     elif which == "scalar_map_val":
+        logger.warning(
+            "scalar_map_val is not yet supported by convert_response_to_dict; value will be None"
+        )
         return None
     # All simple list/set types (.val is a repeated scalar field)
     elif "_list_" in which or "_set_" in which:

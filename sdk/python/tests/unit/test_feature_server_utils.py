@@ -21,6 +21,7 @@ the output format of MessageToDict with proto_json.patch() applied.
 Related issue: https://github.com/feast-dev/feast/issues/6013
 """
 
+import json
 import time
 
 import pytest
@@ -146,7 +147,7 @@ class TestValueToNative:
         assert result == [b"\x00\x01", b"\x02\x03"]
 
     def test_unix_timestamp_list_val(self):
-        v = Value(int64_list_val=Int64List(val=[1609459200, 1609545600]))
+        v = Value(unix_timestamp_list_val=Int64List(val=[1609459200, 1609545600]))
         result = _value_to_native(v)
         assert result == [1609459200, 1609545600]
 
@@ -447,6 +448,24 @@ class TestConvertResponseToDictConsistency:
             == standard_result["results"][0]["values"]
         )
 
+    def test_set_types_return_flat_list(self):
+        """set types (string_set_val, int64_set_val, etc.) return flat lists.
+
+        Note: proto_json.patch() does not explicitly handle _set_ types — they fall
+        through to the else branch and return the raw proto object, which MessageToDict
+        then serializes as {"val": [...]}. Our implementation normalizes these to flat
+        lists, which is more useful for API consumers and consistent with list types.
+        """
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+        fv.values.append(Value(string_set_val=StringSet(val=["a", "b", "c"])))
+        fv.statuses.append(FieldStatus.PRESENT)
+
+        result = convert_response_to_dict(response)
+        values = result["results"][0]["values"]
+        assert isinstance(values[0], list), "set type should be a flat list"
+        assert set(values[0]) == {"a", "b", "c"}
+
     def test_bytes_values_match_patched_message_to_dict(self):
         """Ensure bytes serialization matches proto_json.patch() format (raw bytes)."""
         response = GetOnlineFeaturesResponse()
@@ -461,6 +480,37 @@ class TestConvertResponseToDictConsistency:
             fast_result["results"][0]["values"]
             == standard_result["results"][0]["values"]
         )
+
+
+class TestJsonSerializability:
+    """Ensure convert_response_to_dict output is always JSON-serializable."""
+
+    def test_complex_types_are_json_serializable(self):
+        """map_val, list_val, set_val must not leave proto objects in the output."""
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+
+        # map_val
+        m = Map()
+        m.val["k"].CopyFrom(Value(int64_val=1))
+        fv.values.append(Value(map_val=m))
+
+        # list_val (RepeatedValue)
+        inner = RepeatedValue()
+        inner.val.append(Value(string_val="a"))
+        fv.values.append(Value(list_val=inner))
+
+        # int64_set_val
+        fv.values.append(Value(int64_set_val=Int64Set(val=[10, 20])))
+
+        fv.statuses.extend(
+            [FieldStatus.PRESENT, FieldStatus.PRESENT, FieldStatus.PRESENT]
+        )
+
+        result = convert_response_to_dict(response)
+        # must not raise
+        serialized = json.dumps(result)
+        assert serialized  # non-empty
 
 
 class TestPerformance:
