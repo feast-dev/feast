@@ -47,6 +47,9 @@ def convert_response_to_dict(response: GetOnlineFeaturesResponse) -> Dict[str, A
     if response.HasField("metadata"):
         result["metadata"] = _metadata_to_dict(response.metadata)
 
+    if response.status:
+        result["status"] = response.status
+
     return result
 
 

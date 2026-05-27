@@ -275,6 +275,17 @@ class TestConvertResponseToDict:
         ]
         assert result["results"][0]["statuses"] == expected_statuses
 
+    def test_status_field_included_when_true(self):
+        response = GetOnlineFeaturesResponse()
+        response.status = True
+        result = convert_response_to_dict(response)
+        assert result.get("status") is True
+
+    def test_status_field_omitted_when_false(self):
+        response = GetOnlineFeaturesResponse()
+        result = convert_response_to_dict(response)
+        assert "status" not in result
+
     def test_null_values_become_none(self):
         response = GetOnlineFeaturesResponse()
         fv = response.results.add()
