@@ -259,7 +259,7 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
     When an agent sends traceparent, server spans become children of the
     agent's trace tree.
     """
-    mlflow_cfg = store.config.mlflow
+    mlflow_cfg = getattr(store.config, "mlflow", None)
     if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.enable_tracing:
         return
 

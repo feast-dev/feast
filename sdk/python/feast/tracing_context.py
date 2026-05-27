@@ -51,9 +51,7 @@ class FeastTraceContext:
             "feast.context_feature_count": str(len(deduplicated)),
         }
         if self.feature_views:
-            attrs["feast.context_feature_views"] = ",".join(
-                sorted(self.feature_views)
-            )
+            attrs["feast.context_feature_views"] = ",".join(sorted(self.feature_views))
         if self.feature_service:
             attrs["feast.context_feature_service"] = self.feature_service
         return attrs

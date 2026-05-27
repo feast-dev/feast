@@ -45,7 +45,7 @@ def _lazy_init(store: "FeatureStore") -> bool:
         return _enabled
     _initialized = True
 
-    mlflow_cfg = store.config.mlflow
+    mlflow_cfg = getattr(store.config, "mlflow", None)
     if mlflow_cfg is None or not mlflow_cfg.enabled:
         return False
     if not mlflow_cfg.enable_tracing:
@@ -110,6 +110,7 @@ def traced_tool_span(
         yield None
         return
 
+    has_traceparent = False
     try:
         has_traceparent = (
             _HAS_DISTRIBUTED_CTX
@@ -124,18 +125,22 @@ def traced_tool_span(
             parent_ctx = set_tracing_context_from_http_request_headers(request_headers)
         else:
             parent_ctx = contextlib.nullcontext()
-
-        with parent_ctx:
-            with _mlflow_mod.start_span(name) as span:
-                if attributes:
-                    for k, v in attributes.items():
-                        span.set_attribute(k, v)
-                yield span
-            # Flush before parent_ctx exits — the parent context cleanup
-            # removes the trace from MLflow's in-memory manager, so the
-            # async exporter must send the span before that happens.
-            if has_traceparent:
-                _mlflow_mod.flush_trace_async_logging()
-    except Exception as exc:
-        _logger.debug("Traced tool span failed: %s", exc)
+    except Exception:
+        _logger.debug("Tracing setup failed", exc_info=True)
         yield None
+        return
+
+    with parent_ctx:
+        with _mlflow_mod.start_span(name) as span:
+            if attributes:
+                for k, v in attributes.items():
+                    span.set_attribute(k, v)
+            yield span
+        # Flush before parent_ctx exits — the parent context cleanup
+        # removes the trace from MLflow's in-memory manager, so the
+        # async exporter must send the span before that happens.
+        if has_traceparent:
+            try:
+                _mlflow_mod.flush_trace_async_logging()
+            except Exception:
+                _logger.debug("flush_trace_async_logging failed", exc_info=True)
