@@ -6,35 +6,12 @@ Values are serialized as native Python types (not wrapped dicts).
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional
-
-from starlette.responses import Response
+from typing import Any, Dict, Optional
 
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.protos.feast.types.Value_pb2 import Value
 
 logger = logging.getLogger(__name__)
-
-try:
-    import orjson
-
-    def _make_json_response(data: Dict[str, Any]) -> Response:
-        return Response(
-            content=orjson.dumps(data),
-            media_type="application/json",
-        )
-
-except ImportError:
-    import json
-
-    def _make_json_response(data: Dict[str, Any]) -> Response:  # type: ignore[misc]
-        return Response(
-            content=json.dumps(data).encode(),
-            media_type="application/json",
-        )
-
-
-_make_json_response: Callable[[Dict[str, Any]], Response]
 
 # FieldStatus enum mapping (protos/feast/serving/ServingService.proto)
 _STATUS_NAMES: Dict[int, str] = {
