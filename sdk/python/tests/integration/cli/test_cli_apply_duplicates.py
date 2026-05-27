@@ -2,7 +2,11 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+
+pytestmark = pytest.mark.integration
 
 
 def test_cli_apply_duplicated_featureview_names() -> None:
