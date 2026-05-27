@@ -294,9 +294,7 @@ class SparkOptions:
         has_query = bool(query)
         has_path = bool(path)
         if has_table and (has_query or has_path):
-            raise ValueError(
-                "'table' cannot be combined with 'query' or 'path'."
-            )
+            raise ValueError("'table' cannot be combined with 'query' or 'path'.")
         if not (has_table or has_query or has_path):
             raise ValueError(
                 "At least one of params(table, query, path) must be specified."
