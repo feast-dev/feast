@@ -365,7 +365,7 @@ def spark_embed(
     bs = batch_size
     _cache = _FEAST_EMBED_MODEL_CACHE
 
-    @pandas_udf(T.ArrayType(T.FloatType()))
+    @pandas_udf(returnType=T.ArrayType(T.FloatType()))  # type: ignore[call-overload]
     def _embed_udf(texts: pd.Series) -> pd.Series:
         import torch
         from sentence_transformers import SentenceTransformer
