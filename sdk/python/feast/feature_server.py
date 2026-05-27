@@ -41,6 +41,19 @@ from fastapi.logger import logger
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from google.protobuf.json_format import MessageToDict
+
+import google.protobuf
+
+# float_precision was removed in protobuf 7.34.0
+_PROTOBUF_VERSION = tuple(int(x) for x in google.protobuf.__version__.split(".")[:2])
+_FLOAT_PRECISION_SUPPORTED = _PROTOBUF_VERSION < (7, 34)
+
+
+def _message_to_dict(proto, **kwargs):
+    """Wrapper around MessageToDict that handles float_precision removal in protobuf >= 7.34.0."""
+    if _FLOAT_PRECISION_SUPPORTED and "float_precision" not in kwargs:
+        kwargs["float_precision"] = 18
+    return MessageToDict(proto, **kwargs)
 from pydantic import BaseModel, field_validator
 
 import feast
@@ -392,10 +405,9 @@ def get_app(
                 )
 
             response_dict = await run_in_threadpool(
-                MessageToDict,
+                _message_to_dict,
                 response.proto,
                 preserving_proto_field_name=True,
-                float_precision=18,
             )
             return response_dict
 
@@ -434,10 +446,9 @@ def get_app(
                 )
 
             response_dict = await run_in_threadpool(
-                MessageToDict,
+                _message_to_dict,
                 response.proto,
                 preserving_proto_field_name=True,
-                float_precision=18,
             )
             return response_dict
 
