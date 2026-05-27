@@ -503,12 +503,10 @@ class SparkRetrievalJob(RetrievalJob):
             ) or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
             kwargs: Dict[str, Any] = {"region": region}
             if endpoint:
-                kwargs["endpoint_override"] = endpoint.rstrip("/").replace(
-                    "https://", ""
-                ).replace("http://", "")
-                kwargs["scheme"] = (
-                    "https" if endpoint.startswith("https") else "http"
+                kwargs["endpoint_override"] = (
+                    endpoint.rstrip("/").replace("https://", "").replace("http://", "")
                 )
+                kwargs["scheme"] = "https" if endpoint.startswith("https") else "http"
             fs = pafs.S3FileSystem(**kwargs)
             stripped = [p.replace("s3a://", "").replace("s3://", "") for p in paths]
             return fs, stripped
