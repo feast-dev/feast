@@ -130,8 +130,7 @@ def _apply_bfv_transformations_for_historical(
             hasattr(fv, "feature_transformation")
             and fv.feature_transformation is not None
             and (
-                getattr(fv.feature_transformation, "mode", None)
-                in ("python", "pandas")
+                getattr(fv.feature_transformation, "mode", None) in ("python", "pandas")
                 or getattr(
                     getattr(fv.feature_transformation, "mode", None), "value", None
                 )
@@ -144,9 +143,7 @@ def _apply_bfv_transformations_for_historical(
             if udf is not None:
                 temp_view_name = f"__feast_bfv_{ctx.name}_{uuid.uuid4().hex[:8]}"
                 spark_session.conf.set("spark.sql.runSQLOnFiles", "true")
-                raw_df = spark_session.sql(
-                    f"SELECT * FROM {ctx.table_subquery}"
-                )
+                raw_df = spark_session.sql(f"SELECT * FROM {ctx.table_subquery}")
                 transformed_df = udf(raw_df)
                 transformed_df.createOrReplaceTempView(temp_view_name)
                 ctx = replace(ctx, table_subquery=temp_view_name)
