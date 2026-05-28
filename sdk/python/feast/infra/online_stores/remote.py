@@ -16,16 +16,36 @@ import logging
 import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import requests
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.feature_service import FeatureService
 from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.online_response import OnlineResponse
 from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
+from feast.protos.feast.serving.ServingService_pb2 import (
+    FieldStatus,
+    GetOnlineFeaturesResponse,
+    GetOnlineFeaturesResponseMetadata,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.rest_error_handler import rest_error_handling_decorator
@@ -131,6 +151,88 @@ class RemoteOnlineStore(OnlineStore):
             return list(getattr(proto_value, val_attr).val)
 
         return feast_value_type_to_python_type(proto_value)
+
+    _STATUS_MAP = {
+        "PRESENT": FieldStatus.PRESENT,
+        "NOT_FOUND": FieldStatus.NOT_FOUND,
+        "NULL_VALUE": FieldStatus.NULL_VALUE,
+        "OUTSIDE_MAX_AGE": FieldStatus.OUTSIDE_MAX_AGE,
+    }
+
+    def get_online_features(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
+    ) -> OnlineResponse:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+
+        if isinstance(entity_rows, list):
+            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            for entity_row in entity_rows:
+                for key, value in entity_row.items():
+                    columnar[key].append(value)
+            entity_rows = columnar
+
+        entities: Dict[str, List[Any]] = {}
+        for k, vals in entity_rows.items():
+            iterable = vals.val if isinstance(vals, RepeatedValue) else vals
+            entities[k] = [_json_safe(v) for v in iterable]
+
+        req_body: Dict[str, Any] = {
+            "entities": entities,
+            "full_feature_names": full_feature_names,
+            "include_feature_view_version_metadata": include_feature_view_version_metadata,
+        }
+
+        if isinstance(features, FeatureService):
+            req_body["feature_service"] = features.name
+        else:
+            req_body["features"] = features
+
+        response = get_remote_online_features(config=config, req_body=req_body)
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Failed to get online features: {response.status_code} {response.text}"
+            )
+
+        resp_json = response.json()
+        return self._build_online_response_from_json(resp_json)
+
+    def _build_online_response_from_json(
+        self, resp_json: Dict[str, Any]
+    ) -> OnlineResponse:
+        proto = GetOnlineFeaturesResponse()
+
+        metadata = GetOnlineFeaturesResponseMetadata()
+        feature_names = resp_json.get("metadata", {}).get("feature_names", [])
+        metadata.feature_names.val.extend(feature_names)
+        proto.metadata.CopyFrom(metadata)
+
+        for result in resp_json.get("results", []):
+            fv = GetOnlineFeaturesResponse.FeatureVector()
+            for val in result.get("values", []):
+                if val is None:
+                    fv.values.append(ValueProto())
+                else:
+                    protos = python_values_to_proto_values([val])
+                    fv.values.append(protos[0])
+            for status_str in result.get("statuses", []):
+                fv.statuses.append(
+                    self._STATUS_MAP.get(status_str, FieldStatus.INVALID)
+                )
+            proto.results.append(fv)
+
+        proto.status = True
+        return OnlineResponse(proto)
 
     def online_write_batch(
         self,
